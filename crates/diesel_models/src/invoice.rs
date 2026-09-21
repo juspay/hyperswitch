@@ -24,6 +24,7 @@ pub struct InvoiceNew {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(
@@ -51,6 +52,7 @@ pub struct Invoice {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Deserialize)]
@@ -63,6 +65,7 @@ pub struct InvoiceUpdate {
     pub payment_intent_id: Option<common_utils::id_type::PaymentId>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<String>,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
 }
 
 impl InvoiceNew {
@@ -81,6 +84,7 @@ impl InvoiceNew {
         provider_name: Connector,
         metadata: Option<SecretSerdeValue>,
         connector_invoice_id: Option<common_utils::id_type::InvoiceId>,
+        billing_period_end: Option<time::PrimitiveDateTime>,
     ) -> Self {
         let id = common_utils::id_type::InvoiceId::generate();
         let now = common_utils::date_time::now();
@@ -101,6 +105,7 @@ impl InvoiceNew {
             created_at: now,
             modified_at: now,
             connector_invoice_id,
+            billing_period_end,
         }
     }
 }
@@ -122,6 +127,7 @@ impl InvoiceUpdate {
             payment_intent_id,
             amount,
             currency,
+            billing_period_end: None,
         }
     }
 }

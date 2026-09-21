@@ -25,5 +25,16 @@ pub struct SubscriptionMitPaymentData {
     pub status: Option<InvoiceStatus>,
     pub customer_id: common_utils::id_type::CustomerId,
     pub subscription_id: common_utils::id_type::SubscriptionId,
+    pub hyperswitch_subscription_id: Option<common_utils::id_type::SubscriptionId>,
+    pub hyperswitch_subscription_binding: Option<String>,
     pub first_invoice: bool,
+    pub billing_period_end: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubscriptionWebhookData {
+    pub connector_subscription_id: common_utils::id_type::SubscriptionId,
+    pub hyperswitch_subscription_id: Option<common_utils::id_type::SubscriptionId>,
+    pub hyperswitch_subscription_binding: Option<String>,
+    pub status: common_enums::SubscriptionStatus,
 }

@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthenticationData, BrowserInformation, ChargeRefundsOptions, DestinationChargeRefund,
         DirectChargeRefund, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, ResponseId, SplitRefundsRequest,
+        PaymentsIncrementalAuthorizationData, PaymentsSyncData, ResponseId, SplitRefundsRequest,
     },
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData,
@@ -48,6 +48,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 use url::Url;
 
+use super::{STRIPE_CHECKOUT_SESSION_ID_PREFIX, STRIPE_SUBSCRIPTION_ID_PREFIX};
 use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
     utils::{
@@ -55,6 +56,740 @@ use crate::{
         PaymentMethodTokenizationRequestData, RouterData as OtherRouterData,
     },
 };
+
+pub fn get_hosted_checkout_config(
+    item: &PaymentsAuthorizeRouterData,
+) -> Option<&payments::StripeHostedCheckoutConfig> {
+    item.request
+        .connector_intent_metadata
+        .as_ref()?
+        .stripe
+        .as_ref()?
+        .hosted_checkout
+        .as_ref()
+}
+
+pub fn is_hosted_checkout(item: &PaymentsAuthorizeRouterData) -> bool {
+    get_hosted_checkout_config(item).is_some()
+}
+
+fn get_stripe_checkout_urls(return_url: &str) -> CustomResult<(String, String), ConnectorError> {
+    let mut success_url =
+        Url::parse(return_url).change_context(ConnectorError::InvalidDataFormat {
+            field_name: "return_url".into(),
+        })?;
+    set_stripe_checkout_query_parameter(
+        &mut success_url,
+        "checkout_session_id",
+        "{CHECKOUT_SESSION_ID}",
+    );
+    let mut cancel_url =
+        Url::parse(return_url).change_context(ConnectorError::InvalidDataFormat {
+            field_name: "return_url".into(),
+        })?;
+    set_stripe_checkout_query_parameter(&mut cancel_url, "checkout_cancelled", "true");
+    Ok((
+        success_url
+            .to_string()
+            .replace("%7BCHECKOUT_SESSION_ID%7D", "{CHECKOUT_SESSION_ID}"),
+        cancel_url.to_string(),
+    ))
+}
+
+fn set_stripe_checkout_query_parameter(url: &mut Url, key: &str, value: &str) {
+    // 重定向标记由集成层保留，先移除商户传入值，避免重复查询参数影响支付结果判断。
+    let retained_pairs = url
+        .query_pairs()
+        .filter(|(name, _)| name != "checkout_session_id" && name != "checkout_cancelled")
+        .map(|(name, value)| (name.into_owned(), value.into_owned()))
+        .collect::<Vec<_>>();
+    url.set_query(None);
+    url.query_pairs_mut()
+        .extend_pairs(retained_pairs)
+        .append_pair(key, value);
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeCheckoutSessionRequest {
+    pub mode: &'static str,
+    pub ui_mode: &'static str,
+    #[serde(rename = "payment_method_types[0]")]
+    pub payment_method_type: &'static str,
+    pub success_url: String,
+    pub cancel_url: String,
+    pub client_reference_id: String,
+    pub allow_promotion_codes: bool,
+    #[serde(flatten)]
+    pub fields: HashMap<String, String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCheckoutSessionStatus {
+    Open,
+    Complete,
+    Expired,
+    Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCheckoutPaymentStatus {
+    Paid,
+    Unpaid,
+    NoPaymentRequired,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutTotalDetails {
+    pub amount_discount: Option<MinorUnit>,
+    pub amount_shipping: Option<MinorUnit>,
+    pub amount_tax: Option<MinorUnit>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum StripeCheckoutExpandableId {
+    Id(String),
+    Object { id: String },
+}
+
+impl StripeCheckoutExpandableId {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::Id(id) | Self::Object { id } => id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutDiscount {
+    pub coupon: Option<StripeCheckoutExpandableId>,
+    pub promotion_code: Option<StripeCheckoutExpandableId>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutSessionResponse {
+    pub id: String,
+    pub url: Option<Url>,
+    pub status: Option<StripeCheckoutSessionStatus>,
+    pub payment_status: Option<StripeCheckoutPaymentStatus>,
+    pub payment_intent: Option<StripeCheckoutPaymentIntent>,
+    pub subscription: Option<StripeCheckoutSubscription>,
+    pub amount_subtotal: Option<MinorUnit>,
+    pub amount_total: Option<MinorUnit>,
+    pub currency: Option<String>,
+    pub total_details: Option<StripeCheckoutTotalDetails>,
+    pub discounts: Option<Vec<StripeCheckoutDiscount>>,
+    pub line_items: Option<StripeCheckoutLineItems>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutLineItems {
+    pub data: Vec<StripeCheckoutLineItem>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutLineItem {
+    pub price: Option<StripeCheckoutExpandableId>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum StripeCheckoutSubscription {
+    Id(String),
+    Object {
+        id: String,
+        latest_invoice: Option<StripeCheckoutInvoice>,
+    },
+}
+
+impl StripeCheckoutSubscription {
+    fn id(&self) -> &str {
+        match self {
+            Self::Id(id) | Self::Object { id, .. } => id,
+        }
+    }
+
+    fn payment_intent(&self) -> Option<&StripeCheckoutPaymentIntent> {
+        match self {
+            Self::Id(_) => None,
+            Self::Object { latest_invoice, .. } => latest_invoice
+                .as_ref()
+                .and_then(|invoice| invoice.payment_intent.as_ref()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCheckoutInvoice {
+    pub payment_intent: Option<StripeCheckoutPaymentIntent>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum StripeCheckoutPaymentIntent {
+    Id(String),
+    Object {
+        id: String,
+        payment_method: Option<String>,
+    },
+}
+
+impl StripeCheckoutPaymentIntent {
+    fn id(&self) -> &str {
+        match self {
+            Self::Id(id) | Self::Object { id, .. } => id,
+        }
+    }
+
+    fn payment_method(&self) -> Option<&str> {
+        match self {
+            Self::Id(_) => None,
+            Self::Object { payment_method, .. } => payment_method.as_deref(),
+        }
+    }
+}
+
+fn get_stripe_checkout_payment_intent(
+    response: &StripeCheckoutSessionResponse,
+) -> Option<&StripeCheckoutPaymentIntent> {
+    response.payment_intent.as_ref().or_else(|| {
+        response
+            .subscription
+            .as_ref()
+            .and_then(StripeCheckoutSubscription::payment_intent)
+    })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StripeResponseObject {
+    pub object: WebhookEventObjectType,
+}
+
+fn validate_stripe_checkout_ids(
+    session_id: &str,
+    payment_intent: Option<&str>,
+) -> CustomResult<(), ConnectorError> {
+    if !session_id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX) {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.id".into(),
+        }
+        .into());
+    }
+    if payment_intent.is_some_and(|id| !id.starts_with("pi_")) {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.payment_intent".into(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn get_stripe_checkout_status(
+    status: StripeCheckoutSessionStatus,
+    payment_status: StripeCheckoutPaymentStatus,
+    current_status: AttemptStatus,
+) -> AttemptStatus {
+    match (status, payment_status) {
+        (StripeCheckoutSessionStatus::Open, StripeCheckoutPaymentStatus::Unpaid) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (StripeCheckoutSessionStatus::Complete, StripeCheckoutPaymentStatus::Paid)
+        | (StripeCheckoutSessionStatus::Complete, StripeCheckoutPaymentStatus::NoPaymentRequired) => {
+            AttemptStatus::Charged
+        }
+        (StripeCheckoutSessionStatus::Expired, _) => AttemptStatus::Voided,
+        (StripeCheckoutSessionStatus::Failed, _) => AttemptStatus::Failure,
+        _ => current_status,
+    }
+}
+
+fn get_stripe_checkout_resource_id(
+    session_id: &str,
+    payment_intent: Option<&str>,
+    status: StripeCheckoutSessionStatus,
+    payment_status: StripeCheckoutPaymentStatus,
+) -> CustomResult<String, ConnectorError> {
+    if matches!(
+        (status, payment_status),
+        (
+            StripeCheckoutSessionStatus::Complete,
+            StripeCheckoutPaymentStatus::Paid
+        )
+    ) {
+        return payment_intent.map(str::to_string).ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "response.payment_intent".into(),
+            }
+            .into(),
+        );
+    }
+    Ok(session_id.to_string())
+}
+
+fn validate_stripe_checkout_amount_total(
+    payment_status: StripeCheckoutPaymentStatus,
+    amount_total: MinorUnit,
+) -> CustomResult<(), ConnectorError> {
+    if payment_status == StripeCheckoutPaymentStatus::NoPaymentRequired
+        && amount_total != MinorUnit::zero()
+    {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.amount_total".into(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_stripe_checkout_subscription_price(
+    amount_subtotal: MinorUnit,
+    currency: &str,
+    expected_amount: MinorUnit,
+    expected_currency: api_enums::Currency,
+) -> CustomResult<(), ConnectorError> {
+    if amount_subtotal != expected_amount
+        || !currency.eq_ignore_ascii_case(&expected_currency.to_string())
+    {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.subscription_price".into(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_stripe_checkout_subscription_price_id(
+    response: &StripeCheckoutSessionResponse,
+    expected_price_id: &str,
+) -> CustomResult<(), ConnectorError> {
+    let actual_price_id = response
+        .line_items
+        .as_ref()
+        .and_then(|line_items| line_items.data.first())
+        .and_then(|line_item| line_item.price.as_ref())
+        .map(StripeCheckoutExpandableId::as_str)
+        .ok_or(ConnectorError::MissingRequiredField {
+            field_name: "response.line_items.data[0].price".into(),
+        })?;
+    if actual_price_id != expected_price_id {
+        return Err(ConnectorError::InvalidDataFormat {
+            field_name: "response.line_items.data[0].price".into(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+trait StripeCheckoutExpectedPrice {
+    fn expected_price(&self) -> Option<(MinorUnit, api_enums::Currency)>;
+    fn expected_subscription_price_id(&self) -> Option<&str>;
+}
+
+impl StripeCheckoutExpectedPrice for PaymentsAuthorizeData {
+    fn expected_price(&self) -> Option<(MinorUnit, api_enums::Currency)> {
+        Some((self.minor_amount, self.currency))
+    }
+
+    fn expected_subscription_price_id(&self) -> Option<&str> {
+        self.connector_intent_metadata
+            .as_ref()?
+            .stripe
+            .as_ref()?
+            .hosted_checkout
+            .as_ref()?
+            .subscription_price_id
+            .as_deref()
+    }
+}
+
+impl StripeCheckoutExpectedPrice for PaymentsSyncData {
+    fn expected_price(&self) -> Option<(MinorUnit, api_enums::Currency)> {
+        Some((self.amount, self.currency))
+    }
+
+    fn expected_subscription_price_id(&self) -> Option<&str> {
+        self.connector_meta
+            .as_ref()?
+            .get("subscription_price_id")?
+            .as_str()
+    }
+}
+
+impl StripeCheckoutExpectedPrice for PaymentsCancelData {
+    fn expected_price(&self) -> Option<(MinorUnit, api_enums::Currency)> {
+        // 金额已在创建和同步阶段校验，取消操作只需校验 Stripe Session 的终态。
+        None
+    }
+
+    fn expected_subscription_price_id(&self) -> Option<&str> {
+        None
+    }
+}
+
+impl TryFrom<&PaymentsAuthorizeRouterData> for StripeCheckoutSessionRequest {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let config =
+            get_hosted_checkout_config(item).ok_or(ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata.stripe.hosted_checkout".into(),
+            })?;
+        if item.payment_method != api_enums::PaymentMethod::Card
+            || item.request.payment_experience != Some(enums::PaymentExperience::RedirectToUrl)
+            || !matches!(
+                item.request.payment_method_data,
+                PaymentMethodData::CardToken(_)
+            )
+            || !matches!(
+                item.request.capture_method,
+                None | Some(enums::CaptureMethod::Automatic)
+            )
+            || item.request.mandate_id.is_some()
+            || item.request.off_session.is_some()
+            || item.request.split_payments.is_some()
+            || item.request.request_incremental_authorization
+        {
+            return Err(ConnectorError::NotSupported {
+                message: "Stripe hosted checkout only supports automatic on-session card payments"
+                    .to_string(),
+                connector: "stripe",
+            }
+            .into());
+        }
+
+        let return_url =
+            item.request
+                .router_return_url
+                .clone()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "return_url".into(),
+                })?;
+        let (success_url, cancel_url) = get_stripe_checkout_urls(&return_url)?;
+
+        let subscription_price_id = config.subscription_price_id.as_ref();
+        let mut fields = HashMap::from([(
+            "metadata[order_id]".to_string(),
+            item.connector_request_reference_id.clone(),
+        )]);
+
+        if subscription_price_id.is_some() {
+            let subscription_reference_id =
+                config.subscription_reference_id.as_ref().ok_or(
+                    ConnectorError::MissingRequiredField {
+                        field_name:
+                            "connector_metadata.stripe.hosted_checkout.subscription_reference_id"
+                                .into(),
+                    },
+                )?;
+            let subscription_binding = config.subscription_binding.as_ref().ok_or(
+                ConnectorError::MissingRequiredField {
+                    field_name: "connector_metadata.stripe.hosted_checkout.subscription_binding"
+                        .into(),
+                },
+            )?;
+            if subscription_binding.len() != 64
+                || !subscription_binding
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit())
+            {
+                return Err(ConnectorError::InvalidDataFormat {
+                    field_name: "connector_metadata.stripe.hosted_checkout.subscription_binding"
+                        .into(),
+                }
+                .into());
+            }
+            fields.insert(
+                "subscription_data[metadata][order_id]".to_string(),
+                item.connector_request_reference_id.clone(),
+            );
+            fields.insert(
+                "subscription_data[metadata][hyperswitch_subscription_id]".to_string(),
+                subscription_reference_id.get_string_repr().to_string(),
+            );
+            fields.insert(
+                "subscription_data[metadata][hyperswitch_subscription_binding]".to_string(),
+                subscription_binding.to_ascii_lowercase(),
+            );
+            fields.insert("expand[0]".to_string(), "line_items.data.price".to_string());
+            if let Some(customer) = item.connector_customer.as_ref() {
+                fields.insert("customer".to_string(), customer.clone());
+            }
+        } else {
+            fields.insert(
+                "payment_intent_data[metadata][order_id]".to_string(),
+                item.connector_request_reference_id.clone(),
+            );
+            fields.insert(
+                "payment_intent_data[capture_method]".to_string(),
+                "automatic".to_string(),
+            );
+            if let Some(future_usage) = item.request.setup_future_usage {
+                fields.insert(
+                    "payment_intent_data[setup_future_usage]".to_string(),
+                    match future_usage {
+                        enums::FutureUsage::OffSession => "off_session",
+                        enums::FutureUsage::OnSession => "on_session",
+                    }
+                    .to_string(),
+                );
+                if let Some(customer) = item.connector_customer.as_ref() {
+                    fields.insert("customer".to_string(), customer.clone());
+                } else {
+                    fields.insert("customer_creation".to_string(), "always".to_string());
+                }
+            }
+        }
+
+        let mut line_total = 0_i64;
+        if let Some(price_id) = subscription_price_id {
+            if price_id.is_empty() {
+                return Err(ConnectorError::InvalidDataFormat {
+                    field_name: "connector_metadata.stripe.hosted_checkout.subscription_price_id"
+                        .into(),
+                }
+                .into());
+            }
+            line_total = item.request.minor_amount.get_amount_as_i64();
+            fields.insert("line_items[0][price]".to_string(), price_id.clone());
+            fields.insert("line_items[0][quantity]".to_string(), "1".to_string());
+        } else if let Some(order_details) = &item.request.order_details {
+            for (index, line) in order_details.iter().enumerate() {
+                if line.quantity == 0 || line.amount.get_amount_as_i64() <= 0 {
+                    return Err(ConnectorError::InvalidDataFormat {
+                        field_name: "order_details".into(),
+                    }
+                    .into());
+                }
+                line_total = line_total
+                    .checked_add(
+                        line.amount
+                            .get_amount_as_i64()
+                            .checked_mul(i64::from(line.quantity))
+                            .ok_or(ConnectorError::InvalidDataFormat {
+                                field_name: "order_details".into(),
+                            })?,
+                    )
+                    .ok_or(ConnectorError::InvalidDataFormat {
+                        field_name: "order_details".into(),
+                    })?;
+                fields.insert(
+                    format!("line_items[{index}][price_data][unit_amount]"),
+                    line.amount.get_amount_as_i64().to_string(),
+                );
+                fields.insert(
+                    format!("line_items[{index}][price_data][product_data][name]"),
+                    line.product_name.clone(),
+                );
+                fields.insert(
+                    format!("line_items[{index}][quantity]"),
+                    line.quantity.to_string(),
+                );
+            }
+        } else {
+            line_total = item.request.minor_amount.get_amount_as_i64();
+            if line_total <= 0 {
+                return Err(ConnectorError::InvalidDataFormat {
+                    field_name: "amount".into(),
+                }
+                .into());
+            }
+            fields.insert(
+                "line_items[0][price_data][unit_amount]".to_string(),
+                line_total.to_string(),
+            );
+            fields.insert(
+                "line_items[0][price_data][product_data][name]".to_string(),
+                item.description.clone().unwrap_or_else(|| {
+                    format!("Hyperswitch order {}", item.connector_request_reference_id)
+                }),
+            );
+            fields.insert("line_items[0][quantity]".to_string(), "1".to_string());
+        }
+        if subscription_price_id.is_none() {
+            for index in 0..item.request.order_details.as_ref().map_or(1, Vec::len) {
+                fields.insert(
+                    format!("line_items[{index}][price_data][currency]"),
+                    item.request.currency.to_string().to_lowercase(),
+                );
+            }
+        }
+        if line_total != item.request.minor_amount.get_amount_as_i64() {
+            return Err(ConnectorError::InvalidDataFormat {
+                field_name: "order_details".into(),
+            }
+            .into());
+        }
+
+        Ok(Self {
+            mode: if subscription_price_id.is_some() {
+                "subscription"
+            } else {
+                "payment"
+            },
+            ui_mode: "hosted",
+            payment_method_type: "card",
+            success_url,
+            cancel_url,
+            client_reference_id: item.connector_request_reference_id.clone(),
+            allow_promotion_codes: config.allow_promotion_codes,
+            fields,
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, StripeCheckoutSessionResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+where
+    T: StripeCheckoutExpectedPrice,
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<F, StripeCheckoutSessionResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let payment_intent = get_stripe_checkout_payment_intent(&response);
+        validate_stripe_checkout_ids(
+            &response.id,
+            payment_intent.map(StripeCheckoutPaymentIntent::id),
+        )?;
+        if response.subscription.as_ref().is_some_and(|subscription| {
+            !subscription.id().starts_with(STRIPE_SUBSCRIPTION_ID_PREFIX)
+        }) {
+            return Err(ConnectorError::InvalidDataFormat {
+                field_name: "response.subscription".into(),
+            }
+            .into());
+        }
+        let session_status = response
+            .status
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "response.status".into(),
+            })?;
+        let payment_status =
+            response
+                .payment_status
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "response.payment_status".into(),
+                })?;
+        let amount_subtotal =
+            response
+                .amount_subtotal
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "response.amount_subtotal".into(),
+                })?;
+        let amount_total = response
+            .amount_total
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "response.amount_total".into(),
+            })?;
+        validate_stripe_checkout_amount_total(payment_status, amount_total)?;
+        if let (true, Some((expected_amount, expected_currency))) = (
+            response.subscription.is_some(),
+            item.data.request.expected_price(),
+        ) {
+            let currency =
+                response
+                    .currency
+                    .as_deref()
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "response.currency".into(),
+                    })?;
+            validate_stripe_checkout_subscription_price(
+                amount_subtotal,
+                currency,
+                expected_amount,
+                expected_currency,
+            )?;
+        }
+        if let Some(expected_price_id) = item.data.request.expected_subscription_price_id() {
+            validate_stripe_checkout_subscription_price_id(&response, expected_price_id)?;
+        }
+        let resource_id = if response.subscription.is_some() && payment_intent.is_none() {
+            // Stripe 的 `checkout.session.completed` 订阅 webhook 可能只有 `sub_*`，
+            // 且缺少首张账单的 PaymentIntent，因此保留 `cs_*` 供后续同步。
+            response.id.clone()
+        } else {
+            get_stripe_checkout_resource_id(
+                &response.id,
+                payment_intent.map(StripeCheckoutPaymentIntent::id),
+                session_status,
+                payment_status,
+            )?
+        };
+        let status = get_stripe_checkout_status(session_status, payment_status, item.data.status);
+        let redirection_data = match status {
+            AttemptStatus::AuthenticationPending => {
+                let url = response
+                    .url
+                    .clone()
+                    .filter(|url| url.scheme() == "https")
+                    .ok_or(ConnectorError::InvalidDataFormat {
+                        field_name: "response.url".into(),
+                    })?;
+                Some(RedirectForm::from((url, Method::Get)))
+            }
+            _ => response
+                .url
+                .clone()
+                .filter(|url| url.scheme() == "https")
+                .map(|url| RedirectForm::from((url, Method::Get))),
+        };
+        let connector_metadata = Some(serde_json::json!({
+            "stripe_checkout_session_id": response.id,
+            "stripe_subscription_id": response.subscription.as_ref().map(StripeCheckoutSubscription::id),
+            "amount_subtotal": amount_subtotal,
+            "amount_total": amount_total,
+            "amount_discount": response.total_details.as_ref().and_then(|details| details.amount_discount).unwrap_or(MinorUnit::zero()),
+            "coupon_ids": response.discounts.iter().flatten().filter_map(|discount| discount.coupon.as_ref().map(StripeCheckoutExpandableId::as_str)).collect::<Vec<_>>(),
+            "promotion_code_ids": response.discounts.iter().flatten().filter_map(|discount| discount.promotion_code.as_ref().map(StripeCheckoutExpandableId::as_str)).collect::<Vec<_>>(),
+            "subscription_price_id": item.data.request.expected_subscription_price_id(),
+        }));
+        let mandate_reference = response
+            .subscription
+            .as_ref()
+            .and_then(StripeCheckoutSubscription::payment_intent)
+            .or(response.payment_intent.as_ref())
+            .and_then(StripeCheckoutPaymentIntent::payment_method)
+            .map(|payment_method_id| MandateReference {
+                connector_mandate_id: Some(payment_method_id.to_string()),
+                payment_method_id: Some(payment_method_id.to_string()),
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            });
+
+        Ok(Self {
+            status,
+            amount_captured: (status == AttemptStatus::Charged)
+                .then_some(amount_total.get_amount_as_i64()),
+            minor_amount_captured: (status == AttemptStatus::Charged).then_some(amount_total),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                payment_account_reference: None,
+                // 订阅 Checkout 完成后暴露 Stripe 的 `sub_*`，让编排层绑定原生订阅而非重复创建。
+                connector_response_reference_id: Some(
+                    response
+                        .subscription
+                        .as_ref()
+                        .map(StripeCheckoutSubscription::id)
+                        .unwrap_or(&response.id)
+                        .to_string(),
+                ),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
 
 #[cfg(feature = "payouts")]
 pub mod connect;
@@ -1184,6 +1919,9 @@ impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
             | WebhookEventStatus::Canceled
             | WebhookEventStatus::Chargeable
             | WebhookEventStatus::Failed
+            | WebhookEventStatus::Open
+            | WebhookEventStatus::Complete
+            | WebhookEventStatus::Expired
             | WebhookEventStatus::Unknown => Self::EventNotSupported,
         }
     }
@@ -2365,13 +3103,23 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
             {
-                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => (
-                    None,
-                    connector_mandate_ids.get_connector_mandate_id(),
-                    StripeBillingAddress::default(),
-                    get_payment_method_type_for_saved_payment_method_payment(item)?,
-                    None,
-                ),
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    // 处理器令牌也可表示首笔客户在场支付。透传 `setup_future_usage`，
+                    // 让 Stripe 将 PaymentMethod 绑定到连接器客户，供后续订阅 MIT 使用。
+                    // 实际 MIT 请求不传该字段，保持现有离场支付行为不变。
+                    let setup_future_usage = validate_and_get_setup_future_usage(
+                        item.request.setup_future_usage,
+                        item.request.payment_method_type,
+                    )?;
+
+                    (
+                        None,
+                        connector_mandate_ids.get_connector_mandate_id(),
+                        StripeBillingAddress::default(),
+                        get_payment_method_type_for_saved_payment_method_payment(item)?,
+                        setup_future_usage,
+                    )
+                }
                 Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     payment_method_options = Some(StripePaymentMethodOptions::Card {
                         mandate_options: None,
@@ -5049,6 +5797,7 @@ pub struct WebhookStatusData {
 #[derive(Debug, Deserialize)]
 pub struct WebhookStatusObjectData {
     pub status: Option<WebhookEventStatus>,
+    pub payment_status: Option<StripeCheckoutPaymentStatus>,
     pub payment_method_details: Option<WebhookPaymentMethodDetails>,
 }
 
@@ -5072,6 +5821,8 @@ pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
     pub amount: Option<MinorUnit>,
+    pub amount_subtotal: Option<MinorUnit>,
+    pub amount_total: Option<MinorUnit>,
     #[serde(default, deserialize_with = "convert_uppercase")]
     pub currency: enums::Currency,
     pub payment_intent: Option<String>,
@@ -5081,6 +5832,11 @@ pub struct WebhookEventObjectData {
     pub created: PrimitiveDateTime,
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
+    pub payment_status: Option<StripeCheckoutPaymentStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_details: Option<StripeCheckoutTotalDetails>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discounts: Option<Vec<StripeCheckoutDiscount>>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
 }
@@ -5093,12 +5849,22 @@ pub enum WebhookEventObjectType {
     Charge,
     Source,
     Refund,
+    #[serde(rename = "checkout.session")]
+    CheckoutSession,
     #[serde(other)]
     Unknown,
 }
 
 #[derive(Debug, Deserialize)]
 pub enum WebhookEventType {
+    #[serde(rename = "checkout.session.completed")]
+    CheckoutSessionCompleted,
+    #[serde(rename = "checkout.session.async_payment_succeeded")]
+    CheckoutSessionAsyncPaymentSucceeded,
+    #[serde(rename = "checkout.session.async_payment_failed")]
+    CheckoutSessionAsyncPaymentFailed,
+    #[serde(rename = "checkout.session.expired")]
+    CheckoutSessionExpired,
     #[serde(rename = "payment_intent.payment_failed")]
     PaymentIntentFailed,
     #[serde(rename = "payment_intent.succeeded")]
@@ -5169,6 +5935,9 @@ pub enum WebhookEventStatus {
     Canceled,
     Chargeable,
     Failed,
+    Open,
+    Complete,
+    Expired,
     #[serde(other)]
     Unknown,
 }
@@ -5626,6 +6395,570 @@ where
         )
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod stripe_checkout_tests {
+    use std::marker::PhantomData;
+
+    use common_enums::{AttemptStatus, Currency, PaymentMethod};
+    use common_utils::{id_type, types::MinorUnit};
+    use hyperswitch_domain_models::{
+        payment_address::PaymentAddress,
+        router_data::{ConnectorAuthType, RouterData},
+        router_data_v2::{flow_common_types::PaymentFlowData, RouterDataV2},
+        router_flow_types::PSync,
+        router_request_types::{PaymentsSyncData, ResponseId},
+        router_response_types::{PaymentsResponseData, RedirectForm},
+    };
+    use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+
+    use crate::connectors::stripe::STRIPE_CHECKOUT_SESSION_ID_PREFIX;
+    use crate::types::ResponseRouterData;
+
+    use super::{
+        get_stripe_checkout_payment_intent, get_stripe_checkout_resource_id,
+        get_stripe_checkout_status, get_stripe_checkout_urls,
+        validate_stripe_checkout_amount_total, validate_stripe_checkout_ids,
+        validate_stripe_checkout_subscription_price,
+        validate_stripe_checkout_subscription_price_id, StripeCheckoutPaymentIntent,
+        StripeCheckoutPaymentStatus, StripeCheckoutSessionResponse, StripeCheckoutSessionStatus,
+        StripeResponseObject, WebhookEvent, WebhookEventObjectType, WebhookEventType,
+    };
+
+    fn checkout_sync_router_data(
+        amount: MinorUnit,
+        currency: Currency,
+        subscription_price_id: Option<&str>,
+    ) -> RouterData<PSync, PaymentsSyncData, PaymentsResponseData> {
+        let request = PaymentsSyncData {
+            connector_transaction_id: ResponseId::ConnectorTransactionId(
+                "cs_test_checkout".to_string(),
+            ),
+            connector_meta: subscription_price_id
+                .map(|price_id| serde_json::json!({"subscription_price_id": price_id})),
+            currency,
+            amount,
+            ..Default::default()
+        };
+        let data = RouterDataV2 {
+            flow: PhantomData,
+            tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            resource_common_data: PaymentFlowData {
+                merchant_id: id_type::MerchantId::get_irrelevant_merchant_id(),
+                customer_id: None,
+                connector_customer: None,
+                connector: "stripe".to_string(),
+                payment_id: "pay_checkout".to_string(),
+                attempt_id: "attempt_checkout".to_string(),
+                status: AttemptStatus::Started,
+                payment_method: PaymentMethod::Card,
+                description: None,
+                address: PaymentAddress::default(),
+                auth_type: Default::default(),
+                connector_meta_data: None,
+                amount_captured: None,
+                minor_amount_captured: None,
+                access_token: None,
+                session_token: None,
+                reference_id: None,
+                payment_method_token: None,
+                recurring_mandate_payment_data: None,
+                preprocessing_id: None,
+                payment_method_balance: None,
+                connector_api_version: None,
+                connector_request_reference_id: "order_checkout".to_string(),
+                test_mode: Some(true),
+                connector_http_status_code: None,
+                external_latency: None,
+                apple_pay_flow: None,
+                connector_response: None,
+                payment_method_status: None,
+            },
+            connector_auth_type: ConnectorAuthType::default(),
+            request,
+            response: Err(Default::default()),
+        };
+
+        PaymentFlowData::to_old_router_data(data).unwrap()
+    }
+
+    fn transform_checkout_response(
+        response: StripeCheckoutSessionResponse,
+        data: RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Result<
+        RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>,
+    > {
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data,
+            http_code: 200,
+        })
+    }
+
+    #[test]
+    fn checkout_open_response_maps_amount_status_identifier_and_redirect() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_checkout",
+            "url": "https://checkout.stripe.com/c/pay/session_123?prefilled_email=test%40example.com",
+            "status": "open",
+            "payment_status": "unpaid",
+            "payment_intent": null,
+            "amount_subtotal": 500,
+            "amount_total": 500,
+            "currency": "usd"
+        }))
+        .unwrap();
+
+        let transformed = transform_checkout_response(
+            response,
+            checkout_sync_router_data(MinorUnit::new(500), Currency::USD, None),
+        )
+        .unwrap();
+
+        assert_eq!(transformed.status, AttemptStatus::AuthenticationPending);
+        assert_eq!(transformed.minor_amount_captured, None);
+        let PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data,
+            connector_response_reference_id,
+            ..
+        } = transformed.response.unwrap()
+        else {
+            panic!("Stripe Checkout must return a transaction response");
+        };
+        assert_eq!(
+            resource_id.get_connector_transaction_id().unwrap(),
+            "cs_test_checkout"
+        );
+        assert_eq!(
+            connector_response_reference_id.as_deref(),
+            Some("cs_test_checkout")
+        );
+        assert!(matches!(
+            *redirection_data,
+            Some(RedirectForm::Form {
+                endpoint,
+                method: common_utils::request::Method::Get,
+                ..
+            }) if endpoint == "https://checkout.stripe.com/c/pay/session_123"
+        ));
+    }
+
+    #[test]
+    fn checkout_paid_subscription_maps_captured_amount_and_connector_identifiers() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_checkout",
+            "status": "complete",
+            "payment_status": "paid",
+            "subscription": {
+                "id": "sub_test_native",
+                "latest_invoice": {
+                    "payment_intent": {
+                        "id": "pi_test_subscription",
+                        "payment_method": "pm_test_subscription"
+                    }
+                }
+            },
+            "amount_subtotal": 500,
+            "amount_total": 500,
+            "currency": "usd",
+            "line_items": {"data": [{"price": "price_monthly"}]}
+        }))
+        .unwrap();
+
+        let transformed = transform_checkout_response(
+            response,
+            checkout_sync_router_data(MinorUnit::new(500), Currency::USD, Some("price_monthly")),
+        )
+        .unwrap();
+
+        assert_eq!(transformed.status, AttemptStatus::Charged);
+        assert_eq!(transformed.amount_captured, Some(500));
+        assert_eq!(transformed.minor_amount_captured, Some(MinorUnit::new(500)));
+        let PaymentsResponseData::TransactionResponse {
+            resource_id,
+            connector_response_reference_id,
+            mandate_reference,
+            ..
+        } = transformed.response.unwrap()
+        else {
+            panic!("Stripe Checkout must return a transaction response");
+        };
+        assert_eq!(
+            resource_id.get_connector_transaction_id().unwrap(),
+            "pi_test_subscription"
+        );
+        assert_eq!(
+            connector_response_reference_id.as_deref(),
+            Some("sub_test_native")
+        );
+        assert_eq!(
+            mandate_reference
+                .as_ref()
+                .as_ref()
+                .and_then(|reference| reference.payment_method_id.as_deref()),
+            Some("pm_test_subscription")
+        );
+    }
+
+    #[test]
+    fn checkout_subscription_response_rejects_connector_amount_mismatch() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_checkout",
+            "status": "complete",
+            "payment_status": "paid",
+            "subscription": "sub_test_native",
+            "amount_subtotal": 600,
+            "amount_total": 600,
+            "currency": "usd",
+            "line_items": {"data": [{"price": "price_monthly"}]}
+        }))
+        .unwrap();
+
+        let result = transform_checkout_response(
+            response,
+            checkout_sync_router_data(MinorUnit::new(500), Currency::USD, Some("price_monthly")),
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn stripe_checkout_urls_preserve_query_and_placeholder() {
+        let (success_url, cancel_url) =
+            get_stripe_checkout_urls(
+                "https://merchant.example/return?order=123&checkout_session_id=forged&checkout_cancelled=false",
+            )
+            .unwrap();
+
+        assert!(success_url.contains("order=123&checkout_session_id={CHECKOUT_SESSION_ID}"));
+        assert!(cancel_url.contains("order=123&checkout_cancelled=true"));
+        assert!(!success_url.contains("forged"));
+        assert!(!success_url.contains("checkout_cancelled"));
+        assert!(!cancel_url.contains("checkout_session_id"));
+    }
+
+    #[test]
+    fn no_payment_required_only_accepts_zero_total() {
+        assert!(validate_stripe_checkout_amount_total(
+            StripeCheckoutPaymentStatus::NoPaymentRequired,
+            MinorUnit::zero(),
+        )
+        .is_ok());
+        assert!(validate_stripe_checkout_amount_total(
+            StripeCheckoutPaymentStatus::NoPaymentRequired,
+            MinorUnit::new(1),
+        )
+        .is_err());
+        assert!(validate_stripe_checkout_amount_total(
+            StripeCheckoutPaymentStatus::Paid,
+            MinorUnit::new(500),
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn subscription_checkout_rejects_price_amount_or_currency_mismatch() {
+        assert!(validate_stripe_checkout_subscription_price(
+            MinorUnit::new(500),
+            "usd",
+            MinorUnit::new(500),
+            Currency::USD,
+        )
+        .is_ok());
+        assert!(validate_stripe_checkout_subscription_price(
+            MinorUnit::new(600),
+            "usd",
+            MinorUnit::new(500),
+            Currency::USD,
+        )
+        .is_err());
+        assert!(validate_stripe_checkout_subscription_price(
+            MinorUnit::new(500),
+            "eur",
+            MinorUnit::new(500),
+            Currency::USD,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn subscription_checkout_rejects_a_different_stripe_price_id() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_subscription",
+            "status": "complete",
+            "payment_status": "paid",
+            "subscription": "sub_test_native",
+            "amount_subtotal": 500,
+            "amount_total": 500,
+            "currency": "usd",
+            "line_items": {
+                "data": [{"price": {"id": "price_monthly"}}]
+            }
+        }))
+        .unwrap();
+
+        assert!(validate_stripe_checkout_subscription_price_id(&response, "price_monthly").is_ok());
+        assert!(validate_stripe_checkout_subscription_price_id(&response, "price_yearly").is_err());
+    }
+
+    #[test]
+    fn stripe_checkout_status_mapping_covers_terminal_and_non_terminal_states() {
+        use common_enums::AttemptStatus;
+
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Open,
+                StripeCheckoutPaymentStatus::Unpaid,
+                AttemptStatus::Started,
+            ),
+            AttemptStatus::AuthenticationPending
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Complete,
+                StripeCheckoutPaymentStatus::Paid,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Complete,
+                StripeCheckoutPaymentStatus::NoPaymentRequired,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Expired,
+                StripeCheckoutPaymentStatus::Unpaid,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Voided
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Open,
+                StripeCheckoutPaymentStatus::Paid,
+                AttemptStatus::Pending,
+            ),
+            AttemptStatus::Pending
+        );
+    }
+
+    #[test]
+    fn stripe_checkout_response_deserializes() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_123",
+            "url": "https://checkout.stripe.com/c/pay/test",
+            "status": "open",
+            "payment_status": "unpaid",
+            "payment_intent": null,
+            "amount_subtotal": 500,
+            "amount_total": 400,
+            "currency": "usd",
+            "total_details": {"amount_discount": 100, "amount_shipping": 0, "amount_tax": 0}
+        }))
+        .unwrap();
+
+        assert_eq!(response.status, Some(StripeCheckoutSessionStatus::Open));
+        assert_eq!(
+            response.payment_status,
+            Some(StripeCheckoutPaymentStatus::Unpaid)
+        );
+        assert_eq!(response.amount_subtotal.unwrap().get_amount_as_i64(), 500);
+        assert_eq!(response.amount_total.unwrap().get_amount_as_i64(), 400);
+        assert!(response.discounts.is_none());
+        assert!(validate_stripe_checkout_ids(
+            &response.id,
+            response
+                .payment_intent
+                .as_ref()
+                .map(StripeCheckoutPaymentIntent::id),
+        )
+        .is_ok());
+        assert!(validate_stripe_checkout_ids("cs_test_123", Some("ch_wrong_kind")).is_err());
+        assert!(get_stripe_checkout_resource_id(
+            "cs_test_123",
+            None,
+            StripeCheckoutSessionStatus::Open,
+            StripeCheckoutPaymentStatus::Unpaid,
+        )
+        .unwrap()
+        .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX));
+        assert!(get_stripe_checkout_resource_id(
+            "cs_test_123",
+            None,
+            StripeCheckoutSessionStatus::Complete,
+            StripeCheckoutPaymentStatus::Paid,
+        )
+        .is_err());
+        assert_eq!(
+            get_stripe_checkout_resource_id(
+                "cs_test_123",
+                Some("pi_test_123"),
+                StripeCheckoutSessionStatus::Complete,
+                StripeCheckoutPaymentStatus::Paid,
+            )
+            .unwrap(),
+            "pi_test_123"
+        );
+        assert_eq!(
+            get_stripe_checkout_status(
+                StripeCheckoutSessionStatus::Failed,
+                StripeCheckoutPaymentStatus::Unpaid,
+                AttemptStatus::AuthenticationPending,
+            ),
+            AttemptStatus::Failure
+        );
+
+        let expanded: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_expanded",
+            "status": "complete",
+            "payment_status": "paid",
+            "payment_intent": {
+                "id": "pi_test_expanded",
+                "payment_method": "pm_test_reusable"
+            },
+            "amount_subtotal": 500,
+            "amount_total": 500,
+            "currency": "usd"
+        }))
+        .unwrap();
+        assert_eq!(
+            expanded
+                .payment_intent
+                .as_ref()
+                .and_then(StripeCheckoutPaymentIntent::payment_method),
+            Some("pm_test_reusable")
+        );
+
+        let subscription: StripeCheckoutSessionResponse =
+            serde_json::from_value(serde_json::json!({
+                "id": "cs_test_subscription",
+                "status": "complete",
+                "payment_status": "paid",
+                "payment_intent": null,
+                "subscription": {
+                    "id": "sub_test_native",
+                    "latest_invoice": {
+                        "payment_intent": {
+                            "id": "pi_test_subscription",
+                            "payment_method": "pm_test_subscription"
+                        }
+                    }
+                },
+                "amount_subtotal": 500,
+                "amount_total": 500,
+                "currency": "usd"
+            }))
+            .unwrap();
+        assert_eq!(
+            subscription.subscription.as_ref().map(|value| value.id()),
+            Some("sub_test_native")
+        );
+        assert_eq!(
+            get_stripe_checkout_payment_intent(&subscription).map(StripeCheckoutPaymentIntent::id),
+            Some("pi_test_subscription")
+        );
+    }
+
+    #[test]
+    fn stripe_response_object_distinguishes_checkout_from_payment_intent() {
+        let checkout: StripeResponseObject =
+            serde_json::from_value(serde_json::json!({"object": "checkout.session"})).unwrap();
+        let payment_intent: StripeResponseObject =
+            serde_json::from_value(serde_json::json!({"object": "payment_intent"})).unwrap();
+
+        assert!(matches!(
+            checkout.object,
+            WebhookEventObjectType::CheckoutSession
+        ));
+        assert!(matches!(
+            payment_intent.object,
+            WebhookEventObjectType::PaymentIntent
+        ));
+    }
+
+    #[test]
+    fn stripe_checkout_webhook_deserializes() {
+        let event: WebhookEvent = serde_json::from_str(include_str!(
+            "../../../../../cypress-tests/cypress/fixtures/webhooks/stripe_checkout_session_completed_webhook.json"
+        ))
+        .unwrap();
+
+        assert!(matches!(
+            event.event_type,
+            WebhookEventType::CheckoutSessionCompleted
+        ));
+        assert!(matches!(
+            event.event_data.event_object.object,
+            WebhookEventObjectType::CheckoutSession
+        ));
+        assert_eq!(
+            event
+                .event_data
+                .event_object
+                .metadata
+                .as_ref()
+                .unwrap()
+                .order_id
+                .as_deref(),
+            Some("attempt_checkout_completed")
+        );
+
+        let resource = serde_json::to_value(event.event_data.event_object).unwrap();
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(resource).unwrap();
+        assert_eq!(response.status, Some(StripeCheckoutSessionStatus::Complete));
+        assert_eq!(
+            response.payment_status,
+            Some(StripeCheckoutPaymentStatus::Paid)
+        );
+        assert_eq!(
+            response
+                .payment_intent
+                .as_ref()
+                .map(StripeCheckoutPaymentIntent::id),
+            Some("pi_test_completed")
+        );
+        assert_eq!(
+            response
+                .total_details
+                .unwrap()
+                .amount_discount
+                .unwrap()
+                .get_amount_as_i64(),
+            100
+        );
+        assert_eq!(
+            response.discounts.as_ref().unwrap()[0]
+                .promotion_code
+                .as_ref()
+                .unwrap()
+                .as_str(),
+            "promo_test"
+        );
+
+        let expired: WebhookEvent = serde_json::from_str(include_str!(
+            "../../../../../cypress-tests/cypress/fixtures/webhooks/stripe_checkout_session_expired_webhook.json"
+        ))
+        .unwrap();
+        assert!(matches!(
+            expired.event_type,
+            WebhookEventType::CheckoutSessionExpired
+        ));
+        let resource = serde_json::to_value(expired.event_data.event_object).unwrap();
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(resource).unwrap();
+        assert_eq!(response.status, Some(StripeCheckoutSessionStatus::Expired));
+        assert_eq!(
+            response.payment_status,
+            Some(StripeCheckoutPaymentStatus::Unpaid)
+        );
     }
 }
 

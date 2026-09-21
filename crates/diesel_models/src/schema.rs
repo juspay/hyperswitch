@@ -878,6 +878,7 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 64]
         connector_invoice_id -> Nullable<Varchar>,
+        billing_period_end -> Nullable<Timestamp>,
     }
 }
 
@@ -1843,6 +1844,7 @@ diesel::table! {
         plan_id -> Nullable<Varchar>,
         #[max_length = 128]
         item_price_id -> Nullable<Varchar>,
+        last_applied_billing_period_end -> Nullable<Timestamp>,
     }
 }
 

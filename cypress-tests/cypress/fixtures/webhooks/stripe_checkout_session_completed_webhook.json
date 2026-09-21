@@ -1,0 +1,33 @@
+{
+  "id": "evt_checkout_completed",
+  "object": "event",
+  "created": 1789315200,
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "cs_test_completed",
+      "object": "checkout.session",
+      "amount_subtotal": 500,
+      "amount_total": 400,
+      "currency": "usd",
+      "created": 1789315200,
+      "metadata": {
+        "order_id": "attempt_checkout_completed"
+      },
+      "payment_intent": "pi_test_completed",
+      "payment_status": "paid",
+      "status": "complete",
+      "total_details": {
+        "amount_discount": 100,
+        "amount_shipping": 0,
+        "amount_tax": 0
+      },
+      "discounts": [
+        {
+          "coupon": "coupon_test",
+          "promotion_code": "promo_test"
+        }
+      ]
+    }
+  }
+}

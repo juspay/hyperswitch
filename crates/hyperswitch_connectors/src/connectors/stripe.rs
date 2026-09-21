@@ -97,6 +97,37 @@ use crate::{
         RefundsRequestData as OtherRefundsRequestData,
     },
 };
+
+const STRIPE_CHECKOUT_API_VERSION: &str = "2024-06-20";
+const STRIPE_VERSION_HEADER: &str = "Stripe-Version";
+const STRIPE_CHECKOUT_SESSION_ID_PREFIX: &str = "cs_";
+const STRIPE_SUBSCRIPTION_ID_PREFIX: &str = "sub_";
+
+fn use_stripe_checkout_api_version(headers: &mut Vec<(String, Maskable<String>)>) {
+    let mut found = false;
+    headers.retain_mut(|(name, value)| {
+        if !name.eq_ignore_ascii_case(STRIPE_VERSION_HEADER) {
+            return true;
+        }
+
+        if found {
+            return false;
+        }
+
+        // 托管 Checkout 必须替换连接器默认版本头；追加重复头会生成 Stripe 拒绝的逗号分隔值。
+        *value = STRIPE_CHECKOUT_API_VERSION.to_string().into();
+        found = true;
+        true
+    });
+
+    if !found {
+        headers.push((
+            STRIPE_VERSION_HEADER.to_string(),
+            STRIPE_CHECKOUT_API_VERSION.to_string().into(),
+        ));
+    }
+}
+
 #[derive(Clone)]
 pub struct Stripe {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -674,6 +705,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
+        if id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX) {
+            return Err(ConnectorError::NotSupported {
+                message: "capture before Stripe Checkout completion".to_string(),
+                connector: "stripe",
+            }
+            .into());
+        }
         Ok(format!(
             "{}{}/{}/capture",
             self.base_url(connectors),
@@ -839,6 +877,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
+        if req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .is_ok_and(|id| id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX))
+        {
+            use_stripe_checkout_api_version(&mut header);
+        }
+
         if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
             stripe_split_payment,
         )) = &req.request.split_payments
@@ -874,6 +921,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                 "{}{}/{}",
                 self.base_url(connectors),
                 "v1/charges",
+                x,
+            )),
+            Ok(x) if x.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX) => Ok(format!(
+                "{}{}/{}?expand[0]=discounts&expand[1]=payment_intent&expand[2]=subscription.latest_invoice.payment_intent&expand[3]=line_items.data.price",
+                self.base_url(connectors),
+                "v1/checkout/sessions",
                 x,
             )),
             Ok(x) => Ok(format!(
@@ -912,6 +965,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
         PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();
+        let response_object: stripe::StripeResponseObject = res
+            .response
+            .parse_struct("StripeResponseObject")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         match id.get_connector_transaction_id() {
             Ok(x) if x.starts_with("set") => {
                 let response: stripe::SetupIntentResponse = res
@@ -943,7 +1000,54 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                     http_code: res.status_code,
                 })
             }
-            Ok(_) => {
+            Ok(_)
+                if matches!(
+                    response_object.object,
+                    stripe::WebhookEventObjectType::CheckoutSession
+                ) =>
+            {
+                let response: stripe::StripeCheckoutSessionResponse = res
+                    .response
+                    .parse_struct("StripeCheckoutSessionResponse")
+                    .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+                event_builder.map(|event| {
+                    let mut redacted_response = response.clone();
+                    redacted_response.url = None;
+                    event.set_response_body(&redacted_response);
+                });
+                router_env::logger::info!(
+                    stripe_checkout_session_id = %response.id,
+                    status = ?response.status,
+                    payment_status = ?response.payment_status,
+                    "Stripe Checkout session synchronized"
+                );
+
+                let response_integrity_object = get_sync_integrity_object(
+                    self.amount_converter,
+                    response
+                        .amount_subtotal
+                        .ok_or(ConnectorError::MissingRequiredField {
+                            field_name: "response.amount_subtotal".into(),
+                        })?,
+                    response
+                        .currency
+                        .clone()
+                        .ok_or(ConnectorError::MissingRequiredField {
+                            field_name: "response.currency".into(),
+                        })?,
+                )?;
+                let new_router_data = RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                });
+                new_router_data.map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+            }
+            Ok(x) => {
                 let response: stripe::PaymentIntentSyncResponse = res
                     .response
                     .parse_struct("PaymentIntentSyncResponse")
@@ -964,7 +1068,22 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                     http_code: res.status_code,
                 });
                 new_router_data.map(|mut router_data| {
-                    router_data.request.integrity_object = Some(response_integrity_object);
+                    if x.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX) {
+                        // PaymentIntent webhook 可能先于 Checkout Session 事件到达。
+                        // 保留会话归属，同时接收 PaymentIntent 状态、交易 ID 与实付金额，
+                        // 避免 Checkout 事件缺失时支付永久停留在处理中。
+                        if let Ok(PaymentsResponseData::TransactionResponse {
+                            connector_metadata,
+                            ..
+                        }) = &mut router_data.response
+                        {
+                            *connector_metadata = Some(serde_json::json!({
+                                "stripe_checkout_session_id": x
+                            }));
+                        }
+                    } else {
+                        router_data.request.integrity_object = Some(response_integrity_object);
+                    }
                     router_data
                 })
             }
@@ -1064,6 +1183,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
+        if stripe::is_hosted_checkout(req) {
+            use_stripe_checkout_api_version(&mut header);
+        }
+
         if let Some(id) = get_stripe_compatible_connect_account_header(req)? {
             let mut customer_account_header = vec![(
                 STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
@@ -1080,13 +1203,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "v1/payment_intents"
+            if stripe::is_hosted_checkout(req) {
+                "v1/checkout/sessions"
+            } else {
+                "v1/payment_intents"
+            }
         ))
     }
 
@@ -1095,6 +1222,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
+        if stripe::is_hosted_checkout(req) {
+            let connector_req = stripe::StripeCheckoutSessionRequest::try_from(req)?;
+            return Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)));
+        }
+
         let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -1129,6 +1261,50 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, ConnectorError> {
+        if stripe::is_hosted_checkout(data) {
+            let response: stripe::StripeCheckoutSessionResponse = res
+                .response
+                .parse_struct("StripeCheckoutSessionResponse")
+                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+            let response_integrity_object = get_authorise_integrity_object(
+                self.amount_converter,
+                response
+                    .amount_subtotal
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "response.amount_subtotal".into(),
+                    })?,
+                response
+                    .currency
+                    .clone()
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "response.currency".into(),
+                    })?,
+            )?;
+
+            event_builder.map(|event| {
+                let mut redacted_response = response.clone();
+                redacted_response.url = None;
+                event.set_response_body(&redacted_response);
+            });
+            router_env::logger::info!(
+                stripe_checkout_session_id = %response.id,
+                status = ?response.status,
+                payment_status = ?response.payment_status,
+                "Stripe Checkout session created"
+            );
+
+            let new_router_data = RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(ConnectorError::ResponseHandlingFailed);
+            return new_router_data.map(|mut router_data| {
+                router_data.request.integrity_object = Some(response_integrity_object);
+                router_data
+            });
+        }
+
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -1261,6 +1437,17 @@ impl
         req: &PaymentsIncrementalAuthorizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
+        if req
+            .request
+            .connector_transaction_id
+            .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX)
+        {
+            return Err(ConnectorError::NotSupported {
+                message: "incremental authorization for Stripe Checkout".to_string(),
+                connector: "stripe",
+            }
+            .into());
+        }
         Ok(format!(
             "{}v1/payment_intents/{}/increment_authorization",
             self.base_url(connectors),
@@ -1517,6 +1704,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
         }
 
         header.append(&mut api_key);
+        if req
+            .request
+            .connector_transaction_id
+            .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX)
+        {
+            use_stripe_checkout_api_version(&mut header);
+        }
         Ok(header)
     }
 
@@ -1530,6 +1724,12 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let payment_id = &req.request.connector_transaction_id;
+        if payment_id.starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX) {
+            return Ok(format!(
+                "{}v1/checkout/sessions/{payment_id}/expire",
+                self.base_url(connectors)
+            ));
+        }
         Ok(format!(
             "{}v1/payment_intents/{}/cancel",
             self.base_url(connectors),
@@ -1542,6 +1742,14 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
+        if req
+            .request
+            .connector_transaction_id
+            .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX)
+        {
+            let empty_request: HashMap<String, String> = HashMap::new();
+            return Ok(RequestContent::FormUrlEncoded(Box::new(empty_request)));
+        }
         let connector_req = stripe::CancelRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
@@ -1567,6 +1775,36 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, ConnectorError> {
+        if data
+            .request
+            .connector_transaction_id
+            .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX)
+        {
+            let response: stripe::StripeCheckoutSessionResponse = res
+                .response
+                .parse_struct("StripeCheckoutSessionResponse")
+                .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+            event_builder.map(|event| {
+                let mut redacted_response = response.clone();
+                redacted_response.url = None;
+                event.set_response_body(&redacted_response);
+            });
+            router_env::logger::info!(
+                stripe_checkout_session_id = %response.id,
+                status = ?response.status,
+                payment_status = ?response.payment_status,
+                "Stripe Checkout session expired"
+            );
+
+            return RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(ConnectorError::ResponseHandlingFailed);
+        }
+
         let response: stripe::PaymentIntentResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
@@ -1886,6 +2124,17 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
+        if req
+            .request
+            .connector_transaction_id
+            .starts_with(STRIPE_CHECKOUT_SESSION_ID_PREFIX)
+        {
+            return Err(ConnectorError::NotSupported {
+                message: "refund before Stripe Checkout payment synchronization".to_string(),
+                connector: "stripe",
+            }
+            .into());
+        }
         let refund_amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
@@ -2834,6 +3083,17 @@ impl IncomingWebhook for Stripe {
                     )),
                 }
             }
+            stripe::WebhookEventObjectType::CheckoutSession => details
+                .event_data
+                .event_object
+                .metadata
+                .and_then(|metadata| metadata.order_id)
+                .map(|order_id| {
+                    api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(order_id),
+                    )
+                })
+                .ok_or(ConnectorError::WebhookReferenceIdNotFound.into()),
             stripe::WebhookEventObjectType::Charge => {
                 match details
                     .event_data
@@ -2936,6 +3196,24 @@ impl IncomingWebhook for Stripe {
         let status = details.event_data.event_object.status;
 
         Ok(match details.event_type {
+            stripe::WebhookEventType::CheckoutSessionCompleted => {
+                match details.event_data.event_object.payment_status {
+                    Some(
+                        stripe::StripeCheckoutPaymentStatus::Paid
+                        | stripe::StripeCheckoutPaymentStatus::NoPaymentRequired,
+                    ) => IncomingWebhookEvent::PaymentIntentSuccess,
+                    _ => IncomingWebhookEvent::EventNotSupported,
+                }
+            }
+            stripe::WebhookEventType::CheckoutSessionAsyncPaymentSucceeded => {
+                IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            stripe::WebhookEventType::CheckoutSessionAsyncPaymentFailed => {
+                IncomingWebhookEvent::PaymentIntentFailure
+            }
+            stripe::WebhookEventType::CheckoutSessionExpired => {
+                IncomingWebhookEvent::PaymentIntentCancelled
+            }
             stripe::WebhookEventType::PaymentIntentFailed => {
                 IncomingWebhookEvent::PaymentIntentFailure
             }
@@ -3009,10 +3287,17 @@ impl IncomingWebhook for Stripe {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
-        let details: stripe::WebhookEvent = request
+        let mut details: stripe::WebhookEvent = request
             .body
             .parse_struct("WebhookEvent")
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
+
+        if matches!(
+            details.event_type,
+            stripe::WebhookEventType::CheckoutSessionAsyncPaymentFailed
+        ) {
+            details.event_data.event_object.status = Some(stripe::WebhookEventStatus::Failed);
+        }
 
         Ok(Box::new(details.event_data.event_object))
     }
@@ -3860,5 +4145,38 @@ impl ConnectorSpecifications for Stripe {
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
         api::ConnectorCustomerAction::CallConnectorCustomer
+    }
+}
+
+#[cfg(test)]
+mod stripe_header_tests {
+    use super::{
+        use_stripe_checkout_api_version, STRIPE_CHECKOUT_API_VERSION, STRIPE_VERSION_HEADER,
+    };
+
+    #[test]
+    fn checkout_version_overrides_default_without_duplicate_header() {
+        let mut headers = vec![
+            (
+                STRIPE_VERSION_HEADER.to_string(),
+                "2022-11-15".to_string().into(),
+            ),
+            (
+                STRIPE_VERSION_HEADER.to_ascii_lowercase(),
+                "legacy-duplicate".to_string().into(),
+            ),
+        ];
+
+        use_stripe_checkout_api_version(&mut headers);
+
+        let version_headers = headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case(STRIPE_VERSION_HEADER))
+            .collect::<Vec<_>>();
+        assert_eq!(version_headers.len(), 1);
+        assert_eq!(
+            version_headers[0].1.clone().into_inner(),
+            STRIPE_CHECKOUT_API_VERSION
+        );
     }
 }

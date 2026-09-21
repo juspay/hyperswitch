@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS subscription_merchant_connector_subscription_id_index;

@@ -49,6 +49,27 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn find_by_merchant_id_connector_subscription_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        connector_subscription_id: String,
+    ) -> CustomResult<DomainSubscription, StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        self.call_database(
+            key_store,
+            Subscription::find_by_merchant_id_connector_subscription_id(
+                &conn,
+                merchant_id,
+                merchant_connector_id,
+                connector_subscription_id,
+            ),
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
         key_store: &MerchantKeyStore,
@@ -64,6 +85,93 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         self.call_database(
             key_store,
             Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, sub_new),
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry_if_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        let sub_new = data
+            .construct_new()
+            .await
+            .change_context(StorageError::DecryptionError)?;
+        let conn = connection::pg_connection_write(self).await?;
+        self.find_optional_resource(
+            key_store,
+            Subscription::update_subscription_entry_if_status(
+                &conn,
+                merchant_id,
+                subscription_id,
+                expected_status,
+                sub_new,
+            ),
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry_if_status_and_invoice_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        invoice_id: common_utils::id_type::InvoiceId,
+        expected_invoice_status: common_enums::InvoiceStatus,
+        billing_period_end: time::PrimitiveDateTime,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        let sub_new = data
+            .construct_new()
+            .await
+            .change_context(StorageError::DecryptionError)?;
+        let conn = connection::pg_connection_write(self).await?;
+        self.find_optional_resource(
+            key_store,
+            Subscription::update_subscription_entry_if_status_and_invoice_status(
+                &conn,
+                merchant_id,
+                subscription_id,
+                expected_status,
+                invoice_id,
+                expected_invoice_status,
+                billing_period_end,
+                sub_new,
+            ),
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn bind_connector_subscription_id_if_unset_or_equal(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        connector_subscription_id: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        let sub_new = data
+            .construct_new()
+            .await
+            .change_context(StorageError::DecryptionError)?;
+        let conn = connection::pg_connection_write(self).await?;
+        self.find_optional_resource(
+            key_store,
+            Subscription::bind_connector_subscription_id_if_unset_or_equal(
+                &conn,
+                merchant_id,
+                subscription_id,
+                connector_subscription_id,
+                sub_new,
+            ),
         )
         .await
     }
@@ -118,6 +226,23 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
             .await
     }
 
+    async fn find_by_merchant_id_connector_subscription_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        connector_subscription_id: String,
+    ) -> CustomResult<DomainSubscription, StorageError> {
+        self.router_store
+            .find_by_merchant_id_connector_subscription_id(
+                key_store,
+                merchant_id,
+                merchant_connector_id,
+                connector_subscription_id,
+            )
+            .await
+    }
+
     #[instrument(skip_all)]
     async fn update_subscription_entry(
         &self,
@@ -128,6 +253,72 @@ impl<T: DatabaseStore> SubscriptionInterface for KVRouterStore<T> {
     ) -> CustomResult<DomainSubscription, StorageError> {
         self.router_store
             .update_subscription_entry(key_store, merchant_id, subscription_id, data)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry_if_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        self.router_store
+            .update_subscription_entry_if_status(
+                key_store,
+                merchant_id,
+                subscription_id,
+                expected_status,
+                data,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn update_subscription_entry_if_status_and_invoice_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        invoice_id: common_utils::id_type::InvoiceId,
+        expected_invoice_status: common_enums::InvoiceStatus,
+        billing_period_end: time::PrimitiveDateTime,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        self.router_store
+            .update_subscription_entry_if_status_and_invoice_status(
+                key_store,
+                merchant_id,
+                subscription_id,
+                expected_status,
+                invoice_id,
+                expected_invoice_status,
+                billing_period_end,
+                data,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn bind_connector_subscription_id_if_unset_or_equal(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        connector_subscription_id: String,
+        data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        self.router_store
+            .bind_connector_subscription_id_if_unset_or_equal(
+                key_store,
+                merchant_id,
+                subscription_id,
+                connector_subscription_id,
+                data,
+            )
             .await
     }
 
@@ -168,6 +359,16 @@ impl SubscriptionInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    async fn find_by_merchant_id_connector_subscription_id(
+        &self,
+        _key_store: &MerchantKeyStore,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        _connector_subscription_id: String,
+    ) -> CustomResult<DomainSubscription, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
     async fn update_subscription_entry(
         &self,
         _key_store: &MerchantKeyStore,
@@ -175,6 +376,42 @@ impl SubscriptionInterface for MockDb {
         _subscription_id: String,
         _data: DomainSubscriptionUpdate,
     ) -> CustomResult<DomainSubscription, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    async fn update_subscription_entry_if_status(
+        &self,
+        _key_store: &MerchantKeyStore,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _subscription_id: String,
+        _expected_status: String,
+        _data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    async fn update_subscription_entry_if_status_and_invoice_status(
+        &self,
+        _key_store: &MerchantKeyStore,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _subscription_id: String,
+        _expected_status: String,
+        _invoice_id: common_utils::id_type::InvoiceId,
+        _expected_invoice_status: common_enums::InvoiceStatus,
+        _billing_period_end: time::PrimitiveDateTime,
+        _data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    async fn bind_connector_subscription_id_if_unset_or_equal(
+        &self,
+        _key_store: &MerchantKeyStore,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _subscription_id: String,
+        _connector_subscription_id: String,
+        _data: DomainSubscriptionUpdate,
+    ) -> CustomResult<Option<DomainSubscription>, StorageError> {
         Err(StorageError::MockDbError)?
     }
 

@@ -74,6 +74,8 @@ pub enum IncomingWebhookEvent {
     RecoveryInvoiceCancel,
     SetupWebhook,
     InvoiceGenerated,
+    SubscriptionUpdated,
+    SubscriptionDeleted,
 }
 
 impl IncomingWebhookEvent {
@@ -330,7 +332,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::RecoveryPaymentPending
             | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
             IncomingWebhookEvent::SetupWebhook => Self::Setup,
-            IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
+            IncomingWebhookEvent::InvoiceGenerated
+            | IncomingWebhookEvent::SubscriptionUpdated
+            | IncomingWebhookEvent::SubscriptionDeleted => Self::Subscription,
         }
     }
 }

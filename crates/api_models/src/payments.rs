@@ -10370,6 +10370,7 @@ pub struct ConnectorMetadata {
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
+    /// Stripe 专用支付配置。
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
 }
@@ -10382,6 +10383,9 @@ pub struct StripeConnectorMetadata {
     /// complete additional authentication.
     #[smithy(value_type = "Option<bool>")]
     pub error_on_requires_action: Option<bool>,
+    /// 配置后使用 Stripe 托管 Checkout，不再直接创建 PaymentIntent。
+    #[smithy(value_type = "Option<StripeHostedCheckoutConfig>")]
+    pub hosted_checkout: Option<StripeHostedCheckoutConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10463,6 +10467,27 @@ pub enum WorldpayxmlPaymentPurpose {
     CrowdLending,
     CryptoCurrency,
     HighRiskSecurities,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeHostedCheckoutConfig {
+    /// 是否显示 Stripe Checkout 原生优惠码输入框。
+    #[serde(default)]
+    pub allow_promotion_codes: bool,
+
+    /// 提供 Stripe Price ID 时创建并维护 Stripe 原生订阅。
+    /// 未提供时继续使用一次性支付模式，保持向后兼容。
+    pub subscription_price_id: Option<String>,
+
+    /// 写入 Stripe Subscription 元数据的 Hyperswitch 内部订阅 ID，确保浏览器未返回时，
+    /// 首个账单 webhook 仍能完成订阅绑定。
+    pub subscription_reference_id: Option<id_type::SubscriptionId>,
+
+    /// Hyperswitch 订阅客户端密钥的 SHA-256 十六进制摘要。
+    /// 必须与 `subscription_reference_id` 同时提供，且不得包含原始密钥。
+    pub subscription_binding: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -13865,6 +13890,63 @@ mod payments_request_api_contract {
                 .payment_method_data,
             Some(PaymentMethodData::Reward)
         );
+    }
+
+    #[test]
+    fn test_stripe_hosted_checkout_metadata() {
+        let payments_request = r#"
+        {
+            "amount": 500,
+            "currency": "USD",
+            "payment_method": "card",
+            "payment_experience": "redirect_to_url",
+            "connector_metadata": {
+                "stripe": {
+                    "hosted_checkout": {
+                        "allow_promotion_codes": true
+                    }
+                }
+            }
+        }
+        "#;
+
+        let request = serde_json::from_str::<PaymentsRequest>(payments_request).unwrap();
+        assert!(
+            request
+                .connector_metadata
+                .unwrap()
+                .stripe
+                .unwrap()
+                .hosted_checkout
+                .unwrap()
+                .allow_promotion_codes
+        );
+    }
+
+    #[test]
+    fn test_stripe_hosted_checkout_defaults_promotion_codes_to_disabled() {
+        let metadata: ConnectorMetadata = serde_json::from_value(serde_json::json!({
+            "stripe": { "hosted_checkout": {} }
+        }))
+        .unwrap();
+
+        assert!(
+            !metadata
+                .stripe
+                .unwrap()
+                .hosted_checkout
+                .unwrap()
+                .allow_promotion_codes
+        );
+    }
+
+    #[test]
+    fn test_stripe_hosted_checkout_rejects_unknown_fields() {
+        let metadata = serde_json::from_value::<ConnectorMetadata>(serde_json::json!({
+            "stripe": { "hosted_checkout": { "unsupported": true } }
+        }));
+
+        assert!(metadata.is_err());
     }
 
     #[test]

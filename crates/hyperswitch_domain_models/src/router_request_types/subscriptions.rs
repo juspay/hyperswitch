@@ -1,5 +1,6 @@
 use api_models::{payments::Address, subscription};
 use common_utils::id_type;
+use hyperswitch_masking::Secret;
 
 use crate::connector_endpoints;
 
@@ -12,8 +13,12 @@ pub struct SubscriptionItem {
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreateRequest {
     pub customer_id: id_type::CustomerId,
+    /// 计费平台生成的客户标识。部分平台可复用商户客户 ID，Stripe 则要求独立客户标识。
+    pub connector_customer_id: Option<String>,
     pub subscription_id: id_type::SubscriptionId,
     pub subscription_items: Vec<SubscriptionItem>,
+    /// 原生自动扣款使用的支付方式令牌，必须属于同一账户。
+    pub default_payment_method: Option<Secret<String>>,
     pub billing_address: Address,
     pub auto_collection: SubscriptionAutoCollection,
     pub connector_params: connector_endpoints::ConnectorParams,
@@ -61,14 +66,16 @@ pub struct GetSubscriptionItemPricesRequest {
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionPauseRequest {
-    pub subscription_id: id_type::SubscriptionId,
+    /// 计费平台订阅标识，不是 Hyperswitch 内部订阅 ID。
+    pub connector_subscription_id: String,
     pub pause_option: Option<subscription::PauseOption>,
     pub pause_date: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionResumeRequest {
-    pub subscription_id: id_type::SubscriptionId,
+    /// 计费平台订阅标识，不是 Hyperswitch 内部订阅 ID。
+    pub connector_subscription_id: String,
     pub resume_option: Option<subscription::ResumeOption>,
     pub resume_date: Option<time::PrimitiveDateTime>,
     pub charges_handling: Option<subscription::ChargesHandling>,
@@ -77,7 +84,8 @@ pub struct SubscriptionResumeRequest {
 
 #[derive(Debug, Clone)]
 pub struct SubscriptionCancelRequest {
-    pub subscription_id: id_type::SubscriptionId,
+    /// 计费平台订阅标识，不是 Hyperswitch 内部订阅 ID。
+    pub connector_subscription_id: String,
     pub cancel_option: Option<subscription::CancelOption>,
     pub cancel_date: Option<time::PrimitiveDateTime>,
     pub unbilled_charges_option: Option<subscription::UnbilledChargesOption>,
