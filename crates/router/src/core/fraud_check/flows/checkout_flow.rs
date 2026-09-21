@@ -142,7 +142,10 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 email,
                 phone,
                 phone_country_code,
-                gateway_metadata: get_gateway_frm_metadata(&state.conf, &self.payment_attempt)?,
+                gateway_metadata: get_gateway_frm_metadata(
+                    &state.conf.connectors,
+                    &self.payment_attempt,
+                )?,
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),

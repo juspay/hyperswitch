@@ -433,7 +433,7 @@ impl ConnectorSpecifications for AbsaSanlam {
     }
 
     #[cfg(feature = "frm")]
-    fn get_frm_metadata(
+    fn get_payment_frm_metadata(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
