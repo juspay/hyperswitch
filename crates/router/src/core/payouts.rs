@@ -4078,7 +4078,7 @@ pub async fn create_payout_link(
         })),
         // Send empty set of whitelisted domains
         (_, true) => {
-            Ok(HashSet::new())
+            Ok(Default::default())
         },
         // Otherwise, fetch and use allowed domains from profile config
         (_, false) => {
