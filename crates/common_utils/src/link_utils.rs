@@ -166,7 +166,7 @@ pub struct PayoutLinkData {
     /// Payout currency
     pub currency: enums::Currency,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
-    pub allowed_domains: HashSet<String>,
+    pub allowed_domains: crate::collections::HashSet<String>,
     /// Form layout of the payout link
     pub form_layout: Option<UIWidgetFormLayout>,
     /// `test_mode` can be used for testing payout links without any restrictions

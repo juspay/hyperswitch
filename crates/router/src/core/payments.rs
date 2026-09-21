@@ -15465,7 +15465,7 @@ pub trait OperationSessionGetters<F> {
     #[cfg(feature = "v2")]
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults>;
 
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails>;
     #[cfg(feature = "v1")]
@@ -16109,7 +16109,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults> {
         None
     }
 
@@ -16419,7 +16419,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults> {
         self.get_payment_intent()
             .prerouting_algorithm
             .clone()
@@ -16737,7 +16737,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
 
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults> {
         None
     }
 
@@ -17052,7 +17052,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
 
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults> {
         None
     }
 
@@ -17362,7 +17362,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
 
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults> {
         None
     }
     fn get_merchant_connector_details(
@@ -17528,7 +17528,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
 
     fn get_pre_routing_result(
         &self,
-    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+    ) -> Option<hyperswitch_domain_models::routing::PreRoutingResults> {
         None
     }
 
