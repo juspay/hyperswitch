@@ -150,6 +150,10 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "4G"
+      # Default 600s idle timeout can kill the server mid-compile once
+      # parallelism narrows to one long-running crate near the tail of the
+      # build (mozilla/sccache#204) — reproduced on a real run here.
+      SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -1745,6 +1749,8 @@ jobs:
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "4G"
+      # See build-hyperswitch for why.
+      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
