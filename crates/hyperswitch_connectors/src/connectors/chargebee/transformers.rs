@@ -597,9 +597,6 @@ struct ChargebeeCardPaymentMethodDetails {
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl ChargebeeCardPaymentMethodDetails {
-    // Wallets such as Apple Pay, Google Pay and PayPal can also be funded by a card, in which
-    // case Chargebee sends the underlying card details in `payment_method_details`. Anything
-    // that doesn't carry card details is simply not populated instead of being treated as an error.
     fn parse_card_details(raw_details: &str) -> Option<ChargebeeCardDetails> {
         serde_json::from_str::<Self>(raw_details)
             .ok()
@@ -852,7 +849,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let transaction_created_at = item.content.transaction.date;
         let status = enums::AttemptStatus::from(item.content.transaction.status);
         let chargebee_payment_method = item.content.transaction.payment_method;
-        let payment_method_type = enums::PaymentMethod::try_from(chargebee_payment_method)?;
+        let payment_method_type = enums::PaymentMethod::try_from(chargebee_payment_method)
+            .unwrap_or(enums::PaymentMethod::Card);
         let card_details = item
             .content
             .transaction
@@ -866,10 +864,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                     .as_ref()
                     .map(|card| enums::PaymentMethodType::from(card.funding_type))
             })
-            .ok_or(errors::ConnectorError::NotSupported {
-                message: "payment method in revenue recovery webhook".to_string(),
-                connector: "chargebee",
-            })?;
+            .unwrap_or(enums::PaymentMethodType::Card);
         let card_info = card_details
             .map(|card| api_models::payments::AdditionalCardInfo {
                 card_network: card.brand.into(),
