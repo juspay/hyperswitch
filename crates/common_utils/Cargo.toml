@@ -32,9 +32,9 @@ base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = { version = "1.10.1", features = ["serde"] }
 diesel = "2.2.10"
-# TEMPORARY PIN — deja branch work/teardown-safe-correlation-reader (PR #171).
+# TEMPORARY PIN — deja branch work/capture-keeps-an-ordered-maps-order (deja#185).
 # Bump to a main commit once that merges; this must not be reviewed as-is.
-deja = { git = "https://github.com/juspay/deja", rev = "6e700fb4df9ca400ae55694bf0f496838a010c6e", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "45eada58e067fa6443bc15b7a492d2c49f975d4a", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
