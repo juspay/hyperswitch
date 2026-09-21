@@ -1,13 +1,13 @@
 #[cfg(feature = "v2")]
 use std::collections::BTreeMap;
-#[cfg(feature = "v2")]
-use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
 use api_models::{
     enums::{CardNetwork, RevenueRecoveryAlgorithmType},
     payments::PaymentsGetIntentRequest,
 };
+#[cfg(feature = "v2")]
+use common_utils::collections::HashMap;
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::{
@@ -483,10 +483,12 @@ async fn should_force_schedule_due_to_missed_slots(
     .unwrap_or(false))
 }
 
+// The result fills a prost-generated gRPC field, which is std's map.
 #[cfg(feature = "v2")]
+#[allow(clippy::disallowed_types, clippy::disallowed_methods)]
 pub fn convert_hourly_retry_history(
     input: Option<HashMap<time::PrimitiveDateTime, i32>>,
-) -> HashMap<String, i32> {
+) -> std::collections::HashMap<String, i32> {
     let fmt = time::macros::format_description!(
         "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
     );
@@ -496,7 +498,7 @@ pub fn convert_hourly_retry_history(
             .into_iter()
             .map(|(dt, count)| (dt.format(&fmt).unwrap_or(dt.to_string()), count))
             .collect(),
-        None => HashMap::new(),
+        None => std::collections::HashMap::new(),
     }
 }
 

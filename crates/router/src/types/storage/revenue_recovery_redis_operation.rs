@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecord, RedisKeyType};
 use common_enums::enums::CardNetwork;
-use common_utils::{date_time, errors::CustomResult, id_type};
+use common_utils::{collections::HashMap, date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -303,10 +301,13 @@ impl RedisTokenManager {
         let get_hash_err =
             errors::StorageError::RedisError(errors::RedisError::GetHashFieldFailed.into());
 
-        let payment_processor_tokens: HashMap<String, String> = redis_conn
+        // redis implements FromRedisValue for std's map, not the facade's.
+        #[allow(clippy::disallowed_types)]
+        let from_redis: std::collections::HashMap<String, String> = redis_conn
             .get_hash_fields(&tokens_key.into())
             .await
             .change_context(get_hash_err)?;
+        let payment_processor_tokens: HashMap<String, String> = from_redis.into_iter().collect();
 
         let payment_processor_token_info_map: HashMap<String, PaymentProcessorTokenStatus> =
             payment_processor_tokens
@@ -1021,6 +1022,8 @@ impl RedisTokenManager {
 
     /// Get Redis key data for revenue recovery
     #[instrument(skip_all)]
+    // redis implements FromRedisValue for std's map, not the facade's.
+    #[allow(clippy::disallowed_types)]
     pub async fn get_redis_key_data_raw(
         state: &SessionState,
         connector_customer_id: &str,
@@ -1065,7 +1068,7 @@ impl RedisTokenManager {
             },
             RedisKeyType::Tokens => {
                 match redis_conn
-                    .get_hash_fields::<HashMap<String, String>>(&redis_key.into())
+                    .get_hash_fields::<std::collections::HashMap<String, String>>(&redis_key.into())
                     .await
                 {
                     Ok(hash_fields) => {

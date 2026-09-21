@@ -9,14 +9,17 @@ use utoipa::ToSchema;
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 #[serde(transparent)]
 pub struct ConnectorCustomerMap(
-    std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
+    common_utils::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
 );
 
 #[cfg(feature = "v2")]
 impl ConnectorCustomerMap {
     /// Creates a new `ConnectorCustomerMap` from a HashMap
     pub fn new(
-        map: std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
+        map: common_utils::collections::HashMap<
+            common_utils::id_type::MerchantConnectorAccountId,
+            String,
+        >,
     ) -> Self {
         Self(map)
     }
@@ -27,8 +30,10 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorCustomerMap);
 
 #[cfg(feature = "v2")]
 impl std::ops::Deref for ConnectorCustomerMap {
-    type Target =
-        std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>;
+    type Target = common_utils::collections::HashMap<
+        common_utils::id_type::MerchantConnectorAccountId,
+        String,
+    >;
 
     fn deref(&self) -> &Self::Target {
         &self.0

@@ -1,5 +1,5 @@
 // Does not depend on common_utils.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};

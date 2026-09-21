@@ -1854,8 +1854,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 }
 
 #[cfg(feature = "v2")]
-use std::collections::HashMap;
-
+use common_utils::collections::HashMap;
 use common_utils::{
     errors::ValidationError,
     type_name,

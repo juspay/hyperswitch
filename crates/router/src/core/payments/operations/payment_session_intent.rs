@@ -1,8 +1,8 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
 use api_models::payments::PaymentsSessionRequest;
 use async_trait::async_trait;
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{collections::HashMap, errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::customer;
 use router_env::{instrument, logger, tracing};
