@@ -150,6 +150,9 @@ pub struct ConfigMetadata {
     pub account_name: Option<InputData>,
     pub account_type: Option<InputData>,
     pub terminal_id: Option<InputData>,
+    /// JP Morgan Orbital: back-end authorization host selector
+    /// ("000001" = Stratus/US, "000002" = Tandem/Canada).
+    pub bin: Option<InputData>,
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
@@ -303,6 +306,7 @@ pub struct ConnectorConfig {
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub ilixium: Option<ConnectorTomlConfig>,
+    pub jpmorgan_orbital: Option<ConnectorTomlConfig>,
     pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -337,6 +341,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
+    pub globalpayments_heartland: Option<ConnectorTomlConfig>,
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gotyme_sanlam: Option<ConnectorTomlConfig>,
@@ -353,6 +358,7 @@ pub struct ConnectorConfig {
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
+    pub merchante: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub loonio_payout: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
@@ -373,8 +379,10 @@ pub struct ConnectorConfig {
     pub nuvei_payout: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
+    pub paydotcom: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
+    pub paynearme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
     pub paypal: Option<ConnectorTomlConfig>,
@@ -398,6 +406,7 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
+    pub saferpay: Option<ConnectorTomlConfig>,
     pub sanlam_payshield: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub santander_payout: Option<ConnectorTomlConfig>,
@@ -624,6 +633,7 @@ impl ConnectorConfig {
             Connector::Getnet => Ok(connector_data.getnet),
             Connector::Gigadat => Ok(connector_data.gigadat),
             Connector::Globalpay => Ok(connector_data.globalpay),
+            Connector::GlobalpaymentsHeartland => Ok(connector_data.globalpayments_heartland),
             Connector::Globepay => Ok(connector_data.globepay),
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::GotymeSanlam => Ok(connector_data.gotyme_sanlam),
@@ -638,6 +648,7 @@ impl ConnectorConfig {
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Loonio => Ok(connector_data.loonio),
+            Connector::Merchante => Ok(connector_data.merchante),
             Connector::Mifinity => Ok(connector_data.mifinity),
             Connector::Mollie => Ok(connector_data.mollie),
             Connector::Moneris => Ok(connector_data.moneris),
@@ -652,8 +663,10 @@ impl ConnectorConfig {
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),
+            Connector::Paydotcom => Ok(connector_data.paydotcom),
             Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
+            Connector::Paynearme => Ok(connector_data.paynearme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
             Connector::Paysafe => Ok(connector_data.paysafe),
@@ -669,6 +682,7 @@ impl ConnectorConfig {
             Connector::Redsys => Ok(connector_data.redsys),
             Connector::Revolv3 => Ok(connector_data.revolv3),
             Connector::Riskified => Ok(connector_data.riskified),
+            Connector::Saferpay => Ok(connector_data.saferpay),
             Connector::SanlamPayshield => Ok(connector_data.sanlam_payshield),
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
@@ -729,6 +743,7 @@ impl ConnectorConfig {
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
             Connector::Ilixium => Ok(connector_data.ilixium),
+            Connector::JpmorganOrbital => Ok(connector_data.jpmorgan_orbital),
             Connector::Givepayments => Ok(connector_data.givepayments),
         }
     }
