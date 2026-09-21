@@ -9,7 +9,6 @@ use diesel_models::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
         MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
-    kv,
     payment_attempt::{
         PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
     },
@@ -405,7 +404,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         let intents = try_join_all(pi.iter().map(|pi| async {
-            Conversion::convert(pi.clone())
+            hyperswitch_domain_models::behaviour::Conversion::convert(pi.clone())
                 .await
                 .change_context(errors::StorageError::EncryptionError)
         }))

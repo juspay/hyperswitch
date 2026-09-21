@@ -22,7 +22,7 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     ext_traits::{OptionExt, ValueExt},
     id_type, pii,
-    types::{CreatedBy, MinorUnit},
+    types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
 #[cfg(feature = "v1")]
 use diesel_models::{
