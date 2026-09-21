@@ -17,6 +17,8 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use futures::future::{try_join_all, FutureExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::payment_attempt::ConfirmIntentResponseUpdate;
 use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     merchant_key_store::MerchantKeyStore,
@@ -26,8 +28,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::payment_attempt::ConfirmIntentResponseUpdate;
 #[cfg(feature = "v2")]
 use label::*;
 use redis_interface::HsetnxReply;
