@@ -8,14 +8,6 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const failedNo3DSCardDetails = {
-  card_number: "5137009801943438",
-  card_exp_month: "01",
-  card_exp_year: "35",
-  card_holder_name: "joseph Doe",
-  card_cvc: "123",
-};
-
 const billing_info = {
   address: {
     line1: "1467",
