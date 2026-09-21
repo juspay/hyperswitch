@@ -27,6 +27,8 @@ use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
 #[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::payment_attempt::ConfirmIntentResponseUpdate;
+#[cfg(feature = "v2")]
 use label::*;
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
