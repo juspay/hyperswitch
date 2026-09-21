@@ -22,7 +22,7 @@ pub async fn list_contexts(
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListContexts;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok(headers) => headers,
         Err(response) => return response,
     };
@@ -65,7 +65,7 @@ pub async fn list_default_configs(
     query: web::Query<ListDefaultConfigsQuery>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListDefaultConfigs;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok(headers) => headers,
         Err(response) => return response,
     };
@@ -108,7 +108,7 @@ pub async fn list_dimensions(
     query: web::Query<ListDimensionsQuery>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListDimensions;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok(headers) => headers,
         Err(response) => return response,
     };
@@ -151,7 +151,7 @@ pub async fn get_dimension(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionGetDimension;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok(headers) => headers,
         Err(response) => return response,
     };
@@ -194,7 +194,7 @@ pub async fn get_default_config(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionGetDefaultConfig;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok(headers) => headers,
         Err(response) => return response,
     };
@@ -237,7 +237,7 @@ pub async fn create_context(
     body: web::Json<ContextPutRequest>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionCreateContext;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok((org_id, workspace_id)) => (org_id, workspace_id),
         Err(response) => return response,
     };
@@ -280,7 +280,7 @@ pub async fn resolve_detailed_config(
     body: web::Json<ResolveConfigBody>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionResolveDetailedConfig;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok((org_id, workspace_id)) => (org_id, workspace_id),
         Err(response) => return response,
     };
@@ -324,7 +324,7 @@ pub async fn resolve_config_explanation(
     body: web::Json<ResolveConfigBody>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionResolveConfigExplanation;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok((org_id, workspace_id)) => (org_id, workspace_id),
         Err(response) => return response,
     };
@@ -370,7 +370,7 @@ pub async fn list_audit_logs(
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListAuditLogs;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req) {
+    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
         Ok(headers) => headers,
         Err(response) => return response,
     };
