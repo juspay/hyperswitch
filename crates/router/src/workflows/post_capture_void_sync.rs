@@ -144,12 +144,18 @@ pub async fn get_post_capture_void_sync_process_schedule_time(
     _merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let config_key = format!("pt_mapping_post_capture_void_sync_{connector}");
     let mapping: common_utils::errors::CustomResult<
         process_data::ConnectorPTMapping,
         errors::StorageError,
     > = db
-        .find_config_by_key(&format!("pt_mapping_post_capture_void_sync_{connector}"))
+        .find_config_by_key_optional(&config_key)
         .await
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
+                error_stack::Report::new(errors::StorageError::ValueNotFound(config_key.clone()))
+            })
+        })
         .map(|value| value.config)
         .and_then(|config| {
             config

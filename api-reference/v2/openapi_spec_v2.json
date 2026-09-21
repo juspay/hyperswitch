@@ -12375,6 +12375,7 @@
           "ctp_visa",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -12396,6 +12397,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -12411,6 +12413,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "juspay",
           "juspaythreedsserver",
           "klarna",
@@ -12431,8 +12434,10 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payload",
           "payme",
+          "paynearme",
           "payone",
           "paypal",
           "paysafe",
@@ -12452,6 +12457,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "saferpay",
           "santander",
           "shift4",
           "silverflow",
@@ -12673,6 +12679,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CheckoutData"
+              }
+            ],
+            "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
               }
             ],
             "nullable": true
@@ -32006,6 +32020,7 @@
           "cryptopay",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -32027,6 +32042,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -32040,6 +32056,7 @@
           "interpayments",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "klarna",
           "loonio",
           "merchante",
@@ -32057,7 +32074,9 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payme",
+          "paynearme",
           "payload",
           "payone",
           "paypal",
@@ -32079,6 +32098,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "saferpay",
           "sanlam_payshield",
           "santander",
           "shift4",
@@ -33900,6 +33920,16 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
       },
       "StripeSplitPaymentRequest": {
         "type": "object",

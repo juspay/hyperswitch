@@ -1,7 +1,9 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Citigate, Payconex, Paytm, Phonepe, Worldpayraft};
+use hyperswitch_connectors::connectors::{
+    Citigate, Payconex, Paynearme, Paytm, Phonepe, Worldpayraft, D24,
+};
 
 use crate::{
     configs::settings::Connectors,
@@ -289,9 +291,15 @@ impl ConnectorData {
                 enums::Connector::Ilixium => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ilixium::new())))
                 }
+                enums::Connector::JpmorganOrbital => Ok(ConnectorEnum::Old(Box::new(
+                    connector::JpmorganOrbital::new(),
+                ))),
                 enums::Connector::Givepayments => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
                 }
+                enums::Connector::GlobalpaymentsHeartland => Ok(ConnectorEnum::Old(Box::new(
+                    connector::GlobalpaymentsHeartland::new(),
+                ))),
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -379,6 +387,9 @@ impl ConnectorData {
                 enums::Connector::Paybox => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
                 }
+                enums::Connector::Paydotcom => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paydotcom::new())))
+                }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Paybload::new())))
@@ -425,6 +436,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Revolv3 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
+                }
+                enums::Connector::Saferpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Saferpay::new())))
                 }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
@@ -545,9 +559,11 @@ impl ConnectorData {
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
                 enums::Connector::Payconex => Ok(ConnectorEnum::Old(Box::new(Payconex::new()))),
                 enums::Connector::Citigate => Ok(ConnectorEnum::Old(Box::new(Citigate::new()))),
+                enums::Connector::D24 => Ok(ConnectorEnum::Old(Box::new(D24::new()))),
                 enums::Connector::Worldpayraft => {
                     Ok(ConnectorEnum::Old(Box::new(Worldpayraft::new())))
                 }
+                enums::Connector::Paynearme => Ok(ConnectorEnum::Old(Box::new(Paynearme::new()))),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

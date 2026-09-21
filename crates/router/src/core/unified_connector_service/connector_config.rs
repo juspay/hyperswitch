@@ -99,6 +99,20 @@ pub struct NsureMetadata {
     api_version: Option<String>,
 }
 
+/// JP Morgan Orbital merchant provisioning facts. Neither value is a secret: they
+/// travel in the request body, not in a header. `bin` selects the back-end
+/// authorization host ("000001" = Stratus/US, "000002" = Tandem/Canada) and
+/// `terminal_id` is the 3-digit merchant terminal. They cannot be derived by the
+/// connector, so they are read from the merchant connector account metadata and
+/// forwarded verbatim. If they are absent, UCS rejects the payment with an
+/// actionable error rather than guessing - guessing would silently route a Tandem
+/// (Canadian) merchant at the Stratus host.
+#[derive(Debug, serde::Deserialize)]
+pub struct JpmorganOrbitalMetadata {
+    bin: Option<String>,
+    terminal_id: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
     brand_id: Secret<String>,
@@ -296,10 +310,26 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// D24 (Directa24) connector configuration
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Worldpay Native RAFT connector configuration
     Worldpayraft {
         license: Secret<String>,
         merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// PayNearMe connector configuration
+    Paynearme {
+        /// PayNearMe API Secret Key. Used only to compute the HMAC-SHA256
+        /// request signature; it is never transmitted to PayNearMe.
+        api_key: Secret<String>,
+        /// PayNearMe Site Identifier.
+        key1: Secret<String>,
         base_url: Option<String>,
     },
     /// Fiservcommercehub connector configuration
@@ -715,6 +745,21 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
+    /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
+    /// Field names must match `ConnectorSpecificConfig::JpmorganOrbital` in the
+    /// connector-service repo (`crates/types-traits/domain_types/src/router_data.rs`).
+    /// `username`    = `orbitalConnectionUsername` header (from `api_key`)
+    /// `password`    = `orbitalConnectionPassword` header (from `api_secret`)
+    /// `merchant_id` = `merchantID` header, also echoed as body `merchant.merchantID` (from `key1`)
+    /// `bin` / `terminal_id` are non-secret provisioning values read from MCA metadata.
+    JpmorganOrbital {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        bin: Option<String>,
+        terminal_id: Option<String>,
+    },
     /// Finix connector configuration
     Finix {
         finix_user_name: Secret<String>,
@@ -793,6 +838,26 @@ pub enum ConnectorSpecificConfig {
         brand_id: Option<Secret<String>>,
         destination_account_number: Option<Secret<String>>,
     },
+    /// Saferpay (SIX Payment Services) connector configuration
+    Saferpay {
+        /// API username (HTTP Basic username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic password)
+        key1: Secret<String>,
+        /// CustomerId (RequestHeader.CustomerId)
+        api_secret: Secret<String>,
+        /// TerminalId (request body TerminalId)
+        key2: Secret<String>,
+    },
+    /// Global Payments Heartland (Portico gateway) connector configuration
+    GlobalpaymentsHeartland {
+        /// Portico SecretAPIKey (skapi_cert_... / skapi_prod_...), sent in the SOAP
+        /// body at Ver1.0/Header/SecretAPIKey
+        api_key: Secret<String>,
+    },
+    /// Pay.com connector configuration
+    /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
+    Paydotcom { api_key: Secret<String> },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -989,6 +1054,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                 }),
                 _ => Err(err("Celero requires HeaderKey auth type")),
+            },
+            Connector::Paydotcom => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Paydotcom {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Paydotcom requires HeaderKey auth type")),
             },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
@@ -1311,6 +1382,29 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
+            },
+            Connector::JpmorganOrbital => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => {
+                    let orbital_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<JpmorganOrbitalMetadata>(m.clone())
+                                .map_err(|_| err("Invalid JP Morgan Orbital metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::JpmorganOrbital {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        bin: orbital_meta.as_ref().and_then(|m| m.bin.clone()),
+                        terminal_id: orbital_meta.as_ref().and_then(|m| m.terminal_id.clone()),
+                    })
+                }
+                _ => Err(err("JpmorganOrbital requires SignatureKey auth type")),
             },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1923,6 +2017,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Citigate requires BodyKey auth type")),
             },
+            // `key1` is D24's read-only API Key (the `X-Login` on PSync GETs);
+            // `api_secret` is the API Signature used as the HMAC-SHA256 key.
+            Connector::D24 => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::D24 {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("D24 requires SignatureKey auth type")),
+            },
             Connector::Worldpayraft => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                     license: api_key.clone(),
@@ -1930,6 +2039,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Worldpayraft requires BodyKey auth type")),
+            },
+            Connector::Paynearme => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Paynearme requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
@@ -2000,6 +2117,26 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     })
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),
+            },
+            Connector::Saferpay => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Saferpay {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    key2: key2.clone(),
+                }),
+                _ => Err(err("Saferpay requires MultiAuthKey auth type")),
+            },
+            Connector::GlobalpaymentsHeartland => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("GlobalpaymentsHeartland requires HeaderKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

@@ -770,6 +770,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NetworkTokenData,
         api_models::payments::Address,
         api_models::payments::SantanderConnectorMetadataData,
+        api_models::payments::StripeConnectorMetadata,
         api_models::payments::SantanderBoletoData,
         api_models::payments::PixAutomaticoMitData,
         api_models::payments::SantanderPixAutomaticoReceiverDetails,
