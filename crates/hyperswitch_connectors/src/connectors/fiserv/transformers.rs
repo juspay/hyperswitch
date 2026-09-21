@@ -935,15 +935,11 @@ pub struct FiservResponseActions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservResponseOrders {
-    intent: FiservIntent,
+    // Only `orderId` is read. `intent` and `orderStatus` were modelled as required
+    // enums with a single variant each, which made the whole `Checkout` variant fail
+    // on any other value and fall back to the charges shape. Fields nothing reads must
+    // not be able to reject a response, so they are left out rather than guessed at.
     order_id: String,
-    order_status: FiservOrderStatus,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum FiservOrderStatus {
-    PayerActionRequired,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1379,6 +1375,11 @@ mod tests {
                 "type": "REDIRECT",
                 "url": "https://checkout.fiserv.test/redirect/abc"
             }
+        },
+        "order": {
+            "intent": "CAPTURE",
+            "orderId": "ORD-1",
+            "orderStatus": "PAYER_ACTION_REQUIRED"
         }
     }"#;
 
