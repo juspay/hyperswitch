@@ -606,9 +606,9 @@ impl ChargebeeCardPaymentMethodDetails {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
-    funding_type: ChargebeeFundingType,
-    brand: ChargebeeCardBrand,
-    iin: String,
+    funding_type: Option<ChargebeeFundingType>,
+    brand: Option<ChargebeeCardBrand>,
+    iin: Option<String>,
 }
 
 // Chargebee sends card brand values in lowercase snake_case (e.g. `visa`, `mastercard`,
@@ -862,13 +862,14 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .or_else(|| {
                 card_details
                     .as_ref()
-                    .map(|card| enums::PaymentMethodType::from(card.funding_type))
+                    .and_then(|card| card.funding_type)
+                    .map(enums::PaymentMethodType::from)
             })
             .unwrap_or(enums::PaymentMethodType::Card);
         let card_info = card_details
             .map(|card| api_models::payments::AdditionalCardInfo {
-                card_network: card.brand.into(),
-                card_isin: Some(card.iin),
+                card_network: card.brand.and_then(Into::into),
+                card_isin: card.iin,
                 ..Default::default()
             })
             .unwrap_or_default();
