@@ -613,6 +613,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        router_env::logger::info!(
+            "Fiuu void txnID: {}",
+            req.request.connector_transaction_id
+        );
         build_form_from_struct(fiuu::FiuuPaymentCancelRequest::try_from(req)?)
             .change_context(errors::ConnectorError::ParsingFailed)
     }

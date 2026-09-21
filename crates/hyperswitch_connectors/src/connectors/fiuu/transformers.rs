@@ -971,7 +971,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(data.txn_id),
+                            connector_transaction_id: Some(non_threeds_data.tran_id.clone()),
                             connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
@@ -989,7 +989,9 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 })
                             });
                         Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                non_threeds_data.tran_id.clone(),
+                            ),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
@@ -1136,7 +1138,7 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
         let txn_amount = item.amount.clone();
         let reference_no = item.router_data.connector_request_reference_id.clone();
         let txn_id = item.router_data.request.connector_transaction_id.clone();
-        let secret_key = auth.secret_key.peek().to_string();
+        let verify_key = auth.verify_key.peek().to_string();
         Ok(Self {
             refund_type: RefundType::Partial,
             merchant_id: auth.merchant_id,
@@ -1144,7 +1146,7 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
             txn_id: txn_id.clone(),
             amount: txn_amount.clone(),
             signature: calculate_signature(format!(
-                "{}{merchant_id}{reference_no}{txn_id}{}{secret_key}",
+                "{}{merchant_id}{reference_no}{txn_id}{}{verify_key}",
                 RefundType::Partial,
                 txn_amount.get_amount_as_string()
             ))?,
@@ -1788,11 +1790,11 @@ impl TryFrom<&PaymentsCancelRouterData> for FiuuPaymentCancelRequest {
         let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
         let txn_id = item.request.connector_transaction_id.clone();
         let merchant_id = auth.merchant_id.peek().to_string();
-        let secret_key = auth.secret_key.peek().to_string();
+        let verify_key = auth.verify_key.peek().to_string();
         Ok(Self {
             txn_id: txn_id.clone(),
             domain: merchant_id.clone(),
-            skey: calculate_signature(format!("{txn_id}{merchant_id}{secret_key}"))?,
+            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}"))?,
         })
     }
 }
