@@ -139,6 +139,7 @@ pub enum Connector {
     Juspaythreedsserver,
     Klarna,
     Loonio,
+    Merchante,
     Mifinity,
     Mollie,
     Moneris,
@@ -240,11 +241,16 @@ impl Connector {
         )
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
-        matches!(
-            (self, payout_method),
-            (_, Some(PayoutType::Bank)) | (Self::Trustly, _)
-        )
+    pub fn supports_create_recipient(
+        self,
+        payout_method: Option<PayoutType>,
+        is_passthrough: bool,
+    ) -> bool {
+        if matches!(self, Self::Trustly) {
+            !is_passthrough
+        } else {
+            matches!(payout_method, Some(PayoutType::Bank))
+        }
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
@@ -395,6 +401,7 @@ impl Connector {
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
+            | Self::Merchante
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
