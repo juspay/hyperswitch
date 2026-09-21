@@ -4919,6 +4919,95 @@ mod tests {
     use super::*;
 
     #[test]
+    fn three_ds_details_survive_storage_and_later_connector_responses() {
+        for (method, initial, pointer) in [
+            (
+                "Card",
+                serde_json::json!({"card": {}}),
+                "/card/authentication_data",
+            ),
+            (
+                "ApplePay",
+                serde_json::json!({"wallet": {"apple_pay": {"display_name": "Visa 4242", "network": "Visa", "type": "debit"}}}),
+                "/wallet/apple_pay/authentication_data",
+            ),
+            (
+                "GooglePay",
+                serde_json::json!({"wallet": {"google_pay": {}}}),
+                "/wallet/google_pay/authentication_data",
+            ),
+        ] {
+            let authentication = serde_json::json!({"three_d_secure_result": "Authentication offered but not used", "eci": "06"});
+            let connector = serde_json::from_value(
+                serde_json::json!({method: {"authentication_data": authentication}}),
+            )
+            .unwrap();
+            let stored = update_additional_payment_data_with_connector_response_pm_data(
+                Some(initial),
+                Some(connector),
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(stored.pointer(pointer), Some(&authentication));
+
+            // Sync/capture can report an auth code without repeating the 3DS result.
+            let connector =
+                serde_json::from_value(serde_json::json!({method: {"auth_code": "123456"}}))
+                    .unwrap();
+            let updated = update_additional_payment_data_with_connector_response_pm_data(
+                Some(stored),
+                Some(connector),
+            )
+            .unwrap()
+            .unwrap();
+            let retrieved = serde_json::from_value::<api_models::payments::AdditionalPaymentData>(
+                updated.clone(),
+            )
+            .unwrap();
+            let response = serde_json::to_value(
+                api_models::payments::PaymentMethodDataResponse::from(retrieved),
+            )
+            .unwrap();
+            assert_eq!(response.pointer(pointer), Some(&authentication));
+
+            // A subsequently reported authentication result takes precedence.
+            let latest = serde_json::json!({"three_d_secure_result": "Cardholder authenticated"});
+            let connector = serde_json::from_value(
+                serde_json::json!({method: {"authentication_data": latest}}),
+            )
+            .unwrap();
+            let updated = update_additional_payment_data_with_connector_response_pm_data(
+                Some(updated),
+                Some(connector),
+            )
+            .unwrap()
+            .unwrap();
+            let expected = serde_json::json!({"three_d_secure_result": "Cardholder authenticated", "eci": "06"});
+            assert_eq!(updated.pointer(pointer), Some(&expected));
+
+            // A later ECI-only update must preserve the result description.
+            let connector = serde_json::from_value(
+                serde_json::json!({method: {"authentication_data": {"eci": "05"}}}),
+            )
+            .unwrap();
+            let updated = update_additional_payment_data_with_connector_response_pm_data(
+                Some(updated),
+                Some(connector),
+            )
+            .unwrap()
+            .unwrap();
+            let retrieved: api_models::payments::AdditionalPaymentData =
+                serde_json::from_value(updated).unwrap();
+            let response = serde_json::to_value(
+                api_models::payments::PaymentMethodDataResponse::from(retrieved),
+            )
+            .unwrap();
+            let expected = serde_json::json!({"three_d_secure_result": "Cardholder authenticated", "eci": "05"});
+            assert_eq!(response.pointer(pointer), Some(&expected));
+        }
+    }
+
+    #[test]
     fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
             payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
@@ -6442,6 +6531,7 @@ pub async fn get_additional_payment_data(
                         device_pan_bin,
                         // These are filled after calling the processor / connector
                         auth_code: None,
+                        authentication_data: None,
 
                         card_bin: None,
                         card_subtype: None,
@@ -6486,6 +6576,7 @@ pub async fn get_additional_payment_data(
                             card_bin,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            authentication_data: None,
                             email: None,
                             card_subtype: None,
                             card_segment_type: None,
@@ -6526,6 +6617,7 @@ pub async fn get_additional_payment_data(
                             card_exp_year: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            authentication_data: None,
                             email: None,
                             device_pan_bin: None,
                             card_bin: None,
@@ -8540,6 +8632,24 @@ pub fn validate_intent_fulfillment_expiry(
     }
 }
 
+/// Preserve previously reported outcome fields when a later connector response is partial.
+/// New values take precedence; non-object payloads retain their replacement semantics.
+fn merge_connector_authentication_data(
+    stored: Option<serde_json::Value>,
+    incoming: Option<serde_json::Value>,
+) -> Option<serde_json::Value> {
+    match (stored, incoming) {
+        (
+            Some(serde_json::Value::Object(mut stored)),
+            Some(serde_json::Value::Object(incoming)),
+        ) => {
+            stored.extend(incoming);
+            Some(serde_json::Value::Object(stored))
+        }
+        (stored, incoming) => incoming.or(stored),
+    }
+}
+
 pub fn add_connector_response_to_additional_payment_data(
     additional_payment_data: api_models::payments::AdditionalPaymentData,
     connector_response_payment_method_data: AdditionalPaymentMethodConnectorResponse,
@@ -8559,7 +8669,10 @@ pub fn add_connector_response_to_additional_payment_data(
         ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
             api_models::payments::AdditionalCardInfo {
                 payment_checks,
-                authentication_data,
+                authentication_data: merge_connector_authentication_data(
+                    additional_card_data.authentication_data.clone(),
+                    authentication_data,
+                ),
                 auth_code,
                 ..*additional_card_data.clone()
             },
@@ -8610,6 +8723,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 paypal,
             },
             AdditionalPaymentMethodConnectorResponse::ApplePay {
+                authentication_data,
                 auth_code,
                 device_pan_bin,
                 card_bin,
@@ -8623,6 +8737,14 @@ pub fn add_connector_response_to_additional_payment_data(
             apple_pay: apple_pay.as_ref().map(|apple_pay| {
                 Box::new(api_models::payments::ApplepayPaymentMethod {
                     auth_code: auth_code.clone(),
+                    authentication_data: merge_connector_authentication_data(
+                        apple_pay
+                            .authentication_data
+                            .as_ref()
+                            .map(|data| data.peek().clone()),
+                        authentication_data.clone(),
+                    )
+                    .map(hyperswitch_masking::Secret::new),
                     device_pan_bin: device_pan_bin
                         .clone()
                         .or_else(|| apple_pay.device_pan_bin.clone()),
@@ -8647,6 +8769,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 paypal,
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay {
+                authentication_data,
                 auth_code,
                 device_pan_bin,
                 card_bin,
@@ -8662,6 +8785,14 @@ pub fn add_connector_response_to_additional_payment_data(
             google_pay: google_pay.as_ref().map(|google_pay| {
                 Box::new(payment_additional_types::WalletAdditionalDataForCard {
                     auth_code: auth_code.clone(),
+                    authentication_data: merge_connector_authentication_data(
+                        google_pay
+                            .authentication_data
+                            .as_ref()
+                            .map(|data| data.peek().clone()),
+                        authentication_data.clone(),
+                    )
+                    .map(hyperswitch_masking::Secret::new),
                     card_subtype: card_subtype.clone(),
                     card_segment_type,
                     funding_source,

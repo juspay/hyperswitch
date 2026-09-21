@@ -295,7 +295,8 @@ pub struct Payment {
     #[serde(rename = "AAVEmailResultCode")]
     aav_email_result_code: Option<ResultCode>,
     #[serde(rename = "ThreeDSecureResult")]
-    three_d_secure_result: Option<ResultCode>,
+    three_d_secure_result: Option<ThreeDSecureResult>,
+    eci: Option<String>,
     issuer_country_code: Option<String>,
     issuer_name: Option<String>,
     balance: Option<Vec<Balance>>,
@@ -318,6 +319,13 @@ struct ReturnCode {
 struct ResultCode {
     #[serde(rename = "@description")]
     description: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ThreeDSecureResult {
+    #[serde(rename = "@description")]
+    description: Option<String>,
+    eci: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -4102,8 +4110,7 @@ fn get_mandate_reference(
     }
 }
 
-/// Extracts the `AuthorisationId` returned by Worldpay (the scheme authorization code) and maps it
-/// to the auth code exposed in the connector response.
+/// Preserve Worldpay authorization and authentication details for payment responses.
 fn get_connector_response_data(
     payment_data: &Payment,
     token: Option<&Token>,
@@ -4113,7 +4120,32 @@ fn get_connector_response_data(
         .authorisation_id
         .as_ref()
         .and_then(|authorisation_id| authorisation_id.id.clone())
-        .map(|id| id.expose())?;
+        .map(|id| id.expose());
+    let result = payment_data
+        .three_d_secure_result
+        .as_ref()
+        .and_then(|result| result.description.as_ref());
+    // Worldpay can report wallet ECI without a separate 3DS authentication result.
+    // Prefer the ECI associated with ThreeDSecureResult when both are returned.
+    let eci = payment_data
+        .three_d_secure_result
+        .as_ref()
+        .and_then(|result| result.eci.as_ref())
+        .or(payment_data.eci.as_ref());
+    let mut authentication_details = serde_json::Map::new();
+    if let Some(description) = result {
+        authentication_details.insert("three_d_secure_result".into(), description.clone().into());
+    }
+    if let Some(eci) = eci {
+        authentication_details.insert("eci".into(), eci.clone().into());
+    }
+    let authentication_data =
+        (!authentication_details.is_empty()).then_some(Value::Object(authentication_details));
+
+    // Authentication failures may have no authorization code.
+    if auth_code.is_none() && authentication_data.is_none() {
+        return None;
+    }
 
     let issuer_name = payment_data.issuer_name.clone();
     // Worldpay can return "N/A" here instead of an ISO alpha-2 code; parse leniently.
@@ -4134,7 +4166,8 @@ fn get_connector_response_data(
     let additional_payment_method_data = match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
-                auth_code: Some(auth_code),
+                authentication_data,
+                auth_code,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4151,7 +4184,8 @@ fn get_connector_response_data(
         }
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
-                auth_code: Some(auth_code),
+                authentication_data,
+                auth_code,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4162,11 +4196,11 @@ fn get_connector_response_data(
             }
         }
         _ => AdditionalPaymentMethodConnectorResponse::Card {
-            authentication_data: None,
+            authentication_data,
             payment_checks: None,
             card_network: None,
             domestic_network: None,
-            auth_code: Some(auth_code),
+            auth_code,
         },
     };
 
@@ -4455,5 +4489,150 @@ fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateT
         Some(common_enums::MitCategory::Recurring) => MandateType::Recurring,
         Some(common_enums::MitCategory::Unscheduled) | None => MandateType::Unscheduled,
         _ => MandateType::Unscheduled,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preserves_worldpay_three_ds_result_for_cards_and_wallets() {
+        for description in [
+            "Cardholder authenticated",
+            "Authentication offered but not used",
+            "Authentication unavailable",
+            "Failed",
+            "Authentication rejected",
+            "Future Worldpay result",
+        ] {
+            for (last_event, authorization) in [
+                ("REFUSED", ""),
+                ("AUTHORISED", r#"<AuthorisationId id="123456"/>"#),
+            ] {
+                let xml = format!(
+                    r#"<payment><lastEvent>{last_event}</lastEvent>{authorization}<ThreeDSecureResult description="{description}"/></payment>"#,
+                );
+                let payment: Payment =
+                    crate::utils::deserialize_xml_to_struct(xml.as_bytes()).unwrap();
+                for method in [
+                    None,
+                    Some(enums::PaymentMethodType::ApplePay),
+                    Some(enums::PaymentMethodType::GooglePay),
+                ] {
+                    let response = get_connector_response_data(&payment, None, method).unwrap();
+                    let (authentication_data, auth_code) =
+                        match response.additional_payment_method_data.unwrap() {
+                            AdditionalPaymentMethodConnectorResponse::Card {
+                                authentication_data,
+                                auth_code,
+                                ..
+                            }
+                            | AdditionalPaymentMethodConnectorResponse::ApplePay {
+                                authentication_data,
+                                auth_code,
+                                ..
+                            }
+                            | AdditionalPaymentMethodConnectorResponse::GooglePay {
+                                authentication_data,
+                                auth_code,
+                                ..
+                            } => (authentication_data, auth_code),
+                            other => panic!("Unexpected payment method response: {other:?}"),
+                        };
+                    assert_eq!(
+                        authentication_data,
+                        Some(serde_json::json!({"three_d_secure_result": description}))
+                    );
+                    assert_eq!(
+                        auth_code.as_deref(),
+                        if authorization.is_empty() {
+                            None
+                        } else {
+                            Some("123456")
+                        }
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn preserves_worldpay_eci_with_and_without_three_ds_or_authorization() {
+        for (details, expected) in [
+            (
+                r#"<ThreeDSecureResult description="Cardholder authenticated"><eci>05</eci></ThreeDSecureResult>"#,
+                serde_json::json!({"three_d_secure_result": "Cardholder authenticated", "eci": "05"}),
+            ),
+            ("<eci>07</eci>", serde_json::json!({"eci": "07"})),
+            (
+                "<ThreeDSecureResult><eci>02</eci></ThreeDSecureResult>",
+                serde_json::json!({"eci": "02"}),
+            ),
+            (
+                r#"<ThreeDSecureResult description="Authentication unavailable"/><eci>07</eci>"#,
+                serde_json::json!({"three_d_secure_result": "Authentication unavailable", "eci": "07"}),
+            ),
+            (
+                "<ThreeDSecureResult><eci>05</eci></ThreeDSecureResult><eci>07</eci>",
+                serde_json::json!({"eci": "05"}),
+            ),
+        ] {
+            for (last_event, authorization) in [
+                ("REFUSED", ""),
+                ("AUTHORISED", r#"<AuthorisationId id="123456"/>"#),
+            ] {
+                let xml = format!(
+                    "<payment><lastEvent>{last_event}</lastEvent>{authorization}{details}</payment>"
+                );
+                let payment: Payment =
+                    crate::utils::deserialize_xml_to_struct(xml.as_bytes()).unwrap();
+                for method in [
+                    None,
+                    Some(enums::PaymentMethodType::ApplePay),
+                    Some(enums::PaymentMethodType::GooglePay),
+                ] {
+                    let response = get_connector_response_data(&payment, None, method).unwrap();
+                    let authentication_data = match response.additional_payment_method_data.unwrap()
+                    {
+                        AdditionalPaymentMethodConnectorResponse::Card {
+                            authentication_data,
+                            ..
+                        }
+                        | AdditionalPaymentMethodConnectorResponse::ApplePay {
+                            authentication_data,
+                            ..
+                        }
+                        | AdditionalPaymentMethodConnectorResponse::GooglePay {
+                            authentication_data,
+                            ..
+                        } => authentication_data,
+                        other => panic!("Unexpected payment method response: {other:?}"),
+                    };
+                    // Keep ECI as a string (including its leading zero), without inventing 3DS fields.
+                    assert_eq!(authentication_data.as_ref(), Some(&expected));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn does_not_infer_three_ds_from_payment_authorization() {
+        for last_event in ["AUTHORISED", "REFUSED"] {
+            let xml = format!(r#"<payment><lastEvent>{last_event}</lastEvent></payment>"#);
+            let payment: Payment = crate::utils::deserialize_xml_to_struct(xml.as_bytes()).unwrap();
+            assert!(get_connector_response_data(&payment, None, None).is_none());
+        }
+        let payment: Payment = crate::utils::deserialize_xml_to_struct(
+            br#"<payment><lastEvent>AUTHORISED</lastEvent><AuthorisationId id="123456"/><ThreeDSecureResult/></payment>"#,
+        ).unwrap();
+        let response = get_connector_response_data(&payment, None, None).unwrap();
+        assert!(matches!(
+            response.additional_payment_method_data,
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                ..
+            })
+        ));
     }
 }

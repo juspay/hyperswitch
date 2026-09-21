@@ -5310,7 +5310,7 @@ pub enum WalletData {
     /// The wallet data for Apple pay
     #[schema(title = "ApplePay")]
     #[smithy(value_type = "ApplePayWalletData")]
-    ApplePay(ApplePayWalletData),
+    ApplePay(Box<ApplePayWalletData>),
     /// Wallet data for apple pay redirect flow
     #[schema(title = "ApplePayRedirect")]
     #[smithy(value_type = "ApplePayRedirectData")]
@@ -5982,6 +5982,11 @@ pub struct ApplepayPaymentMethod {
     pub card_type: Option<api_enums::CardType>,
     /// Unique authorisation code generated for the payment
     pub auth_code: Option<String>,
+    /// Connector-reported authentication outcome and ECI, including wallet authentication.
+    /// Does not imply a separate EMV 3DS flow. Must not contain authentication credentials.
+    #[schema(value_type = Option<Object>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub authentication_data: Option<Secret<serde_json::Value>>,
     /// The card's product/subtype, as returned by the connector
     pub card_subtype: Option<String>,
     /// The card's segment (e.g. consumer, commercial), as returned by the connector
@@ -9067,6 +9072,10 @@ pub struct ExternalAuthenticationDetailsResponse {
     #[schema(value_type = AuthenticationStatus)]
     #[smithy(value_type = "AuthenticationStatus")]
     pub status: enums::AuthenticationStatus,
+    /// Original EMV 3DS transStatus (for example Y, A, N, or U).
+    #[schema(value_type = Option<TransactionStatus>)]
+    #[smithy(value_type = "Option<String>")]
+    pub trans_status: Option<enums::TransactionStatus>,
     /// DS Transaction ID
     #[smithy(value_type = "Option<String>")]
     pub ds_transaction_id: Option<String>,
@@ -9702,6 +9711,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
+                            authentication_data: apple_pay_pm.authentication_data,
                             email: None,
                             device_pan_bin: apple_pay_pm.device_pan_bin,
                             card_bin: apple_pay_pm.card_bin,
@@ -13114,6 +13124,62 @@ pub mod amount {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn external_authentication_preserves_emv_trans_status() {
+        for code in ["Y", "A", "N", "U", "R", "C", "D", "I"] {
+            let trans_status = serde_json::from_value(serde_json::json!(code)).unwrap();
+            let response = ExternalAuthenticationDetailsResponse {
+                status: enums::AuthenticationStatus::Failed,
+                trans_status: Some(trans_status),
+                ..Default::default()
+            };
+            let json = serde_json::to_value(response).unwrap();
+            assert_eq!(json["trans_status"], code);
+            // Adding the original status must not change the existing summary field.
+            assert_eq!(json["status"], "failed");
+        }
+        let json = serde_json::to_value(ExternalAuthenticationDetailsResponse::default()).unwrap();
+        assert!(json["trans_status"].is_null());
+    }
+
+    #[test]
+    fn stored_wallet_authentication_is_exposed_in_payment_response() {
+        for (wallet, details) in [
+            (
+                "apple_pay",
+                serde_json::json!({"display_name": "Visa 4242", "network": "Visa", "type": "debit"}),
+            ),
+            ("google_pay", serde_json::json!({})),
+        ] {
+            let old_data = serde_json::json!({"wallet": {wallet: details}});
+            // Previously stored wallets do not contain authentication_data.
+            let old: AdditionalPaymentData = serde_json::from_value(old_data.clone()).unwrap();
+            let response = serde_json::to_value(PaymentMethodDataResponse::from(old)).unwrap();
+            assert!(response["wallet"][wallet]["authentication_data"].is_null());
+
+            let mut stored_data = old_data;
+            stored_data["wallet"][wallet]["authentication_data"] = serde_json::json!({
+                "three_d_secure_result": "Authentication offered but not used",
+                "eci": "06"
+            });
+            let stored: AdditionalPaymentData = serde_json::from_value(stored_data).unwrap();
+            // Authentication metadata is serialized for clients but masked in diagnostic output.
+            assert!(!format!("{stored:?}").contains("Authentication offered but not used"));
+            let round_trip: AdditionalPaymentData =
+                serde_json::from_str(&serde_json::to_string(&stored).unwrap()).unwrap();
+            let response =
+                serde_json::to_value(PaymentMethodDataResponse::from(round_trip)).unwrap();
+            assert_eq!(
+                response["wallet"][wallet]["authentication_data"]["three_d_secure_result"],
+                "Authentication offered but not used"
+            );
+            assert_eq!(
+                response["wallet"][wallet]["authentication_data"]["eci"],
+                "06"
+            );
+        }
+    }
 
     #[test]
     fn test_mandate_type() {

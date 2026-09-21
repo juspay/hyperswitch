@@ -2753,6 +2753,7 @@ fn convert_to_additional_payment_method_connector_response(
     match payment_method_type {
         Some(enums::PaymentMethodType::GooglePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
+                authentication_data: None,
                 auth_code,
                 device_pan_bin: None,
                 card_bin: None,
@@ -2772,6 +2773,7 @@ fn convert_to_additional_payment_method_connector_response(
         }
         Some(enums::PaymentMethodType::ApplePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
+                authentication_data: None,
                 auth_code,
                 device_pan_bin: None,
                 card_bin: None,
