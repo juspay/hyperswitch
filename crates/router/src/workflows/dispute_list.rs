@@ -95,6 +95,10 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 .deref();
             let application_source = state.conf.application_source;
 
+            #[allow(
+                clippy::disallowed_methods,
+                reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
+            )]
             tokio::spawn(
                 async move {
                     schedule_next_dispute_list_task(
