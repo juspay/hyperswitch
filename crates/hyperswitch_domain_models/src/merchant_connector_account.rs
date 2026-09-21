@@ -4,20 +4,21 @@ use std::collections::HashMap;
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
-    errors::CustomResult,
+    errors::{CustomResult, ValidationError},
     ext_traits::{StringExt, ValueExt},
     id_type, pii,
     types::keymanager::ToEncryptable,
 };
-use common_utils::errors::ValidationError;
 #[cfg(feature = "v2")]
 use diesel_models::merchant_connector_account::{
     BillingAccountReference as DieselBillingAccountReference,
     MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
     RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
 };
-use diesel_models::merchant_connector_account as storage;
-use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
+use diesel_models::{
+    enums, merchant_connector_account as storage,
+    merchant_connector_account::MerchantConnectorAccountUpdateInternal,
+};
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::PeekInterface;
