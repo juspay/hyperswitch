@@ -1,5 +1,5 @@
 // A build script cannot see common_utils, and its maps exist only while compiling.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 // crates/smithy-generator/build.rs
 

@@ -10,7 +10,7 @@
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
 
 // Does not depend on common_utils; its maps are event metadata, never rendered into a request.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 mod actix;
 

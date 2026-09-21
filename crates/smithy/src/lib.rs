@@ -1,5 +1,5 @@
 // A proc-macro: its maps exist only while compiling.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 // crates/smithy/lib.rs - Fixed with proper optional type handling in flattening
 
@@ -197,7 +197,7 @@ fn generate_struct_impl(
 
     let expanded = quote! {
         // smithy_core builds the model at compile time and names std's map.
-        #[allow(clippy::disallowed_types)]
+        #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
         impl smithy_core::SmithyModelGenerator for #name {
             fn generate_smithy_model() -> smithy_core::SmithyModel {
                 let mut shapes = std::collections::HashMap::new();
@@ -245,7 +245,7 @@ fn generate_union_from_flattened_struct(
 
     let expanded = quote! {
         // smithy_core builds the model at compile time and names std's map.
-        #[allow(clippy::disallowed_types)]
+        #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
         impl smithy_core::SmithyModelGenerator for #name {
             fn generate_smithy_model() -> smithy_core::SmithyModel {
                 let mut shapes = std::collections::HashMap::new();
@@ -483,7 +483,7 @@ fn generate_enum_impl(
 
         let expanded = quote! {
             // smithy_core builds the model at compile time and names std's map.
-            #[allow(clippy::disallowed_types)]
+            #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
             impl smithy_core::SmithyModelGenerator for #name {
                 fn generate_smithy_model() -> smithy_core::SmithyModel {
                     let mut shapes = std::collections::HashMap::new();
@@ -755,7 +755,7 @@ fn generate_enum_impl(
 
         let expanded = quote! {
             // smithy_core builds the model at compile time and names std's map.
-            #[allow(clippy::disallowed_types)]
+            #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
             impl smithy_core::SmithyModelGenerator for #name {
                 fn generate_smithy_model() -> smithy_core::SmithyModel {
                     let mut shapes = std::collections::HashMap::new();
@@ -919,7 +919,7 @@ fn generate_tagged_enum_impl(
 
     let expanded = quote! {
         // smithy_core builds the model at compile time and names std's map.
-        #[allow(clippy::disallowed_types)]
+        #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
         impl smithy_core::SmithyModelGenerator for #name {
             fn generate_smithy_model() -> smithy_core::SmithyModel {
                 let mut shapes = std::collections::HashMap::new();

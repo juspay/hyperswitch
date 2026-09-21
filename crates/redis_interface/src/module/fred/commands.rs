@@ -1739,7 +1739,7 @@ impl super::RedisConnectionWithContext {
                     .map(|(entry_id, field_pairs)| {
                         // Convert raw fred field values into the common RedisValue wrapper type.
                         // This preserves all data (strings, nulls, binary, etc.) in a backend-neutral form.
-                        let fields_by_redis_value: std::collections::HashMap<
+                        let fields_by_redis_value: common_utils::collections::HashMap<
                             String,
                             crate::RedisValue,
                         > = field_pairs
@@ -1822,7 +1822,7 @@ impl super::RedisConnectionWithContext {
                     .map(|(entry_id, optional_field_pairs)| {
                         // Wrap fred's field values (Option<String>) into RedisValue.
                         // If the field has no value, we store Null to preserve the entry's presence.
-                        let fields_by_redis_value: std::collections::HashMap<
+                        let fields_by_redis_value: common_utils::collections::HashMap<
                             String,
                             crate::RedisValue,
                         > = optional_field_pairs

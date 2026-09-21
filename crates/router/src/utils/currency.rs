@@ -1,5 +1,5 @@
 // currency_conversion, which does not use the facade, takes std's map.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 use std::{
     ops::Deref,
