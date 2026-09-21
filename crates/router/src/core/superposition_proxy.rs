@@ -172,7 +172,7 @@ fn map_superposition_err(
     }
 }
 
-/// Extract the `x-org-id` and `x-workspace` headers and check them against the
+/// Read the `x-org-id` and `x-workspace` headers and check them against the
 /// configured Superposition scope. These name a Superposition org/workspace, a
 /// different namespace from the JWT's `organization_id`, so config is the only
 /// trusted source to compare against.
@@ -182,39 +182,33 @@ pub fn extract_proxy_headers(
 ) -> Result<(String, String), HttpResponse> {
     let superposition_client = &state.superposition_service;
 
-    let header = |name: &'static str| {
-        req.headers()
-            .get(name)
-            .and_then(|value| value.to_str().ok())
-            .map(String::from)
-            .ok_or_else(|| {
-                HttpResponse::BadRequest().json(serde_json::json!({
-                    "error": { "message": format!("missing required header: {name}") }
-                }))
-            })
-    };
+    let superposition_org_id = required_header(req, "x-org-id")?;
+    let superposition_workspace_id = required_header(req, "x-workspace")?;
 
-    let org_id = header("x-org-id")?;
-    let workspace_id = header("x-workspace")?;
+    let org_matches = superposition_org_id == superposition_client.configured_org_id();
+    let workspace_matches =
+        superposition_workspace_id == superposition_client.configured_workspace_id();
 
-    let org_matches = org_id == superposition_client.configured_org_id();
-    let workspace_matches = workspace_id == superposition_client.configured_workspace_id();
-
-    if !org_matches || !workspace_matches {
-        let resource = match (org_matches, workspace_matches) {
-            (false, false) => "superposition org and workspace",
-            (false, true) => "superposition org",
-            _ => "superposition workspace",
-        };
-
-        return Err(actix_web::ResponseError::error_response(
+    match (org_matches, workspace_matches) {
+        (true, true) => Ok((superposition_org_id, superposition_workspace_id)),
+        _ => Err(actix_web::ResponseError::error_response(
             &errors::ApiErrorResponse::AccessForbidden {
-                resource: resource.to_string(),
+                resource: "superposition org and workspace".to_string(),
             },
-        ));
+        )),
     }
+}
 
-    Ok((org_id, workspace_id))
+fn required_header(req: &HttpRequest, name: &'static str) -> Result<String, HttpResponse> {
+    req.headers()
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(String::from)
+        .ok_or_else(|| {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": { "message": format!("missing required header: {name}") }
+            }))
+        })
 }
 
 /// Typed `ListContexts` query params, parsed from the raw key/value pairs
