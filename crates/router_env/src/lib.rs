@@ -4,7 +4,7 @@
 
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 // common_utils depends on this crate, so it cannot use the facade.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 /// Utilities to identify members of the current cargo workspace.
 pub mod cargo_workspace;
