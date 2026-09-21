@@ -14,13 +14,13 @@ use external_services::superposition::{
     ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
     GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder, GetDimensionInputBuilder,
     GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
-    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionError,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionClient,
+    SuperpositionError,
 };
 
 use crate::{
     consts::user_role::{ROLE_ID_MERCHANT_ADMIN, ROLE_ID_PROFILE_ADMIN},
     core::errors::{self, RouterResponse},
-    routes::AppState,
     services::{authentication::UserFromToken, ApplicationResponse},
     SessionState,
 };
@@ -178,10 +178,8 @@ fn map_superposition_err(
 /// trusted source to compare against.
 pub fn extract_proxy_headers(
     req: &HttpRequest,
-    state: &AppState,
+    superposition_client: &SuperpositionClient,
 ) -> Result<(String, String), HttpResponse> {
-    let superposition_client = &state.superposition_service;
-
     let superposition_org_id = required_header(req, "x-org-id")?;
     let superposition_workspace_id = required_header(req, "x-workspace")?;
 

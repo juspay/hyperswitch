@@ -22,10 +22,11 @@ pub async fn list_contexts(
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListContexts;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok(headers) => headers,
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = ListContextsQuery::from(query.into_inner());
 
     Box::pin(api::server_wrap(
@@ -35,15 +36,15 @@ pub async fn list_contexts(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -65,10 +66,11 @@ pub async fn list_default_configs(
     query: web::Query<ListDefaultConfigsQuery>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListDefaultConfigs;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok(headers) => headers,
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = query.into_inner();
 
     Box::pin(api::server_wrap(
@@ -78,15 +80,15 @@ pub async fn list_default_configs(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -108,10 +110,11 @@ pub async fn list_dimensions(
     query: web::Query<ListDimensionsQuery>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListDimensions;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok(headers) => headers,
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = query.into_inner();
 
     Box::pin(api::server_wrap(
@@ -121,15 +124,15 @@ pub async fn list_dimensions(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -151,10 +154,11 @@ pub async fn get_dimension(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionGetDimension;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok(headers) => headers,
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = GetDimensionRequest(path.into_inner());
 
     Box::pin(api::server_wrap(
@@ -164,15 +168,15 @@ pub async fn get_dimension(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -194,10 +198,11 @@ pub async fn get_default_config(
     path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionGetDefaultConfig;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok(headers) => headers,
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = GetDefaultConfigRequest(path.into_inner());
 
     Box::pin(api::server_wrap(
@@ -207,15 +212,15 @@ pub async fn get_default_config(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -237,10 +242,11 @@ pub async fn create_context(
     body: web::Json<ContextPutRequest>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionCreateContext;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok((org_id, workspace_id)) => (org_id, workspace_id),
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = body.into_inner();
 
     Box::pin(api::server_wrap(
@@ -250,15 +256,15 @@ pub async fn create_context(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -280,10 +286,11 @@ pub async fn resolve_detailed_config(
     body: web::Json<ResolveConfigBody>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionResolveDetailedConfig;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok((org_id, workspace_id)) => (org_id, workspace_id),
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = ResolveDetailedConfigRequest(body.into_inner().context);
 
     Box::pin(api::server_wrap(
@@ -293,15 +300,15 @@ pub async fn resolve_detailed_config(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -324,10 +331,11 @@ pub async fn resolve_config_explanation(
     body: web::Json<ResolveConfigBody>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionResolveConfigExplanation;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok((org_id, workspace_id)) => (org_id, workspace_id),
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = ResolveConfigExplanationRequest {
         key: path.into_inner(),
         context: body.into_inner().context,
@@ -340,15 +348,15 @@ pub async fn resolve_config_explanation(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
@@ -370,10 +378,11 @@ pub async fn list_audit_logs(
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListAuditLogs;
-    let (org_id, workspace_id) = match superposition_proxy::extract_proxy_headers(&req, &state) {
-        Ok(headers) => headers,
-        Err(response) => return response,
-    };
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
     let request = ListAuditLogsQuery::from(query.into_inner());
 
     Box::pin(api::server_wrap(
@@ -383,15 +392,15 @@ pub async fn list_audit_logs(
         (),
         move |state, user, _, _| {
             let request = request.clone();
-            let org_id = org_id.clone();
-            let workspace_id = workspace_id.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
             async move {
                 superposition_proxy::handle_superposition_proxy_flow(
                     state,
                     user,
                     request,
-                    org_id,
-                    workspace_id,
+                    superposition_org_id,
+                    superposition_workspace_id,
                 )
                 .await
             }
