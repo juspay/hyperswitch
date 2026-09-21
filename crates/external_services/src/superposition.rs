@@ -1,5 +1,8 @@
 //! Superposition client for dynamic configuration management
 
+// Every map here is the Superposition SDK's or open_feature's type.
+#![allow(clippy::disallowed_types)]
+
 /// Type definitions for Superposition integration
 pub mod types;
 

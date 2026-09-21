@@ -3,6 +3,8 @@
 //! Environment of payment router: logger, basic config, its environment awareness.
 
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
+// common_utils depends on this crate, so it cannot use the facade.
+#![allow(clippy::disallowed_types)]
 
 /// Utilities to identify members of the current cargo workspace.
 pub mod cargo_workspace;
