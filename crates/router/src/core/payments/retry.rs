@@ -249,7 +249,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 ) -> bool {
     let key = merchant_id.get_step_up_enabled_key();
     let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
+    db.find_config_by_key_unwrap_or(key.as_str(), "[]".to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|step_up_config| {
@@ -272,8 +272,13 @@ pub async fn get_merchant_max_auto_retries_enabled(
 ) -> Option<i32> {
     let key = merchant_id.get_max_auto_retries_enabled();
 
-    db.find_config_by_key(key.as_str())
+    db.find_config_by_key_optional(key.as_str())
         .await
+        .and_then(|config_optional| {
+            config_optional.ok_or_else(|| {
+                error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+            })
+        })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .and_then(|retries_config| {
             retries_config
@@ -838,15 +843,17 @@ pub fn make_new_auto_retry_payment_attempt(
         multiple_capture_count: Default::default(),
         amount_capturable: Default::default(),
         updated_by: Default::default(),
-        authentication_data: Default::default(),
+        authentication_data: old_payment_attempt.authentication_data,
         encoded_data: Default::default(),
         merchant_connector_id: Default::default(),
         unified_code: Default::default(),
         unified_message: Default::default(),
-        external_three_ds_authentication_attempted: Default::default(),
-        external_threeds_authentication_type: Default::default(),
-        authentication_connector: Default::default(),
-        authentication_id: Default::default(),
+        external_three_ds_authentication_attempted: old_payment_attempt
+            .external_three_ds_authentication_attempted,
+        external_threeds_authentication_type: old_payment_attempt
+            .external_threeds_authentication_type,
+        authentication_connector: old_payment_attempt.authentication_connector,
+        authentication_id: old_payment_attempt.authentication_id,
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
@@ -885,6 +892,7 @@ pub fn make_new_auto_retry_payment_attempt(
         applied_offer_details: old_payment_attempt.applied_offer_details,
         sender_payment_instrument_id: Default::default(),
         payment_account_reference: Default::default(),
+        active_frm_id: old_payment_attempt.active_frm_id,
     }
 }
 

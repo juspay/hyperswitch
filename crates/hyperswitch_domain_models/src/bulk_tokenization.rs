@@ -42,6 +42,9 @@ pub struct TokenizeCardRequest {
     pub card_network: Option<enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_type: Option<payment_methods_api::CardType>,
+    pub card_subtype: Option<String>,
+    pub card_segment_type: Option<enums::CardSegmentType>,
+    pub funding_source: Option<enums::FundingSource>,
 }
 
 #[derive(Clone, Debug)]
@@ -64,6 +67,9 @@ pub struct CardNetworkTokenizeRecord {
     pub card_network: Option<enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_type: Option<payment_methods_api::CardType>,
+    pub card_subtype: Option<String>,
+    pub card_segment_type: Option<enums::CardSegmentType>,
+    pub funding_source: Option<enums::FundingSource>,
 
     // Payment method details
     pub payment_method_id: Option<String>,
@@ -113,6 +119,7 @@ impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::CustomerDetails {
             phone_country_code: record.customer_phone_country_code.clone(),
             tax_registration_id: record.customer_tax_registration_id.clone(),
             document_details: record.customer_document_details.clone(),
+            date_of_birth: None,
         }
     }
 }
@@ -170,6 +177,9 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
                             card_network: record.card_network,
                             card_issuer: record.card_issuer,
                             card_type: record.card_type.clone(),
+                            card_subtype: record.card_subtype,
+                            card_segment_type: record.card_segment_type,
+                            funding_source: record.funding_source,
                         },
                     ),
                     billing,
@@ -214,6 +224,9 @@ impl ForeignFrom<&TokenizeCardRequest> for payment_methods_api::MigrateCardDetai
                 .card_type
                 .as_ref()
                 .map(|card_type| card_type.to_string()),
+            card_subtype: card.card_subtype.clone(),
+            card_segment_type: card.card_segment_type,
+            funding_source: card.funding_source,
         }
     }
 }
@@ -229,6 +242,7 @@ impl ForeignTryFrom<CustomerDetails> for payments_api::CustomerDetails {
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
             document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
         })
     }
 }
@@ -261,6 +275,9 @@ impl ForeignFrom<payment_methods_api::TokenizeDataRequest> for TokenizeDataReque
                     card_network: card.card_network,
                     card_issuer: card.card_issuer,
                     card_type: card.card_type,
+                    card_subtype: card.card_subtype,
+                    card_segment_type: card.card_segment_type,
+                    funding_source: card.funding_source,
                 })
             }
             payment_methods_api::TokenizeDataRequest::ExistingPaymentMethod(pm) => {
@@ -283,6 +300,7 @@ impl ForeignFrom<payments_api::CustomerDetails> for CustomerDetails {
             phone_country_code: req.phone_country_code,
             tax_registration_id: req.tax_registration_id,
             document_details: req.document_details,
+            date_of_birth: req.date_of_birth,
         }
     }
 }

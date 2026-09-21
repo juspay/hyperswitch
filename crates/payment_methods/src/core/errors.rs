@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 pub use hyperswitch_domain_models::{
     api,
@@ -27,7 +29,7 @@ pub enum VaultError {
     #[error("The given payout method is currently not supported in vault")]
     PayoutMethodNotSupported,
     #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    MissingRequiredField { field_name: Cow<'static, str> },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]

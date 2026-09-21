@@ -35,12 +35,15 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::configs::Connectors;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
 use hyperswitch_masking::Secret;
 #[cfg(feature = "payouts")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
+use redis_interface::errors::RedisError;
 use regex::Regex;
 use router_env::{instrument, tracing};
 use storage_impl::StorageError;
@@ -118,6 +121,11 @@ pub async fn get_feature_config(
 
     let is_payment_method_modular_allowed =
         payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
+    router_env::logger::debug!(
+        is_payment_method_modular_allowed,
+        organization_id=%platform.get_processor().get_account().organization_id.get_string_repr(),
+        "resolved PM modular service feature flag"
+    );
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -311,6 +319,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
                     document_details: None,
+                    date_of_birth: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -359,6 +368,7 @@ pub async fn construct_payout_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -407,10 +417,11 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
+            .find_config_by_key_optional(&format!("connector_api_version_{connector_enum}"))
             .await
-            .map(|value| value.config)
             .ok()
+            .flatten()
+            .map(|value| value.config)
     } else {
         None
     };
@@ -542,6 +553,7 @@ pub async fn construct_refund_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -595,17 +607,18 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_enum = Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
 
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
+            .find_config_by_key_optional(&format!("connector_api_version_{connector_id}"))
             .await
-            .map(|value| value.config)
             .ok()
+            .flatten()
+            .map(|value| value.config)
     } else {
         None
     };
@@ -616,7 +629,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .map(|b| b.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
@@ -744,6 +757,7 @@ pub async fn construct_refund_router_data<'a, F>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -965,7 +979,7 @@ pub fn get_split_refunds(
 
                     if option_for_user_id.is_some() {
                         Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "split_refunds.xendit_split_refund.for_user_id",
+                            field_name: "split_refunds.xendit_split_refund.for_user_id".into(),
                         })?
                     } else {
                         Ok(None)
@@ -1266,6 +1280,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1379,6 +1394,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1498,6 +1514,7 @@ pub async fn construct_upload_file_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1578,6 +1595,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     })
 }
 
@@ -1693,6 +1711,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1748,7 +1767,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
                     data.to_owned()
                         .parse_value("OrderDetailsWithAmount")
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "OrderDetailsWithAmount",
+                            field_name: "OrderDetailsWithAmount".into(),
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
@@ -1831,6 +1850,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1947,6 +1967,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1963,7 +1984,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .profile_id
         .as_ref()
         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in file_metadata")?;
@@ -2053,6 +2074,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -2116,6 +2138,58 @@ pub fn get_payout_connector_request_reference_id(
         None => connector_data
             .connector
             .generate_payout_connector_request_reference_id(payout_attempt),
+    }
+}
+
+#[cfg(feature = "frm")]
+pub fn get_gateway_frm_metadata(
+    connectors: &Connectors,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
+    match &payment_attempt.connector {
+        Some(connector_name) => {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payment_attempt.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+            connector_data
+                .connector
+                .get_payment_frm_metadata(payment_attempt)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
+        }
+        None => Ok(None),
+    }
+}
+
+#[cfg(feature = "frm")]
+pub fn get_payout_gateway_frm_metadata(
+    connectors: &Connectors,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
+    match &payout_attempt.connector {
+        Some(connector_name) => {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payout_attempt.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+            connector_data
+                .connector
+                .get_payout_frm_metadata(payout_attempt)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
+        }
+        None => Ok(None),
     }
 }
 
@@ -2307,7 +2381,7 @@ pub async fn get_profile_id_from_business_details(
                 Ok(business_profile.get_id().to_owned())
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id or business_country, business_label"
+                field_name: "profile_id or business_country, business_label".into()
             })),
         },
     }
@@ -3127,4 +3201,122 @@ where
     .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_name))?;
 
     Ok(encrypted_data)
+}
+
+/// Reads a value cached in Redis under `redis_key`.
+///
+/// Never fatal: a miss, an unreachable Redis, or an entry that no longer deserializes all read as
+/// "not cached", and the caller rebuilds what it would have built without the cache. Only the
+/// failures are logged; a miss is the normal first-call case.
+pub async fn read_cached_value<T>(
+    state: &SessionState,
+    redis_key: &str,
+    type_name: &'static str,
+) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let lookup: CustomResult<T, RedisError> = async {
+        state
+            .store
+            .get_redis_conn()?
+            .get_and_deserialize_key::<T>(&redis_key.into(), type_name)
+            .await
+    }
+    .await;
+
+    match lookup {
+        Ok(cached) => Some(cached),
+        Err(err) if matches!(err.current_context(), RedisError::NotFound) => None,
+        Err(err) => {
+            router_env::logger::warn!(
+                ?err,
+                redis_key,
+                type_name,
+                "Failed to read the cached value; rebuilding it"
+            );
+            None
+        }
+    }
+}
+
+/// Caches `value` in Redis under `redis_key` for `ttl_seconds`.
+///
+/// Never fatal: a write failure only means later calls rebuild the value, so it is logged and
+/// otherwise ignored.
+pub async fn cache_value_with_expiry<T>(
+    state: &SessionState,
+    redis_key: &str,
+    type_name: &'static str,
+    value: &T,
+    ttl_seconds: i64,
+) where
+    T: serde::Serialize + std::fmt::Debug,
+{
+    let stored: CustomResult<(), RedisError> = async {
+        state
+            .store
+            .get_redis_conn()?
+            .serialize_and_set_key_with_expiry(&redis_key.into(), value, ttl_seconds)
+            .await
+    }
+    .await;
+
+    match stored {
+        Ok(()) => router_env::logger::info!(redis_key, type_name, ttl_seconds, "Cached the value"),
+        Err(err) => router_env::logger::warn!(
+            ?err,
+            redis_key,
+            type_name,
+            "Failed to cache the value; later calls will rebuild it"
+        ),
+    }
+}
+
+/// Pins `candidate` under `redis_key` and returns whichever value is pinned there.
+///
+/// The first writer wins: its value is stored and returned, and every later caller — including
+/// one racing it right now — gets that value back instead of its own. This is what makes a value
+/// that is freshly generated on each build stable across concurrent calls without a lock.
+///
+/// Never fatal: if Redis cannot be reached the caller falls back to its own candidate, which is
+/// what it would have used had the pin not existed.
+pub async fn pin_value(
+    state: &SessionState,
+    redis_key: &str,
+    type_name: &'static str,
+    candidate: String,
+    ttl_seconds: i64,
+) -> String {
+    let pinned: CustomResult<Option<String>, RedisError> = async {
+        let redis = state.store.get_redis_conn()?;
+        match redis
+            .serialize_and_set_key_if_not_exist(&redis_key.into(), &candidate, Some(ttl_seconds))
+            .await?
+        {
+            redis_interface::SetnxReply::KeySet => Ok(None),
+            redis_interface::SetnxReply::KeyNotSet => redis
+                .get_and_deserialize_key::<String>(&redis_key.into(), type_name)
+                .await
+                .map(Some),
+        }
+    }
+    .await;
+
+    match pinned {
+        Ok(None) => candidate,
+        Ok(Some(existing)) => {
+            router_env::logger::debug!(redis_key, type_name, "Reusing the pinned value");
+            existing
+        }
+        Err(err) => {
+            router_env::logger::warn!(
+                ?err,
+                redis_key,
+                type_name,
+                "Failed to pin the value; using the freshly generated one"
+            );
+            candidate
+        }
+    }
 }

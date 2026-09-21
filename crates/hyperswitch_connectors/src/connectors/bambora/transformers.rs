@@ -129,7 +129,7 @@ impl TryFrom<&CompleteAuthorizeData> for BamboraThreedsContinueRequest {
             .as_ref()
             .and_then(|f| f.payload.to_owned())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response.payload",
+                field_name: "redirect_response.payload".into(),
             })?
             .parse_value("CardResponse")
             .change_context(errors::ConnectorError::ParsingFailed)?;
