@@ -32,6 +32,15 @@ use crate::{
     types::{self, api, domain, storage, transformers::ForeignFrom},
 };
 
+/// Sums the outbound-call time of two attempts, keeping whichever side is present.
+#[cfg(feature = "v1")]
+fn accumulate_external_latency(total: Option<u128>, attempt: Option<u128>) -> Option<u128> {
+    match (total, attempt) {
+        (Some(total), Some(attempt)) => Some(total + attempt),
+        (total, attempt) => total.or(attempt),
+    }
+}
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
@@ -102,6 +111,12 @@ where
         false
     };
 
+    // Total outbound-call time for this payment, summed across every attempt. Each retry builds a
+    // fresh `RouterData` whose `external_latency` starts at `None`, so without accumulating here
+    // only the final attempt would survive into the API event — and `latency - hs_latency` would
+    // then bill every earlier attempt's connector wait to Hyperswitch.
+    let mut external_latency_total = router_data.external_latency;
+
     if should_step_up {
         router_data = Box::pin(do_retry(
             &state.clone(),
@@ -123,6 +138,9 @@ where
             feature_config,
         ))
         .await?;
+
+        external_latency_total =
+            accumulate_external_latency(external_latency_total, router_data.external_latency);
     }
     // Step up is not applicable so proceed with auto retries flow
     else {
@@ -231,6 +249,11 @@ where
                     ))
                     .await?;
 
+                    external_latency_total = accumulate_external_latency(
+                        external_latency_total,
+                        router_data.external_latency,
+                    );
+
                     retries = retries.map(|i| i - 1);
                 }
                 storage_enums::GsmDecision::DoDefault => break,
@@ -238,6 +261,11 @@ where
             initial_gsm = None;
         }
     }
+
+    // Handed back once, at the single exit: the whole payment's outbound-call time rather than
+    // just the last attempt's.
+    router_data.external_latency = external_latency_total;
+
     Ok(router_data)
 }
 
