@@ -16,5 +16,5 @@ cache_name="$1"
 # Streamed, not written to disk first — avoids doubling disk usage.
 tar czf - -C "$SCCACHE_DIR" . \
   | aws s3 cp - \
-    "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" \
-    --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+    "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" \
+    --region "${CACHE_S3_REGION}" --no-progress --only-show-errors

@@ -190,11 +190,6 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Resolve S3 cache location, then disable sccache's native S3 backend
-        if: ${{ env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: .github/scripts/sccache-resolve-s3-env.sh
-
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         continue-on-error: true
@@ -225,8 +220,8 @@ jobs:
         shell: bash
         run: |
           aws s3 cp target/debug/router \
-            "s3://${S3_CACHE_BUCKET}/${S3_CACHE_PREFIX}build-artifacts/${{ github.run_id }}/router" \
-            --region "${S3_CACHE_REGION}" --no-progress --only-show-errors
+            "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
+            --region "${CACHE_S3_REGION}" --no-progress --only-show-errors
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
@@ -1852,11 +1847,6 @@ jobs:
         with:
           tool: sccache
           checksum: true
-
-      - name: Resolve S3 cache location, then disable sccache's native S3 backend
-        if: ${{ env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: .github/scripts/sccache-resolve-s3-env.sh
 
       - name: Restore sccache cache from S3
         if: ${{ env.RUN_TESTS == 'true' }}

@@ -11,6 +11,6 @@ fi
 # under this same path for every job in this run to download.
 mkdir -p target/debug
 aws s3 cp \
-  "s3://${SCCACHE_BUCKET}/${SCCACHE_S3_KEY_PREFIX}build-artifacts/${GITHUB_RUN_ID}/router" \
+  "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}build-artifacts/${GITHUB_RUN_ID}/router" \
   target/debug/router \
-  --region "${SCCACHE_REGION}" --no-progress --only-show-errors
+  --region "${CACHE_S3_REGION}" --no-progress --only-show-errors
