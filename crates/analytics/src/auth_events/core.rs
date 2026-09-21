@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     auth_events::{
         AuthEventDimensions, AuthEventMetrics, AuthEventMetricsBucketIdentifier,
@@ -8,7 +6,7 @@ use api_models::analytics::{
     AuthEventFilterValue, AuthEventFiltersResponse, AuthEventMetricsResponse,
     AuthEventsAnalyticsMetadata, GetAuthEventFilterRequest, GetAuthEventMetricRequest,
 };
-use common_utils::types::TimeRange;
+use common_utils::{collections::HashMap, types::TimeRange};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 

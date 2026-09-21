@@ -51,10 +51,8 @@ pub async fn update_payment_method_record(
     ApplicationResponse<pm_api::PaymentMethodRecordUpdateResponse>,
     errors::ApiErrorResponse,
 > {
-    use std::collections::HashMap;
-
     use common_enums::enums;
-    use common_utils::pii;
+    use common_utils::{collections::HashMap, pii};
     use hyperswitch_domain_models::mandates::{
         CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord,
         PayoutsMandateReference, PayoutsMandateReferenceRecord,

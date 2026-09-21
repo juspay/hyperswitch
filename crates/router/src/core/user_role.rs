@@ -1,12 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::LazyLock,
-};
+use std::sync::LazyLock;
 
 use api_models::{
     user as user_api,
     user_role::{self as user_role_api, role as role_api},
 };
+use common_utils::collections::{HashMap, HashSet};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     organization::OrganizationBridge,

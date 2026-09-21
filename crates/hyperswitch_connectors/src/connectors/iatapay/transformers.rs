@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
-    errors::CustomResult, ext_traits::Encode, request::Method, types::FloatMajorUnit,
+    collections::HashMap, errors::CustomResult, ext_traits::Encode, request::Method,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{

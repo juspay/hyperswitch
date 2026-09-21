@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, ops::Deref};
+use std::{fmt::Debug, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
@@ -8,6 +8,7 @@ use common_types::{
 };
 use common_utils::{
     collect_missing_value_keys,
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},

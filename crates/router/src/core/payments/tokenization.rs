@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use ::payment_methods::controller::PaymentMethodsController;
 use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
+    collections::HashMap,
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
     id_type,

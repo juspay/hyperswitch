@@ -2,7 +2,6 @@ pub mod client;
 pub mod generic_link_response;
 pub mod request;
 use std::{
-    collections::{HashMap, HashSet},
     fmt::Debug,
     future::Future,
     str,
@@ -20,6 +19,7 @@ pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
+    collections::{HashMap, HashSet},
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
 };

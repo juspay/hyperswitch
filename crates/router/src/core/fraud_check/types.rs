@@ -1,6 +1,3 @@
-#[cfg(feature = "payouts")]
-use std::collections::HashSet;
-
 #[cfg(all(feature = "payouts", feature = "v1"))]
 use api_models::payouts::PayoutMethodData;
 use api_models::{
@@ -10,6 +7,8 @@ use api_models::{
     refunds::RefundResponse,
 };
 use common_enums::{FrmSuggestion, PreFrmFailureMode};
+#[cfg(feature = "payouts")]
+use common_utils::collections::HashSet;
 use common_utils::pii::SecretSerdeValue;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 #[cfg(all(feature = "payouts", feature = "v1"))]

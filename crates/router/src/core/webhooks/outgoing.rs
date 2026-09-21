@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
@@ -6,6 +6,7 @@ use api_models::{
 };
 use common_enums::SurchargeEventMapper;
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::{Encode, StringExt},
     request::RequestContent,

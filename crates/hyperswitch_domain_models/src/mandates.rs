@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use api_models::payments::{
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
 };
 use common_enums::Currency;
 use common_types::payments as common_payments_types;
 use common_utils::{
+    collections::HashMap,
     date_time,
     errors::{CustomResult, ParsingError},
     id_type, pii,

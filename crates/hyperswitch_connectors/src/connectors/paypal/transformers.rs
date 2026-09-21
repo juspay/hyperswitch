@@ -3013,7 +3013,7 @@ fn paypal_threeds_link(
         complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
             field_name: "complete_authorize_url".into(),
         })?;
-    let mut form_fields = std::collections::HashMap::from_iter(
+    let mut form_fields = common_utils::collections::HashMap::from_iter(
         redirect_url
             .query_pairs()
             .map(|(key, value)| (key.to_string(), value.to_string())),

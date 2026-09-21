@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     sdk_events::{
         MetricsBucketResponse, SdkEventMetrics, SdkEventMetricsBucketIdentifier, SdkEventsRequest,
@@ -7,7 +5,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, MetricsResponse,
     SdkEventFiltersResponse,
 };
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{collections::HashMap, errors::ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 

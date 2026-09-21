@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
+use std::{borrow::Cow, net::IpAddr, ops::Deref, str::FromStr};
 
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
@@ -22,6 +22,7 @@ use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
+    collections::HashSet,
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id,
@@ -9421,7 +9422,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let merchant_connector_account_details_hash_map: std::collections::HashMap<
+    let merchant_connector_account_details_hash_map: common_utils::collections::HashMap<
         id_type::MerchantConnectorAccountId,
         domain::MerchantConnectorAccountWithoutEncrypted,
     > = merchant_connector_account_list
