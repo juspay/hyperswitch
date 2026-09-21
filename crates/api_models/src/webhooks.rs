@@ -344,7 +344,7 @@ impl From<IncomingWebhookEvent> for common_enums::IncomingWebhookEventType {
     }
 }
 
-pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
+pub type MerchantWebhookConfig = common_utils::collections::HashSet<IncomingWebhookEvent>;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub enum RefundIdType {

@@ -1,8 +1,7 @@
-use std::collections::HashSet;
-
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
+    collections::HashSet,
     errors::CustomResult,
     id_type,
     types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},

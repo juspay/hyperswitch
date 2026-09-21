@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     active_payments::{
         ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier, MetricsBucketResponse,
     },
     AnalyticsMetadata, GetActivePaymentsMetricRequest, MetricsResponse,
 };
+use common_utils::collections::HashMap;
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,

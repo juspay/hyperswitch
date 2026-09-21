@@ -11,8 +11,7 @@ mod refund_processed_amount;
 mod refund_success_count;
 mod refund_success_rate;
 mod sessionized_metrics;
-use std::collections::HashSet;
-
+use common_utils::collections::HashSet;
 use refund_count::RefundCount;
 use refund_processed_amount::RefundProcessedAmount;
 use refund_success_count::RefundSuccessCount;

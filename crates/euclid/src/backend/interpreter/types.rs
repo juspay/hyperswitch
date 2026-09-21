@@ -1,5 +1,6 @@
-use std::{collections::HashMap, fmt, ops::Deref, string::ToString};
+use std::{fmt, ops::Deref, string::ToString};
 
+use common_utils::collections::HashMap;
 use serde::Serialize;
 
 use crate::{backend::inputs, frontend::ast::ValueType, types::EuclidKey};

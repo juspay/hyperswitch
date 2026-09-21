@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-pub type Metadata = std::collections::HashMap<String, serde_json::Value>;
+pub type Metadata = common_utils::collections::HashMap<String, serde_json::Value>;
 
 #[derive(
     Debug,
@@ -125,7 +125,7 @@ impl EuclidAnalysable for DummyOutput {
                         key: metadata_key.clone(),
                         value: metadata_value.clone(),
                     }),
-                    std::collections::HashMap::from_iter([(
+                    common_utils::collections::HashMap::from_iter([(
                         "DUMMY_OUTPUT".to_string(),
                         serde_json::json!({
                             "rule_name":rule_name,

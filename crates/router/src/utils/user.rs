@@ -406,9 +406,9 @@ pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
     destination_profile_id: id_type::ProfileId,
     destination_connector_label: Option<String>,
-    payment_method_types: &std::collections::HashMap<
+    payment_method_types: &common_utils::collections::HashMap<
         common_enums::PaymentMethod,
-        std::collections::HashSet<common_enums::PaymentMethodType>,
+        common_utils::collections::HashSet<common_enums::PaymentMethodType>,
     >,
 ) -> UserResult<admin_api::MerchantConnectorCreate> {
     let source_mca_name = source_mca

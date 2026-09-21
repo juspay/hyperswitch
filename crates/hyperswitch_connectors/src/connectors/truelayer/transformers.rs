@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "payouts")]
@@ -7,7 +7,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_utils::pii;
-use common_utils::types::MinorUnit;
+use common_utils::{collections::HashMap, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,

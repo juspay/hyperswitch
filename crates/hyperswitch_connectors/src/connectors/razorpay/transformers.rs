@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use api_models::payments::PollConfig;
 use common_enums::enums;
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     pii::{self, Email, IpAddress},
     types::MinorUnit,

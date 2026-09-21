@@ -1,9 +1,8 @@
-use std::collections::HashSet;
-
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetrics, PaymentMetricsBucketIdentifier},
     Granularity, TimeRange,
 };
+use common_utils::collections::HashSet;
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 

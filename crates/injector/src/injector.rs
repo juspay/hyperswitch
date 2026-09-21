@@ -1,8 +1,9 @@
 pub mod core {
-    use std::collections::HashMap;
-
     use async_trait::async_trait;
-    use common_utils::request::{Method, RequestBuilder, RequestContent};
+    use common_utils::{
+        collections::HashMap,
+        request::{Method, RequestBuilder, RequestContent},
+    };
     use error_stack::{self, ResultExt};
     use hyperswitch_masking::{self, ExposeInterface};
     use nom::{
@@ -984,8 +985,7 @@ pub use core::*;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
+    use common_utils::collections::HashMap;
     use router_env::logger;
 
     use crate::*;

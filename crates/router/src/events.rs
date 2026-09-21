@@ -1,5 +1,3 @@
-use common_utils::collections::HashMap;
-
 use common_utils::types::TenantConfig;
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
@@ -138,6 +136,8 @@ impl EventsHandler {
 impl MessagingInterface for EventsHandler {
     type MessageClass = EventType;
 
+    // The `events` crate's trait fixes the metadata type, and it does not use the facade.
+    #[allow(clippy::disallowed_types)]
     fn send_message<T>(
         &self,
         data: T,

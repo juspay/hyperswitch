@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use common_enums::{EventClass, EventRecipient, EventType, WebhookDeliveryAttempt};
+use common_utils::collections::HashSet;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

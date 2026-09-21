@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
-use common_utils::{ext_traits::ConfigExt, id_type, DbConnectionParams};
+use common_utils::{collections::HashMap, ext_traits::ConfigExt, id_type, DbConnectionParams};
 use config::{Environment, File};
 use external_services::managers::{
     encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,

@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use common_enums::Currency;
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{collections::HashMap, pii::Email, types::MinorUnit};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
