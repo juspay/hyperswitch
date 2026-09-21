@@ -1163,8 +1163,7 @@ pub struct RoutingConnectorOutcomeWithApproachAndEligibility {
 }
 
 pub struct PreRoutingInput<'a> {
-    pub pre_routing_results:
-        &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    pub pre_routing_results: &'a Option<hyperswitch_domain_models::routing::PreRoutingResults>,
     pub payment_method_type: &'a storage_enums::PaymentMethodType,
     pub connectors: &'a hyperswitch_interfaces::configs::Connectors,
     pub processor: &'a domain::Processor,

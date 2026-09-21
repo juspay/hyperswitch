@@ -1,9 +1,8 @@
-use std::collections::HashSet;
-
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
 use common_utils::{
+    collections::HashSet,
     id_type::{self, GenerateId},
     validation::validate_domain_against_allowed_domains,
 };
@@ -381,7 +380,7 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 .to_string()
         })),
         // Skip all validations when test mode is enabled in non prod env
-        (_, true) => Ok(HashSet::new()),
+        (_, true) => Ok(HashSet::default()),
         // Otherwise, perform validations
         (_, false) => {
             // Fetch destination is "iframe"

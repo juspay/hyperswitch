@@ -4549,10 +4549,8 @@ pub async fn build_merchant_enabled_pms_context(
                 pre_routing_results: None,
             });
 
-        let mut pre_routing_results: HashMap<
-            api_enums::PaymentMethodType,
-            storage::PreRoutingConnectorChoice,
-        > = HashMap::new();
+        let mut pre_routing_results: hyperswitch_domain_models::routing::PreRoutingResults =
+            Default::default();
 
         for (pm_type, routing_choice) in result {
             let mut routable_choice_list = vec![];
@@ -6385,9 +6383,7 @@ pub async fn get_pm_list_context(
     // (e.g. the payouts validator) can pass `None` for each.
     bank_redirect_profile_id: Option<&id_type::ProfileId>,
     bank_redirect_mcas: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
-    bank_redirect_pre_routing: Option<
-        &HashMap<api_enums::PaymentMethodType, storage::PreRoutingConnectorChoice>,
-    >,
+    bank_redirect_pre_routing: Option<&hyperswitch_domain_models::routing::PreRoutingResults>,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let cards = PmCards { state, provider };
     let payment_method_retrieval_context = match payment_method {
@@ -6563,9 +6559,7 @@ pub fn is_eligible_for_saved_flow(
     pm: &domain::PaymentMethod,
     profile_id: Option<&id_type::ProfileId>,
     merchant_connector_accounts: &domain::MerchantConnectorAccountsWithoutEncrypted,
-    pre_routing_results: Option<
-        &HashMap<api_enums::PaymentMethodType, storage::PreRoutingConnectorChoice>,
-    >,
+    pre_routing_results: Option<&hyperswitch_domain_models::routing::PreRoutingResults>,
 ) -> bool {
     // extract the MCA ID stored as the key in connector_payment_method_details.
     // The field is serialised as `{ "<mca_id>": <connector-specific payment method details> }`.
@@ -6932,9 +6926,7 @@ pub async fn get_pm_list_context_for_bank_redirect(
     is_payment_associated: bool,
     profile_id: Option<&id_type::ProfileId>,
     merchant_connector_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
-    pre_routing_results: Option<
-        &HashMap<api_enums::PaymentMethodType, storage::PreRoutingConnectorChoice>,
-    >,
+    pre_routing_results: Option<&hyperswitch_domain_models::routing::PreRoutingResults>,
 ) -> errors::RouterResult<Option<PaymentMethodListContext>> {
     let payment_method_data = pm
         .payment_method_data
