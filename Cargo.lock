@@ -359,6 +359,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "currency_conversion",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
  "diesel_models",
  "error-stack 0.4.1",
  "futures 0.3.31",
@@ -2202,7 +2203,7 @@ dependencies = [
  "blake3",
  "bytes 1.10.1",
  "common_enums",
- "deja",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "diesel",
  "error-stack 0.4.1",
  "fake",
@@ -2873,14 +2874,28 @@ name = "deja"
 version = "0.1.0"
 source = "git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a#45eada58e067fa6443bc15b7a492d2c49f975d4a"
 dependencies = [
- "deja-context",
- "deja-core",
- "deja-derive",
+ "deja-context 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "deja-core 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "deja-derive 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "deja-diesel",
- "deja-runtime",
+ "deja-runtime 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "error-stack 0.4.1",
  "fred",
  "redis",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "deja"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e#8c6d3e4a78e06f59c8730398a9a093084925e85e"
+dependencies = [
+ "deja-context 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
+ "deja-core 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
+ "deja-derive 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
+ "deja-runtime 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
+ "error-stack 0.4.1",
  "serde",
  "serde_json",
 ]
@@ -2894,9 +2909,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "deja-context"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e#8c6d3e4a78e06f59c8730398a9a093084925e85e"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
 name = "deja-core"
 version = "0.1.0"
 source = "git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a#45eada58e067fa6443bc15b7a492d2c49f975d4a"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "deja-core"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e#8c6d3e4a78e06f59c8730398a9a093084925e85e"
 dependencies = [
  "serde",
  "serde_json",
@@ -2914,12 +2947,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "deja-derive"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e#8c6d3e4a78e06f59c8730398a9a093084925e85e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "deja-diesel"
 version = "0.1.0"
 source = "git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a#45eada58e067fa6443bc15b7a492d2c49f975d4a"
 dependencies = [
  "async-bb8-diesel",
- "deja-runtime",
+ "deja-runtime 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "diesel",
 ]
 
@@ -2929,9 +2972,26 @@ version = "0.1.0"
 source = "git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a#45eada58e067fa6443bc15b7a492d2c49f975d4a"
 dependencies = [
  "async-trait",
- "deja-context",
- "deja-core",
- "deja-derive",
+ "deja-context 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "deja-core 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "deja-derive 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "serde",
+ "serde_json",
+ "siphasher 1.0.1",
+ "tokio 1.48.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "deja-runtime"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e#8c6d3e4a78e06f59c8730398a9a093084925e85e"
+dependencies = [
+ "async-trait",
+ "deja-context 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
+ "deja-core 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
+ "deja-derive 0.1.0 (git+https://github.com/juspay/deja?rev=8c6d3e4a78e06f59c8730398a9a093084925e85e)",
  "serde",
  "serde_json",
  "siphasher 1.0.1",
@@ -3126,7 +3186,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
- "deja",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "diesel",
  "error-stack 0.4.1",
  "hyperswitch_masking",
@@ -3572,7 +3632,7 @@ dependencies = [
  "bytes 1.10.1",
  "common_enums",
  "common_utils",
- "deja",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "dyn-clone",
  "error-stack 0.4.1",
  "google-cloud-kms",
@@ -8084,7 +8144,7 @@ name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "deja",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "error-stack 0.4.1",
  "fred",
  "futures 0.3.31",
@@ -8416,8 +8476,8 @@ dependencies = [
  "cookie 0.18.1",
  "csv",
  "currency_conversion",
- "deja",
- "deja-core",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "deja-core 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -8529,8 +8589,8 @@ dependencies = [
  "bytes 1.10.1",
  "cargo_metadata 0.18.1",
  "config",
- "deja",
- "deja-core",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
+ "deja-core 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "error-stack 0.4.1",
  "gethostname",
  "hyperswitch_masking",
@@ -9842,7 +9902,7 @@ dependencies = [
  "common_utils",
  "config",
  "crc32fast",
- "deja",
+ "deja 0.1.0 (git+https://github.com/juspay/deja?rev=45eada58e067fa6443bc15b7a492d2c49f975d4a)",
  "diesel",
  "diesel_models",
  "dyn-clone",

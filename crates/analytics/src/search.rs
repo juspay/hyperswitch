@@ -37,6 +37,67 @@ macro_rules! append_filter {
     };
 }
 
+
+/// Args for the OpenSearch seam: everything about the query that a replay must
+/// reproduce, and nothing that moves on its own.
+///
+/// Built field by field rather than from `Debug` on the builder, because the
+/// builder holds a `HashSet` whose rendering order is per-process random —
+/// folding that into the args hash would move the key every run.
+/// `search_params` is excluded: it carries auth scope, not query identity.
+#[cfg(feature = "deja")]
+fn opensearch_args(builder: &OpenSearchQueryBuilder) -> Value {
+    serde_json::json!({
+        "query": builder.query,
+        "indexes": format!("{:?}", builder.query_type),
+        "offset": builder.offset,
+        "count": builder.count,
+        "filters": format!("{:?}", builder.filters),
+        "time_range": format!("{:?}", builder.time_range),
+        "amount_range": format!("{:?}", builder.amount_range),
+        "order": format!("{:?}", builder.order),
+    })
+}
+
+/// The OpenSearch query, resolved to the response text.
+///
+/// The seam sits here rather than on `OpenSearchClient::execute` because that
+/// returns a streaming response body, which cannot be captured or compared.
+/// This is also the honest boundary: the text IS the third-party state that
+/// reaches the response, and it is what diverges when the live index has moved
+/// on from the recording.
+///
+/// `Http` rather than `Db`: the index is external state read over HTTP and
+/// substituted from the tape, not part of the seeded store, so the seed planner
+/// must not try to reconstruct it. No `on_miss` — no response text is honest
+/// when the recording holds none.
+#[cfg_attr(
+    feature = "deja",
+    deja::boundary(
+        boundary = "opensearch",
+        component = "analytics::search",
+        operation = "execute_search",
+        op = Read,
+        replay = Substitute,
+        effect = Http,
+        returns = Value,
+        codec = deja::codec::ResultCodec::<String, OpenSearchError>,
+        args = opensearch_args(&query_builder),
+    )
+)]
+async fn execute_search_to_text(
+    client: &OpenSearchClient,
+    query_builder: OpenSearchQueryBuilder,
+) -> CustomResult<String, OpenSearchError> {
+    client
+        .execute(query_builder)
+        .await
+        .change_context(OpenSearchError::ConnectionError)?
+        .text()
+        .await
+        .change_context(OpenSearchError::ResponseError)
+}
+
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
@@ -182,13 +243,8 @@ pub async fn msearch_results(
         query_builder.set_time_range(time_range.into()).switch()?;
     };
 
-    let response_text: OpenMsearchOutput = client
-        .execute(query_builder)
+    let response_text: OpenMsearchOutput = execute_search_to_text(client, query_builder)
         .await
-        .change_context(OpenSearchError::ConnectionError)?
-        .text()
-        .await
-        .change_context(OpenSearchError::ResponseError)
         .and_then(|body: String| {
             serde_json::from_str::<OpenMsearchOutput>(&body)
                 .change_context(OpenSearchError::DeserialisationError)
@@ -383,13 +439,8 @@ pub async fn search_results(
         .set_offset_n_count(search_req.offset, search_req.count)
         .switch()?;
 
-    let response_text: OpensearchOutput = client
-        .execute(query_builder)
+    let response_text: OpensearchOutput = execute_search_to_text(client, query_builder)
         .await
-        .change_context(OpenSearchError::ConnectionError)?
-        .text()
-        .await
-        .change_context(OpenSearchError::ResponseError)
         .and_then(|body: String| {
             serde_json::from_str::<OpensearchOutput>(&body)
                 .change_context(OpenSearchError::DeserialisationError)
