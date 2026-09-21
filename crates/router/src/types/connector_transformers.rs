@@ -78,6 +78,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
+            api_enums::Connector::GotymeSanlam => Self::GotymeSanlam,
             api_enums::Connector::Gpayments => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "gpayments is not a routable connector".to_string(),
@@ -112,6 +113,8 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Moneris => Self::Moneris,
+            api_enums::Connector::Etisalat => Self::Etisalat,
+            api_enums::Connector::Merchante => Self::Merchante,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -165,6 +168,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
+                })?
+            }
+            api_enums::Connector::SanlamPayshield => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "sanlam_payshield is not a routable connector".to_string(),
                 })?
             }
             api_enums::Connector::Square => Self::Square,

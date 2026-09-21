@@ -1,19 +1,23 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 
 use crate::{
-    errors, fraud_check::*, query::generics, schema::fraud_check::dsl, PgPooledConn, StorageResult,
+    errors, fraud_check::*, query::generics, schema::fraud_check::dsl,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl FraudCheckNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FraudCheck> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<FraudCheck> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl FraudCheck {
-    pub async fn update_with_attempt_id(
+    pub async fn update_with_frm_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         fraud_check: FraudCheckUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -23,9 +27,7 @@ impl FraudCheck {
             _,
         >(
             conn,
-            dsl::attempt_id
-                .eq(self.attempt_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            dsl::frm_id.eq(self.frm_id.to_owned()),
             FraudCheckUpdateInternal::from(fraud_check),
         )
         .await
@@ -38,31 +40,11 @@ impl FraudCheck {
         }
     }
 
-    pub async fn get_with_payment_id(
-        conn: &PgPooledConn,
-        payment_id: common_utils::id_type::PaymentId,
-        merchant_id: common_utils::id_type::MerchantId,
+    pub async fn get_with_frm_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        frm_id: String,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::payment_id
-                .eq(payment_id)
-                .and(dsl::merchant_id.eq(merchant_id)),
-        )
-        .await
-    }
-
-    pub async fn get_with_payment_id_if_present(
-        conn: &PgPooledConn,
-        payment_id: common_utils::id_type::PaymentId,
-        merchant_id: common_utils::id_type::MerchantId,
-    ) -> StorageResult<Option<Self>> {
-        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::payment_id
-                .eq(payment_id)
-                .and(dsl::merchant_id.eq(merchant_id)),
-        )
-        .await
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, dsl::frm_id.eq(frm_id))
+            .await
     }
 }

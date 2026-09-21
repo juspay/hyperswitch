@@ -9,7 +9,8 @@ use std::{
 };
 
 pub use accounts::{
-    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+    MerchantAccountRequestType, MerchantAccountType, MerchantIntegrationType, MerchantProductType,
+    OrganizationType, ResourceRequestorType, ResourceType,
 };
 use diesel::{
     backend::Backend,
@@ -584,6 +585,22 @@ pub enum FraudCheckStatus {
     TransactionFailure,
 }
 
+impl FraudCheckStatus {
+    pub fn should_stop_payment(&self, failure_mode: &PreFrmFailureMode) -> bool {
+        matches!(self, Self::Fraud)
+            || (matches!(self, Self::TransactionFailure)
+                && matches!(failure_mode, PreFrmFailureMode::FailClosed))
+    }
+}
+
+#[derive(Debug, Clone, Default, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum PreFrmFailureMode {
+    #[default]
+    FailOpen,
+    FailClosed,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -669,6 +686,8 @@ impl PaymentResourceUpdateStatus {
     }
 }
 
+/// `card_bin` (6 digits) and `extended_card_bin` (8 digits) are deprecated, use
+/// `generic_card_bin`, which accepts 6 to 10 digits.
 #[derive(
     Clone,
     Copy,
@@ -687,8 +706,11 @@ impl PaymentResourceUpdateStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum BlocklistDataKind {
     PaymentMethod,
+    /// Deprecated, superseded by `GenericCardBin`
     CardBin,
+    /// Deprecated, superseded by `GenericCardBin`
     ExtendedCardBin,
+    GenericCardBin,
 }
 
 #[derive(Debug)]
@@ -1866,6 +1888,7 @@ pub enum EventObjectType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1902,6 +1925,7 @@ impl EventClass {
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
                 EventType::SurchargeRefundSucceeded,
+                EventType::RefundReview,
             ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
@@ -1961,6 +1985,7 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -2446,6 +2471,34 @@ pub enum PaymentExperience {
     CollectOtp,
 }
 
+/// Returned in the payment method list response so the SDK,
+/// can help decide whether to show the "save my details" checkbox and how to word it.
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerAcceptanceSupport {
+    /// Every eligible connector supports saving this payment method.
+    Supported,
+    /// Only some of the eligible connectors support saving this payment method
+    PartiallySupported,
+    /// No eligible connector supports saving this payment method
+    #[default]
+    Unsupported,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum SamsungPayCardBrand {
@@ -2542,6 +2595,7 @@ pub enum PaymentMethodType {
     Momo,
     MomoAtm,
     Multibanco,
+    Neteller,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -2605,6 +2659,8 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     OpenBanking,
     NetworkToken,
+    Payshap,
+    PayshapProxy,
 }
 
 /// Indicates whether a wallet token is decrypted .
@@ -2699,6 +2755,7 @@ impl PaymentMethodType {
             Self::Momo => "MoMo",
             Self::MomoAtm => "MoMo ATM",
             Self::Multibanco => "Multibanco",
+            Self::Neteller => "Neteller",
             Self::OnlineBankingThailand => "Online Banking Thailand",
             Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic",
             Self::OnlineBankingFinland => "Online Banking Finland",
@@ -2757,6 +2814,8 @@ impl PaymentMethodType {
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
             Self::NetworkToken => "Network Token",
+            Self::Payshap => "PayShap",
+            Self::PayshapProxy => "PayShap Proxy",
         };
         display_name.to_string()
     }
@@ -2862,23 +2921,30 @@ impl PaymentMethod {
         }
     }
 
-    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
-        match self {
-            Self::BankTransfer | Self::BankRedirect => true,
-            Self::Card
-            | Self::CardRedirect
-            | Self::PayLater
-            | Self::Wallet
-            | Self::GiftCard
-            | Self::Crypto
-            | Self::BankDebit
-            | Self::Reward
-            | Self::RealTimePayment
-            | Self::Upi
-            | Self::Voucher
-            | Self::OpenBanking
-            | Self::MobilePayment
-            | Self::NetworkToken => false,
+    pub fn is_additional_payment_method_data_sensitive(
+        &self,
+        payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
+        match (self, payment_method_type) {
+            (Self::BankTransfer | Self::BankRedirect, _)
+            | (Self::Wallet, Some(PaymentMethodType::Paypal)) => true,
+            (
+                Self::Card
+                | Self::CardRedirect
+                | Self::PayLater
+                | Self::Wallet
+                | Self::GiftCard
+                | Self::Crypto
+                | Self::BankDebit
+                | Self::Reward
+                | Self::RealTimePayment
+                | Self::Upi
+                | Self::Voucher
+                | Self::OpenBanking
+                | Self::MobilePayment
+                | Self::NetworkToken,
+                _,
+            ) => false,
         }
     }
 }
@@ -2946,6 +3012,15 @@ impl ExecutionPath {
         match self {
             Self::Direct | Self::ShadowUnifiedConnectorService => true,
             Self::UnifiedConnectorService => false,
+        }
+    }
+
+    /// Returns the execution mode corresponding to this execution path.
+    pub fn get_execution_mode(&self) -> ExecutionMode {
+        match self {
+            Self::UnifiedConnectorService => ExecutionMode::Primary,
+            Self::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            Self::Direct => ExecutionMode::NotApplicable,
         }
     }
 }
@@ -3317,6 +3392,7 @@ pub enum FrmTransactionType {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     Default,
     serde::Deserialize,
@@ -3359,26 +3435,43 @@ pub enum MandateStatus {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
+    #[strum(to_string = "Visa", serialize = "VISA")]
     Visa,
     #[serde(alias = "MASTERCARD")]
+    #[strum(
+        to_string = "Mastercard",
+        serialize = "MasterCard",
+        serialize = "MASTERCARD"
+    )]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
     #[serde(alias = "AMEX")]
+    #[strum(
+        to_string = "AmericanExpress",
+        serialize = "AMEX",
+        serialize = "AmEx",
+        serialize = "Amex",
+        serialize = "AMERICAN EXPRESS"
+    )]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
     DinersClub,
     #[serde(alias = "DISCOVER")]
+    #[strum(to_string = "Discover", serialize = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
+    // Apple Pay sends UnionPay under its full name. Not seen in production traffic.
+    #[strum(to_string = "UnionPay", serialize = "ChinaUnionPay")]
     UnionPay,
     #[serde(alias = "INTERAC")]
     Interac,
     #[serde(alias = "RUPAY")]
     RuPay,
     #[serde(alias = "MAESTRO")]
+    #[strum(to_string = "Maestro", serialize = "MAESTRO")]
     Maestro,
     #[serde(alias = "STAR")]
     Star,
@@ -3514,6 +3607,9 @@ pub enum CardSegmentType {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 impl CardType {
@@ -3521,6 +3617,9 @@ impl CardType {
         match self {
             Self::Credit => "Credit",
             Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
         }
     }
 }
@@ -3575,6 +3674,37 @@ impl CardNetwork {
             | Self::PrivateLabel
             | Self::Dinacard => false,
         }
+    }
+
+    pub fn from_payment_method_data(payment_method_data: &serde_json::Value) -> Option<Self> {
+        let wallet = payment_method_data.get("wallet");
+
+        // Absent wallet providers serialise as `null` rather than being omitted, so each provider is
+        // matched on the network it yields, not on whether its key is present.
+        let network = match (
+            payment_method_data
+                .get("card")
+                .and_then(|card| card.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("apple_pay"))
+                .and_then(|apple_pay| apple_pay.get("network")),
+            wallet
+                .and_then(|wallet| wallet.get("google_pay"))
+                .and_then(|google_pay| google_pay.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("samsung_pay"))
+                .and_then(|samsung_pay| samsung_pay.get("card_network")),
+        ) {
+            (Some(network), ..)
+            | (_, Some(network), ..)
+            | (_, _, Some(network), _)
+            | (_, _, _, Some(network)) => Some(network),
+            (None, None, None, None) => None,
+        };
+
+        network
+            .and_then(|network| network.as_str())
+            .and_then(|network| Self::from_str(network).ok())
     }
 }
 
@@ -9553,6 +9683,8 @@ pub enum PermissionGroup {
     ReconTransactionsManage,
     ReconRulesView,
     ReconRulesManage,
+    OffersView,
+    OffersManage,
 }
 
 #[derive(
@@ -9574,12 +9706,14 @@ pub enum ParentGroup {
     ReconExceptions,
     ReconTransactions,
     ReconRules,
+    Offers,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
+    PaymentLink,
     Refund,
     ApiKey,
     Account,
@@ -9606,6 +9740,7 @@ pub enum Resource {
     ReconTransaction,
     ReconRule,
     SuperpositionConfig,
+    Offers,
 }
 
 #[derive(
@@ -9637,6 +9772,10 @@ pub enum PermissionScope {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
     Absa,
+    AccessBank,
+    AfricanBank,
+    AfricanBankBusiness,
+    Albaraka,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -9648,16 +9787,46 @@ pub enum BankNames {
     BankMuamalat,
     BankRakyat,
     BankSimpananNasional,
+    BankZero,
     Barclays,
+    BidvestBank,
+    BidvestBankAlliances,
     BlikPSP,
     CapitalOne,
+    Capitec,
+    CapitecBusiness,
     Chase,
+    ChinaConstructionBank,
     Citi,
     CimbBank,
     Discover,
+    Discovery,
+    EnlBank,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    Ithala,
+    JpMorganChase,
+    MtnBanking,
+    Nedbank,
     NavyFederalCreditUnion,
+    Olympus,
+    OldMutual,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PermanentBank,
     PentagonFederalCreditUnion,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
     SynchronyBank,
+    Ubank,
+    VbsMutualBank,
     WellsFargo,
     AbnAmro,
     AsnBank,
@@ -9783,7 +9952,511 @@ pub enum BankNames {
     Yoursafe,
     N26,
     NationaleNederlanden,
+    // European banks
+    AibBusiness,
+    Aktia,
+    Alandsbanken,
+    AllianzBankFinancialAdvisorsSpa,
+    AllianzBanque,
+    AlliedIrishBank,
+    AlliedIrishBankCorporate,
+    AltoAdige,
+    AltoAdigeBancaSuedtirolBank,
+    Argenta,
+    ArkeaBanqueEntreprisesEtInstitutionnels,
+    ArkeaBanquePrivee,
+    AxaBanque,
+    Banca360CreditoCooperativoFvg,
+    BancaAdriaColliEuganei,
+    BancaAgricolaPopolareDiRagusa,
+    BancaAlpiMarittimeCcCarru,
+    BancaAltaToscana,
+    BancaAnnia,
+    BancaCentroEmilia,
+    BancaCentroLazio,
+    BancaCentroToscanaUmbria,
+    BancaCentropadana,
+    BancaCesarePonti,
+    BancaDelCatanzarese,
+    BancaDelCilentoDiSassanoEV,
+    BancaDelPiceno,
+    BancaDelPiemonte,
+    BancaDelTerritorioLombardo,
+    BancaDelVenetoCentrale,
+    BancaDellaMarcaCredcooperativo,
+    BancaDelleTerreVenete,
+    BancaDiAlbaCreditoCooperativo,
+    BancaDiAnghiariEStiaCc,
+    BancaDiBologna,
+    BancaDiCaraglio,
+    BancaDiCreditoPopolareScpa,
+    BancaDiImolaSpa,
+    BancaDiPesaro,
+    BancaDiPesciaECascina,
+    BancaDiPiacenzaScpa,
+    BancaDiTarantoBcc,
+    BancaDiUdineCreditoCoop,
+    BancaDonRizzo,
+    BancaFideuram,
+    BancaFinnatEuramericaSpa,
+    BancaGeneraliSpa,
+    BancaLazioNord,
+    BancaMalatestiana,
+    BancaMonteDeiPaschiDiSiena,
+    BancaPassadore,
+    BancaPatavina,
+    BancaPatrimoniSella,
+    BancaPerIlTrentinoaltoadige,
+    BancaPopolareDelLazioScpa,
+    BancaPopolareDellAltoAdige,
+    BancaPopolareDiSondrio,
+    BancaPopolarePugliese,
+    BancaPopolareValconcaScpa,
+    BancaSanFrancescoCreditoCoop,
+    BancaSella,
+    BancaSistemaSpa,
+    BancaSviluppoCooperazCredito,
+    BancaTema,
+    BancaTerreEtruscheEDiMaremma,
+    BancaTerritoriDelMonviso,
+    BancaValsabbina,
+    BancaVeroneseCcDiConcamarise,
+    BancoAzzoaglio,
+    BancoBpmSpaServizioWebank,
+    BancoBpmSpaServizioYouweb,
+    BancoBpmSpaYoubusinessWeb,
+    BancoBpmWeBank,
+    BancoBpmYouWeb,
+    BancoDeSabadell,
+    BancoDesioBrianza,
+    BancoDiSardegna,
+    BancoMarchigiano,
+    BancoPosta,
+    BancoSantander,
+    BankOfIreland,
+    BankOfIrelandBusiness,
+    BankOfIrelandUk,
+    BankOfScotlandBusiness,
+    Bankinter,
+    BanqueDeSavoie,
+    BanquePopulaire,
+    Barclaycard,
+    BarclaysBusiness,
+    BawagPsk,
+    Bbva,
+    BccAbruzzeseCappelleSulTavo,
+    BccAbruzziEMolise,
+    BccAdriaticoTeramano,
+    BccAgroBresciano,
+    BccAgroPontino,
+    BccAlberobelloSammicheleMonopoli,
+    BccAltoTirrenoDellaCalabria,
+    BccAnagni,
+    BccBasilicata,
+    BccBellegra,
+    BccBrescia,
+    BccBrianzaELaghi,
+    BccCampaniaCentro,
+    BccCapaccioPaestum,
+    BccCastelliRomaniETuscolo,
+    BccCentroCalabria,
+    BccConversano,
+    BccDegliUliviTerraDiBari,
+    BccDeiCastelliEDegliIblei,
+    BccDeiColliAlbani,
+    BccDelCirceoEPrivernate,
+    BccDelGarda,
+    BccDelMetauro,
+    BccDelVelino,
+    BccDellAltaMurgia,
+    BccDellaProvinciaRomana,
+    BccDellaRomagnaOccidentale,
+    BccDelleMadonie,
+    BccDiAltofonteECaccamo,
+    BccDiAquara,
+    BccDiArborea,
+    BccDiBari,
+    BccDiBarlassina,
+    BccDiBeneVagienna,
+    BccDiBinasco,
+    BccDiBuccinoEComuniCilentani,
+    BccDiBustoGarolfoEBuguggiate,
+    BccDiCagliari,
+    BccDiCanosaLoconia,
+    BccDiCaravaggio,
+    BccDiCassanoDelleMurgeETolve,
+    BccDiCherasco,
+    BccDiFilottrano,
+    BccDiFlumeri,
+    BccDiGambatesa,
+    BccDiGaudianoDiLavello,
+    BccDiLeverano,
+    BccDiLocorotondo,
+    BccDiMontepaone,
+    BccDiNapoli,
+    BccDiOstraEMorroDAlba,
+    BccDiOstuni,
+    BccDiPachino,
+    BccDiPergolaECorinaldo,
+    BccDiPianfeiERoccaDeBaldi,
+    BccDiPontassieve,
+    BccDiRecanatiEColmurano,
+    BccDiRoma,
+    BccDiSanGiovanniRotondo,
+    BccDiSanMarzanoDiSanGiuseppe,
+    BccDiSanteramoInColle,
+    BccDiSarsina,
+    BccDiScafatiECetara,
+    BccDiSmarcoDeiCavoti,
+    BccDiSpelloEDelVelino,
+    BccDiTerraDOtranto,
+    BccFelsinea,
+    BccGTonioloDiSanCataldo,
+    BccGranSassoDItalia,
+    BccLaRiscossaDiRegalbuto,
+    BccLodi,
+    BccMilano,
+    BccMontePruno,
+    BccNettuno,
+    BccOglioESerio,
+    BccPordenoneseEMonsile,
+    BccPratolaPeligna,
+    BccPrealpiSanBiagio,
+    BccRavennaForliImola,
+    BccSanGiuseppeDiMussomeli,
+    BccTerraDiLavoro,
+    BccTriuggioValleDelLambro,
+    BccValdarnoFiorentino,
+    BccValdostana,
+    BccValleDelTorto,
+    BccVeneta,
+    BccVeneziaGiulia,
+    BccVersiliaLunigianaEGarfagnana,
+    BccVicentinoPojanaMaggiore,
+    Belfius,
+    Beobank,
+    BiBanca,
+    BluBancaSpa,
+    Bnl,
+    BnpParibasFortis,
+    BoursoBank,
+    Bozen,
+    Bpe,
+    BperBanca,
+    BvrBancaBancheVeneteRiunite,
+    CaisseDEpargne,
+    Caixa,
+    CajaRural,
+    Cajamar,
+    CassaCentraleBanca,
+    CassaDiRisparmioDiBolzano,
+    CassaDiRisparmioDiFermoSpa,
+    CassaDiRisparmioDiSavigliano,
+    CassaPadana,
+    CassaRuraleAltaValsugana,
+    CassaRuraleAltoGardaRovereto,
+    CassaRuraleDiLedro,
+    CassaRuraleDiTreviglio,
+    CassaRuraleFvg,
+    CassaRuraleRenon,
+    CassaRuraleValDiFiemme,
+    CassaRuraleValDiSole,
+    CassaRuraleVallagarina,
+    CassaRuraleValsuganaETesino,
+    CastagnetoBanca1910,
+    CbcBanque,
+    CentromarcaBanca,
+    ChiantibancaCreditoCooperativo,
+    Cic,
+    ClydesdaleBank,
+    Comdirect,
+    Commerzbank,
+    Cortinabanca,
+    Coutts,
+    CrValDiNonRotalianaEGiovo,
+    CraBccDiCantu,
+    CraDiBorgoSanGiacomo,
+    CraDiBoves,
+    CraDiPaliano,
+    Credem,
+    Credifriuli,
+    CreditMutuel,
+    CreditMutuelDeBretagne,
+    CreditMutuelDuSudOuest,
+    CreditoCooperativoAgrigentino,
+    CreditoCooperativoMediocrati,
+    CreditoCooperativoRomagnolo,
+    CreditoDiRomagna,
+    CreditoLombardoVeneto,
+    DanskeBankBusiness,
+    Desio,
+    DeutscheBank,
+    Dkb,
+    EasyBank,
+    Ebs,
+    EmilbancaCc,
+    ErsteBank,
+    EvoBanco,
+    Fineco,
+    Fintro,
+    Fortuneo,
+    FpbCassaDiFassaPrimieroBelluno,
+    HelloBank,
+    Hsbc,
+    HsbcBusiness,
+    Hype,
+    HypoVereinsbank,
+    Ibercaja,
+    IccreaBancaSpa,
+    Illimity,
+    Imagin,
+    ImprebancaSpa,
+    IntesaSanpaolo,
+    IntesaSanpaoloInbiz,
+    IntesaSanpaoloPrivateBankingSpa,
+    Isybank,
+    Kbc,
+    KbcBrussels,
+    Kutxabank,
+    LaBanquePostale,
+    LaBanquePostaleBusiness,
+    LaCassaDiRavennaSpa,
+    LaCassaRurale,
+    LaboralKutxa,
+    Lcl,
+    LisPaySpa,
+    LloydsBusiness,
+    LloydsCommercial,
+    MSBank,
+    Mbna,
+    MettleBank,
+    Monabanq,
+    Mooney,
+    Mps,
+    NatWestBankline,
+    Nationwide,
+    Nordea,
+    OmaSp,
+    Op,
+    Openbank,
+    PopPankki,
+    PostBank,
+    PostePayEvolution,
+    PrimacassaFvg,
+    Ptsb,
+    RaiffeisenAlgund,
+    RaiffeisenAltaPusteria,
+    RaiffeisenAltaVenosta,
+    RaiffeisenAltoAdige,
+    RaiffeisenBassaAtesina,
+    RaiffeisenBassaValleIsarco,
+    RaiffeisenBassaVenosta,
+    RaiffeisenBolzano,
+    RaiffeisenBozen,
+    RaiffeisenBruneck,
+    RaiffeisenBrunico,
+    RaiffeisenCampoDiTrens,
+    RaiffeisenCassaCentrAltoAdige,
+    RaiffeisenCastelrottoortisei,
+    RaiffeisenDeutschnofenaldein,
+    RaiffeisenDobbiaco,
+    RaiffeisenEisacktal,
+    RaiffeisenEtschtal,
+    RaiffeisenFreienfeld,
+    RaiffeisenFunes,
+    RaiffeisenGadertal,
+    RaiffeisenGroeden,
+    RaiffeisenHochpustertal,
+    RaiffeisenKastelruthstulrich,
+    RaiffeisenLaas,
+    RaiffeisenLaces,
+    RaiffeisenLagundo,
+    RaiffeisenLana,
+    RaiffeisenLandesbankSuedtirol,
+    RaiffeisenLasa,
+    RaiffeisenLatsch,
+    RaiffeisenMarlengo,
+    RaiffeisenMarling,
+    RaiffeisenMeran,
+    RaiffeisenMerano,
+    RaiffeisenMonguelfocasiestesido,
+    RaiffeisenNiederdorf,
+    Raiffeisenbank,
+    RoyalBankOfScotlandBankline,
+    SPankki,
+    Saastopankki,
+    Santander,
+    SantanderBusiness,
+    SantanderPersonal,
+    Sparkasse,
+    TargoBank,
+    Tide,
+    Triodos,
+    Tsb,
+    UlsterBankline,
+    Unicaja,
+    VirginMoney,
+    VirginMoneyMerged,
+    VolksbankenRaiffeisenbanken,
+    Wise,
+    YorkshireBank,
+    Zempler,
+    RaiffeisenNovaLevante,
+    RaiffeisenNovaPonentealdino,
+    RaiffeisenObervinschgau,
+    RaiffeisenOltradige,
+    RaiffeisenParcines,
+    RaiffeisenPartschins,
+    RaiffeisenPasseier,
+    RaiffeisenPradtaufers,
+    RaiffeisenPratotubre,
+    RaiffeisenSalorno,
+    RaiffeisenSalurn,
+    RaiffeisenSanMartinoInPassiria,
+    RaiffeisenSarntal,
+    RaiffeisenScena,
+    RaiffeisenSchenna,
+    RaiffeisenSchlanders,
+    RaiffeisenSchlernrosengarten,
+    RaiffeisenSilandro,
+    RaiffeisenSuedtirol,
+    RaiffeisenTaufererahrntal,
+    RaiffeisenTesimo,
+    RaiffeisenTirol,
+    RaiffeisenTirolo,
+    RaiffeisenTisens,
+    RaiffeisenToblach,
+    RaiffeisenTuresaurina,
+    RaiffeisenUeberetsch,
+    RaiffeisenUltenstpankrazlaurein,
+    RaiffeisenUltimospancrlaur,
+    RaiffeisenUntereisacktal,
+    RaiffeisenUnterland,
+    RaiffeisenUntervinschgau,
+    RaiffeisenValBadia,
+    RaiffeisenValGardena,
+    RaiffeisenValPassiria,
+    RaiffeisenValSarentino,
+    RaiffeisenValleIsarco,
+    RaiffeisenVandoies,
+    RaiffeisenVillabassa,
+    RaiffeisenVillnoess,
+    RaiffeisenVintl,
+    RaiffeisenWelsberggsiestaisten,
+    RaiffeisenWelschnofen,
+    RaiffeisenWipptal,
+    RaiffeisenkasseRitten,
+    RivieraBanca,
+    RomagnaBanca,
+    Sella,
+    Sicilbanca,
+    SolutionBank,
+    Suedtiroler,
+    SuedtirolerSparkasse,
+    SuedtirolerVolksbank,
+    Unicredit,
+    UnicreditOnlineBanking,
+    UnicreditUniwebCorporate,
+    ValpolicellaBenacoBanca,
+    Volksbank,
+    VolksbankBancaPopolare,
+    Widiba,
+    ZkbCredcoopdiTriesteEGorizia,
+    Asn,
+    Sns,
+    Seb,
+    Swedbank,
+    MockUkPayments,
 }
+
+impl BankNames {
+    pub fn to_display_name(&self) -> String {
+        if let Some(name) = self.display_name_override() {
+            return name.to_string();
+        }
+        self.to_string()
+            .split('_')
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                    None => String::new(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Overrides for banks whose correct display casing/formatting cannot be derived from the enum variant's snake_case name alone
+    fn display_name_override(self) -> Option<&'static str> {
+        Some(match self {
+            Self::AbnAmro => "ABN Amro",
+            Self::Aib => "AIB",
+            Self::AibBusiness => "AIB Business",
+            Self::Asn => "ASN",
+            Self::AxaBanque => "AXA Banque",
+            Self::BawagPsk => "BAWAG P.S.K.",
+            Self::Bbva => "BBVA",
+            Self::Bnl => "BNL",
+            Self::BnpParibas => "BNP Paribas",
+            Self::BnpParibasFortis => "BNP Paribas Fortis",
+            Self::Bpe => "BPE",
+            Self::BperBanca => "BPER Banca",
+            Self::Banca360CreditoCooperativoFvg => "Banca 360 Credito Cooperativo Fvg",
+            Self::BancaDelCilentoDiSassanoEV => "Banca Del Cilento Di Sassano E V",
+            Self::BancaMonteDeiPaschiDiSiena => "Banca Monte dei Paschi di Siena",
+            Self::BancaPopolareDiSondrio => "Banca Popolare di Sondrio",
+            Self::BancoBpmWeBank => "Banco BPM WeBank",
+            Self::BancoBpmYouWeb => "Banco BPM YouWeb",
+            Self::BancoDeSabadell => "Banco de Sabadell",
+            Self::BancoDiSardegna => "Banco di Sardegna",
+            Self::BankOfIreland => "Bank of Ireland",
+            Self::BankOfIrelandBusiness => "Bank of Ireland Business",
+            Self::BankOfIrelandUk => "Bank of Ireland UK",
+            Self::BankOfScotland => "Bank of Scotland",
+            Self::BankOfScotlandBusiness => "Bank of Scotland Business",
+            Self::BiBanca => "BiBanca",
+            Self::BoursoBank => "BoursoBank",
+            Self::CbcBanque => "CBC Banque",
+            Self::Cic => "CIC",
+            Self::CaisseDEpargne => "Caisse d'Epargne",
+            Self::CastagnetoBanca1910 => "Castagneto Banca 1910",
+            Self::CreditMutuelDeBretagne => "Credit Mutuel de Bretagne",
+            Self::CreditMutuelDuSudOuest => "Credit Mutuel du Sud Ouest",
+            Self::Dkb => "DKB",
+            Self::Ebs => "EBS",
+            Self::EasyBank => "EasyBank",
+            Self::Hsbc => "HSBC",
+            Self::HsbcBusiness => "HSBC Business",
+            Self::HypoVereinsbank => "HypoVereinsbank",
+            Self::Ing => "ING",
+            Self::Kbc => "KBC",
+            Self::KbcBrussels => "KBC Brussels",
+            Self::Lcl => "LCL",
+            Self::MSBank => "M&S Bank",
+            Self::Mbna => "MBNA",
+            Self::NatWest => "NatWest",
+            Self::NatWestBankline => "NatWest Bankline",
+            Self::Op => "OP",
+            Self::OmaSp => "Oma SP",
+            Self::PopPankki => "POP Pankki",
+            Self::Ptsb => "PTSB",
+            Self::PostBank => "Postbank",
+            Self::PostePayEvolution => "PostePay Evolution",
+            Self::Regiobank => "RegioBank",
+            Self::RoyalBankOfScotland => "Royal Bank of Scotland",
+            Self::RoyalBankOfScotlandBankline => "Royal Bank of Scotland Bankline",
+            Self::SPankki => "S-Pankki",
+            Self::Seb => "SEB",
+            Self::Sns => "SNS",
+            Self::Tsb => "TSB",
+            Self::VirginMoneyMerged => "Virgin Money (Merged)",
+            Self::FirstDirect => "first direct",
+            _ => return None,
+        })
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9806,6 +10479,10 @@ pub enum BankType {
     Savings,
     Salary,
     Payment,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 #[derive(
     Clone,
@@ -10555,6 +11232,30 @@ pub enum GooglePayAuthMethod {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum FingerprintType {
+    /// Device PAN used by tokenized wallets such as Apple Pay and Google Pay.
+    Dpan,
+    /// Funding PAN used by a directly supplied card.
+    Fpan,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     PartialEq,
@@ -10721,6 +11422,9 @@ pub enum ProcessTrackerRunner {
     PayoutSyncWorkFlow,
     BatchBlocklistUpload,
     NetworkTokenizationWorkflow,
+    OfferEngineNotifyWorkflow,
+    BlocklistExportWorkflow,
+    BlocklistProfileCloneWorkflow,
 }
 
 #[derive(
@@ -11395,4 +12099,50 @@ pub enum BatchBlocklistJobStatus {
     Processing,
     Completed,
     Failed,
+}
+
+/// Distinguishes bulk upload, CSV export, and profile clone jobs.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobType {
+    Upload,
+    Export,
+    ProfileClone,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PayshapProxyType {
+    Cellphone,
+    #[default]
+    ShapId,
 }

@@ -309,6 +309,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 gocardless::transformers::GocardlessAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::GotymeSanlam => {
+                gotyme_sanlam::transformers::GotymeSanlamAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Gpayments => {
                 gpayments::transformers::GpaymentsAuthType::try_from(self.auth_type)?;
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;
@@ -382,6 +386,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Moneris => {
                 moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Etisalat => {
+                etisalat::transformers::EtisalatAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Merchante => {
+                merchante::transformers::MerchanteAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Multisafepay => {
@@ -650,6 +662,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::SanlamPayshield => {
+                sanlam_payshield::transformers::SanlamPayshieldAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cybersourcedecisionmanager => {
                 cybersourcedecisionmanager::transformers::CybersourcedecisionmanagerAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -746,7 +762,7 @@ impl ConnectorAuthTypeValidation<'_> {
             } => {
                 if auth_key_map.is_empty() {
                     Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_account_details.auth_key_map".to_string(),
+                        field_name: "connector_account_details.auth_key_map".into(),
                         expected_format: "a non empty map".to_string(),
                     }
                     .into())

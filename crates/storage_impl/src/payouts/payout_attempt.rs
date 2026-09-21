@@ -100,6 +100,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     connector_eligibility_reference_id: new_payout_attempt
                         .connector_eligibility_reference_id
                         .clone(),
+                    connector_request_reference_id: new_payout_attempt
+                        .connector_request_reference_id
+                        .clone(),
+                    active_frm_id: new_payout_attempt.active_frm_id.clone(),
                 };
 
                 let field = format!("poa_{}", created_attempt.payout_attempt_id);
@@ -488,8 +492,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        new.to_storage_model()
-            .insert(&conn)
+        Box::pin(new.to_storage_model().insert(&conn))
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
@@ -507,15 +510,17 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        this.clone()
-            .to_storage_model()
-            .update_with_attempt_id(&conn, payout.to_storage_model())
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })
-            .map(PayoutAttempt::from_storage_model)
+        Box::pin(
+            this.clone()
+                .to_storage_model()
+                .update_with_attempt_id(&conn, payout.to_storage_model()),
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+        .map(PayoutAttempt::from_storage_model)
     }
 
     #[instrument(skip_all)]
@@ -702,6 +707,8 @@ impl DataModelExt for PayoutAttempt {
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
             connector_eligibility_reference_id: self.connector_eligibility_reference_id,
+            connector_request_reference_id: self.connector_request_reference_id,
+            active_frm_id: self.active_frm_id,
         }
     }
 
@@ -738,6 +745,8 @@ impl DataModelExt for PayoutAttempt {
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
             connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
+            active_frm_id: storage_model.active_frm_id,
         }
     }
 }
@@ -775,6 +784,8 @@ impl DataModelExt for PayoutAttemptNew {
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
             connector_eligibility_reference_id: self.connector_eligibility_reference_id,
+            connector_request_reference_id: self.connector_request_reference_id,
+            active_frm_id: self.active_frm_id,
         }
     }
 
@@ -811,6 +822,8 @@ impl DataModelExt for PayoutAttemptNew {
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
             connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
+            active_frm_id: storage_model.active_frm_id,
         }
     }
 }
@@ -828,6 +841,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 unified_message,
                 payout_connector_metadata,
                 connector_eligibility_reference_id,
+                active_frm_id,
             } => DieselPayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
@@ -838,6 +852,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 unified_message,
                 payout_connector_metadata,
                 connector_eligibility_reference_id,
+                active_frm_id,
             },
             Self::PayoutTokenUpdate { payout_token } => {
                 DieselPayoutAttemptUpdate::PayoutTokenUpdate { payout_token }
@@ -857,10 +872,14 @@ impl DataModelExt for PayoutAttemptUpdate {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
+                active_frm_id,
             } => DieselPayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
+                active_frm_id,
             },
             Self::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,

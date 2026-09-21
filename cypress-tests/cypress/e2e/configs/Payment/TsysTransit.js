@@ -53,6 +53,9 @@ const payment_method_data_visa = {
   card: {
     last4: "5439",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
@@ -131,7 +134,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -206,7 +209,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -293,8 +296,8 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
+          amount_capturable: 0,
+          amount_received: 6000,
         },
       },
     },
@@ -306,10 +309,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "partially_captured",
           amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
+          amount_capturable: 0,
+          amount_received: 2000,
         },
       },
     },
@@ -486,7 +489,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -512,7 +515,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -660,7 +663,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -713,6 +716,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
       },
       Response: {
@@ -730,10 +734,11 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
       },
       Response: {
@@ -756,6 +761,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         billing: null,
       },
@@ -779,6 +785,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -800,11 +807,12 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -831,6 +839,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -852,11 +861,12 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -884,6 +894,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -936,6 +947,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_channel: "telephone_order",
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -1243,6 +1255,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
@@ -1268,6 +1281,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
       },
       Response: {
@@ -1278,6 +1292,295 @@ export const connectorDetails = {
           payment_method: "card",
           connector: "tsys_transit",
         },
+      },
+    },
+  },
+
+  // ══ 55-DynamicFields.cy.js ═════════════════════════════════════
+  // Card required fields returned by the PML endpoint. The billing data
+  // carried on the payment intent decides which required fields come back
+  // pre-filled; every other field is returned with a null value.
+
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["tsys_transit"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "billing_last_name",
+                    field_type: "user_billing_name",
+                    value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "billing_first_name",
+                    field_type: "user_billing_name",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithBilling: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["tsys_transit"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: "94122",
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "billing_last_name",
+                    field_type: "user_billing_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "billing_first_name",
+                    field_type: "user_billing_name",
+                    value: "joseph",
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: "1467",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithNames: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["tsys_transit"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "billing_last_name",
+                    field_type: "user_billing_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "billing_first_name",
+                    field_type: "user_billing_name",
+                    value: "joseph",
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      pmListDynamicFieldWithEmail: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["tsys_transit"],
+                  },
+                ],
+                required_fields: {
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "billing.address.zip": {
+                    required_field: "payment_method_data.billing.address.zip",
+                    display_name: "zip",
+                    field_type: "user_address_pincode",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "billing_last_name",
+                    field_type: "user_billing_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "billing_first_name",
+                    field_type: "user_billing_name",
+                    value: "joseph",
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "billing.address.line1": {
+                    required_field: "payment_method_data.billing.address.line1",
+                    display_name: "line1",
+                    field_type: "user_address_line1",
+                    value: null,
+                  },
+                },
+              },
+            ],
+          },
+        ],
       },
     },
   },

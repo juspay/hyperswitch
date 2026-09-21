@@ -323,6 +323,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowPaymentsResponse, T, Payments
                 incremental_authorization_allowed: Some(false),
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -413,6 +414,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowCaptureResponse, T, PaymentsR
                 incremental_authorization_allowed: Some(false),
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -510,6 +512,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowVoidResponse, T, PaymentsResp
                 incremental_authorization_allowed: Some(false),
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

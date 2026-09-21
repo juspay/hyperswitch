@@ -111,13 +111,17 @@ where
             grpc_headers,
             unified_connector_service_execution_mode,
             |mut router_data, granular_payout_create_recipient_request, grpc_headers| async move {
-                let response = Box::pin(client.payout_create_recipient(
+                let response = match Box::pin(client.payout_create_recipient(
                     granular_payout_create_recipient_request,
                     connector_auth_metadata,
                     grpc_headers,
-                ))
-                .await
-                .attach_printable("Failed to create_recipient payout")?;
+                )).await
+                {
+                    Ok(resp) => resp,
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to create payout recipient"));
+                    }
+                };
 
                 let payout_create_recipient_response = response.into_inner();
 
@@ -139,7 +143,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
+        .map_err(payout_gateway::convert_ucs_error_to_connector_error)?;
 
         Ok(updated_router_data)
     }
