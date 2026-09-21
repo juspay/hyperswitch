@@ -1,9 +1,5 @@
-use std::{
-    collections::HashMap,
-    ops::Deref,
-    str::FromStr,
-    sync::{Arc, LazyLock},
-};
+use std::{ops::Deref, str::FromStr, sync::{Arc, LazyLock}};
+use common_utils::collections::HashMap;
 
 use api_models::enums;
 use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
@@ -132,7 +128,8 @@ async fn save_forex_data_to_local_cache(
 impl TryFrom<DefaultExchangeRates> for ExchangeRates {
     type Error = error_stack::Report<ForexError>;
     fn try_from(value: DefaultExchangeRates) -> Result<Self, Self::Error> {
-        let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+        let mut conversion_usable: std::collections::HashMap<enums::Currency, CurrencyFactors> =
+            std::collections::HashMap::new();
         for (curr, conversion) in value.conversion {
             let enum_curr = enums::Currency::from_str(curr.as_str())
                 .change_context(ForexError::ConversionError)
@@ -319,7 +316,8 @@ async fn fetch_forex_rates_from_primary_api(
 
     logger::info!(primary_forex_response=?forex_response,"forex_log");
 
-    let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+    let mut conversions: std::collections::HashMap<enums::Currency, CurrencyFactors> =
+        std::collections::HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match forex_response.rates.get(&enum_curr.to_string()) {
             Some(rate) => {
@@ -385,7 +383,8 @@ pub async fn fetch_forex_rates_from_fallback_api(
 
     logger::info!(fallback_forex_response=?fallback_forex_response,"forex_log");
 
-    let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
+    let mut conversions: std::collections::HashMap<enums::Currency, CurrencyFactors> =
+        std::collections::HashMap::new();
     for enum_curr in enums::Currency::iter() {
         match fallback_forex_response
             .quotes

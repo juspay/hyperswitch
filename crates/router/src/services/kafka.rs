@@ -1,4 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+use common_utils::collections::HashMap;
 
 use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
@@ -744,7 +745,7 @@ impl MessagingInterface for KafkaProducer {
     fn send_message<T>(
         &self,
         data: T,
-        metadata: HashMap<String, String>,
+        metadata: std::collections::HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
