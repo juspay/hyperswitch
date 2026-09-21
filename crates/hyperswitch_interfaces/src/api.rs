@@ -543,6 +543,26 @@ pub trait ConnectorSpecifications {
         ConnectorCustomerAction::NoAction
     }
 
+    /// Gateway specific metadata required for payment FRM requests.
+    /// Connectors should override this method if they need to send connector specific metadata as part of the FRM request.
+    #[cfg(feature = "frm")]
+    fn get_payment_frm_metadata(
+        &self,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    /// Gateway specific metadata required for payout FRM requests.
+    /// Connectors should override this method if they need to send connector specific metadata as part of the FRM request.
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        _payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        Ok(None)
+    }
+
     /// Validate if another operation is required
     fn is_payment_recurrence_operation_needed(
         &self,
@@ -603,6 +623,16 @@ pub trait ConnectorSpecifications {
             .as_ref()
             .map(|id| id.get_string_repr().to_owned())
             .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
+    }
+
+    #[cfg(feature = "payouts")]
+    /// Generate connector request reference ID for payout flows
+    fn generate_payout_connector_request_reference_id(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> String {
+        // send payout_attempt_id as connector_request_reference_id for payout flows by default
+        payout_attempt.payout_attempt_id.to_owned()
     }
 
     /// Is Authorize session token required before authorize

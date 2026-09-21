@@ -11,6 +11,11 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
+// Deja: raw redis replies are captured as `deja::value::RedisWireValue`, the
+// one canonical serde-native wire type; the client conversions live in the
+// deja crate next to the type (feature `fred` on the deja dependency).
+#[cfg(feature = "deja")]
+use deja::value::RedisWireValue;
 use error_stack::{report, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
@@ -30,76 +35,6 @@ use crate::{
         SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
-
-// Deja: serde-native proxy mirror of `fred::types::RedisValue`.
-//
-// The concrete proxy lets replay substitute generic Redis reads without adding
-// serde bounds to public `FromRedis` APIs.
-#[cfg(feature = "deja")]
-#[derive(serde::Serialize, serde::Deserialize)]
-enum DejaRedisValue {
-    Null,
-    Boolean(bool),
-    Integer(i64),
-    Double(f64),
-    String(String),
-    Bytes(Vec<u8>),
-    Array(Vec<Self>),
-    Map(Vec<(Self, Self)>),
-    Queued,
-}
-
-#[cfg(feature = "deja")]
-impl From<RedisValue> for DejaRedisValue {
-    fn from(v: RedisValue) -> Self {
-        use fred::types::RedisValue as R;
-        match v {
-            R::Null => Self::Null,
-            R::Boolean(b) => Self::Boolean(b),
-            R::Integer(i) => Self::Integer(i),
-            R::Double(d) => Self::Double(d),
-            R::String(s) => Self::String(s.to_string()),
-            R::Bytes(b) => Self::Bytes(b.to_vec()),
-            R::Queued => Self::Queued,
-            R::Array(a) => Self::Array(a.into_iter().map(Self::from).collect()),
-            R::Map(m) => Self::Map(
-                m.inner()
-                    .into_iter()
-                    .map(|(k, val)| (Self::from(R::from(k)), Self::from(val)))
-                    .collect(),
-            ),
-        }
-    }
-}
-
-#[cfg(feature = "deja")]
-impl TryFrom<DejaRedisValue> for RedisValue {
-    type Error = fred::error::RedisError;
-
-    fn try_from(v: DejaRedisValue) -> Result<Self, Self::Error> {
-        match v {
-            DejaRedisValue::Null => Ok(Self::Null),
-            DejaRedisValue::Boolean(b) => Ok(Self::Boolean(b)),
-            DejaRedisValue::Integer(i) => Ok(Self::Integer(i)),
-            DejaRedisValue::Double(d) => Ok(Self::Double(d)),
-            DejaRedisValue::String(s) => Ok(Self::String(s.into())),
-            DejaRedisValue::Bytes(b) => Ok(Self::Bytes(b.into())),
-            DejaRedisValue::Queued => Ok(Self::Queued),
-            DejaRedisValue::Array(a) => Ok(Self::Array(
-                a.into_iter()
-                    .map(Self::try_from)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )),
-            DejaRedisValue::Map(m) => {
-                let pairs = m
-                    .into_iter()
-                    .map(|(k, val)| Ok((Self::try_from(k)?, Self::try_from(val)?)))
-                    .collect::<Result<Vec<_>, Self::Error>>()?;
-                pairs.try_into().map(Self::Map)
-            }
-        }
-    }
-}
 
 impl super::RedisConnectionWithContext {
     /// Prefix `key` with the tenant key prefix of the underlying pool.
@@ -312,15 +247,15 @@ impl super::RedisConnectionWithContext {
     // Deja hermetic boundary for GET.
     //
     // The boundary lives on this inner method, which fetches the RAW redis reply
-    // (`fred::types::RedisValue`) and mirrors it into the serde-native
-    // `DejaRedisValue`. Because the recorded/replayed type is concrete and
+    // (`fred::types::RedisValue`) and converts it into the serde-native
+    // `RedisWireValue`. Because the recorded/replayed type is concrete and
     // serde-native, the typed `ResultCodec` works without leaking a serde bound
     // onto the public `get_key<V>`.
     #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_key",
-        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
         state_read = key.tenant_aware_key(&self.redis_conn),
         args = {
             serde_json::json!({
@@ -332,7 +267,7 @@ impl super::RedisConnectionWithContext {
     async fn get_key_raw(
         &self,
         key: &RedisKey,
-    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
         match track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
@@ -344,7 +279,7 @@ impl super::RedisConnectionWithContext {
         .await
         .change_context(errors::RedisError::GetFailed)
         {
-            Ok(v) => Ok(DejaRedisValue::from(v)),
+            Ok(v) => Ok(v.into()),
             Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
@@ -363,7 +298,7 @@ impl super::RedisConnectionWithContext {
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
-                    .map(DejaRedisValue::from)
+                    .map(RedisWireValue::from)
                 }
             }
         }
@@ -1267,8 +1202,8 @@ impl super::RedisConnectionWithContext {
     }
 
     // Deja hermetic boundary for HGET — same shape as `get_key_raw`: the boundary
-    // lives on this inner method which fetches the RAW reply and mirrors it into
-    // the serde-native `DejaRedisValue`, so the typed `ResultCodec` substitutes the field read
+    // lives on this inner method which fetches the RAW reply and converts it into
+    // the serde-native `RedisWireValue`, so the typed `ResultCodec` substitutes the field read
     // WITHOUT leaking a serde bound onto the public `get_hash_field<V>`. A
     // record-only `result={"ok":bool}` capture would record NO value, leaving
     // replay nothing to reconstruct `V` from — the read would fall through to
@@ -1277,7 +1212,7 @@ impl super::RedisConnectionWithContext {
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_hash_field",
-        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
         state_read = format!("{}:{}", key.tenant_aware_key(&self.redis_conn), field),
         args = {
             serde_json::json!({
@@ -1291,7 +1226,7 @@ impl super::RedisConnectionWithContext {
         &self,
         key: &RedisKey,
         field: &str,
-    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
         match track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
@@ -1303,7 +1238,7 @@ impl super::RedisConnectionWithContext {
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
         {
-            Ok(v) => Ok(DejaRedisValue::from(v)),
+            Ok(v) => Ok(v.into()),
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
@@ -1318,7 +1253,7 @@ impl super::RedisConnectionWithContext {
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
-                    .map(DejaRedisValue::from)
+                    .map(RedisWireValue::from)
                 }
 
                 #[cfg(not(feature = "multitenancy_fallback"))]
@@ -1389,7 +1324,7 @@ impl super::RedisConnectionWithContext {
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_hash_fields",
-        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
         state_read = key.tenant_aware_key(&self.redis_conn),
         args = {
             serde_json::json!({
@@ -1401,7 +1336,7 @@ impl super::RedisConnectionWithContext {
     async fn get_hash_fields_raw(
         &self,
         key: &RedisKey,
-    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
         match track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
@@ -1413,7 +1348,7 @@ impl super::RedisConnectionWithContext {
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
         {
-            Ok(v) => Ok(DejaRedisValue::from(v)),
+            Ok(v) => Ok(v.into()),
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
@@ -1427,7 +1362,7 @@ impl super::RedisConnectionWithContext {
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
-                    .map(DejaRedisValue::from)
+                    .map(RedisWireValue::from)
                 }
 
                 #[cfg(not(feature = "multitenancy_fallback"))]

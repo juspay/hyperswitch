@@ -1,13 +1,13 @@
-use common_enums::BatchBlocklistJobStatus;
+use common_enums::{BatchBlocklistJobStatus, BatchBlocklistJobType};
 use common_utils::id_type;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use diesel::{
+    sql_types::Jsonb, AsChangeset, AsExpression, Identifiable, Insertable, Queryable, Selectable,
+};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::schema::batch_blocklist_jobs;
 
-// `profile_id` is read-only for now: the column exists and is selected, but
-// nothing writes or filters on it until the profile-scoping change lands.
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(table_name = batch_blocklist_jobs, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct BatchBlocklistJob {
@@ -20,6 +20,14 @@ pub struct BatchBlocklistJob {
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
     pub profile_id: Option<id_type::ProfileId>,
+    // Absent on rows written before exports existed; those are uploads.
+    pub job_type: Option<BatchBlocklistJobType>,
+    /// The merchant's own filename for an upload, or the name an export downloads as.
+    pub file_name: Option<String>,
+    pub file_key: Option<String>,
+    pub error_message: Option<String>,
+    pub expires_at: Option<PrimitiveDateTime>,
+    pub metadata: Option<BlocklistProfileCloneJobMetadata>,
 }
 
 #[derive(Clone, Debug, Insertable, Deserialize, Serialize)]
@@ -33,6 +41,10 @@ pub struct BatchBlocklistJobNew {
     pub failed_rows: i32,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub profile_id: id_type::ProfileId,
+    pub job_type: BatchBlocklistJobType,
+    pub file_name: Option<String>,
+    pub metadata: Option<BlocklistProfileCloneJobMetadata>,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
@@ -41,5 +53,28 @@ pub struct BatchBlocklistJobUpdate {
     pub status: Option<BatchBlocklistJobStatus>,
     pub succeeded_rows: Option<i32>,
     pub failed_rows: Option<i32>,
+    pub total_rows: Option<i32>,
+    pub file_key: Option<String>,
+    pub error_message: Option<String>,
+    pub expires_at: Option<PrimitiveDateTime>,
+    pub metadata: Option<BlocklistProfileCloneJobMetadata>,
     pub updated_at: PrimitiveDateTime,
+}
+
+/// Job-level progress for a multi-target profile clone, one entry per target. The generic row
+/// counters on the job stay at zero.
+#[derive(Clone, Debug, Deserialize, Serialize, AsExpression)]
+#[diesel(sql_type = Jsonb)]
+pub struct BlocklistProfileCloneJobMetadata {
+    pub targets: Vec<BlocklistProfileCloneTargetMetadata>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(BlocklistProfileCloneJobMetadata);
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct BlocklistProfileCloneTargetMetadata {
+    pub profile_id: id_type::ProfileId,
+    pub status: BatchBlocklistJobStatus,
+    pub processed_rows: i32,
+    pub error_message: Option<String>,
 }

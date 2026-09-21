@@ -155,6 +155,8 @@ pub async fn form_payment_link_data(
                 is_setup_mandate_flow: None,
                 color_icon_card_cvc_error: None,
                 show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
+                payment_methods_separator_text: None,
+                redirect_delay_seconds: None,
             }
         };
 
@@ -178,7 +180,7 @@ pub async fn form_payment_link_data(
         business_profile
             .return_url
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "return_url",
+                field_name: "return_url".into(),
             })?
     };
 
@@ -285,6 +287,7 @@ pub async fn form_payment_link_data(
             unified_message: payment_attempt.unified_message,
             capture_method: payment_attempt.capture_method,
             setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+            redirect_delay_seconds: payment_link_config.redirect_delay_seconds,
         };
 
         return Ok((
@@ -337,6 +340,7 @@ pub async fn form_payment_link_data(
         capture_method: payment_attempt.capture_method,
         setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
         show_merchant_name: payment_link_config.show_merchant_name,
+        payment_methods_separator_text: payment_link_config.payment_methods_separator_text.clone(),
     };
 
     Ok((
@@ -401,6 +405,7 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_form_label_type: payment_link_config.payment_form_label_type,
                 show_card_terms: payment_link_config.show_card_terms,
                 color_icon_card_cvc_error: payment_link_config.color_icon_card_cvc_error,
+                payment_methods_separator_text: payment_link_config.payment_methods_separator_text,
             };
             let payment_details_str = serde_json::to_string(&secure_payment_link_details)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -524,11 +529,11 @@ fn validate_sdk_requirements(
     client_secret: Option<String>,
 ) -> Result<(api_models::enums::Currency, String), errors::ApiErrorResponse> {
     let currency = currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "currency",
+        field_name: "currency".into(),
     })?;
 
     let client_secret = client_secret.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "client_secret",
+        field_name: "client_secret".into(),
     })?;
     Ok((currency, client_secret))
 }
@@ -536,19 +541,65 @@ fn validate_sdk_requirements(
 pub async fn list_payment_link(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    constraints: api_models::payments::PaymentLinkListConstraints,
-) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
+    mut constraints: api_models::payments::PaymentLinkListConstraints,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+) -> RouterResponse<api_models::payments::PaymentLinkListResponse> {
     let db = state.store.as_ref();
-    let payment_link = db
-        .list_payment_link_by_processor_merchant_id(merchant.get_id(), constraints)
+    let now = common_utils::date_time::now();
+
+    let time_range = match constraints.time_range {
+        None => common_utils::types::TimeRange {
+            start_time: now.saturating_sub(time::Duration::days(30)),
+            end_time: Some(now),
+        },
+        Some(tr) => {
+            let end = tr.end_time.unwrap_or(now);
+            if end <= tr.start_time {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "end_time must be after start_time".to_string(),
+                }));
+            } else if (end - tr.start_time) > time::Duration::days(90) {
+                return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "time range cannot exceed 3 months".to_string(),
+                }));
+            } else {
+                common_utils::types::TimeRange {
+                    start_time: tr.start_time,
+                    end_time: Some(end),
+                }
+            }
+        }
+    };
+    constraints.time_range = Some(time_range);
+
+    let payment_links = db
+        .list_payment_link_by_processor_merchant_id(
+            merchant.get_id(),
+            &constraints,
+            profile_id.clone(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;
-    let payment_link_list = future::try_join_all(payment_link.into_iter().map(|payment_link| {
+
+    let total_count = db
+        .get_total_count_of_payment_links(merchant.get_id(), &constraints, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve total count of payment links")?;
+
+    let data = future::try_join_all(payment_links.into_iter().map(|payment_link| {
         api_models::payments::RetrievePaymentLinkResponse::from_db_payment_link(payment_link)
     }))
     .await?;
-    Ok(services::ApplicationResponse::Json(payment_link_list))
+    let size = data.len();
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentLinkListResponse {
+            size,
+            total_count,
+            data,
+        },
+    ))
 }
 
 pub fn check_payment_link_status(
@@ -579,7 +630,7 @@ fn validate_order_details(
                     data.to_owned()
                         .parse_value("OrderDetailsWithAmount")
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "OrderDetailsWithAmount",
+                            field_name: "OrderDetailsWithAmount".into(),
                         })
                         .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
@@ -624,7 +675,7 @@ pub fn extract_payment_link_config(
 ) -> Result<PaymentLinkConfig, error_stack::Report<errors::ApiErrorResponse>> {
     serde_json::from_value::<PaymentLinkConfig>(pl_config).change_context(
         errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
+            field_name: "payment_link_config".into(),
         },
     )
 }
@@ -716,6 +767,8 @@ pub fn get_payment_link_config_based_on_priority(
         is_setup_mandate_flow,
         color_icon_card_cvc_error,
         show_merchant_name,
+        payment_methods_separator_text,
+        redirect_delay_seconds,
     ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
@@ -737,6 +790,8 @@ pub fn get_payment_link_config_based_on_priority(
         (is_setup_mandate_flow),
         (color_icon_card_cvc_error),
         (show_merchant_name),
+        (payment_methods_separator_text),
+        (redirect_delay_seconds),
     );
 
     let payment_link_config =
@@ -772,12 +827,14 @@ pub fn get_payment_link_config_based_on_priority(
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
+            redirect_delay_seconds,
         };
 
     common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&payment_link_config)
         .map_err(|err| {
             error_stack::report!(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_link_config",
+                field_name: "payment_link_config".into(),
             })
             .attach_printable(err)
         })?;
@@ -896,6 +953,8 @@ pub async fn get_payment_link_status(
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
             show_merchant_name: Some(DEFAULT_SHOW_MERCHANT_NAME),
+            payment_methods_separator_text: None,
+            redirect_delay_seconds: None,
         }
     };
 
@@ -903,7 +962,7 @@ pub async fn get_payment_link_status(
         payment_intent
             .currency
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
 
     let required_conversion_type = StringMajorUnitForCore;
@@ -937,7 +996,7 @@ pub async fn get_payment_link_status(
         business_profile
             .return_url
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "return_url",
+                field_name: "return_url".into(),
             })?
     };
     let (unified_code, unified_message) = if let Some((code, message)) = payment_attempt
@@ -980,6 +1039,7 @@ pub async fn get_payment_link_status(
         unified_message: unified_translated_message,
         capture_method: payment_attempt.capture_method,
         setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+        redirect_delay_seconds: payment_link_config.redirect_delay_seconds,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

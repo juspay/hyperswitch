@@ -290,20 +290,28 @@ impl FeatureMetadata {
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect_response: Option<RedirectResponse>,
     /// Additional tags to be used for global search
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// The system that the gateway is integrated with, e.g., `Direct`(through hyperswitch), `UnifiedConnectorService`(through ucs), etc.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_system: Option<common_enums::GatewaySystem>,
     /// Additional information related to pix like expiry time etc for QR Code payments
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
     /// Extra information for Finix connector for fraud checks and risk evaluation
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
@@ -522,4 +530,11 @@ pub struct BillingConnectorAdditionalCardInfo {
     pub card_network: Option<common_enums::enums::CardNetwork>,
     /// Card Issuer
     pub card_issuer: Option<String>,
+    /// Funding type of the card, `credit` or `debit`, enriched from the card bin
+    pub card_type: Option<String>,
+    /// Country in which the card was issued, enriched from the card bin
+    pub card_issuing_country: Option<String>,
+    /// Issuer identification number of the card, retained so that any further card details can
+    /// be looked up from it later
+    pub card_isin: Option<String>,
 }

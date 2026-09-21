@@ -111,9 +111,22 @@ pub struct PaysafeMetadata {
     pub account_id: PaysafePaymentMethodDetails,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct CalidaMetadata {
+    shop_name: Secret<String>,
+}
+
+/// Cardinal 3DS JWT credentials from the Worldpayxml merchant connector account metadata.
+#[derive(Debug, serde::Deserialize)]
+pub struct WorldpayxmlMetadata {
+    issuer_id: Option<Secret<String>>,
+    organizational_unit_id: Option<Secret<String>>,
+    jwt_mac_key: Option<Secret<String>>,
+}
+
 /// Paysafe payment method details for account_id configuration.
 /// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
-/// Skrill and paysafecard.
+/// Skrill, paysafecard and Neteller.
 /// This struct is compatible with the UCS Paysafe connector expectations
 /// (proto `PaysafePaymentMethodDetails` in the UCS `PaysafeConfig`).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -137,6 +150,9 @@ pub struct PaysafePaymentMethodDetails {
     /// paysafecard account IDs by currency
     #[serde(default)]
     pub pay_safe_card: HashMap<Currency, PaysafeRedirectAccountId>,
+    /// Neteller wallet account IDs by currency
+    #[serde(default)]
+    pub neteller: HashMap<Currency, PaysafeRedirectAccountId>,
 }
 
 /// Paysafe card account ID configuration for a specific currency
@@ -179,6 +195,11 @@ pub struct PaysafeRedirectAccountId {
     /// Processing account ID (native metadata key: `three_ds`)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct GlobalpayMetadata {
+    account_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -268,6 +289,12 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// Worldpay Native RAFT connector configuration
+    Worldpayraft {
+        license: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Fiservcommercehub connector configuration
     Fiservcommercehub {
         api_key: Secret<String>,
@@ -343,6 +370,8 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_name: Option<Secret<String>>,
     },
     /// Fiserv connector configuration
     Fiserv {
@@ -367,6 +396,27 @@ pub enum ConnectorSpecificConfig {
         x_login: Secret<String>,
         x_trans_key: Secret<String>,
         secret: Secret<String>,
+    },
+    /// Nuvei connector configuration
+    Moneris {
+        client_secret: Secret<String>,
+        client_id: Secret<String>,
+        merchant_id: Secret<String>,
+    },
+    /// Etisalat Payment Gateway (EPG). All requests carry auth in the JSON body:
+    /// `user_name`, `password`, and `customer` (merchant identifier).
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+    },
+    /// Merchante (MerchantE by Omise) — credentials are sent inside the
+    /// urlencoded request body (`profile_id` + `profile_key`), not headers.
+    /// Field order and names must mirror hyperswitch-prism's
+    /// `ConnectorSpecificConfig::Merchante` variant.
+    Merchante {
+        profile_id: Secret<String>,
+        profile_key: Secret<String>,
     },
     /// Nuvei connector configuration
     Nuvei {
@@ -538,6 +588,9 @@ pub enum ConnectorSpecificConfig {
         api_username: Secret<String>,
         api_password: Secret<String>,
         merchant_code: Secret<String>,
+        issuer_id: Option<Secret<String>>,
+        organizational_unit_id: Option<Secret<String>>,
+        jwt_mac_key: Option<Secret<String>>,
     },
     /// Datatrans connector configuration
     Datatrans {
@@ -593,7 +646,10 @@ pub enum ConnectorSpecificConfig {
     /// Nexixpay connector configuration
     Nexixpay { api_key: Secret<String> },
     /// Calida connector configuration
-    Calida { api_key: Secret<String> },
+    Calida {
+        api_key: Secret<String>,
+        shop_name: Option<Secret<String>>,
+    },
     /// Celero connector configuration
     Celero { api_key: Secret<String> },
     /// Stax connector configuration
@@ -625,6 +681,15 @@ pub enum ConnectorSpecificConfig {
     },
     /// Tesouro connector configuration
     Tesouro {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    /// Ilixium connector configuration
+    /// `api_key`    = Digest Calculation Password (input to `x-merchant-digest`)
+    /// `key1`       = MerchantId (request body `merchant.merchantId`)
+    /// `api_secret` = AccountId  (request body `merchant.accountId`)
+    Ilixium {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
@@ -671,6 +736,11 @@ pub enum ConnectorSpecificConfig {
     AbsaSanlam {
         api_key: Secret<String>,
         merchant_id: String,
+    },
+    /// GotymeSanlam connector configuration
+    GotymeSanlam {
+        api_key: Secret<String>,
+        profile_id: String,
     },
     /// InterPayments surcharge connector configuration
     Interpayments {
@@ -880,9 +950,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Fiservcommercehub requires MultiAuthKey auth type")),
             },
             Connector::Calida => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
-                    api_key: api_key.clone(),
-                }),
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let calida_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<CalidaMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Calida metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Calida {
+                        api_key: api_key.clone(),
+                        shop_name: calida_meta.as_ref().map(|m| m.shop_name.clone()),
+                    })
+                }
                 _ => Err(err("Calida requires HeaderKey auth type")),
             },
             Connector::Celero => match auth {
@@ -977,10 +1057,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Datatrans requires BodyKey auth type")),
             },
             Connector::Globalpay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
-                    app_id: key1.clone(),
-                    app_key: api_key.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let globalpay_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<GlobalpayMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Globalpay metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Globalpay {
+                        app_id: key1.clone(),
+                        app_key: api_key.clone(),
+                        account_name: globalpay_meta.and_then(|m| m.account_name),
+                    })
+                }
                 _ => Err(err("Globalpay requires BodyKey auth type")),
             },
             Connector::Hipay => match auth {
@@ -1191,6 +1281,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Tesouro requires SignatureKey auth type")),
             },
+            Connector::Ilixium => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Ilixium {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                }),
+                _ => Err(err("Ilixium requires SignatureKey auth type")),
+            },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1314,6 +1416,42 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     client_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Iatapay requires SignatureKey auth type")),
+            },
+            Connector::Moneris => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Moneris {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                    merchant_id: api_secret.clone(),
+                }),
+                _ => Err(err("Moneris requires SignatureKey auth type")),
+            },
+            Connector::Etisalat => match auth {
+                // api_key -> EPG Password, key1 -> EPG UserName,
+                // api_secret -> EPG Customer (merchant identifier).
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Etisalat {
+                    user_name: api_key.clone(),
+                    password: key1.clone(),
+                    customer: api_secret.clone(),
+                }),
+                _ => Err(err("Etisalat requires SignatureKey auth type")),
+            },
+            Connector::Merchante => match auth {
+                // api_key -> Merchante Profile Key (32-char secret),
+                // key1    -> Merchante Profile ID  (20-digit merchant id).
+                // Mirrors the hyperswitch-prism `ConnectorEnum::Merchante` arm.
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Merchante {
+                    profile_key: api_key.clone(),
+                    profile_id: key1.clone(),
+                }),
+                _ => Err(err("Merchante requires BodyKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1486,11 +1624,25 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Worldpayxml {
-                    api_username: api_key.clone(),
-                    api_password: key1.clone(),
-                    merchant_code: api_secret.clone(),
-                }),
+                } => {
+                    let worldpayxml_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<WorldpayxmlMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Worldpayxml metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Worldpayxml {
+                        api_username: api_key.clone(),
+                        api_password: key1.clone(),
+                        merchant_code: api_secret.clone(),
+                        issuer_id: worldpayxml_meta.as_ref().and_then(|m| m.issuer_id.clone()),
+                        organizational_unit_id: worldpayxml_meta
+                            .as_ref()
+                            .and_then(|m| m.organizational_unit_id.clone()),
+                        jwt_mac_key: worldpayxml_meta.as_ref().and_then(|m| m.jwt_mac_key.clone()),
+                    })
+                }
                 _ => Err(err("Worldpayxml requires SignatureKey auth type")),
             },
             Connector::Zift => match auth {
@@ -1703,6 +1855,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("AbsaSanlam requires BodyKey auth type")),
             },
+            Connector::GotymeSanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
+                    api_key: api_key.clone(),
+                    profile_id: key1.peek().clone(),
+                }),
+                _ => Err(err("GotymeSanlam requires BodyKey auth type")),
+            },
             Connector::Payconex => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                     api_key: api_key.clone(),
@@ -1718,6 +1877,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Citigate requires BodyKey auth type")),
+            },
+            Connector::Worldpayraft => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
+                    license: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Worldpayraft requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {

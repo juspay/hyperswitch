@@ -200,6 +200,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Gigadat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
                 }
+                enums::Connector::Ilixium => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ilixium::new())))
+                }
                 enums::Connector::Givepayments => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
                 }
@@ -211,6 +214,9 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gocardless::new())))
+                }
+                enums::Connector::GotymeSanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::GotymeSanlam::new())))
                 }
                 enums::Connector::Hipay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Hipay::new())))
@@ -255,6 +261,12 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Moneris => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Moneris::new())))
                 }
+                enums::Connector::Etisalat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Etisalat::new())))
+                }
+                enums::Connector::Merchante => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Merchante::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
@@ -289,6 +301,9 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Citigate => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Citigate::new())))
+                }
+                enums::Connector::Worldpayraft => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpayraft::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {
@@ -445,6 +460,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }
+                enums::Connector::SanlamPayshield => Ok(ConnectorEnum::Old(Box::new(
+                    connector::SanlamPayshield::new(),
+                ))),
                 enums::Connector::Cybersourcedecisionmanager => Ok(ConnectorEnum::Old(Box::new(
                     connector::Cybersourcedecisionmanager::new(),
                 ))),

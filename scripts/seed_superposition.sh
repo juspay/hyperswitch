@@ -17,18 +17,53 @@ for dependency in curl jq; do
     fi
 done
 
+# The checked-in seed file has a couple of hand-authored values that aren't
+# valid TOML and trip up every parser:
+#   1. `"\null\"` is used as a placeholder default for nullable string
+#      fields. The `\n` is parsed as a newline escape, leaving the string
+#      unterminated.
+#   2. A handful of `_validation_regex_pattern` entries hold an email regex
+#      as a double-quoted TOML string in which every literal `"` in the
+#      regex was mistakenly encoded as `\\` instead of `\"` (e.g. `(".+")`
+#      became `(\\.+\\)`), and that string also contains other backslash
+#      sequences (`\s`, `\.`, `\-`, ...) that aren't valid TOML escapes at
+#      all, so the fix switches those values to single-quoted TOML literal
+#      strings instead (literal strings don't process escapes).
+# Sanitize both in memory rather than editing the seed file itself.
+sanitize_seed() {
+    sed \
+        -e 's/"\\null\\"/""/g' \
+        -e '/_validation_regex_pattern/ {
+s/@\\\\\]/@"]/g
+s/(\\\\\.+\\\\)/(".+")/g
+s/, value = "\(.*\)" }$/, value = '"'"'\1'"'"' }/
+}' \
+        "$SEED_FILE"
+}
+
 toml_to_json() {
+    local sanitized
+    local output
+    local status
+
+    sanitized=$(sanitize_seed)
+
     if command -v yq >/dev/null 2>&1; then
-        yq -p toml -o json '.' "$SEED_FILE"
+        output=$(printf '%s\n' "$sanitized" | yq -p toml -o json '.' - 2>&1) && { printf '%s' "$output"; return 0; }
+        status=$?
     elif command -v python3 >/dev/null 2>&1 \
         && python3 -c 'import tomllib' >/dev/null 2>&1; then
-        python3 -c \
-            'import json, sys, tomllib; json.dump(tomllib.load(open(sys.argv[1], "rb")), sys.stdout)' \
-            "$SEED_FILE"
+        output=$(printf '%s\n' "$sanitized" | python3 -c \
+            'import json, sys, tomllib; json.dump(tomllib.load(sys.stdin.buffer), sys.stdout)' 2>&1) && { printf '%s' "$output"; return 0; }
+        status=$?
     else
         echo "Error: TOML parsing requires yq or Python 3.11+" >&2
         exit 127
     fi
+
+    echo "Error: '$SEED_FILE' is not valid TOML:" >&2
+    echo "$output" | tail -3 >&2
+    exit "$status"
 }
 
 show_progress() {
@@ -209,14 +244,17 @@ done
 # Seed the Deja recording sampler: cohort dimension + override
 # ------------------------------------------------------------------------------
 # `deja_dimension` is a LOCAL_COHORT on the `path` dimension: its json-logic
-# classifies the RAW request path (substring `in`, so parametric paths like
-# /payments/{id}/confirm are covered) into "recordable"/"otherwise". The override
+# classifies the RAW request path into "recordable"/"otherwise". The override
 # records the recordable bucket; `deja_record` defaults to false (seeded above),
 # so /health and other probe traffic skip. The path -> deja_dimension dependency
 # graph is derived server-side from the LOCAL_COHORT type.
 # Posted here as explicit JSON (not via the TOML) because a cohort's
 # dimension_type + json-logic definitions do not round-trip cleanly through the
 # TOML conversion.
+#
+# Each rule anchors the path with `match` (regex) rather than substring `in`,
+# so only route prefixes select. Note `match` takes [text, pattern] — the
+# opposite argument order from `in`.
 echo "Seeding Deja recording sampler (deja_dimension cohort + deja_record override)..."
 post_or_fail "$SUPERPOSITION_URL/dimension" '{
     "dimension": "deja_dimension",
@@ -229,12 +267,15 @@ post_or_fail "$SUPERPOSITION_URL/dimension" '{
         "enum": ["recordable", "otherwise"],
         "definitions": {
             "recordable": { "or": [
-                { "in": ["/payments", { "var": "path" }] },
-                { "in": ["/accounts", { "var": "path" }] },
-                { "in": ["/user/signup", { "var": "path" }] },
-                { "in": ["/organization", { "var": "path" }] },
-                { "in": ["/api_keys", { "var": "path" }] },
-                { "in": ["/configs", { "var": "path" }] }
+                { "match": [{ "var": "path" }, "^/payments(/|$)"] },
+                { "match": [{ "var": "path" }, "^/accounts(/|$)"] },
+                { "match": [{ "var": "path" }, "^/user/signup(/|$)"] },
+                { "match": [{ "var": "path" }, "^/organization(/|$)"] },
+                { "match": [{ "var": "path" }, "^/api_keys(/|$)"] },
+                { "match": [{ "var": "path" }, "^/configs(/|$)"] },
+                { "match": [{ "var": "path" }, "^/v2/payments(/|$)"] },
+                { "match": [{ "var": "path" }, "^/v2/organizations(/|$)"] },
+                { "match": [{ "var": "path" }, "^/v2/configs(/|$)"] }
             ]}
         }
     }
@@ -249,5 +290,46 @@ put_or_fail "$SUPERPOSITION_URL/context" '{
     "description": "Record the recordable endpoint bucket",
     "change_reason": "Deja recording sampler"
 }' "deja_record override"
+
+# Prove the sampler policy actually resolves: a mis-seeded cohort fails
+# silently (`deja_record` just keeps resolving to false), so assert both
+# directions here where the answer is still cheap to get.
+resolve_deja_record() {
+    local path="$1"
+
+    # `has` rather than `//`: jq's alternative operator treats false as empty,
+    # which would report a correctly-resolved skip as a missing key.
+    curl -sS -X POST "$SUPERPOSITION_URL/config/resolve" \
+        -H "Content-Type: application/json" \
+        -H "x-org-id: $ORG_ID" \
+        -H "x-workspace: $WORKSPACE_ID" \
+        -d "{\"context\": {\"path\": \"$path\", \"method\": \"POST\"}}" \
+        | jq -r 'if has("deja_record") then (.deja_record | tostring) else "missing" end'
+}
+
+# Three probes: a recordable path must record, a probe path must skip, and a
+# path merely containing a recordable route must skip (anchored, not substring).
+echo "Verifying the Deja recording sampler resolves..."
+RECORDABLE_RESOLVED=$(resolve_deja_record "/payments")
+PROBE_RESOLVED=$(resolve_deja_record "/health")
+EMBEDDED_RESOLVED=$(resolve_deja_record "/foo/payments")
+
+if [ "$RECORDABLE_RESOLVED" != "true" ] \
+    || [ "$PROBE_RESOLVED" != "false" ] \
+    || [ "$EMBEDDED_RESOLVED" != "false" ]; then
+    echo ""
+    echo "Error: the Deja recording sampler policy did not seed correctly."
+    echo "  /payments     resolved deja_record=$RECORDABLE_RESOLVED (expected true)"
+    echo "  /health       resolved deja_record=$PROBE_RESOLVED (expected false)"
+    echo "  /foo/payments resolved deja_record=$EMBEDDED_RESOLVED (expected false)"
+    echo ""
+    echo "A router in record mode would consult this and silently record the"
+    echo "wrong set of requests. Check that the deja_dimension cohort exists and"
+    echo "that Superposition derived its dependency on the path dimension:"
+    echo "  curl -s $SUPERPOSITION_URL/dimension/deja_dimension \\"
+    echo "    -H 'x-org-id: $ORG_ID' -H 'x-workspace: $WORKSPACE_ID' | jq ."
+    exit 1
+fi
+echo "  /payments -> record, /health -> skip, /foo/payments -> skip"
 
 echo "Seeding complete!"

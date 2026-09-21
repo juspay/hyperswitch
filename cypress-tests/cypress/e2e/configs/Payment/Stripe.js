@@ -37,6 +37,22 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+const parPositiveCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
+const parNegativeCardDetails = {
+  card_number: "378282246310005",
+  card_exp_month: "10",
+  card_exp_year: "50",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -155,6 +171,9 @@ const payment_method_data_3ds = {
   card: {
     last4: "3155",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -174,6 +193,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "0005",
     card_type: "CREDIT",
+    card_subtype: "CORPORATE",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "AmericanExpress",
     card_issuer: "AMERICAN EXPRESS US CARS",
     card_issuing_country: "UNITED STATES OF AMERICA",
@@ -384,6 +406,121 @@ export const connectorDetails = {
         },
       },
     },
+    PARPositiveNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parPositiveCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: "dynamic_par",
+        },
+      },
+    },
+    PARNegativeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parNegativeCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: null,
+        },
+      },
+    },
+    L2L3Data: {
+      // Stripe L2/L3 data: Level 2 (tax/shipping) and Level 3 (line items) for payment processing
+      // Amount must equal sum of order_details excluding shipping_cost
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        // amount must equal sum of order_details line items only (excluding shipping_cost)
+        amount: 6000,
+        order_tax_amount: null,
+        shipping_cost: 1000,
+        shipping: {
+          address: {
+            city: "SANTA MARIA",
+            country: "US",
+            line1: "ewwe",
+            line2: "wer",
+            zip: "123342",
+            state: "we",
+            first_name: "were",
+            last_name: "wer",
+            // Merchant origin for tax/shipping calculation; null when not location-dependent
+            origin_zip: null,
+          },
+        },
+        merchant_order_reference_id: "stripe-l2l3-order-reference",
+        // Single item design prevents amount_details accumulation during test retries
+        order_details: [
+          {
+            product_name: "Test Product Bundle",
+            quantity: 1,
+            amount: 6000,
+            requires_shipping: true,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          // Confirm endpoint returns only status; L2/L3 data verified via retrieve response
+          status: "succeeded",
+        },
+      },
+    },
+    L2L3DataRetrieve: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 1000,
+          merchant_order_reference_id: "stripe-l2l3-order-reference",
+          order_details: [
+            {
+              product_name: "Test Product Bundle",
+              quantity: 1,
+              amount: 6000,
+              requires_shipping: true,
+            },
+          ],
+          shipping: {
+            address: {
+              line1: "ewwe",
+              line2: "wer",
+              city: "SANTA MARIA",
+              state: "we",
+              zip: "123342",
+              country: "US",
+              first_name: "were",
+              last_name: "wer",
+            },
+          },
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -555,6 +692,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -571,6 +709,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -587,6 +726,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -603,6 +743,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -668,7 +809,7 @@ export const connectorDetails = {
       ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -678,6 +819,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -708,6 +850,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -761,6 +904,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -880,6 +1024,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -897,6 +1042,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -915,6 +1061,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1156,6 +1303,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           ...idealBaseRequest,
           billing: {
             ...idealBaseRequest.billing,
@@ -1300,6 +1448,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           ...bancontactBaseRequest,
           ...mandateSingleUseFields,
         },
@@ -2561,5 +2710,15 @@ export const connectorDetails = {
         },
       },
     }),
+  },
+  Dispute: {
+    AcceptDispute: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "dispute_accepted",
+        },
+      },
+    },
   },
 };

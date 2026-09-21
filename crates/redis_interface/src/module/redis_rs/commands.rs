@@ -11,6 +11,11 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
+// Deja: raw redis replies are captured as `deja::value::RedisWireValue`, the
+// one canonical serde-native wire type; the client conversions live in the
+// deja crate next to the type (feature `redis-rs` on the deja dependency).
+#[cfg(feature = "deja")]
+use deja::value::RedisWireValue;
 use error_stack::{report, ResultExt};
 use redis::{
     streams::StreamReadOptions, AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry,
@@ -31,172 +36,6 @@ use crate::{
         SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
-
-#[cfg(feature = "deja")]
-#[derive(serde::Serialize, serde::Deserialize)]
-enum DejaRedisValue {
-    Null,
-    Int(i64),
-    BulkString(Vec<u8>),
-    Array(Vec<Self>),
-    SimpleString(String),
-    Okay,
-    Map(Vec<(Self, Self)>),
-    Attribute {
-        data: Box<Self>,
-        attributes: Vec<(Self, Self)>,
-    },
-    Set(Vec<Self>),
-    Double(f64),
-    Boolean(bool),
-    VerbatimString {
-        format: String,
-        text: String,
-    },
-    Push {
-        kind: String,
-        data: Vec<Self>,
-    },
-    UnsupportedSuccessfulValue {
-        variant: String,
-    },
-}
-
-#[cfg(feature = "deja")]
-impl From<redis::Value> for DejaRedisValue {
-    fn from(value: redis::Value) -> Self {
-        match value {
-            redis::Value::Nil => Self::Null,
-            redis::Value::Int(value) => Self::Int(value),
-            redis::Value::BulkString(value) => Self::BulkString(value),
-            redis::Value::Array(values) => {
-                Self::Array(values.into_iter().map(Self::from).collect())
-            }
-            redis::Value::SimpleString(value) => Self::SimpleString(value),
-            redis::Value::Okay => Self::Okay,
-            redis::Value::Map(values) => Self::Map(
-                values
-                    .into_iter()
-                    .map(|(key, value)| (Self::from(key), Self::from(value)))
-                    .collect(),
-            ),
-            redis::Value::Attribute { data, attributes } => Self::Attribute {
-                data: Box::new(Self::from(*data)),
-                attributes: attributes
-                    .into_iter()
-                    .map(|(key, value)| (Self::from(key), Self::from(value)))
-                    .collect(),
-            },
-            redis::Value::Set(values) => Self::Set(values.into_iter().map(Self::from).collect()),
-            redis::Value::Double(value) => Self::Double(value),
-            redis::Value::Boolean(value) => Self::Boolean(value),
-            redis::Value::VerbatimString { format, text } => Self::VerbatimString {
-                format: format.to_string(),
-                text,
-            },
-            redis::Value::Push { kind, data } => Self::Push {
-                kind: kind.to_string(),
-                data: data.into_iter().map(Self::from).collect(),
-            },
-            redis::Value::BigNumber(_) => Self::UnsupportedSuccessfulValue {
-                variant: "BigNumber".to_string(),
-            },
-            redis::Value::ServerError(error) => Self::UnsupportedSuccessfulValue {
-                variant: match error.details() {
-                    Some(details) => format!("ServerError({}: {details})", error.code()),
-                    None => format!("ServerError({})", error.code()),
-                },
-            },
-            _ => Self::UnsupportedSuccessfulValue {
-                variant: "unknown non-exhaustive redis::Value variant".to_string(),
-            },
-        }
-    }
-}
-
-#[cfg(feature = "deja")]
-impl DejaRedisValue {
-    fn into_supported_redis_value(self) -> Result<redis::Value, redis::RedisError> {
-        match self {
-            Self::Null => Ok(redis::Value::Nil),
-            Self::Int(value) => Ok(redis::Value::Int(value)),
-            Self::BulkString(value) => Ok(redis::Value::BulkString(value)),
-            Self::Array(values) => Ok(redis::Value::Array(
-                values
-                    .into_iter()
-                    .map(Self::into_supported_redis_value)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )),
-            Self::SimpleString(value) => Ok(redis::Value::SimpleString(value)),
-            Self::Okay => Ok(redis::Value::Okay),
-            Self::Map(values) => Ok(redis::Value::Map(
-                values
-                    .into_iter()
-                    .map(|(key, value)| {
-                        Ok((
-                            key.into_supported_redis_value()?,
-                            value.into_supported_redis_value()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, redis::RedisError>>()?,
-            )),
-            Self::Attribute { data, attributes } => Ok(redis::Value::Attribute {
-                data: Box::new(data.into_supported_redis_value()?),
-                attributes: attributes
-                    .into_iter()
-                    .map(|(key, value)| {
-                        Ok((
-                            key.into_supported_redis_value()?,
-                            value.into_supported_redis_value()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, redis::RedisError>>()?,
-            }),
-            Self::Set(values) => Ok(redis::Value::Set(
-                values
-                    .into_iter()
-                    .map(Self::into_supported_redis_value)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )),
-            Self::Double(value) => Ok(redis::Value::Double(value)),
-            Self::Boolean(value) => Ok(redis::Value::Boolean(value)),
-            Self::VerbatimString { format, text } => Ok(redis::Value::VerbatimString {
-                format: match format.as_str() {
-                    "mkd" => redis::VerbatimFormat::Markdown,
-                    "txt" => redis::VerbatimFormat::Text,
-                    other => redis::VerbatimFormat::Unknown(other.to_string()),
-                },
-                text,
-            }),
-            Self::Push { kind, data } => Ok(redis::Value::Push {
-                kind: match kind.as_str() {
-                    "disconnection" => redis::PushKind::Disconnection,
-                    "invalidate" => redis::PushKind::Invalidate,
-                    "message" => redis::PushKind::Message,
-                    "pmessage" => redis::PushKind::PMessage,
-                    "smessage" => redis::PushKind::SMessage,
-                    "unsubscribe" => redis::PushKind::Unsubscribe,
-                    "punsubscribe" => redis::PushKind::PUnsubscribe,
-                    "sunsubscribe" => redis::PushKind::SUnsubscribe,
-                    "subscribe" => redis::PushKind::Subscribe,
-                    "psubscribe" => redis::PushKind::PSubscribe,
-                    "ssubscribe" => redis::PushKind::SSubscribe,
-                    other => redis::PushKind::Other(other.to_string()),
-                },
-                data: data
-                    .into_iter()
-                    .map(Self::into_supported_redis_value)
-                    .collect::<Result<Vec<_>, _>>()?,
-            }),
-            Self::UnsupportedSuccessfulValue { variant } => Err((
-                redis::ErrorKind::UnexpectedReturnType,
-                "unsupported Redis value variant recorded by Deja replay",
-                variant,
-            )
-                .into()),
-        }
-    }
-}
 
 impl super::RedisConnectionWithContext {
     /// Prefix `key` with the tenant key prefix of the underlying pool.
@@ -388,7 +227,7 @@ impl super::RedisConnectionWithContext {
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
         operation = "get_key",
-        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
         state_read = key.tenant_aware_key(&self.redis_conn),
         args = {
             serde_json::json!({
@@ -400,7 +239,7 @@ impl super::RedisConnectionWithContext {
     async fn get_key_raw(
         &self,
         key: &RedisKey,
-    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
         let mut conn = self.redis_conn.pool.clone();
         match track_redis_call(
             self.request_id.as_deref(),
@@ -411,7 +250,7 @@ impl super::RedisConnectionWithContext {
         .await
         .change_context(errors::RedisError::GetFailed)
         {
-            Ok(value) => Ok(DejaRedisValue::from(value)),
+            Ok(value) => Ok(value.into()),
             Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
@@ -427,7 +266,7 @@ impl super::RedisConnectionWithContext {
                         conn.get::<_, redis::Value>(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
-                    .map(DejaRedisValue::from)
+                    .map(RedisWireValue::from)
                     .change_context(errors::RedisError::GetFailed)
                 }
             }
@@ -441,11 +280,13 @@ impl super::RedisConnectionWithContext {
     {
         #[cfg(feature = "deja")]
         {
-            let raw_value = self
-                .get_key_raw(key)
-                .await?
-                .into_supported_redis_value()
-                .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed))?;
+            let raw_value: redis::Value =
+                self.get_key_raw(key)
+                    .await?
+                    .try_into()
+                    .map_err(|err: redis::RedisError| {
+                        report!(err).change_context(errors::RedisError::GetFailed)
+                    })?;
             return V::from_redis_value(raw_value)
                 .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed));
         }
