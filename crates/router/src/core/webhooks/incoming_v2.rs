@@ -589,10 +589,6 @@ async fn payments_incoming_webhook_flow(
     }
 }
 
-/// Pull the connector transaction id out of a dispute webhook's object reference.
-///
-/// v2 can only look a payment attempt up by connector transaction id, so every other variant is
-/// rejected here rather than silently mishandled.
 fn connector_transaction_id_from_object_reference_id(
     object_reference_id: &webhooks::ObjectReferenceId,
 ) -> CustomResult<&str, errors::ApiErrorResponse> {
@@ -606,9 +602,6 @@ fn connector_transaction_id_from_object_reference_id(
     }
 }
 
-/// Resolve the payment attempt that a dispute webhook refers to.
-///
-/// The lookup is keyed on the profile resolved by the dispatcher, not on the merchant id.
 async fn get_payment_attempt_from_object_reference_id(
     state: &SessionState,
     object_reference_id: &webhooks::ObjectReferenceId,
@@ -778,7 +771,6 @@ async fn disputes_incoming_webhook_flow(
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("event type to dispute status mapping failed")?;
 
-    // Captured before the update, because the guards below must see the row as it was.
     let was_not_already_lost =
         diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute);
 
@@ -821,7 +813,6 @@ async fn disputes_incoming_webhook_flow(
         }
     }
 
-    // A lost dispute must stop counting as refundable, or the merchant could pay out twice.
     if was_not_already_lost
         && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
     {
@@ -869,8 +860,6 @@ async fn disputes_incoming_webhook_flow(
     })
 }
 
-/// Add a lost dispute's amount to the intent's running total of unrefundable money.
-/// Awaited rather than spawned as v1 does, because the value gates refunds.
 async fn record_disputed_amount_on_intent(
     state: &SessionState,
     platform: &domain::Platform,
@@ -914,24 +903,13 @@ async fn record_disputed_amount_on_intent(
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-/// Whether a dispute record-back actually reached the billing connector.
-///
-/// Kept distinct from `Result` so that the two "nothing to do" paths — a non-recovery
-/// payment and a connector that does not support the call — are not counted as successes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DisputeRecordBackOutcome {
-    /// The request was sent and the billing connector accepted it.
     Recorded,
-    /// No request was sent.
     Skipped,
 }
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-/// Record a lost dispute back to the billing connector as an offline refund.
-///
-/// Skips without doing anything when the attempt carries no billing connector transaction
-/// id — the ordinary case for a payment that never went through revenue recovery — or when
-/// the billing connector is not configured as supporting the call.
 async fn record_dispute_back_to_billing_connector(
     state: &SessionState,
     platform: &domain::Platform,
@@ -944,11 +922,9 @@ async fn record_dispute_back_to_billing_connector(
         .and_then(|metadata| metadata.revenue_recovery.as_ref())
         .and_then(|recovery| recovery.billing_connector_transaction_id.clone())
     else {
-        // Not a recovery payment. Silent by design.
         return Ok(DisputeRecordBackOutcome::Skipped);
     };
 
-    // The webhook arrived on the payment connector; the dispute amount and status is synced to the billing connector.
     let payment_intent = state
         .store
         .find_payment_intent_by_id(

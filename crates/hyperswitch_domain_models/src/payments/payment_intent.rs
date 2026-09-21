@@ -442,7 +442,6 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         updated_by: String,
     },
-    /// Records amounts that are no longer refundable.
     StateMetadataUpdate {
         state_metadata: common_types::payments::PaymentIntentStateMetadata,
         updated_by: String,

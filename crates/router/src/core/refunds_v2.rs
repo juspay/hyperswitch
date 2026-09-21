@@ -1211,7 +1211,6 @@ pub async fn validate_and_create_refund(
     )
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
-    // validate_refund_amount sums only the refunds table, so it cannot see a lost dispute.
     payment_intent
         .validate_amount_against_intent_state_metadata(Some(refund_amount))
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
