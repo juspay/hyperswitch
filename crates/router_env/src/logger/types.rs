@@ -361,6 +361,8 @@ pub enum Flow {
     LookupBlocklistEntry,
     /// Start a CSV export of the blocklist
     CreateBlocklistExport,
+    /// Clone a profile's blocklist entries onto other profiles
+    CloneBlocklistEntries,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive

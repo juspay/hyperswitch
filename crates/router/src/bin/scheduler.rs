@@ -426,6 +426,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::BlocklistProfileCloneWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_profile_clone::BlocklistProfileCloneWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist profile clone workflow when v1 feature is disabled",
+                            )
+                    }
+                }
             }
         };
 
