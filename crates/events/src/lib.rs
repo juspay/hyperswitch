@@ -9,6 +9,9 @@
 //! EventInfo: A trait that defines the metadata that is sent with the event. It works with the EventContext to add metadata to all events.
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
 
+// Does not depend on common_utils; its maps are event metadata, never rendered into a request.
+#![allow(clippy::disallowed_types)]
+
 mod actix;
 
 use std::{collections::HashMap, sync::Arc};
