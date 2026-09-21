@@ -1,3 +1,6 @@
+// A build script cannot see common_utils, and its maps exist only while compiling.
+#![allow(clippy::disallowed_types)]
+
 // crates/smithy-generator/build.rs
 
 use std::{collections::HashSet, fs, path::Path};

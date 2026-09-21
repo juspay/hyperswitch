@@ -1,4 +1,6 @@
 #![allow(non_upper_case_globals)]
+// A wasm front end that does not depend on common_utils.
+#![allow(clippy::disallowed_types)]
 mod types;
 mod utils;
 use std::{
