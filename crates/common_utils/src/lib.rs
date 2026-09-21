@@ -11,6 +11,7 @@ pub mod custom_serde;
 #[allow(missing_docs)] // Todo: add docs
 pub mod encryption;
 pub mod errors;
+pub mod elapsed;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
