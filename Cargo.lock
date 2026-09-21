@@ -2235,6 +2235,7 @@ dependencies = [
  "serde_urlencoded",
  "signal-hook",
  "signal-hook-tokio",
+ "siphasher 1.0.1",
  "strum 0.26.3",
  "test-case",
  "thiserror 1.0.69",
