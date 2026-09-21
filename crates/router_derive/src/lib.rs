@@ -1,7 +1,7 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
 // A proc-macro: its maps exist only while compiling.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 use syn::parse_macro_input;
 
 use crate::macros::diesel::DieselEnumMeta;
