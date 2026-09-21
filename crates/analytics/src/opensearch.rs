@@ -101,7 +101,10 @@ impl Default for OpenSearchConfig {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+// Serialisable so the deja seam on the search query can record and replay a
+// failed search as faithfully as a successful one. Every variant's payload
+// already serialises.
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum OpenSearchError {
     #[error("Opensearch is not enabled")]
     NotEnabled,

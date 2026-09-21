@@ -359,6 +359,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "currency_conversion",
+ "deja",
  "diesel_models",
  "error-stack 0.4.1",
  "futures 0.3.31",
