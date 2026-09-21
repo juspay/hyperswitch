@@ -165,9 +165,9 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .collect::<Result<_, _>>()
         .map_err(|_| "invalid connector name received")
         .err_to_js()?;
-    let pm_filter = kgraph_utils::types::PaymentMethodFilters(HashMap::new());
+    let pm_filter = kgraph_utils::types::PaymentMethodFilters(Default::default());
     let config = kgraph_utils::types::CountryCurrencyFilter {
-        connector_configs: HashMap::new(),
+        connector_configs: Default::default(),
         default_configs: Some(pm_filter),
     };
     let mca_graph_data = mcas
@@ -214,7 +214,7 @@ pub fn get_valid_connectors_for_rule(rule: JsValue) -> JsResult {
 
     let mut ctx_manager = state_machine::RuleContextManager::new(&dir_rule, &[]);
 
-    let dummy_meta = HashMap::new();
+    let dummy_meta = Default::default();
 
     // For every conjunctive context in the Rule, verify validity of all still-valid connectors
     // using the knowledge graph
