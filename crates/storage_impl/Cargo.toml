@@ -29,9 +29,8 @@ api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 common_types = { version = "0.1.0", path = "../common_types" }
-# TEMPORARY PIN — deja branch work/capture-keeps-an-ordered-maps-order (deja#185).
 # Bump to a main commit once that merges; this must not be reviewed as-is.
-deja = { git = "https://github.com/juspay/deja", rev = "45eada58e067fa6443bc15b7a492d2c49f975d4a", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "8c6d3e4a78e06f59c8730398a9a093084925e85e", optional = true, default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_masking = "0.0.1"

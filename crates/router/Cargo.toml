@@ -300,10 +300,9 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-# TEMPORARY PIN — deja branch work/capture-keeps-an-ordered-maps-order (deja#185).
 # Bump to a main commit once that merges; this must not be reviewed as-is.
-deja = { git = "https://github.com/juspay/deja", rev = "45eada58e067fa6443bc15b7a492d2c49f975d4a", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "45eada58e067fa6443bc15b7a492d2c49f975d4a", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "8c6d3e4a78e06f59c8730398a9a093084925e85e", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "8c6d3e4a78e06f59c8730398a9a093084925e85e", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
