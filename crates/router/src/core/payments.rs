@@ -74,6 +74,7 @@ pub use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
+    router_flow_types::payments::is_initial_connector_call_flow,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -687,13 +688,10 @@ where
         use actix_web::ResponseError;
         api_error.current_context().status_code().as_u16()
     };
-    // Only the initial authorization can be failed outright here. For any later flow the
-    // connector has already set a status this rejection must not overwrite, so leave it unset
-    // and let the tracker's flow-aware derivation keep the prior status.
-    if matches!(
-        core_utils::get_flow_name::<F>()?.as_str(),
-        "Authorize" | "SetupMandate"
-    ) {
+    // Only the flow making the first connector call can be failed outright here. For any later
+    // flow the connector has already set a status this rejection must not overwrite, so leave
+    // it unset and let the tracker's flow-aware derivation keep the prior status.
+    if is_initial_connector_call_flow::<F>() {
         error_response.attempt_status = Some(enums::AttemptStatus::Failure);
     }
     router_data.response = Err(error_response);
