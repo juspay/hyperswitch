@@ -10,10 +10,10 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-# TEMPORARY PIN — deja branch work/teardown-safe-correlation-reader (PR #171).
+# TEMPORARY PIN — deja branch work/capture-keeps-an-ordered-maps-order (deja#185).
 # Bump to a main commit once that merges; this must not be reviewed as-is.
-deja = { git = "https://github.com/juspay/deja", rev = "6e700fb4df9ca400ae55694bf0f496838a010c6e", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "6e700fb4df9ca400ae55694bf0f496838a010c6e", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "45eada58e067fa6443bc15b7a492d2c49f975d4a", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "45eada58e067fa6443bc15b7a492d2c49f975d4a", optional = true }
 error-stack = "0.4.1"
 gethostname = "0.4.3"
 # Optional (deja-only): types the captured request/response payloads as `Secret`
