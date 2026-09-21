@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use common_utils::collections::HashMap;
 
 use common_utils::types::TenantConfig;
 use error_stack::ResultExt;
@@ -141,7 +141,7 @@ impl MessagingInterface for EventsHandler {
     fn send_message<T>(
         &self,
         data: T,
-        metadata: HashMap<String, String>,
+        metadata: std::collections::HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
