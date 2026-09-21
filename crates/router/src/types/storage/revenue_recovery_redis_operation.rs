@@ -64,6 +64,9 @@ impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCar
             card_issuer: data.card_issuer.clone(),
             card_network: data.card_network.clone(),
             card_type: data.card_type.clone(),
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             last4: data.last_four_digits.clone(),
             card_isin: data.card_isin.clone(),
             card_issuing_country: None,
@@ -335,7 +338,7 @@ impl RedisTokenManager {
     pub fn find_nearest_date_from_current(
         retry_history: &HashMap<PrimitiveDateTime, i32>,
     ) -> Option<(PrimitiveDateTime, i32)> {
-        let now_utc = OffsetDateTime::now_utc();
+        let now_utc = date_time::now().assume_utc();
         let reference_time = PrimitiveDateTime::new(
             now_utc.date(),
             Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT),
@@ -425,7 +428,7 @@ impl RedisTokenManager {
         state: &SessionState,
         payment_processor_token_info_map: &HashMap<String, PaymentProcessorTokenStatus>,
     ) -> HashMap<String, PaymentProcessorTokenWithRetryInfo> {
-        let today = OffsetDateTime::now_utc().date();
+        let today = date_time::now().date();
         let card_config = &state.conf.revenue_recovery.card_config;
 
         let mut result: HashMap<String, PaymentProcessorTokenWithRetryInfo> =
@@ -508,7 +511,7 @@ impl RedisTokenManager {
         let card_config = &state.conf.revenue_recovery.card_config;
         let card_network_config = card_config.get_network_config(network_type);
 
-        let now_utc = OffsetDateTime::now_utc();
+        let now_utc = date_time::now().assume_utc();
         let reference_time = PrimitiveDateTime::new(
             now_utc.date(),
             Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT),
@@ -596,7 +599,7 @@ impl RedisTokenManager {
 
         let last_external_attempt_at = token_data.modified_at;
 
-        let now_utc = OffsetDateTime::now_utc();
+        let now_utc = date_time::now().assume_utc();
         let reference_time = PrimitiveDateTime::new(
             now_utc.date(),
             Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT),
@@ -669,7 +672,7 @@ impl RedisTokenManager {
         is_hard_decline: &Option<bool>,
         payment_processor_token_id: Option<&str>,
     ) -> CustomResult<bool, errors::StorageError> {
-        let now_utc = OffsetDateTime::now_utc();
+        let now_utc = date_time::now().assume_utc();
         let reference_time = PrimitiveDateTime::new(
             now_utc.date(),
             Time::from_hms(now_utc.hour(), 0, 0).unwrap_or(Time::MIDNIGHT),
@@ -694,10 +697,7 @@ impl RedisTokenManager {
                         daily_retry_history: status.daily_retry_history.clone(),
                         scheduled_at: None,
                         is_hard_decline: *is_hard_decline,
-                        modified_at: Some(PrimitiveDateTime::new(
-                            OffsetDateTime::now_utc().date(),
-                            OffsetDateTime::now_utc().time(),
-                        )),
+                        modified_at: Some(date_time::now()),
                         is_active: status.is_active,
                         account_update_history: status.account_update_history.clone(),
                         decision_threshold: status.decision_threshold,
@@ -775,10 +775,7 @@ impl RedisTokenManager {
                 daily_retry_history: status.daily_retry_history.clone(),
                 scheduled_at: None,
                 is_hard_decline: status.is_hard_decline,
-                modified_at: Some(PrimitiveDateTime::new(
-                    OffsetDateTime::now_utc().date(),
-                    OffsetDateTime::now_utc().time(),
-                )),
+                modified_at: Some(date_time::now()),
                 is_active: status.is_active,
                 account_update_history: status.account_update_history.clone(),
                 decision_threshold: status.decision_threshold,
@@ -827,10 +824,7 @@ impl RedisTokenManager {
                     daily_retry_history: status.daily_retry_history.clone(),
                     scheduled_at: schedule_time,
                     is_hard_decline: status.is_hard_decline,
-                    modified_at: Some(PrimitiveDateTime::new(
-                        OffsetDateTime::now_utc().date(),
-                        OffsetDateTime::now_utc().time(),
-                    )),
+                    modified_at: Some(date_time::now()),
                     is_active: status.is_active,
                     account_update_history: status.account_update_history.clone(),
                     decision_threshold: decision_threshold.or(status.decision_threshold),
@@ -1175,10 +1169,7 @@ impl RedisTokenManager {
                     .unwrap_or(Some(existing_scheduled_at)) // No cutoff provided, keep existing value
             });
 
-        existing_token.modified_at = Some(PrimitiveDateTime::new(
-            OffsetDateTime::now_utc().date(),
-            OffsetDateTime::now_utc().time(),
-        ));
+        existing_token.modified_at = Some(date_time::now());
 
         // Update account_update_history if provided
         if let Some(history) = &card_data.account_update_history {
@@ -1342,10 +1333,7 @@ impl AccountUpdaterAction {
 
                 let mut updated_token = scheduled_token.clone();
                 updated_token.is_active = Some(false);
-                updated_token.modified_at = Some(PrimitiveDateTime::new(
-                    OffsetDateTime::now_utc().date(),
-                    OffsetDateTime::now_utc().time(),
-                ));
+                updated_token.modified_at = Some(date_time::now());
 
                 RedisTokenManager::upsert_payment_processor_token(
                     state,
@@ -1372,10 +1360,7 @@ impl AccountUpdaterAction {
                     daily_retry_history: HashMap::new(),
                     scheduled_at: None,
                     is_hard_decline: Some(false),
-                    modified_at: Some(PrimitiveDateTime::new(
-                        OffsetDateTime::now_utc().date(),
-                        OffsetDateTime::now_utc().time(),
-                    )),
+                    modified_at: Some(date_time::now()),
                     is_active: Some(true),
                     account_update_history: Some(vec![AccountUpdateHistoryRecord {
                         old_token: scheduled_token
@@ -1383,10 +1368,7 @@ impl AccountUpdaterAction {
                             .payment_processor_token
                             .clone(),
                         new_token: new_token.to_owned(),
-                        updated_at: PrimitiveDateTime::new(
-                            OffsetDateTime::now_utc().date(),
-                            OffsetDateTime::now_utc().time(),
-                        ),
+                        updated_at: date_time::now(),
                         old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
                             &scheduled_token.payment_processor_token_details,
                         )),
@@ -1414,10 +1396,7 @@ impl AccountUpdaterAction {
                     updated_mandate_details.card_network.clone();
                 updated_token.payment_processor_token_details.card_isin =
                     updated_mandate_details.card_isin.clone();
-                updated_token.modified_at = Some(PrimitiveDateTime::new(
-                    OffsetDateTime::now_utc().date(),
-                    OffsetDateTime::now_utc().time(),
-                ));
+                updated_token.modified_at = Some(date_time::now());
                 updated_token
                     .account_update_history
                     .get_or_insert_with(Vec::new)
@@ -1430,10 +1409,7 @@ impl AccountUpdaterAction {
                             .payment_processor_token_details
                             .payment_processor_token
                             .clone(),
-                        updated_at: PrimitiveDateTime::new(
-                            OffsetDateTime::now_utc().date(),
-                            OffsetDateTime::now_utc().time(),
-                        ),
+                        updated_at: date_time::now(),
                         old_token_info: Some(api_models::payments::AdditionalCardInfo::from(
                             &scheduled_token.payment_processor_token_details,
                         )),

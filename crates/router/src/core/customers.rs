@@ -11,6 +11,7 @@ use common_utils::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
         Description,
     },
+    validation::validate_phone_country_code,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -79,6 +80,15 @@ pub async fn create_customer(
         .document_details
         .as_ref()
         .map(|doc_details| doc_details.validate())
+        .transpose()
+        .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
+
+    customer_data
+        .phone_country_code
+        .as_deref()
+        .map(validate_phone_country_code)
         .transpose()
         .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
             message: err.to_string(),
@@ -1158,6 +1168,16 @@ pub async fn update_customer(
         .document_details
         .as_ref()
         .map(|doc| doc.validate())
+        .transpose()
+        .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
+
+    update_customer
+        .request
+        .phone_country_code
+        .as_deref()
+        .map(validate_phone_country_code)
         .transpose()
         .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
             message: err.to_string(),

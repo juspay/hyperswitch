@@ -186,7 +186,7 @@ pub async fn deep_health_check(
     for (tenant, _) in stores {
         let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "tenant_id",
+                field_name: "tenant_id".into(),
             }
             .into()
         });
@@ -408,6 +408,36 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                         Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
                             .attach_printable(
                                 "Cannot run offer engine notify workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::BlocklistExportWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_export::BlocklistExportWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist export workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::BlocklistProfileCloneWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_profile_clone::BlocklistProfileCloneWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist profile clone workflow when v1 feature is disabled",
                             )
                     }
                 }

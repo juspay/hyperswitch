@@ -182,6 +182,7 @@ enum RequiredField {
     CyptoPayCurrency(Vec<&'static str>),
     PixDocumentType(Vec<&'static str>),
     PixDocumentNumber,
+    CustomerDateOfBirth,
     BoletoSocialSecurityNumber,
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
@@ -731,6 +732,17 @@ impl RequiredField {
                     required_field: "customer.document_details.document_number".to_string(),
                     display_name: "document_number".to_string(),
                     field_type: FieldType::UserSocialSecurityNumber,
+                    value: None,
+                },
+            ),
+            // Named for the customer, not the connector: unlike `MifinityDateOfBirth` the path
+            // is payment-method agnostic, so any connector that needs a date of birth reuses it.
+            Self::CustomerDateOfBirth => (
+                "customer.date_of_birth".to_string(),
+                RequiredFieldInfo {
+                    required_field: "customer.date_of_birth".to_string(),
+                    display_name: "date_of_birth".to_string(),
+                    field_type: FieldType::UserDateOfBirth,
                     value: None,
                 },
             ),
@@ -1339,6 +1351,45 @@ impl RequiredFields {
                             ),
                         )]),
                     ),
+                    (
+                        enums::PaymentMethodType::CardRedirect,
+                        connectors(vec![(
+                            // D24 (Directa24) WebPay — Transbank's Chilean redirect method.
+                            Connector::D24,
+                            fields(
+                                vec![],
+                                vec![
+                                    RequiredField::BillingFirstName(
+                                        "first_name",
+                                        FieldType::UserFullName,
+                                    ),
+                                    RequiredField::BillingLastName(
+                                        "last_name",
+                                        FieldType::UserFullName,
+                                    ),
+                                    RequiredField::BillingEmail,
+                                    // WebPay is Chile-only: Transbank's hosted page only
+                                    // accepts Chilean payers.
+                                    RequiredField::BillingAddressCountries(vec!["CL"]),
+                                    // The Chilean RUT. `PixDocumentType` / `PixDocumentNumber`
+                                    // are misnamed: they resolve to
+                                    // `customer.document_details.document_type` and
+                                    // `customer.document_details.document_number`, the
+                                    // generic customer-document paths D24 needs — there is
+                                    // nothing Pix-specific about them, and no generic
+                                    // customer-document variant exists. Renaming them is a
+                                    // separate change touching every existing call site.
+                                    // `DocumentKind` serializes `rename_all = "snake_case"`,
+                                    // so "other" is the correct option string; UCS maps
+                                    // (DocumentKind::Other, CountryAlpha2::CL) to the D24
+                                    // `document_type` "RUT".
+                                    RequiredField::PixDocumentType(vec!["other"]),
+                                    RequiredField::PixDocumentNumber,
+                                ],
+                                vec![],
+                            ),
+                        )]),
+                    ),
                 ])),
             ),
             (
@@ -1522,6 +1573,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Forte, fields(vec![], card_with_name(), vec![])),
         (Connector::Globalpay, fields(vec![], vec![], card_basic())),
         (
+            Connector::GlobalpaymentsHeartland,
             Connector::GlobalpaymentsRealex,
             fields(vec![], card_basic(), vec![]),
         ),
@@ -1720,6 +1772,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
         (Connector::Revolv3, fields(vec![], vec![], card_with_name())),
+        (Connector::Saferpay, fields(vec![], card_basic(), vec![])),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
         (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
@@ -1774,6 +1827,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressZip,
                     ],
+                    billing_name(),
                 ]
                 .concat(),
             ),
@@ -1855,9 +1909,23 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
         ),
+        // JP Morgan Orbital takes the bare card fields; billing data is optional on the
+        // Orbital Gateway and is only used for AVS when supplied.
+        (
+            Connector::JpmorganOrbital,
+            fields(vec![], card_basic(), vec![]),
+        ),
+        // Pay.com needs only the raw card fields; billing details and address are all
+        // optional on `/v1/charges` and `/v1/holds`.
+        (Connector::Paydotcom, fields(vec![], card_basic(), vec![])),
         (
             Connector::Ilixium,
+            // Everything here is `common`, not `non_mandate`: `non_mandate` is only merged when
+            // the payment is not customer-initiated, so a save-card or
+            // `setup_future_usage = off_session` payment would collect none of these. Ilixium
+            // requires all of them on every authorisation.
             fields(
+                vec![],
                 vec![],
                 vec![
                     RequiredField::CardNumber,
@@ -1865,6 +1933,8 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::CardExpYear,
                     RequiredField::CardCvc,
                     RequiredField::Email,
+                    // Schema-mandatory. Absent, Ilixium rejects the authorisation with `VA8`.
+                    RequiredField::CustomerDateOfBirth,
                     RequiredField::BillingAddressCountries(vec!["ALL"]),
                     // Ilixium requires `customer.firstName` and `customer.surname` on every
                     // authorisation. On a 3DS payment the billing address is the *only* source:
@@ -1873,7 +1943,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
                     RequiredField::BillingLastName("last_name", FieldType::UserFullName),
                 ],
-                vec![],
             ),
         ),
         (
@@ -2841,6 +2910,24 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                 (Connector::Airwallex, fields(vec![], vec![], vec![])),
                 (Connector::Authorizedotnet, fields(vec![], vec![], vec![])),
                 (Connector::Checkout, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Datatrans,
+                    fields(
+                        vec![],
+                        vec![],
+                        vec![
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingEmail,
+                        ],
+                    ),
+                ),
                 (Connector::Globalpay, fields(vec![], vec![], vec![])),
                 (
                     Connector::Multisafepay,
@@ -4348,5 +4435,39 @@ fn test_required_fields_to_json() {
             &default_fields,
         )
         .unwrap();
+    }
+}
+
+#[cfg(feature = "v1")]
+#[test]
+fn ilixium_collects_date_of_birth_on_every_card_payment() {
+    let ilixium = get_cards_required_fields()
+        .remove(&Connector::Ilixium)
+        .expect("Ilixium has a card required-fields entry");
+
+    // `common` is the only bucket merged for both customer-initiated and one-off payments
+    // (see `cards.rs`, which extends `common` with either `mandate` or `non_mandate`). Ilixium
+    // rejects an authorisation missing any of these, so none of them may sit in a bucket that
+    // a save-card payment would skip.
+    assert!(ilixium.mandate.is_empty());
+    assert!(ilixium.non_mandate.is_empty());
+
+    let date_of_birth = ilixium
+        .common
+        .get("customer.date_of_birth")
+        .expect("date_of_birth is schema-mandatory for Ilixium; absent, it answers VA8");
+    assert_eq!(date_of_birth.display_name, "date_of_birth");
+    assert!(matches!(
+        date_of_birth.field_type,
+        FieldType::UserDateOfBirth
+    ));
+
+    for field in [
+        "payment_method_data.card.card_number",
+        "email",
+        "billing.address.first_name",
+        "billing.address.country",
+    ] {
+        assert!(ilixium.common.contains_key(field), "missing {field}");
     }
 }

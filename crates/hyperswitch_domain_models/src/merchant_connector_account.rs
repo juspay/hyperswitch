@@ -69,6 +69,9 @@ pub struct MerchantConnectorAccount {
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
     pub connector_webhook_registration_details: Option<Value>,
+    pub apple_pay_certificates: Option<Value>,
+    #[encrypt]
+    pub apple_pay_certificates_encrypted: Option<Encryptable<Secret<Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -280,6 +283,14 @@ impl MerchantConnectorAccount {
             .map(|recovery| recovery.max_retry_count)
     }
 
+    /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
+    pub fn get_max_hybrid_cascading_retry_count(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.max_hybrid_cascading_retry_count)
+    }
+
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
@@ -373,6 +384,10 @@ pub struct MerchantConnectorAccountFeatureMetadata {
 pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     pub billing_connector_retry_threshold: u16,
+    /// Number of positions on the cascading (static) ladder available to an invoice under the
+    /// hybrid static + adaptive scheme.
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
     pub mca_reference: AccountReferenceMap,
 }
 
@@ -515,6 +530,10 @@ pub enum MerchantConnectorAccountUpdate {
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         metadata: Option<pii::SecretSerdeValue>,
     },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<Value>,
+        apple_pay_certificates_encrypted: Option<Encryption>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -538,6 +557,10 @@ pub enum MerchantConnectorAccountUpdate {
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
+    },
+    ApplePayCertificateCacheUpdate {
+        apple_pay_certificates: Option<Value>,
+        apple_pay_certificates_encrypted: Option<Encryption>,
     },
 }
 
@@ -576,6 +599,10 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
             connector_webhook_registration_details: self.connector_webhook_registration_details,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(|data| data.into()),
         })
     }
 
@@ -594,6 +621,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                     connector_account_details: other.connector_account_details,
                     additional_merchant_data: other.additional_merchant_data,
                     connector_wallets_details: other.connector_wallets_details,
+                    apple_pay_certificates_encrypted: other.apple_pay_certificates_encrypted,
                 },
             )),
             identifier.clone(),
@@ -632,7 +660,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             profile_id: other
                 .profile_id
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "profile_id".to_string(),
+                    field_name: "profile_id".into(),
                 })?,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
@@ -641,6 +669,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
             connector_webhook_registration_details: other.connector_webhook_registration_details,
+            apple_pay_certificates: other.apple_pay_certificates,
+            apple_pay_certificates_encrypted: decrypted_data.apple_pay_certificates_encrypted,
         })
     }
 
@@ -707,6 +737,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             version: self.version,
             feature_metadata: self.feature_metadata.map(From::from),
             connector_webhook_registration_details: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
@@ -837,6 +869,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
                 connector_webhook_registration_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -860,6 +894,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status: None,
                 additional_merchant_data: None,
                 connector_webhook_registration_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details,
@@ -885,6 +921,34 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details: None,
                 additional_merchant_data: None,
                 connector_webhook_registration_details,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: Some(date_time::now()),
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                connector_webhook_registration_details: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -925,6 +989,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
                 feature_metadata: feature_metadata.map(From::from),
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -944,6 +1010,30 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status: None,
                 additional_merchant_data: None,
                 feature_metadata: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                connector_type: None,
+                connector_account_details: None,
+                connector_label: None,
+                disabled: None,
+                payment_methods_enabled: None,
+                metadata: None,
+                modified_at: Some(date_time::now()),
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                feature_metadata: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -1056,7 +1146,7 @@ impl TryFrom<storage::MerchantConnectorAccount> for MerchantConnectorAccountWith
             profile_id: other
                 .profile_id
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "profile_id".to_string(),
+                    field_name: "profile_id".into(),
                 })?,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
@@ -1224,6 +1314,8 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                 max_retry_count: recovery_metadata.max_retry_count,
                 billing_connector_retry_threshold: recovery_metadata
                     .billing_connector_retry_threshold,
+                max_hybrid_cascading_retry_count: recovery_metadata
+                    .max_hybrid_cascading_retry_count,
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
@@ -1247,6 +1339,8 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                 max_retry_count: recovery_metadata.max_retry_count,
                 billing_connector_retry_threshold: recovery_metadata
                     .billing_connector_retry_threshold,
+                max_hybrid_cascading_retry_count: recovery_metadata
+                    .max_hybrid_cascading_retry_count,
                 mca_reference: AccountReferenceMap {
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,

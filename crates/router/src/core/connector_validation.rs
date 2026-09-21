@@ -292,8 +292,18 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 ilixium::transformers::IlixiumAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::JpmorganOrbital => {
+                jpmorgan_orbital::transformers::JpmorganOrbitalAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Givepayments => {
                 givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::GlobalpaymentsHeartland => {
+                globalpayments_heartland::transformers::GlobalpaymentsHeartlandAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Globalpay => {
@@ -394,6 +404,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 moneris::transformers::MonerisAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Etisalat => {
+                etisalat::transformers::EtisalatAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Merchante => {
+                merchante::transformers::MerchanteAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Multisafepay => {
                 multisafepay::transformers::MultisafepayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -444,6 +462,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Paybox => {
                 paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paydotcom => {
+                paydotcom::PaydotcomAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Payload => {
@@ -521,6 +543,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Revolv3 => {
                 revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Saferpay => {
+                saferpay::transformers::SaferpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Santander => {
@@ -656,6 +682,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::SanlamPayshield => {
+                sanlam_payshield::transformers::SanlamPayshieldAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cybersourcedecisionmanager => {
                 cybersourcedecisionmanager::transformers::CybersourcedecisionmanagerAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -684,8 +714,16 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::D24 => {
+                d24::transformers::D24AuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Worldpayraft => {
                 worldpayraft::transformers::WorldpayraftAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Paynearme => {
+                paynearme::transformers::PaynearmeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {
@@ -752,7 +790,7 @@ impl ConnectorAuthTypeValidation<'_> {
             } => {
                 if auth_key_map.is_empty() {
                     Err(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "connector_account_details.auth_key_map".to_string(),
+                        field_name: "connector_account_details.auth_key_map".into(),
                         expected_format: "a non empty map".to_string(),
                     }
                     .into())

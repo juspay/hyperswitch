@@ -116,7 +116,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsPreAuthenticateData {
     ) -> Result<enums::Currency, error_stack::Report<errors::ConnectorError>> {
         self.currency.ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             }
             .into(),
         )
@@ -157,7 +157,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsPreProcessingData {
     fn get_payment_method_data_required(&self) -> Result<PaymentMethodData, Error> {
         self.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             }
             .into(),
         )
@@ -475,6 +475,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::Mifinity(_)
+            | WalletData::Neteller(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )

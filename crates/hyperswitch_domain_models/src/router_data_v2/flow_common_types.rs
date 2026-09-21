@@ -155,6 +155,11 @@ pub struct InvoiceRecordBackData {
 }
 
 #[derive(Debug, Clone)]
+pub struct DisputeRecordBackData {
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
 pub struct SubscriptionCustomerData {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
 }
