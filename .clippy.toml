@@ -26,3 +26,11 @@ disallowed-methods = [
 disallowed-macros = [
   { path = "nanoid::nanoid", reason = "a nanoid is drawn from entropy and cannot be reproduced on replay; use common_utils::generate_nanoid_with_default_alphabet, or generate_id / generate_id_with_len for the consts::ALPHABETS variants" },
 ]
+
+# A std HashMap iterates in an order drawn from per-process entropy, so a replay
+# renders it differently than the recording did. The facade's aliases are the
+# same types with a hasher that follows the request under the `deja` feature.
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "iteration order cannot be reproduced on replay; use common_utils::collections::HashMap", replacement = "common_utils::collections::HashMap" },
+  { path = "std::collections::HashSet", reason = "iteration order cannot be reproduced on replay; use common_utils::collections::HashSet", replacement = "common_utils::collections::HashSet" },
+]
