@@ -5005,6 +5005,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Novalnet,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payhound,
     connectors::Payjustnow,
     connectors::Payjustnowinstore,
     connectors::Payload,
