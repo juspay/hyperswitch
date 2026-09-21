@@ -55,6 +55,17 @@ impl<K, V, S> HashMap<K, V, S> {
         ))
     }
 
+    /// Whether the map is empty. Inherent so that a path such as
+    /// `HashMap::is_empty` resolves, which `Deref` alone does not give.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// The number of entries. Inherent for the same reason as [`Self::is_empty`].
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     /// The `std` map, for an API that names it.
     pub fn into_inner(self) -> std::collections::HashMap<K, V, S> {
         self.0
@@ -222,6 +233,17 @@ impl<T, S> HashSet<T, S> {
         Self(std::collections::HashSet::with_capacity_and_hasher(
             capacity, hasher,
         ))
+    }
+
+    /// Whether the set is empty. Inherent so that a path such as
+    /// `HashSet::is_empty` resolves, which `Deref` alone does not give.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// The number of values. Inherent for the same reason as [`Self::is_empty`].
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     /// The `std` set, for an API that names it.
