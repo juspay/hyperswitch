@@ -451,7 +451,8 @@ impl<F, T>
                     three_ds_method_url,
                     message_version: three_ds_eligibility_response
                         .as_ref()
-                        .and_then(|response| response.highest_common_supported_version.clone()),
+                        .and_then(|response| response.highest_common_supported_version.clone())
+                        .or(maximum_supported_3ds_version),
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
                         .as_ref()
