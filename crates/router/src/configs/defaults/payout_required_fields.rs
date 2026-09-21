@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::{
     enums::{
         CountryAlpha2, FieldType,
@@ -8,6 +6,7 @@ use api_models::{
     },
     payment_methods::RequiredFieldInfo,
 };
+use common_utils::collections::HashMap;
 
 use crate::settings::{
     ConnectorFields, PaymentMethodType as PaymentMethodTypeInfo, PayoutRequiredFields,

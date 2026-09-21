@@ -3,10 +3,8 @@
 //! This module provides functionality to transform connector authentication data
 //! into connector-specific configuration structures expected by the Unified Connector Service (UCS).
 
-use std::collections::HashMap;
-
 use common_enums::{connector_enums::Connector, enums::Currency};
-use common_utils::ext_traits::ValueExt;
+use common_utils::{collections::HashMap, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};

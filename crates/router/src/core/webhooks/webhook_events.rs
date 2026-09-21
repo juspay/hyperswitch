@@ -1,6 +1,4 @@
-use common_utils::collections::HashSet;
-
-use common_utils::{self, errors::CustomResult, fp_utils};
+use common_utils::{self, collections::HashSet, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};

@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{collections::HashMap, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{
@@ -8,6 +8,7 @@ use common_enums::{
     PaymentResourceUpdateStatus, StripeChargeType,
 };
 use common_utils::{
+    collections::HashMap,
     crypto,
     errors::CustomResult,
     ext_traits::{ByteSliceExt as _, BytesExt},

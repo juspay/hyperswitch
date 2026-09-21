@@ -1,6 +1,6 @@
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 use std::future::Future;
-use std::{collections::HashMap, ops::Deref};
+use std::ops::Deref;
 
 #[cfg(feature = "v1")]
 use ::payment_methods::client::{
@@ -11,6 +11,7 @@ use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, ConnectorTokenStatus, TokenizationType};
 use common_utils::{
+    collections::HashMap,
     ext_traits::{AsyncExt, Encode, ValueExt},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };

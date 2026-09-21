@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
@@ -31,6 +28,7 @@ use api_models::{
 };
 use common_enums::{enums::MerchantStorageScheme, ConnectorType};
 use common_utils::{
+    collections::{HashMap, HashSet},
     consts,
     crypto::{self, Encryptable},
     encryption::Encryption,

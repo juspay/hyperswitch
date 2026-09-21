@@ -1,10 +1,11 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
 use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
 use common_enums::WalletDecryptedToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
+    collections::HashMap,
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
     id_type::{self},

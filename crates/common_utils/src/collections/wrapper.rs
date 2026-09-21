@@ -385,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::indexing_slicing)]
     fn the_std_constructors_exist_and_the_std_methods_are_reachable() {
         let mut map: HashMap<&str, u32> = HashMap::new();
         map.insert("k", 1);

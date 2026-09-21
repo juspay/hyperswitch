@@ -1,11 +1,12 @@
 mod transformers;
-use std::collections::{HashMap, HashSet};
-
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ScopeIdentifier,
     WebhookRegistrationResult,
 };
-use common_utils::id_type;
+use common_utils::{
+    collections::{HashMap, HashSet},
+    id_type,
+};
 use error_stack::{Report, ResultExt};
 use futures::future::join_all;
 use hyperswitch_domain_models::{

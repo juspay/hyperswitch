@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use common_enums::IntentStatus;
 use common_utils::{
+    collections::HashMap,
     errors::ParsingError,
     types::{authentication::AuthInfo, TimeRange},
 };

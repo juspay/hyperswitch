@@ -1,5 +1,3 @@
-use common_utils::collections::HashMap;
-
 use events::{EventsError, Message, MessagingInterface};
 use hyperswitch_masking::ErasedMaskSerialize;
 use time::PrimitiveDateTime;
@@ -20,6 +18,8 @@ impl EventLogger {
 impl MessagingInterface for EventLogger {
     type MessageClass = EventType;
 
+    // The `events` crate's trait fixes the metadata type, and it does not use the facade.
+    #[allow(clippy::disallowed_types)]
     fn send_message<T>(
         &self,
         data: T,

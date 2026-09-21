@@ -1225,7 +1225,7 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
         form_fields: response_url_data
             .data
             .map(|data| {
-                std::collections::HashMap::from([
+                common_utils::collections::HashMap::from([
                     //Some form fields might be empty based on the authentication type by the connector
                     (
                         "JWT".to_string(),

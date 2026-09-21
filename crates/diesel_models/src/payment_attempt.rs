@@ -4698,7 +4698,7 @@ pub enum RedirectForm {
     Form {
         endpoint: String,
         method: common_utils::request::Method,
-        form_fields: std::collections::HashMap<String, String>,
+        form_fields: common_utils::collections::HashMap<String, String>,
     },
     Html {
         html_data: String,
@@ -4748,7 +4748,7 @@ pub enum RedirectForm {
     WorldpayDDCForm {
         endpoint: common_utils::types::Url,
         method: common_utils::request::Method,
-        form_fields: std::collections::HashMap<String, String>,
+        form_fields: common_utils::collections::HashMap<String, String>,
         collection_id: Option<String>,
     },
     WorldpayxmlDDCForm {

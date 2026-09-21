@@ -1,9 +1,10 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use common_enums::{BankNames, PaymentMethodType};
 #[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::encryption::Encryption;
 use common_utils::{
+    collections::HashMap,
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,

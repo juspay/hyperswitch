@@ -1,8 +1,8 @@
-#[cfg(feature = "olap")]
-use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use base64::Engine;
+#[cfg(feature = "olap")]
+use common_utils::collections::HashSet;
 use common_utils::{
     consts,
     crypto::{self, GenerateDigest},

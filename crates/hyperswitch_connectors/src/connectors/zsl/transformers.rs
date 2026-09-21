@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{crypto::GenerateDigest, date_time, pii::Email, request::Method};
+use common_utils::{
+    collections::HashMap, crypto::GenerateDigest, date_time, pii::Email, request::Method,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},

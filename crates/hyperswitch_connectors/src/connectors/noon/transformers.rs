@@ -640,7 +640,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                 .map(|redirection_data| RedirectForm::Form {
                     endpoint: redirection_data.post_url.to_string(),
                     method: Method::Post,
-                    form_fields: std::collections::HashMap::new(),
+                    form_fields: common_utils::collections::HashMap::new(),
                 });
         let mandate_reference =
             item.response
