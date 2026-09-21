@@ -979,10 +979,19 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             connector_metadata: None,
                         })
                     } else {
+                        let mandate_reference =
+                            non_threeds_data.extra_parameters.as_ref().and_then(|ep| {
+                                ep.token.as_ref().map(|token| MandateReference {
+                                    connector_mandate_id: Some(token.clone().expose()),
+                                    payment_method_id: None,
+                                    mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
+                                })
+                            });
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
                             redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
                             network_txn_id: None,
                             network_txn_link_id: None,
