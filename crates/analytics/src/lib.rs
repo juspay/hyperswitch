@@ -35,10 +35,7 @@ pub use types::AnalyticsDomain;
 pub mod lambda_utils;
 pub mod utils;
 
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use api_models::analytics::{
     active_payments::{ActivePaymentsMetrics, ActivePaymentsMetricsBucketIdentifier},
@@ -63,6 +60,7 @@ use api_models::analytics::{
 };
 use clickhouse::ClickhouseClient;
 pub use clickhouse::ClickhouseConfig;
+use common_utils::collections::{HashMap, HashSet};
 use error_stack::report;
 use router_env::{
     logger,

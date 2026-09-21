@@ -231,7 +231,7 @@ pub async fn get_batches(
                 (Vec::new(), Vec::new()),
                 |(mut batches, mut entry_ids), (entry_id, fields)| {
                     entry_ids.push(entry_id);
-                    let fields: std::collections::HashMap<String, Option<String>> = fields
+                    let fields: common_utils::collections::HashMap<String, Option<String>> = fields
                         .into_iter()
                         .map(|(k, v)| (k, v.as_string()))
                         .collect();

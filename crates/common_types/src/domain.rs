@@ -1,9 +1,7 @@
 //! Common types
 
-use std::collections::HashMap;
-
 use common_enums::enums;
-use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
+use common_utils::{collections::HashMap, impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::Secret;

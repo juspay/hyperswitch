@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use common_enums::enums;
-use common_utils::{pii, request::Method, types::StringMajorUnit};
+use common_utils::{collections::HashMap, pii, request::Method, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},

@@ -1,6 +1,5 @@
 #![allow(clippy::expect_used, clippy::unwrap_in_result, clippy::unwrap_used)]
 use std::{
-    collections::{HashMap, HashSet},
     env,
     io::Read,
     path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
@@ -9,6 +8,7 @@ use std::{
 
 use async_trait::async_trait;
 use base64::Engine;
+use common_utils::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use test_utils::connector_auth;

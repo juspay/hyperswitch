@@ -1,7 +1,6 @@
 //! Custom deserializers for external services configuration
 
-use std::collections::HashSet;
-
+use common_utils::collections::HashSet;
 use serde::Deserialize;
 
 /// Parses a comma-separated string into a HashSet of typed values.
@@ -22,7 +21,7 @@ use serde::Deserialize;
 /// # Examples
 ///
 /// ```
-/// use std::collections::HashSet;
+/// use common_utils::collections::HashSet;
 ///
 /// let result: Result<HashSet<i32>, String> =
 ///     deserialize_hashset_inner("1,2,3");
@@ -103,7 +102,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use common_utils::collections::HashSet;
 
     use super::*;
 

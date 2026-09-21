@@ -1,8 +1,8 @@
-use std::{cmp, collections::HashSet, ops::Not};
+use std::{cmp, ops::Not};
 
 use api_models::user_role::role as role_api;
 use common_enums::{EntityType, MerchantProductType, ParentGroup, PermissionGroup};
-use common_utils::generate_id_with_default_len;
+use common_utils::{collections::HashSet, generate_id_with_default_len};
 use diesel_models::role::{ListRolesByEntityPayload, RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
 

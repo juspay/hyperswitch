@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use async_trait::async_trait;
 use common_enums;
+use common_utils::collections::HashMap;
 use hyperswitch_domain_models::payments as domain_payments;
 use hyperswitch_interfaces::api::gateway;
 

@@ -1,6 +1,7 @@
-use std::collections::HashMap;
-
-use common_utils::events::{ApiEventMetric, ApiEventsType};
+use common_utils::{
+    collections::HashMap,
+    events::{ApiEventMetric, ApiEventsType},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

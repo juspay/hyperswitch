@@ -3,13 +3,11 @@ mod sessionized_metrics;
 mod total_amount_disputed;
 mod total_dispute_lost_amount;
 
-use std::collections::HashSet;
-
 use api_models::analytics::{
     disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
     Granularity,
 };
-use common_utils::types::TimeRange;
+use common_utils::{collections::HashSet, types::TimeRange};
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 

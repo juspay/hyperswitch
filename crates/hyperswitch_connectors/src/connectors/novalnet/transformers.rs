@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
+    collections::HashMap,
     consts,
     ext_traits::OptionExt,
     pii::Email,

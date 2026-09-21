@@ -1,11 +1,10 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
-
 use api_models::analytics::{
     frm::{FrmDimensions, FrmMetrics, FrmMetricsBucketIdentifier, FrmMetricsBucketResponse},
     AnalyticsMetadata, FrmFilterValue, FrmFiltersResponse, GetFrmFilterRequest,
     GetFrmMetricRequest, MetricsResponse,
 };
+use common_utils::collections::HashMap;
 use error_stack::ResultExt;
 use router_env::{
     logger,

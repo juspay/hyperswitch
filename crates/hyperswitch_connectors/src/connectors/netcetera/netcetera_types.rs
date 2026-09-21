@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use common_utils::{
+    collections::HashMap,
     pii::{Email, EmailStrategy},
     types::SemanticVersion,
 };

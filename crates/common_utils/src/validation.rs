@@ -2,7 +2,7 @@
 
 #![deny(clippy::invalid_regex)]
 
-use std::{collections::HashSet, sync::LazyLock};
+use std::sync::LazyLock;
 
 use error_stack::report;
 use globset::Glob;
@@ -11,6 +11,7 @@ use regex::Regex;
 use router_env::logger;
 
 use crate::{
+    collections::HashSet,
     consts,
     errors::{CustomResult, ValidationError},
 };
@@ -94,7 +95,7 @@ pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
 /// Checks whether a given domain matches against a list of valid domain glob patterns
 pub fn validate_domain_against_allowed_domains(
     domain: &str,
-    allowed_domains: crate::collections::HashSet<String>,
+    allowed_domains: HashSet<String>,
 ) -> bool {
     allowed_domains.iter().any(|allowed_domain| {
         Glob::new(allowed_domain)
@@ -222,7 +223,7 @@ impl<T: ValidateXSSOrSQLi> ValidateXSSOrSQLi for HashSet<T> {
 }
 
 impl<K: ValidateXSSOrSQLi, V: ValidateXSSOrSQLi> ValidateXSSOrSQLi
-    for std::collections::HashMap<K, V>
+    for crate::collections::HashMap<K, V>
 {
     fn validate_xss_or_sqli(&self) -> Result<(), String> {
         self.iter().try_for_each(|(k, v)| {
