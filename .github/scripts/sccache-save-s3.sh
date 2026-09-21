@@ -8,12 +8,15 @@ if [[ "${CI:-false}" != "true" && "${GITHUB_ACTIONS:-false}" != "true" ]]; then
 fi
 
 if [ -z "${1:-}" ]; then
-  echo "::error::Usage: $(basename "$0") <cache-name>"
+  echo "::error::Usage: $(basename "$0") <cache-name> [pr-number]"
   exit 1
 fi
 cache_name="$1"
+pr_number="${2:-}"
 
-key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
+# PR-scoped when a PR number is given, so concurrent PRs don't clobber each
+# other's — or the shared merge_group/main — cache.
+key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}${pr_number:+-pr${pr_number}}.tar.gz"
 echo "Saving sccache cache, key: ${key}"
 
 # Streamed, not written to disk first — avoids doubling disk usage.
