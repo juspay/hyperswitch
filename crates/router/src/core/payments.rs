@@ -649,9 +649,11 @@ where
 /// `processing` before the caller returns the error. A tracker write failure is logged and
 /// swallowed.
 ///
-/// The attempt is marked `Failure` explicitly instead of letting the tracker derive it from
-/// the status code. The connector was never called, so the outcome is known whatever code the
-/// rejection maps to, and the recorded state cannot drift if that derivation changes.
+/// On the initial authorization the attempt is marked `Failure` explicitly rather than derived
+/// from the status code, so a rejection cannot leave the payment in flight whatever code it
+/// maps to. Later flows leave the status unset: the connector was never called, so the attempt
+/// must keep whatever state the connector already established, and the tracker's flow-aware
+/// derivation preserves it (a PSync on an authorized payment stays `Authorized`).
 ///
 /// Reached once the trackers have already moved the payment to `processing`, which is where
 /// the request is built on the UCS path. The direct path builds its request earlier and
@@ -685,7 +687,15 @@ where
         use actix_web::ResponseError;
         api_error.current_context().status_code().as_u16()
     };
-    error_response.attempt_status = Some(enums::AttemptStatus::Failure);
+    // Only the initial authorization can be failed outright here. For any later flow the
+    // connector has already set a status this rejection must not overwrite, so leave it unset
+    // and let the tracker's flow-aware derivation keep the prior status.
+    if matches!(
+        core_utils::get_flow_name::<F>()?.as_str(),
+        "Authorize" | "SetupMandate"
+    ) {
+        error_response.attempt_status = Some(enums::AttemptStatus::Failure);
+    }
     router_data.response = Err(error_response);
     // `connector_http_status_code` stays unset: no connector was called, so there is no
     // connector status to report and the connector metrics must not count this.
