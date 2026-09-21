@@ -1035,6 +1035,7 @@ pub struct PaymentsPostAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub complete_authorize_url: Option<String>,
+    pub order_id: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -1054,6 +1055,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
             complete_authorize_url: data.complete_authorize_url,
+            order_id: data.order_id,
         })
     }
 }
@@ -1171,6 +1173,7 @@ pub struct CompleteAuthorizeData {
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    pub order_id: Option<String>,
     pub force_3ds_challenge: Option<bool>,
 }
 
