@@ -5135,6 +5135,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Flexiti,
     connectors::Forte,
     connectors::GlobalpaymentsHeartland,
+    connectors::GlobalpaymentsRealex,
     connectors::Globepay,
     connectors::Gocardless,
     connectors::GotymeSanlam,
