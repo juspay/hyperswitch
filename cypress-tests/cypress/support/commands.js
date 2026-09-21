@@ -107,7 +107,11 @@ function supportsSplitPayments(globalState) {
   );
 }
 
-function shouldAssertAuthCode(globalState) {
+function shouldAssertAuthCode(globalState, responseBody) {
+  // No auth_code exists while the shopper still has to complete a redirect/3DS challenge.
+  if (responseBody?.status === "requires_customer_action") {
+    return false;
+  }
   return CONNECTOR_LISTS.INCLUDE.AUTH_CODE.includes(
     globalState.get("connectorId")
   );
@@ -3502,7 +3506,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -3541,7 +3545,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -3617,7 +3621,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -3645,7 +3649,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4388,7 +4392,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4405,7 +4409,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4462,7 +4466,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4479,7 +4483,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4618,7 +4622,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4678,7 +4682,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -4758,7 +4762,7 @@ Cypress.Commands.add(
           for (const key in resData.body) {
             if (
               key === "payment_method_data" &&
-              shouldAssertAuthCode(globalState)
+              shouldAssertAuthCode(globalState, response.body)
             ) {
               expect(response.body[key], [key]).to.not.be.empty;
               expect(
@@ -4966,7 +4970,7 @@ Cypress.Commands.add(
               resData.body,
               "payment_method_data"
             ) &&
-            shouldAssertAuthCode(globalState)
+            shouldAssertAuthCode(globalState, response.body)
           ) {
             expect(response.body.payment_method_data, "payment_method_data").to
               .not.be.empty;
@@ -5507,7 +5511,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
@@ -5598,7 +5602,7 @@ Cypress.Commands.add(
               for (const key in resData.body) {
                 if (
                   key === "payment_method_data" &&
-                  shouldAssertAuthCode(globalState)
+                  shouldAssertAuthCode(globalState, response.body)
                 ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(

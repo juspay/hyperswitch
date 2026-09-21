@@ -379,13 +379,10 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            code: "IR_00",
-            message: "Setup Mandate flow for Shift4 is not implemented",
-            type: "invalid_request",
-          },
+          status: "succeeded",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -502,9 +499,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -522,9 +516,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -580,9 +571,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -601,9 +589,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -641,9 +626,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -660,9 +642,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -674,9 +653,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -703,9 +679,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
@@ -767,9 +740,6 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: { amount: 6000 },
       Response: {
         status: 200,
@@ -779,9 +749,6 @@ export const connectorDetails = {
       },
     },
     MITAutoCaptureWithCustomerAcceptance: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         customer_acceptance: {
@@ -801,9 +768,6 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: { amount: 6000 },
       Response: {
         status: 200,

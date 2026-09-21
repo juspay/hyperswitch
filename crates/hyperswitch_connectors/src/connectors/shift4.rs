@@ -1125,4 +1125,23 @@ impl ConnectorSpecifications for Shift4 {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    #[cfg(feature = "v1")]
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
+        // Shift4 stores a card on file only under a Shift4 customer, and the UCS
+        // SetupMandate / mandate CIT request is refused without
+        // `customer.connector_customer_id`. Create that customer first whenever the
+        // credential is being stored for off-session use.
+        if matches!(
+            payment_attempt.setup_future_usage_applied,
+            Some(enums::FutureUsage::OffSession)
+        ) {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
+    }
 }

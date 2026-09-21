@@ -912,6 +912,44 @@ impl
             authentication_data
         };
 
+        // Shift4 has no separate Authenticate step: its ACS returns the browser to the
+        // merchant with the 3DS token (`tok_...`) as a `token` query parameter, and the
+        // settle Authorize needs it as `authentication_data.threeds_server_transaction_id`.
+        let authentication_data =
+            if authentication_data.is_none() && router_data.connector == "shift4" {
+                router_data
+                    .request
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| {
+                        let from_payload = redirect_response.payload.as_ref().and_then(|payload| {
+                            payload
+                                .clone()
+                                .expose()
+                                .get("token")
+                                .and_then(|token| token.as_str().map(str::to_string))
+                        });
+                        from_payload.or_else(|| {
+                            redirect_response.params.as_ref().and_then(|params| {
+                                params
+                                    .clone()
+                                    .expose()
+                                    .split('&')
+                                    .filter_map(|pair| pair.split_once('='))
+                                    .find(|(key, _)| *key == "token")
+                                    .map(|(_, value)| value.to_string())
+                            })
+                        })
+                    })
+                    .filter(|token| token.starts_with("tok_"))
+                    .map(|token| payments_grpc::AuthenticationData {
+                        threeds_server_transaction_id: Some(token),
+                        ..Default::default()
+                    })
+            } else {
+                authentication_data
+            };
+
         let metadata = router_data
             .request
             .metadata

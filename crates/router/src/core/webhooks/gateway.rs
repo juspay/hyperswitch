@@ -939,9 +939,9 @@ fn event_reference_to_object_ref(
             }
         }
         Resource::Dispute(dispute) => dispute
-            .connector_dispute_id
+            .connector_transaction_id
             .as_ref()
-            .or(dispute.connector_transaction_id.as_ref())
+            .or(dispute.connector_dispute_id.as_ref())
             .map(|id| {
                 ObjectReferenceId::PaymentId(api_payments::PaymentIdType::ConnectorTransactionId(
                     id.clone(),
