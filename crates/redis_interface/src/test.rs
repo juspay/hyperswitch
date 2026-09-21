@@ -11,6 +11,9 @@
 //! Run with fred:
 //!     cargo test -p redis_interface --no-default-features --features fred
 
+// redis implements FromRedisValue for std's map, not ours.
+#![allow(clippy::disallowed_types)]
+
 use std::collections::HashMap;
 
 use crate::{
