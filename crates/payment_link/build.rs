@@ -1,3 +1,6 @@
+// A build script cannot see common_utils, and its maps exist only while compiling.
+#![allow(clippy::disallowed_types)]
+
 use std::{collections::HashMap, fs, str::FromStr};
 
 use router_env::env::Env;
