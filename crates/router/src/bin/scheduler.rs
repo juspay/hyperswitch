@@ -73,6 +73,10 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+    )]
     let _task_handle = tokio::spawn(
         router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
     );
@@ -122,6 +126,10 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await
     .expect("Failed to create the server");
 
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+    )]
     let _task_handle = tokio::spawn(
         async move {
             let _ = web_server.await;

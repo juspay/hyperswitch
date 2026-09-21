@@ -43,6 +43,10 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             .is_ok()
         {
             let redis_clone = self.clone();
+            #[allow(
+                clippy::disallowed_methods,
+                reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+            )]
             let _task_handle = tokio::spawn(
                 async move {
                     if let Err(pubsub_error) = redis_clone.on_message().await {

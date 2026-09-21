@@ -25,6 +25,10 @@ async fn spawn_server() -> bool {
         .await
         .expect("failed to create server");
 
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "test-only task; no request correlation is live"
+    )]
     let _server = tokio::spawn(server.in_current_span());
     true
 }

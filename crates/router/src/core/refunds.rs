@@ -1394,6 +1394,10 @@ pub async fn sync_refund_with_gateway(
     };
 
     // If the original refund status was not success and upon a force sync it is now success, in that case we update the state metadata of the payment intent
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
+    )]
     tokio::spawn({
         let state = state.clone();
         let processor = platform.get_processor().clone();
@@ -1762,6 +1766,10 @@ pub async fn validate_and_create_refund(
 
             // Update the state metadata of the payment intent if the refund is successful
             if updated_refund.refund_status.is_success() {
+                #[allow(
+                    clippy::disallowed_methods,
+                    reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
+                )]
                 tokio::spawn({
                     let state = state.clone();
                     let processor = platform.get_processor().clone();

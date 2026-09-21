@@ -77,6 +77,10 @@ impl Handler {
             metrics::DRAINER_HEALTH.add(1, &[]);
             for store in self.stores.values() {
                 if store.is_stream_available(stream_index).await {
+                    #[allow(
+                        clippy::disallowed_methods,
+                        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+                    )]
                     let _task_handle = tokio::spawn(
                         drainer_handler(
                             store.clone(),
@@ -140,12 +144,20 @@ impl Handler {
             }
             Some(redis_conn_clone) => {
                 // Spawn a task to monitor if redis is down or not
+                #[allow(
+                    clippy::disallowed_methods,
+                    reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+                )]
                 let _task_handle = tokio::spawn(
                     async move { redis_conn_clone.on_error(redis_error_tx).await }
                         .in_current_span(),
                 );
 
                 //Spawns a task to send shutdown signal if redis goes down
+                #[allow(
+                    clippy::disallowed_methods,
+                    reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+                )]
                 let _task_handle =
                     tokio::spawn(redis_error_receiver(redis_error_rx, tx).in_current_span());
 
