@@ -1574,6 +1574,9 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Globalpay, fields(vec![], vec![], card_basic())),
         (
             Connector::GlobalpaymentsHeartland,
+            fields(vec![], card_basic(), vec![]),
+        ),
+        (
             Connector::GlobalpaymentsRealex,
             fields(vec![], card_basic(), vec![]),
         ),
