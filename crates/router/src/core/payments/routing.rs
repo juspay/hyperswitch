@@ -1472,9 +1472,13 @@ where
 
     let mut ordered = vec![predetermined.clone()];
     for choice in candidates {
+        // An unpinned plan entry (`None`) refers to the connector that just ran; skip it so
+        // it is not appended again and retried on the same connector.
         let is_current_connector = choice.connector.to_string()
             == predetermined.connector_data.connector_name.to_string()
-            && choice.merchant_connector_id == predetermined.connector_data.merchant_connector_id;
+            && (choice.merchant_connector_id.is_none()
+                || choice.merchant_connector_id
+                    == predetermined.connector_data.merchant_connector_id);
         if is_current_connector {
             continue;
         }
@@ -1679,86 +1683,27 @@ impl HybridRoutingStage {
     fn build_dynamic_routing_request(
         &self,
         input: &HybridRoutingInput<'_>,
-    ) -> (Option<OpenRouterDecideGatewayRequest>, Option<u8>) {
-        if !input.state.conf.open_router.dynamic_routing_enabled {
-            (None, None)
-        } else if let Some(dynamic_routing_algo) =
-            input.business_profile.dynamic_routing_algorithm.clone()
-        {
-            match dynamic_routing_algo.parse_value::<api_routing::DynamicRoutingAlgorithmRef>(
-                "DynamicRoutingAlgorithmRef",
-            ) {
-                Ok(dynamic_routing_config) => {
-                    let dynamic_routing_volume_split = dynamic_routing_config
-                        .dynamic_routing_volume_split
-                        .unwrap_or_default();
-                    let is_dynamic_feature_enabled = dynamic_routing_config
-                        .is_success_rate_routing_enabled()
-                        || dynamic_routing_config.is_elimination_enabled();
-
-                    if !is_dynamic_feature_enabled {
-                        logger::debug!(
-                            "euclid: dynamic routing config present but dynamic features are disabled"
-                        );
-                        (None, Some(dynamic_routing_volume_split))
-                    } else {
-                        match perform_dynamic_routing_volume_split(
-                            vec![
-                                api_models::routing::RoutingVolumeSplit {
-                                    routing_type: api_models::routing::RoutingType::Dynamic,
-                                    split: dynamic_routing_volume_split,
-                                },
-                                api_models::routing::RoutingVolumeSplit {
-                                    routing_type: api_models::routing::RoutingType::Static,
-                                    split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
-                                        - dynamic_routing_volume_split,
-                                },
-                            ],
-                            None,
-                        ) {
-                            Ok(routing_choice)
-                                if routing_choice.routing_type.is_dynamic_routing() =>
-                            {
-                                (
-                                    Some(OpenRouterDecideGatewayRequest::construct_sr_request(
-                                        input.payment_dsl_input.payment_attempt,
-                                        input.static_connectors.to_vec(),
-                                        Some(or_types::RankingAlgorithm::SrBasedRouting),
-                                        dynamic_routing_config.is_elimination_enabled(),
-                                    )),
-                                    Some(dynamic_routing_volume_split),
-                                )
-                            }
-                            Ok(_) => (None, Some(dynamic_routing_volume_split)),
-                            Err(error) => {
-                                logger::error!(
-                                    error=?error,
-                                    "euclid: failed to perform dynamic routing volume split for hybrid routing"
-                                );
-                                (None, Some(dynamic_routing_volume_split))
-                            }
-                        }
-                    }
-                }
-                Err(error) => {
-                    logger::error!(
-                        error=?error,
-                        "euclid: failed to parse dynamic routing config for hybrid routing"
-                    );
-                    (None, None)
-                }
-            }
-        } else {
-            (None, None)
-        }
+    ) -> Option<OpenRouterDecideGatewayRequest> {
+        input
+            .state
+            .conf
+            .open_router
+            .dynamic_routing_enabled
+            .then(|| {
+                OpenRouterDecideGatewayRequest::construct_sr_request(
+                    input.payment_dsl_input.payment_attempt,
+                    input.static_connectors.to_vec(),
+                    Some(or_types::RankingAlgorithm::SrBasedRouting),
+                )
+            })
     }
 
     #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
     fn build_dynamic_routing_request(
         &self,
         _input: &HybridRoutingInput<'_>,
-    ) -> (Option<OpenRouterDecideGatewayRequest>, Option<u8>) {
-        (None, None)
+    ) -> Option<OpenRouterDecideGatewayRequest> {
+        None
     }
 }
 
@@ -1770,8 +1715,7 @@ impl RoutingStage for HybridRoutingStage {
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let (dynamic_routing_request, _dynamic_routing_volume_split) =
-                self.build_dynamic_routing_request(&input);
+            let dynamic_routing_request = self.build_dynamic_routing_request(&input);
 
             // Under DE cutover, always evaluate the profile's rule on DE; the caller falls back to HS static/default on empty or error.
             let should_include_static_request = input.state.conf.open_router.static_routing_enabled;
@@ -2443,11 +2387,13 @@ pub fn perform_dynamic_routing_volume_split(
     rng_seed: Option<&str>,
 ) -> RoutingResult<api_models::routing::RoutingVolumeSplit> {
     let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
-    let weighted_index = distributions::WeightedIndex::new(weights)
-        .change_context(errors::RoutingError::VolumeSplitFailed)
-        .attach_printable("Error creating weighted distribution for volume split")?;
 
     let idx = if let Some(seed) = rng_seed {
+        // Already reproducible: the index is a pure function of the seed.
+        let weighted_index = distributions::WeightedIndex::new(&weights)
+            .change_context(errors::RoutingError::VolumeSplitFailed)
+            .attach_printable("Error creating weighted distribution for volume split")?;
+
         let mut hasher = hash_map::DefaultHasher::new();
         seed.hash(&mut hasher);
         let hash = hasher.finish();
@@ -2455,8 +2401,7 @@ pub fn perform_dynamic_routing_volume_split(
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(hash);
         weighted_index.sample(&mut rng)
     } else {
-        let mut rng = rand::thread_rng();
-        weighted_index.sample(&mut rng)
+        sample_volume_split_index(&weights)?
     };
 
     let routing_choice = *splits
@@ -2467,16 +2412,36 @@ pub fn perform_dynamic_routing_volume_split(
     Ok(routing_choice)
 }
 
-pub fn perform_volume_split(
-    mut splits: Vec<routing_types::ConnectorVolumeSplit>,
-) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
+/// Draw the volume-split index for `weights`.
+///
+/// deja: this draw decides which connector a payment is routed to, so it changes
+/// the outbound request. It is seamed at the index rather than at the chosen
+/// connector because a `usize` records losslessly and the weights key the call —
+/// a candidate that changed the split therefore still diverges on the args.
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::routing",
+        operation = "volume_split_index",
+        codec = ResultOkCodec,
+    )
+)]
+fn sample_volume_split_index(weights: &[u8]) -> RoutingResult<usize> {
     let weighted_index = distributions::WeightedIndex::new(weights)
         .change_context(errors::RoutingError::VolumeSplitFailed)
         .attach_printable("Error creating weighted distribution for volume split")?;
 
+    #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
     let mut rng = rand::thread_rng();
-    let idx = weighted_index.sample(&mut rng);
+    Ok(weighted_index.sample(&mut rng))
+}
+
+pub fn perform_volume_split(
+    mut splits: Vec<routing_types::ConnectorVolumeSplit>,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
+    let idx = sample_volume_split_index(&weights)?;
 
     splits
         .get(idx)
@@ -3734,7 +3699,6 @@ pub async fn perform_dynamic_routing_with_open_router(
             routable_connectors.clone(),
             profile.get_id(),
             &payment_data,
-            is_elimination_enabled,
         )
         .await?;
 
@@ -3968,7 +3932,6 @@ pub async fn perform_decide_gateway_call_with_open_router(
     mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
     payment_attempt: &oss_storage::PaymentAttempt,
-    is_elimination_enabled: bool,
 ) -> RoutingResult<RoutingConnectorOutcomeWithApproach> {
     logger::debug!(
         "performing decide_gateway call with open_router for profile {}",
@@ -3979,7 +3942,6 @@ pub async fn perform_decide_gateway_call_with_open_router(
         payment_attempt,
         routable_connectors.clone(),
         Some(or_types::RankingAlgorithm::SrBasedRouting),
-        is_elimination_enabled,
     );
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(

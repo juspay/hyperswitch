@@ -12388,6 +12388,7 @@
           "ebanx",
           "envoy",
           "elavon",
+          "etisalat",
           "facilitapay",
           "finix",
           "fiserv",
@@ -12419,6 +12420,7 @@
           "juspaythreedsserver",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -12486,6 +12488,7 @@
           "signifyd",
           "plaid",
           "riskified",
+          "sanlam_payshield",
           "xendit",
           "zen",
           "zift",
@@ -12674,6 +12677,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CheckoutData"
+              }
+            ],
+            "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
               }
             ],
             "nullable": true
@@ -17017,6 +17028,14 @@
           }
         }
       },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -17146,6 +17165,14 @@
           "token": {
             "type": "string",
             "description": "Token generated for the wallet"
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17240,8 +17267,7 @@
         ],
         "properties": {
           "type": {
-            "type": "string",
-            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+            "$ref": "#/components/schemas/GooglePayTokenizationSpecificationType"
           },
           "parameters": {
             "$ref": "#/components/schemas/GpayTokenParameters"
@@ -20102,6 +20128,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkParams": {
         "type": "object",
         "description": "Represents additional network-level parameters for 3DS processing.",
@@ -22886,6 +22915,13 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -23081,6 +23117,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "nullable": true,
+            "maximum": 900,
+            "minimum": 0
           }
         }
       },
@@ -24874,6 +24919,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -25053,6 +25099,14 @@
             "nullable": true
           }
         }
+      },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
       },
       "PaymentProcessingDetails": {
         "type": "object",
@@ -27586,6 +27640,14 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001",
+            "nullable": true
+          },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -31653,6 +31715,7 @@
         "type": "object",
         "required": [
           "payment_link_id",
+          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
@@ -31664,6 +31727,10 @@
             "type": "string",
             "description": "Identifier for Payment Link"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Identifier for the associated Payment"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
@@ -31671,6 +31738,11 @@
           "processor_merchant_id": {
             "type": "string",
             "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile",
             "nullable": true
           },
           "link_to_pay": {
@@ -31954,6 +32026,7 @@
           "ebanx",
           "elavon",
           "envoy",
+          "etisalat",
           "facilitapay",
           "finix",
           "fiserv",
@@ -31981,6 +32054,7 @@
           "jpmorgan",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -32017,6 +32091,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
@@ -33409,6 +33484,14 @@
                   }
                 ],
                 "nullable": true
+              },
+              "payment_processing_detail_input_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentProcessingDetailInputType"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -33828,6 +33911,16 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
       },
       "StripeSplitPaymentRequest": {
         "type": "object",
@@ -35888,6 +35981,18 @@
             "properties": {
               "skrill": {
                 "$ref": "#/components/schemas/SkrillData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
               }
             }
           },

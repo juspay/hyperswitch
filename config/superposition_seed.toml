@@ -2558,6 +2558,7 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "payments.block_implicit_customer_creation" = { value = false, schema = { type = "boolean" }, description = "Whether payments must reject implicit creation of a missing customer for an organization", change_reason = "Decouple implicit customer creation from PM modular eligibility" }
 "webhooks.incoming_webhook_disabled_events" = { value = false, schema = { type = "boolean" }, description = "Whether a specific incoming webhook event is disabled for a given connector", change_reason = "Initial setup" }
 "payouts.max_auto_payout_retries" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)", change_reason = "Initial setup" }
+"payouts.payout_frm_call" = { value = false, schema = { type = "boolean" }, description = "Whether to call FRM for payouts", change_reason = "Initial setup" }
 "payouts.payout_tracker_mapping" = { value = { frequencies = [
     [
         300,
@@ -2672,8 +2673,18 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
 "vaulting.save_wallet_decrypted_data" = { value = false, schema = { type = "boolean" }, description = "Whether to save wallet decrypted data", change_reason = "Initial setup" }
 "vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
 "payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }
+"system.payment_integration_type" = { value = "client", schema = { type = "string", enum = [
+    "client",
+    "server",
+    "client_and_server",
+] }, description = "Which integration the merchant builds its checkout with. The X-Integration-Type header on payment requests must match it: 'client' rejects 'server', 'server' requires 'server' (an absent header reads as 'client'), 'client_and_server' accepts either. Defaults to 'client', so a merchant must opt in before it can request the server response shape. Override per processor_merchant_id.", change_reason = "Merchant-level gate for the server-integration response shape" }
+"system.payment_method_integration_type" = { value = "vault_then_pay", schema = { enum = [
+  "vault_then_pay",
+  "pay_then_vault",
+] }, description = "When the payment method is written to durable storage: vault_then_pay vaults at session confirm, pay_then_vault vaults only after the payment is acknowledged", change_reason = "Initial setup" }
 "system.should_call_pm_modular_service" = { value = false, schema = { type = "boolean" }, description = "Whether to call the PM modular service for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "vaulting.should_disable_vault_tokenization" = { value = false, schema = { type = "boolean" }, description = "Whether to disable vault tokenization for a merchant", change_reason = "Initial setup" }
+"system.should_enable_authentication_service" = { value = false, schema = { type = "boolean" }, description = "Whether a merchant/org is eligible for the unified authentication service, with organization taking precedence over merchant", change_reason = "Initial setup" }
 "payments.should_enable_mit_with_limited_card_data" = { value = false, schema = { type = "boolean" }, description = "Whether to allow merchant-initiated transactions (MIT) with limited card data", change_reason = "Initial setup" }
 "payments.should_perform_eligibility" = { value = false, schema = { type = "boolean" }, description = "Whether the SDK should perform an eligibility check before confirming payment", change_reason = "Initial setup" }
 "payments.should_return_raw_payment_method_details" = { value = false, schema = { type = "boolean" }, description = "Whether to return raw payment method details (v2 only)", change_reason = "Initial setup" }
@@ -2688,6 +2699,10 @@ should_schedule_modular_backward_compat = { value = false, schema = { type = "bo
     "region2",
 ], type = "string" }, description = "3DS routing region for UAS (Unified Authentication Service) per organization", change_reason = "Initial setup" }
 "vaulting.should_perform_sdk_vaulting" = { value = true, schema = { type = "boolean" }, description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting", change_reason = "Initial setup" }
+"frm.pre_frm_failure_mode" = { value = "fail_open", schema = { enum = [
+    "fail_open", 
+    "fail_closed"
+], type = "string" }, description = "Controls whether payment processing continues when an applicable pre-FRM check fails", change_reason = "Initial setup" }
 
 
 [dimensions]
@@ -3344,6 +3359,7 @@ payment_method_type = { position = 3, schema = { enum = [
     "Paypal",
     "PermataBankTransfer",
     "Pix",
+    "PixQr",
     "PixAutomaticoPush",
     "PixAutomaticoQr",
     "Przelewy24",
@@ -3673,6 +3689,24 @@ _context_ = { connector = "itaubank", payment_method = "BankTransfer", payment_m
 
 [[overrides]]
 _context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "Pix" }
+"dynamic_fields.billing.address.city._is_required" = true
+"dynamic_fields.billing.address.country._dropdown_options" = ["BR"]
+"dynamic_fields.billing.address.country._is_required" = true
+"dynamic_fields.billing.address.first_name._is_required" = true
+"dynamic_fields.billing.address.last_name._is_required" = true
+"dynamic_fields.billing.address.line1._is_required" = true
+"dynamic_fields.billing.address.line2._is_required" = true
+"dynamic_fields.billing.address.state._is_required" = true
+"dynamic_fields.billing.address.zip._is_required" = true
+"dynamic_fields.customer.document_details.document_number._is_required" = true
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "cpf",
+    "cnpj",
+]
+"dynamic_fields.customer.document_details.document_type._is_required" = true
+
+[[overrides]]
+_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixQr" }
 "dynamic_fields.billing.address.city._is_required" = true
 "dynamic_fields.billing.address.country._dropdown_options" = ["BR"]
 "dynamic_fields.billing.address.country._is_required" = true
@@ -4646,6 +4680,12 @@ _context_ = { connector = "cybersource", payment_method = "Wallet", payment_meth
 "dynamic_fields.billing.address.line1._is_required" = true
 "dynamic_fields.billing.address.state._is_required" = true
 "dynamic_fields.billing.address.zip._is_required" = true
+"dynamic_fields.billing.email._is_required" = true
+
+[[overrides]]
+_context_ = { connector = "datatrans", payment_method = "Wallet", payment_method_type = "GooglePay" }
+"dynamic_fields.billing.address.first_name._is_required" = true
+"dynamic_fields.billing.address.last_name._is_required" = true
 "dynamic_fields.billing.email._is_required" = true
 
 [[overrides]]
