@@ -13,8 +13,11 @@ if [ -z "${1:-}" ]; then
 fi
 cache_name="$1"
 
+key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
+echo "Saving sccache cache, key: ${key}"
+
 # Streamed, not written to disk first — avoids doubling disk usage.
 tar czf - -C "$SCCACHE_DIR" . \
   | aws s3 cp - \
-    "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" \
+    "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}${key}" \
     --region "${CACHE_S3_REGION}" --no-progress --only-show-errors
