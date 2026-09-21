@@ -7,38 +7,31 @@
 //! map's order reaches a response body, the difference is charged to the
 //! candidate's logic rather than to the hasher.
 //!
-//! These aliases change nothing but that default. Under `feature = "deja"` it
+//! These types change nothing but that default. Under `feature = "deja"` it
 //! becomes [`CorrelationHasher`], whose keys derive from the current
 //! correlation id, so two runs of one request iterate identically. Without the
-//! feature the default stays `RandomState` and these are `std` verbatim.
+//! feature the default stays `RandomState`.
 //!
 //! # What changing the import costs
 //!
-//! `.collect()`, `Default::default()`, `insert`, `iter` and the rest are
-//! unaffected. `HashMap::new()` and `HashMap::with_capacity()` are **not**:
-//! `std` defines them only for `RandomState`, so those call sites must become
-//! `HashMap::default()` and `HashMap::with_capacity_and_hasher(n,
-//! CorrelationHasher::default())`. That is a compile error, not a silent
-//! change, which is the point — the collections that move are named by the
-//! compiler rather than guessed at.
+//! Nothing at a call site. They wrap the `std` types rather than alias them,
+//! because `std` defines `new`, `with_capacity` and `From<[_; N]>` only for
+//! `RandomState` and an alias cannot add them. What does change is a map handed
+//! by value to an API that names the `std` type: that takes `into_inner()`.
 
 pub use std::collections::hash_map::RandomState;
 
 #[cfg(not(feature = "deja"))]
-/// The hasher these aliases default to.
+/// The hasher these collections default to.
 pub type DefaultHashBuilder = RandomState;
 
 #[cfg(feature = "deja")]
-/// The hasher these aliases default to.
+/// The hasher these collections default to.
 pub type DefaultHashBuilder = CorrelationHasher;
 
-/// [`std::collections::HashMap`] with [`DefaultHashBuilder`] in place of
-/// `std`'s implicit [`RandomState`].
-pub type HashMap<K, V, S = DefaultHashBuilder> = std::collections::HashMap<K, V, S>;
+mod wrapper;
 
-/// [`std::collections::HashSet`] with [`DefaultHashBuilder`] in place of
-/// `std`'s implicit [`RandomState`].
-pub type HashSet<T, S = DefaultHashBuilder> = std::collections::HashSet<T, S>;
+pub use wrapper::{HashMap, HashSet};
 
 #[cfg(feature = "deja")]
 mod correlation {
@@ -181,7 +174,7 @@ mod correlation {
         }
 
         fn rendered(hasher: CorrelationHasher) -> String {
-            let mut map = std::collections::HashMap::with_hasher(hasher);
+            let mut map = crate::collections::HashMap::with_hasher(hasher);
             for key in 0..32_u32 {
                 map.insert(key, ());
             }
