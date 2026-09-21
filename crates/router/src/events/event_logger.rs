@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use common_utils::collections::HashMap;
 
 use events::{EventsError, Message, MessagingInterface};
 use hyperswitch_masking::ErasedMaskSerialize;
@@ -23,7 +23,7 @@ impl MessagingInterface for EventLogger {
     fn send_message<T>(
         &self,
         data: T,
-        metadata: HashMap<String, String>,
+        metadata: std::collections::HashMap<String, String>,
         _timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where

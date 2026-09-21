@@ -1805,7 +1805,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
                 endpoint: form.clone().endpoint,
                 method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
+                form_fields: form.clone().form_fields.into_iter().collect(),
             }),
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
                 html_data: html.html_data,
