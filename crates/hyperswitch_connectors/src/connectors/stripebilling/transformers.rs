@@ -1544,7 +1544,210 @@ impl From<StripebillingCardNetwork> for enums::CardNetwork {
 
 #[cfg(test)]
 mod subscription_tests {
+    use std::marker::PhantomData;
+
+    use common_utils::{id_type, types::MinorUnit};
+    use hyperswitch_domain_models::{
+        connector_endpoints::ConnectorParams,
+        router_data::{ConnectorAuthType, RouterData},
+        router_flow_types::subscriptions::SubscriptionCreate,
+        router_request_types::subscriptions::{
+            SubscriptionAutoCollection, SubscriptionCreateRequest, SubscriptionItem,
+        },
+        router_response_types::subscriptions::SubscriptionCreateResponse,
+    };
+
+    use crate::types::ResponseRouterData;
+
     use super::*;
+
+    fn subscription_create_router_data(
+        items: Vec<SubscriptionItem>,
+        connector_customer_id: Option<&str>,
+        default_payment_method: Option<&str>,
+    ) -> RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse> {
+        RouterData {
+            flow: PhantomData,
+            merchant_id: id_type::MerchantId::get_irrelevant_merchant_id(),
+            customer_id: None,
+            connector_customer: None,
+            connector: "stripebilling".to_string(),
+            payment_id: "irrelevant payment in subscription create flow".to_string(),
+            attempt_id: "irrelevant attempt in subscription create flow".to_string(),
+            tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            status: Default::default(),
+            payment_method: Default::default(),
+            payment_method_type: None,
+            connector_auth_type: ConnectorAuthType::default(),
+            description: None,
+            address: Default::default(),
+            auth_type: Default::default(),
+            connector_meta_data: None,
+            connector_wallets_details: None,
+            amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            recurring_mandate_payment_data: None,
+            preprocessing_id: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            request: SubscriptionCreateRequest {
+                customer_id: id_type::CustomerId::try_from(std::borrow::Cow::Borrowed(
+                    "customer_hyperswitch",
+                ))
+                .unwrap(),
+                connector_customer_id: connector_customer_id.map(str::to_string),
+                subscription_id: id_type::SubscriptionId::try_from(std::borrow::Cow::Borrowed(
+                    "subscription_hyperswitch",
+                ))
+                .unwrap(),
+                subscription_items: items,
+                default_payment_method: default_payment_method
+                    .map(|value| Secret::new(value.to_string())),
+                billing_address: Default::default(),
+                auto_collection: SubscriptionAutoCollection::On,
+                connector_params: ConnectorParams::default(),
+            },
+            response: Err(Default::default()),
+            connector_request_reference_id: "subscription_hyperswitch".to_string(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: None,
+            #[cfg(feature = "payouts")]
+            quote_id: None,
+            test_mode: Some(true),
+            connector_http_status_code: None,
+            external_latency: None,
+            apple_pay_flow: None,
+            frm_metadata: None,
+            dispute_id: None,
+            refund_id: None,
+            payout_id: None,
+            connector_response: None,
+            payment_method_status: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
+            integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            l2_l3_data: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            customer_document_details: None,
+            customer_date_of_birth: None,
+            feature_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        }
+    }
+
+    #[test]
+    fn subscription_creation_maps_request_and_success_response() {
+        let data = subscription_create_router_data(
+            vec![SubscriptionItem {
+                item_price_id: "price_monthly".to_string(),
+                quantity: Some(2),
+            }],
+            Some("cus_stripe"),
+            Some("pm_saved"),
+        );
+        let request = StripebillingSubscriptionCreateRequest::try_from(&data).unwrap();
+
+        assert_eq!(request.customer, "cus_stripe");
+        assert_eq!(request.price, "price_monthly");
+        assert_eq!(request.quantity, 2);
+        assert_eq!(request.collection_method, "charge_automatically");
+        assert_eq!(
+            request.default_payment_method,
+            Some(Secret::new("pm_saved".to_string()))
+        );
+
+        let transformed = SubscriptionCreateRouterData::try_from(ResponseRouterData {
+            response: StripebillingSubscriptionResponse {
+                id: "sub_stripe".to_string(),
+                status: StripebillingSubscriptionStatus::Active,
+                customer: "cus_stripe".to_string(),
+                created: 1_767_225_600,
+                current_period_end: Some(1_769_904_000),
+                latest_invoice: Some(StripebillingExpandableInvoice::Object(
+                    StripebillingInvoice {
+                        id: "in_first".to_string(),
+                        amount_due: MinorUnit::new(1_000),
+                        currency: "usd".to_string(),
+                        status: Some(StripebillingInvoiceStatus::Paid),
+                    },
+                )),
+            },
+            data,
+            http_code: 200,
+        })
+        .unwrap();
+        let response = transformed.response.unwrap();
+
+        assert_eq!(response.subscription_id.get_string_repr(), "sub_stripe");
+        assert_eq!(
+            response.status,
+            subscription_response_types::SubscriptionStatus::Active
+        );
+        assert_eq!(response.total_amount, MinorUnit::new(1_000));
+        assert_eq!(response.currency_code, common_enums::Currency::USD);
+        assert_eq!(
+            response
+                .invoice_details
+                .as_ref()
+                .map(|invoice| invoice.id.get_string_repr()),
+            Some("in_first")
+        );
+    }
+
+    #[test]
+    fn subscription_creation_rejects_missing_connector_customer_or_payment_method() {
+        let item = SubscriptionItem {
+            item_price_id: "price_monthly".to_string(),
+            quantity: Some(1),
+        };
+
+        assert!(StripebillingSubscriptionCreateRequest::try_from(
+            &subscription_create_router_data(vec![item.clone()], None, Some("pm_saved"))
+        )
+        .is_err());
+        assert!(StripebillingSubscriptionCreateRequest::try_from(
+            &subscription_create_router_data(vec![item], Some("cus_stripe"), None)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn subscription_creation_rejects_connector_response_with_invalid_identifiers() {
+        let data = subscription_create_router_data(
+            vec![SubscriptionItem {
+                item_price_id: "price_monthly".to_string(),
+                quantity: Some(1),
+            }],
+            Some("cus_stripe"),
+            Some("pm_saved"),
+        );
+
+        let result = SubscriptionCreateRouterData::try_from(ResponseRouterData {
+            response: StripebillingSubscriptionResponse {
+                id: "invalid subscription id".to_string(),
+                status: StripebillingSubscriptionStatus::Active,
+                customer: "cus_stripe".to_string(),
+                created: 1_767_225_600,
+                current_period_end: None,
+                latest_invoice: None,
+            },
+            data,
+            http_code: 200,
+        });
+
+        assert!(result.is_err());
+    }
 
     #[test]
     fn stripe_subscription_uses_automatic_collection() {

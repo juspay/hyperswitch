@@ -6404,7 +6404,22 @@ where
 
 #[cfg(test)]
 mod stripe_checkout_tests {
+    use std::marker::PhantomData;
+
+    use common_enums::{AttemptStatus, Currency, PaymentMethod};
+    use common_utils::{id_type, types::MinorUnit};
+    use hyperswitch_domain_models::{
+        payment_address::PaymentAddress,
+        router_data::{ConnectorAuthType, RouterData},
+        router_data_v2::{flow_common_types::PaymentFlowData, RouterDataV2},
+        router_flow_types::PSync,
+        router_request_types::{PaymentsSyncData, ResponseId},
+        router_response_types::{PaymentsResponseData, RedirectForm},
+    };
+    use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+
     use crate::connectors::stripe::STRIPE_CHECKOUT_SESSION_ID_PREFIX;
+    use crate::types::ResponseRouterData;
 
     use super::{
         get_stripe_checkout_payment_intent, get_stripe_checkout_resource_id,
@@ -6415,6 +6430,205 @@ mod stripe_checkout_tests {
         StripeCheckoutPaymentStatus, StripeCheckoutSessionResponse, StripeCheckoutSessionStatus,
         StripeResponseObject, WebhookEvent, WebhookEventObjectType, WebhookEventType,
     };
+
+    fn checkout_sync_router_data(
+        amount: MinorUnit,
+        currency: Currency,
+        subscription_price_id: Option<&str>,
+    ) -> RouterData<PSync, PaymentsSyncData, PaymentsResponseData> {
+        let request = PaymentsSyncData {
+            connector_transaction_id: ResponseId::ConnectorTransactionId(
+                "cs_test_checkout".to_string(),
+            ),
+            connector_meta: subscription_price_id
+                .map(|price_id| serde_json::json!({"subscription_price_id": price_id})),
+            currency,
+            amount,
+            ..Default::default()
+        };
+        let data = RouterDataV2 {
+            flow: PhantomData,
+            tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            resource_common_data: PaymentFlowData {
+                merchant_id: id_type::MerchantId::get_irrelevant_merchant_id(),
+                customer_id: None,
+                connector_customer: None,
+                connector: "stripe".to_string(),
+                payment_id: "pay_checkout".to_string(),
+                attempt_id: "attempt_checkout".to_string(),
+                status: AttemptStatus::Started,
+                payment_method: PaymentMethod::Card,
+                description: None,
+                address: PaymentAddress::default(),
+                auth_type: Default::default(),
+                connector_meta_data: None,
+                amount_captured: None,
+                minor_amount_captured: None,
+                access_token: None,
+                session_token: None,
+                reference_id: None,
+                payment_method_token: None,
+                recurring_mandate_payment_data: None,
+                preprocessing_id: None,
+                payment_method_balance: None,
+                connector_api_version: None,
+                connector_request_reference_id: "order_checkout".to_string(),
+                test_mode: Some(true),
+                connector_http_status_code: None,
+                external_latency: None,
+                apple_pay_flow: None,
+                connector_response: None,
+                payment_method_status: None,
+            },
+            connector_auth_type: ConnectorAuthType::default(),
+            request,
+            response: Err(Default::default()),
+        };
+
+        PaymentFlowData::to_old_router_data(data).unwrap()
+    }
+
+    fn transform_checkout_response(
+        response: StripeCheckoutSessionResponse,
+        data: RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Result<
+        RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+        error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>,
+    > {
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data,
+            http_code: 200,
+        })
+    }
+
+    #[test]
+    fn checkout_open_response_maps_amount_status_identifier_and_redirect() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_checkout",
+            "url": "https://checkout.stripe.com/c/pay/session_123?prefilled_email=test%40example.com",
+            "status": "open",
+            "payment_status": "unpaid",
+            "payment_intent": null,
+            "amount_subtotal": 500,
+            "amount_total": 500,
+            "currency": "usd"
+        }))
+        .unwrap();
+
+        let transformed = transform_checkout_response(
+            response,
+            checkout_sync_router_data(MinorUnit::new(500), Currency::USD, None),
+        )
+        .unwrap();
+
+        assert_eq!(transformed.status, AttemptStatus::AuthenticationPending);
+        assert_eq!(transformed.minor_amount_captured, None);
+        let PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data,
+            connector_response_reference_id,
+            ..
+        } = transformed.response.unwrap()
+        else {
+            panic!("Stripe Checkout must return a transaction response");
+        };
+        assert_eq!(
+            resource_id.get_connector_transaction_id().unwrap(),
+            "cs_test_checkout"
+        );
+        assert_eq!(
+            connector_response_reference_id.as_deref(),
+            Some("cs_test_checkout")
+        );
+        assert!(matches!(
+            *redirection_data,
+            Some(RedirectForm::Form {
+                endpoint,
+                method: common_utils::request::Method::Get,
+                ..
+            }) if endpoint == "https://checkout.stripe.com/c/pay/session_123"
+        ));
+    }
+
+    #[test]
+    fn checkout_paid_subscription_maps_captured_amount_and_connector_identifiers() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_checkout",
+            "status": "complete",
+            "payment_status": "paid",
+            "subscription": {
+                "id": "sub_test_native",
+                "latest_invoice": {
+                    "payment_intent": {
+                        "id": "pi_test_subscription",
+                        "payment_method": "pm_test_subscription"
+                    }
+                }
+            },
+            "amount_subtotal": 500,
+            "amount_total": 500,
+            "currency": "usd",
+            "line_items": {"data": [{"price": "price_monthly"}]}
+        }))
+        .unwrap();
+
+        let transformed = transform_checkout_response(
+            response,
+            checkout_sync_router_data(MinorUnit::new(500), Currency::USD, Some("price_monthly")),
+        )
+        .unwrap();
+
+        assert_eq!(transformed.status, AttemptStatus::Charged);
+        assert_eq!(transformed.amount_captured, Some(500));
+        assert_eq!(transformed.minor_amount_captured, Some(MinorUnit::new(500)));
+        let PaymentsResponseData::TransactionResponse {
+            resource_id,
+            connector_response_reference_id,
+            mandate_reference,
+            ..
+        } = transformed.response.unwrap()
+        else {
+            panic!("Stripe Checkout must return a transaction response");
+        };
+        assert_eq!(
+            resource_id.get_connector_transaction_id().unwrap(),
+            "pi_test_subscription"
+        );
+        assert_eq!(
+            connector_response_reference_id.as_deref(),
+            Some("sub_test_native")
+        );
+        assert_eq!(
+            mandate_reference
+                .as_ref()
+                .as_ref()
+                .and_then(|reference| reference.payment_method_id.as_deref()),
+            Some("pm_test_subscription")
+        );
+    }
+
+    #[test]
+    fn checkout_subscription_response_rejects_connector_amount_mismatch() {
+        let response: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
+            "id": "cs_test_checkout",
+            "status": "complete",
+            "payment_status": "paid",
+            "subscription": "sub_test_native",
+            "amount_subtotal": 600,
+            "amount_total": 600,
+            "currency": "usd",
+            "line_items": {"data": [{"price": "price_monthly"}]}
+        }))
+        .unwrap();
+
+        let result = transform_checkout_response(
+            response,
+            checkout_sync_router_data(MinorUnit::new(500), Currency::USD, Some("price_monthly")),
+        );
+
+        assert!(result.is_err());
+    }
 
     #[test]
     fn stripe_checkout_urls_preserve_query_and_placeholder() {
@@ -6435,17 +6649,17 @@ mod stripe_checkout_tests {
     fn no_payment_required_only_accepts_zero_total() {
         assert!(validate_stripe_checkout_amount_total(
             StripeCheckoutPaymentStatus::NoPaymentRequired,
-            common_utils::types::MinorUnit::zero(),
+            MinorUnit::zero(),
         )
         .is_ok());
         assert!(validate_stripe_checkout_amount_total(
             StripeCheckoutPaymentStatus::NoPaymentRequired,
-            common_utils::types::MinorUnit::new(1),
+            MinorUnit::new(1),
         )
         .is_err());
         assert!(validate_stripe_checkout_amount_total(
             StripeCheckoutPaymentStatus::Paid,
-            common_utils::types::MinorUnit::new(500),
+            MinorUnit::new(500),
         )
         .is_ok());
     }
@@ -6453,24 +6667,24 @@ mod stripe_checkout_tests {
     #[test]
     fn subscription_checkout_rejects_price_amount_or_currency_mismatch() {
         assert!(validate_stripe_checkout_subscription_price(
-            common_utils::types::MinorUnit::new(500),
+            MinorUnit::new(500),
             "usd",
-            common_utils::types::MinorUnit::new(500),
-            common_enums::Currency::USD,
+            MinorUnit::new(500),
+            Currency::USD,
         )
         .is_ok());
         assert!(validate_stripe_checkout_subscription_price(
-            common_utils::types::MinorUnit::new(600),
+            MinorUnit::new(600),
             "usd",
-            common_utils::types::MinorUnit::new(500),
-            common_enums::Currency::USD,
+            MinorUnit::new(500),
+            Currency::USD,
         )
         .is_err());
         assert!(validate_stripe_checkout_subscription_price(
-            common_utils::types::MinorUnit::new(500),
+            MinorUnit::new(500),
             "eur",
-            common_utils::types::MinorUnit::new(500),
-            common_enums::Currency::USD,
+            MinorUnit::new(500),
+            Currency::USD,
         )
         .is_err());
     }
@@ -6602,9 +6816,9 @@ mod stripe_checkout_tests {
             get_stripe_checkout_status(
                 StripeCheckoutSessionStatus::Failed,
                 StripeCheckoutPaymentStatus::Unpaid,
-                common_enums::AttemptStatus::AuthenticationPending,
+                AttemptStatus::AuthenticationPending,
             ),
-            common_enums::AttemptStatus::Failure
+            AttemptStatus::Failure
         );
 
         let expanded: StripeCheckoutSessionResponse = serde_json::from_value(serde_json::json!({
