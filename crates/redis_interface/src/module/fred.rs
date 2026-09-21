@@ -100,6 +100,10 @@ impl SubscriberClient {
         // PubSubMessage broadcast channel, so callers can use `message_rx()`.
         let fred_rx = client.message_rx();
         let sender = broadcast_sender.clone();
+        #[allow(
+            clippy::disallowed_methods,
+            reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
+        )]
         tokio::spawn(
             async move {
                 Self::forward_messages(fred_rx, sender).await;
