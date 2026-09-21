@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display};
+use std::fmt::Display;
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
@@ -109,7 +109,7 @@ pub enum PaymentLinkAction {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct GenericLinks {
-    pub allowed_domains: HashSet<String>,
+    pub allowed_domains: common_utils::collections::HashSet<String>,
     pub data: GenericLinksData,
     pub locale: String,
 }

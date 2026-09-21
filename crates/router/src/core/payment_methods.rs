@@ -17,8 +17,6 @@ pub mod utils;
 mod validator;
 pub mod vault;
 use std::borrow::Cow;
-#[cfg(feature = "v1")]
-use std::collections::HashSet;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 #[cfg(feature = "v2")]
@@ -363,7 +361,7 @@ pub async fn render_pm_collect_link(
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
-                        allowed_domains: HashSet::from([]),
+                        allowed_domains: Default::default(),
                         data: GenericLinksData::ExpiredLink(expired_link_data),
                         locale: DEFAULT_LOCALE.to_string(),
                     },
@@ -427,7 +425,7 @@ pub async fn render_pm_collect_link(
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
-                        allowed_domains: HashSet::from([]),
+                        allowed_domains: Default::default(),
                         data: GenericLinksData::PaymentMethodCollect(generic_form_data),
                         locale: DEFAULT_LOCALE.to_string(),
                     },
@@ -472,7 +470,7 @@ pub async fn render_pm_collect_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: HashSet::from([]),
+                    allowed_domains: Default::default(),
                     data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
                     locale: DEFAULT_LOCALE.to_string(),
                 },

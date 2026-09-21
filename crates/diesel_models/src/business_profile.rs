@@ -627,7 +627,7 @@ pub struct BusinessPaymentLinkConfig {
     #[serde(flatten)]
     pub default_config: Option<PaymentLinkConfigRequest>,
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
-    pub allowed_domains: Option<HashSet<String>>,
+    pub allowed_domains: Option<common_utils::collections::HashSet<String>>,
     pub branding_visibility: Option<bool>,
 }
 
@@ -685,7 +685,7 @@ pub struct BusinessPayoutLinkConfig {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct BusinessGenericLinkConfig {
     pub domain_name: Option<String>,
-    pub allowed_domains: HashSet<String>,
+    pub allowed_domains: common_utils::collections::HashSet<String>,
     #[serde(flatten)]
     pub ui_config: common_utils::link_utils::GenericLinkUiConfig,
 }
