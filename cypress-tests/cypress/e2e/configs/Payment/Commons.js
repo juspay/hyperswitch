@@ -4183,6 +4183,116 @@ export const connectorDetails = {
         },
       }),
     },
+    // OutgoingWebhookEventConfig: request bodies for business-profile level
+    // outgoing webhook event gating (payment/refund/dispute/mandate/invoice
+    // *_statuses_enabled). The spec injects webhook_url (local mock receiver)
+    // on top of these. Refund variants also suppress payment events so the
+    // refund capture assertions are not polluted by async payment deliveries.
+    // Dispute/mandate/invoice variants are gated behind TRIGGER_SKIP because
+    // the corresponding server fields are rejected (IR_06) until the pre-PR
+    // server binary is rebuilt (PENDING_SERVER_REBUILD).
+    OutgoingWebhookEventConfig: {
+      PaymentOnlySucceeded: getCustomExchange({
+        Request: {
+          webhook_details: {
+            payment_statuses_enabled: ["succeeded"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      PaymentExcludesSucceeded: getCustomExchange({
+        Request: {
+          webhook_details: {
+            payment_statuses_enabled: ["failed"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      RefundOnlySuccess: getCustomExchange({
+        Request: {
+          webhook_details: {
+            payment_statuses_enabled: ["failed"],
+            refund_statuses_enabled: ["success"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      RefundExcludesSuccess: getCustomExchange({
+        Request: {
+          webhook_details: {
+            payment_statuses_enabled: ["failed"],
+            refund_statuses_enabled: ["failure"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      DisputeOnlyOpened: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          webhook_details: {
+            dispute_statuses_enabled: ["dispute_opened"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      MandateOnlyActive: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          webhook_details: {
+            mandate_statuses_enabled: ["active"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      InvoiceOnlyPaid: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          webhook_details: {
+            invoice_statuses_enabled: ["invoice_paid"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+      WebhookDeliveryDelay: getCustomExchange({
+        Configs: {
+          DELAY: {
+            STATUS: true,
+            TIMEOUT: 10000,
+          },
+        },
+        Response: {
+          status: 200,
+          body: {},
+        },
+      }),
+    },
     BlockImplicitCustomerCreationAllowed: getCustomExchange({
       Request: {
         currency: "EUR",

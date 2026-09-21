@@ -29,6 +29,7 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
   defaultErrorHandler,
   extractIntegerAtEnd,
+  getMockServerBaseUrl,
   getOriginalConnectorName,
   getValueByKey,
   injectHelcimTestCard,
@@ -1392,6 +1393,87 @@ Cypress.Commands.add(
           );
         }
       });
+  }
+);
+
+Cypress.Commands.add("resetCapturedOutgoingWebhooksTest", () => {
+  cy.request({
+    method: "DELETE",
+    url: `${getMockServerBaseUrl()}/webhook/captured`,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status).to.equal(200);
+    expect(response.body.reset, "reset").to.equal(true);
+  });
+});
+
+/**
+ * Retrieves outgoing webhooks captured by the mock server receiver for the
+ * current merchant and asserts them against the expected delivery.
+ *
+ * The mock server stores every delivery POSTed to its /webhook receiver,
+ * keyed by merchant_id. This command asserts the exact captured count so
+ * both emitted and suppressed events can be verified.
+ *
+ * @param {Object} globalState - The global state object
+ * @param {Object} expected - Expected delivery assertions: expectedCount (exact), eventType, contentType ("payment_details"|"refund_details"), objectId (payment_id or refund_id). eventType/contentType/objectId are asserted only when expectedCount > 0.
+ * @param {Object} data - Connector config entry carrying Configs (DELAY is applied as the settle window for async webhook delivery latency)
+ */
+Cypress.Commands.add(
+  "getCapturedOutgoingWebhooksTest",
+  (globalState, expected, data) => {
+    const { Configs: configs = {} } = data || {};
+    const {
+      expectedCount = 0,
+      eventType,
+      contentType,
+      objectId,
+    } = expected || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping getCapturedOutgoingWebhooksTest"
+      );
+      return;
+    }
+
+    // We only need this to apply the DELAY settle window
+    execConfig(validatedConfigs);
+
+    const merchantId = globalState.get("merchantId");
+
+    cy.request({
+      method: "GET",
+      url: `${getMockServerBaseUrl()}/webhook/captured?merchant_id=${encodeURIComponent(merchantId)}`,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      const captured = response.body.captured;
+      expect(captured, "captured").to.be.an("array");
+      expect(captured.length, "captured webhook count").to.equal(expectedCount);
+
+      if (expectedCount > 0) {
+        const delivery = captured[0];
+        expect(delivery.body.event_type, "event_type").to.equal(eventType);
+        expect(delivery.body.content.type, "content.type").to.equal(
+          contentType
+        );
+        const eventObject = delivery.body.content.object;
+        if (contentType === "refund_details") {
+          expect(eventObject.refund_id, "refund_id").to.equal(objectId);
+        } else {
+          expect(eventObject.payment_id, "payment_id").to.equal(objectId);
+        }
+        expect(
+          delivery.headers["x-webhook-signature-512"],
+          "x-webhook-signature-512"
+        ).to.exist;
+      }
+    });
   }
 );
 

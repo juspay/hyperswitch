@@ -64,8 +64,48 @@ function handleErrors(
 // Apply middleware
 router.use(logRequest);
 
+// Outgoing webhook capture store, keyed by merchant_id
+interface CapturedWebhook {
+  headers: Record<string, unknown>;
+  body: Record<string, unknown>;
+  receivedAt: string;
+}
+
+const capturedWebhooks = new Map<string, CapturedWebhook[]>();
+
+function captureOutgoingWebhook(req: Request, res: Response): void {
+  const merchantId =
+    typeof req.body?.merchant_id === "string"
+      ? req.body.merchant_id
+      : "_unknown";
+  const entry: CapturedWebhook = {
+    headers: req.headers as Record<string, unknown>,
+    body: req.body,
+    receivedAt: new Date().toISOString(),
+  };
+  const existing = capturedWebhooks.get(merchantId) || [];
+  existing.push(entry);
+  capturedWebhooks.set(merchantId, existing);
+  res.status(200).json({ received: true });
+}
+
+function getCapturedOutgoingWebhooks(req: Request, res: Response): void {
+  const merchantId =
+    typeof req.query.merchant_id === "string" ? req.query.merchant_id : "";
+  const captured = merchantId ? capturedWebhooks.get(merchantId) || [] : [];
+  res.status(200).json({ captured });
+}
+
+function resetCapturedOutgoingWebhooks(_req: Request, res: Response): void {
+  capturedWebhooks.clear();
+  res.status(200).json({ reset: true });
+}
+
 // Define direct routes
 router.get("/health", healthCheck);
+router.post("/webhook", captureOutgoingWebhook);
+router.get("/webhook/captured", getCapturedOutgoingWebhooks);
+router.delete("/webhook/captured", resetCapturedOutgoingWebhooks);
 
 // Forward routes for all mock routers
 for (const routerName of Object.keys(mockRouters)) {

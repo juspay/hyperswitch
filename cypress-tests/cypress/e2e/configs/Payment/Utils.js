@@ -72,6 +72,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as paystackConnectorDetails } from "./Paystack.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
+import { connectorDetails as phonypayConnectorDetails } from "./Phonypay.js";
 import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
 import { connectorDetails as plaidConnectorDetails } from "./Plaid.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
@@ -168,6 +169,7 @@ const connectorDetails = {
   plaid: plaidConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
+  phonypay: phonypayConnectorDetails,
   powertranz: powertranzConnectorDetails,
   prophetpay: prophetpayConnectorDetails,
   rapyd: rapydConnectorDetails,
@@ -828,6 +830,7 @@ export const CONNECTOR_LISTS = {
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
+    OUTGOING_WEBHOOK_EVENT_CONFIG: ["phonypay"],
     // Add more inclusion lists
   },
 };
@@ -840,6 +843,10 @@ export const shouldExcludeConnector = (connectorId, list) => {
 export const shouldIncludeConnector = (connectorId, list) => {
   if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
+};
+
+export const getMockServerBaseUrl = () => {
+  return Cypress.env("MOCKSERVER_URL") || "http://localhost:3010";
 };
 
 export function setNormalizedValue(
