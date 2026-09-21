@@ -7,6 +7,7 @@ pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+pub mod elapsed;
 #[allow(missing_docs)] // Todo: add docs
 pub mod encryption;
 pub mod errors;
