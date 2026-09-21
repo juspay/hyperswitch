@@ -756,6 +756,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
             is_already_refunded: false,
+            additional_details: dispute.additional_details,
         }
     }
 }

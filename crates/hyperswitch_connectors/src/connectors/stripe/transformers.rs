@@ -5107,7 +5107,7 @@ impl From<StripeDisputeNetworkDetails> for Option<common_types::disputes::Additi
             StripeDisputeNetworkDetails::Visa { visa } => visa
                 .and_then(|visa| visa.rapid_dispute_resolution)
                 .map(|applied| common_types::disputes::AdditionalDetails {
-                    network_details: Some(common_types::disputes::NetworkDetails::Visa {
+                    network_details: Some(common_types::disputes::DisputeNetworkDetails::Visa {
                         rapid_dispute_resolution: Some(
                             common_types::disputes::RapidDisputeResolution {
                                 applied: primitive_wrappers::RapidDisputeResolutionAppliedBool::new(
