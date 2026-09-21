@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{atomic, Arc},
-};
+use std::sync::{atomic, Arc};
 
-use common_utils::id_type;
+use common_utils::{collections::HashMap, id_type};
 use router_env::tracing::Instrument;
 use tokio::{
     sync::{mpsc, oneshot},

@@ -1,11 +1,9 @@
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-};
+use std::cmp::Ordering;
 
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
+    collections::{HashMap, HashSet},
     ext_traits::{AsyncExt, Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},

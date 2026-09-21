@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Not,
-};
+use std::ops::Not;
 
 use api_models::{
     payments::RedirectionResponse,
@@ -9,6 +6,7 @@ use api_models::{
 };
 use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
+    collections::{HashMap, HashSet},
     fp_utils, type_name,
     types::{keymanager::Identifier, user::LineageContext},
 };

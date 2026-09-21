@@ -10,7 +10,9 @@ pub mod settings;
 mod stream;
 mod types;
 mod utils;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+
+use common_utils::collections::HashMap;
 mod secrets_transformers;
 
 use actix_web::dev::Server;

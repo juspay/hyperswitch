@@ -20,13 +20,11 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 pub mod vault_session;
-#[cfg(feature = "olap")]
-use std::collections::HashMap;
-use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Instant,
-    vec::IntoIter,
-};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Instant, vec::IntoIter};
 
+#[cfg(feature = "olap")]
+use common_utils::collections::HashMap;
+use common_utils::collections::HashSet;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
 pub mod payment_methods;

@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use cards::CardNumber;
 use common_enums::{enums, PaymentMethod};
-use common_utils::{ext_traits::ValueExt, pii::Email, types::MinorUnit};
+use common_utils::{collections::HashMap, ext_traits::ValueExt, pii::Email, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     mandates,

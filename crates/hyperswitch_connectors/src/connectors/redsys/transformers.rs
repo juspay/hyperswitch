@@ -1282,7 +1282,7 @@ fn build_threeds_form(ds_emv3ds: &RedsysEmv3DSData) -> Result<RedirectForm, Erro
         .clone()
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-    let mut form_fields = std::collections::HashMap::new();
+    let mut form_fields = common_utils::collections::HashMap::new();
     form_fields.insert("creq".to_string(), creq);
 
     Ok(RedirectForm::Form {

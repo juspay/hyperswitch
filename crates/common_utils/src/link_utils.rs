@@ -1,6 +1,6 @@
 //! This module has common utilities for links in HyperSwitch
 
-use std::{collections::HashSet, primitive::i64};
+use std::primitive::i64;
 
 use common_enums::{enums, UIWidgetFormLayout};
 use diesel::{
@@ -19,7 +19,7 @@ use router_env::logger;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::{consts, errors::ParsingError, id_type, types::MinorUnit};
+use crate::{collections::HashSet, consts, errors::ParsingError, id_type, types::MinorUnit};
 
 #[derive(
     Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
@@ -166,7 +166,7 @@ pub struct PayoutLinkData {
     /// Payout currency
     pub currency: enums::Currency,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
-    pub allowed_domains: crate::collections::HashSet<String>,
+    pub allowed_domains: HashSet<String>,
     /// Form layout of the payout link
     pub form_layout: Option<UIWidgetFormLayout>,
     /// `test_mode` can be used for testing payout links without any restrictions

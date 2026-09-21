@@ -2,10 +2,8 @@
 //!
 //! A profile can hold a hundred thousand entries, so the copy runs as one background job whose
 //! process tracker copies onto the target profiles one at a time, rather than inline.
-use std::collections::HashSet;
-
 use api_models::blocklist as api_blocklist;
-use common_utils::{date_time, ext_traits::OptionExt, id_type};
+use common_utils::{collections::HashSet, date_time, ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 

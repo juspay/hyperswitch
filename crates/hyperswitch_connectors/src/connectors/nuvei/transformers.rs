@@ -2469,7 +2469,10 @@ fn process_nuvei_payment_response(
             .map(|(base_url, creq)| RedirectForm::Form {
                 endpoint: base_url,
                 method: Method::Post,
-                form_fields: std::collections::HashMap::from([("creq".to_string(), creq.expose())]),
+                form_fields: common_utils::collections::HashMap::from([(
+                    "creq".to_string(),
+                    creq.expose(),
+                )]),
             }),
     };
 

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     ops::{Deref, Not},
     str::FromStr,
     sync::LazyLock,
@@ -11,6 +10,7 @@ use api_models::{
 use base64::Engine;
 use common_enums::EntityType;
 use common_utils::{
+    collections::HashSet,
     crypto::Encryptable,
     id_type,
     new_type::MerchantName,
@@ -1593,7 +1593,7 @@ where
 
 #[cfg(test)]
 mod recovery_codes_tests {
-    use std::collections::HashSet;
+    use common_utils::collections::HashSet;
 
     use super::RecoveryCodes;
     use crate::consts;

@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
-use common_utils::{errors, id_type, pii::EmailStrategy, types::MinorUnit};
+use common_utils::{collections::HashMap, errors, id_type, pii::EmailStrategy, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{

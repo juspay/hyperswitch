@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-
 use api_models::admin::{AdditionalMerchantData, MerchantAccountData, MerchantRecipientData};
 use common_enums::enums;
-use common_utils::{id_type::MerchantId, request::Method, types::StringMajorUnit};
+use common_utils::{
+    collections::HashMap, id_type::MerchantId, request::Method, types::StringMajorUnit,
+};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},

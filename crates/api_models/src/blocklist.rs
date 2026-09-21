@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use common_enums::enums;
-use common_utils::events::ApiEventMetric;
+use common_utils::{collections::HashSet, events::ApiEventMetric};
 use hyperswitch_masking::StrongSecret;
 use utoipa::ToSchema;
 

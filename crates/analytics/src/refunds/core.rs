@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-use std::collections::{HashMap, HashSet};
-
 use api_models::analytics::{
     refunds::{
         RefundDimensions, RefundDistributions, RefundMetrics, RefundMetricsBucketIdentifier,
@@ -11,7 +9,10 @@ use api_models::analytics::{
 };
 use bigdecimal::ToPrimitive;
 use common_enums::Currency;
-use common_utils::errors::CustomResult;
+use common_utils::{
+    collections::{HashMap, HashSet},
+    errors::CustomResult,
+};
 use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{

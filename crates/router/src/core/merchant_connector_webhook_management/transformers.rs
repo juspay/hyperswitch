@@ -588,7 +588,7 @@ enum StoredConnectorWebhookEntry {
 pub fn get_connector_webhook_list_response(
     register_webhook_response: &Option<serde_json::Value>,
 ) -> RouterResult<Vec<ConnectorWebhookResponse>> {
-    use std::collections::HashMap;
+    use common_utils::collections::HashMap;
 
     let webhook_map: HashMap<String, StoredConnectorWebhookEntry> = match register_webhook_response
     {

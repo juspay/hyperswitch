@@ -2663,7 +2663,7 @@ pub async fn get_session_token_for_click_to_pay(
     ]
     .iter()
     .cloned()
-    .collect::<std::collections::HashSet<_>>();
+    .collect::<common_utils::collections::HashSet<_>>();
 
     Ok(
         api_models::authentication::AuthenticationSessionToken::ClickToPay(Box::new(

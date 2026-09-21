@@ -1,7 +1,6 @@
-use std::collections::{HashMap, HashSet};
-
 use common_types::primitive_wrappers;
 use common_utils::{
+    collections::{HashMap, HashSet},
     consts,
     crypto::Encryptable,
     errors::{self, CustomResult},
@@ -3519,7 +3518,7 @@ pub struct BusinessGenericLinkConfig {
     pub domain_name: Option<String>,
 
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
-    pub allowed_domains: common_utils::collections::HashSet<String>,
+    pub allowed_domains: HashSet<String>,
 
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]
@@ -3573,7 +3572,7 @@ pub struct BusinessPaymentLinkConfig {
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
-    pub allowed_domains: Option<common_utils::collections::HashSet<String>>,
+    pub allowed_domains: Option<HashSet<String>>,
     /// Toggle for HyperSwitch branding visibility
     pub branding_visibility: Option<bool>,
 }
@@ -3798,7 +3797,7 @@ pub struct PaymentLinkConfig {
     /// Show card form by default for payment link
     pub show_card_form_by_default: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
-    pub allowed_domains: Option<common_utils::collections::HashSet<String>>,
+    pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
     #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,

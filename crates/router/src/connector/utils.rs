@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, str::FromStr, sync::LazyLock};
+use std::{ops::Deref, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
@@ -9,6 +9,7 @@ use api_models::{
 use base64::Engine;
 use cards::NetworkToken;
 use common_utils::{
+    collections::HashMap,
     date_time,
     errors::{ParsingError, ReportSwitchExt},
     ext_traits::StringExt,
