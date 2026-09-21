@@ -872,12 +872,7 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
 }
 
 #[async_trait::async_trait]
-pub trait MerchantConnectorAccountInterface
-// MerchantConnectorAccount: behaviour::Conversion<
-//     DstType = storage::MerchantConnectorAccount,
-//     NewDstType = storage::MerchantConnectorAccountNew,
-// >,
-{
+pub trait MerchantConnectorAccountInterface {
     type Error;
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
