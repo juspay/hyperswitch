@@ -110,8 +110,16 @@ mod correlation {
         !deja::runtime_mode_is_disabled() && sampled(deja::recording_decision(correlation))
     }
 
-    /// No decision means no sampler is engaged (replay, or record-everything),
-    /// and then every correlation counts.
+    /// `None` is read as "no sampler is engaged", which deja does not promise: it
+    /// also returns `None` for a request whose decision was never set. It holds
+    /// because record mode sets one for every request, `Skip` included, before
+    /// the correlation is entered (`router_env::request_id`), and replay sets
+    /// none at all. If that push ever becomes conditional, this derives
+    /// predictable keys for unsampled traffic.
+    ///
+    /// One window remains: the entry is cleared at request teardown, so a
+    /// collection built after that derives even for a skipped request. Nothing
+    /// built there is compared.
     fn sampled(decision: Option<deja::RecordDecision>) -> bool {
         !matches!(decision, Some(deja::RecordDecision::Skip))
     }
