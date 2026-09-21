@@ -23,7 +23,7 @@ v1 = []
 v2 = []
 crypto_openssl = ["dep:openssl"]
 tokenization_v2 = []
-deja = ["dep:deja"]
+deja = ["dep:deja", "dep:siphasher"]
 
 [dependencies]
 async-trait = { version = "0.1.88", optional = true }
@@ -34,6 +34,7 @@ bytes = { version = "1.10.1", features = ["serde"] }
 diesel = "2.2.10"
 # Bump to a main commit once that merges; this must not be reviewed as-is.
 deja = { git = "https://github.com/juspay/deja", rev = "8c6d3e4a78e06f59c8730398a9a093084925e85e", optional = true, default-features = false }
+siphasher = { version = "1", default-features = false, features = ["std"], optional = true }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
