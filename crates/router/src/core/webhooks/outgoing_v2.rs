@@ -153,6 +153,10 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let cloned_processor_merchant_id = processor_merchant_id.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
+    )]
     tokio::spawn(
         async move {
             Box::pin(trigger_webhook_and_raise_event(
