@@ -44,9 +44,16 @@ mod correlation {
     ///
     /// `Default` is the only constructor because `std` calls it from inside
     /// `FromIterator`, where no call site could pass anything. Outside a
-    /// correlation the keys are random: a collection built outside a request is
-    /// never replayed, so determinism buys nothing there and would give up
-    /// hash-flooding resistance for free.
+    /// correlation the keys are random, which keeps hash-flooding resistance.
+    ///
+    /// The keys are fixed when the collection is BUILT, not when it is read. So
+    /// one built with no correlation in scope, a settings table deserialized at
+    /// startup for instance, keeps one random order for the life of the
+    /// process. That matters only where the order leaves the collection: deja
+    /// reads a JSON object by key, so what is exposed is a list or a string
+    /// built by iterating it. Nothing here addresses that. Rebuilding the
+    /// collection inside the request, by collecting it, gives it the request's
+    /// keys.
     ///
     /// SipHash-1-3 from `siphasher`, not `DefaultHasher`, because `std`
     /// declines to guarantee its algorithm across releases and record and
@@ -158,8 +165,7 @@ mod correlation {
             assert_ne!(
                 random_keys(),
                 random_keys(),
-                "a fixed fallback would give up hash-flooding resistance for maps \
-                 that are never replayed anyway"
+                "a fixed fallback would give up hash-flooding resistance"
             );
         }
 
