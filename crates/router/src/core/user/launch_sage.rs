@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use api_models::launch_sage as launch_sage_api;
 use common_enums::EntityType;
 use common_utils::{
+    collections::HashMap,
     consts::REQUEST_TIME_OUT_FOR_AI_SERVICE,
     errors::CustomResult,
     request::{Method, RequestBuilder, RequestContent},

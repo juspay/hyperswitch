@@ -1,8 +1,17 @@
-use std::{ops::Deref, str::FromStr, sync::{Arc, LazyLock}};
-use common_utils::collections::HashMap;
+// currency_conversion, which does not use the facade, takes std's map.
+#![allow(clippy::disallowed_types)]
+
+use std::{
+    ops::Deref,
+    str::FromStr,
+    sync::{Arc, LazyLock},
+};
 
 use api_models::enums;
-use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
+use common_utils::{
+    collections::HashMap, date_time, errors::CustomResult, events::ApiEventMetric,
+    ext_traits::AsyncExt,
+};
 use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;

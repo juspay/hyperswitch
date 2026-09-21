@@ -1,12 +1,12 @@
 //! Payment related types
-use std::{
-    collections::{HashMap, HashSet},
-    num::NonZeroU8,
-};
+use std::num::NonZeroU8;
 
 use common_enums::enums;
 use common_utils::{
-    consts, date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
+    collections::{HashMap, HashSet},
+    consts, date_time, errors, events,
+    ext_traits::OptionExt,
+    impl_to_sql_from_sql_json, pii,
     types::MinorUnit,
 };
 use diesel::{

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     disputes::{
         DisputeDimensions, DisputeMetrics, DisputeMetricsBucketIdentifier,
@@ -8,6 +6,7 @@ use api_models::analytics::{
     DisputeFilterValue, DisputeFiltersResponse, DisputesAnalyticsMetadata, DisputesMetricsResponse,
     GetDisputeFilterRequest, GetDisputeMetricRequest,
 };
+use common_utils::collections::HashMap;
 use error_stack::ResultExt;
 use router_env::{
     logger,

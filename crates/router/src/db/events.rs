@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{collections::HashSet, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
 use router_env::{instrument, tracing};

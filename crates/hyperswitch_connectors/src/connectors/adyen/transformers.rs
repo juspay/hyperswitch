@@ -760,7 +760,7 @@ pub struct AdyenRedirectAction {
     method: Option<Method>,
     #[serde(rename = "type")]
     type_of_response: ActionType,
-    data: Option<std::collections::HashMap<String, String>>,
+    data: Option<common_utils::collections::HashMap<String, String>>,
     payment_data: Option<String>,
 }
 
@@ -4694,7 +4694,7 @@ pub fn get_redirection_response(
 
     let redirection_data = response.action.url.clone().map(|url| {
         let form_fields = response.action.data.clone().unwrap_or_else(|| {
-            std::collections::HashMap::from_iter(
+            common_utils::collections::HashMap::from_iter(
                 url.query_pairs()
                     .map(|(key, value)| (key.to_string(), value.to_string())),
             )

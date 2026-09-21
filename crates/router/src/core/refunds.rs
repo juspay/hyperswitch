@@ -1,10 +1,9 @@
 #[cfg(feature = "olap")]
-use std::collections::HashMap;
-
-#[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::enums as api_enums;
 use common_enums::ExecutionMode;
+#[cfg(feature = "olap")]
+use common_utils::collections::HashMap;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     pii,

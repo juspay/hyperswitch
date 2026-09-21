@@ -1,6 +1,5 @@
 #[cfg(feature = "olap")]
-use std::collections::HashMap;
-
+use common_utils::collections::HashMap;
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::merchant_account as storage;
 use error_stack::{report, ResultExt};

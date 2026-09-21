@@ -1,9 +1,6 @@
+use std::num::NonZeroU8;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
-use std::{
-    collections::{HashMap, HashSet},
-    num::NonZeroU8,
-};
 
 use cards::CardNumber;
 use common_types::payments::{
@@ -12,6 +9,7 @@ use common_types::payments::{
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
+    collections::{HashMap, HashSet},
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     errors,
     ext_traits::OptionExt,

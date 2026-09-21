@@ -1,10 +1,11 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use api_models::{
     enums,
     payment_methods::{self, BankAccountAccessCreds},
 };
 use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
+use common_utils::collections::HashMap;
 pub mod helpers;
 pub mod transformers;
 

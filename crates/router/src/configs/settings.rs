@@ -1,14 +1,15 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
 use common_enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_utils::{
+    collections::{HashMap, HashSet},
+    ext_traits::ConfigExt,
+    id_type,
+    types::user::EmailThemeConfig,
+};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -1065,8 +1066,7 @@ impl OidcSettings {
 
 #[cfg(test)]
 mod oidc_signing_key_tests {
-    use std::collections::HashMap;
-
+    use common_utils::collections::HashMap;
     use hyperswitch_masking::Secret;
 
     use super::{OidcClient, OidcKey, OidcSettings};
@@ -2001,8 +2001,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
 
 #[cfg(test)]
 mod hashmap_deserialization_test {
-    use std::collections::{HashMap, HashSet};
-
+    use common_utils::collections::{HashMap, HashSet};
     use serde::de::{
         value::{Error as ValueError, MapDeserializer},
         IntoDeserializer,
@@ -2022,7 +2021,7 @@ mod hashmap_deserialization_test {
             '_,
             std::collections::hash_map::IntoIter<String, String>,
             ValueError,
-        > = input_map.into_deserializer();
+        > = input_map.into_inner().into_deserializer();
         let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
         let expected_result = HashMap::from([
             (
@@ -2051,7 +2050,7 @@ mod hashmap_deserialization_test {
             '_,
             std::collections::hash_map::IntoIter<String, String>,
             ValueError,
-        > = input_map.into_deserializer();
+        > = input_map.into_inner().into_deserializer();
         let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
         let expected_result = HashMap::from([
             (
@@ -2084,7 +2083,7 @@ mod hashmap_deserialization_test {
             '_,
             std::collections::hash_map::IntoIter<String, String>,
             ValueError,
-        > = input_map.into_deserializer();
+        > = input_map.into_inner().into_deserializer();
         let result = deserialize_hashmap::<'_, _, PaymentMethod, PaymentMethodType>(deserializer);
 
         assert!(result.is_err());
@@ -2093,8 +2092,7 @@ mod hashmap_deserialization_test {
 
 #[cfg(test)]
 mod hashset_deserialization_test {
-    use std::collections::HashSet;
-
+    use common_utils::collections::HashSet;
     use serde::de::{
         value::{Error as ValueError, StrDeserializer},
         IntoDeserializer,

@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use common_utils::collections::HashMap;
 use diesel_models::enums;
 use serde::{Deserialize, Serialize};
 

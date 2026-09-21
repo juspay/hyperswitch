@@ -1,8 +1,11 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
-use common_utils::ext_traits::{OptionExt, StringExt};
+use common_utils::{
+    collections::HashMap,
+    ext_traits::{OptionExt, StringExt},
+};
 use diesel_models::process_tracker::{self as storage, business_status};
 use error_stack::ResultExt;
 use router::{

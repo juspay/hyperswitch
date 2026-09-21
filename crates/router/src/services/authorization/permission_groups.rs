@@ -1,6 +1,7 @@
-use std::{collections::HashMap, ops::Not};
+use std::ops::Not;
 
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
+use common_utils::collections::HashMap;
 use strum::IntoEnumIterator;
 
 use super::permissions;
