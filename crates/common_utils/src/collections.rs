@@ -1,149 +1,126 @@
-//! `std::collections`, with a seam for the collections whose iteration order
-//! reaches the wire.
+//! `std::collections`, with the hasher made explicit.
 //!
-//! # Why this module exists
+//! [`std::collections::HashMap`] defaults its `S` parameter to
+//! [`RandomState`][std::collections::hash_map::RandomState], which draws keys
+//! from per-process entropy. Iteration order therefore differs between two runs
+//! of one binary. That is invisible in ordinary use and fatal to replay: when a
+//! map's order reaches a response body, the difference is charged to the
+//! candidate's logic rather than to the hasher.
 //!
-//! `HashMap` and `HashSet` iterate in an order derived from a per-process random
-//! seed. That is invisible in ordinary use and fatal to replay: a candidate
-//! iterating a map in a different order than the recording produces a different
-//! response body, and the divergence is attributed to the candidate's logic when
-//! its real cause is `RandomState`. Card networks are the standing example —
-//! `business_profile.card_networks` is a `HashSet<CardNetwork>` whose order
-//! reaches a response.
+//! These aliases change nothing but that default. Under `feature = "deja"` it
+//! becomes [`CorrelationHasher`], whose keys derive from the current
+//! correlation id, so two runs of one request iterate identically. Without the
+//! feature the default stays `RandomState` and these are `std` verbatim.
 //!
-//! # Why this is not a drop-in replacement
+//! # What changing the import costs
 //!
-//! `deja::hash_seed` deliberately has **no `Default` impl**, so a collection
-//! cannot become seeded by accident and will not construct without the caller
-//! naming its seed. That decision is load-bearing — a seed that nobody asked for
-//! is a seed nobody can attribute — but it has a consequence this module cannot
-//! paper over: `FromIterator for HashMap<K, V, S>` requires `S: BuildHasher +
-//! Default`, so **`.collect()` cannot produce a seeded map**. Neither can
-//! `HashMap::new()`.
-//!
-//! So migration is two phases, and only the first is mechanical:
-//!
-//! 1. **Change the import.** `use common_utils::collections::{HashMap, HashSet}`
-//!    is a type alias for the `std` types with their `std` defaults. Every
-//!    construction, every `.collect()`, every method keeps working, byte for
-//!    byte. This phase is provably behaviour-preserving and is what makes the
-//!    seam reachable from a call site later.
-//! 2. **Name the collections that matter**, one at a time, with [`seeded_map`]
-//!    and [`seeded_set`]. A named collection records its seed and replays it,
-//!    so its order is reproducible across candidates.
-//!
-//! Phase 2 is deliberately per-site rather than wholesale. The set of
-//! collections whose order reaches the wire is small, and it is found from
-//! order-only body diffs rather than guessed at — seeding everything would spend
-//! event volume on maps nobody can observe, and would make an order difference
-//! harder to attribute rather than easier.
-//!
-//! # What a seed name means
-//!
-//! The name is the collection's identity across candidates: two candidates
-//! replaying one tape resolve the same name to the same recorded keys and so
-//! iterate identically. It is an `Explicit` address — the strongest deja has —
-//! which is why it must be a literal and why it should describe the collection
-//! rather than the call site. Name it for what it holds
-//! (`"profile.card_networks"`), not for where it was built.
+//! `.collect()`, `Default::default()`, `insert`, `iter` and the rest are
+//! unaffected. `HashMap::new()` and `HashMap::with_capacity()` are **not**:
+//! `std` defines them only for `RandomState`, so those call sites must become
+//! `HashMap::default()` and `HashMap::with_capacity_and_hasher(n,
+//! CorrelationHasher::default())`. That is a compile error, not a silent
+//! change, which is the point — the collections that move are named by the
+//! compiler rather than guessed at.
 
-/// The hasher `std` uses. Named here so a signature can spell the default
-/// without importing from `std::collections::hash_map`.
 pub use std::collections::hash_map::RandomState;
 
-/// `std::collections::HashMap`, re-exported so changing an import is a no-op.
-///
-/// The `S` parameter defaults to [`RandomState`], so `HashMap::new()`,
-/// `.collect()` and every other `std` affordance behave exactly as before.
-/// Pass a seed from [`seeded_map`] to get a reproducible iteration order.
-pub type HashMap<K, V, S = RandomState> = std::collections::HashMap<K, V, S>;
+#[cfg(not(feature = "deja"))]
+/// The hasher these aliases default to.
+pub type DefaultHashBuilder = RandomState;
 
-/// `std::collections::HashSet`, re-exported so changing an import is a no-op.
-///
-/// See [`HashMap`] for why the default is `std`'s and what changes when it is
-/// not.
-pub type HashSet<T, S = RandomState> = std::collections::HashSet<T, S>;
+#[cfg(feature = "deja")]
+/// The hasher these aliases default to.
+pub type DefaultHashBuilder = CorrelationHasher;
+
+/// [`std::collections::HashMap`] with [`DefaultHashBuilder`] in place of
+/// `std`'s implicit [`RandomState`].
+pub type HashMap<K, V, S = DefaultHashBuilder> = std::collections::HashMap<K, V, S>;
+
+/// [`std::collections::HashSet`] with [`DefaultHashBuilder`] in place of
+/// `std`'s implicit [`RandomState`].
+pub type HashSet<T, S = DefaultHashBuilder> = std::collections::HashSet<T, S>;
 
 #[cfg(feature = "deja")]
 mod correlation {
     use std::hash::{BuildHasher, Hasher};
 
-    /// A `BuildHasher` whose keys come from the CURRENT CORRELATION, not from
+    use siphasher::sip::SipHasher13;
+
+    /// A [`BuildHasher`] keyed by the current correlation rather than by
     /// per-process entropy.
     ///
-    /// This is the piece that makes an import-only migration possible. A seed
-    /// needs an address — something both the recording and the replay can resolve
-    /// to the same keys — and `Default` has neither a name nor a usable call site
-    /// (`FromIterator` invokes it from inside `std`, so every `.collect()` in the
-    /// program reports one identical location). The correlation id IS that
-    /// address, and it is already known on both sides, so nothing has to be
-    /// recorded at all: no boundary event, no lookup, no miss policy. The seam
-    /// collapses into a derivation.
+    /// `Default` is the only constructor because `std` calls it from inside
+    /// `FromIterator`, where no call site could pass anything. Outside a
+    /// correlation the keys are random: a collection built outside a request is
+    /// never replayed, so determinism buys nothing there and would give up
+    /// hash-flooding resistance for free.
     ///
-    /// Outside a correlation the keys are RANDOM, deliberately. A collection
-    /// built outside a request is never replayed, so determinism there buys
-    /// nothing and would give up hash-flooding resistance for free. The one case
-    /// that is not ambient — a long-lived map built at startup whose order later
-    /// reaches a response — is served by [`super::seeded_map`], which names it.
+    /// SipHash-1-3 from `siphasher`, not `DefaultHasher`, because `std`
+    /// declines to guarantee its algorithm across releases and record and
+    /// replay are different builds.
     #[derive(Clone, Copy, Debug)]
-    pub struct CorrelationHasher(deja::DejaBuildHasher);
-
-    /// Two independent 64-bit keys from one correlation id.
-    ///
-    /// Domain-separated so `k0` and `k1` cannot coincide for any input, which
-    /// would halve the key space.
-    fn keys_from_correlation(correlation: &str) -> deja::HashKeys {
-        fn digest(domain: u8, s: &str) -> u64 {
-            use std::hash::Hasher;
-            // `RandomState::new()` is per-process random; `DefaultHasher::new()`
-            // is FIXED-key and therefore stable across processes, which is what
-            // a derivation needs. That distinction is the whole point here.
-            let mut h = std::collections::hash_map::DefaultHasher::new();
-            h.write_u8(domain);
-            h.write(s.as_bytes());
-            h.write_u8(0xff);
-            h.finish()
-        }
-        deja::HashKeys {
-            k0: digest(0, correlation),
-            k1: digest(1, correlation),
-        }
+    pub struct CorrelationHasher {
+        k0: u64,
+        k1: u64,
     }
 
-    /// Per-instance random keys, for the no-correlation case.
-    fn random_keys() -> deja::HashKeys {
+    /// Domain-separated so the two keys cannot coincide, which would halve the
+    /// key space.
+    fn keys_from_correlation(correlation: &str) -> (u64, u64) {
+        let digest = |domain: u8| {
+            let mut h = SipHasher13::new_with_keys(u64::from(domain), 0);
+            h.write(correlation.as_bytes());
+            h.finish()
+        };
+        (digest(0), digest(1))
+    }
+
+    fn random_keys() -> (u64, u64) {
         let draw = |salt: u8| {
-            let state = std::collections::hash_map::RandomState::new();
-            let mut h = state.build_hasher();
+            let mut h = std::collections::hash_map::RandomState::new().build_hasher();
             h.write_u8(salt);
             h.finish()
         };
-        deja::HashKeys {
-            k0: draw(0),
-            k1: draw(1),
-        }
+        (draw(0), draw(1))
     }
 
     impl Default for CorrelationHasher {
         fn default() -> Self {
-            // `try_` because this runs from arbitrary code, destructors included,
-            // and a plain `with` on a destroyed thread-local panics inside a drop
-            // -- which ABORTS the process rather than failing a request.
-            let keys = match deja::try_current_correlation_id() {
-                Some(correlation) => keys_from_correlation(&correlation),
-                None => random_keys(),
+            // `try_` because this runs from arbitrary code, destructors
+            // included, and a plain `with` on a destroyed thread-local panics
+            // inside a drop, which aborts the process.
+            let (k0, k1) = match deja::try_current_correlation_id() {
+                Some(correlation) if order_is_replayed(&correlation) => {
+                    keys_from_correlation(&correlation)
+                }
+                // `None` also covers a destroyed or busy cell. Busy is unreachable
+                // today; if it becomes reachable it randomises a live correlation.
+                _ => random_keys(),
             };
-            // `from_keys` rather than `hash_seed`: the keys are DERIVED, not
-            // drawn, so there is nothing to record. `hash_seed` exists for the
-            // named case where the keys must be captured and looked up.
-            Self(deja::DejaBuildHasher::from_keys(keys))
+            Self { k0, k1 }
         }
     }
 
+    /// Whether this request's iteration order will ever be compared.
+    ///
+    /// Derived keys are predictable to whoever can choose the correlation id, so
+    /// they are used only for a request deja is recording or replaying. The
+    /// feature being compiled in is not enough: it ships in release builds.
+    fn order_is_replayed(correlation: &str) -> bool {
+        !deja::runtime_mode_is_disabled() && sampled(deja::recording_decision(correlation))
+    }
+
+    /// No decision means no sampler is engaged (replay, or record-everything),
+    /// and then every correlation counts.
+    fn sampled(decision: Option<deja::RecordDecision>) -> bool {
+        !matches!(decision, Some(deja::RecordDecision::Skip))
+    }
+
     impl BuildHasher for CorrelationHasher {
-        type Hasher = <deja::DejaBuildHasher as BuildHasher>::Hasher;
+        type Hasher = SipHasher13;
+
         fn build_hasher(&self) -> Self::Hasher {
-            self.0.build_hasher()
+            SipHasher13::new_with_keys(self.k0, self.k1)
         }
     }
 
@@ -153,107 +130,104 @@ mod correlation {
 
         #[test]
         fn one_correlation_always_derives_the_same_keys() {
-            let a = keys_from_correlation("corr-1");
-            let b = keys_from_correlation("corr-1");
             assert_eq!(
-                (a.k0, a.k1),
-                (b.k0, b.k1),
+                keys_from_correlation("corr-1"),
+                keys_from_correlation("corr-1"),
                 "derivation must be a pure function of the id"
             );
         }
 
         #[test]
         fn different_correlations_derive_different_keys() {
-            let a = keys_from_correlation("corr-1");
-            let b = keys_from_correlation("corr-2");
             assert_ne!(
-                (a.k0, a.k1),
-                (b.k0, b.k1),
+                keys_from_correlation("corr-1"),
+                keys_from_correlation("corr-2"),
                 "two requests must not share an order"
             );
         }
 
         #[test]
         fn the_two_keys_are_domain_separated() {
-            let k = keys_from_correlation("corr-1");
-            assert_ne!(k.k0, k.k1, "identical keys would halve the key space");
+            let (k0, k1) = keys_from_correlation("corr-1");
+            assert_ne!(k0, k1, "identical keys would halve the key space");
         }
 
         #[test]
         fn outside_a_correlation_the_keys_are_not_a_fixed_constant() {
-            let a = random_keys();
-            let b = random_keys();
             assert_ne!(
-                (a.k0, a.k1),
-                (b.k0, b.k1),
+                random_keys(),
+                random_keys(),
                 "a fixed fallback would give up hash-flooding resistance for maps \
                  that are never replayed anyway"
+            );
+        }
+
+        /// The recorder and the candidate are different builds. If the derivation
+        /// ever changes between them, only a fixed value notices.
+        #[test]
+        fn the_derivation_is_pinned() {
+            assert_eq!(
+                keys_from_correlation("corr-1"),
+                (3_063_536_665_707_766_459, 3_140_978_512_309_736_511)
+            );
+        }
+
+        fn rendered(hasher: CorrelationHasher) -> String {
+            let mut map = std::collections::HashMap::with_hasher(hasher);
+            for key in 0..32_u32 {
+                map.insert(key, ());
+            }
+            format!("{map:?}")
+        }
+
+        fn hasher_for(keys: (u64, u64)) -> CorrelationHasher {
+            CorrelationHasher {
+                k0: keys.0,
+                k1: keys.1,
+            }
+        }
+
+        /// The divergence itself: equal maps, rendered by two processes.
+        #[test]
+        fn random_keys_render_equal_maps_differently() {
+            assert_ne!(
+                rendered(hasher_for(random_keys())),
+                rendered(hasher_for(random_keys()))
+            );
+        }
+
+        #[test]
+        fn one_correlation_renders_equal_maps_identically() {
+            assert_eq!(
+                rendered(hasher_for(keys_from_correlation("corr-1"))),
+                rendered(hasher_for(keys_from_correlation("corr-1")))
+            );
+        }
+
+        #[test]
+        fn only_a_skipped_request_keeps_random_keys() {
+            assert!(sampled(None));
+            assert!(sampled(Some(deja::RecordDecision::Record)));
+            assert!(!sampled(Some(deja::RecordDecision::Skip)));
+        }
+
+        /// The keys reach the hasher: two correlations must hash one value
+        /// differently, or the derivation is decorative.
+        #[test]
+        fn the_derived_keys_actually_key_the_hasher() {
+            let hash_with = |k: (u64, u64)| {
+                let mut h = CorrelationHasher { k0: k.0, k1: k.1 }.build_hasher();
+                h.write(b"same-input");
+                h.finish()
+            };
+            assert_ne!(
+                hash_with(keys_from_correlation("corr-1")),
+                hash_with(keys_from_correlation("corr-2")),
+                "two correlations must not hash one value alike"
             );
         }
     }
 }
 
 #[cfg(feature = "deja")]
-mod seeded {
-    // deja already names these; re-export rather than redefine, so there is one
-    // spelling of a seeded collection across the codebase.
-    pub use deja::{DejaBuildHasher, SeededHashMap, SeededHashSet};
-
-    /// An empty map whose iteration order is reproducible under replay.
-    ///
-    /// `name` identifies the collection across candidates and must be a literal;
-    /// see the module docs for how to choose one. Under record the seed is drawn
-    /// and captured; under replay it is the recorded seed, or — if the recording
-    /// never held this collection — one synthesized from the name, which is
-    /// stable run to run so an order difference stays attributable.
-    #[track_caller]
-    pub fn seeded_map<K, V>(name: &'static str) -> SeededHashMap<K, V> {
-        std::collections::HashMap::with_hasher(deja::hash_seed(name))
-    }
-
-    /// An empty set whose iteration order is reproducible under replay.
-    ///
-    /// See [`seeded_map`]; the same rules apply to the name.
-    #[track_caller]
-    pub fn seeded_set<T>(name: &'static str) -> SeededHashSet<T> {
-        std::collections::HashSet::with_hasher(deja::hash_seed(name))
-    }
-
-    /// Collect an iterator into a seeded map.
-    ///
-    /// `.collect()` cannot do this: `FromIterator` requires the hasher to be
-    /// `Default`, and a deja seed deliberately is not. This is the explicit
-    /// replacement — it costs a named seed at the site, which is the whole
-    /// point.
-    #[track_caller]
-    pub fn seeded_map_from<K, V, I>(name: &'static str, items: I) -> SeededHashMap<K, V>
-    where
-        K: std::hash::Hash + Eq,
-        I: IntoIterator<Item = (K, V)>,
-    {
-        let mut map = seeded_map(name);
-        map.extend(items);
-        map
-    }
-
-    /// Collect an iterator into a seeded set. See [`seeded_map_from`].
-    #[track_caller]
-    pub fn seeded_set_from<T, I>(name: &'static str, items: I) -> SeededHashSet<T>
-    where
-        T: std::hash::Hash + Eq,
-        I: IntoIterator<Item = T>,
-    {
-        let mut set = seeded_set(name);
-        set.extend(items);
-        set
-    }
-}
-
-#[cfg(feature = "deja")]
-#[cfg(feature = "deja")]
 pub use correlation::CorrelationHasher;
-#[cfg(feature = "deja")]
-pub use seeded::{
-    seeded_map, seeded_map_from, seeded_set, seeded_set_from, DejaBuildHasher, SeededHashMap,
-    SeededHashSet,
-};
