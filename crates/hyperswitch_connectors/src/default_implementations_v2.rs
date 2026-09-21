@@ -5124,6 +5124,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Dwolla,
     connectors::Ebanx,
     connectors::Elavon,
+    connectors::ElavonPg,
     connectors::Envoy,
     connectors::Etisalat,
     connectors::Facilitapay,
