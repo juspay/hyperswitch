@@ -5065,7 +5065,7 @@ impl transformers::ForeignTryFrom<router_request_types::CompleteAuthorizeRedirec
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     // The payload goes into a generated gRPC field, which is std's map.
-    #[allow(clippy::disallowed_types)]
+    #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
     fn foreign_try_from(
         domain_redirect_response: router_request_types::CompleteAuthorizeRedirectResponse,
     ) -> Result<Self, Self::Error> {

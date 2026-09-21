@@ -5070,7 +5070,7 @@ fn create_connector_token_details_update(
         }
         None => {
             let reference_record_hash_map =
-                std::collections::HashMap::from([(connector_id, reference_record)]);
+                common_utils::collections::HashMap::from([(connector_id, reference_record)]);
             let payments_mandate_reference =
                 mandates::PaymentsTokenReference(reference_record_hash_map);
             mandates::CommonMandateReference {

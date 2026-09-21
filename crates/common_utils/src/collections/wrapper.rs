@@ -6,7 +6,7 @@
 //! reached through `Deref`.
 
 // The one place that has to name what it wraps.
-#![allow(clippy::disallowed_types)]
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 
 use std::{
     borrow::Borrow,

@@ -742,7 +742,7 @@ impl MessagingInterface for KafkaProducer {
     type MessageClass = EventType;
 
     // The `events` crate's trait fixes the metadata type, and it does not use the facade.
-    #[allow(clippy::disallowed_types)]
+    #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
     fn send_message<T>(
         &self,
         data: T,

@@ -490,7 +490,7 @@ pub async fn validate_contract_based_label_info(
             "Failed to list merchant connector accounts for contract based routing validation",
         )?;
 
-    let mca_map: std::collections::HashMap<_, _> = all_mcas
+    let mca_map: common_utils::collections::HashMap<_, _> = all_mcas
         .iter()
         .map(|mca| (mca.get_id(), mca.connector_name.clone()))
         .collect();
