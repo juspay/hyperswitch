@@ -9,12 +9,14 @@ use common_utils::{
     id_type, pii,
     types::keymanager::ToEncryptable,
 };
+use common_utils::errors::ValidationError;
 #[cfg(feature = "v2")]
 use diesel_models::merchant_connector_account::{
     BillingAccountReference as DieselBillingAccountReference,
     MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
     RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
 };
+use diesel_models::merchant_connector_account as storage;
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]

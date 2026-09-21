@@ -21,7 +21,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
-use storage_impl::behaviour::ForeignInto;
+use storage_impl::behaviour;
 #[cfg(feature = "olap")]
 use {
     base64::Engine,
@@ -3093,7 +3093,7 @@ pub async fn update_connector(
     let updated_mca = db
         .update_merchant_connector_account(
             mca.clone(),
-            payment_connector.foreign_into(),
+            behaviour::ForeignInto::foreign_into(payment_connector),
             &key_store,
         )
         .await
