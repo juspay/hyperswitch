@@ -445,6 +445,8 @@ pub enum Flow {
     GsmRuleDelete,
     /// Mint a sage session for the dashboard user.
     LaunchSage,
+    /// Check the Control Center user's merchant-alert read permission.
+    GetAlertReadAccess,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up

@@ -354,7 +354,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetUserDetailsInternal
             | Flow::ListUsersInternal
             | Flow::ListMembersForEntity
-            | Flow::LaunchSage => Self::User,
+            | Flow::LaunchSage
+            | Flow::GetAlertReadAccess => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
