@@ -10,6 +10,7 @@ allow-unwrap-in-tests = true
 # with a reason. "It is only telemetry" and "it is only a test" are not exceptions:
 # a raw read in either place is the one the next person copies onto a request path.
 disallowed-methods = [
+  { path = "tracing::Instrument::in_current_span", reason = "a spawned future sharing the caller span is separable only by scheduler order; name the fork with .instrument(tracing::debug_span!(\"...\")) or allow with a reason" },
   { path = "diesel::query_dsl::QueryDsl::into_boxed", reason = "dynamic list queries must be built via diesel_models::list::boxed_list_query! or diesel_models::list::into_boxed_list" },
   { path = "time::OffsetDateTime::now_utc", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time (now, now_unix_timestamp, now_unix_timestamp_millis, now_rfc7231_http_date, date_as_yyyymmddthhmmssmmmz)" },
   { path = "chrono::Utc::now", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time" },
