@@ -1,7 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use indexmap::IndexSet;
-
 use common_types::primitive_wrappers;
 use common_utils::{
     consts,
@@ -15,6 +13,7 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret};
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
