@@ -283,6 +283,35 @@ export const connectorDetails = {
       },
     }),
   },
+  card_pm: {
+    No3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "John Doe",
+            card_cvc: "737",
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            code: "HE_00",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+  },
   bank_redirect_pm: {
     Blik: getCustomExchange({
       Request: {
