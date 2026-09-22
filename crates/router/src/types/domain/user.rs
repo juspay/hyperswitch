@@ -997,7 +997,8 @@ impl NewUser {
 // runs live (collides with the record-phase user, rolling signup back).
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,)
+    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,
+        on_miss = common_utils::synth_shape::uuid(&__deja_miss).to_string(),)
 )]
 fn generate_user_id() -> String {
     common_utils::generate_uuid_v4().to_string()
