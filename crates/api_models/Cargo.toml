@@ -28,6 +28,7 @@ revenue_recovery = ["dep:actix-multipart"]
 tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
+indexmap = { version = "2.9.0", features = ["serde"] }
 actix-multipart = { version = "0.6.2", optional = true }
 actix-web = { version = "4.11.0", optional = true }
 csv = "1.3"

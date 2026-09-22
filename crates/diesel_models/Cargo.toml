@@ -16,6 +16,7 @@ tokenization_v2 = []
 deja = ["dep:deja", "deja/diesel-pg"]
 
 [dependencies]
+indexmap = { version = "2.9.0", features = ["serde"] }
 async-bb8-diesel = "0.2.1"
 base64 = "0.22.1"
 bb8 = "0.8.6"

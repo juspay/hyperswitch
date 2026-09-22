@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use indexmap::IndexSet;
+
 use common_types::primitive_wrappers;
 use common_utils::{
     consts,
@@ -897,29 +899,29 @@ pub struct WebhookDetails {
     pub payment_failed_enabled: Option<bool>,
 
     /// List of payment statuses that triggers a webhook for payment intents
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
-    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
+    #[schema(value_type = Option<Vec<IntentStatus>>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
+    pub payment_statuses_enabled: Option<IndexSet<api_enums::IntentStatus>>,
 
     /// List of refund statuses that triggers a webhook for refunds
-    #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
-    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
+    #[schema(value_type = Option<Vec<RefundStatus>>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<IndexSet<api_enums::RefundStatus>>,
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
-    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
+    pub payout_statuses_enabled: Option<IndexSet<api_enums::PayoutStatus>>,
 
     /// List of dispute statuses that trigger outgoing webhooks for disputes
     #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
-    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
+    pub dispute_statuses_enabled: Option<IndexSet<api_enums::DisputeStatus>>,
 
     /// List of mandate statuses that trigger outgoing webhooks for mandates
     #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
-    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
+    pub mandate_statuses_enabled: Option<IndexSet<api_enums::MandateStatus>>,
 
     /// List of invoice statuses that trigger outgoing webhooks for subscriptions
     #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
-    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
+    pub invoice_statuses_enabled: Option<IndexSet<api_enums::InvoiceStatus>>,
 }
 
 impl WebhookDetails {
@@ -958,7 +960,7 @@ impl WebhookDetails {
         }
     }
 
-    fn validate_statuses<T>(statuses: &HashSet<T>, status_type_name: &str) -> Result<(), String>
+    fn validate_statuses<T>(statuses: &IndexSet<T>, status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + Eq + std::hash::Hash + std::fmt::Debug,
         T: Into<Option<api_enums::EventType>>,
@@ -3930,6 +3932,39 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The webhook status lists are supplied by the caller and echoed back, so
+    /// the order a merchant sends has to be the order it reads. A set that
+    /// hashes its members answers in an order fixed by the hasher, which is one
+    /// arbitrary permutation of the input; every other permutation round-trips
+    /// to something the caller did not send.
+    #[test]
+    fn webhook_status_lists_round_trip_in_the_order_they_arrived() {
+        let permutations = [
+            r#"["succeeded","failed","processing"]"#,
+            r#"["failed","processing","succeeded"]"#,
+            r#"["processing","succeeded","failed"]"#,
+            r#"["succeeded","processing","failed"]"#,
+            r#"["failed","succeeded","processing"]"#,
+            r#"["processing","failed","succeeded"]"#,
+        ];
+
+        for sent in permutations {
+            let body = format!(r#"{{"payment_statuses_enabled":{sent}}}"#);
+            let details: WebhookDetails =
+                serde_json::from_str(&body).expect("the request body parses");
+            let returned = serde_json::to_value(&details).expect("the response serialises");
+            let returned = returned
+                .get("payment_statuses_enabled")
+                .expect("the field survives the round trip")
+                .to_string();
+
+            assert_eq!(
+                returned, sent,
+                "a caller who sent {sent} was answered {returned}"
+            );
+        }
+    }
 
     #[test]
     fn test_payment_link_config_request_validation() {

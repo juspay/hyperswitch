@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use indexmap::IndexSet;
+
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
@@ -581,12 +583,12 @@ pub struct WebhookDetails {
     pub payment_created_enabled: Option<bool>,
     pub payment_succeeded_enabled: Option<bool>,
     pub payment_failed_enabled: Option<bool>,
-    pub payment_statuses_enabled: Option<HashSet<common_enums::IntentStatus>>,
-    pub refund_statuses_enabled: Option<HashSet<common_enums::RefundStatus>>,
-    pub payout_statuses_enabled: Option<HashSet<common_enums::PayoutStatus>>,
-    pub dispute_statuses_enabled: Option<HashSet<common_enums::DisputeStatus>>,
-    pub mandate_statuses_enabled: Option<HashSet<common_enums::MandateStatus>>,
-    pub invoice_statuses_enabled: Option<HashSet<common_enums::InvoiceStatus>>,
+    pub payment_statuses_enabled: Option<IndexSet<common_enums::IntentStatus>>,
+    pub refund_statuses_enabled: Option<IndexSet<common_enums::RefundStatus>>,
+    pub payout_statuses_enabled: Option<IndexSet<common_enums::PayoutStatus>>,
+    pub dispute_statuses_enabled: Option<IndexSet<common_enums::DisputeStatus>>,
+    pub mandate_statuses_enabled: Option<IndexSet<common_enums::MandateStatus>>,
+    pub invoice_statuses_enabled: Option<IndexSet<common_enums::InvoiceStatus>>,
     pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 
