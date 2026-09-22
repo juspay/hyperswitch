@@ -40,10 +40,10 @@ function validateConfigValue(key, value) {
           !value.STATUS ||
           typeof value.TIMEOUT !== "number" ||
           value.TIMEOUT < 0 ||
-          value.TIMEOUT > 30000
+          value.TIMEOUT > 60000
         ) {
           console.error(
-            "DELAY.TIMEOUT must be an integer between 0 and 30000 and DELAY.STATUS must be enabled."
+            "DELAY.TIMEOUT must be an integer between 0 and 60000 and DELAY.STATUS must be enabled."
           );
           return false;
         }

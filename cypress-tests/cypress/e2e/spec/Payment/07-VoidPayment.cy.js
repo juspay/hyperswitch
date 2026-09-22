@@ -85,10 +85,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         }
       });
 
-      if (globalState.get("connectorId") === "fiuu") {
-        cy.wait(60000);
-      }
-
       cy.step("Void Payment without Capture", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Void Payment without Capture");

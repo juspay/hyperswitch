@@ -1138,7 +1138,7 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
         let txn_amount = item.amount.clone();
         let reference_no = item.router_data.connector_request_reference_id.clone();
         let txn_id = item.router_data.request.connector_transaction_id.clone();
-        let verify_key = auth.verify_key.peek().to_string();
+        let secret_key = auth.secret_key.peek().to_string();
         Ok(Self {
             refund_type: RefundType::Partial,
             merchant_id: auth.merchant_id,
@@ -1146,7 +1146,7 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
             txn_id: txn_id.clone(),
             amount: txn_amount.clone(),
             signature: calculate_signature(format!(
-                "{}{merchant_id}{reference_no}{txn_id}{}{verify_key}",
+                "{}{merchant_id}{reference_no}{txn_id}{}{secret_key}",
                 RefundType::Partial,
                 txn_amount.get_amount_as_string()
             ))?,

@@ -89,10 +89,8 @@ const MITErrorResponse = {
   status: 200,
   body: {
     status: "failed",
-    error_code:
-      "Your transaction has been denied due to merchant account issue",
-    error_message:
-      "Your transaction has been denied due to merchant account issue",
+    error_code: "Token not found",
+    error_message: "Token not found",
   },
 };
 
@@ -243,6 +241,12 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 60000,
+        },
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -257,6 +261,12 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 60000,
+        },
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -271,6 +281,27 @@ export const connectorDetails = {
       },
     },
     Void: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 60000,
+        },
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
+    VoidAfterConfirm: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 60000,
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -280,6 +311,12 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 6000,
+        },
+      },
       Request: {
         amount: 6000,
       },
@@ -291,6 +328,12 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 6000,
+        },
+      },
       Request: {
         amount: 2000,
       },
@@ -310,6 +353,12 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 6000,
+        },
+      },
       Request: {
         amount: 6000,
       },
@@ -321,6 +370,12 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 6000,
+        },
+      },
       Request: {
         amount: 2000,
       },
