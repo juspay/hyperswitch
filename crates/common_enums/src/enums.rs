@@ -9,7 +9,8 @@ use std::{
 };
 
 pub use accounts::{
-    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+    MerchantAccountRequestType, MerchantAccountType, MerchantIntegrationType, MerchantProductType,
+    OrganizationType, ResourceRequestorType, ResourceType,
 };
 use diesel::{
     backend::Backend,
@@ -582,6 +583,22 @@ pub enum FraudCheckStatus {
     Pending,
     Legit,
     TransactionFailure,
+}
+
+impl FraudCheckStatus {
+    pub fn should_stop_payment(&self, failure_mode: &PreFrmFailureMode) -> bool {
+        matches!(self, Self::Fraud)
+            || (matches!(self, Self::TransactionFailure)
+                && matches!(failure_mode, PreFrmFailureMode::FailClosed))
+    }
+}
+
+#[derive(Debug, Clone, Default, strum::Display, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum PreFrmFailureMode {
+    #[default]
+    FailOpen,
+    FailClosed,
 }
 
 #[derive(
@@ -1871,6 +1888,7 @@ pub enum EventObjectType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1907,6 +1925,7 @@ impl EventClass {
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
                 EventType::SurchargeRefundSucceeded,
+                EventType::RefundReview,
             ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
@@ -1966,6 +1985,7 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -2575,6 +2595,7 @@ pub enum PaymentMethodType {
     Momo,
     MomoAtm,
     Multibanco,
+    Neteller,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -2734,6 +2755,7 @@ impl PaymentMethodType {
             Self::Momo => "MoMo",
             Self::MomoAtm => "MoMo ATM",
             Self::Multibanco => "Multibanco",
+            Self::Neteller => "Neteller",
             Self::OnlineBankingThailand => "Online Banking Thailand",
             Self::OnlineBankingCzechRepublic => "Online Banking Czech Republic",
             Self::OnlineBankingFinland => "Online Banking Finland",
@@ -2990,6 +3012,15 @@ impl ExecutionPath {
         match self {
             Self::Direct | Self::ShadowUnifiedConnectorService => true,
             Self::UnifiedConnectorService => false,
+        }
+    }
+
+    /// Returns the execution mode corresponding to this execution path.
+    pub fn get_execution_mode(&self) -> ExecutionMode {
+        match self {
+            Self::UnifiedConnectorService => ExecutionMode::Primary,
+            Self::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+            Self::Direct => ExecutionMode::NotApplicable,
         }
     }
 }
@@ -3361,6 +3392,7 @@ pub enum FrmTransactionType {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     Default,
     serde::Deserialize,
@@ -3403,26 +3435,43 @@ pub enum MandateStatus {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
+    #[strum(to_string = "Visa", serialize = "VISA")]
     Visa,
     #[serde(alias = "MASTERCARD")]
+    #[strum(
+        to_string = "Mastercard",
+        serialize = "MasterCard",
+        serialize = "MASTERCARD"
+    )]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
     #[serde(alias = "AMEX")]
+    #[strum(
+        to_string = "AmericanExpress",
+        serialize = "AMEX",
+        serialize = "AmEx",
+        serialize = "Amex",
+        serialize = "AMERICAN EXPRESS"
+    )]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
     DinersClub,
     #[serde(alias = "DISCOVER")]
+    #[strum(to_string = "Discover", serialize = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
+    // Apple Pay sends UnionPay under its full name. Not seen in production traffic.
+    #[strum(to_string = "UnionPay", serialize = "ChinaUnionPay")]
     UnionPay,
     #[serde(alias = "INTERAC")]
     Interac,
     #[serde(alias = "RUPAY")]
     RuPay,
     #[serde(alias = "MAESTRO")]
+    #[strum(to_string = "Maestro", serialize = "MAESTRO")]
     Maestro,
     #[serde(alias = "STAR")]
     Star,
@@ -3558,6 +3607,9 @@ pub enum CardSegmentType {
 pub enum CardType {
     Credit,
     Debit,
+    Prepaid,
+    Store,
+    ChargeCard,
 }
 
 impl CardType {
@@ -3565,6 +3617,9 @@ impl CardType {
         match self {
             Self::Credit => "Credit",
             Self::Debit => "Debit",
+            Self::Prepaid => "Prepaid",
+            Self::Store => "Store",
+            Self::ChargeCard => "Charge Card",
         }
     }
 }
@@ -3619,6 +3674,37 @@ impl CardNetwork {
             | Self::PrivateLabel
             | Self::Dinacard => false,
         }
+    }
+
+    pub fn from_payment_method_data(payment_method_data: &serde_json::Value) -> Option<Self> {
+        let wallet = payment_method_data.get("wallet");
+
+        // Absent wallet providers serialise as `null` rather than being omitted, so each provider is
+        // matched on the network it yields, not on whether its key is present.
+        let network = match (
+            payment_method_data
+                .get("card")
+                .and_then(|card| card.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("apple_pay"))
+                .and_then(|apple_pay| apple_pay.get("network")),
+            wallet
+                .and_then(|wallet| wallet.get("google_pay"))
+                .and_then(|google_pay| google_pay.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("samsung_pay"))
+                .and_then(|samsung_pay| samsung_pay.get("card_network")),
+        ) {
+            (Some(network), ..)
+            | (_, Some(network), ..)
+            | (_, _, Some(network), _)
+            | (_, _, _, Some(network)) => Some(network),
+            (None, None, None, None) => None,
+        };
+
+        network
+            .and_then(|network| network.as_str())
+            .and_then(|network| Self::from_str(network).ok())
     }
 }
 
@@ -9627,6 +9713,7 @@ pub enum ParentGroup {
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
+    PaymentLink,
     Refund,
     ApiKey,
     Account,
@@ -11336,6 +11423,8 @@ pub enum ProcessTrackerRunner {
     BatchBlocklistUpload,
     NetworkTokenizationWorkflow,
     OfferEngineNotifyWorkflow,
+    BlocklistExportWorkflow,
+    BlocklistProfileCloneWorkflow,
 }
 
 #[derive(
@@ -12010,6 +12099,28 @@ pub enum BatchBlocklistJobStatus {
     Processing,
     Completed,
     Failed,
+}
+
+/// Distinguishes bulk upload, CSV export, and profile clone jobs.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobType {
+    Upload,
+    Export,
+    ProfileClone,
 }
 
 #[derive(

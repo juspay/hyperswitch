@@ -4674,7 +4674,7 @@ fn get_vantiv_card_data(
                     let exp_date = apple_pay_decrypted_data
                         .get_expiry_date_as_mmyy()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "payment_method_data.card.card_exp_month",
+                            field_name: "payment_method_data.card.card_exp_month".into(),
                         })?;
 
                     let cardholder_authentication = CardholderAuthentication {
@@ -4727,7 +4727,7 @@ fn get_vantiv_card_data(
                     let exp_date = google_pay_decrypted_data
                         .get_expiry_date_as_mmyy()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "payment_method_data.card.card_exp_month",
+                            field_name: "payment_method_data.card.card_exp_month".into(),
                         })?;
 
                     let cardholder_authentication = CardholderAuthentication {
@@ -4735,7 +4735,7 @@ fn get_vantiv_card_data(
                             .cryptogram
                             .clone()
                             .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                                field_name: "cryptogram",
+                                field_name: "cryptogram".into(),
                             })?,
                     };
                     let google_pay_network = google_pay_data

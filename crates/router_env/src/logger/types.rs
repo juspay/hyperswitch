@@ -58,6 +58,8 @@ pub enum Flow {
     DeepHealthCheck,
     /// Offer Engine connectivity check (dev/admin only)
     OfferEngineConnectivityCheck,
+    /// Browse the offers available to a merchant
+    OfferEngineBrowseOffers,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint
@@ -90,6 +92,14 @@ pub enum Flow {
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
     MerchantConnectorsDelete,
+    /// Generate a hierarchical resource (e.g. Apple Pay certificate CSR) flow.
+    HierarchicalResourcesGenerate,
+    /// Upload a hierarchical resource's signed certificate flow.
+    HierarchicalResourcesUpload,
+    /// List hierarchical resources / get effective linked value flow.
+    HierarchicalResourcesList,
+    /// Link a hierarchical resource to an entity (MCA/profile/merchant_account) flow.
+    HierarchicalResourcesLink,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
     /// Merchant Transfer Keys
@@ -261,6 +271,8 @@ pub enum Flow {
     RefundsRetrieveForceSync,
     /// Refunds update flow.
     RefundsUpdate,
+    /// Refunds reverse flow.
+    RefundsReverse,
     /// Refunds list flow.
     RefundsList,
     /// Refunds filters flow
@@ -343,6 +355,14 @@ pub enum Flow {
     GetBatchBlocklistJobStatus,
     /// List batch blocklist upload jobs for a merchant
     ListBatchBlocklistJobs,
+    /// Get blocklist entry counts, broken down by fingerprint length
+    GetBlocklistCount,
+    /// Look up whether a value is present in the blocklist
+    LookupBlocklistEntry,
+    /// Start a CSV export of the blocklist
+    CreateBlocklistExport,
+    /// Clone a profile's blocklist entries onto other profiles
+    CloneBlocklistEntries,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
@@ -423,10 +443,6 @@ pub enum Flow {
     ApplePayCertificatesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
-    /// Get data from embedded flow
-    GetDataFromHyperswitchAiFlow,
-    // List all chat interactions
-    ListAllChatInteractions,
     /// Mint a sage session for the dashboard user.
     LaunchSage,
     /// User Sign Up
@@ -663,8 +679,6 @@ pub enum Flow {
     VolumeSplitOnRoutingType,
     /// Routing evaluate rule flow
     RoutingEvaluateRule,
-    /// Reset the Decision Engine routing diff kill-switch counter for a profile
-    DecisionEngineDiffCounterReset,
     /// Report whether the Unified Connector Service kill switch has tripped a scope
     UnifiedConnectorServiceKillSwitchStatus,
     /// Clear a Unified Connector Service kill switch cutover

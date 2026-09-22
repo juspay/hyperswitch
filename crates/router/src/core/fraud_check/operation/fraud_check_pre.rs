@@ -3,12 +3,11 @@ use common_enums::FrmSuggestion;
 use common_utils::ext_traits::Encode;
 use diesel_models::enums::FraudCheckLastStep;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
 use crate::{
     core::{
-        errors::RouterResult,
+        errors::{RouterResult, StorageErrorExt},
         fraud_check::{
             self as frm_core,
             types::{FrmData, PaymentDetails, PaymentToFrmData},
@@ -96,20 +95,12 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
             .encode_to_value()
             .ok();
 
-        let existing_fraud_check = db
-            .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.get_id().to_owned(),
-                payment_data.merchant_account.get_id().clone(),
-            )
-            .await
-            .ok();
-
-        let fraud_check = match existing_fraud_check {
-            Some(Some(fraud_check)) => Ok(fraud_check),
-            _ => {
+        let fraud_check = match payment_data.payment_attempt.active_frm_id.clone() {
+            Some(frm_id) => db.find_fraud_check_by_frm_id(frm_id).await,
+            None => {
                 db.insert_fraud_check_response(FraudCheckNew {
-                    frm_id: Uuid::new_v4().simple().to_string(),
-                    payment_id: payment_data.payment_intent.get_id().to_owned(),
+                    frm_id: common_utils::generate_uuid_v4().simple().to_string(),
+                    payment_id: Some(payment_data.payment_intent.get_id().to_owned()),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     processor_merchant_id: Some(
                         payment_data.payment_intent.processor_merchant_id.clone(),
@@ -129,6 +120,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     last_step: FraudCheckLastStep::Processing,
                     payment_capture_method: payment_data.payment_attempt.capture_method,
                     created_by: None,
+                    payout_id: None,
                 })
                 .await
             }
@@ -259,6 +251,7 @@ where
                 email: router_data.request.email,
                 phone: router_data.request.phone,
                 phone_country_code: router_data.request.phone_country_code,
+                gateway_metadata: router_data.request.gateway_metadata,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })
@@ -395,12 +388,12 @@ where
         let db = &*state.store;
         frm_data.fraud_check = match frm_check_update {
             Some(fraud_check_update) => db
-                .update_fraud_check_response_with_attempt_id(
+                .update_fraud_check_response_with_frm_id(
                     frm_data.clone().fraud_check,
                     fraud_check_update,
                 )
                 .await
-                .map_err(|error| error.change_context(errors::ApiErrorResponse::PaymentNotFound))?,
+                .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)?,
             None => frm_data.clone().fraud_check,
         };
 

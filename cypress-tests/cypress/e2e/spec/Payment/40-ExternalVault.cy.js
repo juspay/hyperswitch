@@ -4,6 +4,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 import { isMockServer } from "../../../support/mitmProxy";
 
 let globalState;
+let originalCustomerId;
 
 const VGS_CONNECTOR_NAME = "vgs";
 
@@ -11,10 +12,16 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      originalCustomerId = globalState.get("customerId");
     });
   });
 
   after("flush global state", () => {
+    // This spec's contexts create their own customers for local vault
+    // testing, overwriting globalState.customerId. Restore the original
+    // customer before flushing so later specs don't inherit one scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 

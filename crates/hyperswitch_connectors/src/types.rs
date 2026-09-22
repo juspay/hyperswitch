@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
-    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::{Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -116,6 +116,11 @@ pub(crate) type FrmFulfillmentType =
 #[cfg(feature = "frm")]
 pub(crate) type FrmCheckoutRouterData =
     RouterData<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub(crate) type PoFrmType =
+    dyn ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>;
+#[cfg(feature = "frm")]
+pub type PoFrmRouterData = RouterData<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>;
 #[cfg(feature = "v2")]
 pub(crate) struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
     pub response: R,

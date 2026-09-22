@@ -844,17 +844,6 @@ pub type DimensionsWithOrgId = Dimensions<
     NoWebhookEvent,
     NoPaymentMethodType,
 >;
-pub type DimensionsWithProcessorMerchantIdAndOrgId = Dimensions<
-    NoProviderMerchantId,
-    HasProcessorMerchantId,
-    HasOrgId,
-    NoProfileId,
-    NoTransactionType,
-    NoConnector,
-    NoPayoutRetryType,
-    NoWebhookEvent,
-    NoPaymentMethodType,
->;
 pub type DimensionsWithProcessorAndProviderMerchantIdAndConnector = Dimensions<
     HasProviderMerchantId,
     HasProcessorMerchantId,
@@ -919,18 +908,6 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndConnectorAndWebhookEvent
     HasConnector,
     NoPayoutRetryType,
     HasWebhookEvent,
-    NoPaymentMethodType,
->;
-
-pub type DimensionsWithConnector = Dimensions<
-    NoProviderMerchantId,
-    NoProcessorMerchantId,
-    NoOrgId,
-    NoProfileId,
-    NoTransactionType,
-    HasConnector,
-    NoPayoutRetryType,
-    NoWebhookEvent,
     NoPaymentMethodType,
 >;
 

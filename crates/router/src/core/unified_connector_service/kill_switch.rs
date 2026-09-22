@@ -362,7 +362,7 @@ pub async fn trip_status(
         .store
         .find_config_by_key_unwrap_or(
             &config_key,
-            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+            consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string(),
         )
         .await
         .ok()
@@ -448,7 +448,7 @@ mod tests {
             ),
             (
                 UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "payment_method_data",
+                    field_name: "payment_method_data".into(),
                 },
                 UcsKillSwitchReason::HyperswitchRequestInvalid,
             ),

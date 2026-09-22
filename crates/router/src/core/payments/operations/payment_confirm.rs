@@ -194,6 +194,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = state.store.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
 
+        // Each fork below gets its own span rather than the caller's. These are
+        // spawned side by side and joined together, so under one shared span
+        // they are separable only by the order the scheduler picks, and a
+        // record/replay comparison pairs them positionally — reading a
+        // transposition as a behaviour change. The concurrency was always here;
+        // naming each fork writes it down.
         let business_profile_fut = tokio::spawn(
             async move {
                 store
@@ -207,7 +213,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("business_profile")),
         );
 
         let store = state.store.clone();
@@ -229,7 +235,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -257,7 +263,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("shipping_address")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -285,7 +291,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("billing_address")),
         );
 
         let store = state.clone().store;
@@ -306,7 +312,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|x| x.transpose())
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("config_update")),
         );
 
         // Based on whether a retry can be performed or not, fetch relevant entities
@@ -390,6 +396,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        // An attempt created without setup_future_usage (create with confirm=false, then confirm
+        // with off_session) picks it up from the intent, as new retry attempts do. Connector
+        // requests already use `setup_future_usage_applied.or(intent)`; this lets decisions made
+        // before the connector call, such as connector customer creation, see the same value.
+        payment_attempt.setup_future_usage_applied = payment_attempt
+            .setup_future_usage_applied
+            .or(payment_intent.setup_future_usage);
+
         payment_intent.psd2_sca_exemption_type = request
             .psd2_sca_exemption_type
             .or(payment_intent.psd2_sca_exemption_type);
@@ -402,7 +416,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
         let customer_acceptance = request.customer_acceptance.clone().or(payment_attempt
             .customer_acceptance
@@ -558,7 +572,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await)
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
         let n_payment_method_billing_address_id =
@@ -602,7 +616,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_method_billing")),
         );
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -638,7 +652,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("mandate_details")),
         );
 
         // Parallel calls - level 2
@@ -1191,7 +1205,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             if should_create {
                                 let payment_method = req.payment_method.ok_or(
                                     errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method",
+                                        field_name: "payment_method".into(),
                                     },
                                 )?;
 
@@ -1201,7 +1215,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .and_then(|pmd| pmd.payment_method_data.clone())
                                     .map(Into::into)
                                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method_data",
+                                        field_name: "payment_method_data".into(),
                                     })?;
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1898,7 +1912,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let click_to_pay_mca_id = authentication_product_ids
                     .get_click_to_pay_connector_account_id()
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication_product_ids",
+                        field_name: "authentication_product_ids".into(),
                     })?;
                     let merchant_id = &business_profile.merchant_id;
                     let connector_mca = state
@@ -1918,7 +1932,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             common_utils::id_type::AuthenticationId::generate_authentication_id(consts::AUTHENTICATION_ID_PREFIX);
                         let payment_method = payment_data.payment_attempt.payment_method.ok_or(
                             errors::ApiErrorResponse::MissingRequiredField {
-                                field_name: "payment_method",
+                                field_name: "payment_method".into(),
                             },
                         )?;
 
@@ -2086,7 +2100,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let (authentication_create_response, eligibility_response) = {
                 let auth_config = &state.conf.micro_services.authentication_service;
                 let currency = payment_data.payment_intent.currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 }).attach_printable("Currency missing")?;
 
                 let auth_req = api_models::authentication::AuthenticationCreateRequest {
@@ -2115,6 +2129,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 card_issuer: card.card_issuer,
                                 card_network: card.card_network,
                                 card_type: card.card_type,
+                                card_subtype: card.card_subtype,
+                                card_segment_type: card.card_segment_type,
+                                funding_source: card.funding_source,
                                 card_issuing_country: card.card_issuing_country,
                                 card_issuing_country_code: card.card_issuing_country_code,
                                 bank_code: card.bank_code,
@@ -2130,7 +2147,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     }
                     None => {
                         Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "payment_method_data",
+                            field_name: "payment_method_data".into(),
                         })
                         .attach_printable("payment_method_data missing in payment_data")?
                     }
@@ -2330,7 +2347,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .and_then(|authentication_details| authentication_details.three_ds_data)
                         .and_then(|data| data.authentication_cryptogram)
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "authentication_cryptogram",
+                            field_name: "authentication_cryptogram".into(),
                         })?;
 
                     match cryptogram {
@@ -2546,6 +2563,7 @@ impl PaymentConfirm {
             payment_method_ref,
             card_token_data,
             true, // fetch raw card detail from the internal vault
+            helpers::is_off_session_mit_for_payment_method(req, payment_method_ref),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -2641,7 +2659,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 frm_message.map_or((None, None), |fraud_check| {
                     (
                         Some(Some(fraud_check.frm_status.to_string())),
-                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                        Some(
+                            fraud_check
+                                .frm_reason
+                                .map(|reason| match reason {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .or(fraud_check.frm_error),
+                        ),
                     )
                 }),
             ),
@@ -2843,6 +2869,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
+        let m_active_frm_id = payment_data
+            .frm_message
+            .as_ref()
+            .map(|fraud_check| fraud_check.frm_id.clone());
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -2926,6 +2956,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -2933,7 +2964,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let billing_address = payment_data.address.get_payment_billing();
@@ -3061,7 +3092,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_intent")),
         );
 
         let (payment_intent, payment_attempt) = tokio::try_join!(
@@ -3108,7 +3139,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
+                field_name: "merchant_id".into(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
 

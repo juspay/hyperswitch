@@ -8,7 +8,8 @@ use scheduler::consumer::types::process_data::RetryMapping;
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
 use crate::{
     consts::superposition as superposition_consts,
-    core::payments::routing::utils::MerchantPreRoutingConfig, db::StorageInterface, utils::id_type,
+    core::payments::routing::utils::MerchantPreRoutingConfig, db::StorageInterface,
+    types::payment_methods as pm_types, utils::id_type,
 };
 
 /// Macro to generate config struct and superposition::Config trait implementation.
@@ -404,6 +405,29 @@ impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
     }
 }
 
+config! {
+    superposition_key = SHOULD_ENABLE_AUTHENTICATION_SERVICE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldEnableAuthenticationService {
+    const KEY: &'static str = "should_enable_authentication_service";
+
+    fn db_keys(dimensions: &impl dimension_state::DimensionsBase) -> Vec<Option<String>> {
+        vec![
+            dimensions
+                .get_organization_id()
+                .map(|id| id.get_authentication_service_eligible_key()),
+            dimensions
+                .get_processor_merchant_id()
+                .map(|id| id.get_authentication_service_eligible_key()),
+        ]
+    }
+}
+
 #[cfg(feature = "v2")]
 config! {
     superposition_key = SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS,
@@ -434,6 +458,25 @@ config! {
 
 impl DatabaseBackedConfig for ShouldCallPmModularService {
     const KEY: &'static str = "should_call_pm_modular_service";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = PAYMENT_METHOD_INTEGRATION_TYPE,
+    output = pm_types::PaymentMethodIntegrationType,
+    default = pm_types::PaymentMethodIntegrationType::VaultThenPay,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PaymentMethodIntegrationType {
+    const KEY: &'static str = "payment_method_integration_type";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
@@ -680,6 +723,23 @@ config! {
 
 impl DatabaseBackedConfig for PtMappingPcrRetries {
     const KEY: &'static str = "pt_mapping_pcr_retries";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
+    superposition_key = PT_MAPPING_ADAPTIVE_RETRIES,
+    output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for PtMappingAdaptiveRetries {
+    const KEY: &'static str = "pt_mapping_adaptive_retries";
 
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         Some(Self::KEY.to_string())
@@ -941,31 +1001,6 @@ impl DatabaseBackedConfig for StepUpEnabled {
 }
 
 config! {
-    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
-    output = bool,
-    // Pre-migration behaviour: when neither the org- nor merchant-level DB config exists,
-    // the merchant is treated as NOT eligible. Keep the last-resort default as `false`.
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgId,
-    targeting_key = id_type::MerchantId
-}
-
-impl DatabaseBackedConfig for AuthenticationServiceEligible {
-    const KEY: &'static str = "authentication_service_eligible";
-    // NOTE: The pre-migration logic resolved this in two levels - it first checked the
-    // org-level key `authentication_service_eligible_{org_id}` (which, if present, was final)
-    // and only fell back to the merchant-level key `authentication_service_eligible_{merchant_id}`
-    // when the org-level key was absent. The single-key DB fallback below reproduces the
-    // org-level precedence; the merchant-level-only case must be backfilled into Superposition
-    // (or the org-level config) rather than relying on this fallback.
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_organization_id()
-            .map(|id| format!("authentication_service_eligible_{}", id.get_string_repr()))
-    }
-}
-
-config! {
     superposition_key = PRE_ROUTING_DISABLED_PM_PMT,
     output = MerchantPreRoutingConfig,
     default = MerchantPreRoutingConfig::default(),
@@ -1077,25 +1112,6 @@ impl DatabaseBackedConfig for SkipSavingWalletAtConnector {
 }
 
 config! {
-    superposition_key = CONNECTOR_API_VERSION,
-    output = String,
-    default = String::new(),
-    requires = dimension_state::DimensionsWithConnector,
-    targeting_key = id_type::MerchantId
-}
-
-impl DatabaseBackedConfig for ConnectorApiVersion {
-    const KEY: &'static str = "connector_api_version";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "connector_api_version_{connector}"
-        dimensions
-            .get_connector()
-            .map(|connector| format!("connector_api_version_{connector}"))
-    }
-}
-
-config! {
     superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
     output = bool,
     default = false,
@@ -1154,6 +1170,27 @@ impl DatabaseBackedConfig for OfferEngineCredentialSource {
     const KEY: &'static str = "offer_engine.credential_source";
 }
 
+config! {
+    superposition_key = MERCHANT_INTEGRATION_TYPE,
+    output = common_enums::MerchantIntegrationType,
+    default = common_enums::MerchantIntegrationType::Client,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for MerchantIntegrationType {
+    const KEY: &'static str = "system.payment_integration_type";
+
+    // Superposition gets both merchant ids; this is only the `configs`-table fallback, keyed on
+    // the processor merchant like `requires_cvv` and `client_session_validation_enabled`.
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 #[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_ENABLED,
@@ -1181,4 +1218,40 @@ config! {
 #[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
     const KEY: &'static str = "account_updater_credential_source";
+}
+
+config! {
+    superposition_key = PRE_FRM_FAILURE_MODE,
+    output = common_enums::PreFrmFailureMode,
+    default = common_enums::PreFrmFailureMode::FailOpen,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PreFrmFailureMode {
+    const KEY: &'static str = "pre_frm_failure_mode";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = PAYOUT_FRM_CALL,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutFrmCall {
+    const KEY: &'static str = "payout_frm_call";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
 }
