@@ -1672,11 +1672,7 @@ async fn refunds_incoming_webhook_flow(
             tracing::error!(?err, "Failed to update intent state metadata for refund");
         }
     };
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
-    )]
-    tokio::spawn(state_metadata_update.in_current_span());
+    router_env::spawn(state_metadata_update.in_current_span());
 
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
@@ -2706,11 +2702,7 @@ async fn disputes_incoming_webhook_flow(
         if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
             && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
         {
-            #[allow(
-                clippy::disallowed_methods,
-                reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
-            )]
-            tokio::spawn({
+            router_env::spawn({
                 let state = state.clone();
                 let platform = platform.clone();
                 let payment_intent = db

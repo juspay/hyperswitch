@@ -1644,6 +1644,7 @@ mod tests {
     use hyperswitch_domain_models::{
         master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
     };
+    use router_env::tracing::Instrument;
     use time::macros::datetime;
     use tokio::time::{timeout, Duration};
 
@@ -2248,32 +2249,35 @@ mod tests {
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
 
-            let handle = tokio::spawn(async move {
-                let webhook_recipient =
-                    webhooks_core::utils::resolve_webhook_recipient_from_created_by(
-                        &state_clone,
-                        &cloned_platform,
-                        &business_profile_clone,
+            let handle = router_env::spawn(
+                async move {
+                    let webhook_recipient =
+                        webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+                            &state_clone,
+                            &cloned_platform,
+                            &business_profile_clone,
+                            None,
+                        )
+                        .await
+                        .map_err(|e| format!("resolve_webhook_recipient failed: {e}"))?;
+                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                        state_clone,
+                        cloned_platform,
+                        event_type,
+                        event_class,
+                        (*primary_object_id_clone).to_string(),
+                        primary_object_type,
+                        content_clone,
+                        primary_object_created_at,
+                        webhook_recipient,
                         None,
-                    )
+                        business_profile_clone,
+                    ))
                     .await
-                    .map_err(|e| format!("resolve_webhook_recipient failed: {e}"))?;
-                Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
-                    state_clone,
-                    cloned_platform,
-                    event_type,
-                    event_class,
-                    (*primary_object_id_clone).to_string(),
-                    primary_object_type,
-                    content_clone,
-                    primary_object_created_at,
-                    webhook_recipient,
-                    None,
-                    business_profile_clone,
-                ))
-                .await
-                .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
-            });
+                    .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
+                }
+                .in_current_span(),
+            );
 
             handles.push(handle);
         }

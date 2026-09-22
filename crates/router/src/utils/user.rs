@@ -380,11 +380,7 @@ pub fn spawn_async_lineage_context_update_to_db(
             }
         }
     };
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
-    )]
-    tokio::spawn(lineage_update.in_current_span());
+    router_env::spawn(lineage_update.in_current_span());
 }
 
 pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {

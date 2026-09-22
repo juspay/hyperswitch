@@ -2291,11 +2291,7 @@ impl LockerOperations for GenericLocker {
             let state = state.clone();
             let payment_method_data = payment_method_data.clone();
             let customer_id = customer_id.get_string_repr().to_owned();
-            #[allow(
-                clippy::disallowed_methods,
-                reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
-            )]
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     vault::get_auxiliary_fingerprint_id_for_payment_method(
                         &state,

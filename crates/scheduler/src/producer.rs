@@ -52,12 +52,8 @@ where
         })
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-    )]
     let task_handle =
-        tokio::spawn(common_utils::signals::signal_handler(signal, tx).in_current_span());
+        router_env::spawn(common_utils::signals::signal_handler(signal, tx).in_current_span());
 
     loop {
         match rx.try_recv() {

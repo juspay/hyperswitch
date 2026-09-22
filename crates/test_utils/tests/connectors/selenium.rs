@@ -735,6 +735,10 @@ macro_rules! tester_inner {
             // make sure we close, even if an assertion fails
             let client = driver.clone();
             let x = runtime.block_on(async move {
+                #[allow(
+                    clippy::disallowed_methods,
+                    reason = "a browser test on its own runtime, with no request in scope; test_utils does not depend on router_env"
+                )]
                 let run = tokio::spawn($execute(driver)).await;
                 let _ = client.quit().await;
                 run

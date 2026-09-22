@@ -417,7 +417,7 @@ where
             let merchant_id = router_data.merchant_id.clone();
             let payment_method = router_data.payment_method;
             let payment_method_type = router_data.payment_method_type;
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     let gateway: Box<
                         dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
@@ -562,7 +562,7 @@ where
             let merchant_id = router_data.merchant_id.clone();
             let payment_method = router_data.payment_method;
             let payment_method_type = router_data.payment_method_type;
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     let gateway: Box<
                         dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,

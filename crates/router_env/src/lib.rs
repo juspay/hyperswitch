@@ -13,6 +13,7 @@ pub mod metrics;
 pub mod request_id;
 #[cfg(feature = "actix_web")]
 pub mod root_span;
+pub mod task;
 /// `cargo` build instructions generation for obtaining information about the application
 /// environment.
 #[cfg(feature = "vergen")]
@@ -34,3 +35,4 @@ pub use tracing_appender;
 
 #[doc(inline)]
 pub use self::env::*;
+pub use self::task::{spawn, spawn_in_set};

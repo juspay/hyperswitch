@@ -476,11 +476,7 @@ pub async fn start_server(
     #[cfg(not(feature = "tls"))]
     let server = server_builder.run();
 
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-    )]
-    let _task_handle = tokio::spawn(receiver_for_error(rx, server.handle()).in_current_span());
+    let _task_handle = router_env::spawn(receiver_for_error(rx, server.handle()).in_current_span());
     Ok(server)
 }
 
