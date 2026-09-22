@@ -44,7 +44,7 @@ jobs:
           checksum: true
 
       - name: Restore sccache cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.SCCACHE_DIR }}
           key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}
@@ -79,7 +79,7 @@ jobs:
 
       - name: Save sccache cache
         if: ${{ !cancelled() && github.event_name == 'push' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.SCCACHE_DIR }}
           key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}

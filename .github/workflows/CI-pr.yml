@@ -134,7 +134,7 @@ jobs:
           checksum: true
 
       - name: Restore sccache cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.SCCACHE_DIR }}
           key: sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}
