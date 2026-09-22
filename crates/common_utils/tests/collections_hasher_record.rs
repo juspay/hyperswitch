@@ -4,14 +4,29 @@
 //! are set on the registry the way `router_env::request_id` sets them, before
 //! the correlation is entered.
 #![cfg(feature = "deja")]
+#![allow(clippy::panic, clippy::expect_used)]
 
 use common_utils::collections::HashMap;
 
+#[derive(Clone)]
+struct NullSink;
+
+impl deja::RecordSink<deja::DejaRecord> for NullSink {
+    fn write_batch(&mut self, _records: &[deja::DejaRecord]) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 fn install_record_hook() {
-    let dir =
-        std::env::temp_dir().join(format!("collections-hasher-record-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("artifact dir");
-    let hook = deja::RecordingHook::new(&dir).expect("recording hook");
+    let hook = deja::RecordingHook::with_sink(
+        NullSink,
+        "collections-hasher-record".to_string(),
+        deja::WriterConfig::default(),
+    );
     match deja::set_global_runtime_hook(Some(deja::RuntimeHook::Recording(std::sync::Arc::new(
         hook,
     )))) {
