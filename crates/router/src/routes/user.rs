@@ -39,24 +39,6 @@ pub async fn get_active_user_details(state: web::Data<AppState>, req: HttpReques
     .await
 }
 
-#[cfg(feature = "olap")]
-pub async fn get_alert_read_access(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::GetAlertReadAccess;
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        (),
-        |state, user: auth::UserFromToken, _, _| user_core::get_alert_read_access(state, user),
-        &auth::DashboardNoPermissionAuth {
-            allow_connected: true,
-            allow_platform: true,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 /// `POST /user/launch_sage` — mint a sage session for the Control Center
 /// user. Body is empty by design; identity is read from the verified
 /// `AuthToken`. Sage performs the authoritative merchant-access gate.

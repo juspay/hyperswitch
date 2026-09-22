@@ -2954,10 +2954,6 @@ impl User {
 
         route = route
             .service(web::resource("").route(web::get().to(user::get_active_user_details)))
-            .service(
-                web::resource("/permissions/alerts/read")
-                    .route(web::get().to(user::get_alert_read_access)),
-            )
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
             .service(web::resource("/launch_sage").route(web::post().to(user::launch_sage)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))

@@ -215,18 +215,6 @@ pub async fn get_active_user_details(
     ))
 }
 
-pub async fn get_alert_read_access(
-    state: SessionState,
-    user_from_token: auth::UserFromToken,
-) -> UserResponse<serde_json::Value> {
-    let role_info = user_from_token.get_role_info_from_db(&state).await?;
-
-    Ok(ApplicationResponse::Json(serde_json::json!({
-        "allowed": role_info.is_internal()
-            && role_info.check_permission_exists(Permission::MerchantAlertRead),
-    })))
-}
-
 pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
