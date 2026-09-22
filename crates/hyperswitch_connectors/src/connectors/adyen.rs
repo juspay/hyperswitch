@@ -420,7 +420,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken
                 | PaymentMethodType::PixAutomaticoPush
-                | PaymentMethodType::PixAutomaticoQr => {
+                | PaymentMethodType::PixAutomaticoQr
+                | PaymentMethodType::Ted => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

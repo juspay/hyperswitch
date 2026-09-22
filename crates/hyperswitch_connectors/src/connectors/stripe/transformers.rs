@@ -1076,7 +1076,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Breadpay
             | enums::PaymentMethodType::UpiQr
             | enums::PaymentMethodType::OpenBanking
-            | enums::PaymentMethodType::NetworkToken => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::NetworkToken
+            | enums::PaymentMethodType::Ted => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),

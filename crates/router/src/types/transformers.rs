@@ -405,7 +405,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Payshap
             | api_enums::PaymentMethodType::PayshapProxy
-            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
+            | api_enums::PaymentMethodType::Pix
+            | api_enums::PaymentMethodType::Ted => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
             | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
@@ -1497,6 +1498,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
             api_models::payouts::Bank::Payshap(_) => Self::Payshap,
             api_models::payouts::Bank::PayshapProxy(_) => Self::PayshapProxy,
+            api_models::payouts::Bank::Ted(_) => Self::Ted,
         }
     }
 }
@@ -1515,6 +1517,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
             api_models::payouts::BankTransfer::Payshap(_) => Self::Payshap,
             api_models::payouts::BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
+            api_models::payouts::BankTransfer::Ted(_) => Self::Ted,
         }
     }
 }

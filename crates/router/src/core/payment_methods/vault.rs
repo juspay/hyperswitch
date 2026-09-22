@@ -867,6 +867,20 @@ impl Vaultable for api::BankPayout {
                 cellphone: bank_details.cellphone.clone(),
                 shap_id: bank_details.shap_id.clone(),
             },
+            Self::Ted(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: bank_details.tax_id.clone(),
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
         };
 
         bank_sensitive_data
@@ -967,6 +981,17 @@ impl Vaultable for api::BankPayout {
                 bank_code: None,
                 bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
+            },
+            Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.clone(),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.clone(),
+                ispb: bank_details.ispb.as_ref().map(|s| s.peek().to_owned()),
+                bank_code: bank_details.bank_code.clone(),
+                bank_account_type: bank_details.bank_account_type,
+                payout_method_type: Some(PaymentMethodType::Ted),
             },
         };
 
@@ -1224,6 +1249,20 @@ impl Vaultable for api::BankTransferPayout {
                 cellphone: bank_details.cellphone.clone(),
                 shap_id: bank_details.shap_id.clone(),
             },
+            Self::Ted(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: bank_details.tax_id.clone(),
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
         };
 
         bank_sensitive_data
@@ -1349,6 +1388,17 @@ impl Vaultable for api::BankTransferPayout {
                 bank_code: None,
                 bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
+            },
+            Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.clone(),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.clone(),
+                ispb: bank_details.ispb.as_ref().map(|s| s.peek().to_owned()),
+                bank_code: bank_details.bank_code.clone(),
+                bank_account_type: bank_details.bank_account_type,
+                payout_method_type: Some(PaymentMethodType::Ted),
             },
         };
 
@@ -1486,6 +1536,20 @@ impl Vaultable for api::BankTransferPayout {
                     shap_id: bank_sensitive_data.shap_id,
                 })
             }
+            Some(PaymentMethodType::Ted) => Self::Ted(payouts::TedBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number".into(),
+                    },
+                )?,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_code: bank_insensitive_data.bank_code,
+                bank_account_type: bank_insensitive_data.bank_account_type,
+                tax_id: bank_sensitive_data.tax_id,
+                account_holder_name: bank_sensitive_data.account_holder_name,
+                ispb: bank_insensitive_data.ispb.map(hyperswitch_masking::Secret::new),
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
