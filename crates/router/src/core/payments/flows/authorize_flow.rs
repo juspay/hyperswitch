@@ -5,7 +5,7 @@ use common_enums as enums;
 use common_types::payments as common_payments_types;
 #[cfg(feature = "v2")]
 use common_utils::types::MinorUnit;
-use common_utils::{errors, ext_traits::ValueExt, id_type, ucs_types};
+use common_utils::{errors, ext_traits::ValueExt, fp_utils, id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 use hyperswitch_connectors::constants as connector_consts;
@@ -145,6 +145,7 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -157,6 +158,10 @@ impl
             types::PaymentsResponseData,
         >,
     > {
+        fp_utils::when(merchant_connector_account.is_disabled(), || {
+            Err(ApiErrorResponse::MerchantConnectorAccountDisabled)
+        })?;
+
         Box::pin(transformers::construct_payment_router_data::<
             api::Authorize,
             types::PaymentsAuthorizeData,
@@ -165,6 +170,7 @@ impl
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -583,6 +589,21 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 // in this flow; when it returns a redirect, break so the shopper completes the
                 // challenge and the settle runs from CompleteAuthorize.
                 api_models::enums::Connector::Paysafe => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) => redirection_data.is_none(),
+                    _ => false,
+                },
+                // Pay.com gateway 3DS is three legs: PreAuthenticate mints the
+                // `chrg_`/`hld_` id, the Authenticate step that follows this gate turns it
+                // into a challenge session (`/v1/sessions/authentication/linked`), and
+                // CompleteAuthorize confirms after the shopper returns. PreAuthenticate
+                // never returns a redirect of its own — the challenge URL only exists
+                // after the Authenticate leg — so continue whenever leg 1 succeeded
+                // without one. `should_continue_after_authenticate` then stops the chain,
+                // because the Authenticate leg is what produces the redirect.
+                api_models::enums::Connector::Paydotcom => match &authorize_router_data.response {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         redirection_data,
                         ..
@@ -1402,13 +1423,13 @@ fn transform_redirection_response_for_pre_authenticate_flow(
         ) => {
             let access_token = form_fields.get("access_token").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 },
             )?;
             let ddc_url = form_fields.get("ddc_url").unwrap_or(endpoint).clone();
             let reference_id = form_fields.get("reference_id").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "reference_id",
+                    field_name: "reference_id".into(),
                 },
             )?;
 
@@ -1452,6 +1473,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id: _,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 authentication_data,
                 charges,
@@ -1477,6 +1499,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id: None,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     authentication_data,
                     charges,
@@ -1508,6 +1531,7 @@ fn transform_response_for_pre_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 charges,
                 authentication_data,
@@ -1571,6 +1595,7 @@ fn transform_response_for_pre_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     charges,
                     authentication_data,

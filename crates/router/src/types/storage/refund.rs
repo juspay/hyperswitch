@@ -16,13 +16,13 @@ use diesel_models::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 
-use crate::{connection::PgPooledConn, logger};
+use crate::{connection::DatabaseConnectionWithContext, logger};
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
     #[cfg(feature = "v1")]
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
         limit: PageSize,
@@ -31,7 +31,7 @@ pub trait RefundDbExt: Sized {
 
     #[cfg(feature = "v2")]
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: refunds::RefundListConstraints,
         limit: PageSize,
@@ -40,21 +40,21 @@ pub trait RefundDbExt: Sized {
 
     #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     #[cfg(feature = "v1")]
     async fn get_refunds_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
 
     #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -62,7 +62,7 @@ pub trait RefundDbExt: Sized {
 
     #[cfg(feature = "v2")]
     async fn get_refunds_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
@@ -72,7 +72,7 @@ pub trait RefundDbExt: Sized {
 impl RefundDbExt for Refund {
     #[cfg(feature = "v1")]
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
         limit: PageSize,
@@ -160,8 +160,10 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -170,7 +172,7 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v2")]
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: refunds::RefundListConstraints,
         limit: PageSize,
@@ -235,8 +237,10 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -247,7 +251,7 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
@@ -274,7 +278,7 @@ impl RefundDbExt for Refund {
             .select(dsl::connector)
             .distinct()
             .order_by(dsl::connector.asc())
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?;
@@ -284,7 +288,7 @@ impl RefundDbExt for Refund {
             .select(dsl::currency)
             .distinct()
             .order_by(dsl::currency.asc())
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?;
@@ -293,7 +297,7 @@ impl RefundDbExt for Refund {
             .select(dsl::refund_status)
             .distinct()
             .order_by(dsl::refund_status.asc())
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by refund status")?;
@@ -309,7 +313,7 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v1")]
     async fn get_refunds_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
@@ -395,7 +399,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_result_async::<i64>(conn)
+            .get_result_async::<i64>(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
@@ -403,7 +407,7 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v2")]
     async fn get_refunds_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
@@ -464,7 +468,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_result_async::<i64>(conn)
+            .get_result_async::<i64>(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
@@ -472,7 +476,7 @@ impl RefundDbExt for Refund {
 
     #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -504,8 +508,10 @@ impl RefundDbExt for Refund {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_results_async::<(RefundStatus, i64)>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Count,
+            query.get_results_async::<(RefundStatus, i64)>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)

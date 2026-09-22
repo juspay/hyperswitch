@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
-use common_utils::types::{StringMinorUnit, TimeRange};
-use hyperswitch_masking::{Deserialize, Serialize};
+use common_utils::{
+    pii::EmailStrategy,
+    types::{StringMinorUnit, TimeRange},
+};
+use hyperswitch_masking::{Deserialize, Secret, Serialize};
 use serde::de::Error;
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
@@ -195,7 +198,8 @@ pub struct SubmitEvidenceRequest {
     /// File Id of customer communication
     pub customer_communication: Option<String>,
     /// Customer email address
-    pub customer_email_address: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub customer_email_address: Option<Secret<String, EmailStrategy>>,
     /// Customer name
     pub customer_name: Option<String>,
     /// IP address of the customer

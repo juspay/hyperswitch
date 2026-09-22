@@ -399,6 +399,7 @@ impl TesouroPaymentMethodDetails {
                 apple_pay,
                 google_pay,
                 samsung_pay: _,
+                paypal: _,
             } => {
                 if let Some(google_pay_token) = google_pay {
                     Ok((
@@ -414,12 +415,12 @@ impl TesouroPaymentMethodDetails {
                     ))
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "expiration date and expiration year",
+                        field_name: "expiration date and expiration year".into(),
                     })
                 }
             }
             _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "expiration date and expiration year",
+                field_name: "expiration date and expiration year".into(),
             }),
         }?;
         Ok(Self::AcquirerTokenDetails(
@@ -615,7 +616,7 @@ fn get_apple_pay_data(
         }
         common_types::payments::ApplePayPaymentData::Encrypted(_) => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "decrypted apple pay data",
+                field_name: "decrypted apple pay data".into(),
             })?
         }
     }
@@ -635,7 +636,7 @@ fn get_google_pay_data(
         }
         common_types::payments::GpayTokenizationData::Encrypted(_) => {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "decrypted google pay data",
+                field_name: "decrypted google pay data".into(),
             })?
         }
     }
@@ -781,7 +782,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
             PaymentMethodData::MandatePayment => {
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     },
                 )?;
                 cit_reference = {
@@ -790,7 +791,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                         .request
                         .get_connector_mandate_request_reference_id()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
+                            field_name: "connector_mandate_id".into(),
                         })?;
 
                     Some(CitReference {
@@ -803,7 +804,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                     .additional_payment_method_data
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "additional_payment_method_data",
+                        field_name: "additional_payment_method_data".into(),
                     })?;
                 original_purchase_date = {
                     if let Some(metadata) = item
@@ -817,8 +818,11 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                             })?;
                         Some(tesouro_metadata.activity_date)
                     } else {
-                        let now = chrono::Utc::now();
-                        Some(now.format("%Y-%m-%d").to_string())
+                        Some(
+                            common_utils::date_time::now()
+                                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        )
                     }
                 };
 
@@ -850,6 +854,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -1109,6 +1114,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1154,6 +1160,7 @@ impl TryFrom<PaymentsResponseRouterData<TesouroAuthorizeResponse>> for PaymentsA
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1291,6 +1298,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1426,6 +1434,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1468,6 +1477,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<TesouroCaptureResponse>>
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -1572,6 +1582,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
                                     charges: None,
+                                    payment_account_reference: None,
                                 }),
                                 ..item.data
                             })
@@ -1614,6 +1625,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<TesouroVoidResponse>> for Payments
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         }),
@@ -2017,6 +2029,7 @@ impl<F> TryFrom<ResponseRouterData<F, TesouroSyncResponse, PaymentsSyncData, Pay
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })

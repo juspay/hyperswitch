@@ -450,7 +450,8 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                                     .clone()
                                     .ok_or_else(|| {
                                         errors::ConnectorError::MissingRequiredField {
-                                            field_name: "connector_mandate_request_reference_id",
+                                            field_name: "connector_mandate_request_reference_id"
+                                                .into(),
                                         }
                                     })?;
                                 Some(Secret::new(reference_id))
@@ -497,12 +498,7 @@ fn get_transaction_type(
     }
 }
 fn get_paybox_request_number() -> Result<String, Error> {
-    let time_stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        .as_millis()
-        .to_string();
+    let time_stamp = common_utils::date_time::now_unix_timestamp_millis().to_string();
     // unix time (in milliseconds) has 13 digits.if we consider 8 digits(the number digits to make day deterministic) there is no collision in the paybox_request_number as it will reset the paybox_request_number for each day  and paybox accepting maximum length is 10 so we gonna take 9 (13-9)
     let request_number = time_stamp
         .get(4..)
@@ -670,6 +666,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsRespo
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 amount_captured: None,
                 ..item.data
@@ -736,6 +733,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     }),
@@ -772,6 +770,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -822,6 +821,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1027,6 +1027,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1063,13 +1064,13 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
     ) -> Result<Self, Self::Error> {
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
         let redirect_payload: RedirectionAuthResponse = redirect_response
             .payload
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
+                field_name: "request.redirect_response.payload".into(),
             })?
             .peek()
             .clone()
@@ -1119,7 +1120,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                                 .connector_mandate_request_reference_id
                                 .clone()
                                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                                    field_name: "connector_mandate_request_reference_id",
+                                    field_name: "connector_mandate_request_reference_id".into(),
                                 })?;
                             Some(Secret::new(reference_id))
                         }

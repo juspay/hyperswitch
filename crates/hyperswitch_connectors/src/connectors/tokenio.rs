@@ -1,8 +1,5 @@
 pub mod transformers;
-use std::{
-    sync::LazyLock,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::sync::LazyLock;
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use common_enums::{enums, FeatureStatus, PaymentMethodType};
@@ -72,11 +69,7 @@ impl Tokenio {
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         // Create JWT header
-        let exp_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?
-            .as_millis()
-            + 600_000; // 10 minutes
+        let exp_time = common_utils::date_time::now_unix_timestamp_millis() + 600_000; // 10 minutes
 
         let header = serde_json::json!({
             "alg": match auth.key_algorithm {

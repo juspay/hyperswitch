@@ -93,7 +93,7 @@ impl behaviour::Conversion for CustomerAddress {
                 .customer_id
                 .clone()
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "customer_id".to_string(),
+                    field_name: "customer_id".into(),
                 })?;
 
         let address = Address::convert_back(state, other, key, key_manager_identifier).await?;
@@ -138,7 +138,7 @@ impl behaviour::Conversion for PaymentAddress {
             .payment_id
             .clone()
             .ok_or(ValidationError::MissingRequiredField {
-                field_name: "payment_id".to_string(),
+                field_name: "payment_id".into(),
             })?;
 
         let customer_id = other.customer_id.clone();
