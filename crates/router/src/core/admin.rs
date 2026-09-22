@@ -73,6 +73,7 @@ use crate::{
     deja::id(
         component = "router::admin",
         operation = "create_merchant_publishable_key",
+        on_miss = format!("pk_{}_{}", router_env::env::prefix_for_env(), common_utils::synth_shape::uuid(&__deja_miss).simple()),
         codec = SerdeCodec,
     )
 )]
