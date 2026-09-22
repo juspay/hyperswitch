@@ -327,8 +327,12 @@ impl Cache {
     // divergence before `on_miss` is reached, so the scorecard still shows the
     // added read; what changes is that the divergence localises to the subtree
     // that depended on it instead of taking the request down with it.
+    // FIXTURE (never merge): `any()` is always false, so this seam never applies.
+    // The function still runs; it is simply no longer instrumented, so the
+    // candidate makes calls the replay never looks up and the recording holds
+    // `imc in_memory_get` events the candidate never produces.
     #[cfg_attr(
-        feature = "deja",
+        any(),
         deja::boundary(
             boundary = "imc",
             component = "storage_impl::redis::cache",
