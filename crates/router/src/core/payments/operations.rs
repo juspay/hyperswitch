@@ -866,6 +866,17 @@ where
     }
 
     #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
+    }
+
+    #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
