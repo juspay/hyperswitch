@@ -144,6 +144,8 @@ pub struct OfferDescription {
     pub title: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub display_title: Option<String>,
 }
 
 /// Request body for `/offers/apply`.
@@ -349,25 +351,42 @@ pub struct BrowseOfferListEntry {
     pub status: OfferStatus,
     pub offer_code: String,
     pub offer_description: Option<OfferDescription>,
-    pub display_title: Option<String>,
-    pub currency: Option<common_enums::Currency>,
+    pub offer_rules: Option<BrowseOfferRules>,
+    // Offer Engine names the validity window `start_time_utc`/`end_time_utc`; only the end is
+    // surfaced, as `valid_till`.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub valid_till: Option<time::PrimitiveDateTime>,
+    pub end_time_utc: Option<time::PrimitiveDateTime>,
+}
+
+/// The subset of `offer_rules` browse reads; the currency lives under `amount`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferRules {
+    pub amount: Option<BrowseOfferAmount>,
+}
+
+/// The subset of `offer_rules.amount` browse reads.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrowseOfferAmount {
+    pub currency: Option<common_enums::Currency>,
 }
 
 impl From<BrowseOfferListEntry> for api_models::offer_engine::BrowseOffer {
     fn from(entry: BrowseOfferListEntry) -> Self {
-        let (title, description) = entry.offer_description.map_or((None, None), |description| {
-            (description.title, description.description)
-        });
+        let (title, description, display_title) =
+            entry.offer_description.map_or((None, None, None), |value| {
+                (value.title, value.description, value.display_title)
+            });
 
         Self {
             code: entry.offer_code,
             title,
-            display_title: entry.display_title,
+            display_title,
             description,
-            currency: entry.currency,
-            valid_till: entry.valid_till,
+            currency: entry
+                .offer_rules
+                .and_then(|rules| rules.amount)
+                .and_then(|amount| amount.currency),
+            valid_till: entry.end_time_utc,
         }
     }
 }

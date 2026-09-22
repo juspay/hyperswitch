@@ -34,13 +34,13 @@ import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
-import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
+import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
-import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
+import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
@@ -544,6 +544,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "loonio",
       "mifinity",
+      "moneris",
       "nexinets",
       "nexixpay",
       "nmi",
@@ -554,6 +555,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stax",
       "stripeconnect",
+      "tesouro",
       "wellsfargo",
       "worldpayxml",
       "finix",
@@ -827,6 +829,9 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
+    AUTH_CODE: ["checkout", "worldpayxml"],
+    ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     // Add more inclusion lists
   },
