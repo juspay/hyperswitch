@@ -82,6 +82,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
+            stripe: _,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -715,7 +716,13 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            connector_order_id: None,
+            // Forward the id minted by the UCS CreateOrder pre-call. It is stashed
+            // in `request.order_id` by
+            // `AuthorizeFlow::update_router_data_with_create_order_response`; leaving
+            // this `None` broke every UCS connector whose Authorize needs an order
+            // to already exist (e.g. paynearme's `/create_payment_method`, which
+            // requires `pnm_order_identifier`).
+            connector_order_id: router_data.request.order_id.clone(),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -1893,6 +1900,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            // New in the bumped client; the router does not populate it yet, so keep
+            // it absent — what UCS saw before the field existed.
+            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1995,6 +2005,9 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
+            // New in the bumped client; the router does not populate it yet, so keep
+            // it absent — what UCS saw before the field existed.
+            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2764,8 +2777,15 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             test_mode: router_data.test_mode,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -3953,7 +3973,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
-                    network_txn_link_id: None,
+                    network_txn_link_id: response.network_txn_link_id,
                     connector_response_reference_id,
                     payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
@@ -4605,6 +4625,8 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
+                    // New in the bumped client; not populated by the router yet.
+                    merchant_token_identifier: None,
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -7454,7 +7476,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                 payments_grpc::mandate_type::MandateType::SingleUse(
                                     #[allow(deprecated)]
                                     payments_grpc::MandateAmountData {
-                                        amount: amount_data.amount.get_amount_as_i64(),
+                                        amount: Some(amount_data.amount.get_amount_as_i64()),
                                         amount_type: None,
                                         amount_money: Some(payments_grpc::Money {
                                             minor_amount: amount_data
@@ -7463,7 +7485,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                             currency: currency.into(),
                                         }),
                                         frequency: None,
-                                        currency: currency.into(),
+                                        currency: Some(currency.into()),
                                         start_date: amount_data.start_date.map(
                                             |dt: time::PrimitiveDateTime| {
                                                 dt.assume_utc().unix_timestamp()
@@ -7498,7 +7520,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                     payments_grpc::mandate_type::MandateType::MultiUse(
                                         #[allow(deprecated)]
                                         payments_grpc::MandateAmountData {
-                                            amount: amount_data.amount.get_amount_as_i64(),
+                                            amount: Some(amount_data.amount.get_amount_as_i64()),
                                             amount_type: None,
                                             amount_money: Some(payments_grpc::Money {
                                                 minor_amount: amount_data
@@ -7507,7 +7529,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                 currency: currency.into(),
                                             }),
                                             frequency: None,
-                                            currency: currency.into(),
+                                            currency: Some(currency.into()),
                                             start_date: amount_data.start_date.map(
                                                 |dt: time::PrimitiveDateTime| {
                                                     dt.assume_utc().unix_timestamp()

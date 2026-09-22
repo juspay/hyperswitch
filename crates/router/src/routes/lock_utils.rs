@@ -93,7 +93,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
             | Flow::RoutingEvaluateRule
-            | Flow::DecisionEngineDiffCounterReset
             | Flow::DecisionEngineRuleMigration
             | Flow::DecisionEngineMigrationStatus
             | Flow::VolumeSplitOnRoutingType
@@ -120,6 +119,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetBlocklistCount => Self::Blocklist,
             Flow::LookupBlocklistEntry => Self::Blocklist,
             Flow::CreateBlocklistExport => Self::Blocklist,
+            Flow::CloneBlocklistEntries => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
