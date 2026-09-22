@@ -273,7 +273,6 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
@@ -582,7 +581,6 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
@@ -858,7 +856,6 @@ jobs:
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
     env:
       RUSTC_WRAPPER: sccache
-      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
@@ -1310,7 +1307,6 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
@@ -1512,7 +1508,6 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
-      SCCACHE_IDLE_TIMEOUT: "0"
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
