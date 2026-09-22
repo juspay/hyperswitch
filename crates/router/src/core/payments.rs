@@ -11322,6 +11322,28 @@ pub async fn add_process_sync_task(
         payment_attempt.get_id(),
         &payment_attempt.merchant_id,
     );
+    let tracking_data = tracking_data
+        .encode_to_value()
+        .change_context(errors::StorageError::SerializationFailed)?;
+
+    if let Some(existing_process) = db.find_process_by_id(&process_tracker_id).await? {
+        db.as_scheduler()
+            .update_process(
+                existing_process,
+                storage::ProcessTrackerUpdate::Update {
+                    name: Some(task.to_string()),
+                    retry_count: Some(0),
+                    schedule_time: Some(schedule_time),
+                    tracking_data: Some(tracking_data),
+                    business_status: Some(storage::business_status::PENDING.to_string()),
+                    status: Some(storage_enums::ProcessTrackerStatus::New),
+                    updated_at: Some(common_utils::date_time::now()),
+                },
+            )
+            .await?;
+        return Ok(());
+    }
+
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
         task,
