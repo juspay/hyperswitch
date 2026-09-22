@@ -248,7 +248,14 @@ pub async fn validate_create_request(
                 Ok(None)
             } else {
                 // No transfer_method_id available, proceed with vault fetch for raw card details
-                get_payout_method_data_generic(state, platform, payment_method, &profile_id, dimensions).await
+                get_payout_method_data_generic(
+                    state,
+                    platform,
+                    payment_method,
+                    &profile_id,
+                    dimensions,
+                )
+                .await
             }
         }
         _ => Ok(None),
