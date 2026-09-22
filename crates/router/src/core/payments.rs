@@ -11341,23 +11341,23 @@ pub async fn add_process_sync_task(
                 },
             )
             .await?;
-        return Ok(());
+    } else {
+        let process_tracker_entry = storage::ProcessTrackerNew::new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            tracking_data,
+            None,
+            schedule_time,
+            common_types::consts::API_VERSION,
+            application_source,
+        )
+        .map_err(errors::StorageError::from)?;
+
+        db.insert_process(process_tracker_entry).await?;
     }
 
-    let process_tracker_entry = storage::ProcessTrackerNew::new(
-        process_tracker_id,
-        task,
-        runner,
-        tag,
-        tracking_data,
-        None,
-        schedule_time,
-        common_types::consts::API_VERSION,
-        application_source,
-    )
-    .map_err(errors::StorageError::from)?;
-
-    db.insert_process(process_tracker_entry).await?;
     Ok(())
 }
 
