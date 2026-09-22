@@ -5,6 +5,7 @@
 //! declined must reach it as `Skip`, never as nothing. Nothing else ties the
 //! two files together, which is why the producer's side is asserted here.
 #![cfg(feature = "deja")]
+#![allow(clippy::panic, clippy::expect_used)]
 
 use std::sync::Arc;
 
@@ -16,6 +17,19 @@ use router_env::request_id::{
 use tracing_subscriber::prelude::*;
 
 struct DecliningSampler;
+
+#[derive(Clone)]
+struct NullSink;
+
+impl deja::RecordSink<deja::DejaRecord> for NullSink {
+    fn write_batch(&mut self, _records: &[deja::DejaRecord]) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
 
 impl RequestRecordingSampler for DecliningSampler {
     fn should_record(&self, _facts: RequestRecordingFacts) -> RequestRecordingSamplerFuture<'_> {
@@ -29,9 +43,11 @@ async fn a_declined_request_is_registered_as_skip_while_it_runs() {
         .with(deja::DejaCorrelationLayer::new())
         .try_init()
         .expect("install correlation layer (own process)");
-    let dir = std::env::temp_dir().join(format!("skipped-request-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).expect("artifact dir");
-    let hook = deja::RecordingHook::new(&dir).expect("recording hook");
+    let hook = deja::RecordingHook::with_sink(
+        NullSink,
+        "skipped-request".to_string(),
+        deja::WriterConfig::default(),
+    );
     deja::set_global_runtime_hook(Some(deja::RuntimeHook::Recording(Arc::new(hook))))
         .expect("install record hook (own process)");
 

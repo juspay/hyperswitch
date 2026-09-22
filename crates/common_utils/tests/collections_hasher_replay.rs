@@ -6,6 +6,7 @@
 //! request takes; the unit tests in `collections.rs` build the hasher directly
 //! and never reach it.
 #![cfg(feature = "deja")]
+#![allow(clippy::panic, clippy::expect_used)]
 
 use common_utils::collections::HashMap;
 
