@@ -1609,7 +1609,9 @@ async fn create_amazon_pay_session_token(
             enums::PaymentMethodType::AmazonPay,
         )
         .await
-        .currencies;
+        .currencies
+        .into_iter()
+        .collect::<common_utils::collections::HashSet<_>>();
     // currently supports only the US region hence USD is the only supported currency
     payment_types::AmazonPayDeliveryOptions::validate_currency(
         router_data.request.currency,
