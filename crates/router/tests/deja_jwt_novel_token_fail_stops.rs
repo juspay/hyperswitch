@@ -24,7 +24,7 @@ struct Claims {
 fn a_token_absent_from_the_recording_fail_stops() {
     let table = deja::LookupTable {
         recording_id: "jwt-novel-token-test".to_string(),
-        policy_version: 1,
+        policy_version: deja::POLICY_VERSION,
         entries: vec![],
     };
     let dir = tempfile::tempdir().expect("tempdir");
