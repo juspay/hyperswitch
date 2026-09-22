@@ -2977,6 +2977,17 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
     }),
+    // Pay then vault save card flow: the payment is made with the payment
+    // method session token (the card itself is confirmed in the PM session,
+    // so no payment_method_data here) and the card is promoted to the vault
+    // only after the payment acknowledges it
+    PayThenVaultSaveCardOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+    }),
     SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
       Request: {
         payment_method: "card",

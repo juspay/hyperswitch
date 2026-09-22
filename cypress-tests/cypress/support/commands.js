@@ -9177,7 +9177,8 @@ Cypress.Commands.add("getPMFromTokenCall", (globalState) => {
 
 Cypress.Commands.add(
   "paymentWithSavedPMCall",
-  (globalState, paymentData, useToken = false) => {
+  (globalState, paymentData, useToken = false, options = {}) => {
+    const { expectedStatus = null, expectedAmountReceived = null } = options;
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
     const customerId = globalState.get("customerId");
@@ -9198,12 +9199,43 @@ Cypress.Commands.add(
       );
     }
 
-    const requestBody = {
-      ...paymentData,
-      customer_id: customerId,
+    // Trace-validated two-step flow (LAT-404 API_TRACE, scenarios S1-S5):
+    // a payment method token cannot ride the single-request POST /payments
+    // path — together with setup_future_usage it deserialises into
+    // PaymentMethodData::CardToken, which Adyen rejects with 501 IR_00
+    // ("not implemented"). Create the intent first (no token), then confirm
+    // it with the token, mirroring POST /payments -> POST /payments/{id}/confirm.
+    const createBody = {
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      confirm: false,
       profile_id: profileId,
-      payment_token: paymentToken,
+      connector: [globalState.get("connectorId")],
+      authentication_type: paymentData.authentication_type,
     };
+    const confirmBody = {
+      payment_method: paymentData.payment_method,
+      payment_method_type: paymentData.payment_method_type,
+      payment_token: paymentToken,
+      authentication_type: paymentData.authentication_type,
+      connector: [globalState.get("connectorId")],
+      billing: paymentData.billing,
+      browser_info: paymentData.browser_info,
+    };
+    // Guest flows have no customer and must not ask for future usage; the
+    // acceptance is the promotion gate and is only sent when the caller
+    // provided it
+    if (customerId) {
+      createBody.customer_id = customerId;
+      confirmBody.customer_id = customerId;
+    }
+    if (paymentData.setup_future_usage) {
+      createBody.setup_future_usage = paymentData.setup_future_usage;
+      confirmBody.setup_future_usage = paymentData.setup_future_usage;
+    }
+    if (paymentData.customer_acceptance) {
+      confirmBody.customer_acceptance = paymentData.customer_acceptance;
+    }
 
     cy.request({
       method: "POST",
@@ -9212,20 +9244,393 @@ Cypress.Commands.add(
         "Content-Type": "application/json",
         "api-key": apiKey,
       },
-      body: requestBody,
+      body: createBody,
+      failOnStatusCode: false,
+    }).then((createResponse) => {
+      if (createResponse.status !== 200) {
+        throw new Error(
+          `Payment intent create failed with status ${createResponse.status}: ${JSON.stringify(createResponse.body)}`
+        );
+      }
+      expect(createResponse.body).to.have.property("payment_id");
+      expect(createResponse.body.status, "created payment status").to.equal(
+        "requires_payment_method"
+      );
+
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/payments/${createResponse.body.payment_id}/confirm`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: confirmBody,
+        failOnStatusCode: false,
+      }).then((response) => {
+        if (response.status === 200) {
+          globalState.set("paymentId", response.body.payment_id);
+          // `retrievePaymentCallTest` and friends read the `paymentID` spelling
+          globalState.set("paymentID", response.body.payment_id);
+          expect(response.body).to.have.property("payment_id");
+          expect(response.body).to.have.property("status");
+          expect(response.body.amount).to.equal(paymentData.amount);
+          expect(response.body.currency).to.equal(paymentData.currency);
+          if (expectedStatus) {
+            expect(response.body.status, "payment status").to.equal(
+              expectedStatus
+            );
+          }
+          if (
+            expectedAmountReceived !== null &&
+            expectedAmountReceived !== undefined
+          ) {
+            expect(response.body.amount_received, "amount_received").to.equal(
+              expectedAmountReceived
+            );
+          }
+        } else {
+          throw new Error(
+            `Payment with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
+          );
+        }
+      });
+    });
+  }
+);
+
+// Pay then vault (PtV) commands — v2 paths on the modular payment method
+// service (PM_SERVICE_URL). The v2 PM router serves ONLY /v2/... paths (the
+// v1 and v2 features are mutually exclusive), so the v1 commands above
+// cannot be used against it. See juspay/hyperswitch PR #13832.
+Cypress.Commands.add(
+  "v2CustomerCreateCall",
+  (globalState, customerCreateBody) => {
+    const reqData = { ...customerCreateBody };
+    reqData.merchant_reference_id = `ptv_customer_${Date.now()}`;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("pmServiceUrl")}/v2/customers`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Profile-Id": globalState.get("profileId"),
+        Authorization: `api-key=${globalState.get("apiKey")}`,
+      },
+      body: reqData,
       failOnStatusCode: false,
     }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
       if (response.status === 200) {
-        globalState.set("paymentId", response.body.payment_id);
-        // `retrievePaymentCallTest` and friends read the `paymentID` spelling
-        globalState.set("paymentID", response.body.payment_id);
-        expect(response.body).to.have.property("payment_id");
-        expect(response.body).to.have.property("status");
-        expect(response.body.amount).to.equal(paymentData.amount);
-        expect(response.body.currency).to.equal(paymentData.currency);
+        globalState.set("customerId", response.body.id);
+        expect(response.body.id, "customer_id").to.not.be.empty;
+        expect(reqData.email, "email").to.equal(response.body.email);
+        expect(reqData.name, "name").to.equal(response.body.name);
+        expect(reqData.phone, "phone").to.equal(response.body.phone);
+        expect(reqData.metadata, "metadata").to.deep.equal(
+          response.body.metadata
+        );
       } else {
         throw new Error(
-          `Payment with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
+          `V2 customer create failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  }
+);
+
+Cypress.Commands.add("v2PmSessionCreateCall", (globalState, sessionData) => {
+  const apiKey = globalState.get("apiKey");
+  const profileId = globalState.get("profileId");
+  const customerId = globalState.get("customerId");
+
+  // Guest sessions must omit customer_id — it is only attached when a
+  // customer exists in the state
+  const requestBody = {
+    ...sessionData,
+    ...(customerId ? { customer_id: customerId } : {}),
+  };
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("pmServiceUrl")}/v2/payment-method-sessions`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "x-profile-id": profileId,
+      Authorization: `api-key=${apiKey}`,
+    },
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    if (response.status === 200) {
+      globalState.set("paymentMethodSessionId", response.body.id);
+      globalState.set("clientSecret", response.body.client_secret);
+      expect(response.body).to.have.property("id");
+      expect(response.body).to.have.property("client_secret");
+      expect(requestBody.storage_type, "storage_type").to.equal(
+        response.body.storage_type
+      );
+      expect(response.body.customer_id, "customer_id").to.equal(
+        customerId || null
+      );
+    } else {
+      throw new Error(
+        `V2 PM session create failed with status ${response.status}: ${JSON.stringify(response.body)}`
+      );
+    }
+  });
+});
+
+// `expectedCardDetails` is an optional partial map of card fields to assert
+// on the confirm response — used to assert the BIN enriched values (e.g.
+// 4111111111111111 is sent as `credit` but comes back as `debit`), never the
+// client sent subtype.
+Cypress.Commands.add(
+  "v2PmSessionConfirmCall",
+  (globalState, confirmData, expectedCardDetails = null) => {
+    const profileId = globalState.get("profileId");
+    const sessionId = globalState.get("paymentMethodSessionId");
+    const publishableKey = globalState.get("publishableKey");
+    const clientSecret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("pmServiceUrl")}/v2/payment-method-sessions/${sessionId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "x-profile-id": profileId,
+        Authorization: `publishable-key=${publishableKey},client-secret=${clientSecret}`,
+      },
+      body: confirmData,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      if (response.status === 200) {
+        globalState.set(
+          "paymentMethodToken",
+          response.body.associated_payment_methods[0].payment_method_token.data
+        );
+        expect(response.body).to.have.property("id");
+        // Core pay then vault behaviour: the payment method is stored in
+        // redis (volatile) only — the confirm response reports volatile
+        // storage even for persistent sessions, until the payment that
+        // acknowledges it promotes it to the vault
+        expect(response.body.storage_type, "ptv storage_type").to.equal(
+          "volatile"
+        );
+        expect(
+          response.body.card_cvc_token_storage.is_stored,
+          "card_cvc_token_storage.is_stored"
+        ).to.be.true;
+        const confirmedCard = response.body.payment_method_data.card;
+        expect(confirmedCard.saved_to_locker, "saved_to_locker").to.be.true;
+        if (expectedCardDetails) {
+          Object.keys(expectedCardDetails).forEach((key) => {
+            expect(confirmedCard[key], `bin enriched card ${key}`).to.equal(
+              expectedCardDetails[key]
+            );
+          });
+        }
+      } else {
+        throw new Error(
+          `V2 PM session confirm failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  }
+);
+
+// `expectedPromotedPm` is an optional expectations object for the first saved
+// payment method: payment_method_type, payment_method_subtype,
+// recurring_enabled, requires_cvv, card_last4_digits,
+// connector_token_type, connector_token_status and
+// connector_token_authorized_amount.
+Cypress.Commands.add(
+  "v2ListSavedPMCall",
+  (globalState, expectedCount, expectedPromotedPm = null) => {
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const customerId = globalState.get("customerId");
+
+    if (!customerId) {
+      throw new Error("v2ListSavedPMCall: no customerId in global state");
+    }
+
+    // Promotion is asynchronous relative to the payment response, so a
+    // non-empty expectation polls until the list reaches the expected count
+    // (modelled on waitForConfigPropagation). An empty expectation instead
+    // polls a few times to prove the list stays empty through the promotion
+    // window — a late promotion would flip one of the polls.
+    const maxAttempts = 10;
+    const intervalMs = 2000;
+    const stabilizationAttempts = 3;
+
+    const assertPromotedPm = (promotedPm) => {
+      expect(promotedPm.id, "promoted payment method id").to.match(/^0a_pm_/);
+      expect(promotedPm.customer_id, "promoted customer_id").to.equal(
+        customerId
+      );
+      expect(promotedPm.payment_method_type, "payment_method_type").to.equal(
+        expectedPromotedPm.payment_method_type
+      );
+      expect(
+        promotedPm.payment_method_subtype,
+        "payment_method_subtype"
+      ).to.equal(expectedPromotedPm.payment_method_subtype);
+      expect(promotedPm.recurring_enabled, "recurring_enabled").to.equal(
+        expectedPromotedPm.recurring_enabled
+      );
+      expect(promotedPm.requires_cvv, "requires_cvv").to.equal(
+        expectedPromotedPm.requires_cvv
+      );
+      const promotedCard = promotedPm.payment_method_data.card;
+      expect(promotedCard.last4_digits, "last4_digits").to.equal(
+        expectedPromotedPm.card_last4_digits
+      );
+      expect(promotedCard.saved_to_locker, "saved_to_locker").to.be.true;
+      const [connectorToken] = promotedPm.connector_tokens || [];
+      expect(connectorToken, "connector token").to.not.be.undefined;
+      expect(connectorToken.token_type, "connector token_type").to.equal(
+        expectedPromotedPm.connector_token_type
+      );
+      expect(connectorToken.status, "connector token status").to.equal(
+        expectedPromotedPm.connector_token_status
+      );
+      expect(
+        connectorToken.original_payment_authorized_amount,
+        "original_payment_authorized_amount"
+      ).to.equal(expectedPromotedPm.connector_token_authorized_amount);
+      expect(promotedPm.network_transaction_id, "network_transaction_id").to.not
+        .be.empty;
+    };
+
+    const poll = (attempt) => {
+      if (attempt >= maxAttempts) {
+        throw new Error(
+          `Saved payment method list did not reach ${expectedCount} entry(ies) within ${(maxAttempts * intervalMs) / 1000}s`
+        );
+      }
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("pmServiceUrl")}/v2/customers/${customerId}/saved-payment-methods`,
+        headers: {
+          Accept: "application/json",
+          "x-profile-id": profileId,
+          Authorization: `api-key=${apiKey}`,
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        if (response.status !== 200) {
+          throw new Error(
+            `V2 list saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
+          );
+        }
+        const savedPms = response.body.customer_payment_methods;
+        expect(savedPms).to.be.an("array");
+
+        if (expectedCount > 0) {
+          if (savedPms.length !== expectedCount) {
+            cy.task(
+              "cli_log",
+              `Saved PM list poll attempt ${attempt + 1}: got ${savedPms.length}, waiting ${intervalMs / 1000}s...`
+            );
+            // eslint-disable-next-line cypress/no-unnecessary-waiting
+            cy.wait(intervalMs).then(() => poll(attempt + 1));
+            return;
+          }
+          expect(savedPms, "saved payment method count").to.have.lengthOf(
+            expectedCount
+          );
+          if (expectedPromotedPm) {
+            assertPromotedPm(savedPms[0]);
+          }
+        } else {
+          // The list must stay empty through the promotion window
+          expect(savedPms, "saved payment method count").to.have.lengthOf(0);
+          if (attempt + 1 < stabilizationAttempts) {
+            // eslint-disable-next-line cypress/no-unnecessary-waiting
+            cy.wait(intervalMs).then(() => poll(attempt + 1));
+          }
+        }
+      });
+    };
+    poll(0);
+  }
+);
+
+Cypress.Commands.add("v2GetPMFromTokenCall", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const profileId = globalState.get("profileId");
+  const paymentMethodToken = globalState.get("paymentMethodToken");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("pmServiceUrl")}/v2/payment-methods/token/${paymentMethodToken}/details`,
+    headers: {
+      Accept: "application/json",
+      "x-profile-id": profileId,
+      Authorization: `api-key=${apiKey}`,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    if (response.status === 200) {
+      expect(response.body.id, "payment method id").to.match(/^0a_pm_/);
+      expect(
+        response.body.payment_method_token,
+        "payment_method_token"
+      ).to.equal(paymentMethodToken);
+      globalState.set("paymentMethodId", response.body.id);
+    } else {
+      throw new Error(
+        `V2 get PM from token failed with status ${response.status}: ${JSON.stringify(response.body)}`
+      );
+    }
+  });
+});
+
+// `expectedError` is an optional { status, code, message } object for
+// expected error responses — e.g. a guest payment method acknowledgement,
+// which is rejected because the payment method was never promoted.
+Cypress.Commands.add(
+  "v2UpdateSavedPMCall",
+  (globalState, updateData, expectedError = null) => {
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const paymentMethodId = globalState.get("paymentMethodId");
+
+    cy.request({
+      method: "PUT",
+      url: `${globalState.get("pmServiceUrl")}/v2/payment-methods/${paymentMethodId}/update-saved-payment-method`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Profile-Id": profileId,
+        Authorization: `api-key=${apiKey}`,
+      },
+      body: updateData,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      if (expectedError) {
+        expect(response.status, "update saved PM status").to.equal(
+          expectedError.status
+        );
+        expect(response.body.error.code, "error code").to.equal(
+          expectedError.code
+        );
+        expect(response.body.error.message, "error message").to.equal(
+          expectedError.message
+        );
+      } else if (response.status === 200) {
+        expect(response.body).to.have.property("id");
+      } else {
+        throw new Error(
+          `V2 update saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
         );
       }
     });
@@ -12322,6 +12727,161 @@ Cypress.Commands.add(
       });
     };
     poll(0);
+  }
+);
+
+// Wait for the pay then vault (PtV) superposition overrides to reach BOTH
+// gateways: the v1 payments router (baseUrl — the payment/promotion path) and
+// the v2 payment method service (pmServiceUrl — the confirm path). Each
+// gateway caches superposition configs and refreshes them on its own polling
+// interval (10s in CI, 300s with the default local development.toml), and the
+// two polls are phase-shifted, so a fixed post-PUT wait cannot cover both.
+// Modeled on waitForConfigPropagation (same 60x5s budget and poll structure),
+// with one probe per gateway:
+//   - v1 router: should_call_pm_modular_service=true blocks merchant api-key
+//     traffic from the legacy v1 customer routes, so retrieving a well-formed
+//     but non-existent customer flips from 404 (route still open, lookup
+//     fails) to 403 (deprecated route) once the override lands.
+//   - v2 router: payment_method_integration_type=pay_then_vault stores the
+//     confirmed card in volatile storage, so a persistent session confirmed
+//     with customer acceptance reports storage_type "volatile" instead of
+//     "persistent".
+// Both overrides share one superposition context (single PUT), so a green
+// probe proves that gateway refreshed the whole PtV context. Probe entities
+// (one throwaway customer, its sessions and locker tokens) are never asserted
+// on by the spec and no globalState keys are written.
+Cypress.Commands.add(
+  "waitForPtVConfigPropagation",
+  (globalState, customerBody, sessionBody, confirmBody) => {
+    // Local dev routers poll superposition every 300s (development.toml
+    // polling_interval) and the two gateways are phase shifted, so the worst
+    // case for BOTH to reflect the override is ~335s — budget 400s for margin
+    const maxAttempts = 80;
+    const intervalMs = 5000;
+    const baseUrl = globalState.get("baseUrl");
+    const pmServiceUrl = globalState.get("pmServiceUrl");
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const publishableKey = globalState.get("publishableKey");
+    // Well-formed but non-existent: the lookup 404s while the legacy route is
+    // still open, and 403s once the deprecated-route gate engages
+    const pollCustomerId = `non_existent_ptv_config_poll_${Date.now()}`;
+
+    const v1GatewayPropagated = () =>
+      cy
+        .request({
+          method: "GET",
+          url: `${baseUrl}/customers/${pollCustomerId}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+          if (response.status === 403) {
+            cy.wrap(true);
+          } else if (response.status === 404) {
+            cy.wrap(false);
+          } else {
+            throw new Error(
+              `PtV propagation poll: v1 customer retrieve returned ${response.status}: ${JSON.stringify(response.body)}`
+            );
+          }
+        });
+
+    // Mirrors the real pay then vault flow: a persistent session for a
+    // throwaway customer, confirmed with a card and customer acceptance
+    const v2GatewayPropagated = (customerId) =>
+      cy
+        .request({
+          method: "POST",
+          url: `${pmServiceUrl}/v2/payment-method-sessions`,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "x-profile-id": profileId,
+            Authorization: `api-key=${apiKey}`,
+          },
+          body: { ...sessionBody, customer_id: customerId },
+          failOnStatusCode: false,
+        })
+        .then((sessionResponse) => {
+          logRequestId(sessionResponse.headers["x-request-id"]);
+          expect(
+            sessionResponse.status,
+            "PtV propagation poll: session create"
+          ).to.equal(200);
+          cy.request({
+            method: "POST",
+            url: `${pmServiceUrl}/v2/payment-method-sessions/${sessionResponse.body.id}/confirm`,
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "x-profile-id": profileId,
+              Authorization: `publishable-key=${publishableKey},client-secret=${sessionResponse.body.client_secret}`,
+            },
+            body: confirmBody,
+            failOnStatusCode: false,
+          }).then((confirmResponse) => {
+            logRequestId(confirmResponse.headers["x-request-id"]);
+            expect(
+              confirmResponse.status,
+              "PtV propagation poll: session confirm"
+            ).to.equal(200);
+            cy.wrap(confirmResponse.body.storage_type === "volatile");
+          });
+        });
+
+    const poll = (attempt, customerId) => {
+      if (attempt >= maxAttempts) {
+        throw new Error(
+          `Pay then vault config did not propagate to both gateways within ${(maxAttempts * intervalMs) / 1000}s`
+        );
+      }
+      v1GatewayPropagated().then((v1Propagated) => {
+        v2GatewayPropagated(customerId).then((v2Propagated) => {
+          if (v1Propagated && v2Propagated) {
+            cy.task(
+              "cli_log",
+              `Pay then vault config propagated to both gateways after ${attempt + 1} poll attempt(s)`
+            );
+          } else {
+            cy.task(
+              "cli_log",
+              `Poll attempt ${attempt + 1}: v1 payments router ${v1Propagated ? "ready" : "pending"}, v2 payment method service ${v2Propagated ? "ready" : "pending"} — waiting ${intervalMs / 1000}s...`
+            );
+            // eslint-disable-next-line cypress/no-unnecessary-waiting
+            cy.wait(intervalMs).then(() => poll(attempt + 1, customerId));
+          }
+        });
+      });
+    };
+
+    // One throwaway customer carries every probe attempt, so the poll does not
+    // create a customer per attempt
+    cy.request({
+      method: "POST",
+      url: `${pmServiceUrl}/v2/customers`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Profile-Id": profileId,
+        Authorization: `api-key=${apiKey}`,
+      },
+      body: {
+        ...customerBody,
+        merchant_reference_id: `ptv_config_poll_${Date.now()}`,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status, "PtV propagation poll: customer create").to.equal(
+        200
+      );
+      poll(0, response.body.id);
+    });
   }
 );
 
