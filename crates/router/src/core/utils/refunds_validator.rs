@@ -28,6 +28,8 @@ pub enum RefundValidationError {
     UnsuccessfulPaymentAttempt,
     #[error("The refund amount exceeds the amount captured")]
     RefundAmountExceedsPaymentAmount,
+    #[error("The refund amount must be positive")]
+    InvalidRefundAmount,
     #[error("The order has expired")]
     OrderExpired,
     #[error("The maximum refund count for this payment attempt")]
@@ -53,6 +55,10 @@ pub fn validate_refund_amount(
     all_refunds: &[diesel_refund::Refund],
     refund_amount: i64,
 ) -> CustomResult<(), RefundValidationError> {
+    utils::when(refund_amount <= 0, || {
+        Err(report!(RefundValidationError::InvalidRefundAmount))
+    })?;
+
     let total_refunded_amount: i64 = all_refunds
         .iter()
         .filter_map(|refund| {
