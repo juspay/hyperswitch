@@ -582,9 +582,10 @@ where
     mapped
 }
 
-// Deja: no `on_miss`, deliberately. A count is branched on, and the only value
-// left to synthesize is a number nobody counted — zero asserts the table held no
-// matching rows, which the recording never showed. A miss stops.
+// Deja: no `on_miss`. The honest arm is to run the count against the replay
+// schema, and a miss arm cannot — the reconstruct closure is sync and this is
+// async (juspay/deja#195). What is left is to synthesize a number nobody
+// counted, which a caller branches on as fact. A miss stops.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(

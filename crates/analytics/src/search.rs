@@ -68,8 +68,10 @@ fn opensearch_args(builder: &OpenSearchQueryBuilder) -> Value {
 ///
 /// `Http` rather than `Db`: the index is external state read over HTTP and
 /// substituted from the tape, not part of the seeded store, so the seed planner
-/// must not try to reconstruct it. No `on_miss` — no response text is honest
-/// when the recording holds none.
+/// must not try to reconstruct it. No `on_miss`: a live query is the honest arm
+/// and a miss arm cannot issue one — the reconstruct closure is sync and this is
+/// async (juspay/deja#195). An empty result set is the only shaped alternative
+/// and it asserts nothing matched, which the recording never showed.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
