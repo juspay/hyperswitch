@@ -213,9 +213,8 @@ impl CardIssuersInterface for MockDb {
             })
             .collect::<Vec<_>>();
         card_issuers_list.sort_by(|a, b| a.issuer_name.cmp(&b.issuer_name));
-        card_issuers_list.truncate(
-            usize::try_from(consts::CARD_ISSUER_LIST_MAX_LIMIT).unwrap_or(usize::MAX),
-        );
+        card_issuers_list
+            .truncate(usize::try_from(consts::CARD_ISSUER_LIST_MAX_LIMIT).unwrap_or(usize::MAX));
         Ok(card_issuers_list)
     }
 
