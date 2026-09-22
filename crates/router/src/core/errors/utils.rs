@@ -131,7 +131,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::RefundFailed { data }
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
                     errors::ApiErrorResponse::MissingRequiredFields {
@@ -166,7 +168,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     received_length: *received_length,
                 },
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
-                    errors::ApiErrorResponse::InvalidDataValue { field_name }
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::InvalidWalletToken { wallet_name } => {
                     errors::ApiErrorResponse::InvalidWalletToken {
