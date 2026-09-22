@@ -455,17 +455,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        // If the business details are not passed in the request, set them from the merchant
-        // account so that the connector label can be generated for the payment
-        payment_intent
-            .set_business_details(
-                None,
-                platform.get_processor().get_account(),
-                &business_profile,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to set business details on the payment intent")?;
-
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });

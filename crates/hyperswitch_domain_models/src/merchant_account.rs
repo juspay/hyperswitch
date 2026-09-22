@@ -243,15 +243,6 @@ impl MerchantAccount {
     }
 
     #[cfg(feature = "v1")]
-    /// Get the business details (business_country, business_label) for the given business profile
-    /// from the `primary_business_details` configured in the merchant account
-    ///
-    /// The business details are resolved as follows:
-    /// 1. The entry whose `{country}_{business}` matches the profile name, since profiles created
-    ///    from `primary_business_details` are named this way
-    /// 2. The only configured entry, if exactly one entry is present
-    ///
-    /// Returns `None` if the business details cannot be resolved unambiguously
     pub fn get_business_details_for_profile(
         &self,
         business_profile: &crate::business_profile::Profile,
@@ -451,10 +442,6 @@ pub trait MerchantAccountInterface {
 }
 
 #[cfg(feature = "v1")]
-/// Get the business details (business_country, business_label) for a profile name from the
-/// `primary_business_details` configured in the merchant account
-///
-/// Refer to [`MerchantAccount::get_business_details_for_profile`] for the resolution rules
 fn get_business_details_for_profile_name(
     primary_business_details: &[api_models::admin::PrimaryBusinessDetails],
     profile_name: &str,

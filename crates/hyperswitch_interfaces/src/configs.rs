@@ -205,8 +205,6 @@ impl MerchantConnectorAccountType {
         }
     }
 
-    /// Returns the business details (business_country, business_label) configured on the
-    /// merchant connector account, if both are present
     #[cfg(feature = "v1")]
     pub fn get_business_details(&self) -> Option<(common_enums::CountryAlpha2, String)> {
         match self {
