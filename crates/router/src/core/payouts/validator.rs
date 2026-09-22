@@ -62,6 +62,7 @@ pub async fn validate_create_request(
     _state: &SessionState,
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
@@ -262,6 +263,7 @@ pub async fn validate_create_request(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_payout_method_data_generic(
     state: &SessionState,
     platform: &domain::Platform,
@@ -379,6 +381,17 @@ pub async fn get_payout_method_data_generic(
             }
         }
     }
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_payout_method_data_generic(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method: &PaymentMethod,
+    profile_id: &id_type::ProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<Option<payouts::PayoutMethodData>> {
+    todo!()
 }
 
 pub fn validate_payout_link_request(
