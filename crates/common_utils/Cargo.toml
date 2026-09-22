@@ -38,6 +38,7 @@ error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
 hex = "0.4.3"
+indexmap = { version = "2.9.0", features = ["serde"] }
 http = "0.2.12"
 md5 = "0.7.0"
 nanoid = "0.4.0"

@@ -614,6 +614,28 @@ pub struct GenericLinkEnvConfig {
     pub enabled_payment_methods: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
+impl GenericLinkEnvConfig {
+    pub fn default_enabled_payment_methods(
+        &self,
+    ) -> Vec<common_utils::link_utils::EnabledPaymentMethod> {
+        let mut methods: Vec<_> = self
+            .enabled_payment_methods
+            .iter()
+            .map(|(payment_method, payment_method_types)| {
+                let mut payment_method_types: Vec<_> =
+                    payment_method_types.iter().copied().collect();
+                payment_method_types.sort_unstable();
+                common_utils::link_utils::EnabledPaymentMethod {
+                    payment_method: *payment_method,
+                    payment_method_types: payment_method_types.into_iter().collect(),
+                }
+            })
+            .collect();
+        methods.sort_unstable_by_key(|method| method.payment_method);
+        methods
+    }
+}
+
 impl Default for GenericLinkEnvConfig {
     fn default() -> Self {
         Self {
@@ -624,6 +646,76 @@ impl Default for GenericLinkEnvConfig {
             ui_config: GenericLinkEnvUiConfig::default(),
             enabled_payment_methods: HashMap::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod generic_link_default_tests {
+    use common_enums::enums::{PaymentMethod, PaymentMethodType};
+    use common_utils::collections::{HashMap, HashSet};
+
+    use super::GenericLinkEnvConfig;
+
+    fn config(methods: &[(PaymentMethod, Vec<PaymentMethodType>)]) -> GenericLinkEnvConfig {
+        GenericLinkEnvConfig {
+            enabled_payment_methods: methods
+                .iter()
+                .map(|(method, types)| (*method, types.iter().copied().collect::<HashSet<_>>()))
+                .collect::<HashMap<_, _>>(),
+            ..GenericLinkEnvConfig::default()
+        }
+    }
+
+    // The default list is stored on the link and rendered into its page, so
+    // one table's content must give one list whichever process loaded it.
+    #[test]
+    fn default_enabled_methods_follow_the_table_not_the_process() {
+        let methods = vec![
+            (
+                PaymentMethod::Card,
+                vec![PaymentMethodType::Credit, PaymentMethodType::Debit],
+            ),
+            (
+                PaymentMethod::BankTransfer,
+                vec![
+                    PaymentMethodType::Ach,
+                    PaymentMethodType::Bacs,
+                    PaymentMethodType::SepaBankTransfer,
+                    PaymentMethodType::Pix,
+                ],
+            ),
+            (
+                PaymentMethod::Wallet,
+                vec![
+                    PaymentMethodType::Paypal,
+                    PaymentMethodType::Venmo,
+                    PaymentMethodType::ApplePay,
+                    PaymentMethodType::GooglePay,
+                ],
+            ),
+            (
+                PaymentMethod::BankRedirect,
+                vec![
+                    PaymentMethodType::Ideal,
+                    PaymentMethodType::Giropay,
+                    PaymentMethodType::Eps,
+                ],
+            ),
+        ];
+        let reversed = methods
+            .iter()
+            .rev()
+            .map(|(method, types)| (*method, types.iter().rev().copied().collect()))
+            .collect::<Vec<_>>();
+
+        let first = config(&methods).default_enabled_payment_methods();
+        let second = config(&reversed).default_enabled_payment_methods();
+
+        assert_eq!(first.len(), methods.len());
+        assert_eq!(
+            serde_json::to_string(&first).expect("serialize"),
+            serde_json::to_string(&second).expect("serialize")
+        );
     }
 }
 
@@ -1060,7 +1152,10 @@ impl OidcSettings {
     }
 
     pub fn get_all_keys(&self) -> Vec<&OidcKey> {
-        self.key.values().collect()
+        self.sorted_key_ids()
+            .into_iter()
+            .filter_map(|key_id| self.key.get(key_id))
+            .collect()
     }
 }
 
@@ -1113,6 +1208,28 @@ mod oidc_signing_key_tests {
              produced a different candidate order -- a recorded index would no \
              longer name the same key on replay"
         );
+    }
+
+    // `get_all_keys` is the JWKS body, so its order is the response's.
+    #[test]
+    fn published_key_order_is_independent_of_which_hashmap_instance_holds_it() {
+        let kids = [
+            "a", "m", "z", "b", "y", "c", "x", "d", "w", "e", "v", "f", "u", "g", "t", "h",
+        ];
+        let reversed = kids.iter().rev().copied().collect::<Vec<_>>();
+        let published = |settings: &OidcSettings| {
+            settings
+                .get_all_keys()
+                .into_iter()
+                .map(|key| key.kid.clone())
+                .collect::<Vec<_>>()
+        };
+
+        let first = published(&oidc_settings_with_keys(&kids));
+        let second = published(&oidc_settings_with_keys(&reversed));
+
+        assert_eq!(first.len(), kids.len());
+        assert_eq!(first, second);
     }
 }
 
