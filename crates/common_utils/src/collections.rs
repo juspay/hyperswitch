@@ -51,9 +51,9 @@ mod correlation {
     /// startup for instance, keeps one random order for the life of the
     /// process. That matters only where the order leaves the collection: deja
     /// reads a JSON object by key, so what is exposed is a list or a string
-    /// built by iterating it. Nothing here addresses that. Rebuilding the
-    /// collection inside the request, by collecting it, gives it the request's
-    /// keys.
+    /// built by iterating it. Nothing here addresses that, and rebuilding the
+    /// collection inside the request does not either: equal keys give equal
+    /// order only for equal insertion order. Sort where the order leaves.
     ///
     /// SipHash-1-3 from `siphasher`, not `DefaultHasher`, because `std`
     /// declines to guarantee its algorithm across releases and record and
