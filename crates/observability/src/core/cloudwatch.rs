@@ -12,7 +12,8 @@ use time::OffsetDateTime;
 
 use crate::{
     domain::cloudwatch::{
-        evaluate, evaluation_range, Catalogue, Comparison, Evaluation, Outcome, RuleState, Unread,
+        evaluate_with_breaches, evaluation_range, Catalogue, Comparison, Evaluation, Outcome,
+        RuleState, Unread,
     },
     logger,
     settings::cloudwatch::{AlarmDefinition, CloudWatchSettings},
@@ -211,7 +212,9 @@ fn interpret(batch: &Batch<'_>, readings: Result<Readings, ()>) -> Vec<Evaluatio
         return batch
             .definitions
             .iter()
-            .map(|(id, definition)| unread(id, definition, Unread::QueryFailed))
+            .map(|(id, definition)| {
+                unread(id, definition, batch.request.range, Unread::QueryFailed)
+            })
             .collect();
     };
 
@@ -220,22 +223,42 @@ fn interpret(batch: &Batch<'_>, readings: Result<Readings, ()>) -> Vec<Evaluatio
         .iter()
         .enumerate()
         .map(|(index, (id, definition))| match readings.get(&index) {
-            None => unread(id, definition, Unread::SeriesMissing),
-            Some(None) => unread(id, definition, Unread::SeriesIncomplete),
-            Some(Some(series)) => evaluated(id, definition, series),
+            None => unread(id, definition, batch.request.range, Unread::SeriesMissing),
+            Some(None) => unread(
+                id,
+                definition,
+                batch.request.range,
+                Unread::SeriesIncomplete,
+            ),
+            Some(Some(series)) => evaluated(id, definition, batch.request.range, series),
         })
         .collect()
 }
 
-fn evaluated(id: &str, definition: &AlarmDefinition, readings: &[Option<f64>]) -> Evaluation {
+fn evaluated(
+    id: &str,
+    definition: &AlarmDefinition,
+    range: TimeRange,
+    readings: &[Option<f64>],
+) -> Evaluation {
     let mut rules: Vec<RuleState> = definition
         .severities
         .iter()
-        .map(|(severity, rule)| RuleState {
-            severity: severity.clone(),
-            state: evaluate(rule, window(readings, evaluation_range(rule))),
-            threshold: rule.threshold,
-            description: rule.description.clone(),
+        .map(|(severity, rule)| {
+            let (state, breaching_datapoints) =
+                evaluate_with_breaches(rule, window(readings, evaluation_range(rule)));
+
+            RuleState {
+                severity: severity.clone(),
+                state,
+                threshold: rule.threshold,
+                comparison_operator: rule.comparison_operator,
+                evaluation_periods: rule.evaluation_periods,
+                datapoints_to_alarm: rule.datapoints_to_alarm,
+                treat_missing_data: rule.treat_missing_data,
+                breaching_datapoints,
+                description: rule.description.clone(),
+            }
         })
         .collect();
     rules.sort_by(|one, other| one.severity.cmp(&other.severity));
@@ -245,7 +268,7 @@ fn evaluated(id: &str, definition: &AlarmDefinition, readings: &[Option<f64>]) -
             readings: readings.to_vec(),
             rules,
         },
-        ..describe(id, definition)
+        ..describe(id, definition, range)
     }
 }
 
@@ -259,25 +282,29 @@ fn window(readings: &[Option<f64>], width: u32) -> &[Option<f64>] {
         .unwrap_or(readings)
 }
 
-fn unread(id: &str, definition: &AlarmDefinition, reason: Unread) -> Evaluation {
+fn unread(id: &str, definition: &AlarmDefinition, range: TimeRange, reason: Unread) -> Evaluation {
     Evaluation {
         outcome: Outcome::Unread { reason },
-        ..describe(id, definition)
+        ..describe(id, definition, range)
     }
 }
 
-fn describe(id: &str, definition: &AlarmDefinition) -> Evaluation {
+fn describe(id: &str, definition: &AlarmDefinition, range: TimeRange) -> Evaluation {
     Evaluation {
         id: id.to_owned(),
         name: definition.name.clone(),
         classification: definition.classification.clone(),
+        namespace: definition.namespace.clone(),
         metric_name: definition.metric_name.clone(),
+        statistic: definition.statistic,
         dimensions: definition
             .dimensions
             .iter()
             .map(|dimension| (dimension.name.clone(), dimension.value.clone()))
             .collect(),
         period: definition.period,
+        range_start: range.start,
+        range_end: range.end,
         outcome: Outcome::Unread {
             reason: Unread::SeriesMissing,
         },
