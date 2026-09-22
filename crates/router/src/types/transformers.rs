@@ -2909,6 +2909,22 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
     }
 }
 
+impl ForeignTryFrom<storage::CardIssuerListItem> for card_issuer_types::CardIssuerResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(from: storage::CardIssuerListItem) -> Result<Self, Self::Error> {
+        let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "issuer_name".into(),
+            },
+        )?;
+        Ok(Self {
+            id: from.id,
+            issuer_name,
+        })
+    }
+}
+
 impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 

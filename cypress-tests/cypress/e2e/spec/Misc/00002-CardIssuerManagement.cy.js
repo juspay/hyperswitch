@@ -35,7 +35,7 @@ describe("Card Issuer Management", () => {
     });
 
     it("should list card issuers", () => {
-      cy.listCardIssuers("", 30, globalState);
+      cy.listCardIssuers(globalState);
     });
 
     it("should update an existing card issuer", () => {
@@ -45,11 +45,6 @@ describe("Card Issuer Management", () => {
         { issuer_name: newName },
         globalState
       );
-    });
-
-    it("should list card issuers with query filter", () => {
-      const query = "Updated";
-      cy.listCardIssuers(query, 30, globalState);
     });
   });
 
@@ -66,14 +61,6 @@ describe("Card Issuer Management", () => {
   });
 
   context("Edge Case Tests", () => {
-    it("should handle listing with limit of 1", () => {
-      cy.listCardIssuers("", 1, globalState);
-    });
-
-    it("should handle listing with empty query", () => {
-      cy.listCardIssuers("", 50, globalState);
-    });
-
     it("should fail to update non-existent issuer", () => {
       cy.updateCardIssuer(
         "non-existent-id-12345",

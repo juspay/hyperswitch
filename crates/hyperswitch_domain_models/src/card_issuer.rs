@@ -22,9 +22,7 @@ pub trait CardIssuersInterface {
 
     async fn list_card_issuers(
         &self,
-        query: Option<String>,
-        limit: Option<u8>,
-    ) -> errors::CustomResult<Vec<card_issuer::CardIssuer>, Self::Error>;
+    ) -> errors::CustomResult<Vec<card_issuer::CardIssuerListItem>, Self::Error>;
 
     async fn get_card_issuers_by_ids(
         &self,

@@ -81,11 +81,10 @@ pub async fn delete_card_issuer(
 #[instrument(skip_all)]
 pub async fn list_card_issuers(
     state: SessionState,
-    query: api_types::CardIssuerListQuery,
 ) -> RouterResponse<api_types::CardIssuerListResponse> {
     let issuers = state
         .store
-        .list_card_issuers(query.query, Some(query.limit))
+        .list_card_issuers()
         .await
         .map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))?;
 
