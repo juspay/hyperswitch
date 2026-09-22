@@ -244,6 +244,16 @@ impl PaymentIntent {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn set_business_details(
+        &mut self,
+        business_details: (common_enums::CountryAlpha2, String),
+    ) {
+        let (business_country, business_label) = business_details;
+        self.business_country = Some(business_country);
+        self.business_label = Some(business_label);
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, to complete the redirection flow
     pub fn create_start_redirection_url(

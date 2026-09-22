@@ -6154,7 +6154,7 @@ where
     )
     .await?;
 
-    if let Some((business_country, business_label)) = payment_data
+    if let Some(business_details) = payment_data
         .get_payment_intent()
         .get_business_details_to_set(
             merchant_connector_account.get_business_details(),
@@ -6165,8 +6165,7 @@ where
         .attach_printable("Failed to resolve business details for the payment")?
     {
         let mut payment_intent = payment_data.get_payment_intent().clone();
-        payment_intent.business_country = Some(business_country);
-        payment_intent.business_label = Some(business_label);
+        payment_intent.set_business_details(business_details);
         payment_data.set_payment_intent(payment_intent);
     }
 
