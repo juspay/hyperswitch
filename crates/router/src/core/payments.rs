@@ -878,6 +878,7 @@ where
                 &operation,
                 platform,
                 &mut payment_data,
+                &business_profile,
                 state,
                 &mut frm_info,
                 &mut should_continue_transaction,
