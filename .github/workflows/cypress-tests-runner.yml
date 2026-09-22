@@ -332,13 +332,6 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
       - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
@@ -385,11 +378,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
-
-      - name: Show sccache stats
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -626,12 +614,6 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
       - name: Download hyperswitch server binary from S3
         shell: bash
         run: .github/scripts/download-hyperswitch-binary-s3.sh
@@ -672,11 +654,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
-
-      - name: Show sccache stats
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: sccache --show-stats
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -915,13 +892,6 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
       - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
@@ -967,11 +937,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
-
-      - name: Show sccache stats
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1359,12 +1324,6 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
       - name: Download hyperswitch server binary from S3
         shell: bash
         run: .github/scripts/download-hyperswitch-binary-s3.sh
@@ -1405,11 +1364,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
-
-      - name: Show sccache stats
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: sccache --show-stats
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1589,23 +1543,11 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
-
-      - name: Show sccache stats
-        if: ${{ always() && env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: sccache --show-stats
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
