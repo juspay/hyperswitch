@@ -18,7 +18,7 @@ use crate::{
     logger,
     settings::cloudwatch::{AlarmDefinition, CloudWatchSettings},
     state::AppState,
-    utils::{evaluation_cadence, latest_completed_period},
+    utils::{evaluation_cadence, latest_settled_period},
 };
 
 /// What `GetMetricData` accepts in one call, mirroring the provider's own limit. Exceeding it
@@ -43,7 +43,8 @@ enum Window {
     Previous,
 }
 
-/// Evaluate the catalogue as of `now`, and again as it stood one evaluation earlier.
+/// Evaluate the catalogue at the latest publication-settled boundary before `now`, and again as
+/// it stood one evaluation earlier.
 ///
 /// Two reads rather than one wider one: a 300-second window ending a minute earlier sits on
 /// a different bucket grid, since buckets anchor at the request's start. One response cannot
@@ -63,7 +64,7 @@ pub async fn compare_catalogue(state: &AppState, now: OffsetDateTime) -> Compari
     }
 }
 
-/// Evaluate every configured definition as of `now`.
+/// Evaluate every configured definition at the latest publication-settled boundary before `now`.
 pub async fn evaluate_catalogue(state: &AppState, now: OffsetDateTime) -> Catalogue {
     let Some(provider) = state.metrics.as_deref() else {
         // Boot refuses a catalogue with no client, so there is nothing to evaluate.
@@ -124,9 +125,10 @@ fn batches<'a>(
         .map(evaluation_range)
         .max()
         .unwrap_or(1);
+    let settled = latest_settled_period(now, period);
     let end = match window {
-        Window::Current => latest_completed_period(now, period),
-        Window::Previous => latest_completed_period(now, period) - evaluation_cadence(period),
+        Window::Current => settled,
+        Window::Previous => settled - evaluation_cadence(period),
     };
     let range = TimeRange::ending_at(end, period, width);
 
@@ -456,15 +458,15 @@ mod tests {
 
         assert_eq!(requests.len(), 2, "one per period, not one per definition");
 
-        // 60s, widest window 5, so 5 + 2 periods back from the latest completed minute.
+        // 60s, widest window 5, so 5 + 2 periods back from the latest settled minute.
         assert_eq!(requests[0].queries.len(), 2);
-        assert_eq!(requests[0].range.end, datetime!(2026-09-11 12:07:00 UTC));
-        assert_eq!(requests[0].range.start, datetime!(2026-09-11 12:00:00 UTC));
+        assert_eq!(requests[0].range.end, datetime!(2026-09-11 12:05:00 UTC));
+        assert_eq!(requests[0].range.start, datetime!(2026-09-11 11:58:00 UTC));
 
         // 300s, window 3, so 5 buckets ending on the same minute — off the five-minute grid,
         // which is what CloudWatch's sliding window does.
         assert_eq!(requests[1].queries.len(), 1);
-        assert_eq!(requests[1].range.start, datetime!(2026-09-11 11:42:00 UTC));
+        assert_eq!(requests[1].range.start, datetime!(2026-09-11 11:40:00 UTC));
     }
 
     #[tokio::test]
@@ -713,11 +715,11 @@ mod tests {
         // sliced out of the current one.
         assert_eq!(
             five_minutely_before.range.start,
-            datetime!(2026-09-11 11:41:00 UTC)
+            datetime!(2026-09-11 11:39:00 UTC)
         );
         assert_eq!(
             five_minutely.range.start,
-            datetime!(2026-09-11 11:42:00 UTC)
+            datetime!(2026-09-11 11:40:00 UTC)
         );
     }
 }

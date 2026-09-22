@@ -3,6 +3,14 @@
 use external_services::metrics_service::Period;
 use time::{Duration, OffsetDateTime};
 
+/// How long an evaluation waits for a completed CloudWatch period to become readable.
+///
+/// Metric producers publish asynchronously. Evaluating the newest completed minute can therefore
+/// reconstruct both sides of a transition before a late datapoint exists, then observe only the
+/// recovery after it arrives. Two minutes is a temporary watermark until transition state is
+/// persisted.
+const METRIC_PUBLICATION_DELAY: Duration = Duration::minutes(2);
+
 /// How often CloudWatch re-evaluates a rule of this period, which is also how far apart two
 /// consecutive evaluations are.
 ///
@@ -21,6 +29,11 @@ pub fn latest_completed_period(now: OffsetDateTime, period: Period) -> OffsetDat
     (now - Duration::seconds(elapsed))
         .replace_nanosecond(0)
         .unwrap_or(now)
+}
+
+/// The latest evaluation boundary whose metric data has had time to arrive.
+pub fn latest_settled_period(now: OffsetDateTime, period: Period) -> OffsetDateTime {
+    latest_completed_period(now - METRIC_PUBLICATION_DELAY, period)
 }
 
 #[cfg(test)]
@@ -53,6 +66,14 @@ mod tests {
         assert_eq!(
             latest_completed_period(NOW, Period::from_seconds(1)),
             datetime!(2026-09-11 12:07:42 UTC)
+        );
+    }
+
+    #[test]
+    fn an_evaluation_waits_two_minutes_for_metrics_to_settle() {
+        assert_eq!(
+            latest_settled_period(NOW, Period::ONE_MINUTE),
+            datetime!(2026-09-11 12:05:00 UTC)
         );
     }
 
