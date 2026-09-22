@@ -1,0 +1,8 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with Invalid card details",
+    "Scenario2-Confirming the payment without PMD",
+    "Scenario4-Create 3DS payment with greater capture",
+    "Scenario5-Refund for unsuccessful payment"
+  ]
+}
