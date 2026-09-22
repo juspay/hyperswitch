@@ -2,7 +2,11 @@ use std::str::FromStr;
 
 use api_models::subscription as subscription_types;
 use common_enums::{connector_enums, CallConnectorAction};
-use common_utils::{ext_traits::ValueExt, pii};
+use common_utils::{
+    ext_traits::ValueExt,
+    pii,
+    request::{Method, RequestBuilder},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response as errors,
@@ -23,6 +27,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api_client, configs::MerchantConnectorAccountType, connector_integration_interface,
 };
+use hyperswitch_masking::{Mask, PeekInterface, Secret};
 
 use crate::{errors::SubscriptionResult, state::SubscriptionState as SessionState};
 
@@ -33,10 +38,78 @@ pub struct BillingHandler {
     pub connector_params: hyperswitch_domain_models::connector_endpoints::ConnectorParams,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub test_mode: Option<bool>,
 }
 
 #[allow(clippy::todo)]
 impl BillingHandler {
+    pub fn configured_payment_connector_id(&self) -> Option<&str> {
+        self.connector_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peek().get("payment_merchant_connector_id"))
+            .and_then(serde_json::Value::as_str)
+    }
+
+    pub async fn validate_stripe_account_pair(
+        &self,
+        state: &SessionState,
+        merchant_account: &hyperswitch_domain_models::merchant_account::MerchantAccount,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        payment_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+    ) -> SubscriptionResult<()> {
+        let payment_mca = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                merchant_account.get_id(),
+                payment_connector_id,
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: payment_connector_id.get_string_repr().to_string(),
+            })?;
+        if payment_mca.connector_name != "stripe" {
+            return Err(errors::ApiErrorResponse::IncorrectConnectorNameGiven.into());
+        }
+        if self.test_mode != payment_mca.test_mode {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Stripe Billing and payment connectors use different test/live modes"
+                    .to_string(),
+            }
+            .into());
+        }
+        let payment_auth: hyperswitch_domain_models::router_data::ConnectorAuthType =
+            MerchantConnectorAccountType::DbVal(Box::new(payment_mca))
+                .get_connector_account_details()
+                .parse_value("ConnectorAuthType")
+                .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "connector_account_details".to_string(),
+                    expected_format: "auth_type and api_key".to_string(),
+                })?;
+
+        let billing_key = header_api_key(&self.auth_type)?;
+        let payment_key = header_api_key(&payment_auth)?;
+        if stripe_key_mode(billing_key)? != stripe_key_mode(payment_key)? {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Stripe Billing and payment connector keys use different test/live modes"
+                    .to_string(),
+            }
+            .into());
+        }
+        let base_url = self.connector_params.base_url.trim_end_matches('/');
+        let billing_account = stripe_account_id(state, base_url, billing_key).await?;
+        let payment_account = stripe_account_id(state, base_url, payment_key).await?;
+        if billing_account != payment_account {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "Stripe Billing and payment connectors belong to different Stripe accounts"
+                        .to_string(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+
     pub async fn create(
         state: &SessionState,
         merchant_account: &hyperswitch_domain_models::merchant_account::MerchantAccount,
@@ -97,6 +170,7 @@ impl BillingHandler {
             connector_params,
             connector_metadata: billing_processor_mca.metadata.clone(),
             merchant_connector_id,
+            test_mode: billing_processor_mca.test_mode,
         })
     }
 
@@ -173,7 +247,9 @@ impl BillingHandler {
         &self,
         state: &SessionState,
         subscription: hyperswitch_domain_models::subscription::Subscription,
+        connector_customer_id: Option<String>,
         item_price_id: Option<String>,
+        default_payment_method: Option<Secret<String>>,
         billing_address: Option<api_models::payments::Address>,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
@@ -185,13 +261,21 @@ impl BillingHandler {
         let subscription_req = subscription_request_types::SubscriptionCreateRequest {
             subscription_id: subscription.id.to_owned(),
             customer_id: subscription.customer_id.to_owned(),
+            connector_customer_id,
             subscription_items: vec![subscription_item],
+            default_payment_method: default_payment_method.clone(),
             billing_address: billing_address.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "billing".into(),
                 },
             )?,
-            auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
+            // Stripe Billing 订阅要求自动扣款；缺少可复用凭证时直接拒绝，
+            // 不得静默回退到无法收款的 `send_invoice` 流程。
+            auto_collection: if self.connector_name == connector_enums::Connector::Stripebilling {
+                subscription_request_types::SubscriptionAutoCollection::On
+            } else {
+                subscription_request_types::SubscriptionAutoCollection::Off
+            },
             connector_params: self.connector_params.clone(),
         };
 
@@ -358,7 +442,11 @@ impl BillingHandler {
         request: &subscription_types::PauseSubscriptionRequest,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionPauseResponse> {
         let pause_subscription_request = subscription_request_types::SubscriptionPauseRequest {
-            subscription_id: subscription.id.clone(),
+            connector_subscription_id: subscription.connector_subscription_id.clone().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "connector_subscription_id".into(),
+                },
+            )?,
             pause_option: request.pause_option.clone(),
             pause_date: request.pause_at,
         };
@@ -389,7 +477,11 @@ impl BillingHandler {
         request: &subscription_types::ResumeSubscriptionRequest,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionResumeResponse> {
         let resume_subscription_request = subscription_request_types::SubscriptionResumeRequest {
-            subscription_id: subscription.id.clone(),
+            connector_subscription_id: subscription.connector_subscription_id.clone().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "connector_subscription_id".into(),
+                },
+            )?,
             resume_date: request.resume_date,
             charges_handling: request.charges_handling.clone(),
             resume_option: request.resume_option.clone(),
@@ -422,7 +514,11 @@ impl BillingHandler {
         request: &subscription_types::CancelSubscriptionRequest,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCancelResponse> {
         let cancel_subscription_request = subscription_request_types::SubscriptionCancelRequest {
-            subscription_id: subscription.id.clone(),
+            connector_subscription_id: subscription.connector_subscription_id.clone().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "connector_subscription_id".into(),
+                },
+            )?,
             cancel_date: request.cancel_at,
             account_receivables_handling: request.account_receivables_handling.clone(),
             cancel_option: request.cancel_option.clone(),
@@ -535,5 +631,113 @@ impl BillingHandler {
             }
             .into()),
         }
+    }
+}
+
+fn header_api_key(
+    auth: &hyperswitch_domain_models::router_data::ConnectorAuthType,
+) -> SubscriptionResult<&Secret<String>> {
+    match auth {
+        hyperswitch_domain_models::router_data::ConnectorAuthType::HeaderKey { api_key } => {
+            Ok(api_key)
+        }
+        _ => Err(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details".to_string(),
+            expected_format: "HeaderKey auth_type with api_key".to_string(),
+        }
+        .into()),
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StripeKeyMode {
+    Test,
+    Live,
+}
+
+const STRIPE_SECRET_TEST_KEY_PREFIX: &str = "sk_test_";
+const STRIPE_RESTRICTED_TEST_KEY_PREFIX: &str = "rk_test_";
+const STRIPE_SECRET_LIVE_KEY_PREFIX: &str = "sk_live_";
+const STRIPE_RESTRICTED_LIVE_KEY_PREFIX: &str = "rk_live_";
+
+fn stripe_key_mode(api_key: &Secret<String>) -> SubscriptionResult<StripeKeyMode> {
+    let key = api_key.peek();
+    if key.starts_with(STRIPE_SECRET_TEST_KEY_PREFIX)
+        || key.starts_with(STRIPE_RESTRICTED_TEST_KEY_PREFIX)
+    {
+        Ok(StripeKeyMode::Test)
+    } else if key.starts_with(STRIPE_SECRET_LIVE_KEY_PREFIX)
+        || key.starts_with(STRIPE_RESTRICTED_LIVE_KEY_PREFIX)
+    {
+        Ok(StripeKeyMode::Live)
+    } else {
+        Err(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details.api_key".to_string(),
+            expected_format: "Stripe sk_test_, rk_test_, sk_live_, or rk_live_ key".to_string(),
+        }
+        .into())
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct StripeAccountResponse {
+    id: String,
+}
+
+async fn stripe_account_id(
+    state: &SessionState,
+    base_url: &str,
+    api_key: &Secret<String>,
+) -> SubscriptionResult<String> {
+    let request = RequestBuilder::new()
+        .method(Method::Get)
+        .url(&format!("{base_url}/v1/account"))
+        .attach_default_headers()
+        .headers(vec![(
+            "Authorization".to_string(),
+            format!("Bearer {}", api_key.peek()).into_masked(),
+        )])
+        .build();
+    let response = state
+        .api_client
+        .send_request(state, request, Some(10), false)
+        .await
+        .change_context(errors::ApiErrorResponse::SubscriptionError {
+            operation: "Validate Stripe Connector Account".to_string(),
+        })?
+        .error_for_status()
+        .change_context(errors::ApiErrorResponse::SubscriptionError {
+            operation: "Validate Stripe Connector Account".to_string(),
+        })?;
+    response
+        .json::<StripeAccountResponse>()
+        .await
+        .map(|account| account.id)
+        .change_context(errors::ApiErrorResponse::SubscriptionError {
+            operation: "Validate Stripe Connector Account".to_string(),
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_masking::Secret;
+
+    use super::{stripe_key_mode, StripeKeyMode};
+
+    #[test]
+    fn rejects_test_and_live_key_mode_mismatch() {
+        let test = stripe_key_mode(&Secret::new("sk_test_example".to_string()))
+            .expect("test key should be recognized");
+        let live = stripe_key_mode(&Secret::new("sk_live_example".to_string()))
+            .expect("live key should be recognized");
+
+        assert!(matches!(test, StripeKeyMode::Test));
+        assert!(matches!(live, StripeKeyMode::Live));
+        assert!(test != live);
+    }
+
+    #[test]
+    fn rejects_unknown_stripe_key_mode() {
+        assert!(stripe_key_mode(&Secret::new("unknown_key".to_string())).is_err());
     }
 }

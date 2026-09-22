@@ -473,6 +473,19 @@ impl IncomingWebhook for ConnectorEnum {
             Self::New(connector) => connector.get_subscription_mit_payment_data(request),
         }
     }
+
+    fn get_subscription_webhook_data(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        hyperswitch_domain_models::router_flow_types::SubscriptionWebhookData,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_subscription_webhook_data(request),
+            Self::New(connector) => connector.get_subscription_webhook_data(request),
+        }
+    }
 }
 
 impl ConnectorRedirectResponse for ConnectorEnum {

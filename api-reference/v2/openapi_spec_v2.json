@@ -33926,8 +33926,52 @@
             "type": "boolean",
             "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
             "nullable": true
+          },
+          "hosted_checkout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeHostedCheckoutConfig"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "StripeHostedCheckoutConfig": {
+        "type": "object",
+        "required": [
+          "allow_promotion_codes"
+        ],
+        "properties": {
+          "allow_promotion_codes": {
+            "type": "boolean",
+            "description": "是否显示 Stripe Checkout 原生优惠码输入框。"
+          },
+          "subscription_price_id": {
+            "type": "string",
+            "description": "提供 Stripe Price ID 时创建并维护 Stripe 原生订阅。\n未提供时继续使用一次性支付模式，保持向后兼容。",
+            "nullable": true
+          },
+          "subscription_reference_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionId"
+              }
+            ],
+            "description": "写入 Stripe Subscription 元数据的 Hyperswitch 内部订阅 ID，确保浏览器未返回时，\n首个账单 webhook 仍能完成订阅绑定。",
+            "nullable": true
+          },
+          "subscription_binding": {
+            "type": "string",
+            "description": "Hyperswitch 订阅客户端密钥的 SHA-256 十六进制摘要。\n必须与 `subscription_reference_id` 同时提供，且不得包含原始密钥。",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubscriptionId": {
+        "type": "string",
+        "description": "A type for subscription_id that can be used for subscription ids"
       },
       "StripeSplitPaymentRequest": {
         "type": "object",

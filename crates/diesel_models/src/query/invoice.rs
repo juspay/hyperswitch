@@ -39,6 +39,21 @@ impl Invoice {
         .await
     }
 
+    pub async fn update_invoice_entry_if_status(
+        conn: &DatabaseConnectionWithContext<'_>,
+        id: String,
+        expected_status: common_enums::InvoiceStatus,
+        invoice_update: InvoiceUpdate,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::id.eq(id).and(dsl::status.eq(expected_status)),
+            invoice_update,
+        )
+        .await
+        .map(|mut rows| rows.pop())
+    }
+
     pub async fn list_invoices_by_subscription_id(
         conn: &DatabaseConnectionWithContext<'_>,
         subscription_id: String,

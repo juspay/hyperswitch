@@ -73,6 +73,7 @@ pub struct Subscription {
     pub merchant_reference_id: Option<String>,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub last_applied_billing_period_end: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -139,6 +140,7 @@ impl super::behaviour::Conversion for Subscription {
             merchant_reference_id: self.merchant_reference_id,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            last_applied_billing_period_end: self.last_applied_billing_period_end,
         })
     }
 
@@ -168,6 +170,7 @@ impl super::behaviour::Conversion for Subscription {
             merchant_reference_id: item.merchant_reference_id,
             plan_id: item.plan_id,
             item_price_id: item.item_price_id,
+            last_applied_billing_period_end: item.last_applied_billing_period_end,
         })
     }
 
@@ -207,6 +210,14 @@ pub trait SubscriptionInterface {
         subscription_id: String,
     ) -> CustomResult<Subscription, Self::Error>;
 
+    async fn find_by_merchant_id_connector_subscription_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        connector_subscription_id: String,
+    ) -> CustomResult<Subscription, Self::Error>;
+
     async fn update_subscription_entry(
         &self,
         key_store: &MerchantKeyStore,
@@ -214,6 +225,36 @@ pub trait SubscriptionInterface {
         subscription_id: String,
         data: SubscriptionUpdate,
     ) -> CustomResult<Subscription, Self::Error>;
+
+    async fn update_subscription_entry_if_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        data: SubscriptionUpdate,
+    ) -> CustomResult<Option<Subscription>, Self::Error>;
+
+    async fn update_subscription_entry_if_status_and_invoice_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        expected_status: String,
+        invoice_id: common_utils::id_type::InvoiceId,
+        expected_invoice_status: common_enums::InvoiceStatus,
+        billing_period_end: PrimitiveDateTime,
+        data: SubscriptionUpdate,
+    ) -> CustomResult<Option<Subscription>, Self::Error>;
+
+    async fn bind_connector_subscription_id_if_unset_or_equal(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        subscription_id: String,
+        connector_subscription_id: String,
+        data: SubscriptionUpdate,
+    ) -> CustomResult<Option<Subscription>, Self::Error>;
 
     async fn list_by_merchant_id_profile_id(
         &self,
@@ -232,6 +273,7 @@ pub struct SubscriptionUpdate {
     pub modified_at: PrimitiveDateTime,
     pub plan_id: Option<String>,
     pub item_price_id: Option<String>,
+    pub last_applied_billing_period_end: Option<PrimitiveDateTime>,
 }
 
 impl SubscriptionUpdate {
@@ -249,6 +291,7 @@ impl SubscriptionUpdate {
             modified_at: common_utils::date_time::now(),
             plan_id,
             item_price_id,
+            last_applied_billing_period_end: None,
         }
     }
 
@@ -270,6 +313,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: self.modified_at,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            last_applied_billing_period_end: self.last_applied_billing_period_end,
         })
     }
 
@@ -289,6 +333,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: item.modified_at,
             plan_id: item.plan_id,
             item_price_id: item.item_price_id,
+            last_applied_billing_period_end: item.last_applied_billing_period_end,
         })
     }
 
@@ -300,6 +345,7 @@ impl super::behaviour::Conversion for SubscriptionUpdate {
             modified_at: self.modified_at,
             plan_id: self.plan_id,
             item_price_id: self.item_price_id,
+            last_applied_billing_period_end: self.last_applied_billing_period_end,
         })
     }
 }

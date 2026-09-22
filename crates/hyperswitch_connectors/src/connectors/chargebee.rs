@@ -715,7 +715,7 @@ impl_chargebee_integration!(
     response: SubscriptionPauseResponse,
     router_data: SubscriptionPauseRouterData,
     connector_response: chargebee::ChargebeePauseSubscriptionResponse,
-    url_path: |req| Some(format!("v2/subscriptions/{}/pause", req.request.subscription_id.get_string_repr())),
+    url_path: |req| Some(format!("v2/subscriptions/{}/pause", req.request.connector_subscription_id)),
     method: Method::Post,
     request_body: build_subscription_pause_request_body
 );
@@ -730,7 +730,7 @@ impl_chargebee_integration!(
     response: SubscriptionResumeResponse,
     router_data: SubscriptionResumeRouterData,
     connector_response: chargebee::ChargebeeResumeSubscriptionResponse,
-    url_path: |req| Some(format!("v2/subscriptions/{}/resume", req.request.subscription_id.get_string_repr())),
+    url_path: |req| Some(format!("v2/subscriptions/{}/resume", req.request.connector_subscription_id)),
     method: Method::Post,
     request_body: build_subscription_resume_request_body
 );
@@ -745,7 +745,7 @@ impl_chargebee_integration!(
     response: SubscriptionCancelResponse,
     router_data: SubscriptionCancelRouterData,
     connector_response: chargebee::ChargebeeCancelSubscriptionResponse,
-    url_path: |req| Some(format!("v2/subscriptions/{}/cancel_for_items", req.request.subscription_id.get_string_repr())),
+    url_path: |req| Some(format!("v2/subscriptions/{}/cancel_for_items", req.request.connector_subscription_id)),
     method: Method::Post,
     request_body: build_subscription_cancel_request_body
 );
@@ -904,7 +904,10 @@ impl webhooks::IncomingWebhook for Chargebee {
                 status: chargebee_mit_data.status.map(|s| s.into()),
                 customer_id: chargebee_mit_data.customer_id,
                 subscription_id: chargebee_mit_data.subscription_id,
+                hyperswitch_subscription_id: None,
+                hyperswitch_subscription_binding: None,
                 first_invoice: chargebee_mit_data.first_invoice,
+                billing_period_end: None,
             },
         )
     }

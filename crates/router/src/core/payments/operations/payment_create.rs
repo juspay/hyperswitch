@@ -1257,6 +1257,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         )?;
 
         helpers::validate_payment_method_fields_present(request)?;
+        helpers::validate_stripe_hosted_checkout_request(request)?;
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
@@ -1303,6 +1304,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 &mandate_type,
                 &request.payment_token,
                 &request.ctp_service_details,
+                request.connector_metadata.as_ref(),
             )?;
 
             helpers::validate_customer_id_mandatory_cases(

@@ -9860,6 +9860,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "time 0.3.41",
  "tokio 1.48.0",
 ]
 
@@ -9975,6 +9976,7 @@ dependencies = [
  "common_utils",
  "dyn-clone",
  "error-stack 0.4.1",
+ "hex",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "hyperswitch_masking",
@@ -9982,6 +9984,7 @@ dependencies = [
  "scheduler",
  "serde",
  "serde_json",
+ "sha2",
  "storage_impl",
  "time 0.3.41",
 ]

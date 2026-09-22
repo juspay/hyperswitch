@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS invoice_subscription_billing_period_end_index;
