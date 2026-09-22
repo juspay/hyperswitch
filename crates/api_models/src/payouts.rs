@@ -1502,15 +1502,17 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_account_type,
                 account_holder_name,
                 ..
-            }) => Self::Ted(Box::new(payout_method_utils::TedBankTransferAdditionalData {
-                bank_account_number: bank_account_number.into(),
-                bank_name,
-                bank_code,
-                ispb,
-                bank_branch,
-                bank_account_type,
-                account_holder_name,
-            })),
+            }) => Self::Ted(Box::new(
+                payout_method_utils::TedBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    bank_name,
+                    bank_code,
+                    ispb,
+                    bank_branch,
+                    bank_account_type,
+                    account_holder_name,
+                },
+            )),
         }
     }
 }
@@ -1669,15 +1671,17 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_account_type,
                 account_holder_name,
                 ..
-            }) => Self::Ted(Box::new(payout_method_utils::TedBankTransferAdditionalData {
-                bank_account_number: bank_account_number.into(),
-                bank_name,
-                bank_code,
-                ispb,
-                bank_branch,
-                bank_account_type,
-                account_holder_name,
-            })),
+            }) => Self::Ted(Box::new(
+                payout_method_utils::TedBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    bank_name,
+                    bank_code,
+                    ispb,
+                    bank_branch,
+                    bank_account_type,
+                    account_holder_name,
+                },
+            )),
         }
     }
 }

@@ -1090,22 +1090,30 @@ impl Vaultable for api::BankPayout {
                     account_holder_name: bank_sensitive_data.account_holder_name,
                 })
             }
-            (Some(ban), None, None, None, None, None, tax_id, None, Some(PaymentMethodType::Ted)) => {
-                Self::Ted(payouts::TedBankTransfer {
-                    bank_account_number: ban,
-                    bank_branch: bank_insensitive_data.bank_branch,
-                    bank_name: bank_insensitive_data
-                        .bank_name
-                        .map(|bank_name| BankNames::from_str(&bank_name))
-                        .transpose()
-                        .change_context(errors::VaultError::ResponseDeserializationFailed)?,
-                    bank_code: bank_insensitive_data.bank_code,
-                    bank_account_type: bank_insensitive_data.bank_account_type,
-                    tax_id,
-                    account_holder_name: bank_sensitive_data.account_holder_name,
-                    ispb: bank_insensitive_data.ispb,
-                })
-            }
+            (
+                Some(ban),
+                None,
+                None,
+                None,
+                None,
+                None,
+                tax_id,
+                None,
+                Some(PaymentMethodType::Ted),
+            ) => Self::Ted(payouts::TedBankTransfer {
+                bank_account_number: ban,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data
+                    .bank_name
+                    .map(|bank_name| BankNames::from_str(&bank_name))
+                    .transpose()
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+                bank_code: bank_insensitive_data.bank_code,
+                bank_account_type: bank_insensitive_data.bank_account_type,
+                tax_id,
+                account_holder_name: bank_sensitive_data.account_holder_name,
+                ispb: bank_insensitive_data.ispb,
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
