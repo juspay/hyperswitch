@@ -404,7 +404,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        router_env::logger::info!("Fiuu raw authorize response: {}", String::from_utf8_lossy(&res.response));
+        router_env::logger::info!(
+            "Fiuu raw authorize response: {}",
+            String::from_utf8_lossy(&res.response)
+        );
         let response: fiuu::FiuuPaymentsResponse = res
             .response
             .parse_struct("Fiuu FiuuPaymentsResponse")
@@ -613,10 +616,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        router_env::logger::info!(
-            "Fiuu void txnID: {}",
-            req.request.connector_transaction_id
-        );
+        router_env::logger::info!("Fiuu void txnID: {}", req.request.connector_transaction_id);
         build_form_from_struct(fiuu::FiuuPaymentCancelRequest::try_from(req)?)
             .change_context(errors::ConnectorError::ParsingFailed)
     }
