@@ -3994,6 +3994,14 @@ pub fn get_banks(
     pm_type: common_enums::enums::PaymentMethodType,
     connectors: Vec<String>,
 ) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
+    get_banks_from_config(&state.conf.bank_config, pm_type, connectors)
+}
+
+fn get_banks_from_config(
+    bank_config: &settings::BankRedirectConfig,
+    pm_type: common_enums::enums::PaymentMethodType,
+    connectors: Vec<String>,
+) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
     let mut bank_names_hm: HashMap<String, HashSet<common_enums::enums::BankNames>> =
         HashMap::new();
 
@@ -4008,7 +4016,7 @@ pub fn get_banks(
     } else {
         let mut bank_code_responses = vec![];
         for connector in &connectors {
-            if let Some(connector_bank_names) = state.conf.bank_config.0.get(&pm_type) {
+            if let Some(connector_bank_names) = bank_config.0.get(&pm_type) {
                 if let Some(connector_hash_set) = connector_bank_names.0.get(connector) {
                     bank_names_hm.insert(connector.clone(), connector_hash_set.banks.clone());
                 } else {
@@ -4035,8 +4043,10 @@ pub fn get_banks(
         }
 
         if !common_bank_names.is_empty() {
+            let mut bank_name: Vec<_> = common_bank_names.iter().copied().collect();
+            bank_name.sort_unstable();
             bank_code_responses.push(BankCodeResponse {
-                bank_name: common_bank_names.clone().into_iter().collect(),
+                bank_name,
                 eligible_connectors: connectors.clone(),
             });
         }
@@ -4048,11 +4058,10 @@ pub fn get_banks(
                     .collect();
 
                 if !remaining_bank_codes.is_empty() {
+                    let mut bank_name: Vec<_> = remaining_bank_codes.into_iter().copied().collect();
+                    bank_name.sort_unstable();
                     bank_code_responses.push(BankCodeResponse {
-                        bank_name: remaining_bank_codes
-                            .into_iter()
-                            .map(|ele| ele.to_owned())
-                            .collect(),
+                        bank_name,
                         eligible_connectors: vec![connector],
                     })
                 }
@@ -7375,7 +7384,7 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
         country_codes.unwrap_or_else(|| api_enums::CountryAlpha2::iter().collect::<HashSet<_>>());
 
     ListCountriesCurrenciesResponse {
-        currencies,
+        currencies: currencies.into_iter().collect(),
         countries: country_codes
             .into_iter()
             .map(|country_code| CountryCodeWithName {
@@ -7576,4 +7585,162 @@ pub async fn execute_payment_method_tokenization(
     let builder = builder.set_payment_method(&updated_payment_method);
 
     Ok(builder.build())
+}
+
+#[cfg(test)]
+mod startup_order_tests {
+    use common_enums::enums::{BankNames, CountryAlpha2, Currency, PaymentMethodType};
+    use common_utils::collections::{HashMap, HashSet};
+
+    use super::{
+        get_banks_from_config, list_countries_currencies_for_connector_payment_method_util,
+    };
+    use crate::configs::settings::{
+        BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFilters,
+        CurrencyCountryFlowFilter, PaymentMethodFilterKey, PaymentMethodFilters,
+    };
+
+    const SHARED_BANKS: [BankNames; 6] = [
+        BankNames::Absa,
+        BankNames::Barclays,
+        BankNames::Chase,
+        BankNames::Citi,
+        BankNames::Capitec,
+        BankNames::Discover,
+    ];
+
+    fn bank_config(connectors: &[(&str, Vec<BankNames>)]) -> BankRedirectConfig {
+        let connector_banks = connectors
+            .iter()
+            .map(|(connector, banks)| {
+                let banks = banks.iter().copied().collect::<HashSet<_>>();
+                (connector.to_string(), BanksVector { banks })
+            })
+            .collect::<HashMap<_, _>>();
+        BankRedirectConfig(
+            [(
+                PaymentMethodType::Ideal,
+                ConnectorBankNames(connector_banks),
+            )]
+            .into_iter()
+            .collect(),
+        )
+    }
+
+    // A settings table is built once per process, so its iteration order is
+    // that process's. Two tables with one content stand in for record and
+    // replay.
+    #[test]
+    fn bank_lists_follow_the_bank_set_not_the_process() {
+        let adyen = [
+            SHARED_BANKS.to_vec(),
+            vec![
+                BankNames::AccessBank,
+                BankNames::AfricanBank,
+                BankNames::Albaraka,
+            ],
+        ]
+        .concat();
+        let stripe = [
+            SHARED_BANKS.to_vec(),
+            vec![
+                BankNames::BankOfAmerica,
+                BankNames::BankOfChina,
+                BankNames::BankZero,
+            ],
+        ]
+        .concat();
+        let reversed = |banks: &[BankNames]| banks.iter().rev().copied().collect::<Vec<_>>();
+        let connectors = vec!["adyen".to_string(), "stripe".to_string()];
+
+        let first = get_banks_from_config(
+            &bank_config(&[("adyen", adyen.clone()), ("stripe", stripe.clone())]),
+            PaymentMethodType::Ideal,
+            connectors.clone(),
+        )
+        .expect("bank lookup");
+        let second = get_banks_from_config(
+            &bank_config(&[("stripe", reversed(&stripe)), ("adyen", reversed(&adyen))]),
+            PaymentMethodType::Ideal,
+            connectors,
+        )
+        .expect("bank lookup");
+
+        assert_eq!(
+            first.iter().map(|r| r.bank_name.len()).collect::<Vec<_>>(),
+            vec![6, 3, 3],
+            "expected one shared list and one remainder per connector"
+        );
+        assert_eq!(first, second);
+    }
+
+    fn connector_filters(currencies: &[Currency], countries: &[CountryAlpha2]) -> ConnectorFilters {
+        let filter = CurrencyCountryFlowFilter {
+            currency: Some(currencies.iter().copied().collect()),
+            country: Some(countries.iter().copied().collect()),
+            not_available_flows: None,
+        };
+        let pm_filters = PaymentMethodFilters(
+            [(
+                PaymentMethodFilterKey::PaymentMethodType(PaymentMethodType::Credit),
+                filter,
+            )]
+            .into_iter()
+            .collect(),
+        );
+        ConnectorFilters([("stripe".to_string(), pm_filters)].into_iter().collect())
+    }
+
+    #[tokio::test]
+    async fn countries_and_currencies_follow_the_filter_not_the_process() {
+        let currencies = [
+            Currency::USD,
+            Currency::EUR,
+            Currency::GBP,
+            Currency::INR,
+            Currency::JPY,
+            Currency::AUD,
+            Currency::CAD,
+            Currency::SGD,
+            Currency::CHF,
+            Currency::NZD,
+        ];
+        let countries = [
+            CountryAlpha2::US,
+            CountryAlpha2::GB,
+            CountryAlpha2::DE,
+            CountryAlpha2::IN,
+            CountryAlpha2::JP,
+            CountryAlpha2::AU,
+            CountryAlpha2::CA,
+            CountryAlpha2::SG,
+            CountryAlpha2::CH,
+            CountryAlpha2::NZ,
+        ];
+        let reversed_currencies = currencies.iter().rev().copied().collect::<Vec<_>>();
+        let reversed_countries = countries.iter().rev().copied().collect::<Vec<_>>();
+
+        let first = list_countries_currencies_for_connector_payment_method_util(
+            connector_filters(&currencies, &countries),
+            api_models::enums::Connector::Stripe,
+            PaymentMethodType::Credit,
+        )
+        .await;
+        let second = list_countries_currencies_for_connector_payment_method_util(
+            connector_filters(&reversed_currencies, &reversed_countries),
+            api_models::enums::Connector::Stripe,
+            PaymentMethodType::Credit,
+        )
+        .await;
+
+        assert_eq!(
+            (first.currencies.len(), first.countries.len()),
+            (10, 10),
+            "expected the stripe filter, not the all-currencies fallback"
+        );
+        assert_eq!(
+            serde_json::to_string(&first).expect("serialize"),
+            serde_json::to_string(&second).expect("serialize")
+        );
+    }
 }
