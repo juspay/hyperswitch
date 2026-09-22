@@ -35,10 +35,6 @@ pub struct OpenRouterDecideGatewayRequest {
     /// Algorithm to use for ranking and selecting gateways
     #[schema(value_type = Option<RankingAlgorithm>, example = "SR_BASED_ROUTING")]
     pub ranking_algorithm: Option<RankingAlgorithm>,
-
-    /// Whether elimination logic is enabled for filtering gateways
-    #[schema(value_type = Option<bool>, example = true)]
-    pub elimination_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

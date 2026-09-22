@@ -12375,6 +12375,7 @@
           "ctp_visa",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -12396,6 +12397,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -12411,6 +12413,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "juspay",
           "juspaythreedsserver",
           "klarna",
@@ -12431,8 +12434,10 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payload",
           "payme",
+          "paynearme",
           "payone",
           "paypal",
           "paysafe",
@@ -12452,6 +12457,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "saferpay",
           "santander",
           "shift4",
           "silverflow",
@@ -12481,6 +12487,7 @@
           "worldpayxml",
           "worldpaymodular",
           "signifyd",
+          "nsure",
           "plaid",
           "riskified",
           "sanlam_payshield",
@@ -12672,6 +12679,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CheckoutData"
+              }
+            ],
+            "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
               }
             ],
             "nullable": true
@@ -22902,6 +22917,13 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -23097,6 +23119,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "nullable": true,
+            "maximum": 900,
+            "minimum": 0
           }
         }
       },
@@ -27613,6 +27644,14 @@
             "example": "E0001",
             "nullable": true
           },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payout"
@@ -31981,6 +32020,7 @@
           "cryptopay",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -32002,6 +32042,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -32015,6 +32056,7 @@
           "interpayments",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "klarna",
           "loonio",
           "merchante",
@@ -32032,7 +32074,9 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payme",
+          "paynearme",
           "payload",
           "payone",
           "paypal",
@@ -32054,10 +32098,12 @@
           "redsys",
           "revolv3",
           "riskified",
+          "saferpay",
           "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
+          "nsure",
           "silverflow",
           "square",
           "stax",
@@ -33874,6 +33920,16 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
       },
       "StripeSplitPaymentRequest": {
         "type": "object",

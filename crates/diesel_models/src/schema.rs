@@ -212,6 +212,7 @@ diesel::table! {
         file_key -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
         expires_at -> Nullable<Timestamp>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -696,11 +697,11 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    fraud_check (frm_id, attempt_id, payment_id, merchant_id) {
+    fraud_check (frm_id) {
         #[max_length = 64]
         frm_id -> Varchar,
         #[max_length = 64]
-        payment_id -> Varchar,
+        payment_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -726,6 +727,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        payout_id -> Nullable<Varchar>,
     }
 }
 
@@ -1241,6 +1244,8 @@ diesel::table! {
         fingerprint_type -> Nullable<Varchar>,
         #[max_length = 255]
         payment_account_reference -> Nullable<Varchar>,
+        #[max_length = 64]
+        active_frm_id -> Nullable<Varchar>,
     }
 }
 
@@ -1537,6 +1542,8 @@ diesel::table! {
         connector_eligibility_reference_id -> Nullable<Varchar>,
         #[max_length = 255]
         connector_request_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        active_frm_id -> Nullable<Varchar>,
     }
 }
 
