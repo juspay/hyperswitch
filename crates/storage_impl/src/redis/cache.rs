@@ -44,6 +44,15 @@ pub static CONFIG_CACHE: LazyLock<Cache> =
 pub static ACCOUNTS_CACHE: LazyLock<Cache> =
     LazyLock::new(|| Cache::new("ACCOUNTS_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
+/// Merchant connector account list cache.
+///
+/// Holds whole-scope supersets of merchant connector account rows (every account of a
+/// merchant, or of a profile) which the individual list queries project from. Kept
+/// separate from [`ACCOUNTS_CACHE`] so that list hit rates and entry counts are
+/// observable on their own, and so the two can be sized independently.
+pub static MCA_LIST_CACHE: LazyLock<Cache> =
+    LazyLock::new(|| Cache::new("MCA_LIST_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
 /// Routing Cache
 pub static ROUTING_CACHE: LazyLock<Cache> =
     LazyLock::new(|| Cache::new("ROUTING_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
@@ -121,6 +130,7 @@ pub struct CacheRedact<'a> {
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
+    MerchantConnectorAccountList(Cow<'a, str>),
     Routing(Cow<'a, str>),
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
@@ -137,6 +147,7 @@ impl CacheKind<'_> {
         match self {
             CacheKind::Config(key)
             | CacheKind::Accounts(key)
+            | CacheKind::MerchantConnectorAccountList(key)
             | CacheKind::Routing(key)
             | CacheKind::DecisionManager(key)
             | CacheKind::Surcharge(key)

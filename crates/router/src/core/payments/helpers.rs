@@ -64,14 +64,12 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{serde_as, VecSkipError};
-use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
 use super::{
@@ -903,7 +901,7 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token = Uuid::new_v4().to_string();
+    let token = common_utils::generate_uuid_v4().to_string();
     let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
@@ -1544,7 +1542,7 @@ pub async fn add_domain_task_to_pt<Op>(
 where
     Op: std::fmt::Debug,
 {
-    if check_if_operation_confirm(operation) {
+    if check_if_operation_adds_payment_sync_task(operation) {
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -2512,7 +2510,7 @@ pub fn decide_payment_method_retrieval_action(
 
 pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+    db.find_config_by_key_unwrap_or(config_key, "false".to_string())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
@@ -2533,8 +2531,6 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
 #[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
     #[serde(default = "default_kill_switch_enabled")]
     pub kill_switch_enabled: bool,
@@ -2564,8 +2560,6 @@ impl Default for RolloutConfig {
     fn default() -> Self {
         Self {
             rollout_percent: 0.0,
-            http_url: None,
-            https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
@@ -2603,36 +2597,31 @@ pub struct WebhookRolloutExecutionResult {
     pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
-/// Validates a proxy URL, filtering out invalid ones and logging warnings
-fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
-    url.and_then(|url_str| {
-        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
-            logger::warn!(
-                invalid_url = %url_str,
-                url_type = url_type,
-                "Invalid proxy URL in rollout config, ignoring"
-            );
-            None
-        } else {
-            Some(url_str)
-        }
-    })
+/// Validates a proxy URL, filtering out invalid (empty or unparseable) ones and logging warnings
+fn validate_proxy_url(url: String, url_type: &str) -> Option<String> {
+    if url.trim().is_empty() || url::Url::parse(&url).is_err() {
+        logger::warn!(
+            invalid_url = %url,
+            url_type = url_type,
+            "Invalid proxy URL in comparison service config, ignoring"
+        );
+        None
+    } else {
+        Some(url)
+    }
 }
 
 /// Creates proxy override with validated URLs and logging
-fn create_proxy_override(
-    http_url: Option<String>,
-    https_url: Option<String>,
-) -> Option<ProxyOverride> {
+fn create_proxy_override(http_url: String, https_url: String) -> Option<ProxyOverride> {
     let validated_http = validate_proxy_url(http_url, "HTTP");
     let validated_https = validate_proxy_url(https_url, "HTTPS");
 
     if validated_http.is_some() || validated_https.is_some() {
         if let Some(ref http_url) = validated_http {
-            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from comparison service config");
         }
         if let Some(ref https_url) = validated_https {
-            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from comparison service config");
         }
         Some(ProxyOverride {
             http_url: validated_http,
@@ -2641,6 +2630,16 @@ fn create_proxy_override(
     } else {
         None
     }
+}
+
+/// Builds the rollout proxy override from the env-configured comparison service, rather than
+/// from the DB-backed rollout config.
+fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
+    let comparison_service = state.conf.comparison_service.as_ref()?;
+    create_proxy_override(
+        comparison_service.http_url.clone(),
+        comparison_service.https_url.clone(),
+    )
 }
 
 // Helper function to execute rollout logic or return default
@@ -2657,7 +2656,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                 Self::default()
             }
             true => {
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                let sampled_value: f64 = common_utils::generate_random_f64_unit();
                 let should_execute = sampled_value < config.rollout_percent;
 
                 logger::debug!(
@@ -2670,18 +2669,19 @@ impl From<RolloutConfig> for RolloutExecutionResult {
 
                 match should_execute {
                     true => {
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
                             execution_mode = ?config.execution_mode,
-                            "Rollout will be executed with proxy override"
+                            "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            proxy_override,
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            // Proxy override is sourced from the env-configured comparison
+                            // service, not from the DB rollout config — populated by the caller
+                            // after conversion.
+                            ..Default::default()
                         }
                     }
                     false => {
@@ -2718,38 +2718,35 @@ where
 {
     let db = state.store.as_ref();
 
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
+    match db.find_config_by_key_optional(config_key).await {
+        Ok(Some(rollout_config)) => {
             // Parse as JSON - log error if it fails but don't propagate
-            Ok(serde_json::from_str::<C>(&rollout_config.config)
+            let parsed_rollout_config: Result<C, _> =
+                rollout_config.config.parse_struct("RolloutConfig");
+            Ok(parsed_rollout_config
                 .map(R::from)
                 .map_err(|err| {
                     logger::error!(
                         error = ?err,
-                        config = %rollout_config.config,
                         "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
                     R::default()
                 })
                 .unwrap_or_default())
         }
+        // ValueNotFound may be an expected outcome when a rollout configuration has not
+        // been provisioned. Treat it as a warning to avoid generating misleading errors.
+        Ok(None) => {
+            logger::warn!(
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
+            Ok(R::default())
+        }
         Err(err) => {
-            // ValueNotFound may be an expected outcome when a rollout configuration has not
-            // been provisioned. Treat it as a warning to avoid generating misleading errors.
-            match err.current_context() {
-                errors::StorageError::ValueNotFound(_) => {
-                    logger::warn!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-                _ => {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-            }
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
             Ok(R::default())
         }
     }
@@ -2764,8 +2761,9 @@ where
 /// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
 /// 4. `ucs_rollout_config_<org_id>`                                — org level
 ///
-/// Uses `find_config_by_key_unwrap_or` with a sentinel so absent keys are cached after
-/// the first DB miss — subsequent requests hit in-memory cache instead of the DB.
+/// Uses `find_config_by_key_unwrap_or` with a sentinel default; the key's absence
+/// (not the sentinel itself) is cached after the first DB miss, so subsequent
+/// requests still hit in-memory cache instead of the DB.
 /// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
 pub async fn should_execute_based_on_rollout_with_precedence(
     state: &SessionState,
@@ -2777,7 +2775,7 @@ pub async fn should_execute_based_on_rollout_with_precedence(
         // Box the future to avoid large stack frames from nested async in debug builds
         let result = Box::pin(state.store.find_config_by_key_unwrap_or(
             key,
-            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+            consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string(),
         ))
         .await
         .ok();
@@ -2790,17 +2788,22 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             }
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
-                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                let parsed_rollout_config: Result<RolloutConfig, _> =
+                    config.config.parse_struct("RolloutConfig");
+                let mut execution_result = parsed_rollout_config
                     .map(RolloutExecutionResult::from)
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,
-                            config = %config.config,
                             "Failed to parse rollout config as JSON. Defaulting to not execute."
                         );
                         RolloutExecutionResult::default()
                     })
-                    .unwrap_or_default());
+                    .unwrap_or_default();
+                if execution_result.should_execute {
+                    execution_result.proxy_override = build_rollout_proxy_override(state);
+                }
+                return Ok(execution_result);
             }
             None => {
                 // Unexpected DB error — skip and try next key
@@ -3951,11 +3954,24 @@ pub async fn store_payment_method_data_in_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
+    let should_store_google_pay_pan_only_for_three_ds = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| api_enums::Connector::from_str(connector).ok())
+        .is_some_and(|connector| {
+            connector.should_store_google_pay_pan_only_for_three_ds(
+                payment_method,
+                payment_attempt.authentication_type,
+                payment_method_data.is_google_pay_pan_only(),
+            )
+        });
+
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
     ) || payment_intent.request_external_three_ds_authentication == Some(true)
+        || should_store_google_pay_pan_only_for_three_ds
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
@@ -3973,6 +3989,7 @@ pub async fn store_payment_method_data_in_vault(
 
     Ok(None)
 }
+
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,
@@ -4385,7 +4402,7 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", Uuid::new_v4().simple());
+    let secret = format!("epk_{}", common_utils::generate_uuid_v4().simple());
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -4608,8 +4625,11 @@ pub fn hmac_sha512_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
-pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{operations:?}") == "PaymentConfirm"
+pub fn check_if_operation_adds_payment_sync_task<Op: std::fmt::Debug>(operations: Op) -> bool {
+    matches!(
+        format!("{operations:?}").as_str(),
+        "PaymentConfirm" | "PaymentCapture"
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5261,13 +5281,21 @@ pub async fn get_merchant_connector_account(
             };
 
             let db_fetch = || async {
-                db.find_config_by_key(cloned_key.as_str())
+                let config_optional = db
+                    .find_config_by_key_optional(cloned_key.as_str())
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                             id: cloned_key.to_owned(),
                         },
+                    )?;
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::from(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: cloned_key.to_owned(),
+                        },
                     )
+                })
             };
 
             let mca_config: String = redis_fetch()
@@ -5587,9 +5615,7 @@ fn validate_manual_retry_cutoff(
     intent_fulfillment_time: Option<i64>,
     is_token_based_retry: bool,
 ) -> bool {
-    let utc_current_time = time::OffsetDateTime::now_utc();
-    let primitive_utc_current_time =
-        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let primitive_utc_current_time = common_utils::date_time::now();
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
     // Token based retries (S2S) use the fulfillment window;
@@ -5761,6 +5787,7 @@ impl AttemptType {
             applied_offer_details: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            active_frm_id: None,
         }
     }
 
@@ -6376,24 +6403,55 @@ pub async fn get_additional_payment_data(
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
-                    Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
-                        Some(token.application_expiration_month.clone()),
-                        Some(token.application_expiration_year.clone()),
-                    ),
+                let apple_pay_decrypted = payment_method_token
+                    .as_ref()
+                    .and_then(|token| token.get_apple_pay_decrypt_data());
 
-                    _ => (None, None),
-                };
+                let card_exp_month = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_application_expiration_month());
+                let card_exp_year = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_application_expiration_year());
+                let device_pan_bin = apple_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_device_pan_bin());
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: Some(Box::new(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
+                        // card_type for Apple Pay is the same as pm_type. pm_type is
+                        // retained for backward compatibility and is also used for Google Pay's payment_method_data_type.
+                        // We intentionally don't fail if pm_type cannot be deserialized into a valid CardType. We've covered
+                        // all values documented by Apple Pay, but if production sends an unexpected value, the payment
+                        // should not fail because this auxiliary field could not be deserialized.
+                        card_type: apple_pay_wallet_data
+                            .payment_method
+                            .pm_type
+                            .to_uppercase()
+                            .parse::<common_enums::CardType>()
+                            .inspect_err(|error| {
+                                logger::debug!(
+                                    ?error,
+                                    unparsed_card_type = %apple_pay_wallet_data.payment_method.pm_type,
+                                    "Received an unrecognized card_type value from Apple Pay, defaulting to None"
+                                );
+                            })
+                            .ok(),
                         card_exp_month,
                         card_exp_year,
+                        device_pan_bin,
                         // These are filled after calling the processor / connector
                         auth_code: None,
+
+                        card_bin: None,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
+                        issuer_name: None,
+                        issuer_country: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -6401,13 +6459,22 @@ pub async fn get_additional_payment_data(
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
-                let (card_exp_month, card_exp_year) = match payment_method_token {
-                    Some(PaymentMethodToken::GooglePayDecrypt(token)) => (
-                        Some(token.card_exp_month.clone()),
-                        Some(token.card_exp_year.clone()),
-                    ),
-                    _ => (None, None),
-                };
+                let google_pay_decrypted = payment_method_token
+                    .as_ref()
+                    .and_then(|token| token.get_google_pay_decrypt_data());
+
+                let card_exp_month = google_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_card_exp_month());
+                let card_exp_year = google_pay_decrypted
+                    .as_ref()
+                    .map(|token| token.get_card_exp_year());
+                let device_pan_bin = google_pay_decrypted
+                    .as_ref()
+                    .and_then(|token| token.get_device_pan_bin());
+                let card_bin = google_pay_decrypted
+                    .as_ref()
+                    .and_then(|token| token.get_card_bin());
 
                 Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                     apple_pay: None,
@@ -6415,12 +6482,23 @@ pub async fn get_additional_payment_data(
                         payment_additional_types::WalletAdditionalDataForCard {
                             last4: Some(google_pay_pm_data.info.card_details.clone()),
                             card_network: Some(google_pay_pm_data.info.card_network.clone()),
-                            card_type: Some(google_pay_pm_data.pm_type.clone()),
+                            payment_method_data_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
+                            device_pan_bin,
+                            card_bin,
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
+                            // Google Pay's wallet token does not carry a credit/debit
+                            // indicator, so this is only populated once the connector's
+                            // authorization response reports it.
+                            card_type: None,
+                            issuer_name: None,
+                            issuer_country: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6445,12 +6523,20 @@ pub async fn get_additional_payment_data(
                                     .card_brand
                                     .to_string(),
                             ),
+                            payment_method_data_type: None,
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
                             email: None,
+                            device_pan_bin: None,
+                            card_bin: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
+                            issuer_name: None,
+                            issuer_country: None,
                         },
                     )),
                     paypal: None,
@@ -7352,6 +7438,13 @@ pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
     recipient_id: hyperswitch_masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
+    /// Tokenization type the merchant configured on its MCA. `INTERNAL_GATEWAY` tokens get the
+    /// additional `gatewayMerchantId` check after decryption; every other type keeps today's
+    /// behaviour.
+    tokenization_type: api_models::payments::GooglePayTokenizationType,
+    /// Hyperswitch merchant id that was sent to Google as `gateway_merchant_id`. Set for
+    /// `INTERNAL_GATEWAY` only, and checked against the decrypted token.
+    gateway_merchant_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -7414,7 +7507,7 @@ fn check_expiration_date_is_valid(
     let expiration_time =
         time::OffsetDateTime::from_unix_timestamp_nanos(expiration_ms * 1_000_000)
             .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
 
     Ok(expiration_time > now)
 }
@@ -7459,6 +7552,8 @@ impl GooglePayTokenDecryptor {
         root_keys: hyperswitch_masking::Secret<String>,
         recipient_id: hyperswitch_masking::Secret<String>,
         private_key: hyperswitch_masking::Secret<String>,
+        tokenization_type: api_models::payments::GooglePayTokenizationType,
+        gateway_merchant_id: Option<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
@@ -7485,6 +7580,8 @@ impl GooglePayTokenDecryptor {
             root_signing_keys: filtered_root_signing_keys,
             recipient_id,
             private_key,
+            tokenization_type,
+            gateway_merchant_id,
         })
     }
 
@@ -7502,7 +7599,6 @@ impl GooglePayTokenDecryptor {
             .parse_struct("EncryptedData")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
-        // verify the signature if required
         if should_verify_signature {
             self.verify_signature(&encrypted_data)?;
         }
@@ -7532,6 +7628,16 @@ impl GooglePayTokenDecryptor {
                 .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
+        // `gatewayMerchantId` only exists once the message is decrypted, so this half of the
+        // INTERNAL_GATEWAY verification necessarily runs here rather than alongside the signature
+        // checks above.
+        if matches!(
+            self.tokenization_type,
+            api_models::payments::GooglePayTokenizationType::InternalGateway
+        ) {
+            self.verify_internal_gateway_merchant_id(&decrypted_data)?;
+        }
+
         // check the expiration date of the decrypted data
 
         if matches!(
@@ -7544,6 +7650,44 @@ impl GooglePayTokenDecryptor {
         }
     }
 
+    /// Check that the decrypted token was minted for the merchant now being paid.
+    ///
+    /// Under `INTERNAL_GATEWAY` every merchant's card is encrypted to the same gateway key, so the
+    /// key alone no longer separates one merchant from another. `gateway_merchant_id` is what
+    /// does: Google echoes back the Hyperswitch merchant id that was sent in the session response,
+    /// and a mismatch means the token belongs to a different merchant's payment.
+    fn verify_internal_gateway_merchant_id(
+        &self,
+        decrypted_data: &hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        let expected_gateway_merchant_id = self
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "gateway merchant id is not set on the decryptor for an INTERNAL_GATEWAY token",
+            )?;
+
+        let token_gateway_merchant_id = decrypted_data
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "decrypted INTERNAL_GATEWAY token does not carry a gateway merchant id",
+            )?;
+
+        if token_gateway_merchant_id != expected_gateway_merchant_id {
+            logger::warn!(
+                expected_gateway_merchant_id,
+                token_gateway_merchant_id,
+                "gateway merchant id in the token does not match the merchant"
+            );
+            Err(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+                .attach_printable("gateway merchant id in the token does not match the merchant")?;
+        }
+
+        Ok(())
+    }
     // Verify the signature of the token
     fn verify_signature(
         &self,
@@ -8078,7 +8222,30 @@ pub fn validate_payment_link_request(
             message: "return_url must be sent while creating a payment link".to_string(),
         });
     }
-    Ok(())
+
+    #[cfg(feature = "v1")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.theme_config.redirect_delay_seconds);
+
+    #[cfg(feature = "v2")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.redirect_delay_seconds);
+
+    redirect_delay
+        .filter(|&delay| delay > common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+        .map(|_| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ),
+            })
+        })
+        .unwrap_or(Ok(()))
 }
 
 /// Creates a lookup key for issuer error codes with network and code
@@ -8445,18 +8612,69 @@ pub fn add_connector_response_to_additional_payment_data(
                 samsung_pay,
                 paypal,
             },
-            AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
-            | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
+            AdditionalPaymentMethodConnectorResponse::ApplePay {
+                auth_code,
+                device_pan_bin,
+                card_bin,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                issuer_name,
+                issuer_country,
+            },
         ) => api_models::payments::AdditionalPaymentData::Wallet {
             apple_pay: apple_pay.as_ref().map(|apple_pay| {
                 Box::new(api_models::payments::ApplepayPaymentMethod {
                     auth_code: auth_code.clone(),
+                    device_pan_bin: device_pan_bin
+                        .clone()
+                        .or_else(|| apple_pay.device_pan_bin.clone()),
+                    card_bin: card_bin.clone().or_else(|| apple_pay.card_bin.clone()),
+                    card_subtype: card_subtype.clone(),
+                    card_segment_type,
+                    funding_source,
+                    issuer_name: issuer_name.clone(),
+                    issuer_country,
                     ..(**apple_pay).clone()
                 })
             }),
+            google_pay: google_pay.clone(),
+            samsung_pay: samsung_pay.clone(),
+            paypal: paypal.clone(),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal,
+            },
+            AdditionalPaymentMethodConnectorResponse::GooglePay {
+                auth_code,
+                device_pan_bin,
+                card_bin,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                card_type,
+                issuer_name,
+                issuer_country,
+            },
+        ) => api_models::payments::AdditionalPaymentData::Wallet {
+            apple_pay: apple_pay.clone(),
             google_pay: google_pay.as_ref().map(|google_pay| {
                 Box::new(payment_additional_types::WalletAdditionalDataForCard {
                     auth_code: auth_code.clone(),
+                    card_subtype: card_subtype.clone(),
+                    card_segment_type,
+                    funding_source,
+                    card_type,
+                    issuer_name: issuer_name.clone(),
+                    issuer_country,
+                    device_pan_bin: device_pan_bin
+                        .clone()
+                        .or_else(|| google_pay.device_pan_bin.clone()),
+                    card_bin: card_bin.clone().or_else(|| google_pay.card_bin.clone()),
                     ..(**google_pay).clone()
                 })
             }),
@@ -9110,7 +9328,7 @@ pub async fn config_skip_saving_wallet_at_connector(
     let config = db
         .find_config_by_key_unwrap_or(
             &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            Some("[]".to_string()),
+            "[]".to_string(),
         )
         .await;
     Ok(match config {
@@ -9472,7 +9690,10 @@ pub fn validate_platform_request_for_marketplace(
 
 /// Returns `true` if either the org or merchant config is set to "true"
 ///
-/// Priority logic:
+/// Resolved from Superposition (`SHOULD_ENABLE_AUTHENTICATION_SERVICE`), falling back to the
+/// legacy DB config (`authentication_service_eligible_<id>`) when Superposition has no value.
+///
+/// Priority logic (DB fallback order, see `ShouldEnableAuthenticationService::db_keys`):
 /// 1. If org-level config exists (either "true" or "false"), that decision is final
 ///    - Org = "true" → returns true (authentication enabled)
 ///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
@@ -9485,35 +9706,19 @@ pub async fn is_merchant_eligible_authentication_service(
     processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = processor
-        .get_account()
-        .get_org_id()
-        .get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+            processor.get_account().get_id().clone(),
+        ))
+        .with_organization_id(processor.get_account().get_org_id().clone());
 
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = processor
-                .get_account()
-                .get_id()
-                .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_should_enable_authentication_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await)
 }
 
@@ -9608,7 +9813,14 @@ async fn get_payment_update_enabled_for_client_auth(
 ) -> bool {
     let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
     let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    let update_enabled =
+        db.find_config_by_key_optional(key.as_str())
+            .await
+            .and_then(|config_optional| {
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+                })
+            });
 
     match update_enabled {
         Ok(conf) => conf.config.to_lowercase() == "true",
@@ -9657,6 +9869,25 @@ pub async fn get_merchant_connector_account_v2(
         })
         .attach_printable("merchant_connector_id is not provided"),
     }
+}
+
+#[cfg(feature = "v1")]
+pub fn is_off_session_mit_for_payment_method(
+    req: &api::PaymentsRequest,
+    payment_method_id: &str,
+) -> bool {
+    req.confirm == Some(true)
+        && req.off_session == Some(true)
+        && req
+            .recurring_details
+            .as_ref()
+            .is_some_and(|recurring_details| {
+                matches!(
+                    recurring_details,
+                    RecurringDetails::PaymentMethodId(recurring_payment_method_id)
+                        if recurring_payment_method_id.as_str() == payment_method_id
+                )
+            })
 }
 
 pub fn is_stored_credential(

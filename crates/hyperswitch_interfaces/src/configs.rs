@@ -149,6 +149,39 @@ impl MerchantConnectorAccountType {
         None
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_apple_pay_certificate_cache(
+        &self,
+    ) -> Option<(
+        serde_json::Value,
+        common_utils::crypto::OptionalEncryptableValue,
+    )> {
+        match self {
+            Self::DbVal(val) => val
+                .apple_pay_certificates
+                .clone()
+                .map(|data| (data, val.apple_pay_certificates_encrypted.clone())),
+            Self::CacheVal(_) => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_apple_pay_certificate_cache(
+        &self,
+    ) -> Option<(
+        serde_json::Value,
+        common_utils::crypto::OptionalEncryptableValue,
+    )> {
+        None
+    }
+
+    pub fn get_merchant_id(&self) -> Option<id_type::MerchantId> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.merchant_id.clone()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
     pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
         match self {
             Self::DbVal(db_val) => Some(db_val.get_id()),
@@ -196,6 +229,13 @@ impl MerchantConnectorAccountType {
         match self {
             Self::DbVal(db_val) => Ok(db_val.connector_webhook_details.as_ref()),
             Self::CacheVal(_) => Ok(None),
+        }
+    }
+
+    pub fn get_frm_configs(&self) -> Option<Vec<Secret<serde_json::Value>>> {
+        match self {
+            Self::DbVal(val) => val.frm_configs.clone(),
+            Self::CacheVal(_) => None,
         }
     }
 }
