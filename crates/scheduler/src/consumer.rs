@@ -116,12 +116,21 @@ where
                         0 => {
                             logger::info!("Terminating consumer");
                             for tenant in state.get_tenants() {
-                                let session_state = app_state_to_session_state(state, &tenant)?;
+                                let session_state = match app_state_to_session_state(state, &tenant)
+                                {
+                                    Ok(session_state) => session_state,
+                                    Err(error) => {
+                                        logger::error!(
+                                            ?error,
+                                            %tenant,
+                                            "Failed to build session state, skipping consumer removal for tenant"
+                                        );
+                                        continue;
+                                    }
+                                };
                                 let stream_name = match session_state.get_application_source() {
                                     enums::ApplicationSource::Main => settings.stream.clone(),
-                                    enums::ApplicationSource::Cug => {
-                                        settings.cug_stream.clone()
-                                    }
+                                    enums::ApplicationSource::Cug => settings.cug_stream.clone(),
                                 };
                                 let group_name = settings.consumer.consumer_group.clone();
                                 if let Err(error) = session_state
