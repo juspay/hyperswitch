@@ -2217,6 +2217,7 @@ pub fn perform_dynamic_routing_volume_split(
     deja::id(
         component = "router::routing",
         operation = "volume_split_index",
+        on_miss = Ok(common_utils::synth_shape::index(&__deja_miss, weights.len()).unwrap_or(0)),
         codec = ResultOkCodec,
     )
 )]
