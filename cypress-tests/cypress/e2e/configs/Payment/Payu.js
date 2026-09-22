@@ -58,6 +58,9 @@ const paymentMethodData = {
   card: {
     last4: "1112",
     card_type: "DEBIT",
+    card_subtype: "CLASSIC",
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
     card_issuing_country: "UNITEDSTATES",
@@ -426,6 +429,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -446,6 +450,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -466,6 +471,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -486,6 +492,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -543,6 +550,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -578,6 +586,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -737,6 +746,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -758,6 +768,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -779,6 +790,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -801,6 +813,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
