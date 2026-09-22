@@ -122,7 +122,7 @@ where
                                     Err(error) => {
                                         logger::error!(
                                             ?error,
-                                            %tenant,
+                                            ?tenant,
                                             "Failed to build session state, skipping consumer removal for tenant"
                                         );
                                         continue;
@@ -144,7 +144,7 @@ where
                                 {
                                     logger::error!(
                                         ?error,
-                                        %tenant,
+                                        ?tenant,
                                         "Failed to remove consumer from consumer group during graceful shutdown"
                                     );
                                 }
