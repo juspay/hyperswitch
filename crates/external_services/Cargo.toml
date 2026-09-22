@@ -94,7 +94,9 @@ http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.09.18.1", package = "rust-grpc-client" }
+# TEMPORARY: pinned to the UCS branch carrying the typed 3DS contract
+# (juspay/hyperswitch-prism#2267). Replace with the release tag once cut.
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "1c6f9d9e71", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 bytes = { version = "1.10.1", optional = true }
 superposition_provider = { version = "0.115.5", optional = true }

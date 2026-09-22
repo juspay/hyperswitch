@@ -1103,6 +1103,9 @@ impl
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
+            // New in the bumped client; not populated by the router yet.
+            customer: None,
+            setup_future_usage: None,
         })
     }
 }
@@ -1500,17 +1503,71 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            // Typed 3DS contract (UCS proto fields 17-24). Sending any of these switches
+            // UCS to the typed transport, which never reads the JSON blobs for 3DS values.
+            merchant_details: None,
+            acquirer_details: None,
+            device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
+            sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
+            three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
+                router_data.request.force_3ds_challenge,
+            ),
+            three_ds_requestor_authentication_indicator: None,
+            message_category: None,
+            threeds_completion_indicator: None,
         })
     }
 }
 
-/// `PaymentMethodAuthenticationServiceAuthenticateRequest.metadata` has no typed proto field for
-/// device_channel/sdk_information, so it's JSON-stuffed as a string — same convention used
-/// elsewhere for UCS proto gaps (e.g. `AcquirerMetadata` in `core/authentication.rs`).
-#[derive(serde::Serialize)]
-struct UcsAuthenticateMetadata {
-    device_channel: Option<api_models::payments::DeviceChannel>,
+/// EMVCo `deviceChannel` for the typed 3DS contract.
+fn ucs_device_channel(device_channel: Option<api_models::payments::DeviceChannel>) -> Option<i32> {
+    device_channel.map(|channel| {
+        i32::from(match channel {
+            api_models::payments::DeviceChannel::App => payments_grpc::DeviceChannel::App,
+            api_models::payments::DeviceChannel::Browser => payments_grpc::DeviceChannel::Browser,
+        })
+    })
+}
+
+/// EMVCo `sdkInformation` for the typed 3DS contract. The JWK is sent as typed members
+/// rather than the untyped map the router carries internally; a malformed key is dropped
+/// rather than failing the payment, since the 3DS Server rejects it with a clearer error.
+fn ucs_sdk_information(
     sdk_information: Option<api_models::payments::SdkInformation>,
+) -> Option<payments_grpc::ThreeDsSdkInformation> {
+    sdk_information.map(|sdk| payments_grpc::ThreeDsSdkInformation {
+        sdk_app_id: sdk.sdk_app_id,
+        sdk_enc_data: Some(sdk.sdk_enc_data.into()),
+        sdk_ephem_pub_key: Some(payments_grpc::ThreeDsSdkEphemeralPublicKey {
+            kty: sdk
+                .sdk_ephem_pub_key
+                .get("kty")
+                .cloned()
+                .unwrap_or_default(),
+            crv: sdk
+                .sdk_ephem_pub_key
+                .get("crv")
+                .cloned()
+                .unwrap_or_default(),
+            x: sdk.sdk_ephem_pub_key.get("x").cloned().unwrap_or_default(),
+            y: sdk.sdk_ephem_pub_key.get("y").cloned().unwrap_or_default(),
+        }),
+        sdk_max_timeout: u32::from(sdk.sdk_max_timeout),
+        sdk_reference_number: sdk.sdk_reference_number,
+        sdk_trans_id: sdk.sdk_trans_id,
+        sdk_type: None,
+        sdk_server_signed_content: None,
+        device_details: None,
+    })
+}
+
+/// EMVCo `threeDSRequestorChallengeInd`. `force_3ds_challenge` is a merchant-level
+/// preference, so it maps to "challenge mandated" (04) when set and is otherwise absent,
+/// leaving the decision to the DS/ACS.
+fn ucs_challenge_indicator(force_3ds_challenge: Option<bool>) -> Option<i32> {
+    force_3ds_challenge
+        .filter(|force| *force)
+        .map(|_| i32::from(payments_grpc::ThreeDsRequestorChallengeIndicator::ChallengeMandated))
 }
 
 // External-vault-proxy variant of the Authenticate request builder above: the proxy has no
@@ -1594,15 +1651,7 @@ impl
             }),
             address: Some(address),
             authentication_data,
-            metadata: Some(
-                serde_json::to_string(&UcsAuthenticateMetadata {
-                    device_channel: router_data.request.device_channel.clone(),
-                    sdk_information: router_data.request.sdk_information.clone(),
-                })
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
-                .attach_printable("Failed to serialize device_channel/sdk_information metadata")?
-                .into(),
-            ),
+            metadata: None,
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
@@ -1624,6 +1673,18 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            // Typed 3DS contract (UCS proto fields 17-24). Sending any of these switches
+            // UCS to the typed transport, which never reads the JSON blobs for 3DS values.
+            merchant_details: None,
+            acquirer_details: None,
+            device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
+            sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
+            three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
+                router_data.request.force_3ds_challenge,
+            ),
+            three_ds_requestor_authentication_indicator: None,
+            message_category: None,
+            threeds_completion_indicator: None,
         })
     }
 }
@@ -4621,6 +4682,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
                     // New in the bumped client; not populated by the router yet.
                     merchant_token_identifier: None,
+                    device_manufacturer_identifier: None,
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -5950,6 +6012,11 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .authentication_type
                 .map(payments_grpc::DecoupledAuthenticationType::foreign_from)
                 .map(i32::from),
+            // Response-side 3DS fields; the router does not send these on a request.
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
@@ -5985,6 +6052,11 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            // Response-side 3DS fields; the router does not send these on a request.
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
@@ -6175,6 +6247,10 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             network_params: _,
             created_at: _,
             authentication_type: _,
+            acs_signed_content: _,
+            acs_reference_number: _,
+            directory_server_id: _,
+            scheme_id: _,
         } = response;
         let message_extension = message_extension
             .map(|value| {
@@ -7470,7 +7546,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                 payments_grpc::mandate_type::MandateType::SingleUse(
                                     #[allow(deprecated)]
                                     payments_grpc::MandateAmountData {
-                                        amount: amount_data.amount.get_amount_as_i64(),
+                                        amount: Some(amount_data.amount.get_amount_as_i64()),
                                         amount_type: None,
                                         amount_money: Some(payments_grpc::Money {
                                             minor_amount: amount_data
@@ -7479,7 +7555,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                             currency: currency.into(),
                                         }),
                                         frequency: None,
-                                        currency: currency.into(),
+                                        currency: Some(currency.into()),
                                         start_date: amount_data.start_date.map(
                                             |dt: time::PrimitiveDateTime| {
                                                 dt.assume_utc().unix_timestamp()
@@ -7514,7 +7590,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                     payments_grpc::mandate_type::MandateType::MultiUse(
                                         #[allow(deprecated)]
                                         payments_grpc::MandateAmountData {
-                                            amount: amount_data.amount.get_amount_as_i64(),
+                                            amount: Some(amount_data.amount.get_amount_as_i64()),
                                             amount_type: None,
                                             amount_money: Some(payments_grpc::Money {
                                                 minor_amount: amount_data
@@ -7523,7 +7599,7 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                                                 currency: currency.into(),
                                             }),
                                             frequency: None,
-                                            currency: currency.into(),
+                                            currency: Some(currency.into()),
                                             start_date: amount_data.start_date.map(
                                                 |dt: time::PrimitiveDateTime| {
                                                     dt.assume_utc().unix_timestamp()
