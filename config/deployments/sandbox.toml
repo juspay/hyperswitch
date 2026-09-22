@@ -330,7 +330,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,worldpayraft"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1094,7 +1094,7 @@ connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante"    # Comma-separated list of connectors that use UCS only
-ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
+ucs_psync_disabled_connectors = "cashtocode, trustly, worldpayraft"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
 [merchant_advice_codes.visa]

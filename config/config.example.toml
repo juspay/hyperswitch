@@ -1463,7 +1463,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,worldpayraft" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1506,7 +1506,7 @@ base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante"    # Comma-separated list of connectors that use UCS only
-ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
+ucs_psync_disabled_connectors = "cashtocode, trustly, worldpayraft"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
 base_url = "http://127.0.0.1:8080" #Base URL
