@@ -36,17 +36,6 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 16777216
-  # Superposition demo service (localhost:8081) credentials for Cypress specs
-  # that toggle Superposition configs (e.g. 54-BlockImplicitCustomerCreation).
-  # Mirrors `config/development.toml` [superposition]. Without these,
-  # `cypress-tests/cypress/utils/State.js` leaves them unset and the
-  # superposition-gated specs skip silently. The demo image does not enforce
-  # auth, but the org/workspace must match what the router polls (localorg/dev).
-  SUPERPOSITION_BASE_URL: "http://localhost:8081"
-  SUPERPOSITION_SECRET: "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5"
-  SUPERPOSITION_AUTH_TOKEN: "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5"
-  SUPERPOSITION_ORG_ID: "localorg"
-  SUPERPOSITION_WORKSPACE_ID: "dev"
 
 jobs:
   formatter:
@@ -356,6 +345,17 @@ jobs:
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
+          # Superposition credentials for Cypress specs that toggle configs
+          # (e.g. 54-BlockImplicitCustomerCreation.cy.js). Read from the same
+          # development.toml the router reads, so they cannot drift. The demo
+          # service does not enforce auth, but State.js requires non-empty
+          # values and the org/workspace must match what the router polls.
+          echo "SUPERPOSITION_BASE_URL=$(yq '.superposition.endpoint' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_SECRET=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_AUTH_TOKEN=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_ORG_ID=$(yq '.superposition.org_id' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_WORKSPACE_ID=$(yq '.superposition.workspace_id' ${TOML_PATH})" >> $GITHUB_ENV
+
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: baptiste0928/cargo-install@v3.4.0
@@ -638,6 +638,17 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+          # Superposition credentials for Cypress specs that toggle configs
+          # (e.g. 54-BlockImplicitCustomerCreation.cy.js). Read from the same
+          # development.toml the router reads, so they cannot drift. The demo
+          # service does not enforce auth, but State.js requires non-empty
+          # values and the org/workspace must match what the router polls.
+          echo "SUPERPOSITION_BASE_URL=$(yq '.superposition.endpoint' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_SECRET=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_AUTH_TOKEN=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_ORG_ID=$(yq '.superposition.org_id' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_WORKSPACE_ID=$(yq '.superposition.workspace_id' ${TOML_PATH})" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
         uses: baptiste0928/cargo-install@v3.4.0
@@ -927,6 +938,17 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+          # Superposition credentials for Cypress specs that toggle configs
+          # (e.g. 54-BlockImplicitCustomerCreation.cy.js). Read from the same
+          # development.toml the router reads, so they cannot drift. The demo
+          # service does not enforce auth, but State.js requires non-empty
+          # values and the org/workspace must match what the router polls.
+          echo "SUPERPOSITION_BASE_URL=$(yq '.superposition.endpoint' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_SECRET=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_AUTH_TOKEN=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_ORG_ID=$(yq '.superposition.org_id' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_WORKSPACE_ID=$(yq '.superposition.workspace_id' ${TOML_PATH})" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1362,6 +1384,17 @@ jobs:
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
+          # Superposition credentials for Cypress specs that toggle configs
+          # (e.g. 54-BlockImplicitCustomerCreation.cy.js). Read from the same
+          # development.toml the router reads, so they cannot drift. The demo
+          # service does not enforce auth, but State.js requires non-empty
+          # values and the org/workspace must match what the router polls.
+          echo "SUPERPOSITION_BASE_URL=$(yq '.superposition.endpoint' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_SECRET=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_AUTH_TOKEN=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_ORG_ID=$(yq '.superposition.org_id' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_WORKSPACE_ID=$(yq '.superposition.workspace_id' ${TOML_PATH})" >> $GITHUB_ENV
+
       - name: Install Diesel CLI
         uses: baptiste0928/cargo-install@v3.4.0
         with:
@@ -1537,6 +1570,17 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+          # Superposition credentials for Cypress specs that toggle configs
+          # (e.g. 54-BlockImplicitCustomerCreation.cy.js). Read from the same
+          # development.toml the router reads, so they cannot drift. The demo
+          # service does not enforce auth, but State.js requires non-empty
+          # values and the org/workspace must match what the router polls.
+          echo "SUPERPOSITION_BASE_URL=$(yq '.superposition.endpoint' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_SECRET=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_AUTH_TOKEN=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_ORG_ID=$(yq '.superposition.org_id' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_WORKSPACE_ID=$(yq '.superposition.workspace_id' ${TOML_PATH})" >> $GITHUB_ENV
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1773,6 +1817,17 @@ jobs:
         run: |
           LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' ${TOML_PATH})
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
+
+          # Superposition credentials for Cypress specs that toggle configs
+          # (e.g. 54-BlockImplicitCustomerCreation.cy.js). Read from the same
+          # development.toml the router reads, so they cannot drift. The demo
+          # service does not enforce auth, but State.js requires non-empty
+          # values and the org/workspace must match what the router polls.
+          echo "SUPERPOSITION_BASE_URL=$(yq '.superposition.endpoint' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_SECRET=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_AUTH_TOKEN=$(yq '.superposition.token' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_ORG_ID=$(yq '.superposition.org_id' ${TOML_PATH})" >> $GITHUB_ENV
+          echo "SUPERPOSITION_WORKSPACE_ID=$(yq '.superposition.workspace_id' ${TOML_PATH})" >> $GITHUB_ENV
 
       - name: Install mold linker
         if: ${{ runner.os == 'Linux' && env.RUN_TESTS == 'true' }}
