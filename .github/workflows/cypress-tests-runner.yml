@@ -194,16 +194,10 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Restore sccache cache from S3
-        if: ${{ env.RUN_TESTS == 'true' }}
-        continue-on-error: true
-        shell: bash
-        run: .github/scripts/sccache-restore-s3.sh build-hyperswitch "${{ github.event.pull_request.number }}"
-
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
-          CARGO_BUILD_JOBS: 6
+          CARGO_BUILD_JOBS: 10
         run: cargo build --package router --bin router
 
       - name: Show sccache stats
@@ -1861,12 +1855,6 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Restore sccache cache from S3
-        if: ${{ env.RUN_TESTS == 'true' }}
-        continue-on-error: true
-        shell: bash
-        run: .github/scripts/sccache-restore-s3.sh runner-v2 "${{ github.event.pull_request.number }}"
-
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -1928,7 +1916,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-          CARGO_BUILD_JOBS: 6
+          CARGO_BUILD_JOBS: 10
         run: just build_v2
 
       - name: Show sccache stats
