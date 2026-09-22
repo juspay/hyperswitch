@@ -11,11 +11,10 @@ use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use redis_interface::DelReply;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, tracing::Instrument};
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;
-use tracing_futures::Instrument;
 
 use crate::{
     logger,
@@ -211,7 +210,7 @@ async fn call_forex_api_and_save_data_to_cache_and_redis(
         Err(ForexError::ConfigurationError("api_keys not provided".into()).into())
     } else {
         let state = state.clone();
-        tokio::spawn(
+        router_env::spawn(
             async move {
                 acquire_redis_lock_and_call_forex_api(&state)
                     .await

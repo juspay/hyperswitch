@@ -958,7 +958,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let payment_method = router_data.payment_method;
     let payment_method_type = router_data.payment_method_type;
 
-    tokio::spawn(
+    router_env::spawn(
         (async move {
             let ucs_result =
                 unified_connector_service::call_unified_connector_service_for_refund_execute(
@@ -1394,11 +1394,7 @@ pub async fn sync_refund_with_gateway(
     };
 
     // If the original refund status was not success and upon a force sync it is now success, in that case we update the state metadata of the payment intent
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
-    )]
-    tokio::spawn({
+    router_env::spawn({
         let state = state.clone();
         let processor = platform.get_processor().clone();
         let payment_intent = payment_intent.clone();
@@ -1520,7 +1516,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let payment_method = router_data.payment_method;
     let payment_method_type = router_data.payment_method_type;
 
-    tokio::spawn(
+    router_env::spawn(
         (async move {
             let ucs_result =
                 unified_connector_service::call_unified_connector_service_for_refund_sync(
@@ -1766,11 +1762,7 @@ pub async fn validate_and_create_refund(
 
             // Update the state metadata of the payment intent if the refund is successful
             if updated_refund.refund_status.is_success() {
-                #[allow(
-                    clippy::disallowed_methods,
-                    reason = "lone detached spawn: it carries the request span so its boundaries stay correlated, but it has no racing sibling to be paired against. An identity of its own needs a named-fork API from deja: fork_span() hardcodes one span name, and a host cannot replicate spawn_fork without capture_current/scope_snapshot"
-                )]
-                tokio::spawn({
+                router_env::spawn({
                     let state = state.clone();
                     let processor = platform.get_processor().clone();
                     let payment_intent = payment_intent.clone();

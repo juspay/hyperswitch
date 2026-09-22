@@ -22,8 +22,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
-use tracing_futures::Instrument;
+use router_env::{instrument, logger, tracing, tracing::Instrument};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "v1")]
@@ -200,7 +199,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // record/replay comparison pairs them positionally — reading a
         // transposition as a behaviour change. The concurrency was always here;
         // naming each fork writes it down.
-        let business_profile_fut = tokio::spawn(
+        let business_profile_fut = router_env::spawn(
             async move {
                 store
                     .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
@@ -222,7 +221,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
         let merchant_key_store = platform.get_processor().get_key_store().clone();
 
-        let payment_attempt_fut = tokio::spawn(
+        let payment_attempt_fut = router_env::spawn(
             async move {
                 store
                     .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -247,7 +246,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_key_store = platform.get_processor().get_key_store().clone();
         let session_state = state.clone();
 
-        let shipping_address_fut = tokio::spawn(
+        let shipping_address_fut = router_env::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
                     &session_state,
@@ -275,7 +274,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_key_store = platform.get_processor().get_key_store().clone();
         let session_state = state.clone();
 
-        let billing_address_fut = tokio::spawn(
+        let billing_address_fut = router_env::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
                     &session_state,
@@ -298,7 +297,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_request_merchant_connector_details = request.merchant_connector_details.clone();
         let m_processor = platform.get_processor().clone();
 
-        let config_update_fut = tokio::spawn(
+        let config_update_fut = router_env::spawn(
             async move {
                 m_request_merchant_connector_details
                     .async_map(|mcd| async {
@@ -556,7 +555,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let customer_id = payment_intent.customer_id.clone();
         let additional_pm_data_dimensions = dimensions.with_profile_id(profile_id.clone());
 
-        let additional_pm_data_fut = tokio::spawn(
+        let additional_pm_data_fut = router_env::spawn(
             async move {
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
@@ -600,7 +599,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
         let session_state = state.clone();
 
-        let payment_method_billing_future = tokio::spawn(
+        let payment_method_billing_future = router_env::spawn(
             async move {
                 helpers::create_or_update_address_for_payment_by_request(
                     &session_state,
@@ -639,7 +638,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_method_info = prefetched_payment_method_info.clone();
 
-        let mandate_details_fut = tokio::spawn(
+        let mandate_details_fut = router_env::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
                     &m_state,
@@ -1510,7 +1509,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         let m_payment_attempt = payment_attempt.clone();
         let m_state = state.clone();
         let m_self = *self;
-        tokio::spawn(
+        router_env::spawn(
             async move {
                 helpers::add_domain_task_to_pt(
                     &m_self,
@@ -2874,7 +2873,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|fraud_check| fraud_check.frm_id.clone());
         let cloned_key_store = key_store.clone();
-        let payment_attempt_fut = tokio::spawn(
+        let payment_attempt_fut = router_env::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
@@ -3016,7 +3015,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_key_store = key_store.clone();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
-        let payment_intent_fut = tokio::spawn(
+        let payment_intent_fut = router_env::spawn(
             async move {
                 m_db.update_payment_intent(
                     m_payment_data_payment_intent,

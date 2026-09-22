@@ -1,3 +1,4 @@
+use router_env::tracing::Instrument;
 use storage_impl::redis::cache;
 
 const DEFAULT_BG_METRICS_COLLECTION_INTERVAL_IN_SECS: u16 = 15;
@@ -20,16 +21,19 @@ pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: Option<u16>)
         &cache::ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE,
     ];
 
-    tokio::spawn(async move {
-        loop {
-            for instance in cache_instances {
-                instance.record_entry_count_metric().await
-            }
+    router_env::spawn(
+        async move {
+            loop {
+                for instance in cache_instances {
+                    instance.record_entry_count_metric().await
+                }
 
-            tokio::time::sleep(std::time::Duration::from_secs(
-                metrics_collection_interval.into(),
-            ))
-            .await
+                tokio::time::sleep(std::time::Duration::from_secs(
+                    metrics_collection_interval.into(),
+                ))
+                .await
+            }
         }
-    });
+        .in_current_span(),
+    );
 }

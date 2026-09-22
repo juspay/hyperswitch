@@ -56,11 +56,7 @@ async fn main() -> DrainerResult<()> {
     .await
     .expect("Failed to create the server");
 
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-    )]
-    tokio::spawn(
+    router_env::spawn(
         async move {
             let _ = web_server.await;
             logger::error!("The health check probe stopped working!");

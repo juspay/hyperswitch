@@ -40,11 +40,7 @@ impl RedisStore {
 
     pub fn set_error_callback(&self, callback: tokio::sync::oneshot::Sender<()>) {
         let redis_clone = self.redis_conn.clone();
-        #[allow(
-            clippy::disallowed_methods,
-            reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-        )]
-        let _task_handle = tokio::spawn(
+        let _task_handle = router_env::spawn(
             async move {
                 redis_clone.on_error(callback).await;
             }
