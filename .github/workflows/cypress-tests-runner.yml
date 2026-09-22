@@ -36,6 +36,17 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 16777216
+  # Superposition demo service (localhost:8081) credentials for Cypress specs
+  # that toggle Superposition configs (e.g. 54-BlockImplicitCustomerCreation).
+  # Mirrors `config/development.toml` [superposition]. Without these,
+  # `cypress-tests/cypress/utils/State.js` leaves them unset and the
+  # superposition-gated specs skip silently. The demo image does not enforce
+  # auth, but the org/workspace must match what the router polls (localorg/dev).
+  SUPERPOSITION_BASE_URL: "http://localhost:8081"
+  SUPERPOSITION_SECRET: "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5"
+  SUPERPOSITION_AUTH_TOKEN: "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5"
+  SUPERPOSITION_ORG_ID: "localorg"
+  SUPERPOSITION_WORKSPACE_ID: "dev"
 
 jobs:
   formatter:
