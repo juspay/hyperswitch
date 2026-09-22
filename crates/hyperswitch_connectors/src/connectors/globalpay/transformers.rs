@@ -25,7 +25,6 @@ use hyperswitch_interfaces::{
     errors,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -306,7 +305,7 @@ impl TryFrom<&RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
-        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let nonce = common_utils::generate_random_alphanumeric_string(12);
         let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key.peek());
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())

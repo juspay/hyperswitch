@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use common_enums;
 use common_types::payments as common_payments_types;
+use common_utils::fp_utils;
 use hyperswitch_connectors::constants as connector_consts;
 use hyperswitch_domain_models::{
     mandates, payments as domain_payments, router_data,
@@ -16,7 +17,7 @@ use router_env::logger;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, gateway as payments_gateway,
@@ -43,12 +44,17 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::SetupMandateRouterData> {
+        fp_utils::when(merchant_connector_account.is_disabled(), || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+        })?;
+
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
             types::SetupMandateRequestData,
@@ -57,6 +63,7 @@ impl
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,

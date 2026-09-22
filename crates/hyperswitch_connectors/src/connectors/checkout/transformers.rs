@@ -123,6 +123,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -474,9 +475,22 @@ fn get_checkout_recipient_account_number(
         },
         RecipientAccount::Card { card_number } => Ok(Secret::new(card_number.get_card_no())),
         RecipientAccount::Phone { phone_number } => Ok(phone_number.clone()),
-        RecipientAccount::Wallet { .. } => Err(unsupported("wallet_id")),
+        RecipientAccount::Wallet { wallet_id } => Ok(wallet_id.clone()),
         RecipientAccount::Email { .. } => Err(unsupported("email")),
         RecipientAccount::SocialNetwork { .. } => Err(unsupported("social_network_id")),
+    }
+}
+
+fn get_checkout_aft_state(
+    state: Option<Secret<String>>,
+    country: CountryAlpha2,
+    field_name: &'static str,
+) -> Result<Option<Secret<String>>, error_stack::Report<errors::ConnectorError>> {
+    match country {
+        CountryAlpha2::US | CountryAlpha2::CA => Ok(Some(
+            state.ok_or_else(utils::missing_field_err(field_name))?,
+        )),
+        _ => Ok(state),
     }
 }
 
@@ -496,6 +510,10 @@ fn build_checkout_recipient(
         .as_ref()
         .ok_or_else(utils::missing_field_err("recipient_details.account"))
         .and_then(get_checkout_recipient_account_number)?;
+
+    let country = address.country.ok_or_else(utils::missing_field_err(
+        "recipient_details.address.country",
+    ))?;
 
     Ok(CheckoutRecipient {
         first_name: address
@@ -525,21 +543,18 @@ fn build_checkout_recipient(
                     .clone()
                     .ok_or_else(utils::missing_field_err("recipient_details.address.city"))?,
             ),
-            state: Some(
-                address
-                    .state
-                    .clone()
-                    .ok_or_else(utils::missing_field_err("recipient_details.address.state"))?,
-            ),
+            state: get_checkout_aft_state(
+                address.state.clone(),
+                country,
+                "recipient_details.address.state",
+            )?,
             zip: Some(
                 address
                     .zip
                     .clone()
                     .ok_or_else(utils::missing_field_err("recipient_details.address.zip"))?,
             ),
-            country: Some(address.country.ok_or_else(utils::missing_field_err(
-                "recipient_details.address.country",
-            ))?),
+            country: Some(country),
         },
     })
 }
@@ -547,6 +562,8 @@ fn build_checkout_recipient(
 fn build_checkout_sender(
     router_data: &PaymentsAuthorizeRouterData,
 ) -> Result<CheckoutSender, error_stack::Report<errors::ConnectorError>> {
+    let country = router_data.get_billing_country()?;
+
     Ok(CheckoutSender {
         sender_type: CheckoutSenderType::Individual,
         first_name: router_data.get_billing_first_name()?,
@@ -556,9 +573,13 @@ fn build_checkout_sender(
             address_line1: Some(router_data.get_billing_line1()?),
             address_line2: router_data.get_optional_billing_line2(),
             city: Some(router_data.get_billing_city()?),
-            state: Some(router_data.get_billing_state()?),
+            state: get_checkout_aft_state(
+                router_data.get_optional_billing_state(),
+                country,
+                "payment_method_data.billing.address.state",
+            )?,
             zip: Some(router_data.get_billing_zip()?),
-            country: Some(router_data.get_billing_country()?),
+            country: Some(country),
         },
     })
 }

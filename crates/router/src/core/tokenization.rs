@@ -37,7 +37,7 @@ pub async fn create_vault_token_core(
     req: api_models::tokenization::GenericTokenizationRequest,
 ) -> RouterResponse<api_models::tokenization::GenericTokenizationResponse> {
     // Generate a unique vault ID
-    let vault_id = domain::VaultId::generate(uuid::Uuid::now_v7().to_string());
+    let vault_id = domain::VaultId::generate(common_utils::generate_uuid_v7().to_string());
     let db = state.store.as_ref();
     let customer_id = req.customer_id.clone();
     // Create vault request
