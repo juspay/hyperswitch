@@ -145,9 +145,9 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # always(): save even if the build failed (cache-on-failure).
+      # !cancelled(), not always() — cache-on-failure, but skip on cancel.
       - name: Delete stale sccache cache entry
-        if: ${{ always() && github.event_name == 'push' }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
         env:
@@ -155,7 +155,7 @@ jobs:
         run: gh cache delete "sccache-local-check-msrv-${{ runner.os }}-${{ runner.arch }}" --repo "${{ github.repository }}"
 
       - name: Save sccache cache
-        if: ${{ always() && github.event_name == 'push' }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         uses: actions/cache/save@v4
         with:
           path: ${{ env.SCCACHE_DIR }}
@@ -275,8 +275,9 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
+      # !cancelled(), not always() — cache-on-failure, but skip on cancel.
       - name: Save sccache cache to S3
-        if: ${{ always() && github.event_name == 'push' }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
         run: .github/scripts/sccache-save-s3.sh test
@@ -372,8 +373,9 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
+      # !cancelled(), not always() — cache-on-failure, but skip on cancel.
       - name: Save sccache cache to S3
-        if: ${{ always() && github.event_name == 'push' }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         continue-on-error: true
         shell: bash
         run: .github/scripts/sccache-save-s3.sh check-v2
