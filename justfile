@@ -17,7 +17,7 @@ alias c := check
 # We cannot run --all-features because v1 and v2 are mutually exclusive features
 # Create a list of features by excluding certain features
 # redis_interface_backend: "redis-rs" (default) or "fred"
-clippy redis_interface_backend="redis-rs" *FLAGS:
+clippy redis_interface_backend="redis-rs" FLAGS='':
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -36,7 +36,7 @@ clippy redis_interface_backend="redis-rs" *FLAGS:
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
+clippy_v2 redis_interface_backend="redis-rs" FLAGS='':
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -54,7 +54,7 @@ clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-check_v2 redis_interface_backend="redis-rs" *FLAGS:
+check_v2 redis_interface_backend="redis-rs" FLAGS='':
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -72,7 +72,7 @@ check_v2 redis_interface_backend="redis-rs" *FLAGS:
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-build_v2 redis_interface_backend="redis-rs" *FLAGS:
+build_v2 redis_interface_backend="redis-rs" FLAGS='':
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -106,7 +106,7 @@ run_v2 redis_interface_backend="redis-rs":
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-check redis_interface_backend="redis-rs" *FLAGS:
+check redis_interface_backend="redis-rs" FLAGS='':
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -175,11 +175,11 @@ payment-link-wasm features='' version='v1' environment='development':
 precommit: fmt clippy
 
 # Run drainer with v1 features enabled
-drainer redis_interface_backend="redis-rs" *FLAGS:
+drainer redis_interface_backend="redis-rs" FLAGS='':
     DRAINER__SERVER__PORT=8084 cargo run --package drainer --no-default-features --features "{{ redis_interface_backend }},v1" {{ FLAGS }}
 
 # Run drainer with v2 features enabled
-drainer_v2 redis_interface_backend="redis-rs" *FLAGS:
+drainer_v2 redis_interface_backend="redis-rs" FLAGS='':
     DRAINER__SERVER__PORT=8084 cargo run --package drainer --no-default-features --features "{{ redis_interface_backend }},v2" {{ FLAGS }}
 
 # Use the env variables if present, or fallback to default values
