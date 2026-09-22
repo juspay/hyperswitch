@@ -266,6 +266,10 @@ pub fn mk_app(
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
         }
+        #[cfg(all(feature = "olap", feature = "v1"))]
+        {
+            server_app = server_app.service(routes::HierarchicalResources::server(state.clone()));
+        }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
@@ -274,6 +278,7 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
+            .service(routes::ExternalService::server(state.clone()))
             .service(routes::Relay::server(state.clone()))
             .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
@@ -299,7 +304,8 @@ pub fn mk_app(
                 .service(routes::Mandates::server(state.clone()))
                 .service(routes::Authentication::server(state.clone()))
                 .service(routes::SdkConfig::server(state.clone()))
-                .service(routes::SuperpositionProxy::server(state.clone()));
+                .service(routes::SuperpositionProxy::server(state.clone()))
+                .service(routes::OfferEngine::server(state.clone()));
         }
     }
 
@@ -320,8 +326,7 @@ pub fn mk_app(
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
-            .service(routes::UnifiedConnectorService::server(state.clone()))
-            .service(routes::Chat::server(state.clone()));
+            .service(routes::UnifiedConnectorService::server(state.clone()));
 
         #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
         {
@@ -379,7 +384,6 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
-    server_app = server_app.service(routes::OfferEngine::server(state.clone()));
     // Registered at the end because this entry has an empty scope
     #[cfg(feature = "olap")]
     {
@@ -461,7 +465,7 @@ pub async fn start_server(
                 })?;
 
             server_builder
-                .bind_rustls_0_22(
+                .bind_rustls_0_23(
                     (tls_conf.host.unwrap_or(server.host).as_str(), tls_conf.port),
                     config,
                 )?

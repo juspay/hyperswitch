@@ -132,7 +132,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 } => {
                     // Set expiry time to 15 minutes from now
                     let dynamic_pix_expires_at = {
-                        let now = time::OffsetDateTime::now_utc();
+                        let now = common_utils::date_time::now().assume_utc();
                         let expires_at = now + time::Duration::minutes(15);
 
                         PrimitiveDateTime::new(expires_at.date(), expires_at.time())
@@ -145,7 +145,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                             subject_id: item.router_data.get_connector_customer_id()?.into(),
                             from_bank_account_id: source_bank_account_id.clone().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "source bank account id",
+                                    field_name: "source bank account id".into(),
                                 },
                             )?,
 
@@ -474,6 +474,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data
@@ -498,20 +499,20 @@ fn get_qr_code_data(
             datetime.unix_timestamp() * 1000
         } else {
             // If dynamic_pix_due_date isn't present, use current time + 15 minutes
-            let now = time::OffsetDateTime::now_utc();
+            let now = common_utils::date_time::now().assume_utc();
             let expires_at = now + time::Duration::minutes(15);
             expires_at.unix_timestamp() * 1000
         }
     } else {
         // If meta is null, use current time + 15 minutes
-        let now = time::OffsetDateTime::now_utc();
+        let now = common_utils::date_time::now().assume_utc();
         let expires_at = now + time::Duration::minutes(15);
         expires_at.unix_timestamp() * 1000
     };
 
     let dynamic_pix_code = response.data.dynamic_pix_code.as_ref().ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
-            field_name: "dynamic_pix_code",
+            field_name: "dynamic_pix_code".into(),
         }
     })?;
 
@@ -583,6 +584,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 })
             },
             ..item.data

@@ -174,6 +174,9 @@ pub struct PaymentAttempt {
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub fingerprint_type: Option<common_enums::FingerprintType>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying payment method
+    pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -314,6 +317,9 @@ pub struct PaymentAttempt {
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub fingerprint_type: Option<common_enums::FingerprintType>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -471,6 +477,8 @@ pub struct PaymentAttemptNew {
     pub retry_type: Option<storage_enums::RetryType>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -571,6 +579,8 @@ pub struct PaymentAttemptNew {
     pub sender_payment_instrument_id: Option<String>,
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -662,6 +672,7 @@ pub enum PaymentAttemptUpdate {
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
         applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+        active_frm_id: Option<String>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -675,6 +686,10 @@ pub enum PaymentAttemptUpdate {
     ConnectorMandateDetailUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
+        updated_by: String,
+    },
+    AssociatedDataUpdate {
+        sender_payment_instrument_id: Option<String>,
         updated_by: String,
     },
     BlocklistUpdate {
@@ -723,6 +738,7 @@ pub enum PaymentAttemptUpdate {
         authorized_amount: Option<MinorUnit>,
         error_details: Box<Option<Option<ErrorDetails>>>,
         sender_payment_instrument_id: Option<String>,
+        payment_account_reference: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -821,6 +837,7 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<String>,
         updated_by: String,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        active_frm_id: Option<String>,
     },
     ExternalSurchargeUpdate {
         external_surcharge_details: common_types::payments::ExternalSurchargeDetails,
@@ -1151,6 +1168,8 @@ pub struct PaymentAttemptUpdateInternal {
     pub sender_payment_instrument_id: Option<String>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    pub payment_account_reference: Option<String>,
+    pub active_frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1185,11 +1204,7 @@ impl PaymentAttemptUpdateInternal {
         update_internal.card_network = update_internal
             .payment_method_data
             .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .and_then(common_enums::CardNetwork::from_payment_method_data)
             .map(|network| network.to_string());
         update_internal
     }
@@ -2578,6 +2593,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2659,6 +2676,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2706,6 +2725,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                active_frm_id,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2783,6 +2803,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 external_surcharge_details,
                 applied_offer_details,
+                payment_account_reference: None,
+                active_frm_id,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2865,6 +2887,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2948,6 +2972,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -3031,6 +3057,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -3113,6 +3141,91 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
+            },
+            PaymentAttemptUpdate::AssociatedDataUpdate {
+                sender_payment_instrument_id,
+                updated_by,
+            } => Self {
+                payment_method_id: None,
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+                amount: None,
+                net_amount: None,
+                currency: None,
+                status: None,
+                connector_transaction_id: None,
+                amount_to_capture: None,
+                connector: None,
+                authentication_type: None,
+                payment_method: None,
+                error_message: None,
+                cancellation_reason: None,
+                mandate_id: None,
+                tokenization: None,
+                browser_info: None,
+                payment_token: None,
+                error_code: None,
+                connector_metadata: None,
+                payment_method_data: None,
+                payment_method_type: None,
+                payment_experience: None,
+                business_sub_label: None,
+                straight_through_algorithm: None,
+                preprocessing_step_id: None,
+                error_reason: None,
+                capture_method: None,
+                connector_response_reference_id: None,
+                multiple_capture_count: None,
+                surcharge_amount: None,
+                tax_amount: None,
+                amount_capturable: None,
+                merchant_connector_id: None,
+                authentication_data: None,
+                encoded_data: None,
+                unified_code: None,
+                unified_message: None,
+                external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
+                authentication_connector: None,
+                authentication_id: None,
+                fingerprint_id: None,
+                fingerprint_type: None,
+                payment_method_billing_address_id: None,
+                client_source: None,
+                client_version: None,
+                customer_acceptance: None,
+                card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
+                processor_transaction_data: None,
+                connector_mandate_detail: None,
+                card_discovery: None,
+                charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                setup_future_usage_applied: None,
+                routing_approach: None,
+                connector_request_reference_id: None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                is_overcapture_enabled: None,
+                network_details: None,
+                is_stored_credential: None,
+                request_extended_authorization: None,
+                authorized_amount: None,
+                encrypted_payment_method_data: None,
+                error_details: None,
+                installment_data: None,
+                sender_payment_instrument_id,
+                external_surcharge_details: None,
+                applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -3194,6 +3307,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -3229,6 +3344,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authorized_amount,
                 error_details: boxed_error_details,
                 sender_payment_instrument_id,
+                payment_account_reference,
             } => {
                 let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
@@ -3313,6 +3429,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     sender_payment_instrument_id,
                     external_surcharge_details: None,
                     applied_offer_details: None,
+                    payment_account_reference,
+                    active_frm_id: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3418,6 +3536,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                     applied_offer_details: None,
+                    payment_account_reference: None,
+                    active_frm_id: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -3497,6 +3617,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3586,6 +3708,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3682,6 +3806,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                     applied_offer_details: None,
+                    payment_account_reference: None,
+                    active_frm_id: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3775,6 +3901,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                     applied_offer_details: None,
+                    payment_account_reference: None,
+                    active_frm_id: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -3858,6 +3986,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -3940,6 +4070,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -4031,6 +4163,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                     applied_offer_details: None,
+                    payment_account_reference: None,
+                    active_frm_id: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -4113,6 +4247,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -4198,6 +4334,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -4292,6 +4430,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                     applied_offer_details: None,
+                    payment_account_reference: None,
+                    active_frm_id: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -4374,6 +4514,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
             PaymentAttemptUpdate::RecurrenceUpdate {
                 status,
@@ -4382,6 +4524,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 updated_by,
                 connector_mandate_detail,
+                active_frm_id,
             } => Self {
                 status: Some(status),
                 error_details: None,
@@ -4459,6 +4602,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 sender_payment_instrument_id: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id,
             },
             PaymentAttemptUpdate::ExternalSurchargeUpdate {
                 updated_by,
@@ -4540,6 +4685,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: Some(external_surcharge_details),
                 external_threeds_authentication_type: None,
                 applied_offer_details: None,
+                payment_account_reference: None,
+                active_frm_id: None,
             },
         }
     }
@@ -4633,6 +4780,9 @@ pub struct PaymentAttemptRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector when the payment was recorded
+    /// back to it. Used to issue an offline refund if a dispute is later lost.
+    pub billing_connector_transaction_id: Option<String>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);

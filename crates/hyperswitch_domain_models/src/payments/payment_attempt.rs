@@ -350,7 +350,7 @@ impl AttemptAmountDetails {
     ) -> Result<(), ValidationError> {
         common_utils::fp_utils::when(request_amount_to_capture > self.get_net_amount(), || {
             Err(ValidationError::IncorrectValueProvided {
-                field_name: "amount_to_capture",
+                field_name: "amount_to_capture".into(),
             })
         })
     }
@@ -826,6 +826,10 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
+    /// Active fraud-check record associated with this payment attempt.
+    pub active_frm_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -995,6 +999,8 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1091,6 +1097,8 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1194,6 +1202,8 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1228,6 +1238,9 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.charge_id.clone())
                     }),
+                    // Populated later, when the payment is recorded back to the
+                    // billing connector.
+                    billing_connector_transaction_id: None,
                 }
             }),
         };
@@ -1322,6 +1335,8 @@ impl PaymentAttempt {
             authorized_amount: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference: None,
+            active_frm_id: None,
         })
     }
 
@@ -1445,8 +1460,12 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card
+    pub payment_account_reference: Option<String>,
     /// Sender payment instrument ID
     pub sender_payment_instrument_id: Option<String>,
+    /// Fraud-check id currently associated with this attempt.
+    pub active_frm_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1818,8 +1837,18 @@ impl PaymentAttempt {
                     )
                     .ok()
             })
-            .and_then(|data| data.get_additional_card_info())
-            .and_then(|card_info| card_info.card_network)
+            .and_then(|data| match data {
+                api_models::payments::AdditionalPaymentData::Card(additional_card_info) => {
+                    additional_card_info.card_network
+                }
+                wallet_data => wallet_data.get_wallet_card_network().and_then(|network| {
+                    common_enums::CardNetwork::from_str(network)
+                        .map_err(|err| {
+                            logger::error!("Failed to parse card network {network}: {err:?}")
+                        })
+                        .ok()
+                }),
+            })
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
@@ -1915,7 +1944,9 @@ impl PaymentAttempt {
     pub fn check_and_get_payment_method_data_based_on_encryption_strategy(&self) -> Option<Value> {
         if self
             .payment_method
-            .map(|payment_method| payment_method.is_additional_payment_method_data_sensitive())
+            .map(|payment_method| {
+                payment_method.is_additional_payment_method_data_sensitive(self.payment_method_type)
+            })
             .unwrap_or(false)
         {
             self.encrypted_payment_method_data
@@ -2064,6 +2095,7 @@ pub enum PaymentAttemptUpdate {
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
         applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+        active_frm_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -2084,6 +2116,10 @@ pub enum PaymentAttemptUpdate {
     ConnectorMandateDetailUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
+        updated_by: String,
+    },
+    AssociatedDataUpdate {
+        sender_payment_instrument_id: Option<String>,
         updated_by: String,
     },
     VoidUpdate {
@@ -2135,6 +2171,7 @@ pub enum PaymentAttemptUpdate {
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
         sender_payment_instrument_id: Option<String>,
+        payment_account_reference: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2238,6 +2275,7 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<String>,
         updated_by: String,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        active_frm_id: Option<String>,
     },
     ExternalSurchargeUpdate {
         external_surcharge_details: common_types::payments::ExternalSurchargeDetails,
@@ -2351,6 +2389,13 @@ impl PaymentAttemptUpdate {
                 tokenization,
                 updated_by,
             },
+            Self::AssociatedDataUpdate {
+                sender_payment_instrument_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::AssociatedDataUpdate {
+                sender_payment_instrument_id,
+                updated_by,
+            },
             Self::PaymentMethodDetailsUpdate {
                 payment_method_id,
                 updated_by,
@@ -2400,6 +2445,7 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                active_frm_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -2453,6 +2499,7 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                active_frm_id,
             },
             Self::VoidUpdate {
                 status,
@@ -2507,6 +2554,7 @@ impl PaymentAttemptUpdate {
                 recommended_action,
                 card_network,
                 sender_payment_instrument_id,
+                payment_account_reference,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2573,6 +2621,7 @@ impl PaymentAttemptUpdate {
                         .map(Encryption::from),
                     error_details,
                     sender_payment_instrument_id,
+                    payment_account_reference,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2824,6 +2873,7 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 updated_by,
                 connector_mandate_detail,
+                active_frm_id,
             } => DieselPaymentAttemptUpdate::RecurrenceUpdate {
                 status,
                 error_code,
@@ -2831,6 +2881,7 @@ impl PaymentAttemptUpdate {
                 error_reason,
                 updated_by,
                 connector_mandate_detail,
+                active_frm_id,
             },
             Self::ExternalSurchargeUpdate {
                 external_surcharge_details,
@@ -2856,6 +2907,7 @@ impl PaymentAttemptUpdate {
             | Self::BlocklistUpdate { .. }
             | Self::PaymentMethodDetailsUpdate { .. }
             | Self::ConnectorMandateDetailUpdate { .. }
+            | Self::AssociatedDataUpdate { .. }
             | Self::VoidUpdate { .. }
             | Self::UnresolvedResponseUpdate { .. }
             | Self::StatusUpdate { .. }
@@ -2926,6 +2978,12 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         updated_by: String,
     },
+    /// Update the attempt's feature metadata after recording the payment back to the
+    /// billing connector. Touches nothing else.
+    RecordBackUpdate {
+        feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+        updated_by: String,
+    },
     /// Update the payment after attempting capture with the connector
     CaptureUpdate {
         status: storage_enums::AttemptStatus,
@@ -2971,13 +3029,7 @@ impl behaviour::Conversion for PaymentAttempt {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .extract_card_network()
             .map(|network| network.to_string());
         let (connector_transaction_id, processor_transaction_data) = self
             .connector_transaction_id
@@ -3080,7 +3132,9 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: self.retry_type,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
+            active_frm_id: self.active_frm_id,
         })
     }
 
@@ -3224,7 +3278,9 @@ impl behaviour::Conversion for PaymentAttempt {
                 installment_data: storage_model.installment_data,
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
+                payment_account_reference: storage_model.payment_account_reference,
                 sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
+                active_frm_id: storage_model.active_frm_id,
             })
         }
         .await
@@ -3235,13 +3291,7 @@ impl behaviour::Conversion for PaymentAttempt {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .extract_card_network()
             .map(|network| network.to_string());
         Ok(DieselPaymentAttemptNew {
             payment_id: self.payment_id,
@@ -3330,7 +3380,9 @@ impl behaviour::Conversion for PaymentAttempt {
             installment_data: self.installment_data,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
+            active_frm_id: self.active_frm_id,
         })
     }
 }
@@ -3549,6 +3601,40 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_captured: None,
                 payment_method_data: None,
             },
+            PaymentAttemptUpdate::RecordBackUpdate {
+                feature_metadata,
+                updated_by,
+            } => Self {
+                feature_metadata: feature_metadata.as_ref().map(From::from),
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                amount_to_capture: None,
+                payment_method_id: None,
+                error_message: None,
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector_payment_data: None,
+                connector: None,
+                redirection_data: None,
+                status: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                connector_token_details: None,
+                authentication_type: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_request_reference_id: None,
+                connector_response_reference_id: None,
+                cancellation_reason: None,
+                amount_captured: None,
+                payment_method_data: None,
+            },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
                 updated_by,
@@ -3672,6 +3758,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector at record-back time.
+    pub billing_connector_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -3683,6 +3771,9 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id.clone(),
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id
+                        .clone(),
                 });
         Self { revenue_recovery }
     }
@@ -3696,6 +3787,8 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id,
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id,
                 });
         Self { revenue_recovery }
     }

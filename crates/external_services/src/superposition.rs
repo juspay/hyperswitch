@@ -211,6 +211,10 @@ mod deja_boundary {
             run,
             reconstruct::<T>,
             capture::<T>,
+            // `Absorb`: the thunk hands back an error the caller survives —
+            // the DB->default fallback runs and the correlation continues. The
+            // miss is still scored, only named as survivable.
+            deja::MissPolicy::Absorb,
             move || {
                 Err(report!(SuperpositionError::NotFound(format!(
                     "deja replay: no recorded Superposition value for `{operation}` (novel \
@@ -1082,6 +1086,16 @@ impl SuperpositionClient {
     /// Return a reference to the underlying Superposition SDK client.
     pub fn superposition_sdk_client(&self) -> &superposition_sdk::Client {
         &self.sdk_client
+    }
+
+    /// Superposition organization this client is bound to.
+    pub fn configured_org_id(&self) -> &str {
+        &self.org_id
+    }
+
+    /// Superposition workspace this client is bound to.
+    pub fn configured_workspace_id(&self) -> &str {
+        &self.workspace_id
     }
 }
 

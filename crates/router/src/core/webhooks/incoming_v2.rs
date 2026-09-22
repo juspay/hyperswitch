@@ -339,6 +339,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
                     api::WebhookFlow::Mandate => todo!(),
 
+                    api::WebhookFlow::AssociatedDataUpdate => todo!(),
+
                     api::WebhookFlow::ExternalAuthentication => todo!(),
                     api::WebhookFlow::FraudCheck => todo!(),
                     api::WebhookFlow::Setup => WebhookResponseTracker::NoEffect,
@@ -363,7 +365,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             &object_ref_id,
                         ))
                         .await
-                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        .switch()
                         .attach_printable("Failed to process recovery incoming webhook")?
                     }
                 }

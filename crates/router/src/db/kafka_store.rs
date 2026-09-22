@@ -47,12 +47,13 @@ use scheduler::{
 };
 use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     ephemeral_key::ClientSecretInterface,
-    hyperswitch_ai_interaction::HyperswitchAiInteractionInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -80,6 +81,7 @@ use crate::{
         generic_link::GenericLinkInterface,
         gsm::GsmInterface,
         health_check::HealthCheckDbInterface,
+        hierarchical_resource::HierarchicalResourceInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -308,28 +310,11 @@ impl ConfigInterface for KafkaStore {
         self.diesel_store.insert_config(config).await
     }
 
-    async fn find_config_by_key(
+    async fn find_config_by_key_optional(
         &self,
         key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key(key).await
-    }
-
-    async fn find_config_by_key_from_db(
-        &self,
-        key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key_from_db(key).await
-    }
-
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store
-            .update_config_in_database(key, config_update)
-            .await
+    ) -> CustomResult<Option<storage::Config>, errors::StorageError> {
+        self.diesel_store.find_config_by_key_optional(key).await
     }
 
     async fn update_config_by_key(
@@ -352,7 +337,7 @@ impl ConfigInterface for KafkaStore {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        default_config: Option<String>,
+        default_config: String,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store
             .find_config_by_key_unwrap_or(key, default_config)
@@ -1265,12 +1250,29 @@ impl PaymentLinkInterface for KafkaStore {
     async fn list_payment_link_by_processor_merchant_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
-        payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         self.diesel_store
             .list_payment_link_by_processor_merchant_id(
                 processor_merchant_id,
                 payment_link_constraints,
+                profile_id,
+            )
+            .await
+    }
+
+    async fn get_total_count_of_payment_links(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_payment_links(
+                processor_merchant_id,
+                payment_link_constraints,
+                profile_id,
             )
             .await
     }
@@ -3316,6 +3318,58 @@ impl MerchantKeyStoreInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
+impl HierarchicalResourceInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    async fn insert_linked_resource(
+        &self,
+        resource: domain::HierarchicalResource,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store
+            .insert_linked_resource(resource, key)
+            .await
+    }
+
+    async fn find_linked_resource_by_id(
+        &self,
+        id: id_type::ResourceId,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store.find_linked_resource_by_id(id, key).await
+    }
+
+    async fn find_resource_scope_id(
+        &self,
+        id: id_type::ResourceId,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store.find_resource_scope_id(id).await
+    }
+
+    async fn list_linked_resources_by_scope_id_and_resource_type(
+        &self,
+        scope_id: String,
+        resource_type: String,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, errors::StorageError> {
+        self.diesel_store
+            .list_linked_resources_by_scope_id_and_resource_type(scope_id, resource_type, key)
+            .await
+    }
+
+    async fn update_linked_resource_data(
+        &self,
+        id: id_type::ResourceId,
+        update: domain::HierarchicalResourceDataUpdate,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store
+            .update_linked_resource_data(id, update, key)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
 impl ProfileInterface for KafkaStore {
     type Error = errors::StorageError;
     async fn insert_business_profile(
@@ -3649,6 +3703,17 @@ impl UnifiedTranslationsInterface for KafkaStore {
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
         Box::new(self.clone())
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<
+            Error = errors::StorageError,
+        >,
+    > {
+        self.diesel_store.get_revenue_recovery_retry_stats_store()
     }
 
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
@@ -4597,29 +4662,6 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     > {
         self.diesel_store
             .list_user_authentication_methods_for_email_domain(email_domain)
-            .await
-    }
-}
-
-#[async_trait::async_trait]
-impl HyperswitchAiInteractionInterface for KafkaStore {
-    async fn insert_hyperswitch_ai_interaction(
-        &self,
-        hyperswitch_ai_interaction: storage::HyperswitchAiInteractionNew,
-    ) -> CustomResult<storage::HyperswitchAiInteraction, errors::StorageError> {
-        self.diesel_store
-            .insert_hyperswitch_ai_interaction(hyperswitch_ai_interaction)
-            .await
-    }
-
-    async fn list_hyperswitch_ai_interactions(
-        &self,
-        merchant_id: Option<id_type::MerchantId>,
-        limit: i64,
-        offset: i64,
-    ) -> CustomResult<Vec<storage::HyperswitchAiInteraction>, errors::StorageError> {
-        self.diesel_store
-            .list_hyperswitch_ai_interactions(merchant_id, limit, offset)
             .await
     }
 }

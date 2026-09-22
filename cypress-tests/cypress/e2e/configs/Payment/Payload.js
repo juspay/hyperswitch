@@ -140,6 +140,45 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithProcessingMethodId: {
+      Request: {
+        currency: "USD",
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
+    PaymentConfirmWithProcessingMethodId: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
@@ -394,6 +433,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -538,6 +578,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -561,6 +602,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -575,6 +617,35 @@ export const connectorDetails = {
         },
       },
     },
+    MandateSingleUseNo3DSAutoCaptureWithProcessingMethodId: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+        metadata: {
+          processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          metadata: {
+            processing_method_id: "pm_3fNsdcDR2fSf0PpqzXgwR",
+          },
+        },
+      },
+    },
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         DELAY: {
@@ -583,6 +654,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -605,6 +677,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -627,6 +700,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -670,6 +744,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "debit",
@@ -698,6 +773,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -740,7 +816,7 @@ export const connectorDetails = {
           TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {

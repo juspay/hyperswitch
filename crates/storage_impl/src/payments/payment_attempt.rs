@@ -822,6 +822,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     sender_payment_instrument_id: payment_attempt
                         .sender_payment_instrument_id
                         .clone(),
+                    payment_account_reference: payment_attempt.payment_account_reference.clone(),
+                    active_frm_id: payment_attempt.active_frm_id.clone(),
                 };
                 let payment_attempt_new = payment_attempt
                     .clone()
@@ -2108,13 +2110,7 @@ impl Conversion for PaymentAttempt {
         use common_utils::encryption::Encryption;
 
         let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.peek().as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
+            .extract_card_network()
             .map(|network| network.to_string());
 
         let Self {
@@ -2173,6 +2169,8 @@ impl Conversion for PaymentAttempt {
             authorized_amount,
             external_surcharge_details,
             applied_offer_details,
+            payment_account_reference,
+            active_frm_id,
         } = self;
 
         let net_amount = amount_details.get_net_amount();
@@ -2286,6 +2284,8 @@ impl Conversion for PaymentAttempt {
             applied_offer_details,
             fingerprint_type: None,
             sender_payment_instrument_id: None,
+            payment_account_reference,
+            active_frm_id,
         })
     }
 
@@ -2418,6 +2418,8 @@ impl Conversion for PaymentAttempt {
                     .external_threeds_authentication_type,
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
+                payment_account_reference: storage_model.payment_account_reference,
+                active_frm_id: storage_model.active_frm_id,
             })
         }
         .await
@@ -2428,6 +2430,11 @@ impl Conversion for PaymentAttempt {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         use common_utils::encryption::Encryption;
+
+        let card_network = self
+            .extract_card_network()
+            .map(|network| network.to_string());
+
         let Self {
             payment_id,
             merchant_id,
@@ -2484,16 +2491,9 @@ impl Conversion for PaymentAttempt {
             authorized_amount,
             external_surcharge_details: _,
             applied_offer_details: _,
+            payment_account_reference,
+            active_frm_id,
         } = self;
-
-        let card_network = payment_method_data
-            .as_ref()
-            .and_then(|data| data.peek().as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
-            .map(|network| network.to_string());
 
         let error_details = error;
 
@@ -2591,6 +2591,8 @@ impl Conversion for PaymentAttempt {
             retry_type: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            payment_account_reference,
+            active_frm_id,
         })
     }
 }

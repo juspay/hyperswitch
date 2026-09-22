@@ -128,6 +128,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, InterpaymentsPaymentsResponse, T, Payme
                 authentication_data: None,
                 charges: None,
                 network_txn_link_id: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
