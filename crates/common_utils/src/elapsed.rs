@@ -18,15 +18,15 @@
 /// the lookup would never hit — putting a fresh reading in every request. The
 /// site is addressed by span path and occurrence instead.
 ///
-/// `on_miss` takes the real reading, and that arm is load-bearing rather than
-/// defensive. Every tape recorded BEFORE this seam existed has no entry for it,
-/// so replaying one against a candidate that does would miss here on the first
-/// connector call — and the substitute default is to fail-stop, which would take
-/// the whole correlation down. That would make this seam a regression for every
-/// existing recording. Falling back to the live reading is exactly today's
-/// behaviour, and it degrades to a leaf a scorer can still explain from the
-/// execution graphs rather than to a stopped task. The miss is not swallowed:
-/// the lookup emits its divergence before `on_miss` is reached.
+/// `on_miss` is load-bearing: a tape recorded before this seam has no entry
+/// here, so every call on an old tape misses, and the substitute default is to
+/// fail-stop. The miss is not swallowed — the lookup emits its divergence first.
+///
+/// The arm is DERIVED rather than a live reading, because reading the clock here
+/// would inject fresh entropy at the site whose purpose is removing it: two
+/// replays of one unchanged candidate would disagree. `monotonic` is unit
+/// agnostic, so a step of `1` means one MILLISECOND, and base is zero because a
+/// miss carries no correlation origin to start from.
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
@@ -35,22 +35,45 @@
         operation = "millis_since",
         codec = SerdeCodec,
         skip_all,
-        on_miss = started.elapsed().as_millis(),
+        // The step is deliberately below the timing rule's evidential floor
+        // (`MIN_EVIDENTIAL_MS`, juspay/deja#188); above it, a derived value could
+        // coincide with a span's duration and read as a measured one.
+        on_miss = u128::try_from(deja::synth::monotonic(&__deja_miss, 0, 1)).unwrap_or(0),
     )
 )]
 pub fn millis_since(started: std::time::Instant) -> u128 {
     started.elapsed().as_millis()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "deja"))]
 mod tests {
-    /// The codec is serde_json, and the value is a `u128`. serde_json represents
-    /// `u128` exactly below `u64::MAX`, and a millisecond reading is many orders
-    /// below it — but the type is wider than the guarantee, so the round trip is
-    /// pinned rather than assumed.
+    /// The codec is serde_json and the value is a `u128`, which serde_json
+    /// represents exactly below `u64::MAX` — a millisecond reading is many
+    /// orders below it, but the type is wider than the guarantee, so the round
+    /// trip is pinned rather than assumed.
+    ///
+    /// Pinned against what the MISS ARM actually produces, not against chosen
+    /// literals: the arm is what flows through the codec on a pre-seam tape, so
+    /// a round trip that never sees its output is testing the wrong value.
     #[test]
-    fn a_millisecond_reading_round_trips_through_the_codec() {
-        for value in [0_u128, 1, 890, 4004, 1_788_799_789, u128::from(u64::MAX)] {
+    fn the_miss_arms_own_output_round_trips_through_the_codec() {
+        let miss = |occurrence: u32| deja::SubstituteMiss {
+            boundary: "time",
+            component: "common_utils::elapsed",
+            method: "millis_since",
+            args: serde_json::json!({}),
+            occurrence,
+            correlation_id: None,
+        };
+        let derived: Vec<u128> = (0..4_u32)
+            .map(|n| u128::try_from(deja::synth::monotonic(&miss(n), 0, 1)).unwrap_or(0))
+            .collect();
+        assert_eq!(
+            derived,
+            vec![0, 1, 2, 3],
+            "the arm must advance by one per occurrence"
+        );
+        for value in derived.into_iter().chain([890, 4004, u128::from(u64::MAX)]) {
             let encoded = serde_json::to_string(&value).expect("a reading serializes");
             let decoded: u128 = serde_json::from_str(&encoded).expect("and comes back");
             assert_eq!(decoded, value, "a reading must survive the tape unchanged");
