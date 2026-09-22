@@ -1,4 +1,4 @@
-use common_utils::id_type;
+use common_utils::{consts, id_type};
 pub use diesel_models::card_issuer::{
     CardIssuer, CardIssuerListItem, NewCardIssuer, UpdateCardIssuer,
 };
@@ -213,6 +213,9 @@ impl CardIssuersInterface for MockDb {
             })
             .collect::<Vec<_>>();
         card_issuers_list.sort_by(|a, b| a.issuer_name.cmp(&b.issuer_name));
+        card_issuers_list.truncate(
+            usize::try_from(consts::CARD_ISSUER_LIST_MAX_LIMIT).unwrap_or(usize::MAX),
+        );
         Ok(card_issuers_list)
     }
 

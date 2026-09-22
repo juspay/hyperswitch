@@ -279,3 +279,6 @@ pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
 
 /// Length of a generated card issuer ID
 pub const CARD_ISSUER_ID_LENGTH: u8 = 5;
+
+/// Maximum number of card issuers a list request reads
+pub const CARD_ISSUER_LIST_MAX_LIMIT: u32 = 25_000;

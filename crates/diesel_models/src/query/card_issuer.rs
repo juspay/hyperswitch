@@ -1,9 +1,12 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_utils::id_type;
+use common_utils::{consts, id_type};
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
 
-use super::generics;
+use super::{
+    generics,
+    generics::db_metrics::{track_database_call, DatabaseOperation},
+};
 use crate::{
     card_issuer::{CardIssuer, CardIssuerListItem, NewCardIssuer, UpdateCardIssuer},
     errors,
@@ -15,13 +18,20 @@ impl CardIssuer {
     pub async fn list_all(
         conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<Vec<CardIssuerListItem>> {
-        dsl::card_issuers
-            .select((dsl::id, dsl::issuer_name))
-            .order(dsl::issuer_name.asc())
-            .get_results_async::<CardIssuerListItem>(conn.raw_connection())
-            .await
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error while listing card issuers")
+        let query =
+            crate::list::into_boxed_list(<Self as HasTable>::table().order(dsl::issuer_name.asc()))
+                .select((dsl::id, dsl::issuer_name))
+                .limit(consts::CARD_ISSUER_LIST_MAX_LIMIT.into());
+
+        track_database_call::<Self, _, _>(
+            conn.request_id(),
+            conn.event_emitter(),
+            DatabaseOperation::Filter,
+            query.get_results_async::<CardIssuerListItem>(conn.raw_connection()),
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error while listing card issuers")
     }
 
     pub async fn find_by_ids(
