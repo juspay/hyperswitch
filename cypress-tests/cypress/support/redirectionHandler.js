@@ -3330,14 +3330,30 @@ function threeDsRedirection(
     return;
   }
 
-  // Paybox's echoed 3DS HTML has a known bug (relative asset paths resolve
-  // against Hyperswitch's own domain instead of Paybox's, breaking jQuery
-  // load and the auto-submit script), so it never navigates away. Until
-  // that's fixed on the router side, just visit the redirection URL and
-  // confirm it loads, without waiting for the auto-submit/host change.
+  // Paybox 3DS: the Hyperswitch-hosted redirect page echoes Paybox's
+  // challenge HTML, whose auto-submit bootstrap is jQuery-dependent while
+  // its jQuery <script> tag uses a relative path (../images/page_paiement/
+  // jquery.js) that resolves against Hyperswitch's domain and fails to
+  // load, so the #toRec form never submits on its own. Complete the flow
+  // manually instead: submit #toRec directly to Paybox (preprod auto-
+  // approves the challenge even with an empty MD), which replies with a
+  // ReturnMerchant page that auto-posts back to Hyperswitch's
+  // redirect-complete endpoint (plain onload JS, no jQuery) and lands on
+  // the return URL. Like paypal above, avoid cy.origin() here — the
+  // ReturnMerchant onload auto-submit fires before an origin block can
+  // execute and crashes Cypress.
   if (connectorId === "paybox") {
     cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
+
+    cy.get("#toRec", { timeout: CONSTANTS.TIMEOUT })
+      .should("exist")
+      .and("have.attr", "action")
+      .and("contain", "RemoteMPIRec");
+
+    cy.get("#toRec").submit();
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
   }
 
