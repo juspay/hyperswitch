@@ -4185,9 +4185,12 @@ export const connectorDetails = {
     },
     // OutgoingWebhookEventConfig: request bodies for business-profile level
     // outgoing webhook event gating (payment/refund/dispute/mandate/invoice
-    // *_statuses_enabled). The spec injects webhook_url (local mock receiver)
-    // on top of these. Refund variants also suppress payment events so the
-    // refund capture assertions are not polluted by async payment deliveries.
+    // *_statuses_enabled). webhook_url is a placeholder endpoint carried in
+    // the request (spec-28 WebhookConfig precedent) — these variants assert
+    // the configuration echo only, not actual webhook delivery. Spec 28
+    // (WebhookConfig) covers full-list create/update and invalid-value
+    // negatives; this family covers gating-shaped subsets only (single-status
+    // enable, suppression shape, re-enable round-trip).
     // Dispute/mandate/invoice variants are gated behind TRIGGER_SKIP because
     // the corresponding server fields are rejected (IR_06) until the pre-PR
     // server binary is rebuilt (PENDING_SERVER_REBUILD).
@@ -4195,6 +4198,7 @@ export const connectorDetails = {
       PaymentOnlySucceeded: getCustomExchange({
         Request: {
           webhook_details: {
+            webhook_url: "https://example.com/webhook",
             payment_statuses_enabled: ["succeeded"],
           },
         },
@@ -4206,6 +4210,7 @@ export const connectorDetails = {
       PaymentExcludesSucceeded: getCustomExchange({
         Request: {
           webhook_details: {
+            webhook_url: "https://example.com/webhook",
             payment_statuses_enabled: ["failed"],
           },
         },
@@ -4217,7 +4222,7 @@ export const connectorDetails = {
       RefundOnlySuccess: getCustomExchange({
         Request: {
           webhook_details: {
-            payment_statuses_enabled: ["failed"],
+            webhook_url: "https://example.com/webhook",
             refund_statuses_enabled: ["success"],
           },
         },
@@ -4229,7 +4234,7 @@ export const connectorDetails = {
       RefundExcludesSuccess: getCustomExchange({
         Request: {
           webhook_details: {
-            payment_statuses_enabled: ["failed"],
+            webhook_url: "https://example.com/webhook",
             refund_statuses_enabled: ["failure"],
           },
         },
@@ -4244,6 +4249,7 @@ export const connectorDetails = {
         },
         Request: {
           webhook_details: {
+            webhook_url: "https://example.com/webhook",
             dispute_statuses_enabled: ["dispute_opened"],
           },
         },
@@ -4258,6 +4264,7 @@ export const connectorDetails = {
         },
         Request: {
           webhook_details: {
+            webhook_url: "https://example.com/webhook",
             mandate_statuses_enabled: ["active"],
           },
         },
@@ -4272,19 +4279,8 @@ export const connectorDetails = {
         },
         Request: {
           webhook_details: {
+            webhook_url: "https://example.com/webhook",
             invoice_statuses_enabled: ["invoice_paid"],
-          },
-        },
-        Response: {
-          status: 200,
-          body: {},
-        },
-      }),
-      WebhookDeliveryDelay: getCustomExchange({
-        Configs: {
-          DELAY: {
-            STATUS: true,
-            TIMEOUT: 10000,
           },
         },
         Response: {
