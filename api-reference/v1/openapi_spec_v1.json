@@ -23241,6 +23241,14 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },

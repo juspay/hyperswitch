@@ -109,6 +109,10 @@ pub struct DisputeResponsePaymentsRetrieve {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     #[smithy(value_type = "String")]
     pub created_at: PrimitiveDateTime,
+    /// Additional details of the dispute, such as card network specific details
+    #[schema(value_type = Option<AdditionalDetails>)]
+    #[smithy(value_type = "Option<AdditionalDetails>")]
+    pub additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 #[derive(Debug, Serialize, Deserialize, strum::Display, Clone, ToSchema)]
