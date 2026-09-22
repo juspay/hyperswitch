@@ -63,12 +63,8 @@ where
         })
         .attach_printable("Failed while creating a signals handler")?;
     let handle = signal.handle();
-    #[allow(
-        clippy::disallowed_methods,
-        reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-    )]
     let task_handle =
-        tokio::spawn(common_utils::signals::signal_handler(signal, tx).in_current_span());
+        router_env::spawn(common_utils::signals::signal_handler(signal, tx).in_current_span());
 
     'consumer: loop {
         match rx.try_recv() {
@@ -165,12 +161,10 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
 
         metrics::TASK_CONSUMED.add(1, &[]);
 
-        handler.push(tokio::task::spawn(start_workflow(
-            state.clone(),
-            task.clone(),
-            pickup_time,
-            workflow_selector,
-        )))
+        handler.push(router_env::spawn(
+            start_workflow(state.clone(), task.clone(), pickup_time, workflow_selector)
+                .in_current_span(),
+        ))
     }
     future::join_all(handler).await;
 

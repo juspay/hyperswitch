@@ -109,7 +109,8 @@ pub async fn get_api_event_metrics(
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
         let merchant_id_scoped = merchant_id.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_api_event_metrics(

@@ -9,7 +9,10 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{
+    instrument, logger,
+    tracing::{self, Instrument},
+};
 
 use super::{
     events::{get_sdk_event, SdkEventsResult},
@@ -58,20 +61,28 @@ pub async fn get_metrics(
         let req = req.clone();
         let publishable_key_scoped = publishable_key.to_owned();
         let pool = pool.clone();
-        set.spawn(async move {
-            let data = pool
-                .get_sdk_event_metrics(
-                    &metric_type,
-                    &req.group_by_names.clone(),
-                    &publishable_key_scoped,
-                    &req.filters,
-                    req.time_series.map(|t| t.granularity),
-                    &req.time_range,
-                )
-                .await
-                .change_context(AnalyticsError::UnknownError);
-            (metric_type, data)
-        });
+        let task_span = tracing::debug_span!(
+            "analytics_sdk_events_metrics_query",
+            sdk_event_metric = metric_type.as_ref()
+        );
+        router_env::spawn_in_set(
+            &mut set,
+            async move {
+                let data = pool
+                    .get_sdk_event_metrics(
+                        &metric_type,
+                        &req.group_by_names.clone(),
+                        &publishable_key_scoped,
+                        &req.filters,
+                        req.time_series.map(|t| t.granularity),
+                        &req.time_range,
+                    )
+                    .await
+                    .change_context(AnalyticsError::UnknownError);
+                (metric_type, data)
+            }
+            .instrument(task_span),
+        );
     }
 
     while let Some((metric, data)) = set

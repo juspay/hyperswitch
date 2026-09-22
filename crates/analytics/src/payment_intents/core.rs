@@ -89,7 +89,8 @@ pub async fn get_metrics(
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
         let auth_scoped = auth.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_payment_intent_metrics(

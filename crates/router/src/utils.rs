@@ -41,11 +41,11 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use hyperswitch_interfaces::webhooks::WebhookResourceData;
 use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
+use router_env::tracing::Instrument;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 #[cfg(feature = "v1")]
 use subscriptions::{subscription_handler::SubscriptionHandler, workflows::InvoiceSyncHandler};
-use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
@@ -1247,7 +1247,7 @@ where
                     )
                     .await?;
                 let cloned_platform = platform.clone();
-                tokio::spawn(
+                router_env::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
                         let webhook_resource_data =
@@ -1340,7 +1340,7 @@ pub async fn trigger_refund_outgoing_webhook(
                 )
                 .await?;
             let cloned_platform = platform.clone();
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     let webhook_resource_data = WebhookResourceData::Refund {
                         payment_attempt: cloned_payment_attempt,
@@ -1430,7 +1430,7 @@ pub async fn trigger_payouts_webhook(
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     let primary_object_created_at = cloned_response.created;
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
@@ -1518,7 +1518,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         ))
         .await
     };
-    tokio::spawn(outgoing_webhook.in_current_span());
+    router_env::spawn(outgoing_webhook.in_current_span());
 
     Ok(())
 }
