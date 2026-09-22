@@ -31,6 +31,8 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(feature = "v2")]
 use async_trait::async_trait;
 #[cfg(feature = "v1")]
+use common_utils::collections::HashSet;
+#[cfg(feature = "v1")]
 use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
@@ -361,7 +363,7 @@ pub async fn render_pm_collect_link(
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
-                        allowed_domains: Default::default(),
+                        allowed_domains: HashSet::from([]),
                         data: GenericLinksData::ExpiredLink(expired_link_data),
                         locale: DEFAULT_LOCALE.to_string(),
                     },
@@ -425,7 +427,7 @@ pub async fn render_pm_collect_link(
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
-                        allowed_domains: Default::default(),
+                        allowed_domains: HashSet::from([]),
                         data: GenericLinksData::PaymentMethodCollect(generic_form_data),
                         locale: DEFAULT_LOCALE.to_string(),
                     },
@@ -470,7 +472,7 @@ pub async fn render_pm_collect_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: Default::default(),
+                    allowed_domains: HashSet::from([]),
                     data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
                     locale: DEFAULT_LOCALE.to_string(),
                 },
