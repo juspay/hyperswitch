@@ -13,6 +13,11 @@
 /// body it built when it did. A candidate that genuinely stopped making the call
 /// still diverges, because nothing else about the call is touched.
 ///
+/// `skip_all`: the parameter is an `Instant`, captured through `Debug` and
+/// different on every call, so keeping it would re-key the site each time and
+/// the lookup would never hit — putting a fresh reading in every request. The
+/// site is addressed by span path and occurrence instead.
+///
 /// `on_miss` takes the real reading, and that arm is load-bearing rather than
 /// defensive. Every tape recorded BEFORE this seam existed has no entry for it,
 /// so replaying one against a candidate that does would miss here on the first
@@ -29,6 +34,7 @@
         component = "common_utils::elapsed",
         operation = "millis_since",
         codec = SerdeCodec,
+        skip_all,
         on_miss = started.elapsed().as_millis(),
     )
 )]
