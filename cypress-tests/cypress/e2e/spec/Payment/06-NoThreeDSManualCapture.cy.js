@@ -87,10 +87,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        if (globalState.get("connectorId") === "fiuu") {
-          cy.wait(60000);
-        }
-
         cy.step("Capture Payment", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
@@ -164,10 +160,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             shouldContinue = false;
           }
         });
-
-        if (globalState.get("connectorId") === "fiuu") {
-          cy.wait(60000);
-        }
 
         cy.step("Capture Payment", () => {
           if (!shouldContinue) {
@@ -272,10 +264,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        if (globalState.get("connectorId") === "fiuu") {
-          cy.wait(60000);
-        }
-
         cy.step("Partial Capture Payment", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Partial Capture Payment");
@@ -356,10 +344,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             shouldContinue = false;
           }
         });
-
-        if (globalState.get("connectorId") === "fiuu") {
-          cy.wait(60000);
-        }
 
         cy.step("Partial Capture Payment", () => {
           if (!shouldContinue) {
