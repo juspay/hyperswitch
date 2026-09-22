@@ -72,70 +72,18 @@ describe("Payment Method List - customer_acceptance_support field", () => {
       });
 
       it("payment-method-list-call-test: card.credit is supported, bank_debit.ach is unsupported", () => {
-        const validValues = [
-          "supported",
-          "partially_supported",
-          "unsupported",
-        ];
-
-        cy.getPaymentMethodsList(globalState).then((response) => {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
-          );
-
-          if (response.status === 200) {
-            const paymentMethods = response.body["payment_methods"];
-            expect(paymentMethods).to.be.an("array");
-            expect(paymentMethods.length).to.be.greaterThan(0);
-
-            let sawCardCredit = false;
-            let sawBankDebitAch = false;
-
-            paymentMethods.forEach((paymentMethod) => {
-              expect(paymentMethod["payment_method_types"]).to.be.an(
-                "array"
-              );
-              paymentMethod["payment_method_types"].forEach(
-                (paymentMethodType) => {
-                  expect(paymentMethodType).to.have.property(
-                    "customer_acceptance_support"
-                  );
-                  expect(validValues).to.include(
-                    paymentMethodType["customer_acceptance_support"]
-                  );
-
-                  if (
-                    paymentMethod["payment_method"] === "card" &&
-                    paymentMethodType["payment_method_type"] === "credit"
-                  ) {
-                    sawCardCredit = true;
-                    expect(
-                      paymentMethodType["customer_acceptance_support"]
-                    ).to.equal("supported");
-                  }
-
-                  if (
-                    paymentMethod["payment_method"] === "bank_debit" &&
-                    paymentMethodType["payment_method_type"] === "ach"
-                  ) {
-                    sawBankDebitAch = true;
-                    expect(
-                      paymentMethodType["customer_acceptance_support"]
-                    ).to.equal("unsupported");
-                  }
-                }
-              );
-            });
-
-            expect(sawCardCredit, "card.credit entry present").to.be.true;
-            expect(sawBankDebitAch, "bank_debit.ach entry present").to.be
-              .true;
-          } else {
-            throw new Error(
-              `List payment methods failed with status code "${response.status}"`
-            );
-          }
-        });
+        cy.assertCustomerAcceptanceSupport(globalState, [
+          {
+            paymentMethod: "card",
+            paymentMethodType: "credit",
+            expected: "supported",
+          },
+          {
+            paymentMethod: "bank_debit",
+            paymentMethodType: "ach",
+            expected: "unsupported",
+          },
+        ]);
       });
     }
   );
@@ -204,44 +152,13 @@ describe("Payment Method List - customer_acceptance_support field", () => {
       });
 
       it("payment-method-list-call-test: bank_redirect.open_banking is partially_supported", () => {
-        cy.getPaymentMethodsList(globalState).then((response) => {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
-          );
-
-          if (response.status === 200) {
-            const paymentMethods = response.body["payment_methods"];
-            expect(paymentMethods).to.be.an("array");
-
-            let sawOpenBanking = false;
-
-            paymentMethods.forEach((paymentMethod) => {
-              if (paymentMethod["payment_method"] !== "bank_redirect") {
-                return;
-              }
-              (paymentMethod["payment_method_types"] || []).forEach(
-                (paymentMethodType) => {
-                  if (
-                    paymentMethodType["payment_method_type"] ===
-                    "open_banking"
-                  ) {
-                    sawOpenBanking = true;
-                    expect(
-                      paymentMethodType["customer_acceptance_support"]
-                    ).to.equal("partially_supported");
-                  }
-                }
-              );
-            });
-
-            expect(sawOpenBanking, "bank_redirect.open_banking entry present")
-              .to.be.true;
-          } else {
-            throw new Error(
-              `List payment methods failed with status code "${response.status}"`
-            );
-          }
-        });
+        cy.assertCustomerAcceptanceSupport(globalState, [
+          {
+            paymentMethod: "bank_redirect",
+            paymentMethodType: "open_banking",
+            expected: "partially_supported",
+          },
+        ]);
       });
     }
   );

@@ -7991,9 +7991,7 @@ Cypress.Commands.add(
           expect(response.body)
             .to.have.property("fingerprint_id")
             .to.equal(cardBin);
-          expect(response.body)
-            .to.have.property("data_kind")
-            .to.equal(type);
+          expect(response.body).to.have.property("data_kind").to.equal(type);
           expect(response.body).to.have.property("created_at").to.not.be.null;
           globalState.set("blocklistRuleId", response.body.fingerprint_id);
         } else {
@@ -8042,74 +8040,169 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "getPaymentDetails",
-  (globalState, queryParams = "force_sync=true&expand_attempts=true") => {
-    const paymentId = globalState.get("paymentID");
-    return cy.request({
+// Retrieves the payment (reusing the same GET /payments/{id} shape as
+// retrievePaymentCallTest) and asserts payment_account_reference is present
+// only for card networks that are expected to carry one.
+Cypress.Commands.add("assertPaymentAccountReference", (globalState) => {
+  const paymentId = globalState.get("paymentID");
+
+  return cy
+    .request({
       method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${paymentId}?${queryParams}`,
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}?force_sync=true&expand_attempts=true`,
       headers: {
         "Content-Type": "application/json",
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
+    })
+    .then((response) => {
+      expect(response.status).to.equal(200);
+
+      const cardNetwork = response.body.payment_method_data?.card?.card_network;
+
+      if (cardNetwork === "Visa" || cardNetwork === "Mastercard") {
+        expect(response.body.payment_account_reference).to.be.a("string").and
+          .not.be.empty;
+      } else if (cardNetwork === "AmericanExpress") {
+        expect(response.body.payment_account_reference).to.be.null;
+      }
     });
+});
+
+// Fetches the payment method list and asserts every payment_method_type
+// carries a valid `customer_acceptance_support` value, additionally checking
+// the expected value for each `{ paymentMethod, paymentMethodType, expected }`
+// entry passed in.
+Cypress.Commands.add(
+  "assertCustomerAcceptanceSupport",
+  (globalState, expectedEntries = []) => {
+    const validValues = ["supported", "partially_supported", "unsupported"];
+    const clientSecret = globalState.get("clientSecret");
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "api-key": globalState.get("publishableKey"),
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        const paymentMethods = response.body["payment_methods"] || [];
+        expect(paymentMethods).to.be.an("array");
+
+        const seen = new Set();
+
+        paymentMethods.forEach((paymentMethod) => {
+          (paymentMethod["payment_method_types"] || []).forEach(
+            (paymentMethodType) => {
+              expect(paymentMethodType).to.have.property(
+                "customer_acceptance_support"
+              );
+              expect(validValues).to.include(
+                paymentMethodType["customer_acceptance_support"]
+              );
+
+              expectedEntries.forEach(
+                ({ paymentMethod: pm, paymentMethodType: pmt, expected }) => {
+                  if (
+                    paymentMethod["payment_method"] === pm &&
+                    paymentMethodType["payment_method_type"] === pmt
+                  ) {
+                    seen.add(`${pm}.${pmt}`);
+                    expect(
+                      paymentMethodType["customer_acceptance_support"],
+                      `${pm}.${pmt} customer_acceptance_support`
+                    ).to.equal(expected);
+                  }
+                }
+              );
+            }
+          );
+        });
+
+        expectedEntries.forEach(
+          ({ paymentMethod: pm, paymentMethodType: pmt }) => {
+            expect(seen.has(`${pm}.${pmt}`), `${pm}.${pmt} entry present`).to.be
+              .true;
+          }
+        );
+      });
   }
 );
 
-Cypress.Commands.add("getPaymentMethodsList", (globalState) => {
-  const clientSecret = globalState.get("clientSecret");
-  return cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "api-key": globalState.get("publishableKey"),
-    },
-    failOnStatusCode: false,
-  });
-});
+// Unlike blocklistCreateRule/blocklistDeleteRule, these accept an
+// `expectSuccess` flag so callers can assert both the success and the
+// expected-rejection boundary cases through the same command, with the
+// assertions living here instead of in the spec file.
+Cypress.Commands.add(
+  "blocklistCreateRuleRaw",
+  (type, data, globalState, expectSuccess = true) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
 
-// Unlike blocklistCreateRule/blocklistDeleteRule, these don't assert or
-// throw on non-200 - they just return the raw response, for callers that
-// need to assert both success and expected-rejection paths.
-Cypress.Commands.add("blocklistCreateRuleRaw", (type, data, globalState) => {
-  const apiKey = globalState.get("apiKey");
-  const baseUrl = globalState.get("baseUrl");
-  const profileId = globalState.get("profileId");
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/blocklist`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "X-Profile-Id": profileId,
+        },
+        body: { type, data },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (expectSuccess) {
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("data_kind", type);
+          expect(response.body).to.have.property("fingerprint_id", data);
+        } else {
+          expect(response.status).to.not.equal(200);
+        }
+        return response;
+      });
+  }
+);
 
-  return cy.request({
-    method: "POST",
-    url: `${baseUrl}/blocklist`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-      "X-Profile-Id": profileId,
-    },
-    body: { type, data },
-    failOnStatusCode: false,
-  });
-});
+Cypress.Commands.add(
+  "blocklistDeleteRuleRaw",
+  (type, data, globalState, expectSuccess = true) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
 
-Cypress.Commands.add("blocklistDeleteRuleRaw", (type, data, globalState) => {
-  const apiKey = globalState.get("apiKey");
-  const baseUrl = globalState.get("baseUrl");
-  const profileId = globalState.get("profileId");
-
-  return cy.request({
-    method: "DELETE",
-    url: `${baseUrl}/blocklist`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-      "X-Profile-Id": profileId,
-    },
-    body: { type, data },
-    failOnStatusCode: false,
-  });
-});
+    return cy
+      .request({
+        method: "DELETE",
+        url: `${baseUrl}/blocklist`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "X-Profile-Id": profileId,
+        },
+        body: { type, data },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (expectSuccess) {
+          expect(response.status).to.equal(200);
+        } else {
+          expect(response.status).to.not.equal(200);
+        }
+        return response;
+      });
+  }
+);
 
 Cypress.Commands.add(
   "paymentsEligibilityCheck",
