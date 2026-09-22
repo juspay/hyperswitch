@@ -209,6 +209,11 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Restore sccache cache from S3
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh test
+
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
@@ -219,13 +224,13 @@ jobs:
         shell: bash
         # Capped: uncapped + cold cache OOM'd a runner pod (git log).
         env:
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: just clippy
 
       - name: Run clippy (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: just clippy fred
 
       - name: Check Cargo.lock changed
@@ -243,7 +248,7 @@ jobs:
       - name: Run cargo check
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: cargo check --features "release"
 
       - name: Show sccache stats
@@ -326,6 +331,11 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Restore sccache cache from S3
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh check-v2
+
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
@@ -335,27 +345,27 @@ jobs:
       - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: just clippy_v2
 
       - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: just clippy_v2 fred
 
       - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
         env:
           RUSTFLAGS: "-A warnings"
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: cargo check --no-default-features --features "release,v2,redis-rs"
 
       - name: Run cargo check enabling only the release and v2 features (fred backend)
         shell: bash
         env:
           RUSTFLAGS: "-A warnings"
-          CARGO_BUILD_JOBS: 10
+          CARGO_BUILD_JOBS: 9
         run: cargo check --no-default-features --features "release,v2,fred"
 
       - name: Show sccache stats
