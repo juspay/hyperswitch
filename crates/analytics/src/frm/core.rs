@@ -38,7 +38,8 @@ pub async fn get_metrics(
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
         let merchant_id_scoped = merchant_id.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_frm_metrics(

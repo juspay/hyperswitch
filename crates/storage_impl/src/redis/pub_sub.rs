@@ -55,11 +55,7 @@ impl PubSubInterface for Arc<redis_interface::RedisConnectionPool> {
             .is_ok()
         {
             let redis_clone = self.clone();
-            #[allow(
-                clippy::disallowed_methods,
-                reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-            )]
-            let _task_handle = tokio::spawn(
+            let _task_handle = router_env::spawn(
                 async move {
                     if let Err(pubsub_error) = redis_clone.on_message(caches).await {
                         logger::error!(?pubsub_error);

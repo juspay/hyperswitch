@@ -177,11 +177,7 @@ impl SubscriberClient {
         let (broadcast_sender, _) =
             tokio::sync::broadcast::channel(conf.broadcast_channel_capacity);
 
-        #[allow(
-            clippy::disallowed_methods,
-            reason = "process-lifetime task spawned outside any request: there is no correlation to lose and no sibling to be transposed with"
-        )]
-        tokio::spawn(Self::run(push_receiver, broadcast_sender.clone()).in_current_span());
+        router_env::spawn(Self::run(push_receiver, broadcast_sender.clone()).in_current_span());
 
         Ok(Self {
             connection,
