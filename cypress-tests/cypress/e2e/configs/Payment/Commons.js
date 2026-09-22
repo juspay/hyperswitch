@@ -111,7 +111,7 @@ const blocklistedCardDetails = {
 };
 
 // Cards saved onto a dedicated customer for the BIN-based eligibility
-// blocklist spec (57-BinBasedEligibilityBlocklist.cy.js). The card_isin
+// blocklist spec (54-BinBasedEligibilityBlocklist.cy.js). The card_isin
 // derived from each number (411111 / 400005 / 424242 / 555555) is what the
 // blocklist guard matches against, both for eligibility checks and for
 // saved-card filtering in the payments client list.
