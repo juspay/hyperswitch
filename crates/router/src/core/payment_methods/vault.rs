@@ -984,11 +984,11 @@ impl Vaultable for api::BankPayout {
             },
             Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
-                bank_name: bank_details.bank_name.clone(),
+                bank_name: bank_details.bank_name.as_ref().map(|b| b.to_string()),
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.clone(),
-                ispb: bank_details.ispb.as_ref().map(|s| s.peek().to_owned()),
+                ispb: bank_details.ispb.clone(),
                 bank_code: bank_details.bank_code.clone(),
                 bank_account_type: bank_details.bank_account_type,
                 payout_method_type: Some(PaymentMethodType::Ted),
@@ -1088,6 +1088,22 @@ impl Vaultable for api::BankPayout {
                     bank_code: bank_insensitive_data.bank_code,
                     bank_account_type: bank_insensitive_data.bank_account_type,
                     account_holder_name: bank_sensitive_data.account_holder_name,
+                })
+            }
+            (Some(ban), None, None, None, None, None, tax_id, None, Some(PaymentMethodType::Ted)) => {
+                Self::Ted(payouts::TedBankTransfer {
+                    bank_account_number: ban,
+                    bank_branch: bank_insensitive_data.bank_branch,
+                    bank_name: bank_insensitive_data
+                        .bank_name
+                        .map(|bank_name| BankNames::from_str(&bank_name))
+                        .transpose()
+                        .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+                    bank_code: bank_insensitive_data.bank_code,
+                    bank_account_type: bank_insensitive_data.bank_account_type,
+                    tax_id,
+                    account_holder_name: bank_sensitive_data.account_holder_name,
+                    ispb: bank_insensitive_data.ispb,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1391,11 +1407,11 @@ impl Vaultable for api::BankTransferPayout {
             },
             Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
-                bank_name: bank_details.bank_name.clone(),
+                bank_name: bank_details.bank_name.as_ref().map(|b| b.to_string()),
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.clone(),
-                ispb: bank_details.ispb.as_ref().map(|s| s.peek().to_owned()),
+                ispb: bank_details.ispb.clone(),
                 bank_code: bank_details.bank_code.clone(),
                 bank_account_type: bank_details.bank_account_type,
                 payout_method_type: Some(PaymentMethodType::Ted),
@@ -1543,12 +1559,16 @@ impl Vaultable for api::BankTransferPayout {
                     },
                 )?,
                 bank_branch: bank_insensitive_data.bank_branch,
-                bank_name: bank_insensitive_data.bank_name,
+                bank_name: bank_insensitive_data
+                    .bank_name
+                    .map(|bank_name| BankNames::from_str(&bank_name))
+                    .transpose()
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)?,
                 bank_code: bank_insensitive_data.bank_code,
                 bank_account_type: bank_insensitive_data.bank_account_type,
                 tax_id: bank_sensitive_data.tax_id,
                 account_holder_name: bank_sensitive_data.account_holder_name,
-                ispb: bank_insensitive_data.ispb.map(hyperswitch_masking::Secret::new),
+                ispb: bank_insensitive_data.ispb,
             }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };

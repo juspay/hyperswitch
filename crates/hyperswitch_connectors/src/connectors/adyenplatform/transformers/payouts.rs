@@ -561,11 +561,15 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                         message: "Bank transfer via OpenBanking is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
-                    payouts::BankTransfer::Payshap(..)
-                    | payouts::BankTransfer::PayshapProxy(..)
-                    | payouts::BankTransfer::Ted(..) => {
+                    payouts::BankTransfer::Payshap(..) | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(ConnectorError::NotSupported {
-                            message: "Bank transfer via PayShap/TED is not supported".to_string(),
+                            message: "Bank transfer via PayShap is not supported".to_string(),
+                            connector: "Adyenplatform",
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => {
+                        Err(ConnectorError::NotSupported {
+                            message: "Bank transfer via TED is not supported".to_string(),
                             connector: "Adyenplatform",
                         })?
                     }

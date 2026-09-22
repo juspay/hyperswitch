@@ -467,10 +467,16 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     .into())
                 }
                 api_models::payouts::BankTransfer::Payshap(_)
-                | api_models::payouts::BankTransfer::PayshapProxy(_)
-                | api_models::payouts::BankTransfer::Ted(_) => {
+                | api_models::payouts::BankTransfer::PayshapProxy(_) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: "PayShap/TED payouts are not supported".to_string(),
+                        message: "PayShap payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
+                }
+                api_models::payouts::BankTransfer::Ted(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "TED payouts are not supported".to_string(),
                         connector: "stripe",
                     }
                     .into())

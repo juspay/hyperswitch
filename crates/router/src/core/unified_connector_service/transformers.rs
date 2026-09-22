@@ -9526,10 +9526,15 @@ impl transformers::ForeignTryFrom<&api_models::payouts::TedBankTransfer>
     fn foreign_try_from(
         item: &api_models::payouts::TedBankTransfer,
     ) -> Result<Self, Self::Error> {
+        let bank_name = item
+            .bank_name
+            .map(payments_grpc::BankNames::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
-            bank_name: item.bank_name.clone(),
+            bank_name: bank_name.map(Into::into),
             bank_code: item.bank_code.clone(),
-            ispb: item.ispb.clone(),
+            ispb: item.ispb.clone().map(Secret::new),
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
             bank_account_type: item

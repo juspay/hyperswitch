@@ -288,12 +288,16 @@ pub struct TedBankTransferAdditionalData {
     pub bank_account_number: MaskedBankAccount,
 
     /// Bank name
-    #[schema(value_type = Option<String>, example = "Banco Santander")]
-    pub bank_name: Option<String>,
+    #[schema(value_type = Option<BankNames>)]
+    pub bank_name: Option<common_enums::BankNames>,
 
     /// The bank code (COMPE code)
     #[schema(value_type = Option<String>, example = "033")]
     pub bank_code: Option<String>,
+
+    /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
+    #[schema(value_type = Option<String>, example = "90400888")]
+    pub ispb: Option<String>,
 
     /// The branch code
     #[schema(value_type = Option<String>, example = "0001")]

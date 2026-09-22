@@ -6395,11 +6395,15 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                             connector: "Adyen",
                         })?
                     }
-                    payouts::BankTransfer::Payshap(..)
-                    | payouts::BankTransfer::PayshapProxy(..)
-                    | payouts::BankTransfer::Ted(..) => {
+                    payouts::BankTransfer::Payshap(..) | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(errors::ConnectorError::NotSupported {
-                            message: "Bank transfer via PayShap/TED is not supported".to_string(),
+                            message: "Bank transfer via PayShap is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via TED is not supported".to_string(),
                             connector: "Adyen",
                         })?
                     }

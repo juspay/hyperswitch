@@ -639,8 +639,8 @@ pub struct PayshapProxyBankTransfer {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct TedBankTransfer {
     /// Bank name
-    #[schema(value_type = Option<String>, example = "Banco Santander")]
-    pub bank_name: Option<String>,
+    #[schema(value_type = Option<BankNames>)]
+    pub bank_name: Option<api_enums::BankNames>,
 
     /// The bank code (COMPE code) used to identify the bank
     #[schema(value_type = Option<String>, example = "033")]
@@ -648,7 +648,7 @@ pub struct TedBankTransfer {
 
     /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
     #[schema(value_type = Option<String>, example = "90400888")]
-    pub ispb: Option<Secret<String>>,
+    pub ispb: Option<String>,
 
     /// The branch code
     #[schema(value_type = Option<String>, example = "0001")]
@@ -1496,6 +1496,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
             Bank::Ted(TedBankTransfer {
                 bank_name,
                 bank_code,
+                ispb,
                 bank_branch,
                 bank_account_number,
                 bank_account_type,
@@ -1505,6 +1506,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_account_number: bank_account_number.into(),
                 bank_name,
                 bank_code,
+                ispb,
                 bank_branch,
                 bank_account_type,
                 account_holder_name,
@@ -1661,6 +1663,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
             BankTransfer::Ted(TedBankTransfer {
                 bank_name,
                 bank_code,
+                ispb,
                 bank_branch,
                 bank_account_number,
                 bank_account_type,
@@ -1670,6 +1673,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_account_number: bank_account_number.into(),
                 bank_name,
                 bank_code,
+                ispb,
                 bank_branch,
                 bank_account_type,
                 account_holder_name,
