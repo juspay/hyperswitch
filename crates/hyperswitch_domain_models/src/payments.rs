@@ -248,24 +248,25 @@ impl PaymentIntent {
         (Option<common_enums::CountryAlpha2>, Option<String>),
         common_utils::errors::ParsingError,
     > {
-        if business_country.is_some() || business_label.is_some() {
-            return Ok((business_country, business_label));
+        match (business_country, business_label) {
+            (None, None) => {
+                let business_details = Self::get_fallback_business_details(
+                    connector_business_details,
+                    merchant_account,
+                    business_profile,
+                )?;
+
+                Ok(business_details.unzip())
+            }
+            (business_country, business_label) => Ok((business_country, business_label)),
         }
-
-        let business_details = Self::get_fallback_business_details(
-            connector_business_details,
-            merchant_account,
-            business_profile,
-        )?;
-
-        Ok(business_details.unzip())
     }
 
     #[cfg(feature = "v1")]
-    /// Get the business details (business_country, business_label) to be populated in the payment
+    /// Get the business details (business_country, business_label) to be set on the payment
     /// intent, if they were not passed in the payment request. Refer to
     /// [`Self::resolve_business_details`] for the order of precedence
-    pub fn get_business_details_to_populate(
+    pub fn get_business_details_to_set(
         &self,
         connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
         merchant_account: &crate::merchant_account::MerchantAccount,
@@ -274,28 +275,27 @@ impl PaymentIntent {
         Option<(common_enums::CountryAlpha2, String)>,
         common_utils::errors::ParsingError,
     > {
-        if self.business_country.is_some() || self.business_label.is_some() {
-            return Ok(None);
+        match (&self.business_country, &self.business_label) {
+            (None, None) => Self::get_fallback_business_details(
+                connector_business_details,
+                merchant_account,
+                business_profile,
+            ),
+            _ => Ok(None),
         }
-
-        Self::get_fallback_business_details(
-            connector_business_details,
-            merchant_account,
-            business_profile,
-        )
     }
 
     #[cfg(feature = "v1")]
-    /// Populate the business details (business_country, business_label) in the payment intent, if
-    /// they were not passed in the payment request. Refer to [`Self::resolve_business_details`]
-    /// for the order of precedence
-    pub fn populate_business_details(
+    /// Set the business details (business_country, business_label) on the payment intent, if they
+    /// were not passed in the payment request. Refer to [`Self::resolve_business_details`] for the
+    /// order of precedence
+    pub fn set_business_details(
         &mut self,
         connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
         merchant_account: &crate::merchant_account::MerchantAccount,
         business_profile: &crate::business_profile::Profile,
     ) -> CustomResult<(), common_utils::errors::ParsingError> {
-        if let Some((business_country, business_label)) = self.get_business_details_to_populate(
+        if let Some((business_country, business_label)) = self.get_business_details_to_set(
             connector_business_details,
             merchant_account,
             business_profile,

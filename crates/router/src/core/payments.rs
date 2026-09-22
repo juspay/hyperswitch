@@ -6154,12 +6154,12 @@ where
     )
     .await?;
 
-    // If the business details were not passed in the payment request, populate them from the
-    // merchant connector account or the merchant account, so that the connector label can be
-    // generated for the payment. These are persisted along with the other payment intent updates
+    // If the business details were not passed in the payment request, set them from the merchant
+    // connector account or the merchant account, so that the connector label can be generated for
+    // the payment. These are persisted along with the other payment intent updates
     if let Some((business_country, business_label)) = payment_data
         .get_payment_intent()
-        .get_business_details_to_populate(
+        .get_business_details_to_set(
             merchant_connector_account.get_business_details(),
             platform.get_processor().get_account(),
             business_profile,
