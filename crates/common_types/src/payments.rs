@@ -1719,8 +1719,26 @@ pub struct ExternalSurchargeDetails {
     pub external_surcharge_id: String,
     /// Surcharge amount in minor units
     pub external_surcharge_amount: MinorUnit,
+    /// Surcharge percentage returned by the connector (e.g. InterPayments), if provided.
+    /// Stored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.
+    #[serde(default)]
+    #[schema(value_type = Option<f64>)]
+    pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+}
+
+impl ExternalSurchargeDetails {
+    /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
+    /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
+    pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {
+        value.and_then(Decimal::from_f64)
+    }
+
+    /// The surcharge percentage as an `f64` for API responses, if present.
+    pub fn surcharge_percentage_as_f64(&self) -> Option<f64> {
+        self.surcharge_percentage.and_then(|value| value.to_f64())
+    }
 }
 
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
