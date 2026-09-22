@@ -4191,9 +4191,8 @@ export const connectorDetails = {
     // (WebhookConfig) covers full-list create/update and invalid-value
     // negatives; this family covers gating-shaped subsets only (single-status
     // enable, suppression shape, re-enable round-trip).
-    // Dispute/mandate/invoice variants are gated behind TRIGGER_SKIP because
-    // the corresponding server fields are rejected (IR_06) until the pre-PR
-    // server binary is rebuilt (PENDING_SERVER_REBUILD).
+    // All six event classes (payment/refund/dispute/mandate/invoice
+    // *_statuses_enabled) are live on post-#13649 server binaries.
     OutgoingWebhookEventConfig: {
       PaymentOnlySucceeded: getCustomExchange({
         Request: {
@@ -4244,9 +4243,6 @@ export const connectorDetails = {
         },
       }),
       DisputeOnlyOpened: getCustomExchange({
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           webhook_details: {
             webhook_url: "https://example.com/webhook",
@@ -4259,9 +4255,6 @@ export const connectorDetails = {
         },
       }),
       MandateOnlyActive: getCustomExchange({
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           webhook_details: {
             webhook_url: "https://example.com/webhook",
@@ -4274,9 +4267,6 @@ export const connectorDetails = {
         },
       }),
       InvoiceOnlyPaid: getCustomExchange({
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           webhook_details: {
             webhook_url: "https://example.com/webhook",

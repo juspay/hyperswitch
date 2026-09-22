@@ -123,65 +123,38 @@ describe("Outgoing Webhook Event Configuration Tests", () => {
     });
   });
 
-  context(
-    "PENDING_SERVER_REBUILD — Dispute, Mandate and Invoice Event Gating",
-    () => {
-      it("configure dispute events to opened only", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["OutgoingWebhookEventConfig"]["DisputeOnlyOpened"];
+  context("Dispute, Mandate and Invoice Event Gating", () => {
+    it("configure dispute events to opened only", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["OutgoingWebhookEventConfig"]["DisputeOnlyOpened"];
 
-        if (!utils.should_continue_further(data)) {
-          cy.task(
-            "cli_log",
-            "TRIGGER_SKIP enabled for dispute event gating config (PENDING_SERVER_REBUILD)"
-          );
-          return;
-        }
+      cy.updateBusinessProfileWebhookConfigTest(
+        { webhook_details: structuredClone(data.Request.webhook_details) },
+        globalState
+      );
+    });
 
-        cy.updateBusinessProfileWebhookConfigTest(
-          { webhook_details: structuredClone(data.Request.webhook_details) },
-          globalState
-        );
-      });
+    it("configure mandate events to active only", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["OutgoingWebhookEventConfig"]["MandateOnlyActive"];
 
-      it("configure mandate events to active only", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["OutgoingWebhookEventConfig"]["MandateOnlyActive"];
+      cy.updateBusinessProfileWebhookConfigTest(
+        { webhook_details: structuredClone(data.Request.webhook_details) },
+        globalState
+      );
+    });
 
-        if (!utils.should_continue_further(data)) {
-          cy.task(
-            "cli_log",
-            "TRIGGER_SKIP enabled for mandate event gating config (PENDING_SERVER_REBUILD)"
-          );
-          return;
-        }
+    it("configure invoice events to paid only", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["OutgoingWebhookEventConfig"]["InvoiceOnlyPaid"];
 
-        cy.updateBusinessProfileWebhookConfigTest(
-          { webhook_details: structuredClone(data.Request.webhook_details) },
-          globalState
-        );
-      });
-
-      it("configure invoice events to paid only", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["OutgoingWebhookEventConfig"]["InvoiceOnlyPaid"];
-
-        if (!utils.should_continue_further(data)) {
-          cy.task(
-            "cli_log",
-            "TRIGGER_SKIP enabled for invoice event gating config (PENDING_SERVER_REBUILD)"
-          );
-          return;
-        }
-
-        cy.updateBusinessProfileWebhookConfigTest(
-          { webhook_details: structuredClone(data.Request.webhook_details) },
-          globalState
-        );
-      });
-    }
-  );
+      cy.updateBusinessProfileWebhookConfigTest(
+        { webhook_details: structuredClone(data.Request.webhook_details) },
+        globalState
+      );
+    });
+  });
 });
