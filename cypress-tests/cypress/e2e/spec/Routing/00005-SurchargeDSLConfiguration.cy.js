@@ -108,6 +108,12 @@ describe("Surcharge DSL Configuration Test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  after("cleanup throwaway merchant", () => {
+    if (globalState.get("merchantId")) {
+      cy.merchantDeleteCall(globalState);
+    }
+  });
+
   context("Surcharge DSL with rate-based default selection", () => {
     it("create-surcharge-dsl-config-rate", () => {
       const data =
