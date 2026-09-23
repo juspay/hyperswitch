@@ -453,6 +453,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
         let headers_builder = state
             .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(self.payment_method))
+            .payment_method_type(self.payment_method_type)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -567,6 +569,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
         let headers_builder = state
             .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(self.payment_method))
+            .payment_method_type(self.payment_method_type)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)

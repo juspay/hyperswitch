@@ -113,6 +113,8 @@ where
 
         let header_payload = state
             .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(router_data.payment_method))
+            .payment_method_type(router_data.payment_method_type)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(None)
             .resource_id(None)
