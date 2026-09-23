@@ -7205,7 +7205,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
                 // No rollout config governs the external-vault proxy path, so nothing can divert it.
-                crate::core::unified_connector_service::kill_switch::RolloutSettings::inert(
+                crate::core::unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
                     ExecutionMode::Primary,
                 ),
             )

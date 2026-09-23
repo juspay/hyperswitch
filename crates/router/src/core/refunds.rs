@@ -981,7 +981,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     &ucs_state,
                     ucs_platform.get_processor(),
                     ucs_router_data,
-                    unified_connector_service::kill_switch::RolloutSettings::inert(
+                    unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
                         ExecutionMode::Shadow,
                     ),
                     merchant_connector_account,
@@ -1549,7 +1549,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     &state,
                     &processor,
                     router_data,
-                    unified_connector_service::kill_switch::RolloutSettings::inert(
+                    unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
                         ExecutionMode::Shadow,
                     ),
                     merchant_connector_account,

@@ -139,9 +139,10 @@ pub struct RolloutSettings {
 }
 
 impl RolloutSettings {
-    /// For calls no rollout config governs: a shadow run, or a path the gate does not gate.
-    /// Nothing reads the counter for these, so the switch cannot divert them.
-    pub fn inert(execution_mode: ExecutionMode) -> Self {
+    /// Settings under which the kill switch can never divert this call: used where no
+    /// rollout config governs it, i.e. a shadow run or a path the gate does not gate, so
+    /// nothing ever reads the counter. `kill_switch_enabled: false` here states a fact.
+    pub fn without_kill_switch(execution_mode: ExecutionMode) -> Self {
         Self {
             execution_mode,
             kill_switch_enabled: false,
