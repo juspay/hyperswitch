@@ -264,7 +264,12 @@ pub async fn refund_reverse_core(
                 &updated_state,
                 processor,
                 router_data,
-                ExecutionMode::Primary,
+                unified_connector_service::kill_switch::KillSwitchSettings {
+                    execution_mode: ExecutionMode::Primary,
+                    kill_switch_enabled: rollout_result.kill_switch_enabled,
+                    kill_switch_threshold: rollout_result.kill_switch_threshold,
+                    connector_decline_threshold: rollout_result.connector_decline_threshold,
+                },
                 merchant_connector_account,
             )
             .await
@@ -610,7 +615,12 @@ pub async fn trigger_refund_to_gateway(
                     state,
                     platform.get_processor(),
                     router_data.clone(),
-                    ExecutionMode::Primary,
+                    unified_connector_service::kill_switch::KillSwitchSettings {
+                        execution_mode: ExecutionMode::Primary,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                    },
                     merchant_connector_account,
                 )
                 .await
@@ -971,7 +981,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     &ucs_state,
                     ucs_platform.get_processor(),
                     ucs_router_data,
-                    ExecutionMode::Shadow,
+                    unified_connector_service::kill_switch::KillSwitchSettings::inert(
+                        ExecutionMode::Shadow,
+                    ),
                     merchant_connector_account,
                 )
                 .await;
@@ -1286,7 +1298,12 @@ pub async fn sync_refund_with_gateway(
                     state,
                     platform.get_processor(),
                     router_data.clone(),
-                    ExecutionMode::Primary,
+                    unified_connector_service::kill_switch::KillSwitchSettings {
+                        execution_mode: ExecutionMode::Primary,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                    },
                     merchant_connector_account,
                 )
                 .await
@@ -1532,7 +1549,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     &state,
                     &processor,
                     router_data,
-                    ExecutionMode::Shadow,
+                    unified_connector_service::kill_switch::KillSwitchSettings::inert(
+                        ExecutionMode::Shadow,
+                    ),
                     merchant_connector_account,
                 )
                 .await;

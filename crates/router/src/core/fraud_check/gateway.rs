@@ -71,8 +71,8 @@ where
         ConnectorError,
     > {
         let processor = &context.processor;
-        let execution_mode = context.execution_mode;
 
+        let execution_mode = context.kill_switch_settings();
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -112,7 +112,7 @@ where
             .attach_printable("Failed to construct request metadata")?;
 
         let header_payload = state
-            .get_grpc_headers_ucs(execution_mode)
+            .get_grpc_headers_ucs(execution_mode.execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(None)
             .resource_id(None)

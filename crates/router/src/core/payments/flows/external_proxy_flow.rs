@@ -407,7 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         processor: &domain::Processor,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
+        unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -452,7 +452,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let headers_builder = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -520,7 +520,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         processor: &domain::Processor,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
+        unified_connector_service_execution_mode: unified_connector_service::kill_switch::KillSwitchSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -566,7 +566,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let headers_builder = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)

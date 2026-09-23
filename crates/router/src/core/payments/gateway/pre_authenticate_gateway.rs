@@ -61,11 +61,11 @@ where
         RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
+        let unified_connector_service_execution_mode = context.kill_switch_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
         let connector_enum =
             common_enums::connector_enums::Connector::from_str(&router_data.connector)
                 .change_context(ConnectorError::InvalidConnectorName)

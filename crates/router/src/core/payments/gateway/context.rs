@@ -7,7 +7,7 @@
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Processor};
+use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
@@ -94,6 +94,18 @@ impl RouterGatewayContext {
     }
 
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)
+    /// The kill switch settings this request resolved, for the UCS logging wrappers.
+    pub fn kill_switch_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::KillSwitchSettings {
+        crate::core::unified_connector_service::kill_switch::KillSwitchSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+        }
+    }
+
     pub fn get_gateway_system(&self) -> GatewaySystem {
         match self.execution_path {
             ExecutionPath::Direct => GatewaySystem::Direct,

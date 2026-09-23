@@ -203,7 +203,7 @@ where
     } else {
         (
             common_enums::ExecutionPath::Direct,
-            crate::core::payments::helpers::RolloutExecutionResult::default(),
+            payments::helpers::RolloutExecutionResult::default(),
         )
     };
 

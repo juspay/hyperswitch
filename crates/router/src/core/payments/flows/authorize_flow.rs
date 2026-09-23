@@ -1620,7 +1620,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
-    unified_connector_service_execution_mode: enums::ExecutionMode,
+    unified_connector_service_execution_mode: unified_connector_service::kill_switch::KillSwitchSettings,
 ) -> errors::CustomResult<
     (
         types::RouterData<
@@ -1668,7 +1668,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+        .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1748,7 +1748,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
-    unified_connector_service_execution_mode: enums::ExecutionMode,
+    unified_connector_service_execution_mode: unified_connector_service::kill_switch::KillSwitchSettings,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PreAuthenticate,
@@ -1813,7 +1813,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+        .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
         .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)

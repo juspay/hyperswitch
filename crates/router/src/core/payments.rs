@@ -3567,7 +3567,12 @@ where
                     &merchant_connector_account,
                     &external_vault_merchant_connector_account,
                     platform.get_processor(),
-                    execution_mode,
+                    crate::core::unified_connector_service::kill_switch::KillSwitchSettings {
+                        execution_mode: execution_mode,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                    },
                 )
                 .await?;
             router_data
@@ -7199,7 +7204,10 @@ where
                 merchant_connector_account_type_details.clone(),
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
-                ExecutionMode::Primary, //UCS is called in primary mode
+                // No rollout config governs the external-vault proxy path, so nothing can divert it.
+                crate::core::unified_connector_service::kill_switch::KillSwitchSettings::inert(
+                    ExecutionMode::Primary,
+                ),
             )
             .await?;
 

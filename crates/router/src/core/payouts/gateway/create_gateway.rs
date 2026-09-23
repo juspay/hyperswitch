@@ -58,11 +58,11 @@ where
         RouterData<Self, types::PayoutsData, types::PayoutsResponseData>,
         ConnectorError,
     > {
+        let unified_connector_service_execution_mode = context.kill_switch_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -97,7 +97,7 @@ where
             .map(ucs_types::UcsResourceId::PayoutAttempt);
 
         let grpc_headers = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)

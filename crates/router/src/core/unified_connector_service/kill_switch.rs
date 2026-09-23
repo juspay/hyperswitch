@@ -139,7 +139,8 @@ pub struct KillSwitchSettings {
 }
 
 impl KillSwitchSettings {
-    /// For paths that never call UCS, where the thresholds are inert.
+    /// For calls no rollout config governs: a shadow run, or a path the gate does not gate.
+    /// Nothing reads the counter for these, so the switch cannot divert them.
     pub fn inert(execution_mode: ExecutionMode) -> Self {
         Self {
             execution_mode,
@@ -195,12 +196,12 @@ struct TrippableFailure {
 pub async fn record_decline(
     state: &SessionState,
     context: UcsFailureContext<'_>,
-    execution_mode: ExecutionMode,
+    settings: KillSwitchSettings,
 ) {
     if let Some(failure) = trippable_failure_for_reason(
         state,
         &context,
-        execution_mode,
+        settings,
         UcsKillSwitchReason::ConnectorDeclined,
     )
     .await
@@ -215,10 +216,10 @@ pub async fn record_decline(
 pub async fn record_failure(
     state: &SessionState,
     context: UcsFailureContext<'_>,
-    execution_mode: ExecutionMode,
+    settings: KillSwitchSettings,
     error: &UnifiedConnectorServiceError,
 ) {
-    if let Some(failure) = trippable_failure(state, &context, execution_mode, error).await {
+    if let Some(failure) = trippable_failure(state, &context, settings, error).await {
         record_trippable_failure(state, &failure, &context, Some(error)).await;
     }
 }
@@ -280,11 +281,11 @@ async fn record_trippable_failure(
 async fn trippable_failure(
     state: &SessionState,
     context: &UcsFailureContext<'_>,
-    execution_mode: ExecutionMode,
+    settings: KillSwitchSettings,
     error: &UnifiedConnectorServiceError,
 ) -> Option<TrippableFailure> {
     let reason = error.ucs_kill_switch_reason()?;
-    trippable_failure_for_reason(state, context, execution_mode, reason).await
+    trippable_failure_for_reason(state, context, settings, reason).await
 }
 
 /// Shared core: whether this scope can trip at all, which threshold applies, and the
@@ -292,12 +293,12 @@ async fn trippable_failure(
 async fn trippable_failure_for_reason(
     state: &SessionState,
     context: &UcsFailureContext<'_>,
-    execution_mode: ExecutionMode,
+    settings: KillSwitchSettings,
     reason: UcsKillSwitchReason,
 ) -> Option<TrippableFailure> {
     // Only the path serving merchant traffic can trip, and only a connector that has a direct
     // integration to fall back to. `&&` keeps the cheap check first.
-    let scope_can_trip = matches!(execution_mode, ExecutionMode::Primary)
+    let scope_can_trip = matches!(settings.execution_mode, ExecutionMode::Primary)
         && !is_ucs_only_connector(state, context.connector_name).await;
 
     // Only a connector 2xx carrying a refusal is a decline. A connector 4xx/5xx
@@ -316,39 +317,24 @@ async fn trippable_failure_for_reason(
         context.payment_method_type,
     );
 
-    // Read here rather than threaded through `ucs_logging_wrapper`, which does not carry
-    // it; the lookup is cached and only runs on an already-failing call.
-    let rollout = match scope_can_trip {
-        true => Some(
-            crate::core::payments::helpers::should_execute_based_on_rollout_with_precedence(
-                state,
-                &[format!(
-                    "{}_{rollout_scope}",
-                    crate::consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX
-                )],
-            )
-            .await
-            .unwrap_or_default(),
-        ),
-        false => None,
-    };
-
-    rollout.and_then(|rollout| {
-        // Declines only count when the scope opts in with `connector_decline_threshold`;
-        // existing configs are unaffected until updated.
-        let threshold = match failure_class {
-            UcsFailureClass::ConnectorDecline => rollout.connector_decline_threshold,
-            UcsFailureClass::IntegrationFailure => Some(rollout.kill_switch_threshold),
-        };
-
-        threshold.map(|threshold| TrippableFailure {
+    // The thresholds are the gate's own read of this scope's config, carried on the request.
+    // Re-reading here could see a different value than the gate used and count the failure
+    // against the wrong threshold.
+    scope_can_trip
+        .then(|| match failure_class {
+            // Declines only count when the scope opts in with `connector_decline_threshold`;
+            // existing configs are unaffected until updated.
+            UcsFailureClass::ConnectorDecline => settings.connector_decline_threshold,
+            UcsFailureClass::IntegrationFailure => Some(settings.kill_switch_threshold),
+        })
+        .flatten()
+        .map(|threshold| TrippableFailure {
             rollout_scope,
             reason,
             failure_class,
             threshold,
-            kill_switch_enabled: rollout.kill_switch_enabled,
+            kill_switch_enabled: settings.kill_switch_enabled,
         })
-    })
 }
 
 /// A UCS-only connector has no direct integration to fall back to, so the gate never diverts one.
