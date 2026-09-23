@@ -2216,6 +2216,7 @@ impl IncomingWebhook for Adyen {
             connector_status: notif.event_code.to_string(),
             created_at: notif.event_date,
             updated_at: notif.event_date,
+            additional_details: None,
         })
     }
 

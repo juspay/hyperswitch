@@ -1814,9 +1814,7 @@ impl Vaultable for api::GiftCardPayout {
         value1
             .encode_to_string_of_json()
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable(
-                "Failed to encode gift card data - TokenizedGiftCardSensitiveValues",
-            )
+            .attach_printable("Failed to encode gift card data - TokenizedGiftCardSensitiveValues")
     }
 
     fn get_value2(
@@ -1838,16 +1836,12 @@ impl Vaultable for api::GiftCardPayout {
         let value1: TokenizedGiftCardSensitiveValues = value1
             .parse_struct("TokenizedGiftCardSensitiveValues")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable(
-                "Could not deserialize into gift card data value1",
-            )?;
+            .attach_printable("Could not deserialize into gift card data value1")?;
 
         let value2: TokenizedGiftCardInsensitiveValues = value2
             .parse_struct("TokenizedGiftCardInsensitiveValues")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable(
-                "Could not deserialize into gift card data value2",
-            )?;
+            .attach_printable("Could not deserialize into gift card data value2")?;
 
         let gift_card = Self::PaySafeCard(api::PaysafeCardPayout {
             consumer_id: value1.consumer_id,

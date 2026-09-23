@@ -5680,6 +5680,20 @@
           }
         }
       },
+      "AdditionalDetails": {
+        "type": "object",
+        "description": "Additional details of a dispute, stored as jsonb",
+        "properties": {
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DisputeNetworkDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -6602,6 +6616,11 @@
           },
           "payment_data": {
             "$ref": "#/components/schemas/ApplePayCryptogramData"
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token.",
+            "nullable": true
           }
         }
       },
@@ -12375,6 +12394,7 @@
           "ctp_visa",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -12396,6 +12416,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -12411,6 +12432,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "juspay",
           "juspaythreedsserver",
           "klarna",
@@ -12431,8 +12453,10 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payload",
           "payme",
+          "paynearme",
           "payone",
           "paypal",
           "paysafe",
@@ -12452,6 +12476,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "saferpay",
           "santander",
           "shift4",
           "silverflow",
@@ -12481,6 +12506,7 @@
           "worldpayxml",
           "worldpaymodular",
           "signifyd",
+          "nsure",
           "plaid",
           "riskified",
           "sanlam_payshield",
@@ -12672,6 +12698,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CheckoutData"
+              }
+            ],
+            "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
               }
             ],
             "nullable": true
@@ -14270,8 +14304,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "CustomerResponse": {
         "type": "object",
@@ -14468,8 +14501,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DDCData": {
         "type": "object",
@@ -14757,6 +14789,37 @@
           }
         }
       },
+      "DisputeNetworkDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Visa specific dispute details",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "rapid_dispute_resolution": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RapidDisputeResolution"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "visa"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Card network specific details of a dispute",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -14856,6 +14919,14 @@
           "is_already_refunded": {
             "type": "boolean",
             "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14924,6 +14995,14 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15645,6 +15724,12 @@
           },
           "external_surcharge_amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the connector (e.g. InterPayments), if provided.\nStored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.",
+            "nullable": true
           },
           "sale_notified": {
             "type": "boolean",
@@ -23453,8 +23538,7 @@
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodCreateData": {
         "oneOf": [
@@ -24128,8 +24212,7 @@
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodIntentCreate": {
         "type": "object",
@@ -24157,8 +24240,7 @@
             "maxLength": 64,
             "minLength": 32
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodIssuerCode": {
         "type": "string",
@@ -24533,8 +24615,7 @@
             "type": "boolean",
             "description": "Trigger an Account Updater check for the stored payment method."
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -25005,8 +25086,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodUpdateData": {
         "oneOf": [
@@ -27629,6 +27709,14 @@
             "example": "E0001",
             "nullable": true
           },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payout"
@@ -30234,6 +30322,19 @@
           }
         }
       },
+      "RapidDisputeResolution": {
+        "type": "object",
+        "description": "Visa Rapid Dispute Resolution details",
+        "required": [
+          "applied"
+        ],
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
       "RawCardWithNTDetails": {
         "type": "object",
         "required": [
@@ -31490,6 +31591,13 @@
               }
             ],
             "nullable": true
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if\navailable. Present only on responses when an external surcharge connector supplied it;\nignored on requests.",
+            "example": 3.25,
+            "nullable": true
           }
         }
       },
@@ -32009,6 +32117,7 @@
           "cryptopay",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -32030,6 +32139,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -32043,6 +32153,7 @@
           "interpayments",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "klarna",
           "loonio",
           "merchante",
@@ -32060,7 +32171,9 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payme",
+          "paynearme",
           "payload",
           "payone",
           "paypal",
@@ -32082,10 +32195,12 @@
           "redsys",
           "revolv3",
           "riskified",
+          "saferpay",
           "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
+          "nsure",
           "silverflow",
           "square",
           "stax",
@@ -33902,6 +34017,16 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
       },
       "StripeSplitPaymentRequest": {
         "type": "object",

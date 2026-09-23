@@ -756,6 +756,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
             is_already_refunded: false,
+            additional_details: dispute.additional_details,
         }
     }
 }
@@ -815,6 +816,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            additional_details: dispute.additional_details,
         }
     }
 }

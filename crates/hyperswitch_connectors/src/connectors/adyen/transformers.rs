@@ -6549,12 +6549,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
                     entity_type: Some(item.router_data.request.entity_type),
                 })))
             }
-            storage_enums::PayoutType::GiftCard => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Gift card payout fulfillment is not supported".to_string(),
-                    connector: "Adyen",
-                })?
-            }
+            storage_enums::PayoutType::GiftCard => Err(errors::ConnectorError::NotSupported {
+                message: "Gift card payout fulfillment is not supported".to_string(),
+                connector: "Adyen",
+            })?,
         }
     }
 }

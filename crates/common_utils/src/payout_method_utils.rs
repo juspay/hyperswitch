@@ -457,6 +457,32 @@ pub struct PassthroughAdditionalData {
     pub token_type: common_enums::PaymentMethodType,
 }
 
+/// Additional payout method details for gift card payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(untagged)]
+pub enum GiftCardAdditionalData {
+    /// Additional data for PaySafeCard gift card payout method
+    PaySafeCard(Box<PaySafeCardAdditionalData>),
+}
+
+/// Additional payout method details for PaySafeCard gift card payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PaySafeCardAdditionalData {
+    /// The consumer's gift-card account identifier at PaysafeCard
+    /// (the "my paysafecard" consumer id)
+    #[schema(value_type = Option<String>, example = "consumer_12345")]
+    pub consumer_id: Option<Secret<String>>,
+    /// The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
+    #[schema(value_type = Option<String>, example = "1990-01-01")]
+    pub date_of_birth: Option<Secret<String>>,
+}
+
 impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
     fn from(data: &AdditionalPayoutMethodData) -> Self {
         match data {
@@ -483,6 +509,9 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankRedirectAdditionalData::OpenBankingUk(_) => Self::OpenBankingUk,
             },
             AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+            AdditionalPayoutMethodData::GiftCard(gift_card) => match **gift_card {
+                GiftCardAdditionalData::PaySafeCard(_) => Self::PaySafeCard,
+            },
         }
     }
 }

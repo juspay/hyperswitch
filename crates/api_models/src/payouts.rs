@@ -16,6 +16,7 @@ use common_utils::{
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use payments::BrowserInformation;
+use payments::FrmMessage;
 use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -964,6 +965,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<String>, example = "E0001")]
     pub error_code: Option<String>,
 
+    /// FRM response information when fraud checks were invoked for this payout
+    #[schema(value_type = Option<FrmMessage>)]
+    pub frm_message: Option<FrmMessage>,
+
     /// The business profile that is associated with this payout
     #[schema(value_type = String)]
     pub profile_id: id_type::ProfileId,
@@ -1040,6 +1045,8 @@ pub enum PayoutMethodDataResponse {
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
     #[schema(value_type = PassthroughAdditionalData)]
     Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
+    #[schema(value_type = GiftCardAdditionalData)]
+    GiftCard(Box<payout_method_utils::GiftCardAdditionalData>),
 }
 
 #[derive(
@@ -1714,6 +1721,20 @@ impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
     }
 }
 
+impl From<GiftCardPayout> for payout_method_utils::GiftCardAdditionalData {
+    fn from(gift_card_data: GiftCardPayout) -> Self {
+        match gift_card_data {
+            GiftCardPayout::PaySafeCard(PaysafeCardPayout {
+                consumer_id,
+                date_of_birth,
+            }) => Self::PaySafeCard(Box::new(payout_method_utils::PaySafeCardAdditionalData {
+                consumer_id,
+                date_of_birth,
+            })),
+        }
+    }
+}
+
 impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
     fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
         match additional_data {
@@ -1731,6 +1752,9 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
             payout_method_utils::AdditionalPayoutMethodData::Passthrough(passthrough) => {
                 Self::Passthrough(passthrough)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::GiftCard(gift_card) => {
+                Self::GiftCard(gift_card)
             }
         }
     }
