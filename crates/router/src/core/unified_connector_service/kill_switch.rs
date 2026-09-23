@@ -128,14 +128,15 @@ pub struct UcsFailureContext<'a> {
 
 /// Which threshold a failure is measured against. A connector decline is usually the
 /// issuer's verdict and identical on the direct path, so it is counted separately from
-/// transport and integration faults.
+/// everything else.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum UcsFailureClass {
-    /// UCS answered (gRPC OK or a connector error) and the connector refused the payment.
+    /// The connector refused the payment: a business outcome, the same on either path.
     ConnectorDecline,
-    /// UCS was unreachable, rejected the request, or could not serve the flow.
-    UcsFault,
+    /// Anything else: transport, integration or request-construction failure, on either
+    /// side of the gRPC call. Not necessarily UCS's fault.
+    IntegrationFailure,
 }
 
 /// A failure that qualifies to increment the counter, and the scope it targets.
@@ -149,6 +150,30 @@ struct TrippableFailure {
     kill_switch_enabled: bool,
 }
 
+/// Records a connector decline: UCS answered gRPC OK with a connector 2xx, and the
+/// connector still refused the payment.
+///
+/// Separate entry point from [`record_failure`] because there is no
+/// `UnifiedConnectorServiceError` to classify on this path — the refusal arrives as
+/// `router_data.response` being `Err`. Counts only when the scope sets
+/// `connector_decline_threshold`.
+pub async fn record_decline(
+    state: &SessionState,
+    context: UcsFailureContext<'_>,
+    execution_mode: ExecutionMode,
+) {
+    if let Some(failure) = trippable_failure_for_reason(
+        state,
+        &context,
+        execution_mode,
+        UcsKillSwitchReason::ConnectorDeclined,
+    )
+    .await
+    {
+        record_trippable_failure(state, &failure, &context, None).await;
+    }
+}
+
 /// Records a qualifying UCS failure by incrementing its scope's counter.
 ///
 /// Never returns an error: it runs on an already-failing path and must not fail the request.
@@ -159,7 +184,7 @@ pub async fn record_failure(
     error: &UnifiedConnectorServiceError,
 ) {
     if let Some(failure) = trippable_failure(state, &context, execution_mode, error).await {
-        record_trippable_failure(state, &failure, &context, error).await;
+        record_trippable_failure(state, &failure, &context, Some(error)).await;
     }
 }
 
@@ -168,7 +193,7 @@ async fn record_trippable_failure(
     state: &SessionState,
     failure: &TrippableFailure,
     context: &UcsFailureContext<'_>,
-    error: &UnifiedConnectorServiceError,
+    error: Option<&UnifiedConnectorServiceError>,
 ) {
     metrics::UCS_KILL_SWITCH_FAILURE.add(
         1,
@@ -214,18 +239,33 @@ async fn trippable_failure(
     execution_mode: ExecutionMode,
     error: &UnifiedConnectorServiceError,
 ) -> Option<TrippableFailure> {
+    let reason = error.ucs_kill_switch_reason()?;
+    trippable_failure_for_reason(state, context, execution_mode, reason).await
+}
+
+/// Shared core: whether this scope can trip at all, which threshold applies, and the
+/// scope's config for the log line.
+async fn trippable_failure_for_reason(
+    state: &SessionState,
+    context: &UcsFailureContext<'_>,
+    execution_mode: ExecutionMode,
+    reason: UcsKillSwitchReason,
+) -> Option<TrippableFailure> {
     // Only the path serving merchant traffic can trip, and only a connector that has a direct
     // integration to fall back to. `&&` keeps the cheap check first.
     let scope_can_trip = matches!(execution_mode, ExecutionMode::Primary)
         && !is_ucs_only_connector(state, context.connector_name).await;
 
-    let reason = scope_can_trip
-        .then(|| error.ucs_kill_switch_reason())
-        .flatten()?;
+    if !scope_can_trip {
+        return None;
+    }
 
+    // Only a connector 2xx carrying a refusal is a decline. A connector 4xx/5xx
+    // (`ConnectorOutcome`) stays on `kill_switch_threshold` as before: the status code
+    // alone cannot separate a genuine decline from a request UCS built wrongly.
     let failure_class = match reason {
-        UcsKillSwitchReason::ConnectorOutcome => UcsFailureClass::ConnectorDecline,
-        _ => UcsFailureClass::UcsFault,
+        UcsKillSwitchReason::ConnectorDeclined => UcsFailureClass::ConnectorDecline,
+        _ => UcsFailureClass::IntegrationFailure,
     };
 
     // Declines only count when the scope opts in with `connector_decline_threshold`;
@@ -252,7 +292,7 @@ async fn trippable_failure(
 
     let threshold = match failure_class {
         UcsFailureClass::ConnectorDecline => rollout.connector_decline_threshold?,
-        UcsFailureClass::UcsFault => rollout.kill_switch_threshold,
+        UcsFailureClass::IntegrationFailure => rollout.kill_switch_threshold,
     };
 
     Some(TrippableFailure {

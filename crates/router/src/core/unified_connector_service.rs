@@ -3853,6 +3853,27 @@ where
                 .connector_http_status_code
                 .unwrap_or(200);
 
+            // UCS answered gRPC OK with a connector 2xx and the connector still refused
+            // the payment. Counted against `connector_decline_threshold`, so it is a
+            // no-op unless the scope sets one.
+            if updated_router_data.response.is_err() {
+                if let Ok(flow_name) = get_flow_name::<T>() {
+                    kill_switch::record_decline(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        execution_mode,
+                    )
+                    .await;
+                }
+            }
+
             // Log the actual gRPC response with masking
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
                 .unwrap_or_else(
@@ -4054,6 +4075,27 @@ where
             let status = updated_router_data
                 .connector_http_status_code
                 .unwrap_or(200);
+
+            // UCS answered gRPC OK with a connector 2xx and the connector still refused
+            // the payment. Counted against `connector_decline_threshold`, so it is a
+            // no-op unless the scope sets one.
+            if updated_router_data.response.is_err() {
+                if let Ok(flow_name) = get_flow_name::<T>() {
+                    kill_switch::record_decline(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        execution_mode,
+                    )
+                    .await;
+                }
+            }
 
             // Log the actual gRPC response
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)

@@ -2348,6 +2348,10 @@ pub enum UcsKillSwitchReason {
     /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
     /// to the battle-tested direct path is always safe.
     ConnectorOutcome,
+    /// UCS answered gRPC OK with a connector 2xx, and the connector still refused the payment.
+    /// A business outcome rather than a failure: the issuer would say the same on the direct
+    /// path, so this is counted against its own threshold.
+    ConnectorDeclined,
 }
 
 impl UnifiedConnectorServiceError {
