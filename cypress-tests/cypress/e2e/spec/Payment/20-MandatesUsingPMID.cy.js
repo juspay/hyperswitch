@@ -874,4 +874,104 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
     }
   );
+
+  context(
+    "Card - NoThreeDS CIT and MIT payment with error_on_requires_action metadata flow test",
+    () => {
+      beforeEach(function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ERROR_ON_REQUIRES_ACTION
+          )
+        ) {
+          this.skip();
+        }
+      });
+
+      it("customer-create-call-test -> Confirm No 3DS CIT -> retrieve-payment-call-test -> Confirm No 3DS MIT with error_on_requires_action -> retrieve-payment-call-test", () => {
+        let shouldContinue = true;
+
+        cy.step("customer-create-call-test", () => {
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        });
+
+        cy.step("Confirm No 3DS CIT", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm No 3DS CIT");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+          cy.citForMandatesCallTest(
+            fixtures.citConfirmBody,
+            data,
+            true,
+            "automatic",
+            "new_mandate",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Confirm No 3DS MIT with error_on_requires_action", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Confirm No 3DS MIT with error_on_requires_action"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITWithErrorOnRequiresAction"];
+
+          cy.mitUsingPMId(
+            fixtures.pmIdConfirmBody,
+            data,
+            true,
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITWithErrorOnRequiresAction"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+        });
+      });
+    }
+  );
 });

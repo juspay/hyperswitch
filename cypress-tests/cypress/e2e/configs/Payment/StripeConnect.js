@@ -627,6 +627,40 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithErrorOnRequiresAction: {
+      Request: {
+        amount: 6000,
+        connector_metadata: {
+          stripe: {
+            error_on_requires_action: true,
+          },
+        },
+        split_payments: stripeSplitPaymentData,
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+91",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         amount: 0,
