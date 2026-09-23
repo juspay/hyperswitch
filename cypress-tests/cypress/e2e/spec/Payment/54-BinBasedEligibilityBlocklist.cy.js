@@ -1,15 +1,21 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import { connectorDetails } from "../../configs/Payment/Commons";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let originalCustomerId;
+let savedCardFilteringSkip = false;
 
 describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       originalCustomerId = globalState.get("customerId");
+      savedCardFilteringSkip = utils.shouldExcludeConnector(
+        globalState.get("connectorId"),
+        utils.CONNECTOR_LISTS.EXCLUDE.SAVED_CARD_FILTERING
+      );
     });
   });
 
@@ -230,7 +236,10 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       cy.blocklistToggle(true, globalState);
     });
 
-    it("should filter blocklisted saved cards from client payment methods list with guard on", () => {
+    it("should filter blocklisted saved cards from client payment methods list with guard on", function () {
+      if (savedCardFilteringSkip) {
+        this.skip();
+      }
       cy.paymentsClientListCallTest(
         connectorDetails.eligibility_api.SavedCardFilteringGuardOn,
         globalState
@@ -241,7 +250,10 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       cy.blocklistToggle(false, globalState);
     });
 
-    it("should return all saved cards in client payment methods list with guard off", () => {
+    it("should return all saved cards in client payment methods list with guard off", function () {
+      if (savedCardFilteringSkip) {
+        this.skip();
+      }
       cy.paymentsClientListCallTest(
         connectorDetails.eligibility_api.SavedCardFilteringGuardOff,
         globalState
@@ -256,7 +268,10 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       cy.blocklistDeleteRule("generic_card_bin", "400005", globalState);
     });
 
-    it("should return deleted entry saved card in client payment methods list", () => {
+    it("should return deleted entry saved card in client payment methods list", function () {
+      if (savedCardFilteringSkip) {
+        this.skip();
+      }
       cy.paymentsClientListCallTest(
         connectorDetails.eligibility_api.DeleteEntryCardReappears,
         globalState
