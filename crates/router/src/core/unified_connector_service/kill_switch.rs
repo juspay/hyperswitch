@@ -67,14 +67,15 @@ pub async fn is_kill_switched(
         match read_counter(state, rollout_scope).await {
             Ok(count) => {
                 let exceeded = exceeds_threshold(count, kill_switch_threshold);
-                if exceeded {
-                    logger::debug!(
-                        rollout_scope = %rollout_scope,
-                        count = count,
-                        threshold = kill_switch_threshold,
-                        "ucs_kill_switch: counter exceeds threshold, routing to shadow"
-                    );
-                }
+                logger::info!(
+                    rollout_scope = %rollout_scope,
+                    kill_switch_enabled = kill_switch_enabled,
+                    redis_count = count,
+                    threshold = kill_switch_threshold,
+                    tripped = exceeded,
+                    request_id = ?state.request_id,
+                    "UCS_KILL_SWITCH_EVALUATED"
+                );
                 exceeded
             }
             // Fails closed: the scope goes to shadow when Redis cannot answer.
@@ -125,10 +126,29 @@ pub struct UcsFailureContext<'a> {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
 
+/// Which threshold a failure is measured against.
+///
+/// A connector decline is the issuer's verdict and normally identical on the direct path, so
+/// it should not divert traffic as readily as a transport or integration fault. Splitting the
+/// two lets an operator tolerate declines while still failing fast on real UCS problems.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum UcsFailureClass {
+    /// UCS answered (gRPC OK or a connector error) and the connector refused the payment.
+    ConnectorDecline,
+    /// UCS was unreachable, rejected the request, or could not serve the flow.
+    UcsFault,
+}
+
 /// A failure that qualifies to increment the counter, and the scope it targets.
 struct TrippableFailure {
     rollout_scope: String,
     reason: UcsKillSwitchReason,
+    failure_class: UcsFailureClass,
+    /// The threshold this failure is measured against: `connector_decline_threshold` for a
+    /// decline, `kill_switch_threshold` otherwise.
+    threshold: u64,
+    kill_switch_enabled: bool,
 }
 
 /// Records a qualifying UCS failure by incrementing its scope's counter.
@@ -161,7 +181,12 @@ async fn record_trippable_failure(
         ),
     );
 
-    let outcome = increment_counter(state, failure, context).await;
+    let (outcome, redis_count) = increment_counter(state, failure, context).await;
+
+    // Everything an alert needs from one line: the scope and its parts, the threshold
+    // being compared against, the counter after this increment, and whether that tips
+    // the scope into shadow.
+    let tripped = redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold));
 
     logger::warn!(
         rollout_scope = %failure.rollout_scope,
@@ -169,9 +194,15 @@ async fn record_trippable_failure(
         connector = %context.connector_name,
         flow = %context.flow_name,
         payment_method = %context.payment_method,
+        payment_method_type = ?context.payment_method_type,
         payment_id = %context.payment_id,
         request_id = ?state.request_id,
         reason = %failure.reason,
+        failure_class = %failure.failure_class,
+        kill_switch_enabled = failure.kill_switch_enabled,
+        threshold = failure.threshold,
+        redis_count = ?redis_count,
+        tripped = tripped,
         outcome = %outcome,
         ucs_error = ?error,
         "UCS_KILL_SWITCH_COUNTER_INCREMENTED"
@@ -191,19 +222,52 @@ async fn trippable_failure(
     let scope_can_trip = matches!(execution_mode, ExecutionMode::Primary)
         && !is_ucs_only_connector(state, context.connector_name).await;
 
-    scope_can_trip
+    let reason = scope_can_trip
         .then(|| error.ucs_kill_switch_reason())
-        .flatten()
-        .map(|reason| TrippableFailure {
-            rollout_scope: build_merchant_rollout_scope(
-                context.merchant_id,
-                context.connector_name,
-                context.flow_name,
-                context.payment_method,
-                context.payment_method_type,
-            ),
-            reason,
-        })
+        .flatten()?;
+
+    let failure_class = match reason {
+        UcsKillSwitchReason::ConnectorOutcome => UcsFailureClass::ConnectorDecline,
+        _ => UcsFailureClass::UcsFault,
+    };
+
+    // A decline only counts when the scope opts in with `connector_decline_threshold`.
+    // Without it declines are ignored entirely, which is the behaviour before this field
+    // existed: the issuer's verdict is the same on the direct path, so diverting does not
+    // recover the payment.
+    let rollout_scope = build_merchant_rollout_scope(
+        context.merchant_id,
+        context.connector_name,
+        context.flow_name,
+        context.payment_method,
+        context.payment_method_type,
+    );
+
+    // The scope's own config decides which threshold applies. Read here rather than
+    // threaded through `ucs_logging_wrapper`, which does not carry it; the lookup is
+    // cached by `find_config_by_key_unwrap_or` and only runs on an already-failing call.
+    let rollout = crate::core::payments::helpers::should_execute_based_on_rollout_with_precedence(
+        state,
+        &[format!(
+            "{}_{rollout_scope}",
+            crate::consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX
+        )],
+    )
+    .await
+    .unwrap_or_default();
+
+    let threshold = match failure_class {
+        UcsFailureClass::ConnectorDecline => rollout.connector_decline_threshold?,
+        UcsFailureClass::UcsFault => rollout.kill_switch_threshold,
+    };
+
+    Some(TrippableFailure {
+        rollout_scope,
+        reason,
+        failure_class,
+        threshold,
+        kill_switch_enabled: rollout.kill_switch_enabled,
+    })
 }
 
 /// A UCS-only connector has no direct integration to fall back to, so the gate never diverts one.
@@ -234,7 +298,7 @@ async fn increment_counter(
     state: &SessionState,
     failure: &TrippableFailure,
     context: &UcsFailureContext<'_>,
-) -> IncrementOutcome {
+) -> (IncrementOutcome, Option<u64>) {
     match write_counter(state, &failure.rollout_scope).await {
         Ok(counts) => {
             metrics::UCS_KILL_SWITCH_TRIPPED.add(
@@ -246,13 +310,17 @@ async fn increment_counter(
                 ),
             );
 
+            // HINCRBY returns the value of each field after the increment; this call
+            // increments exactly one field.
+            let redis_count = counts.first().map(|count| *count as u64);
+
             logger::info!(
                 rollout_scope = %failure.rollout_scope,
                 count = ?counts,
                 "ucs_kill_switch: counter incremented"
             );
 
-            IncrementOutcome::Incremented
+            (IncrementOutcome::Incremented, redis_count)
         }
         Err(error) => {
             logger::error!(
@@ -261,7 +329,7 @@ async fn increment_counter(
                 "ucs_kill_switch: could not increment counter"
             );
 
-            IncrementOutcome::WriteFailed
+            (IncrementOutcome::WriteFailed, None)
         }
     }
 }

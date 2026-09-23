@@ -1054,11 +1054,19 @@ where
         ))
         .await
         {
+            // Same dimensions as UCS_KILL_SWITCH_COUNTER_INCREMENTED so one alert can
+            // correlate "counter rose" with "traffic actually diverted".
             router_env::logger::warn!(
+                rollout_scope = %rollout_scope,
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
-                "UCS kill switch counter exceeds threshold for this scope, routing to shadow"
+                payment_method = ?router_data.payment_method,
+                payment_method_type = ?router_data.payment_method_type,
+                kill_switch_enabled = rollout_result.kill_switch_enabled,
+                threshold = rollout_result.kill_switch_threshold,
+                request_id = ?state.request_id,
+                "UCS_KILL_SWITCH_DIVERTED_TO_SHADOW"
             );
             gateway_system = GatewaySystem::Direct;
             execution_path = ExecutionPath::ShadowUnifiedConnectorService;

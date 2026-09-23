@@ -2536,6 +2536,16 @@ pub struct RolloutConfig {
     pub kill_switch_enabled: bool,
     #[serde(default = "default_kill_switch_threshold")]
     pub kill_switch_threshold: u64,
+    /// Kill-switch threshold for connector declines: calls UCS answered successfully
+    /// (gRPC OK) that carry a connector refusal such as `PROCESSOR_DECLINED` or
+    /// `INSUFFICIENT_FUND`.
+    ///
+    /// These are counted separately from transport and integration failures because a
+    /// decline is usually the issuer's verdict and identical on the direct path, so it
+    /// should not divert traffic at the same rate. Left unset, declines never trip the
+    /// kill switch, which is the behaviour before this field existed.
+    #[serde(default)]
+    pub connector_decline_threshold: Option<u64>,
 }
 
 fn default_kill_switch_enabled() -> bool {
@@ -2563,6 +2573,7 @@ impl Default for RolloutConfig {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
         }
     }
 }
@@ -2577,6 +2588,8 @@ pub struct RolloutExecutionResult {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
+    /// See `RolloutConfig::connector_decline_threshold`.
+    pub connector_decline_threshold: Option<u64>,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2587,6 +2600,7 @@ impl Default for RolloutExecutionResult {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
         }
     }
 }
@@ -2678,6 +2692,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            connector_decline_threshold: config.connector_decline_threshold,
                             // Proxy override is sourced from the env-configured comparison
                             // service, not from the DB rollout config — populated by the caller
                             // after conversion.
