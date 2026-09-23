@@ -113,6 +113,68 @@ impl UcsIntegrationErrorCode {
     }
 }
 
+// Local enums that mirror Prism's (connector-service) common_enums, used as an
+// intermediate step when parsing UCS proto string fields before converting to HS
+// domain enums.  Prism serialises all of these as snake_case strings.
+
+#[derive(Debug, Clone, Copy, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+enum UcsCardSegmentType {
+    Consumer,
+    Commercial,
+}
+
+impl From<UcsCardSegmentType> for common_enums::CardSegmentType {
+    fn from(value: UcsCardSegmentType) -> Self {
+        match value {
+            UcsCardSegmentType::Consumer => Self::Consumer,
+            UcsCardSegmentType::Commercial => Self::Commercial,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+enum UcsFundingSource {
+    Credit,
+    Debit,
+    Prepaid,
+    ChargeCard,
+    DeferredDebit,
+}
+
+impl From<UcsFundingSource> for common_enums::FundingSource {
+    fn from(value: UcsFundingSource) -> Self {
+        match value {
+            UcsFundingSource::Credit => Self::Credit,
+            UcsFundingSource::Debit => Self::Debit,
+            UcsFundingSource::Prepaid => Self::Prepaid,
+            UcsFundingSource::ChargeCard => Self::ChargeCard,
+            UcsFundingSource::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+enum UcsCardType {
+    Credit,
+    Debit,
+    Prepaid,
+    ChargeCard,
+}
+
+impl From<UcsCardType> for common_enums::CardType {
+    fn from(value: UcsCardType) -> Self {
+        match value {
+            UcsCardType::Credit => Self::Credit,
+            UcsCardType::Debit => Self::Debit,
+            UcsCardType::Prepaid => Self::Prepaid,
+            UcsCardType::ChargeCard => Self::ChargeCard,
+        }
+    }
+}
+
 /// Unified Connector Service error variants
 #[derive(Debug, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
@@ -751,92 +813,81 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
 }
 
 fn parse_ucs_card_segment_type(
-    s: Option<String>,
+    raw_str: Option<String>,
     payment_method: &str,
 ) -> Option<common_enums::CardSegmentType> {
-    s.and_then(|s| {
-        serde_json::from_str::<common_enums::CardSegmentType>(&format!("\"{}\"", s))
+    raw_str.and_then(|raw_str| {
+        UcsCardSegmentType::from_str(&raw_str)
             .map_err(|e| {
                 router_env::logger::warn!(
                     parse_error = ?e,
-                    raw_value = %s,
+                    raw_value = %raw_str,
                     payment_method = %payment_method,
                     "Failed to parse CardSegmentType from UCS proto field"
                 );
                 e
             })
             .ok()
+            .map(common_enums::CardSegmentType::from)
     })
 }
 
 fn parse_ucs_funding_source(
-    s: Option<String>,
+    raw_str: Option<String>,
     payment_method: &str,
 ) -> Option<common_enums::FundingSource> {
-    s.and_then(|s| {
-        // UCS serialises FundingSource as snake_case; HS uses UPPERCASE with
-        // space-separated special cases for DeferredDebit / ChargeCard.
-        let hs_format = match s.as_str() {
-            "credit" => Some("CREDIT"),
-            "debit" => Some("DEBIT"),
-            "prepaid" => Some("PREPAID"),
-            "charge_card" => Some("CHARGE CARD"),
-            "deferred_debit" => Some("DEFERRED DEBIT"),
-            other => {
-                router_env::logger::warn!(
-                    raw_value = %other,
-                    payment_method = %payment_method,
-                    "Unknown FundingSource value from UCS proto field"
-                );
-                None
-            }
-        };
-        hs_format.and_then(|fmt| {
-            common_enums::FundingSource::from_str(fmt)
-                .inspect_err(|e| {
-                    router_env::logger::warn!(
-                        parse_error = ?e,
-                        raw_value = %fmt,
-                        payment_method = %payment_method,
-                        "Failed to parse FundingSource from UCS proto field"
-                    );
-                })
-                .ok()
-        })
-    })
-}
-
-fn parse_ucs_card_type(s: Option<String>, payment_method: &str) -> Option<common_enums::CardType> {
-    s.and_then(|s| {
-        serde_json::from_str::<common_enums::CardType>(&format!("\"{}\"", s))
+    raw_str.and_then(|raw_str| {
+        UcsFundingSource::from_str(&raw_str)
             .map_err(|e| {
                 router_env::logger::warn!(
                     parse_error = ?e,
-                    raw_value = %s,
+                    raw_value = %raw_str,
+                    payment_method = %payment_method,
+                    "Failed to parse FundingSource from UCS proto field"
+                );
+                e
+            })
+            .ok()
+            .map(common_enums::FundingSource::from)
+    })
+}
+
+fn parse_ucs_card_type(
+    raw_str: Option<String>,
+    payment_method: &str,
+) -> Option<common_enums::CardType> {
+    raw_str.and_then(|raw_str| {
+        UcsCardType::from_str(&raw_str)
+            .map_err(|e| {
+                router_env::logger::warn!(
+                    parse_error = ?e,
+                    raw_value = %raw_str,
                     payment_method = %payment_method,
                     "Failed to parse CardType from UCS proto field"
                 );
                 e
             })
             .ok()
+            .map(common_enums::CardType::from)
     })
 }
 
 fn parse_ucs_issuer_country(
-    s: Option<String>,
+    raw_str: Option<String>,
     payment_method: &str,
 ) -> Option<common_enums::CountryAlpha2> {
-    s.and_then(|s| {
-        common_enums::CountryAlpha2::from_str(&s)
-            .inspect_err(|e| {
-                router_env::logger::warn!(
-                    parse_error = ?e,
-                    raw_value = %s,
-                    payment_method = %payment_method,
-                    "Failed to parse CountryAlpha2 from UCS proto field"
-                );
-            })
-            .ok()
+    raw_str.and_then(|raw_str| {
+        let result = payments_grpc::CountryAlpha2::from_str_name(&raw_str)
+            .filter(|c| *c != payments_grpc::CountryAlpha2::Unspecified)
+            .and_then(|c| common_enums::CountryAlpha2::from_str(c.as_str_name()).ok());
+        if result.is_none() {
+            router_env::logger::warn!(
+                raw_value = %raw_str,
+                payment_method = %payment_method,
+                "Failed to parse CountryAlpha2 from UCS proto field"
+            );
+        }
+        result
     })
 }
 
