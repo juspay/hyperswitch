@@ -1065,6 +1065,7 @@ where
                 payment_method_type = ?router_data.payment_method_type,
                 kill_switch_enabled = rollout_result.kill_switch_enabled,
                 threshold = rollout_result.kill_switch_threshold,
+                connector_decline_threshold = ?rollout_result.connector_decline_threshold,
                 request_id = ?state.request_id,
                 "UCS_KILL_SWITCH_DIVERTED_TO_SHADOW"
             );
