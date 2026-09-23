@@ -310,28 +310,11 @@ impl ConfigInterface for KafkaStore {
         self.diesel_store.insert_config(config).await
     }
 
-    async fn find_config_by_key(
+    async fn find_config_by_key_optional(
         &self,
         key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key(key).await
-    }
-
-    async fn find_config_by_key_from_db(
-        &self,
-        key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key_from_db(key).await
-    }
-
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store
-            .update_config_in_database(key, config_update)
-            .await
+    ) -> CustomResult<Option<storage::Config>, errors::StorageError> {
+        self.diesel_store.find_config_by_key_optional(key).await
     }
 
     async fn update_config_by_key(
@@ -354,7 +337,7 @@ impl ConfigInterface for KafkaStore {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        default_config: Option<String>,
+        default_config: String,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store
             .find_config_by_key_unwrap_or(key, default_config)

@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -87,28 +87,6 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    pub async fn find_by_merchant_id_connector_name(
-        conn: &DatabaseConnectionWithContext<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_name: &str,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::connector_name.eq(connector_name.to_owned())),
-            None,
-            None,
-            None,
-        )
-        .await
-    }
-
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -123,50 +101,16 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    pub async fn find_by_merchant_id(
+    /// Every merchant connector account of a merchant, including disabled ones, ordered by
+    /// `created_at` ascending. The other merchant-scoped list queries are row-subsets of
+    /// this one, so it doubles as the cached superset they project from.
+    pub async fn list_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
-        get_disabled: bool,
-    ) -> StorageResult<Vec<Self>> {
-        if get_disabled {
-            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-                conn,
-                dsl::merchant_id.eq(merchant_id.to_owned()),
-                None,
-                None,
-                Some(dsl::created_at.asc()),
-            )
-            .await
-        } else {
-            generics::generic_filter::<
-                <Self as HasTable>::Table,
-                _,
-                <<Self as HasTable>::Table as Table>::PrimaryKey,
-                _,
-            >(
-                conn,
-                dsl::merchant_id
-                    .eq(merchant_id.to_owned())
-                    .and(dsl::disabled.eq(false)),
-                None,
-                None,
-                None,
-            )
-            .await
-        }
-    }
-
-    pub async fn list_enabled_by_profile_id(
-        conn: &DatabaseConnectionWithContext<'_>,
-        profile_id: &common_utils::id_type::ProfileId,
-        connector_type: common_enums::ConnectorType,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::profile_id
-                .eq(profile_id.to_owned())
-                .and(dsl::disabled.eq(false))
-                .and(dsl::connector_type.eq(connector_type)),
+            dsl::merchant_id.eq(merchant_id.to_owned()),
             None,
             None,
             Some(dsl::created_at.asc()),
@@ -174,47 +118,27 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    pub async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+    /// Every merchant connector account of a merchant's profile, including disabled ones,
+    /// ordered by `created_at` ascending. The other profile-scoped list queries are
+    /// row-subsets of this one, so it doubles as the cached superset they project from.
+    ///
+    /// Scoped by merchant as well as profile so the cached superset can be keyed by both.
+    /// Profile ids are globally unique, so the extra predicate does not change the rows
+    /// returned; it keeps one merchant's cache entries from ever being addressable by
+    /// another's key.
+    pub async fn list_by_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::profile_id.eq(profile_id.to_owned())),
             None,
             None,
-            None,
-        )
-        .await
-    }
-
-    pub async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-        conn: &DatabaseConnectionWithContext<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        profile_id: &common_utils::id_type::ProfileId,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::profile_id.eq(profile_id.to_owned()))
-                .and(dsl::disabled.eq(false)),
-            None,
-            None,
-            None,
+            Some(dsl::created_at.asc()),
         )
         .await
     }
@@ -261,46 +185,16 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    pub async fn find_by_merchant_id(
+    /// Every merchant connector account of a merchant, including disabled ones, ordered by
+    /// `created_at` ascending. The other merchant-scoped list queries are row-subsets of
+    /// this one, so it doubles as the cached superset they project from.
+    pub async fn list_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
-        get_disabled: bool,
-    ) -> StorageResult<Vec<Self>> {
-        if get_disabled {
-            generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-                conn,
-                dsl::merchant_id.eq(merchant_id.to_owned()),
-                None,
-                None,
-                Some(dsl::created_at.asc()),
-            )
-            .await
-        } else {
-            generics::generic_filter::<
-                <Self as HasTable>::Table,
-                _,
-                <<Self as HasTable>::Table as Table>::PrimaryKey,
-                _,
-            >(
-                conn,
-                dsl::merchant_id
-                    .eq(merchant_id.to_owned())
-                    .and(dsl::disabled.eq(false)),
-                None,
-                None,
-                None,
-            )
-            .await
-        }
-    }
-
-    pub async fn list_by_profile_id(
-        conn: &DatabaseConnectionWithContext<'_>,
-        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::profile_id.eq(profile_id.to_owned()),
+            dsl::merchant_id.eq(merchant_id.to_owned()),
             None,
             None,
             Some(dsl::created_at.asc()),
@@ -308,62 +202,24 @@ impl MerchantConnectorAccount {
         .await
     }
 
-    pub async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+    /// Every merchant connector account of a merchant's profile, including disabled ones,
+    /// ordered by `created_at` ascending. The other profile-scoped list queries are
+    /// row-subsets of this one, so it doubles as the cached superset they project from.
+    ///
+    /// Scoped by merchant as well as profile so the cached superset can be keyed by both.
+    /// Profile ids are globally unique, so the extra predicate does not change the rows
+    /// returned; it keeps one merchant's cache entries from ever being addressable by
+    /// another's key.
+    pub async fn list_by_merchant_id_profile_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::profile_id.eq(profile_id.to_owned())),
-            None,
-            None,
-            None,
-        )
-        .await
-    }
-
-    pub async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-        conn: &DatabaseConnectionWithContext<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        profile_id: &common_utils::id_type::ProfileId,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::profile_id.eq(profile_id.to_owned()))
-                .and(dsl::disabled.eq(false)),
-            None,
-            None,
-            None,
-        )
-        .await
-    }
-
-    pub async fn list_enabled_by_profile_id(
-        conn: &DatabaseConnectionWithContext<'_>,
-        profile_id: &common_utils::id_type::ProfileId,
-        connector_type: common_enums::ConnectorType,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::profile_id
-                .eq(profile_id.to_owned())
-                .and(dsl::disabled.eq(false))
-                .and(dsl::connector_type.eq(connector_type)),
             None,
             None,
             Some(dsl::created_at.asc()),
