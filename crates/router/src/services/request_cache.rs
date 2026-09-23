@@ -1,5 +1,6 @@
 //! Successful resource lookups shared only within one request.
 use std::{collections::HashMap, future::Future, sync::Arc};
+
 use tokio::sync::{Mutex, OnceCell};
 
 type Entry<T> = Arc<OnceCell<Option<T>>>;

@@ -2,6 +2,8 @@
 use common_utils::fallback_reverse_lookup_not_found;
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 #[cfg(feature = "v2")]
+use diesel_models::errors::DatabaseError;
+#[cfg(feature = "v2")]
 use diesel_models::payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew;
 use diesel_models::{
     enums::{
@@ -11,8 +13,6 @@ use diesel_models::{
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
-#[cfg(feature = "v2")]
-use diesel_models::errors::DatabaseError;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use futures::future::{try_join_all, FutureExt};

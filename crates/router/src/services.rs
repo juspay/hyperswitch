@@ -12,12 +12,12 @@ pub mod logger;
 pub mod pm_auth;
 
 pub mod card_info_cache;
-pub(crate) mod request_cache;
 pub mod card_testing_guard;
 #[cfg(feature = "olap")]
 pub mod oidc_provider;
 #[cfg(feature = "olap")]
 pub mod openidconnect;
+pub(crate) mod request_cache;
 
 use std::sync::Arc;
 
