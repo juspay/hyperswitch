@@ -200,7 +200,8 @@ async fn record_trippable_failure(
         router_env::metric_attributes!(
             ("connector", context.connector_name.to_string()),
             ("flow", context.flow_name.to_string()),
-            ("reason", failure.reason.to_string())
+            ("reason", failure.reason.to_string()),
+            ("failure_class", failure.failure_class.to_string())
         ),
     );
 
@@ -335,18 +336,24 @@ async fn increment_counter(
 ) -> (IncrementOutcome, Option<u64>) {
     match write_counter(state, &failure.rollout_scope).await {
         Ok(counts) => {
-            metrics::UCS_KILL_SWITCH_TRIPPED.add(
-                1,
-                router_env::metric_attributes!(
-                    ("connector", context.connector_name.to_string()),
-                    ("flow", context.flow_name.to_string()),
-                    ("reason", failure.reason.to_string())
-                ),
-            );
-
             // HINCRBY returns the value of each field after the increment; this call
             // increments exactly one field.
             let redis_count = counts.first().map(|count| *count as u64);
+
+            // Only when the counter actually reaches the threshold. Previously this fired
+            // on every increment, which made it a duplicate of UCS_KILL_SWITCH_FAILURE and
+            // meant nothing counted actual trips.
+            if redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold)) {
+                metrics::UCS_KILL_SWITCH_TRIPPED.add(
+                    1,
+                    router_env::metric_attributes!(
+                        ("connector", context.connector_name.to_string()),
+                        ("flow", context.flow_name.to_string()),
+                        ("reason", failure.reason.to_string()),
+                        ("failure_class", failure.failure_class.to_string())
+                    ),
+                );
+            }
 
             logger::info!(
                 rollout_scope = %failure.rollout_scope,
