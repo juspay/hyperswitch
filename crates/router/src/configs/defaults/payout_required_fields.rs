@@ -35,11 +35,23 @@ impl Default for PayoutRequiredFields {
             (
                 BankTransfer,
                 PaymentMethodTypeInfo(HashMap::from([
-                    // Adyen
-                    get_connector_payment_method_type_fields(
-                        PayoutConnectors::Adyenplatform,
-                        PaymentMethodType::SepaBankTransfer,
-                    ),
+                    // Adyen + Deutschebank for SepaBankTransfer
+                    {
+                        let (pmt, mut adyen_sepa_fields) =
+                            get_connector_payment_method_type_fields(
+                                PayoutConnectors::Adyenplatform,
+                                PaymentMethodType::SepaBankTransfer,
+                            );
+                        adyen_sepa_fields.fields.insert(
+                            PayoutConnectors::Deutschebank.into(),
+                            RequiredFieldFinal {
+                                mandate: HashMap::new(),
+                                non_mandate: HashMap::new(),
+                                common: get_deutschebank_sepa_payout_fields(),
+                            },
+                        );
+                        (pmt, adyen_sepa_fields)
+                    },
                     // Ebanx
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Ebanx,
@@ -376,6 +388,29 @@ fn get_pix_bank_transfer_fields() -> HashMap<String, RequiredFieldInfo> {
                 required_field: "payout_method_data.bank.pix_key".to_string(),
                 display_name: "pix_key".to_string(),
                 field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+    ])
+}
+
+fn get_deutschebank_sepa_payout_fields() -> HashMap<String, RequiredFieldInfo> {
+    HashMap::from([
+        (
+            "payout_method_data.bank.iban".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.iban".to_string(),
+                display_name: "iban".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "payout_method_data.bank.account_holder_name".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.account_holder_name".to_string(),
+                display_name: "account_holder_name".to_string(),
+                field_type: FieldType::UserBankAccountHolderName,
                 value: None,
             },
         ),
