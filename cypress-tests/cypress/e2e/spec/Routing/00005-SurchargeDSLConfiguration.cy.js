@@ -11,17 +11,7 @@ describe("Surcharge DSL Configuration Test", () => {
       // Create a fresh user + merchant so we get an active AuthToken.
       // Env-based credentials don't reliably yield an AuthToken because the
       // env user may not have an active role on the test merchant.
-      const uniqueSuffix = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
-      const surchargeEmail = `cypress_surcharge_dsl_${uniqueSuffix}@cypresstest.in`;
-      const surchargePassword = `Cypress@${uniqueSuffix}`;
-
-      cy.signupUserWithMerchant(
-        surchargeEmail,
-        surchargePassword,
-        `CypressSurchargeDSL${uniqueSuffix}`,
-        "CypressSurchargeDSL",
-        globalState
-      );
+      cy.signupUserWithMerchant("CypressSurchargeDSL", globalState);
 
       // Login sequence used elsewhere in the suite: userLogin sets
       // totpToken, terminate2Fa exchanges it for userInfoToken, and
