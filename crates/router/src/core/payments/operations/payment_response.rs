@@ -23,7 +23,6 @@ use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     mandates::{self, ConnectorMandateReferenceId, MandateActivation, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
@@ -32,6 +31,7 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::PeekInterface;
 use router_derive;
 use router_env::{instrument, logger, tracing};
+use storage_impl::behaviour::Conversion;
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 
@@ -77,6 +77,8 @@ use crate::{
     utils,
 };
 
+/// Spawns work the payment response does not wait on, keeping the request's trace correlation
+/// under `deja`.
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 fn spawn_save_payment_method<F>(future: F)
 where
@@ -488,36 +490,57 @@ where
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
                     {
-                        match call_modular_payment_method_update(
-                            state,
-                            &payment_data.payment_attempt.processor_merchant_id,
-                            &payment_data.payment_attempt.profile_id,
-                            &pm_id,
-                            payload,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                logger::info!(
-                                    payment_method_id=%pm_id,
-                                    "Successfully called modular payment method update"
-                                );
-                            }
-                            Err(err) => {
-                                // Non-fatal by design: the attempt still gets the pm_id below,
-                                // so this log is the only trace the modular update failed and
-                                // the payment method may be stale (missing connector token /
-                                // NTI / acknowledgement).
-                                logger::error!(
-                                    error=%err,
-                                    payment_method_id=%pm_id,
-                                    merchant_id=%payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
-                                    profile_id=%payment_data.payment_attempt.profile_id.get_string_repr(),
-                                    "Failed to call modular payment method update; continuing with possibly stale payment method"
-                                );
+                        payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        // An off-session save carries the connector token and NTI that the next
+                        // MIT reads, so it is awaited; any other update is detached.
+                        let is_off_session = matches!(
+                            payment_data.payment_attempt.setup_future_usage_applied,
+                            Some(common_enums::FutureUsage::OffSession)
+                        );
+
+                        let state = state.clone();
+                        let processor_merchant_id =
+                            payment_data.payment_attempt.processor_merchant_id.clone();
+                        let profile_id = payment_data.payment_attempt.profile_id.clone();
+
+                        let update_payment_method = async move {
+                            match call_modular_payment_method_update(
+                                &state,
+                                &processor_merchant_id,
+                                &profile_id,
+                                &pm_id,
+                                payload,
+                            )
+                            .await
+                            {
+                                Ok(_) => {
+                                    logger::info!(
+                                        payment_method_id=%pm_id,
+                                        "Successfully called modular payment method update"
+                                    );
+                                }
+                                Err(err) => {
+                                    // Non-fatal by design: the attempt already carries the pm_id,
+                                    // so this log is the only trace the modular update failed and
+                                    // the payment method may be stale (missing connector token /
+                                    // NTI / acknowledgement).
+                                    logger::error!(
+                                        error=%err,
+                                        payment_method_id=%pm_id,
+                                        merchant_id=%processor_merchant_id.get_string_repr(),
+                                        profile_id=%profile_id.get_string_repr(),
+                                        "Failed to call modular payment method update; the payment method may be stale"
+                                    );
+                                }
                             }
                         };
-                        payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        if is_off_session {
+                            update_payment_method.await;
+                        } else {
+                            spawn_save_payment_method(update_payment_method);
+                        }
                     } else {
                         logger::info!(
                             payment_method_id=%pm_id,
