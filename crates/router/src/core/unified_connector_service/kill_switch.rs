@@ -67,15 +67,21 @@ pub async fn is_kill_switched(
         match read_counter(state, rollout_scope).await {
             Ok(count) => {
                 let exceeded = exceeds_threshold(count, kill_switch_threshold);
-                logger::info!(
-                    rollout_scope = %rollout_scope,
-                    kill_switch_enabled = kill_switch_enabled,
-                    redis_count = count,
-                    threshold = kill_switch_threshold,
-                    tripped = exceeded,
-                    request_id = ?state.request_id,
-                    "UCS_KILL_SWITCH_EVALUATED"
-                );
+                // Only when it matters. This runs on every UCS call, and the counter's
+                // value is already reported by UCS_KILL_SWITCH_COUNTER_INCREMENTED at the
+                // moment it changes; logging every read would re-state that at the highest
+                // frequency in the module.
+                if exceeded {
+                    logger::warn!(
+                        rollout_scope = %rollout_scope,
+                        kill_switch_enabled = kill_switch_enabled,
+                        redis_count = count,
+                        threshold = kill_switch_threshold,
+                        tripped = true,
+                        request_id = ?state.request_id,
+                        "UCS_KILL_SWITCH_COUNTER_EXCEEDS_THRESHOLD"
+                    );
+                }
                 exceeded
             }
             // Fails closed: the scope goes to shadow when Redis cannot answer.
