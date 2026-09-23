@@ -37,7 +37,7 @@ describe("Surcharge DSL Configuration Test", () => {
         body: {
           email: surchargeEmail,
           password: surchargePassword,
-          company_name: "Juspay",
+          company_name: `CypressSurchargeDSL${uniqueSuffix}`,
           name: "CypressSurchargeDSL",
         },
         failOnStatusCode: false,
