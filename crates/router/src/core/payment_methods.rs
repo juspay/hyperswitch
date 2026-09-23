@@ -2020,13 +2020,21 @@ pub async fn create_volatile_payment_method_core(
 async fn payment_method_resolver(
     state: &SessionState,
     platform: &domain::Platform,
+    profile: &domain::Profile,
     customer_id: &id_type::GlobalCustomerId,
     req: &api::PaymentMethodCreate,
     payment_method_data: domain::PaymentMethodVaultingData,
 ) -> RouterResult<PaymentMethodResolver> {
     let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
     locker
-        .resolve_payment_method(state, platform, customer_id, req, payment_method_data)
+        .resolve_payment_method(
+            state,
+            platform,
+            profile,
+            customer_id,
+            req,
+            payment_method_data,
+        )
         .await
 }
 
@@ -2100,6 +2108,79 @@ pub enum PaymentMethodResolution {
 pub struct FingerprintDetails {
     pub fingerprint_id: Option<String>,
     pub auxiliary_fingerprint_id: Option<String>,
+    pub pm_fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+fn spawn_merchant_fingerprint_task(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+) -> tokio::task::JoinHandle<Option<String>> {
+    use router_env::tracing::Instrument;
+
+    let state = state.clone();
+    let platform = platform.clone();
+    let profile = profile.clone();
+    let payment_method_data = payment_method_data.clone();
+
+    tokio::spawn(
+        async move {
+            resolve_merchant_fingerprint_id(&state, &platform, &profile, &payment_method_data).await
+        }
+        .in_current_span(),
+    )
+}
+
+#[cfg(feature = "v2")]
+async fn resolve_merchant_fingerprint_id(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+) -> Option<String> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(
+            platform
+                .get_provider()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .with_profile_id(profile.get_id().clone());
+
+    let is_enabled = utils::get_should_generate_payment_method_fingerprint(
+        state,
+        &dimensions,
+        Some(profile.get_id()),
+    )
+    .await;
+
+    let merchant_fingerprint_secret = match is_enabled {
+        true => core_utils::get_merchant_fingerprint_secret(
+            state,
+            platform.get_provider().get_account(),
+        )
+        .await
+        .inspect_err(|error| logger::warn!(?error, "No merchant fingerprint secret"))
+        .ok(),
+        false => None,
+    };
+
+    match merchant_fingerprint_secret {
+        Some(merchant_fingerprint_secret) => vault::get_merchant_fingerprint_id_for_payment_method(
+            state,
+            payment_method_data,
+            merchant_fingerprint_secret,
+        )
+        .await
+        .inspect_err(|error| logger::warn!(?error, "Failed to compute the merchant fingerprint"))
+        .ok(),
+        None => None,
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -2142,6 +2223,7 @@ pub trait LockerOperations: Send + Sync {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile: &domain::Profile,
         customer_id: &id_type::GlobalCustomerId,
         req: &api::PaymentMethodCreate,
         payment_method_data: domain::PaymentMethodVaultingData,
@@ -2277,6 +2359,7 @@ impl LockerOperations for GenericLocker {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile: &domain::Profile,
         customer_id: &id_type::GlobalCustomerId,
         _req: &api::PaymentMethodCreate,
         payment_method_data: domain::PaymentMethodVaultingData,
@@ -2285,6 +2368,9 @@ impl LockerOperations for GenericLocker {
 
         // The auxiliary fingerprint runs as its own task so it never sits in front of the
         // primary one, and is awaited only when the primary lookup misses.
+        let merchant_fingerprint_task =
+            spawn_merchant_fingerprint_task(state, platform, profile, &payment_method_data);
+
         let auxiliary_fingerprint_task = {
             use router_env::tracing::Instrument;
 
@@ -2379,6 +2465,7 @@ impl LockerOperations for GenericLocker {
                 let fingerprint_details = FingerprintDetails {
                     fingerprint_id: Some(fingerprint_id),
                     auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id.clone()),
+                    pm_fingerprint_id: merchant_fingerprint_task.await.ok().flatten(),
                 };
 
                 Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
@@ -2606,6 +2693,7 @@ impl LockerOperations for LegacyLocker {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        _profile: &domain::Profile,
         customer_id: &id_type::GlobalCustomerId,
         _req: &api::PaymentMethodCreate,
         payment_method_data: domain::PaymentMethodVaultingData,
@@ -2829,8 +2917,15 @@ async fn create_or_fetch_payment_method_core(
 
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    let resolver =
-        payment_method_resolver(state, platform, customer_id, &req, payment_method_data).await?;
+    let resolver = payment_method_resolver(
+        state,
+        platform,
+        profile,
+        customer_id,
+        &req,
+        payment_method_data,
+    )
+    .await?;
 
     Box::pin(resolver.execute(
         state,
@@ -3072,7 +3167,11 @@ impl PaymentMethodResolver {
                     .and_then(|details| details.fingerprint_id.clone());
 
                 let auxiliary_fingerprint_id = fingerprint_details
+                    .as_ref()
                     .and_then(|details| details.auxiliary_fingerprint_id.clone());
+
+                let merchant_fingerprint_id =
+                    fingerprint_details.and_then(|details| details.pm_fingerprint_id);
 
                 let payment_method = create_payment_method_for_intent(
                     state,
@@ -3086,6 +3185,7 @@ impl PaymentMethodResolver {
                     billing_address.clone(),
                     platform.get_initiator(),
                     auxiliary_fingerprint_id,
+                    merchant_fingerprint_id,
                 )
                 .await?;
                 Box::pin(execute_payment_method_create(
@@ -3312,6 +3412,7 @@ pub async fn create_generic_volatile_payment_method(
             let resolution = payment_method_resolver(
                 state,
                 platform,
+                profile,
                 customer_id,
                 &req,
                 payment_method_data.clone(),
@@ -3327,6 +3428,7 @@ pub async fn create_generic_volatile_payment_method(
                         auxiliary_fingerprint_id: existing_payment_method
                             .auxiliary_fingerprint_id
                             .clone(),
+                        pm_fingerprint_id: existing_payment_method.fingerprint_id.clone(),
                     }),
                 ),
                 PaymentMethodResolution::Update {
@@ -3341,6 +3443,7 @@ pub async fn create_generic_volatile_payment_method(
                         auxiliary_fingerprint_id: existing_payment_method
                             .auxiliary_fingerprint_id
                             .clone(),
+                        pm_fingerprint_id: existing_payment_method.fingerprint_id.clone(),
                     }),
                 ),
                 PaymentMethodResolution::Create {
@@ -3374,13 +3477,15 @@ pub async fn create_generic_volatile_payment_method(
             let locker_id = Some(vault_id.clone());
 
             // A resolved fingerprint replaces the one the volatile vault produced.
-            let (locker_fingerprint_id, auxiliary_fingerprint_id) = match fingerprint_details {
-                Some(fingerprint_details) => (
-                    fingerprint_details.fingerprint_id,
-                    fingerprint_details.auxiliary_fingerprint_id,
-                ),
-                None => (fingerprint_id, None),
-            };
+            let (locker_fingerprint_id, auxiliary_fingerprint_id, merchant_fingerprint_id) =
+                match fingerprint_details {
+                    Some(fingerprint_details) => (
+                        fingerprint_details.fingerprint_id,
+                        fingerprint_details.auxiliary_fingerprint_id,
+                        fingerprint_details.pm_fingerprint_id,
+                    ),
+                    None => (fingerprint_id, None, None),
+                };
 
             let payment_method = construct_payment_method_object(
                 req.metadata.clone(),
@@ -3396,6 +3501,7 @@ pub async fn create_generic_volatile_payment_method(
                 locker_id,
                 locker_fingerprint_id,
                 auxiliary_fingerprint_id,
+                merchant_fingerprint_id,
                 external_vault_source,
                 customer_acceptance,
                 platform.get_initiator(),
@@ -4299,6 +4405,7 @@ pub async fn payment_method_intent_create(
         payment_method_billing_address,
         initiator,
         None,
+        None,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -4702,6 +4809,7 @@ pub async fn create_payment_method_for_intent(
     >,
     initiator: Option<&domain::Initiator>,
     auxiliary_fingerprint_id: Option<String>,
+    fingerprint_id: Option<String>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
 
@@ -4744,6 +4852,7 @@ pub async fn create_payment_method_for_intent(
                 customer_details: None,
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id,
+                fingerprint_id,
                 compatibility_updated_at: None,
             },
             storage_scheme,
@@ -4778,6 +4887,7 @@ pub async fn construct_payment_method_object(
     locker_id: Option<domain::VaultId>,
     locker_fingerprint_id: Option<String>,
     auxiliary_fingerprint_id: Option<String>,
+    fingerprint_id: Option<String>,
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
     initiator: Option<&domain::Initiator>,
@@ -4840,6 +4950,7 @@ pub async fn construct_payment_method_object(
         customer_details: None,
         network_tokenization_data: None,
         auxiliary_fingerprint_id,
+        fingerprint_id,
         compatibility_updated_at: None,
     })
 }
@@ -4909,6 +5020,7 @@ pub async fn create_payment_method_for_confirm(
                 customer_details: None,
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id: None,
+                fingerprint_id: None,
                 compatibility_updated_at: None,
             },
             storage_scheme,

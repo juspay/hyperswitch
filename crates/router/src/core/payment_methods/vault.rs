@@ -2334,6 +2334,20 @@ pub async fn get_auxiliary_fingerprint_id_for_payment_method(
 }
 
 #[cfg(feature = "v2")]
+pub async fn get_merchant_fingerprint_id_for_payment_method(
+    state: &routes::SessionState,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+    merchant_fingerprint_secret: String,
+) -> CustomResult<String, errors::VaultError> {
+    let fingerprint_data = payment_method_data
+        .to_auxiliary_fingerprint_data()
+        .ok_or(errors::VaultError::GenerateFingerprintFailed)
+        .attach_printable("Failed to generate merchant fingerprint data")?;
+
+    get_fingerprint_id_from_vault(state, &fingerprint_data, merchant_fingerprint_secret).await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
     state: &routes::SessionState,

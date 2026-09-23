@@ -141,6 +141,7 @@ pub struct PaymentMethod {
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
     pub auxiliary_fingerprint_id: Option<String>,
+    pub fingerprint_id: Option<String>,
     pub version: common_enums::ApiVersion,
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,

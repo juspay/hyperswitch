@@ -518,6 +518,24 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
+    superposition_key = SHOULD_GENERATE_PAYMENT_METHOD_FINGERPRINT,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for ShouldGeneratePaymentMethodFingerprint {
+    const KEY: &'static str = "should_generate_payment_method_fingerprint";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS,
     output = u32,
     default = 4,
