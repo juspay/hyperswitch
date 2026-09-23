@@ -3389,11 +3389,6 @@ payout_retry_type = { position = 9, schema = { enum = [
 processor_merchant_id = { position = 13, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 profile_id = { position = 14, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 provider_merchant_id = { position = 12, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
-transaction_type = { position = 21, schema = { enum = [
-    "payment",
-    "payout",
-    "three_ds_authentication",
-], type = "string" }, type = "REGULAR" }
 variantIds = { position = 0, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 
 [[overrides]]
