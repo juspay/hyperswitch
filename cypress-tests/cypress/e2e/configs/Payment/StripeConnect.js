@@ -657,6 +657,7 @@ export const connectorDetails = {
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
+        split_payments: zeroAuthStripeSplitPaymentData,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
