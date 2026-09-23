@@ -3678,14 +3678,7 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
 ) -> RouterResult<()> {
-    // A bank redirect defers its payment method creation past the confirm call, so the first
-    // terminal success arrives with nothing to update. Settle which entry this payment belongs to
-    // here — reused or newly created — so the update below fills it in over the same path an
-    // already-existing payment method takes.
     if payment_data.payment_attempt.payment_method_id.is_none() {
-        // A payment method that cannot be stored must not fail a payment that has already
-        // succeeded at the connector, so this is logged rather than propagated — the same way the
-        // confirm-time save swallows its errors.
         if let Err(error) = create_deferred_bank_redirect_payment_method(
             state,
             payment_data,
@@ -3703,8 +3696,6 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
         }
     }
 
-    // If the payment_method is deleted then ignore the error related to retrieving payment method
-    // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let payment_method = match state
             .store
