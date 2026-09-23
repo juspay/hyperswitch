@@ -80,10 +80,16 @@ pub async fn is_kill_switched(
             }
             // Fails closed: the scope goes to shadow when Redis cannot answer.
             Err(error) => {
+                // Fails closed: the scope goes to shadow. Named so an alert can catch a
+                // Redis outage diverting traffic, which no counter or metric would show.
                 logger::error!(
                     ?error,
                     rollout_scope = %rollout_scope,
-                    "ucs_kill_switch: counter unreadable, routing to shadow"
+                    kill_switch_enabled = kill_switch_enabled,
+                    threshold = kill_switch_threshold,
+                    tripped = true,
+                    request_id = ?state.request_id,
+                    "UCS_KILL_SWITCH_COUNTER_UNREADABLE"
                 );
                 true
             }
@@ -355,19 +361,18 @@ async fn increment_counter(
                 );
             }
 
-            logger::info!(
-                rollout_scope = %failure.rollout_scope,
-                count = ?counts,
-                "ucs_kill_switch: counter incremented"
-            );
-
             (IncrementOutcome::Incremented, redis_count)
         }
         Err(error) => {
+            // The counter did not move, so this failure does not count toward the
+            // threshold: the scope is silently less protected than configured.
             logger::error!(
                 ?error,
                 rollout_scope = %failure.rollout_scope,
-                "ucs_kill_switch: could not increment counter"
+                connector = %context.connector_name,
+                flow = %context.flow_name,
+                threshold = failure.threshold,
+                "UCS_KILL_SWITCH_COUNTER_WRITE_FAILED"
             );
 
             (IncrementOutcome::WriteFailed, None)
