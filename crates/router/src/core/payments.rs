@@ -181,6 +181,25 @@ use crate::{
     types::{api::authentication, BrowserInformation},
 };
 
+// FIXTURE (never merge): an armed time seam missed inside a span no recording
+// has, so the synthesized value lands in a NOVEL SUBTREE. The request depends
+// on the value: a malformed one fails here saying so.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+fn deja_fixture_novel_span_date() -> RouterResult<String> {
+    let date = common_utils::date_time::now_rfc7231_http_date()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("FIXTURE: the synthesized date did not format")?;
+    if !date.ends_with(" GMT") || date.len() != 29 {
+        return Err(
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!("FIXTURE: the synthesized date is malformed: {date}")),
+        );
+    }
+    logger::info!(date = %date, "FIXTURE: request continued on this date in a novel span");
+    Ok(date)
+}
+
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -681,6 +700,9 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): see `deja_fixture_novel_span_date`.
+    deja_fixture_novel_span_date()?;
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
