@@ -12114,6 +12114,11 @@
           },
           "payment_data": {
             "$ref": "#/components/schemas/ApplePayCryptogramData"
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token.",
+            "nullable": true
           }
         }
       },
@@ -19776,6 +19781,7 @@
           "worldpayxml",
           "worldpaymodular",
           "signifyd",
+          "nsure",
           "plaid",
           "riskified",
           "sanlam_payshield",
@@ -45734,6 +45740,7 @@
           "santander",
           "shift4",
           "signifyd",
+          "nsure",
           "silverflow",
           "square",
           "stax",

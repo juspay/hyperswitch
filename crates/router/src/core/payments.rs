@@ -11322,20 +11322,42 @@ pub async fn add_process_sync_task(
         payment_attempt.get_id(),
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = storage::ProcessTrackerNew::new(
-        process_tracker_id,
-        task,
-        runner,
-        tag,
-        tracking_data,
-        None,
-        schedule_time,
-        common_types::consts::API_VERSION,
-        application_source,
-    )
-    .map_err(errors::StorageError::from)?;
+    let tracking_data = tracking_data
+        .encode_to_value()
+        .change_context(errors::StorageError::SerializationFailed)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    if let Some(existing_process) = db.find_process_by_id(&process_tracker_id).await? {
+        db.as_scheduler()
+            .update_process(
+                existing_process,
+                storage::ProcessTrackerUpdate::Update {
+                    name: Some(task.to_string()),
+                    retry_count: Some(0),
+                    schedule_time: Some(schedule_time),
+                    tracking_data: Some(tracking_data),
+                    business_status: Some(storage::business_status::PENDING.to_string()),
+                    status: Some(storage_enums::ProcessTrackerStatus::New),
+                    updated_at: Some(common_utils::date_time::now()),
+                },
+            )
+            .await?;
+    } else {
+        let process_tracker_entry = storage::ProcessTrackerNew::new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            tracking_data,
+            None,
+            schedule_time,
+            common_types::consts::API_VERSION,
+            application_source,
+        )
+        .map_err(errors::StorageError::from)?;
+
+        db.insert_process(process_tracker_entry).await?;
+    }
+
     Ok(())
 }
 
