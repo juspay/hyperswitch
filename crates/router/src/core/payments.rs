@@ -681,6 +681,22 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): an armed time seam the recording holds no event
+    // for on this path, whose value the request then depends on. No payment
+    // path calls this seam, so replay misses at every rank; the request must
+    // survive on the synthesized value, or fail here saying why.
+    let deja_fixture_date = common_utils::date_time::now_rfc7231_http_date()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("FIXTURE: the synthesized date did not format")?;
+    if !deja_fixture_date.ends_with(" GMT") || deja_fixture_date.len() != 29 {
+        return Err(
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                format!("FIXTURE: the synthesized date is malformed: {deja_fixture_date}"),
+            ),
+        );
+    }
+    logger::info!(date = %deja_fixture_date, "FIXTURE: request continued on this date");
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
