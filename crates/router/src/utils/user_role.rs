@@ -61,6 +61,7 @@ pub fn validate_role_groups(
 
     if unique_groups.contains(&PermissionGroup::CloneConnectorManage)
         || unique_groups.contains(&PermissionGroup::AlertsView)
+        || unique_groups.contains(&PermissionGroup::AlertsManage)
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Invalid groups present in the custom role");

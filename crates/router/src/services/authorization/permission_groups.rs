@@ -48,7 +48,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
             | Self::ReconRulesManage
-            | Self::OffersManage => PermissionScope::Write,
+            | Self::OffersManage
+            | Self::AlertsManage => PermissionScope::Write,
         }
     }
 
@@ -73,7 +74,7 @@ impl PermissionGroupExt for PermissionGroup {
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
             Self::OffersView | Self::OffersManage => ParentGroup::Offers,
-            Self::AlertsView => ParentGroup::Alerts,
+            Self::AlertsView | Self::AlertsManage => ParentGroup::Alerts,
         }
     }
 
@@ -166,6 +167,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::OffersView => vec![Self::OffersView],
             Self::OffersManage => vec![Self::OffersView, Self::OffersManage],
             Self::AlertsView => vec![Self::AlertsView],
+            Self::AlertsManage => vec![Self::AlertsView, Self::AlertsManage],
         }
     }
 
@@ -194,7 +196,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ConfigurationsView
             | Self::ConfigurationsManage
             | Self::OffersView
-            | Self::OffersManage => RoleProductCategory::Orchestration,
+            | Self::OffersManage
+            | Self::AlertsView
+            | Self::AlertsManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -205,7 +209,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconTransactionsManage
             | Self::ReconRulesView
             | Self::ReconRulesManage => RoleProductCategory::Recon,
-            Self::AlertsView => RoleProductCategory::Dashboard,
         }
     }
 }

@@ -120,7 +120,7 @@ generate_permissions! {
             entities: [Profile]
         },
         Alert: {
-            scopes: [Read],
+            scopes: [Read, Write],
             entities: [Merchant]
         },
     ]

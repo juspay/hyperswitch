@@ -9686,6 +9686,7 @@ pub enum PermissionGroup {
     OffersView,
     OffersManage,
     AlertsView,
+    AlertsManage,
 }
 
 #[derive(

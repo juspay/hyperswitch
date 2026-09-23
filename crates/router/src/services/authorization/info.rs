@@ -63,7 +63,7 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
         PermissionGroup::OffersView => Some("View Offers"),
         PermissionGroup::OffersManage => Some("Create, modify and delete Offers"),
-        PermissionGroup::AlertsView => None,
+        PermissionGroup::AlertsView | PermissionGroup::AlertsManage => None,
     }
 }
 
