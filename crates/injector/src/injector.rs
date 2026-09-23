@@ -923,6 +923,12 @@ pub mod core {
                     "x-profile-id".to_string(),
                     hyperswitch_masking::Maskable::Masked(vault_auth.profile_id.clone()),
                 ),
+                (
+                    "User-Agent".to_string(),
+                    hyperswitch_masking::Maskable::new_normal(
+                        "Hyperswitch-Backend-Server".to_string(),
+                    ),
+                ),
             ];
 
             let request_builder = RequestBuilder::new()
