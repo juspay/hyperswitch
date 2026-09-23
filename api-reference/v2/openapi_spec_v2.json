@@ -12675,6 +12675,14 @@
               }
             ],
             "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -33890,6 +33898,16 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
       },
       "StripeSplitPaymentRequest": {
         "type": "object",
