@@ -241,6 +241,17 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_fixed",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "fixed", value: { amount: 100 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [],
+            metadata: {},
+          },
         },
       },
     },
@@ -250,6 +261,17 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_fixed",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "fixed", value: { amount: 100 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [],
+            metadata: {},
+          },
         },
       },
     },

@@ -220,17 +220,6 @@ describe("Surcharge DSL Configuration Test", () => {
             {
               name: "card_surcharge_rule",
               connectorSelection: {
-                type: "priority",
-                data: [
-                  {
-                    connector: globalState.get("connectorId"),
-                    merchant_connector_id: globalState.get(
-                      `${globalState.get("connectorId")}McaId`
-                    ),
-                  },
-                ],
-              },
-              surcharge_value: {
                 surcharge_details: {
                   surcharge: { type: "rate", value: { percentage: 3.0 } },
                 },
