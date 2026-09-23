@@ -4918,24 +4918,6 @@ export const connectorDetails = {
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
     }),
-    SurchargeDSL: getCustomExchange({
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
-    SurchargeDSLConfirm: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
   },
   gift_card_pm: {
     GivexGiftCard: getCustomExchange({

@@ -827,7 +827,6 @@ export const CONNECTOR_LISTS = {
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
-    SURCHARGE: ["authorizedotnet"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
