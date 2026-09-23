@@ -818,14 +818,13 @@ fn parse_ucs_card_segment_type(
 ) -> Option<common_enums::CardSegmentType> {
     raw_str.and_then(|raw_str| {
         UcsCardSegmentType::from_str(&raw_str)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 router_env::logger::warn!(
                     parse_error = ?e,
                     raw_value = %raw_str,
                     payment_method = %payment_method,
                     "Failed to parse CardSegmentType from UCS proto field"
                 );
-                e
             })
             .ok()
             .map(common_enums::CardSegmentType::from)
@@ -838,14 +837,13 @@ fn parse_ucs_funding_source(
 ) -> Option<common_enums::FundingSource> {
     raw_str.and_then(|raw_str| {
         UcsFundingSource::from_str(&raw_str)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 router_env::logger::warn!(
                     parse_error = ?e,
                     raw_value = %raw_str,
                     payment_method = %payment_method,
                     "Failed to parse FundingSource from UCS proto field"
                 );
-                e
             })
             .ok()
             .map(common_enums::FundingSource::from)
@@ -858,14 +856,13 @@ fn parse_ucs_card_type(
 ) -> Option<common_enums::CardType> {
     raw_str.and_then(|raw_str| {
         UcsCardType::from_str(&raw_str)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 router_env::logger::warn!(
                     parse_error = ?e,
                     raw_value = %raw_str,
                     payment_method = %payment_method,
                     "Failed to parse CardType from UCS proto field"
                 );
-                e
             })
             .ok()
             .map(common_enums::CardType::from)
