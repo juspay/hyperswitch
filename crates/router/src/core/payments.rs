@@ -7082,16 +7082,17 @@ where
         // Extract previous gateway from payment data
         let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-        let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
-            state,
-            processor,
-            &router_data,
-            previous_gateway,
-            call_connector_action.clone(),
-            None,
-            common_enums::TransactionType::Payment,
-        )
-        .await?;
+        let (execution_path, updated_state, rollout_result) =
+            should_call_unified_connector_service(
+                state,
+                processor,
+                &router_data,
+                previous_gateway,
+                call_connector_action.clone(),
+                None,
+                common_enums::TransactionType::Payment,
+            )
+            .await?;
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),

@@ -52,7 +52,6 @@ pub struct RouterGatewayContext {
     pub connector_decline_threshold: Option<u64>,
 }
 
-
 /// Implementation of GatewayContext trait for RouterGatewayContext
 ///
 /// This allows the framework to extract execution metadata without knowing
