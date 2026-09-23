@@ -750,6 +750,96 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
     }
 }
 
+fn parse_ucs_card_segment_type(
+    s: Option<String>,
+    payment_method: &str,
+) -> Option<common_enums::CardSegmentType> {
+    s.and_then(|s| {
+        serde_json::from_str::<common_enums::CardSegmentType>(&format!("\"{}\"", s))
+            .map_err(|e| {
+                router_env::logger::warn!(
+                    parse_error = ?e,
+                    raw_value = %s,
+                    payment_method = %payment_method,
+                    "Failed to parse CardSegmentType from UCS proto field"
+                );
+                e
+            })
+            .ok()
+    })
+}
+
+fn parse_ucs_funding_source(
+    s: Option<String>,
+    payment_method: &str,
+) -> Option<common_enums::FundingSource> {
+    s.and_then(|s| {
+        // UCS serialises FundingSource as snake_case; HS uses UPPERCASE with
+        // space-separated special cases for DeferredDebit / ChargeCard.
+        let hs_format = match s.as_str() {
+            "credit" => Some("CREDIT"),
+            "debit" => Some("DEBIT"),
+            "prepaid" => Some("PREPAID"),
+            "charge_card" => Some("CHARGE CARD"),
+            "deferred_debit" => Some("DEFERRED DEBIT"),
+            other => {
+                router_env::logger::warn!(
+                    raw_value = %other,
+                    payment_method = %payment_method,
+                    "Unknown FundingSource value from UCS proto field"
+                );
+                None
+            }
+        };
+        hs_format.and_then(|fmt| {
+            common_enums::FundingSource::from_str(fmt)
+                .inspect_err(|e| {
+                    router_env::logger::warn!(
+                        parse_error = ?e,
+                        raw_value = %fmt,
+                        payment_method = %payment_method,
+                        "Failed to parse FundingSource from UCS proto field"
+                    );
+                })
+                .ok()
+        })
+    })
+}
+
+fn parse_ucs_card_type(s: Option<String>, payment_method: &str) -> Option<common_enums::CardType> {
+    s.and_then(|s| {
+        serde_json::from_str::<common_enums::CardType>(&format!("\"{}\"", s))
+            .map_err(|e| {
+                router_env::logger::warn!(
+                    parse_error = ?e,
+                    raw_value = %s,
+                    payment_method = %payment_method,
+                    "Failed to parse CardType from UCS proto field"
+                );
+                e
+            })
+            .ok()
+    })
+}
+
+fn parse_ucs_issuer_country(
+    s: Option<String>,
+    payment_method: &str,
+) -> Option<common_enums::CountryAlpha2> {
+    s.and_then(|s| {
+        common_enums::CountryAlpha2::from_str(&s)
+            .inspect_err(|e| {
+                router_env::logger::warn!(
+                    parse_error = ?e,
+                    raw_value = %s,
+                    payment_method = %payment_method,
+                    "Failed to parse CountryAlpha2 from UCS proto field"
+                );
+            })
+            .ok()
+    })
+}
+
 // Transformer for AdditionalPaymentMethodConnectorResponse
 impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     for AdditionalPaymentMethodConnectorResponse
@@ -810,69 +900,20 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 device_pan_bin: google_pay_data.device_pan_bin,
                 card_bin: google_pay_data.card_bin,
                 card_subtype: google_pay_data.card_subtype,
-                card_segment_type: google_pay_data.card_segment_type.and_then(|s| {
-                    serde_json::from_str::<common_enums::CardSegmentType>(&format!("\"{}\"", s))
-                        .map_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %s,
-                                "Failed to parse CardSegmentType from UCS GooglePay proto field"
-                            );
-                            e
-                        })
-                        .ok()
-                }),
-                funding_source: google_pay_data.funding_source.and_then(|s| {
-                    // UCS serialises FundingSource as snake_case; HS uses UPPERCASE with
-                    // space-separated special cases for DeferredDebit / ChargeCard.
-                    let hs_format = match s.as_str() {
-                        "credit" => "CREDIT",
-                        "debit" => "DEBIT",
-                        "prepaid" => "PREPAID",
-                        "charge_card" => "CHARGE CARD",
-                        "deferred_debit" => "DEFERRED DEBIT",
-                        other => {
-                            router_env::logger::warn!(
-                                raw_value = %other,
-                                "Unknown FundingSource value from UCS GooglePay proto field"
-                            );
-                            return None;
-                        }
-                    };
-                    common_enums::FundingSource::from_str(hs_format)
-                        .inspect_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %hs_format,
-                                "Failed to parse FundingSource from UCS GooglePay proto field"
-                            );
-                        })
-                        .ok()
-                }),
-                card_type: google_pay_data.card_type.and_then(|s| {
-                    serde_json::from_str::<common_enums::CardType>(&format!("\"{}\"", s))
-                        .map_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %s,
-                                "Failed to parse CardType from UCS GooglePay proto field"
-                            );
-                            e
-                        })
-                        .ok()
-                }),
+                card_segment_type: parse_ucs_card_segment_type(
+                    google_pay_data.card_segment_type,
+                    "GooglePay",
+                ),
+                funding_source: parse_ucs_funding_source(
+                    google_pay_data.funding_source,
+                    "GooglePay",
+                ),
+                card_type: parse_ucs_card_type(google_pay_data.card_type, "GooglePay"),
                 issuer_name: google_pay_data.issuer_name,
-                issuer_country: google_pay_data.issuer_country.and_then(|s| {
-                    common_enums::CountryAlpha2::from_str(&s)
-                        .inspect_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %s,
-                                "Failed to parse CountryAlpha2 from UCS GooglePay proto field"
-                            );
-                        })
-                        .ok()
-                }),
+                issuer_country: parse_ucs_issuer_country(
+                    google_pay_data.issuer_country,
+                    "GooglePay",
+                ),
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -883,55 +924,19 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 device_pan_bin: apple_pay_data.device_pan_bin,
                 card_bin: apple_pay_data.card_bin,
                 card_subtype: apple_pay_data.card_subtype,
-                card_segment_type: apple_pay_data.card_segment_type.and_then(|s| {
-                    serde_json::from_str::<common_enums::CardSegmentType>(&format!("\"{}\"", s))
-                        .map_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %s,
-                                "Failed to parse CardSegmentType from UCS ApplePay proto field"
-                            );
-                            e
-                        })
-                        .ok()
-                }),
-                funding_source: apple_pay_data.funding_source.and_then(|s| {
-                    let hs_format = match s.as_str() {
-                        "credit" => "CREDIT",
-                        "debit" => "DEBIT",
-                        "prepaid" => "PREPAID",
-                        "charge_card" => "CHARGE CARD",
-                        "deferred_debit" => "DEFERRED DEBIT",
-                        other => {
-                            router_env::logger::warn!(
-                                raw_value = %other,
-                                "Unknown FundingSource value from UCS ApplePay proto field"
-                            );
-                            return None;
-                        }
-                    };
-                    common_enums::FundingSource::from_str(hs_format)
-                        .inspect_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %hs_format,
-                                "Failed to parse FundingSource from UCS ApplePay proto field"
-                            );
-                        })
-                        .ok()
-                }),
+                card_segment_type: parse_ucs_card_segment_type(
+                    apple_pay_data.card_segment_type,
+                    "ApplePay",
+                ),
+                funding_source: parse_ucs_funding_source(
+                    apple_pay_data.funding_source,
+                    "ApplePay",
+                ),
                 issuer_name: apple_pay_data.issuer_name,
-                issuer_country: apple_pay_data.issuer_country.and_then(|s| {
-                    common_enums::CountryAlpha2::from_str(&s)
-                        .inspect_err(|e| {
-                            router_env::logger::warn!(
-                                parse_error = ?e,
-                                raw_value = %s,
-                                "Failed to parse CountryAlpha2 from UCS ApplePay proto field"
-                            );
-                        })
-                        .ok()
-                }),
+                issuer_country: parse_ucs_issuer_country(
+                    apple_pay_data.issuer_country,
+                    "ApplePay",
+                ),
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {
