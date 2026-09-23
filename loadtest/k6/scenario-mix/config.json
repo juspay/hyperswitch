@@ -1,0 +1,100 @@
+{
+  "services": {
+
+  },
+  "target_headers": {
+    "router": {},
+    "modular_pm": {}
+  },
+  "merchant": {
+
+  },
+  "load": {
+    "phases": {
+      "starting_rps": 50,
+      "target_rps": 1250,
+      "step_rps": 50,
+      "hold_seconds": 20,
+      "idle_seconds": 3
+    },
+    "request_timeout_ms": 30000
+  },
+  "payment": {
+    "amount": 1000,
+    "currency": "USD",
+    "session_expiry": 900,
+    "card": {
+      "card_number": "4242424242424242",
+      "card_exp_month": "10",
+      "card_exp_year": "35",
+      "card_holder_name": "Load Test",
+      "card_cvc": "123"
+    },
+    "metadata_update": {
+      "card_exp_month": "11",
+      "card_exp_year": "36",
+      "card_holder_name": "Updated Load Test"
+    }
+  },
+  "sdk": {
+    "wallets": []
+  },
+  "scenarios": [
+    {
+      "name": "nm_guest",
+      "merchant_path": "non_modular",
+      "scenario": "guest",
+      "weight": 20
+    },
+    {
+      "name": "nm_sdk",
+      "merchant_path": "non_modular",
+      "scenario": "sdk_checkout",
+      "weight": 30
+    },
+    {
+      "name": "mod_ptv_on",
+      "merchant_path": "modular",
+      "scenario": "ptv_on_session",
+      "weight": 50
+    }
+  ],
+  "thresholds": {
+    "scenario_failure_nm_guest": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "scenario_failure_nm_sdk": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "scenario_failure_mod_ptv_on": [
+      {
+        "threshold": "count<25",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_nm_guest": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_nm_sdk": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ],
+    "payment_confirm_ms_mod_ptv_on": [
+      {
+        "threshold": "p(90)<30000",
+        "abortOnFail": true
+      }
+    ]
+  }
+}
