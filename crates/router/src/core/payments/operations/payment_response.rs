@@ -6,6 +6,8 @@ use std::{collections::HashMap, ops::Deref};
 use ::payment_methods::client::{
     BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
+#[cfg(feature = "v1")]
+use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
@@ -761,7 +763,18 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             should_avoid_saving
         };
 
-        if is_legacy_mandate {
+        let should_defer_pm_creation = payment_data.payment_attempt.payment_method
+            == Some(enums::PaymentMethod::BankRedirect)
+            && !resp.status.is_authorization_success();
+
+        if should_defer_pm_creation {
+            logger::info!(
+                payment_id = ?payment_data.payment_attempt.payment_id,
+                attempt_status = ?resp.status,
+                "Deferring bank redirect payment method creation until terminal success"
+            );
+            Ok(())
+        } else if is_legacy_mandate {
             // Mandate is created on the application side and at the connector.
             let tokenization::SavePaymentMethodDataResponse {
                 payment_method_id, ..
@@ -2285,6 +2298,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
         )?;
 
+        let additional_payment_method_data = get_additional_payment_method_data_from_psync(
+            resp.status,
+            resp.connector_returned_payment_method_details.as_ref(),
+        );
+
         update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
@@ -2294,8 +2312,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             platform.get_provider().get_account().storage_scheme,
             &platform.get_provider().get_account().organization_id,
             platform.get_initiator(),
-            None,
-            None,
+            additional_payment_method_data,
+            payment_data.payment_attempt.merchant_connector_id.clone(),
             platform,
             _business_profile,
         )
@@ -3446,6 +3464,204 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
+async fn create_deferred_bank_redirect_payment_method<F: Clone>(
+    state: &SessionState,
+    payment_data: &mut PaymentData<F>,
+    attempt_status: common_enums::AttemptStatus,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    additional_payment_method_data: Option<
+        &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    >,
+) -> RouterResult<()> {
+    let deferred_save_details = (payment_data.payment_attempt.payment_method
+        == Some(enums::PaymentMethod::BankRedirect)
+        && attempt_status.is_authorization_success())
+    .then(|| {
+        payment_data
+            .payment_attempt
+            .customer_acceptance
+            .clone()
+            .zip(payment_data.payment_intent.customer_id.clone())
+    })
+    .flatten();
+
+    if let Some((customer_acceptance, customer_id)) = deferred_save_details {
+        let provider = platform.get_provider();
+        let key_manager_state: KeyManagerState = state.into();
+        let key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
+
+        let vault_response = match additional_payment_method_data {
+            Some(
+                hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+                    bank_redirect_data,
+                ),
+            ) => {
+                let payment_method_data =
+                    domain::PaymentMethodData::BankRedirect(bank_redirect_data.clone());
+                let payment_method_create_request =
+                    payment_methods::get_payment_method_create_request(
+                        Some(&payment_method_data),
+                        payment_data.payment_attempt.payment_method,
+                        payment_data.payment_attempt.payment_method_type,
+                        &Some(customer_id.clone()),
+                        None,
+                        None,
+                    )
+                    .await?;
+
+                Some(
+                    tokenization::save_in_locker(
+                        state,
+                        platform,
+                        payment_method_create_request,
+                        None, // card_detail not needed for bank redirect
+                        business_profile,
+                    )
+                    .await?,
+                )
+            }
+            _ => None,
+        };
+
+        let existing_payment_method = match &vault_response {
+            Some((
+                vault_response,
+                Some(payment_methods::transformers::DataDuplicationCheck::Duplicated),
+            )) => match &vault_response.locker_fingerprint_id {
+                Some(locker_fingerprint_id) => state
+                    .store
+                    .find_payment_method_by_fingerprint_id(key_store, locker_fingerprint_id)
+                    .await
+                    .map_err(|error| {
+                        logger::info!(
+                            ?error,
+                            "Vault reported a duplicate but no payment method matched the fingerprint"
+                        );
+                    })
+                    .ok(),
+                None => None,
+            },
+            _ => None,
+        };
+
+        let payment_method = match existing_payment_method {
+            Some(existing_payment_method) => {
+                payment_methods::cards::update_last_used_at(
+                    &existing_payment_method,
+                    state,
+                    storage_scheme,
+                    key_store,
+                )
+                .await
+                .map_err(|error| {
+                    logger::error!(?error, "Failed to update last used at");
+                })
+                .ok();
+
+                logger::info!(
+                    payment_method_id = %existing_payment_method.get_id(),
+                    "Reusing existing bank redirect payment method for a duplicate bank account"
+                );
+
+                existing_payment_method
+            }
+            None => {
+                let encrypted_payment_method_billing_address = payment_data
+                    .address
+                    .get_payment_method_billing()
+                    .cloned()
+                    .async_map(|address| {
+                        core_utils::create_encrypted_data(
+                            &key_manager_state,
+                            key_store,
+                            address,
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method billing address")?;
+
+                let payment_method_create_request =
+                    api_models::payment_methods::PaymentMethodCreate {
+                        payment_method: payment_data.payment_attempt.payment_method,
+                        payment_method_type: payment_data.payment_attempt.payment_method_type,
+                        payment_method_issuer: None,
+                        payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
+                        #[cfg(feature = "payouts")]
+                        wallet: None,
+                        card: None,
+                        metadata: None,
+                        customer_id: Some(customer_id.clone()),
+                        card_network: None,
+                        client_secret: None,
+                        payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
+                    };
+
+                let (locker_id, locker_fingerprint_id) = vault_response
+                    .map(|(vault_response, _)| {
+                        (
+                            Some(vault_response.payment_method_id),
+                            vault_response.locker_fingerprint_id,
+                        )
+                    })
+                    .unwrap_or((None, None));
+
+                let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+                let payment_method = payment_methods::cards::PmCards { state, provider }
+                    .create_payment_method(
+                        &payment_method_create_request,
+                        &customer_id,
+                        &payment_method_id,
+                        locker_id,
+                        provider.get_account().get_id(),
+                        None,
+                        Some(customer_acceptance.expose()),
+                        None,
+                        None,
+                        Some(common_enums::PaymentMethodStatus::Active),
+                        None,
+                        encrypted_payment_method_billing_address,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        locker_fingerprint_id,
+                        platform.get_initiator(),
+                    )
+                    .await?;
+
+                logger::info!(
+                    payment_method_id = %payment_method_id,
+                    "Created deferred bank redirect payment method on terminal success"
+                );
+
+                payment_method
+            }
+        };
+
+        payment_data.payment_attempt.payment_method_id = Some(payment_method.get_id().clone());
+        payment_data.payment_method_info = Some(payment_method);
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3462,6 +3678,31 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
 ) -> RouterResult<()> {
+    // A bank redirect defers its payment method creation past the confirm call, so the first
+    // terminal success arrives with nothing to update. Settle which entry this payment belongs to
+    // here — reused or newly created — so the update below fills it in over the same path an
+    // already-existing payment method takes.
+    if payment_data.payment_attempt.payment_method_id.is_none() {
+        // A payment method that cannot be stored must not fail a payment that has already
+        // succeeded at the connector, so this is logged rather than propagated — the same way the
+        // confirm-time save swallows its errors.
+        if let Err(error) = create_deferred_bank_redirect_payment_method(
+            state,
+            payment_data,
+            attempt_status,
+            platform,
+            business_profile,
+            additional_payment_method_data,
+        )
+        .await
+        {
+            logger::error!(
+                ?error,
+                "Failed to create deferred bank redirect payment method"
+            );
+        }
+    }
+
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
