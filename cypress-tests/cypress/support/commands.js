@@ -8307,7 +8307,11 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("error");
           expect(response.body.error.code).to.equal("IR_06");
         }
-        return response;
+        // logRequestId invokes cy.task, so this callback must hand back a cy
+        // chainable rather than a plain value — cy.wrap keeps the response
+        // available to the caller's .then() without tripping Cypress's
+        // "mixing up async and sync code" check.
+        return cy.wrap(response);
       });
   }
 );
@@ -8346,7 +8350,9 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("error");
           expect(response.body.error.code).to.equal("IR_06");
         }
-        return response;
+        // See createPaymentIntentWithIntegrationTypeHeader above for why
+        // this returns cy.wrap(response) rather than response directly.
+        return cy.wrap(response);
       });
   }
 );
