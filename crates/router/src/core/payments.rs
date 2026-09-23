@@ -822,6 +822,9 @@ where
         mandate_type,
         &dimensions,
         call_connector_action.clone(),
+        customer
+            .as_ref()
+            .and_then(|customer| customer.preferred_gateways.clone()),
     )
     .await?;
 
@@ -3093,6 +3096,8 @@ where
         mandate_type,
         &dimensions,
         call_connector_action.clone(),
+        // The customer is fetched after connector selection in this flow.
+        None,
     )
     .await?;
 
@@ -11530,6 +11535,7 @@ pub async fn choose_connector<F, Req, D>(
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     call_connector_action: CallConnectorAction,
+    customer_preferred_gateways: Option<serde_json::Value>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone + 'static,
@@ -11604,6 +11610,7 @@ where
                             dimensions,
                             fallback_config,
                             backend_input,
+                            customer_preferred_gateways,
                         )
                         .await?
                     }
@@ -11621,6 +11628,7 @@ where
                             dimensions,
                             fallback_config,
                             backend_input,
+                            customer_preferred_gateways,
                         )
                         .await?
                     }
@@ -11885,6 +11893,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
+    customer_preferred_gateways: Option<serde_json::Value>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone + 'static,
@@ -11941,6 +11950,7 @@ where
         fallback_config,
         backend_input,
         should_use_modular_pm_path,
+        customer_preferred_gateways,
     )
     .await?;
 
@@ -12122,6 +12132,55 @@ pub async fn decide_connector(
     }
 }
 
+// Global config listing the payment method types eligible for preferred-gateway
+// routing (comma-separated, e.g. "interac,ideal"); the write and read gates both
+// consult it, so widening the feature is a config change, not a code change.
+#[cfg(feature = "v1")]
+pub async fn preferred_gateway_enabled_payment_method_types(state: &SessionState) -> Vec<String> {
+    state
+        .store
+        .find_config_by_key_unwrap_or(
+            "preferred_gateway_enabled_payment_method_types",
+            "interac".to_string(),
+        )
+        .await
+        .map(|config| {
+            config
+                .config
+                .split(',')
+                .map(|pmt| pmt.trim().to_string())
+                .filter(|pmt| !pmt.is_empty())
+                .collect()
+        })
+        .unwrap_or_else(|error| {
+            logger::error!(?error, "Failed to fetch preferred-gateway PMT config");
+            vec!["interac".to_string()]
+        })
+}
+
+// The stored preference is keyed by payment method type, then holds
+// {"key": profile_id, "value": "connector:mca_id"} entries; routing consumes
+// the paying profile's own entry for the payment's own method type, so
+// neither profiles nor payment method types inherit each other's accounts.
+#[cfg(feature = "v1")]
+fn preferred_gateway_for_profile(
+    value: &serde_json::Value,
+    payment_method_type: &str,
+    profile_id: &str,
+) -> Option<String> {
+    value
+        .get(payment_method_type)?
+        .as_array()?
+        .iter()
+        .find_map(|entry| {
+            if entry.get("key")?.as_str()? == profile_id {
+                entry.get("value")?.as_str().map(str::to_string)
+            } else {
+                None
+            }
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub async fn decide_connector<F, D>(
@@ -12137,6 +12196,7 @@ pub async fn decide_connector<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
+    customer_preferred_gateways: Option<serde_json::Value>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone + 'static,
@@ -12184,6 +12244,32 @@ where
     if let Some(connector) = pre_decided_connector {
         return Ok(connector);
     }
+
+    // Preferred-gateway routing: interac-only, matching the write side, so an interac
+    // habit never steers the customer's other payment methods; the saved payment
+    // method's connector wins over the customer's.
+    let enabled_payment_method_types = preferred_gateway_enabled_payment_method_types(&state).await;
+    let payment_method_type = payment_data
+        .get_payment_attempt()
+        .payment_method_type
+        .map(|pmt| pmt.to_string())
+        .unwrap_or_default();
+    let preferred_gateway = if enabled_payment_method_types.contains(&payment_method_type) {
+        let profile_id = business_profile.get_id().get_string_repr();
+        payment_data
+            .get_payment_method_info()
+            .and_then(|payment_method| payment_method.preferred_gateways.as_ref())
+            .and_then(|value| {
+                preferred_gateway_for_profile(value, &payment_method_type, profile_id)
+            })
+            .or_else(|| {
+                customer_preferred_gateways.as_ref().and_then(|value| {
+                    preferred_gateway_for_profile(value, &payment_method_type, profile_id)
+                })
+            })
+    } else {
+        None
+    };
 
     let transaction_data = core_routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
@@ -12259,6 +12345,7 @@ where
                     txn_data,
                     backend_input,
                     fallback.clone(),
+                    preferred_gateway,
                 )
                 .await
                 .inspect_err(|err| {
@@ -13254,6 +13341,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
+    preferred_gateway: Option<String>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13273,6 +13361,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &fallback_config,
         &static_connectors,
         static_approach,
+        preferred_gateway,
     )
     .await;
 
