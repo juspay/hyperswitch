@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use hyperswitch_masking::{Mask, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::aead::{self, UnboundKey};
 use transformers as aci;
 
@@ -820,73 +820,78 @@ fn decrypt_aci_webhook_payload(
     Ok(ciphertext_and_tag)
 }
 
-#[async_trait::async_trait]
-impl IncomingWebhook for Aci {
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::HmacSha256))
-    }
+/// Body decoding algorithm for ACI webhooks. ACI encrypts the notification body with
+/// AES-256-GCM and sends the IV and authentication tag as hex strings in the
+/// `X-Initialization-Vector` and `X-Authentication-Tag` headers.
+struct AciWebhookBodyDecryption {
+    iv_hex: String,
+    auth_tag_hex: String,
+}
 
-    fn get_webhook_source_verification_signature(
+impl crypto::DecodeMessage for AciWebhookBodyDecryption {
+    fn decode_message(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let header_value_str = request
-            .headers
-            .get("X-Authentication-Tag")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)
-            .attach_printable("Missing X-Authentication-Tag header")?
-            .to_str()
-            .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)
-            .attach_printable("Invalid X-Authentication-Tag header value (not UTF-8)")?;
-        Ok(header_value_str.as_bytes().to_vec())
-    }
-
-    fn get_webhook_source_verification_message(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_secret_str = String::from_utf8(connector_webhook_secrets.secret.to_vec())
-            .map_err(|_| errors::ConnectorError::WebhookVerificationSecretInvalid)
+        secret: &[u8],
+        msg: hyperswitch_masking::Secret<Vec<u8>, common_utils::pii::EncryptionStrategy>,
+    ) -> CustomResult<Vec<u8>, CryptoError> {
+        let hex_key = std::str::from_utf8(secret)
+            .change_context(CryptoError::DecodingFailed)
             .attach_printable("ACI webhook secret is not a valid UTF-8 string")?;
-
-        let iv_hex_str = request
-            .headers
-            .get("X-Initialization-Vector")
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Missing X-Initialization-Vector header")?
-            .to_str()
-            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Invalid X-Initialization-Vector header value (not UTF-8)")?;
-
-        let auth_tag_hex_str = request
-            .headers
-            .get("X-Authentication-Tag")
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Missing X-Authentication-Tag header")?
-            .to_str()
-            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Invalid X-Authentication-Tag header value (not UTF-8)")?;
-
-        let encrypted_body_hex = String::from_utf8(request.body.to_vec())
-            .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
-            .attach_printable(
-                "Failed to read encrypted body as UTF-8 string for verification message",
-            )?;
+        let encrypted_body_hex = String::from_utf8(msg.expose())
+            .change_context(CryptoError::DecodingFailed)
+            .attach_printable("ACI webhook body is not a valid UTF-8 string")?;
 
         decrypt_aci_webhook_payload(
-            &webhook_secret_str,
-            iv_hex_str,
-            auth_tag_hex_str,
+            hex_key,
+            &self.iv_hex,
+            &self.auth_tag_hex,
             &encrypted_body_hex,
         )
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .attach_printable("Failed to decrypt ACI webhook payload for verification")
+    }
+}
+
+fn get_aci_webhook_header(
+    request: &IncomingWebhookRequestDetails<'_>,
+    header_name: &'static str,
+) -> CustomResult<String, errors::ConnectorError> {
+    request
+        .headers
+        .get(header_name)
+        .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)
+        .attach_printable_lazy(|| format!("Missing {header_name} header"))?
+        .to_str()
+        .map(ToString::to_string)
+        .map_err(|_| errors::ConnectorError::WebhookBodyDecodingFailed)
+        .attach_printable_lazy(|| format!("Invalid {header_name} header value (not UTF-8)"))
+}
+
+#[async_trait::async_trait]
+impl IncomingWebhook for Aci {
+    fn get_webhook_body_decoding_algorithm(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::DecodeMessage + Send>, errors::ConnectorError> {
+        Ok(Box::new(AciWebhookBodyDecryption {
+            iv_hex: get_aci_webhook_header(request, "X-Initialization-Vector")?,
+            auth_tag_hex: get_aci_webhook_header(request, "X-Authentication-Tag")?,
+        }))
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        // ACI does not sign its webhooks separately. The body is authenticated by the
+        // AES-256-GCM tag, which is checked when the body is decrypted with the merchant's
+        // webhook secret in `decode_webhook_body`, before this method is called. A webhook
+        // that was not encrypted with that secret is rejected there and never reaches here.
+        Ok(true)
     }
 
     fn get_webhook_object_reference_id(
@@ -1218,5 +1223,156 @@ impl ConnectorSpecifications for Aci {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&ACI_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+    use common_utils::errors::{CryptoError, CustomResult};
+    use error_stack::ResultExt;
+    use hyperswitch_interfaces::webhooks::{IncomingWebhook, IncomingWebhookRequestDetails};
+    use hyperswitch_masking::Secret;
+    use ring::aead;
+
+    use super::Aci;
+
+    const WEBHOOK_SECRET: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    const IV_HEX: &str = "0a0b0c0d0e0f101112131415";
+
+    fn webhook_payload() -> Vec<u8> {
+        serde_json::json!({
+            "type": "PAYMENT",
+            "payload": {
+                "id": "8ac7a4a18d2f4d6f018d30a2c2b54f7e",
+                "paymentType": "DB",
+                "paymentBrand": "VISA",
+                "amount": "10.00",
+                "currency": "EUR",
+                "result": {
+                    "code": "000.100.110",
+                    "description": "Request successfully processed in 'Merchant in Integrator Test Mode'"
+                },
+                "timestamp": "2026-09-23 10:00:00+0000",
+                "ndc": "8a8294174b7ecb28014b9699220015ca_7a9ec8f6e3d64f1e9a1e1f0c0f0e0d0c"
+            }
+        })
+        .to_string()
+        .into_bytes()
+    }
+
+    /// Encrypts `plaintext` the way ACI does: AES-256-GCM, returning the hex-encoded
+    /// ciphertext (request body) and the hex-encoded authentication tag (header).
+    fn encrypt_like_aci(plaintext: &[u8]) -> (String, String) {
+        let key_bytes = hex::decode(WEBHOOK_SECRET).unwrap();
+        let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &key_bytes).unwrap();
+        let key = aead::LessSafeKey::new(unbound_key);
+        let nonce_bytes: [u8; aead::NONCE_LEN] = hex::decode(IV_HEX).unwrap().try_into().unwrap();
+        let mut in_out = plaintext.to_vec();
+        let tag = key
+            .seal_in_place_separate_tag(
+                aead::Nonce::assume_unique_for_key(nonce_bytes),
+                aead::Aad::empty(),
+                &mut in_out,
+            )
+            .unwrap();
+        (hex::encode_upper(in_out), hex::encode_upper(tag.as_ref()))
+    }
+
+    fn headers(auth_tag_hex: &str) -> actix_web::http::header::HeaderMap {
+        let mut headers = actix_web::http::header::HeaderMap::new();
+        headers.insert(
+            actix_web::http::header::HeaderName::from_static("x-initialization-vector"),
+            actix_web::http::header::HeaderValue::from_static(IV_HEX),
+        );
+        headers.insert(
+            actix_web::http::header::HeaderName::from_static("x-authentication-tag"),
+            actix_web::http::header::HeaderValue::from_str(auth_tag_hex).unwrap(),
+        );
+        headers
+    }
+
+    fn request<'a>(
+        headers: &'a actix_web::http::header::HeaderMap,
+        body: &'a [u8],
+    ) -> IncomingWebhookRequestDetails<'a> {
+        IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("/webhooks"),
+            headers,
+            body,
+            query_params: String::new(),
+        }
+    }
+
+    fn decode_body(
+        request: &IncomingWebhookRequestDetails<'_>,
+        secret: &[u8],
+    ) -> CustomResult<Vec<u8>, CryptoError> {
+        Aci::new()
+            .get_webhook_body_decoding_algorithm(request)
+            .change_context(CryptoError::DecodingFailed)?
+            .decode_message(secret, Secret::new(request.body.to_vec()))
+    }
+
+    #[test]
+    fn decrypts_encrypted_webhook_body_before_parsing() {
+        let plaintext = webhook_payload();
+        let (encrypted_body, auth_tag) = encrypt_like_aci(&plaintext);
+        let headers = headers(&auth_tag);
+        let encrypted_request = request(&headers, encrypted_body.as_bytes());
+
+        let decoded_body = decode_body(&encrypted_request, WEBHOOK_SECRET.as_bytes()).unwrap();
+        assert_eq!(decoded_body, plaintext);
+
+        let decoded_request = request(&headers, &decoded_body);
+        let reference = Aci::new()
+            .get_webhook_object_reference_id(&decoded_request)
+            .unwrap();
+        assert!(matches!(
+            reference,
+            ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(ref id)
+            ) if id == "8ac7a4a18d2f4d6f018d30a2c2b54f7e"
+        ));
+        assert_eq!(
+            Aci::new()
+                .get_webhook_event_type(&decoded_request, None)
+                .unwrap(),
+            IncomingWebhookEvent::PaymentIntentSuccess
+        );
+        assert!(Aci::new()
+            .get_webhook_resource_object(&decoded_request)
+            .is_ok());
+    }
+
+    #[test]
+    fn rejects_webhook_body_with_mismatched_authentication_tag() {
+        let (encrypted_body, _) = encrypt_like_aci(&webhook_payload());
+        let headers = headers("00000000000000000000000000000000");
+        let encrypted_request = request(&headers, encrypted_body.as_bytes());
+
+        assert!(decode_body(&encrypted_request, WEBHOOK_SECRET.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn rejects_webhook_body_encrypted_with_another_secret() {
+        let (encrypted_body, auth_tag) = encrypt_like_aci(&webhook_payload());
+        let headers = headers(&auth_tag);
+        let encrypted_request = request(&headers, encrypted_body.as_bytes());
+
+        let other_secret = b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+        assert!(decode_body(&encrypted_request, other_secret).is_err());
+    }
+
+    #[test]
+    fn rejects_webhook_without_initialization_vector_header() {
+        let (encrypted_body, _) = encrypt_like_aci(&webhook_payload());
+        let headers = actix_web::http::header::HeaderMap::new();
+        let encrypted_request = request(&headers, encrypted_body.as_bytes());
+
+        assert!(Aci::new()
+            .get_webhook_body_decoding_algorithm(&encrypted_request)
+            .is_err());
     }
 }
