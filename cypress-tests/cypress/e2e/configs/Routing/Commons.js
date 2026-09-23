@@ -281,6 +281,43 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rules",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [
+              {
+                connectorSelection: {
+                  surcharge_details: {
+                    surcharge: { type: "rate", value: { percentage: 3 } },
+                    tax_on_surcharge: null,
+                  },
+                },
+                name: "card_surcharge_rule",
+                statements: [
+                  {
+                    condition: [
+                      {
+                        lhs: "payment_method",
+                        comparison: "equal",
+                        value: {
+                          type: "enum_variant",
+                          value: "card",
+                        },
+                        metadata: {},
+                      },
+                    ],
+                    nested: null,
+                  },
+                ],
+              },
+            ],
+            metadata: {},
+          },
         },
       },
     },
@@ -290,6 +327,43 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rules",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            defaultSelection: {
+              surcharge_details: {
+                surcharge: { type: "rate", value: { percentage: 2.5 } },
+                tax_on_surcharge: null,
+              },
+            },
+            rules: [
+              {
+                connectorSelection: {
+                  surcharge_details: {
+                    surcharge: { type: "rate", value: { percentage: 3 } },
+                    tax_on_surcharge: null,
+                  },
+                },
+                name: "card_surcharge_rule",
+                statements: [
+                  {
+                    condition: [
+                      {
+                        lhs: "payment_method",
+                        comparison: "equal",
+                        value: {
+                          type: "enum_variant",
+                          value: "card",
+                        },
+                        metadata: {},
+                      },
+                    ],
+                    nested: null,
+                  },
+                ],
+              },
+            ],
+            metadata: {},
+          },
         },
       },
     },
