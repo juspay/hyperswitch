@@ -3718,7 +3718,8 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
             );
         }
     }
-
+    // If the payment_method is deleted then ignore the error related to retrieving payment method
+    // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
         let payment_method = match state
             .store
