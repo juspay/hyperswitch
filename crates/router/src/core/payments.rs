@@ -878,6 +878,7 @@ where
                 &operation,
                 platform,
                 &mut payment_data,
+                &business_profile,
                 state,
                 &mut frm_info,
                 &mut should_continue_transaction,
@@ -2355,6 +2356,10 @@ where
                 .map(|cached| common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: cached.external_surcharge_id,
                     external_surcharge_amount: cached.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            cached.surcharge_percentage,
+                        ),
                     sale_notified: false,
                 })
         };
@@ -11322,20 +11327,42 @@ pub async fn add_process_sync_task(
         payment_attempt.get_id(),
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = storage::ProcessTrackerNew::new(
-        process_tracker_id,
-        task,
-        runner,
-        tag,
-        tracking_data,
-        None,
-        schedule_time,
-        common_types::consts::API_VERSION,
-        application_source,
-    )
-    .map_err(errors::StorageError::from)?;
+    let tracking_data = tracking_data
+        .encode_to_value()
+        .change_context(errors::StorageError::SerializationFailed)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    if let Some(existing_process) = db.find_process_by_id(&process_tracker_id).await? {
+        db.as_scheduler()
+            .update_process(
+                existing_process,
+                storage::ProcessTrackerUpdate::Update {
+                    name: Some(task.to_string()),
+                    retry_count: Some(0),
+                    schedule_time: Some(schedule_time),
+                    tracking_data: Some(tracking_data),
+                    business_status: Some(storage::business_status::PENDING.to_string()),
+                    status: Some(storage_enums::ProcessTrackerStatus::New),
+                    updated_at: Some(common_utils::date_time::now()),
+                },
+            )
+            .await?;
+    } else {
+        let process_tracker_entry = storage::ProcessTrackerNew::new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            tracking_data,
+            None,
+            schedule_time,
+            common_types::consts::API_VERSION,
+            application_source,
+        )
+        .map_err(errors::StorageError::from)?;
+
+        db.insert_process(process_tracker_entry).await?;
+    }
+
     Ok(())
 }
 
@@ -14672,6 +14699,7 @@ async fn previous_connector_surcharge_id(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
 async fn store_external_surcharge_in_redis(
     state: &SessionState,
     payment_id: &id_type::PaymentId,
@@ -14680,6 +14708,7 @@ async fn store_external_surcharge_in_redis(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     external_surcharge_id: String,
+    surcharge_percentage: Option<f64>,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
@@ -14694,6 +14723,7 @@ async fn store_external_surcharge_in_redis(
             payment_method,
             payment_method_type,
             external_surcharge_id,
+            surcharge_percentage,
         };
     redis_conn
         .serialize_and_set_key_with_expiry(
@@ -14769,6 +14799,10 @@ async fn calculate_external_surcharge(
             {
                 Some(resp) => {
                     let surcharge_amount = resp.surcharge_amount;
+                    let surcharge_percentage = resp
+                        .surcharge_fee_percent
+                        .as_ref()
+                        .map(|percent| percent.get_percentage());
                     let external_surcharge_id = resp.connector_surcharge_id.clone();
                     let merchant_id = processor.get_account().get_id().clone();
                     let storage_scheme = processor.get_account().storage_scheme;
@@ -14783,6 +14817,7 @@ async fn calculate_external_surcharge(
                         inputs.payment_method,
                         inputs.payment_method_type,
                         external_surcharge_id,
+                        surcharge_percentage,
                     )
                     .await
                     .attach_printable("eligibility: failed to write surcharge to Redis")?;
@@ -15008,6 +15043,12 @@ async fn calculate_mit_external_surcharge(
                 Ok(Some(resp)) => Some(common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: resp.connector_surcharge_id,
                     external_surcharge_amount: resp.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            resp.surcharge_fee_percent
+                                .as_ref()
+                                .map(|percent| percent.get_percentage()),
+                        ),
                     sale_notified: false,
                 }),
                 Ok(None) => None,
@@ -15073,7 +15114,8 @@ pub async fn payments_submit_eligibility(
     let offer_card_bin = payment_eligibility_data
         .payment_method_data
         .as_ref()
-        .and_then(|pmd| pmd.get_card_iin());
+        .and_then(|pmd| pmd.get_offer_card_bin())
+        .map(Secret::new);
     // Forward whatever card attributes the request carried; Offer Engine uses
     // them when present and ignores the rest.
     let offer_card = payment_eligibility_data
@@ -15165,7 +15207,7 @@ async fn resolve_offer_eligibility_details(
     currency: Option<common_enums::Currency>,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_type: String,
-    card_bin: Option<String>,
+    card_bin: Option<Secret<String>>,
     card_network: Option<String>,
     card_type: Option<String>,
     bank_code: Option<String>,
