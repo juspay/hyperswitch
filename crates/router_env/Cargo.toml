@@ -10,7 +10,6 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-# Bump to a main commit once that merges; this must not be reviewed as-is.
 deja = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true, default-features = false }
 deja-core = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true }
 error-stack = "0.4.1"
