@@ -7425,6 +7425,40 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
 });
 
 // User API calls
+Cypress.Commands.add(
+  "signupUserWithMerchant",
+  (email, password, companyName, name, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/user/signup_with_merchant_id`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: {
+        email,
+        password,
+        company_name: companyName,
+        name,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status !== 200) {
+          throw new Error(
+            `signup_with_merchant_id failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
+          );
+        }
+        globalState.set("email", email);
+        globalState.set("password", password);
+      });
+    });
+  }
+);
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
   const baseUrl = globalState.get("baseUrl");

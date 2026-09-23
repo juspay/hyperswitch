@@ -15,37 +15,21 @@ describe("Surcharge DSL Configuration Test", () => {
       const surchargeEmail = `cypress_surcharge_dsl_${uniqueSuffix}@cypresstest.in`;
       const surchargePassword = `Cypress@${uniqueSuffix}`;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/user/signup_with_merchant_id`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: {
-          email: surchargeEmail,
-          password: surchargePassword,
-          company_name: `CypressSurchargeDSL${uniqueSuffix}`,
-          name: "CypressSurchargeDSL",
-        },
-        failOnStatusCode: false,
-      }).then((signupResp) => {
-        if (signupResp.status !== 200) {
-          throw new Error(
-            `[SurchargeDSLConfiguration] signup_with_merchant_id failed (${signupResp.status}): ${JSON.stringify(signupResp.body)}`
-          );
-        }
+      cy.signupUserWithMerchant(
+        surchargeEmail,
+        surchargePassword,
+        `CypressSurchargeDSL${uniqueSuffix}`,
+        "CypressSurchargeDSL",
+        globalState
+      );
 
-        // Login sequence used elsewhere in the suite: userLogin sets
-        // totpToken, terminate2Fa exchanges it for userInfoToken, and
-        // userInfo reads merchantId/organizationId/profileId off /user —
-        // retargeting the spec at the merchant we just created.
-        globalState.set("email", surchargeEmail);
-        globalState.set("password", surchargePassword);
-        cy.userLogin(globalState);
-        cy.terminate2Fa(globalState);
-        cy.userInfo(globalState);
-      });
+      // Login sequence used elsewhere in the suite: userLogin sets
+      // totpToken, terminate2Fa exchanges it for userInfoToken, and
+      // userInfo reads merchantId/organizationId/profileId off /user —
+      // retargeting the spec at the merchant we just created.
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
     });
   });
 
