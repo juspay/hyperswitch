@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.17.2-hotfix1
+
+### Features
+
+- **connect:** [stripe] pass error_on_requires_action for MIT payments ([#14390](https://github.com/juspay/hyperswitch/pull/14390)) ([`5c12ec8`](https://github.com/juspay/hyperswitch/commit/5c12ec8c41cc0be3efe68857d83f6559392affb8))
+- **router:** Allow profile-level users to access blocklist routes ([#14389](https://github.com/juspay/hyperswitch/pull/14389)) ([`ed3d2fe`](https://github.com/juspay/hyperswitch/commit/ed3d2fe73bea181a12e658fc59cf8ee936d1ca10))
+
+### Bug Fixes
+
+- **ucs:** Send capture_method and read network_txn_link_id on SetupRecurring ([#14328](https://github.com/juspay/hyperswitch/pull/14328)) ([`e15b9bc`](https://github.com/juspay/hyperswitch/commit/e15b9bcdfbc2491a9715b53263c366de6e3accba))
+
+**Full Changelog:** [`2026.09.17.2...2026.09.17.2-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.17.2...2026.09.17.2-hotfix1)
+
+- - -
+
 ## 2026.09.17.2
 
 ### Features
