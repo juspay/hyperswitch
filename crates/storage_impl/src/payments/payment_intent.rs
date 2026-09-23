@@ -979,12 +979,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     > {
         let conn = connection::pg_connection_read(self).await?;
 
-        // Platform listings aggregate across every connected merchant, so filter on
-        // `merchant_id` (= the platform's id on connected-merchant rows) rather than
-        // `processor_merchant_id`. An optional `processor_merchant_id` filter narrows the
-        // result to specific connected merchants. Rows are returned raw (undecrypted): the
-        // caller maps only non-PII columns, so no per-merchant key store is needed. This is
-        // an OLAP query served from the Postgres read-replica, hence no storage scheme.
         let mut query = diesel_models::list::into_boxed_list(
             <DieselPaymentIntent as HasTable>::table()
                 .inner_join(
@@ -1037,11 +1031,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = diesel_models::list::apply_pagination(query, params.limit, params.offset);
 
-                // Filters are inlined here (and in the count query below) rather than shared
-                // through a helper: the listing query selects full rows while the count query
-                // selects `COUNT(*)`, giving them different diesel select types that a single
-                // function cannot box over on stable Rust (see the `[#350]` note above).
-                // Narrow to specific connected merchants when requested.
                 if let Some(processor_merchant_id) = &params.processor_merchant_id {
                     query = query.filter(
                         pi_dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()),
@@ -1161,11 +1150,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
-            // `total_count` ignores limit/offset/order so the caller can paginate. The WHERE
-            // filters mirror the listing query above; see the note there for why they are
-            // inlined rather than shared through a helper.
             PaymentIntentFetchConstraints::List(params) => {
-                // Narrow to specific connected merchants when requested.
                 if let Some(processor_merchant_id) = &params.processor_merchant_id {
                     query = query.filter(
                         pi_dsl::processor_merchant_id.eq_any(processor_merchant_id.clone()),

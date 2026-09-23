@@ -10852,18 +10852,10 @@ pub async fn list_payments(
     ))
 }
 
-/// Lists payments aggregated across all connected merchants under a platform merchant.
+/// Lists payments across all connected merchants under a platform merchant.
 ///
-/// Unlike [`list_payments`], which scopes to a single processor merchant, this filters on
-/// `payment_intent.merchant_id` (= the platform's id) and supports the full rich filter set
-/// (the same as the POST filter list) passed as query parameters, optionally narrowed to
-/// specific connected merchants via `processor_merchant_id`.
-///
-/// The response is an intentionally slim, non-PII summary built directly from the raw diesel
-/// rows. Since a platform listing spans many connected merchants (each with PII encrypted
-/// under its own key store), performing no decryption here avoids a per-merchant key-store
-/// fetch on every page. Full PII is available via the single-payment retrieve, which is
-/// scoped to one connected merchant.
+/// Returns a slim, non-PII summary built from raw diesel rows, so no per-merchant key store
+/// is fetched. Use the single-payment retrieve for full PII.
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn list_payments_for_platform(
     state: SessionState,
