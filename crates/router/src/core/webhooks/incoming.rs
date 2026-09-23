@@ -1868,6 +1868,7 @@ pub async fn get_or_update_dispute_object(
                     .map(|created_by| created_by.to_string()),
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
+                additional_details: dispute_details.additional_details,
             };
             state
                 .store
@@ -1897,6 +1898,7 @@ pub async fn get_or_update_dispute_object(
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_updated_at: dispute_details.updated_at,
+                additional_details: dispute_details.additional_details,
             };
             db.update_dispute(
                 dispute,

@@ -86,9 +86,9 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
+import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
-import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
@@ -584,7 +584,7 @@ export const CONNECTOR_LISTS = {
     // asserted as an expected error either — skip these save-card-confirm
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
-    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix"],
+    EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix", "payu"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
