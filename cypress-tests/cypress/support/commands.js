@@ -8239,6 +8239,100 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
+// `system.payment_integration_type` is a merchant-level dimension config (see
+// crates/router/src/core/configs/dimension_config.rs) that is normally set via
+// Superposition, but also falls back to the plain `configs` table keyed as
+// `system.payment_integration_type_<processor_merchant_id>` — the same table
+// cy.setConfigs already talks to, so no Superposition credentials are needed
+// for this in CI.
+Cypress.Commands.add("setMerchantIntegrationType", (globalState, value) => {
+  const merchantId = globalState.get("merchantId");
+  const key = `system.payment_integration_type_${merchantId}`;
+  cy.setConfigs(globalState, key, value, "CREATE");
+});
+
+Cypress.Commands.add("deleteMerchantIntegrationType", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const key = `system.payment_integration_type_${merchantId}`;
+  cy.setConfigs(globalState, key, "client", "DELETE");
+});
+
+// Raw create/update payment calls that accept an optional X-Integration-Type
+// header and assert the expected status (200, or 422 with the IR_06 mismatch
+// error), since none of the generic payment commands expose custom headers.
+Cypress.Commands.add(
+  "createPaymentIntentWithIntegrationTypeHeader",
+  (requestBody, globalState, { headerValue, expectedStatus } = {}) => {
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (headerValue !== undefined) {
+      headers["X-Integration-Type"] = headerValue;
+    }
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments`,
+        headers,
+        body: requestBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        expect(response.status).to.equal(expectedStatus);
+        if (expectedStatus === 200) {
+          expect(response.body.status).to.equal("requires_payment_method");
+        } else {
+          expect(response.body).to.have.property("error");
+          expect(response.body.error.code).to.equal("IR_06");
+        }
+        return response;
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "updatePaymentWithIntegrationTypeHeader",
+  (
+    paymentId,
+    requestBody,
+    globalState,
+    { headerValue, expectedStatus } = {}
+  ) => {
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (headerValue !== undefined) {
+      headers["X-Integration-Type"] = headerValue;
+    }
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
+        headers,
+        body: requestBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        expect(response.status).to.equal(expectedStatus);
+        if (expectedStatus === 200) {
+          expect(response.body.amount).to.equal(requestBody.amount);
+        } else {
+          expect(response.body).to.have.property("error");
+          expect(response.body.error.code).to.equal("IR_06");
+        }
+        return response;
+      });
+  }
+);
+
 // UCS Configuration Commands
 Cypress.Commands.add("setupUCSConfigs", (globalState) => {
   cy.setupConfigs(globalState, "ucs_enabled", "true");
