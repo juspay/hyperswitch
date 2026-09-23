@@ -5680,6 +5680,20 @@
           }
         }
       },
+      "AdditionalDetails": {
+        "type": "object",
+        "description": "Additional details of a dispute, stored as jsonb",
+        "properties": {
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DisputeNetworkDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -14775,6 +14789,37 @@
           }
         }
       },
+      "DisputeNetworkDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Visa specific dispute details",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "rapid_dispute_resolution": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RapidDisputeResolution"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "visa"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Card network specific details of a dispute",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -14874,6 +14919,14 @@
           "is_already_refunded": {
             "type": "boolean",
             "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14942,6 +14995,14 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -30240,6 +30301,19 @@
             "type": "string",
             "description": "The merchant connector id to be used for tokenization",
             "example": "mca_28a7367sad8239s67"
+          }
+        }
+      },
+      "RapidDisputeResolution": {
+        "type": "object",
+        "description": "Visa Rapid Dispute Resolution details",
+        "required": [
+          "applied"
+        ],
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "description": "Whether Rapid Dispute Resolution has been applied"
           }
         }
       },
