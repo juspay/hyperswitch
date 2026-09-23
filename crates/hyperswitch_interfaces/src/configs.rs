@@ -221,4 +221,11 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => Ok(None),
         }
     }
+
+    pub fn get_frm_configs(&self) -> Option<Vec<Secret<serde_json::Value>>> {
+        match self {
+            Self::DbVal(val) => val.frm_configs.clone(),
+            Self::CacheVal(_) => None,
+        }
+    }
 }
