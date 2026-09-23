@@ -1921,11 +1921,6 @@ pub async fn refund_list_for_platform(
     ))
 }
 
-/// Available filter values for a platform, aggregated across all of its connected merchants.
-///
-/// Connectors are derived from the *configured* merchant connector accounts of every connected
-/// merchant under the platform's organization (not from refund data), mirroring
-/// [`get_filters_for_refunds`]. Currency and refund status are the full set of supported values.
 #[instrument(skip_all)]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn get_platform_refund_filters(
