@@ -681,6 +681,10 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): a seamed `deja::id` call the recording has no
+    // event for, so replay sees a NOVEL call at a Substitute boundary.
+    let _deja_fixture_novel = common_utils::generate_uuid_v4();
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
