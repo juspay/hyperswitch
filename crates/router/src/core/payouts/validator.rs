@@ -300,8 +300,8 @@ pub async fn get_payout_method_data_generic(
                     payouts::PayoutMethodData::Card(api_models::payouts::CardPayout {
                         card_number: card_details.card_number,
                         card_holder_name: card_details.card_holder_name,
-                        expiry_month: card_details.card_exp_year,
-                        expiry_year: card_details.card_exp_month,
+                        expiry_month: card_details.card_exp_month,
+                        expiry_year: card_details.card_exp_year,
                         card_network: card_details.card_network.clone(),
                     }),
                 )),
