@@ -152,7 +152,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("verify-delete-by-retrieve-empty", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveAfterDelete"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
@@ -163,7 +163,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateFixed"
         ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
@@ -185,7 +185,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveFixed"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
@@ -205,7 +205,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateWithRules"
         ];
       const surchargeBody = {
         name: "surcharge_config_rules",
@@ -262,7 +262,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveWithRules"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);

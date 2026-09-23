@@ -235,6 +235,54 @@ export const connectorDetails = {
         body: {},
       },
     },
+    CreateFixed: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_fixed",
+        },
+      },
+    },
+    RetrieveFixed: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_fixed",
+        },
+      },
+    },
+    CreateWithRules: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_rules",
+        },
+      },
+    },
+    RetrieveWithRules: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_rules",
+        },
+      },
+    },
+    RetrieveAfterDelete: {
+      Request: {},
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            message: "Resource ID does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
   },
   routingEvaluate: {
     Request: {
