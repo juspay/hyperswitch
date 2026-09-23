@@ -15075,7 +15075,8 @@ pub async fn payments_submit_eligibility(
     let offer_card_bin = payment_eligibility_data
         .payment_method_data
         .as_ref()
-        .and_then(|pmd| pmd.get_offer_card_bin());
+        .and_then(|pmd| pmd.get_offer_card_bin())
+        .map(Secret::new);
     // Forward whatever card attributes the request carried; Offer Engine uses
     // them when present and ignores the rest.
     let offer_card = payment_eligibility_data
@@ -15167,7 +15168,7 @@ async fn resolve_offer_eligibility_details(
     currency: Option<common_enums::Currency>,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_type: String,
-    card_bin: Option<String>,
+    card_bin: Option<Secret<String>>,
     card_network: Option<String>,
     card_type: Option<String>,
     bank_code: Option<String>,
