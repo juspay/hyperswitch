@@ -213,6 +213,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::blocklist::get_batch_blocklist_job_status,
         routes::blocklist::list_batch_blocklist_jobs,
         routes::blocklist::create_blocklist_export,
+        routes::blocklist::clone_blocklist_entries,
 
         // Routes for payouts
         routes::payouts::payouts_create,
@@ -716,6 +717,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AmountInfo,
         api_models::payments::ClickToPaySessionResponse,
         api_models::payments::SantanderConnectorMetadataData,
+        api_models::payments::StripeConnectorMetadata,
         api_models::payments::SantanderBoletoData,
         api_models::payments::PixAutomaticoMitData,
         api_models::payments::SantanderPixAutomaticoReceiverDetails,
@@ -1047,6 +1049,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::ListBatchBlocklistJobsResponse,
         api_models::blocklist::BlocklistRowError,
         api_models::blocklist::BlocklistExportResponse,
+        api_models::blocklist::CloneBlocklistEntriesRequest,
+        api_models::blocklist::CloneBlocklistEntriesResponse,
+        api_models::blocklist::ProfileCloneJobMetadata,
+        api_models::blocklist::ProfileCloneTargetMetadata,
         api_models::enums::BatchBlocklistJobStatus,
         api_models::enums::BatchBlocklistJobType,
         api_models::enums::BlocklistDataKind,
