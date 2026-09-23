@@ -582,6 +582,15 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      // Paybox zero-auth (setup_mandate) CIT payments stay `processing` at the
+      // connector, so the generic retrieve check infers an expected
+      // payment_method_status of `inactive` from the payment status. The saved
+      // payment method is however `active` for it (the CIT activates the
+      // mandate's PM), so the inferred expectation can never match — skip the
+      // assertion, same as MITAutoCapture above.
+      Configs: {
+        skipPaymentMethodStatusAssertion: true,
+      },
       Request: {
         amount: 0,
         payment_method: "card",
