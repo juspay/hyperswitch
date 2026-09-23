@@ -2356,6 +2356,10 @@ where
                 .map(|cached| common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: cached.external_surcharge_id,
                     external_surcharge_amount: cached.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            cached.surcharge_percentage,
+                        ),
                     sale_notified: false,
                 })
         };
@@ -14695,6 +14699,7 @@ async fn previous_connector_surcharge_id(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
 async fn store_external_surcharge_in_redis(
     state: &SessionState,
     payment_id: &id_type::PaymentId,
@@ -14703,6 +14708,7 @@ async fn store_external_surcharge_in_redis(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     external_surcharge_id: String,
+    surcharge_percentage: Option<f64>,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
@@ -14717,6 +14723,7 @@ async fn store_external_surcharge_in_redis(
             payment_method,
             payment_method_type,
             external_surcharge_id,
+            surcharge_percentage,
         };
     redis_conn
         .serialize_and_set_key_with_expiry(
@@ -14792,6 +14799,10 @@ async fn calculate_external_surcharge(
             {
                 Some(resp) => {
                     let surcharge_amount = resp.surcharge_amount;
+                    let surcharge_percentage = resp
+                        .surcharge_fee_percent
+                        .as_ref()
+                        .map(|percent| percent.get_percentage());
                     let external_surcharge_id = resp.connector_surcharge_id.clone();
                     let merchant_id = processor.get_account().get_id().clone();
                     let storage_scheme = processor.get_account().storage_scheme;
@@ -14806,6 +14817,7 @@ async fn calculate_external_surcharge(
                         inputs.payment_method,
                         inputs.payment_method_type,
                         external_surcharge_id,
+                        surcharge_percentage,
                     )
                     .await
                     .attach_printable("eligibility: failed to write surcharge to Redis")?;
@@ -15031,6 +15043,12 @@ async fn calculate_mit_external_surcharge(
                 Ok(Some(resp)) => Some(common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: resp.connector_surcharge_id,
                     external_surcharge_amount: resp.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            resp.surcharge_fee_percent
+                                .as_ref()
+                                .map(|percent| percent.get_percentage()),
+                        ),
                     sale_notified: false,
                 }),
                 Ok(None) => None,
