@@ -84,6 +84,9 @@ pub const PROPHETPAY_TOKEN: &str = "cctoken";
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// Maximum allowed redirect delay in seconds for payment link status page
+pub const MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS: u32 = 900;
+
 /// Payment intent fulfillment time (in seconds)
 pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
@@ -222,6 +225,11 @@ pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
 /// Merchant ID Header
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
+
+/// Selects the integration the caller is building. `server` opts a payments response into the
+/// combined shape that also carries the payment-method list and wallet session tokens; `client`
+/// or an absent header keeps the existing response untouched.
+pub const X_INTEGRATION_TYPE: &str = "x-integration-type";
 
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";

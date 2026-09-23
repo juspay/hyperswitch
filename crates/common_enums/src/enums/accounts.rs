@@ -49,6 +49,32 @@ pub enum MerchantAccountType {
     Connected,
 }
 
+/// Which `X-Integration-Type` header values a merchant may send, from Superposition
+/// (`system.payment_integration_type`). Defaults to `client`: the server shape is opt-in.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum MerchantIntegrationType {
+    /// The default: the header must be `client` or absent.
+    #[default]
+    Client,
+    /// The header must be `server`.
+    Server,
+    /// Any header value is accepted.
+    ClientAndServer,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -100,4 +126,42 @@ impl From<MerchantAccountRequestType> for MerchantAccountType {
             MerchantAccountRequestType::Connected => Self::Connected,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResourceRequestorType {
+    MerchantConnectorAccount,
+    Profile,
+    MerchantAccount,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResourceType {
+    ApplePayCertificate,
 }
