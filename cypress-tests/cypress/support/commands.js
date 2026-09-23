@@ -12229,7 +12229,7 @@ Cypress.Commands.add(
         "cli_log",
         "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET) — skipping config set. " +
           "Local runs resolve them from config/development.toml automatically; " +
-          "non-local runs (integ/sandbox) must export them."
+          "non-local runs (integ/sandbox) provide them in cypress-tests/cypress.env.json or as env vars."
       );
       return;
     }
@@ -12270,8 +12270,8 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI and 15 s in all other envs
-    cy.wait(15000);
+    // Polling interval is 10 s in CI and 30 s in all other envs
+    cy.wait(30000);
   }
 );
 
@@ -12339,8 +12339,8 @@ Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
       }
     });
   });
-  // Polling interval is 10 s in CI and 15 s in all other envs
-  cy.wait(15000);
+  // Polling interval is 10 s in CI and 30 s in all other envs
+  cy.wait(30000);
 });
 
 // Set an arbitrary superposition config.

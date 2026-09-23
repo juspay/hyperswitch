@@ -19,7 +19,8 @@ describe("Block Implicit Customer Creation", () => {
       // API_KEY are optional headers (some deployments, e.g. integ/sandbox,
       // accept the secret alone). Local runs (router on localhost) resolve
       // credentials from config/development.toml automatically via
-      // cypress.config.js; remote runs must export the two vars.
+      // cypress.config.js; remote runs provide them via cypress.env.json
+      // (gitignored) or SUPERPOSITION_* env vars.
       if (
         !globalState.get("superpositionBaseUrl") ||
         !globalState.get("superpositionSecret")
@@ -27,8 +28,9 @@ describe("Block Implicit Customer Creation", () => {
         cy.task(
           "cli_log",
           "Superposition endpoint/secret not resolved (local runs read " +
-            "config/development.toml; for integ/sandbox export " +
-            "SUPERPOSITION_BASE_URL and SUPERPOSITION_SECRET) — " +
+            "config/development.toml automatically; for integ/sandbox put " +
+            "SUPERPOSITION_BASE_URL and SUPERPOSITION_SECRET in " +
+            "cypress-tests/cypress.env.json or export them) — " +
             "skipping BlockImplicitCustomerCreation spec"
         );
         specShouldSkip = true;
