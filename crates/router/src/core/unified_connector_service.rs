@@ -30,10 +30,13 @@ use hyperswitch_domain_models::{
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
-    router_request_types::RefundsData,
-    router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
+    router_request_types::{RefundsData, ResponseId},
+    router_response_types::{
+        fraud_check::FraudCheckResponseData, PaymentsResponseData, PayoutsResponseData,
+        RefundsResponseData,
+    },
 };
-use hyperswitch_interfaces::helpers as interface_helpers;
+use hyperswitch_interfaces::{consts as interface_consts, helpers as interface_helpers};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
@@ -70,6 +73,7 @@ use crate::{
 };
 
 pub mod connector_config;
+pub mod frm;
 pub mod kill_switch;
 pub mod transformers;
 
@@ -854,7 +858,7 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 >;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
-async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
+pub(crate) async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
     let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
@@ -3070,6 +3074,63 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
         Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((connector_customer_result, status_code))
+}
+
+/// Convert the UCS pre-risk-check response into Hyperswitch's FRM response shape.
+///
+/// Same shape as every other UCS handler: a populated `error` becomes
+/// `Err(ErrorResponse)` so the gateway surfaces a real connector error rather
+/// than a verdict; otherwise the response is a 2xx and carries a decision. A
+/// success without a parseable decision is a contract violation, not a verdict
+/// to guess at.
+pub fn handle_unified_connector_service_response_for_frm_pre_risk_check(
+    response: payments_grpc::FrmServicePreRiskCheckResponse,
+) -> CustomResult<(Result<FraudCheckResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    if let Some(error_info) = response.error.as_ref() {
+        let connector_details = error_info.connector_details.as_ref();
+        return Ok((
+            Err(ErrorResponse {
+                code: connector_details
+                    .and_then(|details| details.code.clone())
+                    .unwrap_or_else(|| interface_consts::NO_ERROR_CODE.to_string()),
+                message: connector_details
+                    .and_then(|details| details.message.clone())
+                    .unwrap_or_else(|| interface_consts::NO_ERROR_MESSAGE.to_string()),
+                reason: connector_details.and_then(|details| details.reason.clone()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: response.frm_transaction_id.clone(),
+                connector_response_reference_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            }),
+            status_code,
+        ));
+    }
+
+    // `frm_decision()` yields `Unspecified` for both an absent and an unknown
+    // value; the mapping treats that as an error.
+    let status = transformers::frm_status_from_ucs_decision(response.frm_decision())?;
+
+    Ok((
+        Ok(FraudCheckResponseData::TransactionResponse {
+            resource_id: response
+                .frm_transaction_id
+                .clone()
+                .map(ResponseId::ConnectorTransactionId)
+                .unwrap_or(ResponseId::NoResponseId),
+            status,
+            connector_metadata: None,
+            reason: response.reason.map(serde_json::Value::String),
+            score: response.risk_score,
+        }),
+        status_code,
+    ))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_create_order(
