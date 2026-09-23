@@ -604,8 +604,10 @@ pub async fn payouts_create_core(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     // Validate create request
-    let (payout_id, payout_method_data, business_profile, customer, payment_method) =
-        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
+    let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
+        validator::validate_create_request(&state, &platform, &req, &dimensions),
+    )
+    .await?;
 
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     // Create DB entries
