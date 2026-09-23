@@ -3849,9 +3849,10 @@ where
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
         Ok((updated_router_data, flow_output, grpc_response)) => {
-            let status = updated_router_data
-                .connector_http_status_code
-                .unwrap_or(200);
+            // Every handler sets this from the UCS response, so `None` here means a handler
+            // forgot. Record 0 — UCS's own value for "no HTTP status" and already present in
+            // connector_events — rather than a fabricated 200 that reads as success.
+            let status = updated_router_data.connector_http_status_code.unwrap_or(0);
 
             // UCS answered gRPC OK with a connector 2xx and the connector still refused
             // the payment. Counted against `connector_decline_threshold`, so it is a
@@ -4072,9 +4073,10 @@ where
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
         Ok((updated_router_data, flow_output, grpc_response)) => {
-            let status = updated_router_data
-                .connector_http_status_code
-                .unwrap_or(200);
+            // Every handler sets this from the UCS response, so `None` here means a handler
+            // forgot. Record 0 — UCS's own value for "no HTTP status" and already present in
+            // connector_events — rather than a fabricated 200 that reads as success.
+            let status = updated_router_data.connector_http_status_code.unwrap_or(0);
 
             // UCS answered gRPC OK with a connector 2xx and the connector still refused
             // the payment. Counted against `connector_decline_threshold`, so it is a
