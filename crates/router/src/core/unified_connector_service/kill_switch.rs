@@ -127,6 +127,29 @@ async fn read_counter(
     Ok(count)
 }
 
+/// The scope's kill switch settings, resolved once by the gate and carried to the failure
+/// path so a failure counts against the same threshold the gate used.
+#[derive(Debug, Clone, Copy)]
+pub struct KillSwitchSettings {
+    pub execution_mode: ExecutionMode,
+    pub kill_switch_enabled: bool,
+    pub kill_switch_threshold: u64,
+    /// `None` means connector declines never trip this scope.
+    pub connector_decline_threshold: Option<u64>,
+}
+
+impl KillSwitchSettings {
+    /// For paths that never call UCS, where the thresholds are inert.
+    pub fn inert(execution_mode: ExecutionMode) -> Self {
+        Self {
+            execution_mode,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+        }
+    }
+}
+
 /// What a failing UCS call was for. A struct because transposing two of six positional strings
 /// would key trips under the wrong scope.
 pub struct UcsFailureContext<'a> {
@@ -213,7 +236,11 @@ async fn record_trippable_failure(
             ("connector", context.connector_name.to_string()),
             ("flow", context.flow_name.to_string()),
             ("reason", failure.reason.to_string()),
-            ("failure_class", failure.failure_class.to_string())
+            ("failure_class", failure.failure_class.to_string()),
+            (
+                "kill_switch_enabled",
+                failure.kill_switch_enabled.to_string()
+            )
         ),
     );
 
@@ -221,7 +248,11 @@ async fn record_trippable_failure(
 
     // Everything an alert needs from one line: scope, threshold, resulting counter,
     // and whether that tips the scope into shadow.
-    let tripped = redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold));
+    // A counter over its threshold on a scope with the switch disabled diverts nothing,
+    // so it is not "tripped". Without this an alert on tripped=true fires for scopes that
+    // can never divert, which is most of them.
+    let tripped = failure.kill_switch_enabled
+        && redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold));
 
     logger::warn!(
         rollout_scope = %failure.rollout_scope,
@@ -355,10 +386,12 @@ async fn increment_counter(
             // increments exactly one field.
             let redis_count = counts.first().map(|count| *count as u64);
 
-            // Only when the counter actually reaches the threshold. Previously this fired
-            // on every increment, which made it a duplicate of UCS_KILL_SWITCH_FAILURE and
-            // meant nothing counted actual trips.
-            if redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold)) {
+            // Only when the counter reaches the threshold on a scope that can actually
+            // divert. Previously this fired on every increment, which made it a duplicate
+            // of UCS_KILL_SWITCH_FAILURE and meant nothing counted actual trips.
+            if failure.kill_switch_enabled
+                && redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold))
+            {
                 metrics::UCS_KILL_SWITCH_TRIPPED.add(
                     1,
                     router_env::metric_attributes!(
