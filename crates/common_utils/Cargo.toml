@@ -33,7 +33,7 @@ blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = { version = "1.10.1", features = ["serde"] }
 diesel = "2.2.10"
 # Bump to a main commit once that merges; this must not be reviewed as-is.
-deja = { git = "https://github.com/juspay/deja", rev = "8c6d3e4a78e06f59c8730398a9a093084925e85e", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
