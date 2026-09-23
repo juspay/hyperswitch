@@ -268,6 +268,12 @@ impl RetryStatsClusterKey {
         }
     }
 
+    /// Redis key of the per-cluster-key lock serializing every writer of this
+    /// key's stats document
+    pub fn redis_locking_key(&self) -> String {
+        format!("revenue_recovery_retry_stats_lock:{}", self.as_db_string())
+    }
+
     /// Log a segment that could not be decoded back into a `Dim` and propagate the
     /// failure as `None`. Only reachable when `unescape_segment` rejects malformed
     /// percent-escaping — parse failures on a strictly-typed value degrade to

@@ -60,6 +60,8 @@ pub struct UnifiedConnectorServiceClient {
     pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<UcsChannel>,
     /// The Surcharge Service Client
     pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
+    /// The Fraud and Risk Management Service Client
+    pub frm_service_client: payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<UcsChannel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -193,39 +195,77 @@ pub struct HyperswitchVaultMetadata {
     pub vault_auth_data: VaultConnectorAuth,
 }
 
+/// Connects `endpoint` eagerly, bounded by `connection_timeout`, naming `client_name` on failure.
+///
+/// `None` means the caller must abandon the whole client: an unreachable service is reported here
+/// and nulls [`UnifiedConnectorServiceClient`], so the router serves from the direct connector
+/// path rather than routing live traffic at a service it cannot reach.
+pub async fn connect_ucs_endpoint(
+    endpoint: &tonic::transport::Endpoint,
+    connection_timeout: UcsConnectionTimeoutInSeconds,
+    client_name: &str,
+) -> Option<tonic::transport::Channel> {
+    match timeout(connection_timeout.as_duration(), endpoint.connect()).await {
+        Ok(Ok(channel)) => Some(channel),
+        Ok(Err(err)) => {
+            logger::error!(
+                "Failed to connect to Unified Connector Service for {}: {:?}",
+                client_name,
+                err
+            );
+            None
+        }
+        Err(err) => {
+            logger::error!(
+                "Connection to Unified Connector Service timed out for {}: {:?}",
+                client_name,
+                err
+            );
+            None
+        }
+    }
+}
+
 /// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
+///
+/// The connect is eager and gating: an unreachable service is logged and nulls the whole client,
+/// so the router serves from the direct connector path instead of routing live traffic at a
+/// service it cannot reach. That is the behaviour in every mode this router actually runs in,
+/// recording included, so a recording never diverges from the deployment it records.
+///
+/// Under the `deja` feature the connect is handed to `connect_or_substitute`, which runs it
+/// unchanged except under replay — where no rpc is ever issued live, so the transport is dead
+/// weight and the boundary stands in for it. This file expresses no opinion about deja's modes;
+/// that decision lives in the boundary adapter.
 #[macro_export]
 macro_rules! build_grpc_client {
     ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
         let endpoint = tonic::transport::Channel::builder($uri.clone())
             .timeout($request_timeout.as_duration());
-        match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
-            Ok(Ok(channel)) => {
-                // deja: wrap the UCS channel in the gRPC egress boundary at its
-                // construction site so every unary rpc is recorded/substituted at
-                // the wire level (rank-2 identity). Feature-off passes the raw
-                // channel unchanged.
-                #[cfg(feature = "deja")]
-                let channel = $crate::grpc_client::deja_transport::DejaGrpcTransport::new(channel);
-                <$client>::new(channel)
-            }
-            Ok(Err(err)) => {
-                router_env::logger::error!(
-                    "Failed to connect to Unified Connector Service for {}: {:?}",
-                    $name,
-                    err
-                );
-                return None;
-            }
-            Err(err) => {
-                router_env::logger::error!(
-                    "Connection to Unified Connector Service timed out for {}: {:?}",
-                    $name,
-                    err
-                );
-                return None;
-            }
-        }
+
+        // deja: the same eager connect, handed to the gRPC egress boundary so every unary rpc is
+        // recorded/substituted at the wire level (rank-2 identity). The boundary runs the connect
+        // unchanged in every mode but replay, where it stands in for a transport nothing will
+        // use. Feature-off performs the connect directly and passes the raw channel through.
+        #[cfg(feature = "deja")]
+        let channel = $crate::grpc_client::deja_transport::connect_or_substitute(|| {
+            $crate::grpc_client::unified_connector_service::connect_ucs_endpoint(
+                &endpoint,
+                $connection_timeout,
+                $name,
+            )
+        })
+        .await?;
+
+        #[cfg(not(feature = "deja"))]
+        let channel = $crate::grpc_client::unified_connector_service::connect_ucs_endpoint(
+            &endpoint,
+            $connection_timeout,
+            $name,
+        )
+        .await?;
+
+        <$client>::new(channel)
     }};
 }
 
@@ -364,6 +404,29 @@ impl UnifiedConnectorServiceClient {
                     request_timeout
                 );
 
+                let frm_service_client = build_grpc_client!(
+                    payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<
+                        UcsChannel,
+                    >,
+                    "frm_service_client",
+                    uri,
+                    connection_timeout,
+                    request_timeout
+                );
+
+                // Replay connected nothing — the boundary stands in for every channel — so the
+                // usual claim would be false there. Every other mode performed the same eager
+                // connect it always did.
+                #[cfg(feature = "deja")]
+                if deja::__private::runtime_mode().is_replay() {
+                    logger::info!(
+                        "Unified Connector Service clients substituted at the deja boundary; no transport connected"
+                    );
+                } else {
+                    logger::info!("Successfully connected to Unified Connector Service");
+                }
+
+                #[cfg(not(feature = "deja"))]
                 logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
@@ -378,6 +441,7 @@ impl UnifiedConnectorServiceClient {
                     payment_method_authentication_service_client,
                     payout_service_client,
                     surcharge_service_client,
+                    frm_service_client,
                 })
             }
             None => {
@@ -1107,6 +1171,40 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Voids or reverses a refund before connector settlement.
+    pub async fn refund_void_post_refund(
+        &self,
+        request_data: payments_grpc::RefundServiceVoidPostRefundRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::RefundResponse>> {
+        let mut request = tonic::Request::new(request_data);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.refund_service_client
+            .clone()
+            .void_post_refund(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="refund_void_post_refund",
+                    connector_name=?connector_name,
+                    "UCS refund void post-refund gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payout Create
     pub async fn payout_create(
         &self,
@@ -1480,13 +1578,59 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .calculate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
                     method="surcharge_calculate",
                     connector_name=?connector_name,
                     "UCS surcharge_calculate gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs a pre-authorization risk check via the FRM Service.
+    pub async fn frm_pre_risk_check(
+        &self,
+        pre_risk_check_request: payments_grpc::FrmServicePreRiskCheckRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::FrmServicePreRiskCheckResponse>>
+    {
+        let mut request = tonic::Request::new(pre_risk_check_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        // FRM providers are onboarded as `payment_vas`, which the shared builder
+        // maps to `x-frm-connector`.
+        let metadata = build_unified_connector_service_grpc_headers_for_connector_type(
+            connector_auth_metadata,
+            grpc_headers,
+            ConnectorType::PaymentVas,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.frm_service_client
+            .clone()
+            .pre_risk_check(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="frm_pre_risk_check",
+                    connector_name=?connector_name,
+                    "UCS frm_pre_risk_check gRPC call failed"
                 )
             })
     }
@@ -1555,6 +1699,9 @@ fn build_unified_connector_service_grpc_headers_for_connector_type(
         ConnectorType::PaymentProcessor => consts::UCS_HEADER_CONNECTOR,
         ConnectorType::PayoutProcessor => consts::UCS_HEADER_PAYOUT_CONNECTOR,
         ConnectorType::SurchargeProcessor => consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        // FRM providers are onboarded as `payment_vas` and are selected by
+        // `x-frm-connector`, the same way surcharge uses its own header.
+        ConnectorType::PaymentVas => consts::UCS_HEADER_FRM_CONNECTOR,
         connector_type => {
             return Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
@@ -1772,11 +1919,20 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
     // Remove the default connector header
     metadata.remove(consts::UCS_HEADER_CONNECTOR);
 
-    // Choose header based on event type
+    // Choose header based on event type. FRM events are routed by
+    // `x-frm-connector` (mirroring the risk-check path); surcharge events by
+    // `x-surcharge-connector`; everything else by the default `x-connector`.
     let is_surcharge_event = matches!(
         event_type,
         payments_grpc::NotifyEventType::SurchargePaymentSucceeded
             | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+    let is_frm_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::FrmPaymentSucceeded
+            | payments_grpc::NotifyEventType::FrmPaymentFailure
+            | payments_grpc::NotifyEventType::FrmRefundProcessed
+            | payments_grpc::NotifyEventType::FrmChargebackReceived
     );
 
     let connector_name = meta.connector_name.clone();
@@ -1797,6 +1953,8 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
 
     if is_surcharge_event {
         metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else if is_frm_event {
+        metadata.append(consts::UCS_HEADER_FRM_CONNECTOR, connector_value);
     } else {
         metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
     }
