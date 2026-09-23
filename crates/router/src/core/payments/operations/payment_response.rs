@@ -23,7 +23,6 @@ use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
@@ -32,6 +31,7 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::PeekInterface;
 use router_derive;
 use router_env::{instrument, logger, tracing};
+use storage_impl::behaviour::Conversion;
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 
@@ -42,6 +42,8 @@ use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 use crate::core::offer_engine;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::payments::routing::utils as routing_utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v2")]
@@ -75,6 +77,8 @@ use crate::{
     utils,
 };
 
+/// Spawns work the payment response does not wait on, keeping the request's trace correlation
+/// under `deja`.
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 fn spawn_save_payment_method<F>(future: F)
 where
@@ -357,36 +361,57 @@ where
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
                     {
-                        match call_modular_payment_method_update(
-                            state,
-                            &payment_data.payment_attempt.processor_merchant_id,
-                            &payment_data.payment_attempt.profile_id,
-                            &pm_id,
-                            payload,
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                logger::info!(
-                                    payment_method_id=%pm_id,
-                                    "Successfully called modular payment method update"
-                                );
-                            }
-                            Err(err) => {
-                                // Non-fatal by design: the attempt still gets the pm_id below,
-                                // so this log is the only trace the modular update failed and
-                                // the payment method may be stale (missing connector token /
-                                // NTI / acknowledgement).
-                                logger::error!(
-                                    error=%err,
-                                    payment_method_id=%pm_id,
-                                    merchant_id=%payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
-                                    profile_id=%payment_data.payment_attempt.profile_id.get_string_repr(),
-                                    "Failed to call modular payment method update; continuing with possibly stale payment method"
-                                );
+                        payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        // An off-session save carries the connector token and NTI that the next
+                        // MIT reads, so it is awaited; any other update is detached.
+                        let is_off_session = matches!(
+                            payment_data.payment_attempt.setup_future_usage_applied,
+                            Some(common_enums::FutureUsage::OffSession)
+                        );
+
+                        let state = state.clone();
+                        let processor_merchant_id =
+                            payment_data.payment_attempt.processor_merchant_id.clone();
+                        let profile_id = payment_data.payment_attempt.profile_id.clone();
+
+                        let update_payment_method = async move {
+                            match call_modular_payment_method_update(
+                                &state,
+                                &processor_merchant_id,
+                                &profile_id,
+                                &pm_id,
+                                payload,
+                            )
+                            .await
+                            {
+                                Ok(_) => {
+                                    logger::info!(
+                                        payment_method_id=%pm_id,
+                                        "Successfully called modular payment method update"
+                                    );
+                                }
+                                Err(err) => {
+                                    // Non-fatal by design: the attempt already carries the pm_id,
+                                    // so this log is the only trace the modular update failed and
+                                    // the payment method may be stale (missing connector token /
+                                    // NTI / acknowledgement).
+                                    logger::error!(
+                                        error=%err,
+                                        payment_method_id=%pm_id,
+                                        merchant_id=%processor_merchant_id.get_string_repr(),
+                                        profile_id=%profile_id.get_string_repr(),
+                                        "Failed to call modular payment method update; the payment method may be stale"
+                                    );
+                                }
                             }
                         };
-                        payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        if is_off_session {
+                            update_payment_method.await;
+                        } else {
+                            spawn_save_payment_method(update_payment_method);
+                        }
                     } else {
                         logger::info!(
                             payment_method_id=%pm_id,
@@ -615,6 +640,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1195,6 +1222,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await
     }
@@ -1355,6 +1384,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1669,6 +1700,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1711,6 +1744,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPreAuthorizeC
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1747,6 +1782,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1789,6 +1826,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1831,6 +1870,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1873,6 +1914,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthori
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1911,6 +1954,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1947,6 +1992,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -1993,6 +2040,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await?;
 
@@ -2213,6 +2262,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await
     }
@@ -2353,6 +2404,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         RoutableConnectorChoice,
     >,
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<PaymentData<F>> {
     let key_manager_state = &state.into();
     // Update additional payment data with the payment method response that we received from connector
@@ -3086,6 +3139,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .transpose()?
         .unwrap_or(payment_attempt);
 
+    // Own span per fork, not the caller's: these are joined together, so a
+    // shared span leaves them separable only by scheduler order and a
+    // record/replay comparison reads a transposition as a behaviour change.
     let payment_attempt_fut = tokio::spawn(
         async move {
             Box::pin(async move {
@@ -3106,7 +3162,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             })
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("payment_attempt")),
     );
 
     payment_data.payment_attempt = payment_attempt;
@@ -3166,7 +3222,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("payment_intent")),
     );
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync and CompleteAuthorize
@@ -3196,7 +3252,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             )
             .await
         }
-        .in_current_span(),
+        .instrument(tracing::debug_span!("mandate_update")),
     );
 
     let (payment_intent, _, payment_attempt) = futures::try_join!(
@@ -3207,40 +3263,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if payment_intent.status.is_in_terminal_state()
-            && business_profile.dynamic_routing_algorithm.is_some()
-        {
-            let dynamic_routing_algo_ref: api_models::routing::DynamicRoutingAlgorithmRef =
-                business_profile
-                    .dynamic_routing_algorithm
-                    .clone()
-                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("DynamicRoutingAlgorithmRef not found in profile")?;
-
+        if payment_intent.status.is_in_terminal_state() {
             let state = state.clone();
             let profile_id = business_profile.get_id().to_owned();
+            let de_dimensions = dimensions.with_profile_id(profile_id.clone());
             let payment_attempt = payment_attempt.clone();
 
             tokio::spawn(
                 async move {
-                    let should_route_to_open_router =
-                        state.conf.open_router.dynamic_routing_enabled;
-                    let is_success_rate_based = matches!(
-                        payment_attempt.routing_approach,
-                        Some(enums::RoutingApproach::SuccessRateExploitation)
-                            | Some(enums::RoutingApproach::SuccessRateExploration)
-                    );
-
-                    if should_route_to_open_router && is_success_rate_based {
+                    if routing_utils::is_decision_engine_routing_effective(&state, &de_dimensions)
+                        .await
+                    {
                         routing_helpers::update_gateway_score_helper_with_open_router(
                             &state,
                             &payment_attempt,
                             &profile_id,
-                            dynamic_routing_algo_ref.clone(),
                         )
                         .await
                         .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
@@ -4037,6 +4074,8 @@ impl
             routable_connector,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             business_profile,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            _dimensions,
         ))
         .await
     }

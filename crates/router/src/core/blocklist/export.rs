@@ -102,6 +102,7 @@ pub async fn initiate_blocklist_export(
         profile_id: profile_id.clone(),
         job_type: common_enums::BatchBlocklistJobType::Export,
         file_name: Some(file_name.clone()),
+        metadata: None,
     };
 
     state
