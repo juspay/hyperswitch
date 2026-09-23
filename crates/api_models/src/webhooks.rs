@@ -46,6 +46,10 @@ pub enum IncomingWebhookEvent {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    // Mandate created at the connector, waiting for the customer to approve it
+    MandateActionRequired,
+    /// Single webhook that signals both the payment succeeding and its mandate being approved. This is used for connectors that do not send separate webhooks for the payment and mandate
+    PaymentIntentSuccessAndMandateActive,
     EndpointVerification,
     ExternalAuthenticationARes,
     FrmApproved,
@@ -134,7 +138,18 @@ impl IncomingWebhookEvent {
             36 => Self::PayoutReversed,
             // Associated data events
             43 => Self::PaymentAssociatedDataUpdate,
+            // Combined payment + mandate events
+            44 => Self::PaymentIntentSuccessAndMandateActive,
             _ => Self::EventNotSupported,
+        }
+    }
+}
+
+impl From<IncomingWebhookEvent> for api_enums::AttemptStatus {
+    fn from(value: IncomingWebhookEvent) -> Self {
+        match value {
+            IncomingWebhookEvent::PaymentIntentSuccessAndMandateActive => Self::Charged,
+            _ => Self::Pending,
         }
     }
 }
@@ -150,6 +165,7 @@ pub enum WebhookFlow {
     ReturnResponse,
     BankTransfer,
     Mandate,
+    PaymentMandate,
     AssociatedDataUpdate,
     ExternalAuthentication,
     FraudCheck,
@@ -298,9 +314,10 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::RefundSuccess
             | IncomingWebhookEvent::RefundFailure
             | IncomingWebhookEvent::RefundReview => Self::Refund,
-            IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
-                Self::Mandate
-            }
+            IncomingWebhookEvent::MandateActive
+            | IncomingWebhookEvent::MandateRevoked
+            | IncomingWebhookEvent::MandateActionRequired => Self::Mandate,
+            IncomingWebhookEvent::PaymentIntentSuccessAndMandateActive => Self::PaymentMandate,
             IncomingWebhookEvent::PaymentAssociatedDataUpdate => Self::AssociatedDataUpdate,
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted

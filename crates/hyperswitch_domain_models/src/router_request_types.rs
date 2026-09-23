@@ -176,6 +176,16 @@ pub struct PaymentsAuthorizeData {
     pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
+impl PaymentsAuthorizeData {
+    pub fn is_connector_mandate(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && matches!(
+                self.setup_future_usage,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalVaultProxyPaymentsData {
     pub payment_method_data: ExternalVaultPaymentMethodData,
@@ -2033,6 +2043,16 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+}
+
+impl SetupMandateRequestData {
+    pub fn is_connector_mandate(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && matches!(
+                self.setup_future_usage,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 #[derive(Debug, Clone)]

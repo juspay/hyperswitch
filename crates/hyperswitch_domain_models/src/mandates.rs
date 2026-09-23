@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::payments::{
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
 };
-use common_enums::Currency;
+use common_enums::{AttemptStatus, Currency};
 use common_types::payments as common_payments_types;
 use common_utils::{
     date_time,
@@ -15,7 +15,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
-use crate::router_data::RecurringMandatePaymentData;
+use crate::{payments::payment_attempt::PaymentAttempt, router_data::RecurringMandatePaymentData};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -603,6 +603,50 @@ pub enum MandateTransactionType {
     RecurringMandateTransaction,
 }
 
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum MandateActivation {
+    /// The connector issued a mandate identifier but the customer's action is still pending.
+    Pending,
+    /// The payment succeeded and the connector mandate can be treated as active.
+    Successful,
+    /// The mandate could not be activated (missing identifier or terminal/non-success status).
+    Failed,
+}
+
+#[cfg(feature = "v1")]
+impl From<&PaymentAttempt> for MandateActivation {
+    fn from(payment_attempt: &PaymentAttempt) -> Self {
+        let has_connector_mandate_id = payment_attempt
+            .connector_mandate_detail
+            .as_ref()
+            .and_then(|cmr| cmr.connector_mandate_id.as_ref())
+            .is_some();
+
+        match (has_connector_mandate_id, payment_attempt.status) {
+            (true, AttemptStatus::AuthenticationPending) => Self::Pending,
+            (
+                true,
+                AttemptStatus::Charged
+                | AttemptStatus::Authorized
+                | AttemptStatus::PartiallyAuthorized,
+            ) => Self::Successful,
+            _ => Self::Failed,
+        }
+    }
+}
+
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
     pub mandate_id: Option<String>,
@@ -701,6 +745,7 @@ pub struct ConnectorMandateReferenceId {
     mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
     updated_mandate_details: Option<UpdatedMandateDetails>,
+    mandate_activation: Option<MandateActivation>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -719,6 +764,7 @@ impl ConnectorMandateReferenceId {
             mandate_metadata,
             connector_mandate_request_reference_id,
             updated_mandate_details,
+            mandate_activation: None,
         }
     }
 
@@ -733,6 +779,12 @@ impl ConnectorMandateReferenceId {
     }
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
+    }
+    pub fn get_mandate_activation(&self) -> Option<MandateActivation> {
+        self.mandate_activation
+    }
+    pub fn set_mandate_activation(&mut self, mandate_activation: Option<MandateActivation>) {
+        self.mandate_activation = mandate_activation;
     }
 
     pub fn update(

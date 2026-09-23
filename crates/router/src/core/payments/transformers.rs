@@ -8084,14 +8084,19 @@ impl ForeignFrom<diesel_models::TransactionDetailsUiConfiguration>
 
 impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenceId {
     fn foreign_from(value: DieselConnectorMandateReferenceId) -> Self {
-        Self::new(
+        let mandate_activation = value
+            .get_mandate_activation()
+            .and_then(|activation| activation.parse::<mandates::MandateActivation>().ok());
+        let mut connector_mandate_reference_id = Self::new(
             value.connector_mandate_id,
             value.payment_method_id,
             None,
             value.mandate_metadata,
             value.connector_mandate_request_reference_id,
             None,
-        )
+        );
+        connector_mandate_reference_id.set_mandate_activation(mandate_activation);
+        connector_mandate_reference_id
     }
 }
 
@@ -8103,6 +8108,9 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
             mandate_metadata: value.get_mandate_metadata(),
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
+            mandate_activation: value
+                .get_mandate_activation()
+                .map(|activation| activation.to_string()),
         }
     }
 }
