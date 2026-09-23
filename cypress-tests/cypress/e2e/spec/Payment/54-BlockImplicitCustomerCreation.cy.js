@@ -15,12 +15,6 @@ describe("Block Implicit Customer Creation", () => {
         connectorId,
         utils.CONNECTOR_LISTS.INCLUDE.BLOCK_IMPLICIT_CUSTOMER_CREATION
       );
-      // Only the endpoint + shared secret are mandatory; AUTH_TOKEN and
-      // API_KEY are optional headers (some deployments, e.g. integ/sandbox,
-      // accept the secret alone). Local runs (router on localhost) resolve
-      // credentials from config/development.toml automatically via
-      // cypress.config.js; remote runs provide them via cypress.env.json
-      // (gitignored) or SUPERPOSITION_* env vars.
       if (
         !globalState.get("superpositionBaseUrl") ||
         !globalState.get("superpositionSecret")

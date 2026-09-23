@@ -74,13 +74,8 @@ const isEnvSet = (name) =>
   process.env[name] !== undefined ||
   process.env[`CYPRESS_${name}`] !== undefined;
 
-// The development.toml fallback below mirrors the *local* router config, so it
-// is only valid when the router under test is local. For non-local targets
-// (integ / sandbox / staging) superposition is fronted by the same ingress as
-// the router API, mounted as a sibling path (…/api → …/superposition), so the
-// endpoint is derived from CYPRESS_BASEURL below. The shared secret is never
-// derivable — it must live in cypress-tests/cypress.env.json (gitignored) or
-// SUPERPOSITION_SECRET; org/workspace default to hyperswitch in the specs.
+// development.toml mirrors the local router config, so the fallback below is
+// local-only; remote targets front superposition next to the router API.
 const routerTarget =
   process.env.CYPRESS_BASEURL || process.env.BASEURL || "http://localhost:8080";
 const isLocalRouterTarget = (() => {

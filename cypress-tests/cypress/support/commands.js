@@ -12242,10 +12242,6 @@ Cypress.Commands.add(
         "x-org-id": orgId,
         "x-workspace": workspaceId,
         "X-Superposition-Secret": superpositionSecret,
-        // Deployments differ in how superposition is fronted: some accept the
-        // shared secret alone (e.g. integ/sandbox), others sit behind an auth
-        // proxy wanting a Bearer token and/or api-key. Send each only when it
-        // was actually provided so no header blocks a run.
         ...(superpositionAuthToken
           ? { Authorization: `Bearer ${superpositionAuthToken}` }
           : {}),

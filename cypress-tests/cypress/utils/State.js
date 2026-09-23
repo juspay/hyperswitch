@@ -45,8 +45,6 @@ class State {
       "SUPERPOSITION_API_KEY",
       "superpositionApiKey"
     );
-    // Optional: sent as a Bearer header only when provided — some
-    // deployments authenticate with the superposition secret alone.
     this.data["superpositionAuthToken"] = this.getEnvOrState(
       "SUPERPOSITION_AUTH_TOKEN",
       "superpositionAuthToken"
