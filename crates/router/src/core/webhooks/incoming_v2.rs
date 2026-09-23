@@ -589,37 +589,41 @@ async fn payments_incoming_webhook_flow(
     }
 }
 
-fn connector_transaction_id_from_object_reference_id(
-    object_reference_id: &webhooks::ObjectReferenceId,
-) -> CustomResult<&str, errors::ApiErrorResponse> {
-    match object_reference_id {
-        api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(id)) => {
-            Ok(id.as_str())
-        }
-        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
-            "received an unsupported object reference id for retrieving payment attempt",
-        ),
-    }
-}
-
 async fn get_payment_attempt_from_object_reference_id(
     state: &SessionState,
     object_reference_id: &webhooks::ObjectReferenceId,
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> CustomResult<PaymentAttempt, errors::ApiErrorResponse> {
-    let connector_transaction_id =
-        connector_transaction_id_from_object_reference_id(object_reference_id)?;
-    state
-        .store
-        .find_payment_attempt_by_profile_id_connector_transaction_id(
-            platform.get_processor().get_key_store(),
-            profile.get_id(),
-            connector_transaction_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+    let key_store = platform.get_processor().get_key_store();
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    match object_reference_id {
+        api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(id)) => state
+            .store
+            .find_payment_attempt_by_profile_id_connector_transaction_id(
+                key_store,
+                profile.get_id(),
+                id,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
+        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(id)) => {
+            let attempt_id = common_utils::id_type::GlobalAttemptId::try_from(
+                std::borrow::Cow::Owned(id.to_owned()),
+            )
+            .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+            .attach_printable("invalid global attempt id received in the webhook")?;
+            state
+                .store
+                .find_payment_attempt_by_id(key_store, &attempt_id, storage_scheme)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+        }
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "received an unsupported object reference id for retrieving payment attempt",
+        ),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

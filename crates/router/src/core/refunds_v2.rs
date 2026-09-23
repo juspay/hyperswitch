@@ -1204,17 +1204,18 @@ pub async fn validate_and_create_refund(
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
 
+    let total_disputed_amount = payment_intent
+        .state_metadata
+        .as_ref()
+        .and_then(|state_metadata| state_metadata.total_disputed_amount)
+        .unwrap_or(common_utils_types::MinorUnit::zero());
+
     refunds_validator::validate_refund_amount(
-        total_amount_captured.get_amount_as_i64(),
+        (total_amount_captured - total_disputed_amount).get_amount_as_i64(),
         &all_refunds,
         refund_amount.get_amount_as_i64(),
     )
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
-
-    payment_intent
-        .validate_amount_against_intent_state_metadata(Some(refund_amount))
-        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
-        .attach_printable("refund amount validation against payment intent failed")?;
 
     refunds_validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,

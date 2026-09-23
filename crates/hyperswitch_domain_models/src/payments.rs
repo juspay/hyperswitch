@@ -460,6 +460,7 @@ impl PaymentIntent {
         }
     }
 
+    #[cfg(feature = "v1")]
     pub fn validate_amount_against_intent_state_metadata(
         &self,
         requested_amount: Option<MinorUnit>,
