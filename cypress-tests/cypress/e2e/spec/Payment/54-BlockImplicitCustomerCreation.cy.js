@@ -15,14 +15,21 @@ describe("Block Implicit Customer Creation", () => {
         connectorId,
         utils.CONNECTOR_LISTS.INCLUDE.BLOCK_IMPLICIT_CUSTOMER_CREATION
       );
+      // Only the endpoint + shared secret are mandatory; AUTH_TOKEN and
+      // API_KEY are optional headers (some deployments, e.g. integ/sandbox,
+      // accept the secret alone). Local runs (router on localhost) resolve
+      // credentials from config/development.toml automatically via
+      // cypress.config.js; remote runs must export the two vars.
       if (
         !globalState.get("superpositionBaseUrl") ||
-        !globalState.get("superpositionSecret") ||
-        !globalState.get("superpositionAuthToken")
+        !globalState.get("superpositionSecret")
       ) {
         cy.task(
           "cli_log",
-          "Superposition credentials not set — skipping BlockImplicitCustomerCreation spec"
+          "Superposition endpoint/secret not resolved (local runs read " +
+            "config/development.toml; for integ/sandbox export " +
+            "SUPERPOSITION_BASE_URL and SUPERPOSITION_SECRET) — " +
+            "skipping BlockImplicitCustomerCreation spec"
         );
         specShouldSkip = true;
       }
@@ -36,6 +43,10 @@ describe("Block Implicit Customer Creation", () => {
   });
 
   after("cleanup superposition config + flush global state", () => {
+    if (specShouldSkip) {
+      cy.task("setGlobalState", globalState.data);
+      return;
+    }
     cy.setSuperpositionConfig(
       globalState,
       "payments.block_implicit_customer_creation",

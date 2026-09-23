@@ -74,26 +74,28 @@ const isEnvSet = (name) =>
   process.env[name] !== undefined ||
   process.env[`CYPRESS_${name}`] !== undefined;
 
-const isServiceReachable = async (baseUrl) => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 2000);
+// The development.toml fallback below mirrors the *local* router config, so it
+// is only valid when the router under test is local. For non-local targets
+// (integ / sandbox / staging) the pipeline must export SUPERPOSITION_BASE_URL
+// + SUPERPOSITION_SECRET itself — injecting localhost/localorg credentials
+// there would make specs PUT overrides into a superposition the remote router
+// never polls.
+const routerTarget =
+  process.env.CYPRESS_BASEURL || process.env.BASEURL || "http://localhost:8080";
+const isLocalRouterTarget = (() => {
   try {
-    const response = await fetch(`${baseUrl}/health`, {
-      signal: controller.signal,
-    });
-    return response.ok;
+    const { hostname } = new URL(routerTarget);
+    return hostname === "localhost" || hostname === "127.0.0.1";
   } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
+    return true; // unparsable target → dev default
   }
-};
+})();
 
 const applySuperpositionFallback = async (config) => {
   const missing = Object.keys(superpositionEnvMapping).filter(
     (name) => !isEnvSet(name)
   );
-  if (missing.length === 0) {
+  if (missing.length === 0 || !isLocalRouterTarget) {
     return;
   }
 
@@ -114,27 +116,14 @@ const applySuperpositionFallback = async (config) => {
     }
   }
 
-  const baseUrl = (
-    config.env.SUPERPOSITION_BASE_URL ||
-    resolved.SUPERPOSITION_BASE_URL ||
-    ""
-  ).replace(/\/+$/, "");
-  if (!baseUrl || !resolved.SUPERPOSITION_AUTH_TOKEN) {
-    return;
-  }
-
-  if (!(await isServiceReachable(baseUrl))) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[cypress.config] Superposition not reachable at ${baseUrl} — superposition-gated specs will be skipped`
-    );
+  if (Object.keys(resolved).length === 0) {
     return;
   }
 
   Object.assign(config.env, resolved);
   // eslint-disable-next-line no-console
   console.log(
-    `[cypress.config] Superposition credentials resolved from config/development.toml (${baseUrl})`
+    `[cypress.config] Superposition credentials resolved from config/development.toml`
   );
 };
 

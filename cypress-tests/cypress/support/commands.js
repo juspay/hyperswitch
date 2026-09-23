@@ -12219,18 +12219,17 @@ Cypress.Commands.add(
     const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
     const superpositionSecret = globalState.get("superpositionSecret");
     const superpositionAuthToken = globalState.get("superpositionAuthToken");
+    const superpositionApiKey = globalState.get("superpositionApiKey");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
     const workspaceId =
       globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-    if (
-      !superpositionBaseUrl ||
-      !superpositionSecret ||
-      !superpositionAuthToken
-    ) {
+    if (!superpositionBaseUrl || !superpositionSecret) {
       cy.task(
         "cli_log",
-        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET, SUPERPOSITION_AUTH_TOKEN) — skipping config set"
+        "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET) — skipping config set. " +
+          "Local runs resolve them from config/development.toml automatically; " +
+          "non-local runs (integ/sandbox) must export them."
       );
       return;
     }
@@ -12243,7 +12242,14 @@ Cypress.Commands.add(
         "x-org-id": orgId,
         "x-workspace": workspaceId,
         "X-Superposition-Secret": superpositionSecret,
-        Authorization: `Bearer ${superpositionAuthToken}`,
+        // Deployments differ in how superposition is fronted: some accept the
+        // shared secret alone (e.g. integ/sandbox), others sit behind an auth
+        // proxy wanting a Bearer token and/or api-key. Send each only when it
+        // was actually provided so no header blocks a run.
+        ...(superpositionAuthToken
+          ? { Authorization: `Bearer ${superpositionAuthToken}` }
+          : {}),
+        ...(superpositionApiKey ? { "api-key": superpositionApiKey } : {}),
         "Content-Type": "application/json",
       },
       body: {
@@ -12287,18 +12293,15 @@ Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
   const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
   const superpositionSecret = globalState.get("superpositionSecret");
   const superpositionAuthToken = globalState.get("superpositionAuthToken");
+  const superpositionApiKey = globalState.get("superpositionApiKey");
   const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
   const workspaceId =
     globalState.get("superpositionWorkspaceId") || "hyperswitch";
 
-  if (
-    !superpositionBaseUrl ||
-    !superpositionSecret ||
-    !superpositionAuthToken
-  ) {
+  if (!superpositionBaseUrl || !superpositionSecret) {
     cy.task(
       "cli_log",
-      "Superposition credentials not set — skipping context delete"
+      "Superposition credentials not set (SUPERPOSITION_BASE_URL, SUPERPOSITION_SECRET) — skipping context delete"
     );
     return;
   }
@@ -12311,7 +12314,10 @@ Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
       "x-org-id": orgId,
       "x-workspace": workspaceId,
       "X-Superposition-Secret": superpositionSecret,
-      Authorization: `Bearer ${superpositionAuthToken}`,
+      ...(superpositionAuthToken
+        ? { Authorization: `Bearer ${superpositionAuthToken}` }
+        : {}),
+      ...(superpositionApiKey ? { "api-key": superpositionApiKey } : {}),
       "Content-Type": "application/json",
     },
     body: { context },
