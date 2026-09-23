@@ -14164,20 +14164,23 @@ pub async fn payments_manual_update(
     ))
 }
 
-/// Computes which `ManualUpdateIntentStatus` values a payment in the `conflicted` state may
-/// currently be manually transitioned to, based on its capture method and the requested vs.
-/// received vs. capturable amounts.
-///
-/// "Requested" is `payment_attempt.net_amount.get_total_amount()`; "received" is
-/// `payment_intent.amount_captured`; "capturable" is `payment_attempt.amount_capturable`.
+// The next incrementable status is determined based on the merchant's intended
+// capture amount. For example, if the authorized amount is 100 and the merchant
+// attempts to capture 50, but the connector captures 110, the status will still
+// be `partially_captured` since only the merchant's intended capture amount is
+// considered when determining the next incrementable status.
+//
+// The merchant can update the status only to the next incrementable status or
+// `failed`. Any attempt to update it to another status will be rejected.
 #[cfg(all(feature = "olap", feature = "v1"))]
 fn get_eligible_manual_update_statuses(
     payment_intent: &storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
 ) -> HashSet<enums::ManualUpdateIntentStatus> {
-    let amount_requested = payment_attempt.net_amount.get_total_amount();
-    let amount_received = payment_intent.amount_captured;
+    let total_amount = payment_attempt.net_amount.get_total_amount();
+    let amount_to_capture = payment_attempt.amount_to_capture.unwrap_or(total_amount);
     let amount_capturable = payment_attempt.amount_capturable;
+    let amount_received = payment_intent.amount_captured;
 
     // `Failed` is always a valid target alongside whichever single status the payment's
     // capture method and amounts point to below, so it's factored out here instead of
@@ -14187,37 +14190,40 @@ fn get_eligible_manual_update_statuses(
     let non_failed_status = match payment_attempt.capture_method.unwrap_or_default() {
         // Scheduled behaves like Automatic capture for this purpose.
         enums::CaptureMethod::Automatic | enums::CaptureMethod::Scheduled => {
-            match amount_received {
-                Some(received) if received < amount_requested => {
-                    enums::ManualUpdateIntentStatus::PartiallyCaptured
-                }
-                // Received == requested, received > requested (overcapture), or unknown.
-                _ => enums::ManualUpdateIntentStatus::Succeeded,
-            }
+            enums::ManualUpdateIntentStatus::Succeeded
         }
         enums::CaptureMethod::Manual | enums::CaptureMethod::SequentialAutomatic => {
             match amount_received {
-                // if amount_received is None and amount authorized (capturable) is less than amount requested to be authorized, then the payment is partially authorized and requires capture.
-                None if amount_capturable < amount_requested => {
+                None if payment_intent
+                    .enable_partial_authorization
+                    .map(|enable_partial_authorization| enable_partial_authorization.is_true())
+                    .unwrap_or(false)
+                    && amount_capturable < total_amount =>
+                {
                     enums::ManualUpdateIntentStatus::PartiallyAuthorizedAndRequiresCapture
                 }
                 None => enums::ManualUpdateIntentStatus::RequiresCapture,
-                // In case of Capture of the authorized payment
-                Some(received) if received < amount_requested => {
+                Some(_) if amount_to_capture < total_amount => {
                     enums::ManualUpdateIntentStatus::PartiallyCaptured
                 }
                 Some(_) => enums::ManualUpdateIntentStatus::Succeeded,
             }
         }
         enums::CaptureMethod::ManualMultiple => match amount_received {
-            None if amount_capturable < amount_requested => {
+            None if payment_intent
+                .enable_partial_authorization
+                .map(|enable_partial_authorization| enable_partial_authorization.is_true())
+                .unwrap_or(false)
+                && amount_capturable < total_amount =>
+            {
                 enums::ManualUpdateIntentStatus::PartiallyAuthorizedAndRequiresCapture
             }
             None => enums::ManualUpdateIntentStatus::RequiresCapture,
-            Some(_) if amount_capturable == MinorUnit::zero() => {
-                enums::ManualUpdateIntentStatus::Succeeded
+            Some(_) if amount_capturable != MinorUnit::zero() => {
+                enums::ManualUpdateIntentStatus::PartiallyCapturedAndCapturable
             }
-            Some(_) => enums::ManualUpdateIntentStatus::PartiallyCapturedAndCapturable,
+
+            Some(_) => enums::ManualUpdateIntentStatus::Succeeded,
         },
     };
 
