@@ -1721,7 +1721,6 @@ pub struct ExternalSurchargeDetails {
     pub external_surcharge_amount: MinorUnit,
     /// Surcharge percentage returned by the connector (e.g. InterPayments), if provided.
     /// Stored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.
-    #[serde(default)]
     #[schema(value_type = Option<f64>)]
     pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
