@@ -1,10 +1,13 @@
 use api_models::card_issuer as api_types;
 use common_utils::{date_time, id_type};
 use diesel_models::card_issuer::{NewCardIssuer, UpdateCardIssuer};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
-    core::errors::{self, RouterResponse, StorageErrorExt},
+    core::{
+        configs::dimension_state,
+        errors::{self, RouterResponse, StorageErrorExt},
+    },
     routes::SessionState,
     services::ApplicationResponse,
     types::transformers::ForeignTryInto,
@@ -82,11 +85,25 @@ pub async fn delete_card_issuer(
 pub async fn list_card_issuers(
     state: SessionState,
 ) -> RouterResponse<api_types::CardIssuerListResponse> {
+    let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
+    let limit = dimensions
+        .get_card_issuer_list_max_limit(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
     let issuers = state
         .store
-        .list_card_issuers()
+        .list_card_issuers(limit)
         .await
         .map_err(|error| error.change_context(errors::ApiErrorResponse::InternalServerError))?;
+
+    usize::try_from(limit)
+        .ok()
+        .filter(|max_count| issuers.len() >= *max_count)
+        .inspect(|_| logger::warn!(limit, "Card issuer list hit the configured limit"));
 
     Ok(ApplicationResponse::Json(
         api_types::CardIssuerListResponse {

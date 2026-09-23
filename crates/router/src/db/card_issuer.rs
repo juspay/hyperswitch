@@ -40,8 +40,9 @@ impl CardIssuersInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
+        limit: i64,
     ) -> CustomResult<Vec<storage::CardIssuerListItem>, errors::StorageError> {
-        self.diesel_store.list_card_issuers().await
+        self.diesel_store.list_card_issuers(limit).await
     }
 
     #[instrument(skip_all)]

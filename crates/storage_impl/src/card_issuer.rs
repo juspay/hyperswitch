@@ -1,4 +1,4 @@
-use common_utils::{consts, id_type};
+use common_utils::id_type;
 pub use diesel_models::card_issuer::{
     CardIssuer, CardIssuerListItem, NewCardIssuer, UpdateCardIssuer,
 };
@@ -79,10 +79,13 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn list_card_issuers(&self) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
+    async fn list_card_issuers(
+        &self,
+        limit: i64,
+    ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
         let fetch_func = || async {
             let conn = pg_connection_read(self).await?;
-            CardIssuer::list_all(&conn)
+            CardIssuer::list_all(&conn, limit)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
@@ -137,8 +140,11 @@ impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    async fn list_card_issuers(&self) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
-        self.router_store.list_card_issuers().await
+    async fn list_card_issuers(
+        &self,
+        limit: i64,
+    ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
+        self.router_store.list_card_issuers(limit).await
     }
 
     #[instrument(skip_all)]
@@ -201,7 +207,10 @@ impl CardIssuersInterface for MockDb {
         Ok(true)
     }
 
-    async fn list_card_issuers(&self) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
+    async fn list_card_issuers(
+        &self,
+        limit: i64,
+    ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
         let mut card_issuers_list = self
             .card_issuers
             .lock()
@@ -213,8 +222,7 @@ impl CardIssuersInterface for MockDb {
             })
             .collect::<Vec<_>>();
         card_issuers_list.sort_by(|a, b| a.issuer_name.cmp(&b.issuer_name));
-        card_issuers_list
-            .truncate(usize::try_from(consts::CARD_ISSUER_LIST_MAX_LIMIT).unwrap_or(usize::MAX));
+        card_issuers_list.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
         Ok(card_issuers_list)
     }
 

@@ -22,6 +22,7 @@ pub trait CardIssuersInterface {
 
     async fn list_card_issuers(
         &self,
+        limit: i64,
     ) -> errors::CustomResult<Vec<card_issuer::CardIssuerListItem>, Self::Error>;
 
     async fn get_card_issuers_by_ids(

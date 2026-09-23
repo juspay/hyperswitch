@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_utils::{consts, id_type};
+use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
 
@@ -17,11 +17,12 @@ use crate::{
 impl CardIssuer {
     pub async fn list_all(
         conn: &DatabaseConnectionWithContext<'_>,
+        limit: i64,
     ) -> StorageResult<Vec<CardIssuerListItem>> {
         let query =
             crate::list::into_boxed_list(<Self as HasTable>::table().order(dsl::issuer_name.asc()))
                 .select((dsl::id, dsl::issuer_name))
-                .limit(consts::CARD_ISSUER_LIST_MAX_LIMIT.into());
+                .limit(limit);
 
         track_database_call::<Self, _, _>(
             conn.request_id(),
