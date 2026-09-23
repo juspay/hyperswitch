@@ -82,7 +82,6 @@ pub struct PaymentMethod {
     pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
-    pub fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -195,7 +194,6 @@ pub struct PaymentMethodNew {
     pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
-    pub fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1405,7 +1403,6 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             id: payment_method_new.id.clone(),
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
             auxiliary_fingerprint_id: payment_method_new.auxiliary_fingerprint_id.clone(),
-            fingerprint_id: payment_method_new.fingerprint_id.clone(),
         }
     }
 }

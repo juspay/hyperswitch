@@ -1315,7 +1315,6 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
-            fingerprint_id: None,
         })
     }
 
@@ -1490,7 +1489,6 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
-            fingerprint_id: None,
         })
     }
 }
