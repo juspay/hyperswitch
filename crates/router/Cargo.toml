@@ -302,7 +302,6 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-# Bump to a main commit once that merges; this must not be reviewed as-is.
 deja = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true, default-features = false }
 deja-core = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
