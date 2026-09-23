@@ -2,6 +2,8 @@ import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import crypto from "crypto";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "node:url";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
 let globalState;
@@ -33,6 +35,109 @@ const forwardedEnv = [
   return acc;
 }, {});
 
+const superpositionEnvMapping = {
+  SUPERPOSITION_BASE_URL: "endpoint",
+  SUPERPOSITION_SECRET: "token",
+  SUPERPOSITION_AUTH_TOKEN: "token",
+  SUPERPOSITION_ORG_ID: "org_id",
+  SUPERPOSITION_WORKSPACE_ID: "workspace_id",
+};
+
+const readTomlSection = (filePath, sectionName) => {
+  const values = {};
+  let contents;
+  try {
+    contents = fs.readFileSync(filePath, "utf8");
+  } catch {
+    return values;
+  }
+
+  let inSection = false;
+  for (const line of contents.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("[")) {
+      inSection = trimmed === `[${sectionName}]`;
+      continue;
+    }
+    if (!inSection) {
+      continue;
+    }
+    const entry = trimmed.match(/^([A-Za-z0-9_]+)\s*=\s*"((?:[^"\\]|\\.)*)"/);
+    if (entry) {
+      values[entry[1]] = entry[2].replace(/\\(["\\])/g, "$1");
+    }
+  }
+  return values;
+};
+
+const isEnvSet = (name) =>
+  process.env[name] !== undefined ||
+  process.env[`CYPRESS_${name}`] !== undefined;
+
+const isServiceReachable = async (baseUrl) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2000);
+  try {
+    const response = await fetch(`${baseUrl}/health`, {
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const applySuperpositionFallback = async (config) => {
+  const missing = Object.keys(superpositionEnvMapping).filter(
+    (name) => !isEnvSet(name)
+  );
+  if (missing.length === 0) {
+    return;
+  }
+
+  const tomlValues = readTomlSection(
+    path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "config",
+      "development.toml"
+    ),
+    "superposition"
+  );
+  const resolved = {};
+  for (const name of missing) {
+    const value = tomlValues[superpositionEnvMapping[name]];
+    if (value !== undefined && value !== "") {
+      resolved[name] = value;
+    }
+  }
+
+  const baseUrl = (
+    config.env.SUPERPOSITION_BASE_URL ||
+    resolved.SUPERPOSITION_BASE_URL ||
+    ""
+  ).replace(/\/+$/, "");
+  if (!baseUrl || !resolved.SUPERPOSITION_AUTH_TOKEN) {
+    return;
+  }
+
+  if (!(await isServiceReachable(baseUrl))) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[cypress.config] Superposition not reachable at ${baseUrl} — superposition-gated specs will be skipped`
+    );
+    return;
+  }
+
+  Object.assign(config.env, resolved);
+  // eslint-disable-next-line no-console
+  console.log(
+    `[cypress.config] Superposition credentials resolved from config/development.toml (${baseUrl})`
+  );
+};
+
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
 
@@ -52,8 +157,10 @@ const specPattern = process.env.CYPRESS_ONLY_SPECS
 export default defineConfig({
   env: forwardedEnv,
   e2e: {
-    setupNodeEvents(on, config) {
+    async setupNodeEvents(on, config) {
       mochawesome(on);
+
+      await applySuperpositionFallback(config);
 
       on("task", {
         setGlobalState: (val) => {
