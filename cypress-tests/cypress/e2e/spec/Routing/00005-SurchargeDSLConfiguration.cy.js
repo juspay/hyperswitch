@@ -3,18 +3,6 @@ import * as utils from "../../configs/Routing/Utils";
 
 let globalState;
 
-// AuthToken JWT payload includes merchant_id and profile_id — decode locally
-// so we can retarget the test at the merchant we just created.
-function decodeJwtPayload(token) {
-  const parts = token.split(".");
-  if (parts.length !== 3) {
-    throw new Error("[SurchargeDSLConfiguration] Invalid JWT format");
-  }
-  const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-  return JSON.parse(atob(padded));
-}
-
 describe("Surcharge DSL Configuration Test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -48,58 +36,15 @@ describe("Surcharge DSL Configuration Test", () => {
           );
         }
 
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/user/v2/signin?token_only=true`,
-          headers: { "Content-Type": "application/json" },
-          body: { email: surchargeEmail, password: surchargePassword },
-          failOnStatusCode: false,
-        }).then((signinResp) => {
-          if (signinResp.status !== 200) {
-            throw new Error(
-              `[SurchargeDSLConfiguration] Signin failed (${signinResp.status}): ${JSON.stringify(signinResp.body)}`
-            );
-          }
-          if (signinResp.body.token_type !== "totp") {
-            throw new Error(
-              `[SurchargeDSLConfiguration] Expected totp from signin, got "${signinResp.body.token_type}"`
-            );
-          }
-
-          cy.request({
-            method: "GET",
-            url: `${globalState.get("baseUrl")}/user/2fa/terminate?skip_two_factor_auth=true`,
-            headers: {
-              Authorization: `Bearer ${signinResp.body.token}`,
-              "Content-Type": "application/json",
-            },
-            failOnStatusCode: false,
-          }).then((totpResp) => {
-            if (totpResp.status !== 200) {
-              throw new Error(
-                `[SurchargeDSLConfiguration] 2FA terminate failed (${totpResp.status}): ${JSON.stringify(totpResp.body)}`
-              );
-            }
-            if (totpResp.body.token_type !== "user_info") {
-              throw new Error(
-                `[SurchargeDSLConfiguration] Expected user_info from 2FA terminate, got "${totpResp.body.token_type}"`
-              );
-            }
-            const authToken = totpResp.body.token;
-            const payload = decodeJwtPayload(authToken);
-            if (!payload.merchant_id || !payload.profile_id) {
-              throw new Error(
-                `[SurchargeDSLConfiguration] AuthToken missing merchant_id/profile_id: ${JSON.stringify(payload)}`
-              );
-            }
-            // Retarget the entire spec at the freshly-created merchant so the
-            // surcharge DSL config is created/read/deleted on a profile we
-            // actually have an active role on.
-            globalState.set("userInfoToken", authToken);
-            globalState.set("merchantId", payload.merchant_id);
-            globalState.set("profileId", payload.profile_id);
-          });
-        });
+        // Login sequence used elsewhere in the suite: userLogin sets
+        // totpToken, terminate2Fa exchanges it for userInfoToken, and
+        // userInfo reads merchantId/organizationId/profileId off /user —
+        // retargeting the spec at the merchant we just created.
+        globalState.set("email", surchargeEmail);
+        globalState.set("password", surchargePassword);
+        cy.userLogin(globalState);
+        cy.terminate2Fa(globalState);
+        cy.userInfo(globalState);
       });
     });
   });
