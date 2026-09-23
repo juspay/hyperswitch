@@ -31,6 +31,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
+import { connectorDetails as etisalatConnectorDetails } from "./Etisalat.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
@@ -127,6 +128,7 @@ const connectorDetails = {
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
+  etisalat: etisalatConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
@@ -615,6 +617,7 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: [
       "authorizedotnet",
+      "etisalat",
       "fiservcommercehub",
       "givepayments",
       "ilixium",
