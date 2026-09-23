@@ -147,6 +147,8 @@ impl FeatureFrm<frm_api::PoFrm, FraudCheckPayoutData> for PoFrmRouterData {
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
+        // No UCS equivalent for payout FRM; always direct.
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }
