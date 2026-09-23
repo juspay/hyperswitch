@@ -23,39 +23,47 @@ impl HealthCheckDbInterface for Store {
             .await
             .change_context(errors::HealthCheckDBError::DBError)?;
 
-        conn.transaction_async(|conn| async move {
-            let query = diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
-            let _x: i32 = query.get_result_async(&conn).await.map_err(|err| {
-                logger::error!(read_err=?err,"Error while reading element in the database");
-                errors::HealthCheckDBError::DBReadError
-            })?;
+        // The connection handed to the closure is another handle to the connection `conn` already
+        // holds, so queries issued through `conn` run within this transaction.
+        let conn = &conn;
+        conn.raw_connection()
+            .transaction_async(move |_| async move {
+                let query =
+                    diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
+                let _x: i32 = query
+                    .get_result_async(conn.raw_connection())
+                    .await
+                    .map_err(|err| {
+                        logger::error!(read_err=?err,"Error while reading element in the database");
+                        errors::HealthCheckDBError::DBReadError
+                    })?;
 
-            logger::debug!("Database read was successful");
+                logger::debug!("Database read was successful");
 
-            let config = ConfigNew {
-                key: "test_key".to_string(),
-                config: "test_value".to_string(),
-            };
+                let config = ConfigNew {
+                    key: "test_key".to_string(),
+                    config: "test_value".to_string(),
+                };
 
-            config.insert(&conn).await.map_err(|err| {
-                logger::error!(write_err=?err,"Error while writing to database");
-                errors::HealthCheckDBError::DBWriteError
-            })?;
-
-            logger::debug!("Database write was successful");
-
-            storage::Config::delete_by_key(&conn, "test_key")
-                .await
-                .map_err(|err| {
-                    logger::error!(delete_err=?err,"Error while deleting element in the database");
-                    errors::HealthCheckDBError::DBDeleteError
+                config.insert(conn).await.map_err(|err| {
+                    logger::error!(write_err=?err,"Error while writing to database");
+                    errors::HealthCheckDBError::DBWriteError
                 })?;
 
-            logger::debug!("Database delete was successful");
+                logger::debug!("Database write was successful");
 
-            Ok::<_, errors::HealthCheckDBError>(())
-        })
-        .await?;
+                storage::Config::delete_by_key(conn, "test_key")
+                    .await
+                    .map_err(|err| {
+                        logger::error!(delete_err=?err,"Error while deleting element in the database");
+                        errors::HealthCheckDBError::DBDeleteError
+                    })?;
+
+                logger::debug!("Database delete was successful");
+
+                Ok::<_, errors::HealthCheckDBError>(())
+            })
+            .await?;
 
         Ok(())
     }

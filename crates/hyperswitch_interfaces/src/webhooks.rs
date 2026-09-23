@@ -3,7 +3,7 @@
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response::ApiErrorResponse,
+    api::WebhookResponse, errors::api_error_response::ApiErrorResponse,
 };
 use hyperswitch_masking::{ExposeInterface, Secret};
 
@@ -338,8 +338,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::StatusOk)
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::StatusOk)
     }
 
     /// fn get_dispute_details
@@ -380,6 +380,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
+
+    /// fn to get associated data about a payment from the webhook body, if any
+    fn get_associated_data(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::WebhookAssociatedData>,
         errors::ConnectorError,
     > {
         Ok(None)

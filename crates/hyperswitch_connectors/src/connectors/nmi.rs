@@ -1091,13 +1091,13 @@ impl ConnectorRedirectResponse for Nmi {
         match action {
             PaymentAction::CompleteAuthorize => {
                 let payload_data = json_payload.ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "connector_metadata",
+                    field_name: "connector_metadata".into(),
                 })?;
 
                 let redirect_res: nmi::NmiRedirectResponse = serde_json::from_value(payload_data)
                     .change_context(
                     ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "redirect_res",
+                        field_name: "redirect_res".into(),
                     },
                 )?;
 
@@ -1228,9 +1228,9 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

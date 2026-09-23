@@ -39,6 +39,8 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkbook => Self::Checkbook,
             api_enums::Connector::Checkout => Self::Checkout,
+            api_enums::Connector::Citigate => Self::Citigate,
+            api_enums::Connector::D24 => Self::D24,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
@@ -72,9 +74,14 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Gigadat => Self::Gigadat,
+            api_enums::Connector::Ilixium => Self::Ilixium,
+            api_enums::Connector::JpmorganOrbital => Self::JpmorganOrbital,
+            api_enums::Connector::Givepayments => Self::Givepayments,
             api_enums::Connector::Globalpay => Self::Globalpay,
+            api_enums::Connector::GlobalpaymentsHeartland => Self::GlobalpaymentsHeartland,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
+            api_enums::Connector::GotymeSanlam => Self::GotymeSanlam,
             api_enums::Connector::Gpayments => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "gpayments is not a routable connector".to_string(),
@@ -94,6 +101,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Interpayments => Self::Interpayments,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
+            api_enums::Connector::Juspay => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "juspay is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Juspaythreedsserver => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "juspaythreedsserver is not a routable connector".to_string(),
@@ -104,6 +116,8 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
             api_enums::Connector::Moneris => Self::Moneris,
+            api_enums::Connector::Etisalat => Self::Etisalat,
+            api_enums::Connector::Merchante => Self::Merchante,
             api_enums::Connector::Multisafepay => Self::Multisafepay,
             api_enums::Connector::Netcetera => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -120,10 +134,12 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Paybox => Self::Paybox,
+            api_enums::Connector::Paydotcom => Self::Paydotcom,
             api_enums::Connector::Payjustnow => Self::Payjustnow,
             api_enums::Connector::Payjustnowinstore => Self::Payjustnowinstore,
             api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Payme => Self::Payme,
+            api_enums::Connector::Paynearme => Self::Paynearme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
             api_enums::Connector::Paysafe => Self::Paysafe,
@@ -139,10 +155,16 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Recurly => Self::Recurly,
             api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Revolv3 => Self::Revolv3,
+            api_enums::Connector::Saferpay => Self::Saferpay,
             api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Zift => Self::Zift,
             api_enums::Connector::Silverflow => Self::Silverflow,
+            api_enums::Connector::Nsure => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "nsure is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
@@ -156,6 +178,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Riskified => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "riskified is not a routable connector".to_string(),
+                })?
+            }
+            api_enums::Connector::SanlamPayshield => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "sanlam_payshield is not a routable connector".to_string(),
                 })?
             }
             api_enums::Connector::Square => Self::Square,
@@ -191,6 +218,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Worldpaymodular => Self::Worldpaymodular,
+            api_enums::Connector::Worldpayraft => Self::Worldpayraft,
             api_enums::Connector::Worldpayvantiv => Self::Worldpayvantiv,
             api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,

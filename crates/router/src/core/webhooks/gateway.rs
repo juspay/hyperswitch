@@ -6,12 +6,12 @@ use common_enums::{ExecutionMode, ExecutionPath};
 use common_utils::{errors::ReportSwitchExt, ext_traits::Encode};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
+use hyperswitch_domain_models::api::WebhookResponse;
 use hyperswitch_interfaces::webhooks::{
     IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
 use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
-use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
 
 #[cfg(feature = "v1")]
@@ -33,7 +33,7 @@ use crate::{
         },
     },
     routes::SessionState,
-    services::{self, connector_integration_interface::ConnectorEnum},
+    services::connector_integration_interface::ConnectorEnum,
     types::{api::IncomingWebhook, domain, transformers::ForeignTryFrom},
     utils as helper_utils,
 };
@@ -67,7 +67,7 @@ pub enum WebhookOutcome {
     Skipped {
         reference: Option<ObjectReferenceId>,
         event_type: IncomingWebhookEvent,
-        ack_response: services::ApplicationResponse<serde_json::Value>,
+        ack_response: WebhookResponse<serde_json::Value>,
     },
     Processed {
         reference: ObjectReferenceId,
@@ -85,7 +85,7 @@ pub enum WebhookOutcome {
         webhook_resource_data: Box<Option<WebhookResourceData>>,
         masked_log_payload: common_utils::pii::SecretSerdeValue,
         merchant_connector_account: Box<domain::MerchantConnectorAccount>,
-        ack_response: services::ApplicationResponse<serde_json::Value>,
+        ack_response: WebhookResponse<serde_json::Value>,
     },
 }
 
@@ -432,7 +432,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
-                ack_response: services::ApplicationResponse::StatusOk,
+                ack_response: WebhookResponse::StatusOk,
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -512,8 +512,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
 
                 let ack_response = handle_response
                     .event_ack_response
-                    .map(ucs_ack_to_application_response)
-                    .unwrap_or(services::ApplicationResponse::StatusOk);
+                    .map(ucs_ack_to_webhook_response)
+                    .unwrap_or(WebhookResponse::StatusOk);
 
                 WebhookOutcome::Processed {
                     reference,
@@ -575,11 +575,16 @@ fn spawn_shadow_ucs_run(
                 logger::warn!(?error, "UCS shadow webhook run failed");
             }
             let shadow_snapshot = WebhookShadowSnapshot::from_result(&shadow_result);
+            let merchant_id = inner_ctx
+                .merchant_connector_account
+                .as_ref()
+                .map(|mca| mca.merchant_id.clone());
             report_shadow_diff(
                 &inner_ctx.state,
                 &inner_ctx.connector_name,
                 &primary_snapshot,
                 &shadow_snapshot,
+                merchant_id,
             )
             .await;
         }
@@ -686,6 +691,7 @@ async fn report_shadow_diff(
     connector_name: &str,
     primary: &WebhookShadowSnapshot,
     shadow: &WebhookShadowSnapshot,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     logger::info!(
         primary_event_type = ?primary.event_type,
@@ -707,6 +713,7 @@ async fn report_shadow_diff(
             config,
             connector_name.to_string(),
             state.get_request_id_str(),
+            merchant_id.as_ref(),
         )
         .await;
     }
@@ -760,7 +767,7 @@ pub(super) async fn verify_webhook_source_via_connector(
 
     let connector_enum = api_models::enums::Connector::from_str(&ctx.connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| {
             format!("unable to parse connector name {:?}", ctx.connector_name)
@@ -892,7 +899,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
             .get_id()
             .get_string_repr(),
         ctx.connector_name,
-        OffsetDateTime::now_utc().unix_timestamp()
+        common_utils::date_time::now_unix_timestamp()
     )
 }
 
@@ -995,9 +1002,9 @@ async fn build_event_context(
     })
 }
 
-fn ucs_ack_to_application_response(
+fn ucs_ack_to_webhook_response(
     ack: payments_grpc::EventAckResponse,
-) -> services::ApplicationResponse<serde_json::Value> {
+) -> WebhookResponse<serde_json::Value> {
     let payments_grpc::EventAckResponse {
         status_code: _,
         headers,
@@ -1005,7 +1012,7 @@ fn ucs_ack_to_application_response(
     } = ack;
 
     if body.is_empty() {
-        return services::ApplicationResponse::StatusOk;
+        return WebhookResponse::StatusOk;
     }
 
     let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers
@@ -1015,14 +1022,14 @@ fn ucs_ack_to_application_response(
 
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
         return if masked_headers.is_empty() {
-            services::ApplicationResponse::Json(value)
+            WebhookResponse::Json(value)
         } else {
-            services::ApplicationResponse::JsonWithHeaders((value, masked_headers))
+            WebhookResponse::JsonWithHeaders((value, masked_headers))
         };
     }
 
     match String::from_utf8(body.clone()) {
-        Ok(text) => services::ApplicationResponse::TextPlain(text),
-        Err(_) => services::ApplicationResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
+        Ok(text) => WebhookResponse::TextPlain(text),
+        Err(_) => WebhookResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
     }
 }

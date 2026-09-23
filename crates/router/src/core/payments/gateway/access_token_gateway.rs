@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -103,13 +102,49 @@ where
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        // A merchant-authentication (access-token) call can originate from either a
-        // payment or a payout. The connector type selects the UCS connector header
-        // namespace, while the ids below carry the payment/payout reference context.
+        // A merchant-authentication (access-token) call can originate from a
+        // payment, a payout, or an FRM pre-risk check. The connector type selects
+        // the UCS connector header namespace, while the ids below carry the
+        // payment/payout reference context.
+        //
+        // The merchant declared the type when the connector account was created,
+        // so read it from there rather than inferring it from the connector name.
+        // Cached credentials carry no type; fall back to the name only then.
         let connector_type = if router_data.payout_id.is_some() {
             ConnectorType::PayoutProcessor
         } else {
-            ConnectorType::PaymentProcessor
+            let declared = {
+                #[cfg(feature = "v1")]
+                {
+                    match &merchant_connector_account {
+                        crate::core::payments::helpers::MerchantConnectorAccountType::DbVal(
+                            mca,
+                        ) => Some(mca.connector_type),
+                        crate::core::payments::helpers::MerchantConnectorAccountType::CacheVal(
+                            _,
+                        ) => None,
+                    }
+                }
+                #[cfg(feature = "v2")]
+                {
+                    match &merchant_connector_account {
+                        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+                            Some(mca.connector_type)
+                        }
+                        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+                    }
+                }
+            };
+            match declared {
+                Some(ConnectorType::PaymentVas) => ConnectorType::PaymentVas,
+                Some(_) => ConnectorType::PaymentProcessor,
+                None if api_models::enums::FrmConnectors::from_str(&router_data.connector)
+                    .is_ok() =>
+                {
+                    ConnectorType::PaymentVas
+                }
+                None => ConnectorType::PaymentProcessor,
+            }
         };
 
         let (merchant_reference_id, resource_id) = if let Some(payout_id) =
@@ -176,25 +211,8 @@ where
                     .await
                 {
                     Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                     Err(report) => {
-                        if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                            report.current_context()
-                        {
-                            logger::debug!(
-                                "Connector error via UCS for access token (connector {}, status {}): {} - {}",
-                                inner.connector,
-                                inner.status_code,
-                                inner.code,
-                                inner.message
-                            );
-                            router_data.response = Err(inner.as_ref().into());
-                            router_data.connector_http_status_code = Some(inner.status_code);
-                            return Ok((
-                                router_data,
-                                (),
-                                payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse::default(),
-                            ));
-                        }
                         return Err(report.attach_printable("Failed to create access token"));
                     }
                 };
@@ -226,7 +244,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .map_err(super::convert_ucs_error_to_connector_error)
+        .map_err(payment_gateway::convert_ucs_error_to_connector_error)
     }
 }
 

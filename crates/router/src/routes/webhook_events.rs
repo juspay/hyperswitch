@@ -1,15 +1,13 @@
 use actix_web::{web, HttpRequest, Responder};
-use common_enums::EntityType;
-use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    core::{api_locking, errors, webhooks::webhook_events},
+    core::{api_locking, webhooks::webhook_events},
     routes::AppState,
     services::{
         api,
         authentication::{self as auth, UserFromToken},
-        authorization::{permissions::Permission, roles::RoleInfo},
+        authorization::permissions::Permission,
     },
     types::api::webhook_events::{
         EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
@@ -38,23 +36,19 @@ pub async fn list_initial_webhook_delivery_attempts(
         state,
         &req,
         request_internal,
-        |state, _, request_internal, _| {
+        |state, _: (), request_internal, _| {
             webhook_events::list_initial_delivery_attempts(
                 state,
                 request_internal.merchant_id,
                 request_internal.constraints,
             )
         },
-        auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::MerchantWebhookEventRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuthMerchantFromRoute {
+            merchant_id,
+            required_permission: Permission::MerchantWebhookEventRead,
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -80,23 +74,13 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
         &req,
         request_internal,
         |state, auth: UserFromToken, request_internal, _| async move {
-            let role_info = RoleInfo::from_role_id_org_id_tenant_id(
-                &state,
-                &auth.role_id,
-                &auth.org_id,
-                auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch role info while listing webhook events")?;
-
-            // Merchant-or-higher scopes search across all profiles in the merchant;
-            // profile-scoped users stay confined to their JWT's profile_id.
+            // Every JWT carries a profile_id, so scope every caller to it regardless of
+            // entity type. This keeps the listing anchored on business_profile_id, which
+            // the events index is built on.
             let request_internal = EventListRequestInternal {
                 merchant_id: auth.merchant_id,
                 constraints: EventListConstraints {
-                    profile_id: (role_info.get_entity_type() == EntityType::Profile)
-                        .then_some(auth.profile_id),
+                    profile_id: Some(auth.profile_id),
                     ..request_internal.constraints
                 },
             };
@@ -137,23 +121,19 @@ pub async fn list_webhook_delivery_attempts(
         state,
         &req,
         request_internal,
-        |state, _, request_internal, _| {
+        |state, _: (), request_internal, _| {
             webhook_events::list_delivery_attempts(
                 state,
                 request_internal.merchant_id,
                 request_internal.initial_attempt_id,
             )
         },
-        auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::MerchantWebhookEventRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuthMerchantFromRoute {
+            merchant_id,
+            required_permission: Permission::MerchantWebhookEventRead,
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -179,23 +159,19 @@ pub async fn retry_webhook_delivery_attempt(
         state,
         &req,
         request_internal,
-        |state, _, request_internal, _| {
+        |state, _: (), request_internal, _| {
             webhook_events::retry_delivery_attempt(
                 state,
                 request_internal.merchant_id,
                 request_internal.event_id,
             )
         },
-        auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::MerchantWebhookEventWrite,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuthMerchantFromRoute {
+            merchant_id,
+            required_permission: Permission::MerchantWebhookEventWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

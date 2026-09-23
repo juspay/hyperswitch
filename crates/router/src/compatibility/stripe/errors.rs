@@ -78,6 +78,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_redacted", message = "Customer has redacted")]
     CustomerRedacted,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_redacted", message = "Payment method has already been redacted")]
+    PaymentMethodRedacted,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_already_exists", message = "Customer with the given customer_id already exists")]
     DuplicateCustomer,
 
@@ -98,6 +101,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such fraud check")]
+    FraudCheckNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
@@ -134,6 +140,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
     DuplicatePayout { payout_id: id_type::PayoutId },
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "The fraud check with the specified frm_id '{frm_id}' already exists in our records")]
+    DuplicateFraudCheck { frm_id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -541,15 +550,20 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::PaymentMethodRedacted => Self::PaymentMethodRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
             errors::ApiErrorResponse::DuplicateConfig => Self::DuplicateConfig, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
             errors::ApiErrorResponse::DuplicatePayout { payout_id } => {
                 Self::DuplicatePayout { payout_id }
             }
+            errors::ApiErrorResponse::DuplicateFraudCheck { frm_id } => {
+                Self::DuplicateFraudCheck { frm_id }
+            }
             errors::ApiErrorResponse::RefundNotFound => Self::RefundNotFound,
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
+            errors::ApiErrorResponse::FraudCheckNotFound => Self::FraudCheckNotFound,
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
             errors::ApiErrorResponse::ClientSecretNotGiven
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
@@ -738,12 +752,14 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InvalidCardType
             | Self::DuplicateRefundRequest
             | Self::DuplicatePayout { .. }
+            | Self::DuplicateFraudCheck { .. }
             | Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::ConfigNotFound
             | Self::DuplicateConfig
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
+            | Self::FraudCheckNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound { .. }
@@ -798,6 +814,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
+            | Self::PaymentMethodRedacted
             | Self::WebhookProcessingError
             | Self::InvalidTenant
             | Self::ExternalVaultFailed

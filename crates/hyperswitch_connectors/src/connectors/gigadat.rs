@@ -59,7 +59,6 @@ use lazy_static::lazy_static;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as gigadat;
-use uuid::Uuid;
 
 #[cfg(feature = "payouts")]
 use crate::utils::{to_payout_connector_meta, RouterData as RouterDataTrait};
@@ -362,12 +361,30 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
             .response
             .parse_struct("gigadat PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency) {
+                Some(utils::get_sync_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -482,7 +499,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             ),
             (
                 headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into_masked(),
+                common_utils::generate_uuid_v4().to_string().into_masked(),
             ),
         ])
     }
@@ -544,12 +561,30 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             .response
             .parse_struct("gigadat RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -779,7 +814,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         let metadata = req
@@ -853,7 +888,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Gigadat 
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         Ok(format!(

@@ -9,7 +9,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -137,25 +136,8 @@ where
                     .await
                     {
                         Ok(response) => response,
+                        // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                         Err(report) => {
-                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                report.current_context()
-                            {
-                                logger::debug!(
-                                    "Connector error via UCS for incremental authorization (connector {}, status {}): {} - {}",
-                                    inner.connector,
-                                    inner.status_code,
-                                    inner.code,
-                                    inner.message
-                                );
-                                router_data.response = Err(inner.as_ref().into());
-                                router_data.connector_http_status_code = Some(inner.status_code);
-                                return Ok((
-                                    router_data,
-                                    (),
-                                    payments_grpc::PaymentServiceIncrementalAuthorizationResponse::default(),
-                                ));
-                            }
                             return Err(report.attach_printable(
                                 "Failed to in incremental authorize payment",
                             ));
@@ -178,7 +160,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(super::convert_ucs_error_to_connector_error)?;
+            .map_err(payment_gateway::convert_ucs_error_to_connector_error)?;
 
         Ok(updated_router_data)
     }

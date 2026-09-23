@@ -100,7 +100,7 @@ mod storage_impl {
         ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             let result =
-                storage_types::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
                     &conn,
                     processor_merchant_id,
                     payment_id,
@@ -112,7 +112,7 @@ mod storage_impl {
             match result {
                 Some(dispute) => Ok(Some(dispute)),
                 None => {
-                    storage_types::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
+                    storage_types::Dispute::find_optional_by_merchant_id_payment_id_connector_dispute_id(
                         &conn,
                         processor_merchant_id,
                         payment_id,
@@ -384,7 +384,7 @@ mod storage_impl {
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
                 let result =
-                    storage_types::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                    storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
                         &conn,
                         processor_merchant_id,
                         payment_id,
@@ -393,24 +393,18 @@ mod storage_impl {
                     .await;
 
                 match result {
-                    Ok(dispute) => Ok(dispute),
-                    Err(error) => {
-                        if matches!(
-                            error.current_context(),
-                            diesel_models::errors::DatabaseError::NotFound
-                        ) {
-                            storage_types::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
-                                &conn,
-                                processor_merchant_id,
-                                payment_id,
-                                connector_dispute_id,
-                            )
-                            .await
-                            .map_err(|error| report!(errors::StorageError::from(error)))
-                        } else {
-                            Err(report!(errors::StorageError::from(error)))
-                        }
+                    Ok(Some(dispute)) => Ok(Some(dispute)),
+                    Ok(None) => {
+                        storage_types::Dispute::find_optional_by_merchant_id_payment_id_connector_dispute_id(
+                            &conn,
+                            processor_merchant_id,
+                            payment_id,
+                            connector_dispute_id,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                     }
+                    Err(error) => Err(report!(errors::StorageError::from(error))),
                 }
             };
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
@@ -812,16 +806,8 @@ impl DisputeInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-        let limit_usize = dispute_constraints
-            .limit
-            .unwrap_or(u32::MAX)
-            .try_into()
-            .unwrap_or(usize::MAX);
-        let offset_usize = dispute_constraints
-            .offset
-            .unwrap_or(0)
-            .try_into()
-            .unwrap_or(usize::MIN);
+        let limit_usize = dispute_constraints.limit.as_usize();
+        let offset_usize = dispute_constraints.offset.as_usize();
         let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
             .filter(|dispute| {
@@ -1273,8 +1259,8 @@ mod tests {
                         connector: None,
                         merchant_connector_id: None,
                         currency: None,
-                        limit: None,
-                        offset: None,
+                        limit: Default::default(),
+                        offset: Default::default(),
                         dispute_status: None,
                         dispute_stage: None,
                         reason: None,

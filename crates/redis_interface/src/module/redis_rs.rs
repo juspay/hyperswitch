@@ -8,7 +8,11 @@ pub mod types;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
+};
 use error_stack::ResultExt;
 use redis::AsyncCommands;
 use tracing::Instrument;
@@ -357,12 +361,47 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+/// A request-scoped Redis handle.
+///
+/// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
+/// execution that created it, so per-roundtrip events can be correlated back to
+/// the originating API request.
+#[derive(Clone)]
+pub struct RedisConnectionWithContext {
+    pub redis_conn: Arc<RedisConnectionPool>,
+    pub request_id: Option<String>,
+}
+
+impl RedisConnectionWithContext {
+    pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: context.request_id().map(str::to_owned),
+        }
+    }
+
+    pub fn new_without_context(pool: Arc<RedisConnectionPool>) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: None,
+        }
+    }
 }
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
+    pub async fn new_without_event_emitter(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
+        Self::new(conf, Arc::new(NoOpEventEmitter)).await
+    }
+
     pub async fn new(
         conf: &crate::types::RedisSettings,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
@@ -488,6 +527,7 @@ impl RedisConnectionPool {
             subscriber,
             publisher,
             key_prefix: String::default(),
+            event_emitter,
         })
     }
 
@@ -499,7 +539,22 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            event_emitter: Arc::clone(&self.event_emitter),
         }
+    }
+
+    /// Prefix `key` with this pool's tenant key prefix.
+    pub fn add_prefix(&self, key: &str) -> String {
+        let physical = if self.key_prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        };
+        #[cfg(feature = "deja")]
+        if let Some(corr) = deja::replay_key_namespace() {
+            return format!("{corr}:{physical}");
+        }
+        physical
     }
 
     /// Monitor for connection errors.
@@ -609,10 +664,18 @@ impl crate::types::RedisSettings {
             .into_connection_info()
             .change_context(crate::errors::RedisError::RedisConnectionError)?;
 
-        let redis_settings = connection_info
+        let mut redis_settings = connection_info
             .redis_settings()
             .clone()
             .set_protocol(redis::ProtocolVersion::RESP3);
+
+        if let Some(username) = self.auth_username() {
+            redis_settings = redis_settings.set_username(username);
+        }
+        if let Some(password) = self.auth_password() {
+            redis_settings = redis_settings.set_password(password);
+        }
+
         connection_info = connection_info.set_redis_settings(redis_settings);
 
         Ok(connection_info)
@@ -644,13 +707,22 @@ impl crate::types::RedisSettings {
         &self,
         nodes: Vec<String>,
     ) -> redis::cluster::ClusterClientBuilder {
-        redis::cluster::ClusterClient::builder(nodes)
+        let mut builder = redis::cluster::ClusterClient::builder(nodes)
             .retries(self.reconnect_max_attempts)
             .min_retry_wait(u64::from(self.reconnect_delay))
             .response_timeout(std::time::Duration::from_secs(
                 self.default_command_timeout.max(1),
             ))
-            .use_protocol(redis::ProtocolVersion::RESP3)
+            .use_protocol(redis::ProtocolVersion::RESP3);
+
+        if let Some(username) = self.auth_username() {
+            builder = builder.username(username);
+        }
+        if let Some(password) = self.auth_password() {
+            builder = builder.password(password);
+        }
+
+        builder
     }
 }
 

@@ -162,7 +162,7 @@ pub async fn create_link_token(
             client_name: "HyperSwitch".to_string(),
             country_codes: Some(vec![billing_country.ok_or(
                 ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_country",
+                    field_name: "billing_country".into(),
                 },
             )?]),
             language: payload.language,
@@ -545,6 +545,7 @@ async fn store_bank_details_in_payment_methods(
                 network_tokenization_data: None,
                 storage_type: None,
                 compatibility_updated_at: None,
+                connector_payment_method_details: None,
             };
 
             new_entries.push(pm_new);

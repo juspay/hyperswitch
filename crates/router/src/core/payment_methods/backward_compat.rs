@@ -14,11 +14,13 @@ async fn trigger_payment_method_modular_backward_compat_inline(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method.get_id().get_string_repr().to_owned(),
         merchant_id: merchant_id.to_owned(),
+        organization_id: organization_id.clone(),
         last_modified_by,
     };
 
@@ -36,12 +38,14 @@ async fn schedule_payment_method_modular_backward_compat_task_best_effort(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     last_modified_by: Option<String>,
 ) {
     let res = add_payment_method_modular_backward_compat_task(
         &*state.store,
         payment_method,
         merchant_id,
+        organization_id.clone(),
         state.conf.application_source,
         last_modified_by,
     )
@@ -70,11 +74,13 @@ async fn schedule_payment_method_modular_backward_compat_task_best_effort(
 pub(super) async fn trigger_payment_method_modular_backward_compat(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
+    organization_id: &id_type::OrganizationId,
     last_modified_by: Option<String>,
 ) {
     let merchant_id = &payment_method.merchant_id;
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()));
+        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()))
+        .with_organization_id(organization_id.clone());
     let should_trigger_backwards_compatibility_inline =
         utils::get_should_trigger_backwards_compatibility_inline(state, &dimensions, None).await;
 
@@ -85,6 +91,7 @@ pub(super) async fn trigger_payment_method_modular_backward_compat(
                 state,
                 payment_method,
                 merchant_id,
+                organization_id,
                 last_modified_by.clone(),
             )),
         )
@@ -117,6 +124,7 @@ pub(super) async fn trigger_payment_method_modular_backward_compat(
                     state,
                     payment_method,
                     merchant_id,
+                    organization_id,
                     last_modified_by,
                 )
                 .await;
@@ -131,6 +139,7 @@ pub(super) async fn trigger_payment_method_modular_backward_compat(
                 state,
                 payment_method,
                 merchant_id,
+                organization_id,
                 last_modified_by,
             )
             .await;

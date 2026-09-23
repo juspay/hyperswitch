@@ -6,18 +6,21 @@ use crate::{
     errors,
     schema::subscription::dsl,
     subscription::{Subscription, SubscriptionNew, SubscriptionUpdate},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl SubscriptionNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Subscription> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<Subscription> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Subscription {
     pub async fn find_by_merchant_id_subscription_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         id: String,
     ) -> StorageResult<Self> {
@@ -31,7 +34,7 @@ impl Subscription {
     }
 
     pub async fn update_subscription_entry(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         id: String,
         subscription_update: SubscriptionUpdate,
@@ -58,7 +61,7 @@ impl Subscription {
     }
 
     pub async fn list_by_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         limit: Option<i64>,

@@ -2,6 +2,7 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
+import { isMockServer } from "../../../support/mitmProxy";
 
 let globalState;
 
@@ -166,7 +167,8 @@ describe("Airwallex Alternative Payments", () => {
         "wallet_pm"
       ]["Skrill"];
 
-      cy.wait(5000);
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      if (!isMockServer()) cy.wait(5000);
       cy.retrievePaymentCallTest({
         globalState,
         data,

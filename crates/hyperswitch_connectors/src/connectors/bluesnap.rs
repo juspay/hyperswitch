@@ -798,6 +798,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     ..data.clone()
                 })
@@ -1239,7 +1240,7 @@ impl ConnectorRedirectResponse for Bluesnap {
             PaymentAction::CompleteAuthorize => {
                 let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "json_payload",
+                        field_name: "json_payload".into(),
                     })?
                     .parse_value("BluesnapRedirectionResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
