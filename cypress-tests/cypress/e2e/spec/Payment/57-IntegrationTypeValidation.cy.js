@@ -53,19 +53,22 @@ describe("X-Integration-Type header validation against merchant integration_type
   before("seed global state and baseline payment", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      cy.deleteMerchantIntegrationType(globalState);
-      cy.createPaymentIntentWithIntegrationTypeHeader(
-        {
-          ...fixtures.createPaymentBody,
-          amount: 6540,
-          confirm: false,
-          profile_id: globalState.get("profileId"),
-          customer_id: globalState.get("customerId"),
-        },
-        globalState,
-        { headerValue: undefined, expectedStatus: 200 }
-      ).then((response) => {
-        baselinePaymentId = response.body.payment_id;
+      return cy.deleteMerchantIntegrationType(globalState).then(() => {
+        return cy
+          .createPaymentIntentWithIntegrationTypeHeader(
+            {
+              ...fixtures.createPaymentBody,
+              amount: 6540,
+              confirm: false,
+              profile_id: globalState.get("profileId"),
+              customer_id: globalState.get("customerId"),
+            },
+            globalState,
+            { headerValue: undefined, expectedStatus: 200 }
+          )
+          .then((response) => {
+            baselinePaymentId = response.body.payment_id;
+          });
       });
     });
   });

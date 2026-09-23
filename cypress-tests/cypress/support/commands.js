@@ -8240,21 +8240,39 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
 });
 
 // `system.payment_integration_type` is a merchant-level dimension config (see
-// crates/router/src/core/configs/dimension_config.rs) that is normally set via
-// Superposition, but also falls back to the plain `configs` table keyed as
-// `system.payment_integration_type_<processor_merchant_id>` — the same table
-// cy.setConfigs already talks to, so no Superposition credentials are needed
-// for this in CI.
-Cypress.Commands.add("setMerchantIntegrationType", (globalState, value) => {
+// crates/router/src/core/configs/dimension_config.rs). It is resolved from
+// Superposition FIRST — the plain `configs` table is only consulted as a
+// fallback when the Superposition fetch itself errors (crates/router/src/core/configs.rs,
+// fetch_db_config). Since the deployed integ environment has Superposition
+// reachable with a seeded default for this key, writing the plain `configs`
+// table entry has no effect there — this must go through Superposition, the
+// same way it was validated manually in pr-14173-test-results.md.
+//
+// requires = DimensionsWithProcessorAndProviderMerchantId, so the context
+// needs both dimensions; for a standalone (non-platform) merchant both equal
+// the merchant's own account id.
+function merchantIntegrationTypeContext(globalState) {
   const merchantId = globalState.get("merchantId");
-  const key = `system.payment_integration_type_${merchantId}`;
-  cy.setConfigs(globalState, key, value, "CREATE");
+  return {
+    processor_merchant_id: merchantId,
+    provider_merchant_id: merchantId,
+  };
+}
+
+Cypress.Commands.add("setMerchantIntegrationType", (globalState, value) => {
+  cy.createSuperpositionConfig(
+    globalState,
+    "system.payment_integration_type",
+    value,
+    merchantIntegrationTypeContext(globalState)
+  );
 });
 
 Cypress.Commands.add("deleteMerchantIntegrationType", (globalState) => {
-  const merchantId = globalState.get("merchantId");
-  const key = `system.payment_integration_type_${merchantId}`;
-  cy.setConfigs(globalState, key, "client", "DELETE");
+  cy.deleteSuperpositionContext(
+    globalState,
+    merchantIntegrationTypeContext(globalState)
+  );
 });
 
 // Raw create/update payment calls that accept an optional X-Integration-Type
