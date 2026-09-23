@@ -396,6 +396,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        // An attempt created without setup_future_usage (create with confirm=false, then confirm
+        // with off_session) picks it up from the intent, as new retry attempts do. Connector
+        // requests already use `setup_future_usage_applied.or(intent)`; this lets decisions made
+        // before the connector call, such as connector customer creation, see the same value.
+        payment_attempt.setup_future_usage_applied = payment_attempt
+            .setup_future_usage_applied
+            .or(payment_intent.setup_future_usage);
+
         payment_intent.psd2_sca_exemption_type = request
             .psd2_sca_exemption_type
             .or(payment_intent.psd2_sca_exemption_type);
@@ -2861,6 +2869,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
+        let m_active_frm_id = payment_data
+            .frm_message
+            .as_ref()
+            .map(|fraud_check| fraud_check.frm_id.clone());
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -2944,6 +2956,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
                     &cloned_key_store,
