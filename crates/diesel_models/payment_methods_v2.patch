@@ -1,7 +1,7 @@
 diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/schema_v2.rs
 --- a/crates/diesel_models/src/schema_v2.rs
 +++ b/crates/diesel_models/src/schema_v2.rs
-@@ -1323,8 +1323,73 @@
+@@ -1323,8 +1323,75 @@
          secure_link -> Nullable<Varchar>,
          #[max_length = 64]
          processor_merchant_id -> Nullable<Varchar>,
@@ -72,6 +72,8 @@ diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/sc
 +        auxiliary_fingerprint_id -> Nullable<Varchar>,
 +        connector_payment_method_details -> Nullable<Jsonb>,
 +        external_vault_token_data -> Nullable<Bytea>,
++        #[max_length = 64]
++        fingerprint_id -> Nullable<Varchar>,
      }
  }
  
