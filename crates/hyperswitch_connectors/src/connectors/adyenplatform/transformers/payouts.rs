@@ -505,7 +505,8 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
             payouts::PayoutMethodData::Wallet(_)
             | payouts::PayoutMethodData::Bank(_)
             | payouts::PayoutMethodData::BankRedirect(_)
-            | payouts::PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+            | payouts::PayoutMethodData::Passthrough(_)
+            | payouts::PayoutMethodData::GiftCard(_) => Err(ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
             ))?,
             payouts::PayoutMethodData::Card(c) => {
@@ -737,6 +738,10 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
                     connector: "Adyenplatform",
                 }))
             }
+            enums::PayoutType::GiftCard => Err(report!(ConnectorError::NotSupported {
+                message: "Gift card payouts".to_string(),
+                connector: "Adyenplatform",
+            })),
         }
     }
 }

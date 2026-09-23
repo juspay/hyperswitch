@@ -1481,6 +1481,9 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
                 passthrough.token_type
             }
+            api_models::payouts::PayoutMethodData::GiftCard(gift_card) => match gift_card {
+                api_models::payouts::GiftCardPayout::PaySafeCard(_) => Self::PaySafeCard,
+            },
         }
     }
 }
@@ -1553,6 +1556,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
             api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
                 Self::from(passthrough.token_type)
             }
+            api_models::payouts::PayoutMethodData::GiftCard(_) => Self::GiftCard,
         }
     }
 }
@@ -1572,6 +1576,7 @@ impl ForeignTryFrom<&api_models::payouts::PayoutMethodData> for api_models::enum
             api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
                 Self::foreign_try_from(api_enums::PaymentMethod::from(passthrough.token_type))
             }
+            api_models::payouts::PayoutMethodData::GiftCard(_) => Ok(Self::GiftCard),
         }
     }
 }
@@ -1584,6 +1589,7 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Card => Self::Card,
             api_models::enums::PayoutType::Wallet => Self::Wallet,
             api_models::enums::PayoutType::BankRedirect => Self::BankRedirect,
+            api_models::enums::PayoutType::GiftCard => Self::GiftCard,
         }
     }
 }
@@ -1598,6 +1604,7 @@ impl ForeignTryFrom<api_enums::PaymentMethod> for api_models::enums::PayoutType 
             api_enums::PaymentMethod::BankTransfer => Ok(Self::Bank),
             api_enums::PaymentMethod::Wallet => Ok(Self::Wallet),
             api_enums::PaymentMethod::BankRedirect => Ok(Self::BankRedirect),
+            api_enums::PaymentMethod::GiftCard => Ok(Self::GiftCard),
             _ => Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("PaymentMethod {value:?} is not supported for payouts"),
             })

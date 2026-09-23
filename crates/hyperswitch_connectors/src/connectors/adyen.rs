@@ -1775,6 +1775,12 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
                 )
                 .into())
             }
+            enums::PayoutType::GiftCard => {
+                return Err(errors::ConnectorError::NotImplemented(
+                    "gift card payouts not supported by adyen".to_string(),
+                )
+                .into())
+            }
         };
         Ok(format!(
             "{}pal/servlet/Payout/{}/{}",
@@ -1810,6 +1816,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
                     auth.review_key.unwrap_or(auth.api_key).into_masked()
                 }
                 enums::PayoutType::Card => auth.api_key.into_masked(),
+                enums::PayoutType::GiftCard => auth.api_key.into_masked(),
             },
         )];
         header.append(&mut api_key);

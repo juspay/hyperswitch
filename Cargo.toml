@@ -59,3 +59,9 @@ inherits = "release"
 lto = false
 codegen-units = 16
 strip = "none"
+
+[patch."https://github.com/juspay/connector-service"]
+# Local hyperswitch-prism checkout (branch paysafe-payout) to pick up the
+# gift_card payout proto before it lands in a published tag.
+rust-grpc-client = { path = "/Users/anurag.singh.001/Desktop/Juspay/hyperswitch-prism/sdk/rust-grpc-client" }
+ucs_cards = { path = "/Users/anurag.singh.001/Desktop/Juspay/hyperswitch-prism/crates/types-traits/cards" }

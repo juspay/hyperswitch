@@ -1244,7 +1244,7 @@ connector_list = "peachpayments" # Supported connectors for card only mit
 connector_list = "worldpayxml"
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise,trustly"
+payout_connector_list = "nomupay,stripe,wise,trustly,paysafe"
 
 
 [payment_method_auth]

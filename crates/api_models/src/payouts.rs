@@ -257,6 +257,7 @@ pub enum PayoutMethodData {
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
     BankTransfer(BankTransfer),
+    GiftCard(GiftCardPayout),
 }
 
 impl Default for PayoutMethodData {
@@ -721,6 +722,28 @@ pub struct Passthrough {
     /// Payout method type of the token
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: api_enums::PaymentMethodType,
+}
+
+/// The brand of gift card being paid out, mirroring the payment-side
+/// `GiftCardData` enumeration so each issuer can carry its own payout fields
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GiftCardPayout {
+    /// Paysafe card gift card
+    PaySafeCard(PaysafeCardPayout),
+}
+
+/// The consumer's details for a Paysafe card gift card
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct PaysafeCardPayout {
+    /// The consumer's gift-card account identifier at PaysafeCard
+    /// (the "my paysafecard" consumer id)
+    #[schema(value_type = Option<String>, example = "consumer_12345")]
+    pub consumer_id: Option<Secret<String>>,
+    /// The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
+    #[schema(value_type = Option<String>, example = "1990-01-01")]
+    pub date_of_birth: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1808,6 +1831,9 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
             },
             PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+            PayoutMethodData::GiftCard(gift_card) => match gift_card {
+                GiftCardPayout::PaySafeCard(_) => Self::PaySafeCard,
+            },
         }
     }
 }

@@ -6493,6 +6493,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 message: "Passthrough payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
+            PayoutMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: "Gift card payout creation is not supported".to_string(),
+                connector: "Adyen",
+            })?,
             PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
                 error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
                 error_object: serde_json::Value::Null,
@@ -6544,6 +6548,12 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
                     nationality: get_country_code(item.router_data.get_optional_billing()),
                     entity_type: Some(item.router_data.request.entity_type),
                 })))
+            }
+            storage_enums::PayoutType::GiftCard => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Gift card payout fulfillment is not supported".to_string(),
+                    connector: "Adyen",
+                })?
             }
         }
     }

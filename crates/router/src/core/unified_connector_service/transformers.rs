@@ -1940,6 +1940,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -2042,6 +2043,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_order_id: None,
         })
     }
 }
@@ -4631,6 +4633,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         ),
                         eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
                     }),
+                    merchant_token_identifier: None,
                 }))
             }
         }
@@ -9303,6 +9306,22 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                 payments_grpc::payout_method::PayoutMethodData::Passthrough(
                     payments_grpc::Passthrough::foreign_try_from(passthrough)?,
                 )
+            }
+            api_models::payouts::PayoutMethodData::GiftCard(gift_card) => match gift_card {
+                api_models::payouts::GiftCardPayout::PaySafeCard(paysafe_card) => {
+                    payments_grpc::payout_method::PayoutMethodData::GiftCard(
+                        payments_grpc::GiftCardPayoutData {
+                            gift_card_type: Some(
+                                payments_grpc::gift_card_payout_data::GiftCardType::PaysafeCard(
+                                    payments_grpc::PaysafeCardData {
+                                        consumer_id: paysafe_card.consumer_id.clone(),
+                                        date_of_birth: paysafe_card.date_of_birth.clone(),
+                                    },
+                                ),
+                            ),
+                        },
+                    )
+                }
             }
         };
 

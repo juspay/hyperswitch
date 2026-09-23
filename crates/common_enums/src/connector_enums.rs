@@ -250,6 +250,7 @@ impl Connector {
             !is_passthrough
         } else {
             matches!(payout_method, Some(PayoutType::Bank))
+                || matches!((self, payout_method), (Self::Paysafe, Some(PayoutType::GiftCard)))
         }
     }
     #[cfg(feature = "payouts")]

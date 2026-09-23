@@ -26,6 +26,8 @@ pub enum AdditionalPayoutMethodData {
     BankRedirect(Box<BankRedirectAdditionalData>),
     /// Additional data for Passthrough payout method
     Passthrough(Box<PassthroughAdditionalData>),
+    /// Additional data for gift card payout method
+    GiftCard(Box<GiftCardAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
