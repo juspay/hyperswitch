@@ -3400,6 +3400,21 @@ export const connectorDetails = {
         },
       },
     },
+    "3DSCaptureGreaterAmount": {
+      Request: {
+        amount_to_capture: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_06",
+          },
+        },
+      },
+    },
     CaptureCapturedAmount: getCustomExchange({
       Request: {
         Request: {

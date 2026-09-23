@@ -569,9 +569,9 @@ describe("Corner cases", () => {
           cy.task("cli_log", "Skipping step: Capture call");
           return;
         }
-        const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-          "CaptureGreaterAmount"
-        ];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSCaptureGreaterAmount"];
 
         cy.captureCallTest(fixtures.captureBody, data, globalState);
       });
