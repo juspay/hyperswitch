@@ -172,10 +172,15 @@ function expectWebhookStatusMembers(actualWebhook, expectedWebhook) {
 }
 
 // Helper function for creating individual rollout config
+// configValueOverride lets the caller supply the exact config value for flow
+// keys whose value shape differs from the standard proxy-mirroring rollout
+// (e.g. the UCS Webhooks key with webhook_flows, or payout Po* keys that
+// carry no proxy URLs).
 function createIndividualRolloutConfig(
   methodFlow,
   globalState,
-  configType = "rollout"
+  configType = "rollout",
+  configValueOverride = null
 ) {
   const merchantId = globalState.get("merchantId");
   const adminApiKey = globalState.get("adminApiKey");
@@ -197,12 +202,14 @@ function createIndividualRolloutConfig(
     ? "primary"
     : "shadow";
 
-  const configValue = {
-    rollout_percent: rolloutPercent,
-    http_url: httpUrl,
-    https_url: httpsUrl,
-    execution_mode: executionMode,
-  };
+  const configValue = configValueOverride
+    ? { ...configValueOverride }
+    : {
+        rollout_percent: rolloutPercent,
+        http_url: httpUrl,
+        https_url: httpsUrl,
+        execution_mode: executionMode,
+      };
   const value = JSON.stringify(configValue);
 
   const headers = {
@@ -371,7 +378,7 @@ function parseMethodFlows(methodFlowInput, connector) {
   ];
 }
 
-function createUcsConfigs(globalState, flow, type) {
+function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   // --- Phase 1: Environment Setup & Validation ---
   const ucsEnabled = globalState.get("ucsEnabled");
   if (!ucsEnabled) {
@@ -387,7 +394,9 @@ function createUcsConfigs(globalState, flow, type) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  if (!httpUrl || !httpsUrl) {
+  // An overridden config value supplies its own full value shape, so the
+  // proxy URLs are not required for that key.
+  if ((!httpUrl || !httpsUrl) && !configValueOverride) {
     throw new Error(
       `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
     );
@@ -459,7 +468,8 @@ function createUcsConfigs(globalState, flow, type) {
                 return createIndividualRolloutConfig(
                   currentFlow,
                   globalState,
-                  type
+                  type,
+                  configValueOverride
                 );
               })
               .then((result) => {
@@ -1827,6 +1837,13 @@ Cypress.Commands.add(
             authDetails.additional_merchant_data;
         }
 
+        // Forward the PSP webhook verification key so incoming webhooks can
+        // be signature-verified against this MCA (e.g. Trustly credit events).
+        if (authDetails && authDetails.connector_webhook_details) {
+          createConnectorBody.connector_webhook_details =
+            authDetails.connector_webhook_details;
+        }
+
         cy.request({
           method: "POST",
           url: url,
@@ -2189,14 +2206,21 @@ Cypress.Commands.add(
           `${connectorName}_payout`
         );
 
-        if (connectorName === "truelayer") {
-          const { authDetails: truelayerAuthDetails } = getValueByKey(
+        // truelayer and trustly historically had no dedicated payout creds
+        // entries; the payment credentials work for the payout MCA too, so
+        // fall back to the payment creds key only when no `<connector>_payout`
+        // entry exists.
+        if (
+          (connectorName === "truelayer" || connectorName === "trustly") &&
+          authDetails === null
+        ) {
+          const { authDetails: paymentAuthDetails } = getValueByKey(
             authFileContent,
             connectorName
           );
 
-          if (truelayerAuthDetails !== null) {
-            authDetails = truelayerAuthDetails;
+          if (paymentAuthDetails !== null) {
+            authDetails = paymentAuthDetails;
           }
         }
 
@@ -2210,6 +2234,11 @@ Cypress.Commands.add(
 
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
+
+        if (authDetails.connector_webhook_details) {
+          createConnectorBody.connector_webhook_details =
+            authDetails.connector_webhook_details;
+        }
 
         // Stash sensitive payout bank transfer details (if any) so payout
         // create/confirm commands can inject them at runtime instead of
@@ -7359,6 +7388,59 @@ Cypress.Commands.add(
   }
 );
 
+// Repeatedly retrieves (GET .../payouts/{id}) a payout every `intervalMs`
+// until its status is in `terminalStatuses` or `maxAttempts` is reached,
+// whichever comes first. The GET triggers PoSync (routed through UCS for
+// UCS-routed connectors like Trustly) and also picks up webhook-driven
+// status transitions between polls. Does not assert on the final value
+// itself - the subsequent retrievePayoutCallTest asserts the state.
+Cypress.Commands.add(
+  "pollPayoutStatusCallTest",
+  (
+    globalState,
+    terminalStatuses = ["success", "failed", "cancelled"],
+    maxAttempts = 2,
+    intervalMs = 30000
+  ) => {
+    const payout_id = globalState.get("payoutID");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    const poll = (attempt) => {
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+        headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        const status = response.body?.status;
+        cy.task(
+          "cli_log",
+          `pollPayoutStatusCallTest: attempt ${attempt}/${maxAttempts}, status=${status}`
+        );
+        globalState.set("polledPayoutStatus", status);
+
+        if (terminalStatuses.includes(status) || attempt >= maxAttempts) {
+          if (!terminalStatuses.includes(status)) {
+            cy.task(
+              "cli_log",
+              `pollPayoutStatusCallTest: gave up after ${maxAttempts} attempts - payout ${payout_id} still '${status}' (expected one of: ${terminalStatuses.join(", ")})`
+            );
+          }
+          return;
+        }
+
+        cy.wait(intervalMs);
+        poll(attempt + 1);
+      });
+    };
+
+    poll(1);
+  }
+);
+
 Cypress.Commands.add(
   "updatePayoutCallTest",
   (payoutConfirmBody, data, auto_fulfill, globalState) => {
@@ -8264,9 +8346,12 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
-Cypress.Commands.add("createRolloutConfig", (globalState, flow = null) => {
-  return createUcsConfigs(globalState, flow, "rollout");
-});
+Cypress.Commands.add(
+  "createRolloutConfig",
+  (globalState, flow = null, configValueOverride = null) => {
+    return createUcsConfigs(globalState, flow, "rollout", configValueOverride);
+  }
+);
 
 Cypress.Commands.add(
   "createShadowRolloutConfig",

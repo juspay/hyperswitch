@@ -1732,7 +1732,9 @@ function bankRedirectRedirection(
       }
     });
 
-    cy.wait(30000);
+    // Wait for the Trustly `credit` webhook to land and transition the
+    // payment (observed to take up to ~60s on integ).
+    cy.wait(60000);
     verifyUrl = false;
     cy.then(() => {
       verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);

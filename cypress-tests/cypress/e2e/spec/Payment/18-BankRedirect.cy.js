@@ -735,7 +735,41 @@ describe("Bank Redirect tests", () => {
 
       cy.step("Setup UCS rollout config", () => {
         // Trustly is UCS-only; this enables the Trustly authorize flow in primary mode.
-        cy.createRolloutConfig(globalState, "bank_redirect_trustly_Authorize");
+        if (!globalState.get("ucsEnabled")) {
+          cy.task(
+            "cli_log",
+            "Setup UCS rollout config: UCS_ENABLED env not set - auto-enabling UCS for trustly (UCS-only connector)"
+          );
+          globalState.set("ucsEnabled", true);
+        }
+
+        // UCS routing additionally requires the merchant-level ucs_enabled
+        // config on the server; without it confirm falls back to the direct
+        // integration, which is not implemented for Trustly payments (501).
+        cy.setupConfigs(globalState, "ucs_enabled", "true");
+
+        // Pass the config value explicitly so creation is not blocked on the
+        // UCS proxy env vars: primary mode has UCS call Trustly directly, and
+        // the server ignores empty proxy URLs anyway.
+        const proxyHttp = globalState.get("proxyHttp");
+        const proxyHttps = globalState.get("proxyHttps");
+        cy.createRolloutConfig(globalState, "bank_redirect_trustly_Authorize", {
+          rollout_percent: 1.0,
+          execution_mode: "primary",
+          ...(proxyHttp && proxyHttps
+            ? { http_url: proxyHttp, https_url: proxyHttps }
+            : {}),
+        });
+
+        // Route incoming Trustly webhooks through UCS (same key shape as the
+        // payout flow: ucs_rollout_config_{merchant}_trustly_Webhooks): the
+        // sandbox fires the `credit` event once the bank redirect completes,
+        // and with "Payment" listed it drives the payment to succeeded.
+        cy.createRolloutConfig(globalState, "Webhooks", {
+          rollout_percent: 1.0,
+          execution_mode: "primary",
+          webhook_flows: ["Payment"],
+        });
       });
 
       cy.step("Create Payment Intent", () => {
