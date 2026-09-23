@@ -261,7 +261,7 @@ async fn trippable_failure_for_reason(
     }
 
     // Only a connector 2xx carrying a refusal is a decline. A connector 4xx/5xx
-    // (`ConnectorOutcome`) stays on `kill_switch_threshold` as before: the status code
+    // (`ConnectorRejected`) stays on `kill_switch_threshold` as before: the status code
     // alone cannot separate a genuine decline from a request UCS built wrongly.
     let failure_class = match reason {
         UcsKillSwitchReason::ConnectorDeclined => UcsFailureClass::ConnectorDecline,
@@ -584,7 +584,7 @@ mod tests {
         for error in cases {
             assert_eq!(
                 error.ucs_kill_switch_reason(),
-                Some(UcsKillSwitchReason::ConnectorOutcome),
+                Some(UcsKillSwitchReason::ConnectorRejected),
                 "{error:?}"
             );
         }
@@ -662,7 +662,7 @@ mod tests {
             UcsKillSwitchReason::UcsFlowUnsupported.to_string(),
             UcsKillSwitchReason::UcsInternalError.to_string(),
             UcsKillSwitchReason::UcsUnreachable.to_string(),
-            UcsKillSwitchReason::ConnectorOutcome.to_string(),
+            UcsKillSwitchReason::ConnectorRejected.to_string(),
         ];
         let unique: std::collections::HashSet<_> = tags.iter().collect();
 
