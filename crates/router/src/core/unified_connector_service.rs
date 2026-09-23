@@ -53,8 +53,8 @@ use crate::{
             helpers::{
                 is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
                 should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
-                MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
-                WebhookRolloutExecutionResult,
+                MerchantConnectorAccountType, ProxyOverride, RolloutExecutionResult,
+                WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -925,7 +925,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     transaction_type: common_enums::TransactionType,
-) -> RouterResult<(ExecutionPath, SessionState)>
+) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
 where
     R: Send + Sync + Clone,
 {
@@ -1111,7 +1111,7 @@ where
         flow_name
     );
 
-    Ok((execution_path, session_state))
+    Ok((execution_path, session_state, rollout_result))
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override

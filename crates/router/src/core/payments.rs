@@ -3511,7 +3511,7 @@ where
 {
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -3589,6 +3589,9 @@ where
                         lineage_ids: lineage_ids.clone(),
                         merchant_connector_account: merchant_connector_account.clone(),
                         execution_path,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
                         execution_mode,
                     },
                 )
@@ -3607,6 +3610,9 @@ where
                 lineage_ids,
                 merchant_connector_account: merchant_connector_account.clone(),
                 execution_path,
+                kill_switch_enabled: rollout_result.kill_switch_enabled,
+                kill_switch_threshold: rollout_result.kill_switch_threshold,
+                connector_decline_threshold: rollout_result.connector_decline_threshold,
                 execution_mode,
             };
 
@@ -6347,7 +6353,7 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         processor,
         &router_data,
@@ -6377,6 +6383,9 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
         execution_mode,
     };
 
@@ -6938,7 +6947,7 @@ where
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
     // do order creation
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -6968,6 +6977,9 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account_type_details.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
         execution_mode,
     };
 
@@ -7070,7 +7082,7 @@ where
         // Extract previous gateway from payment data
         let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-        let (execution_path, updated_state) = should_call_unified_connector_service(
+        let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
             state,
             processor,
             &router_data,
@@ -7099,6 +7111,9 @@ where
             lineage_ids,
             merchant_connector_account: merchant_connector_account_type_details.clone(),
             execution_path,
+            kill_switch_enabled: rollout_result.kill_switch_enabled,
+            kill_switch_threshold: rollout_result.kill_switch_threshold,
+            connector_decline_threshold: rollout_result.connector_decline_threshold,
             execution_mode,
         };
         let call_connector_service_response = call_connector_service(
@@ -7266,7 +7281,7 @@ where
         )
         .await?;
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -7296,6 +7311,9 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
         execution_mode,
     };
 
@@ -8368,7 +8386,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         processor,
         &router_data,
@@ -8398,6 +8416,9 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
         execution_mode,
     };
 
