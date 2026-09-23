@@ -3568,7 +3568,7 @@ where
                     &external_vault_merchant_connector_account,
                     platform.get_processor(),
                     crate::core::unified_connector_service::kill_switch::RolloutSettings {
-                        execution_mode: execution_mode,
+                        execution_mode,
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
                         connector_decline_threshold: rollout_result.connector_decline_threshold,

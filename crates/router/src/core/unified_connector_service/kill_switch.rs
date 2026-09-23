@@ -322,7 +322,7 @@ async fn trippable_failure_for_reason(
     // Re-reading here could see a different value than the gate used and count the failure
     // against the wrong threshold.
     scope_can_trip
-        .then(|| match failure_class {
+        .then_some(match failure_class {
             // Declines only count when the scope opts in with `connector_decline_threshold`;
             // existing configs are unaffected until updated.
             UcsFailureClass::ConnectorDecline => settings.connector_decline_threshold,
@@ -371,7 +371,7 @@ async fn increment_counter(
         Ok(counts) => {
             // HINCRBY returns the value of each field after the increment; this call
             // increments exactly one field.
-            let redis_count = counts.first().map(|count| *count as u64);
+            let redis_count = counts.first().and_then(|count| u64::try_from(*count).ok());
 
             // Only when the counter reaches the threshold on a scope that can actually
             // divert. Previously this fired on every increment, which made it a duplicate
