@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0
+
+### Features
+
+- **Generic:** [FRM] Implementing FRM framework flows ([#13987](https://github.com/juspay/hyperswitch/pull/13987)) ([`18325a5`](https://github.com/juspay/hyperswitch/commit/18325a5c3e8efee76d66dbeec4b8ebdd59c36c47))
+- **config:** Allow any countries and currencies for datatrans ([#14358](https://github.com/juspay/hyperswitch/pull/14358)) ([`ef657fd`](https://github.com/juspay/hyperswitch/commit/ef657fd2b1aab2d1984cf3b37e456d181690acef))
+- **core:** Propagate device_manufacturer_identifier for Apple Pay decrypted flow ([#14169](https://github.com/juspay/hyperswitch/pull/14169)) ([`d9d3ce6`](https://github.com/juspay/hyperswitch/commit/d9d3ce632e1dfefb9769aabadc0f5bb10d7ce59c))
+- **payment:** Spawn async task for modular pm update ([#14148](https://github.com/juspay/hyperswitch/pull/14148)) ([`750926c`](https://github.com/juspay/hyperswitch/commit/750926c5b4d0feebab85cc66963825ee9640c50f))
+
+### Bug Fixes
+
+- **core:** Update existing PAYMENTS_SYNC process tracker instead of creating duplicate ([#14359](https://github.com/juspay/hyperswitch/pull/14359)) ([`39e345e`](https://github.com/juspay/hyperswitch/commit/39e345ed6e99438b601374a32798784e26ebf320))
+- **events:** Attribute payment_id for SDK-auth /client payment-methods-list events ([#13845](https://github.com/juspay/hyperswitch/pull/13845)) ([`502bfe8`](https://github.com/juspay/hyperswitch/commit/502bfe8ddbe6a9a9619dc4e0b88900a780c2aac5))
+- Install rustls CryptoProvider before GCP KMS client construction ([#14215](https://github.com/juspay/hyperswitch/pull/14215)) ([`5453fb9`](https://github.com/juspay/hyperswitch/commit/5453fb9a2572ec55fb062ac8bcdb91ad432a747b))
+
+### Performance
+
+- **ci:** Bulk-restore sccache cache to speed up CI builds ([#14253](https://github.com/juspay/hyperswitch/pull/14253)) ([`3fda2a6`](https://github.com/juspay/hyperswitch/commit/3fda2a6785fa4108732cbda76a3a68ae04e399d7))
+
+### Refactors
+
+- **api_models:** Remove deny_unknown_fields from v2 customers and payment_methods DTOs ([#14287](https://github.com/juspay/hyperswitch/pull/14287)) ([`62be2f9`](https://github.com/juspay/hyperswitch/commit/62be2f9e511d94970ce794f3cf22b7bc947cee04))
+- **storage_impl:** Move Conversion impl for payment_attempt to storage_impl crate ([#11810](https://github.com/juspay/hyperswitch/pull/11810)) ([`bb0ba58`](https://github.com/juspay/hyperswitch/commit/bb0ba58d978f4d095ebd9499d62c5676e51a5ae1))
+
+**Full Changelog:** [`2026.09.22.0...2026.09.23.0`](https://github.com/juspay/hyperswitch/compare/2026.09.22.0...2026.09.23.0)
+
+- - -
+
 ## 2026.09.22.0
 
 ### Features
