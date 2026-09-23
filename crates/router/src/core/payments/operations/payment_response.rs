@@ -3289,6 +3289,46 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
     }
 
+    // Preferred-connector routing: remember the connector behind an interac success so future
+    // payments can be pinned to it (payment_methods row when one is attached,
+    // otherwise the customers row).
+    #[cfg(feature = "v1")]
+    {
+        if payment_attempt.status.is_success()
+            && matches!(
+                payment_attempt.payment_method_type,
+                Some(enums::PaymentMethodType::Interac)
+            )
+        {
+            if let Some(succeeded_connector) = payment_attempt.connector.clone() {
+                let state = state.clone();
+                let key_store = processor.get_key_store().clone();
+                let storage_scheme = processor.get_account().storage_scheme;
+                let merchant_id = payment_attempt.merchant_id.clone();
+                let customer_id = payment_intent.customer_id.clone();
+                let payment_method_id = payment_attempt.payment_method_id.clone();
+
+                tokio::spawn(
+                    async move {
+                        update_preferred_connector(
+                            &state,
+                            &key_store,
+                            storage_scheme,
+                            &merchant_id,
+                            customer_id,
+                            payment_method_id,
+                            succeeded_connector,
+                        )
+                        .await
+                        .map_err(|e| logger::error!(preferred_connector_update_err=?e))
+                        .ok();
+                    }
+                    .in_current_span(),
+                );
+            }
+        }
+    }
+
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
     payment_method_status.and_then(|status| {
@@ -3619,6 +3659,80 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
     };
+    Ok(())
+}
+
+/// Persist the connector behind a successful interac payment: onto the
+/// payment_methods row when the attempt has one, otherwise onto the customers row.
+#[cfg(feature = "v1")]
+async fn update_preferred_connector(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    merchant_id: &common_utils::id_type::MerchantId,
+    customer_id: Option<common_utils::id_type::CustomerId>,
+    payment_method_id: Option<String>,
+    succeeded_connector: String,
+) -> RouterResult<()> {
+    let db = &*state.store;
+
+    if let Some(payment_method_id) = payment_method_id {
+        let payment_method = db
+            .find_payment_method(key_store, &payment_method_id, storage_scheme)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to fetch payment method for the preferred connector update",
+            )?;
+
+        if payment_method.preferred_routing_connector.as_deref()
+            != Some(succeeded_connector.as_str())
+        {
+            db.update_payment_method(
+                key_store,
+                payment_method,
+                storage::PaymentMethodUpdate::PreferredRoutingConnectorUpdate {
+                    preferred_routing_connector: Some(succeeded_connector),
+                    last_modified_by: None,
+                },
+                storage_scheme,
+                // v1-only column; nothing to forward to modular compat.
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the payment method's preferred connector")?;
+        }
+    } else if let Some(customer_id) = customer_id {
+        let customer = db
+            .find_customer_by_customer_id_merchant_id(
+                &customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch customer for the preferred connector update")?;
+
+        if customer.preferred_routing_connector.as_deref() != Some(succeeded_connector.as_str()) {
+            db.update_customer_by_customer_id_merchant_id(
+                customer_id,
+                merchant_id.to_owned(),
+                customer,
+                storage::CustomerUpdate::UpdatePreferredRoutingConnector {
+                    preferred_routing_connector: Some(succeeded_connector),
+                    last_modified_by: None,
+                },
+                key_store,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the customer's preferred connector")?;
+        }
+    }
+
     Ok(())
 }
 

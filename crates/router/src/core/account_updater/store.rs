@@ -351,7 +351,6 @@ async fn build_refreshed_payment_method(
         customer_details: payment_method.customer_details.clone(),
         network_tokenization_data: payment_method.network_tokenization_data.clone(),
         compatibility_updated_at: None,
-        preferred_gateways: payment_method.preferred_gateways.clone(),
     })
 }
 
