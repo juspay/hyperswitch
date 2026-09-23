@@ -4,8 +4,10 @@ use std::collections::HashSet;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type};
 pub use diesel_models::payment_method::PaymentMethod;
-use diesel_models::errors::DatabaseError;
-use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
+use diesel_models::{
+    errors::DatabaseError,
+    payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal},
+};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
@@ -281,22 +283,20 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             }
         };
 
-        let payment_method: DomainPaymentMethod = Box::pin(
-            self.update_resource(
-                key_store,
-                storage_scheme,
-                update_fut,
-                updated_payment_method,
-                UpdateResourceParams {
-                    drainer_query_fut,
-                    operation: Op::Update(
-                        key.clone(),
-                        &field,
-                        payment_method.clone().updated_by.as_deref(),
-                    ),
-                },
-            ),
-        )
+        let payment_method: DomainPaymentMethod = Box::pin(self.update_resource(
+            key_store,
+            storage_scheme,
+            update_fut,
+            updated_payment_method,
+            UpdateResourceParams {
+                drainer_query_fut,
+                operation: Op::Update(
+                    key.clone(),
+                    &field,
+                    payment_method.clone().updated_by.as_deref(),
+                ),
+            },
+        ))
         .await?;
 
         if let Some(compat_action) = compat_action {

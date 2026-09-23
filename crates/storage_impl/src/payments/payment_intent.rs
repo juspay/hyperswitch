@@ -267,7 +267,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let conn = pg_connection_write(self)
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
-                origin_diesel_intent.update(&conn, diesel_intent_update).await
+                origin_diesel_intent
+                    .update(&conn, diesel_intent_update)
+                    .await
             }
         };
 
