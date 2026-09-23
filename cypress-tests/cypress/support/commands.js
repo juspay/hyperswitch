@@ -172,10 +172,6 @@ function expectWebhookStatusMembers(actualWebhook, expectedWebhook) {
 }
 
 // Helper function for creating individual rollout config
-// configValueOverride lets the caller supply the exact config value for flow
-// keys whose value shape differs from the standard proxy-mirroring rollout
-// (e.g. the UCS Webhooks key with webhook_flows, or payout Po* keys that
-// carry no proxy URLs).
 function createIndividualRolloutConfig(
   methodFlow,
   globalState,
@@ -394,8 +390,6 @@ function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  // An overridden config value supplies its own full value shape, so the
-  // proxy URLs are not required for that key.
   if ((!httpUrl || !httpsUrl) && !configValueOverride) {
     throw new Error(
       `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
@@ -1837,8 +1831,6 @@ Cypress.Commands.add(
             authDetails.additional_merchant_data;
         }
 
-        // Forward the PSP webhook verification key so incoming webhooks can
-        // be signature-verified against this MCA (e.g. Trustly credit events).
         if (authDetails && authDetails.connector_webhook_details) {
           createConnectorBody.connector_webhook_details =
             authDetails.connector_webhook_details;
@@ -2206,10 +2198,6 @@ Cypress.Commands.add(
           `${connectorName}_payout`
         );
 
-        // truelayer and trustly historically had no dedicated payout creds
-        // entries; the payment credentials work for the payout MCA too, so
-        // fall back to the payment creds key only when no `<connector>_payout`
-        // entry exists.
         if (
           (connectorName === "truelayer" || connectorName === "trustly") &&
           authDetails === null
@@ -7388,12 +7376,6 @@ Cypress.Commands.add(
   }
 );
 
-// Repeatedly retrieves (GET .../payouts/{id}) a payout every `intervalMs`
-// until its status is in `terminalStatuses` or `maxAttempts` is reached,
-// whichever comes first. The GET triggers PoSync (routed through UCS for
-// UCS-routed connectors like Trustly) and also picks up webhook-driven
-// status transitions between polls. Does not assert on the final value
-// itself - the subsequent retrievePayoutCallTest asserts the state.
 Cypress.Commands.add(
   "pollPayoutStatusCallTest",
   (

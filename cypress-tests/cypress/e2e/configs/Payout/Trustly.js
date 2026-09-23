@@ -1,5 +1,3 @@
-// Trustly payout billing identity matching the integ-verified sandbox flows:
-// Swedish customer, EUR payout.
 const billing = {
   address: {
     city: "Stockholm",
@@ -18,15 +16,6 @@ const billing = {
   },
 };
 
-// Trustly payouts are submitted as bank (IBAN-form) payout_method_data: the
-// untagged `bank` enum deserializes to TrustlyBankTransfer from the
-// country_code/account_number/bank_number triplet. This is the verified
-// sandbox working set (POST /payouts/create, /confirm, /fulfill, GET sync).
-// Trustly payouts execute only on the UCS path (Trustly is a UCS-only
-// connector), so 00004-BankTransfer.cy.js installs the
-// trustly_trustly_PoCreate/PoFulfill/PoSync rollout configs before any of
-// these steps - on the direct path Trustly payouts return 501 IR_00
-// ("Selected payment method through Trustly is not implemented").
 const bank_payout_method_data = {
   bank: {
     country_code: "SE",
@@ -36,8 +25,6 @@ const bank_payout_method_data = {
   },
 };
 
-// Sandbox-rejected account number (alphabetic) - the PSP responds with
-// ERROR_INVALID_BANK_ACCOUNT_NUMBER and the payout lands in `failed`.
 const invalid_bank_payout_method_data = {
   bank: {
     country_code: "SE",
@@ -50,9 +37,6 @@ const invalid_bank_payout_method_data = {
 export const connectorDetails = {
   bank_transfer_pm: {
     open_banking: {
-      // Create without confirm: no connector is selected yet, so the payout
-      // waits in requires_confirmation (verified: POST /payouts/create with
-      // confirm=false).
       Create: {
         Request: {
           amount: 10,
@@ -69,8 +53,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Create with confirm=true and auto_fulfill=false: the payout is
-      // confirmed and awaits manual fulfillment (verified trace).
       Confirm: {
         Request: {
           amount: 10,
@@ -87,8 +69,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Auto-fulfill create and manual POST /payouts/{id}/fulfill both end
-      // in `initiated` once Trustly accepts the payout (verified traces).
       Fulfill: {
         Request: {
           amount: 10,
@@ -105,10 +85,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Once Trustly settles the payout its sandbox fires the
-      // payoutconfirmation webhook (processed through the UCS Webhooks
-      // rollout); PoSync then reports the payout as success. The spec polls
-      // until a terminal status before asserting this.
       RetrieveAfterFulfill: {
         Response: {
           status: 200,
@@ -118,8 +94,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Alphabetic account number: Trustly rejects the bank account and the
-      // payout ends in `failed` with the 624 connector error (verified).
       InvalidAccountNumber: {
         Request: {
           amount: 10,
@@ -137,8 +111,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Billing address is optional for Trustly payouts: create+confirm with
-      // auto_fulfill goes straight to `initiated` without it (verified).
       ConfirmWithoutBilling: {
         Request: {
           amount: 10,
@@ -155,9 +127,6 @@ export const connectorDetails = {
           },
         },
       },
-      // Create Recipient / payout-token reuse are not exercised for Trustly
-      // (no SAVED_* connector-list membership); placeholders keep the config
-      // shape consistent with the other payout connectors.
       SavePayoutMethod: {
         Configs: {
           TRIGGER_SKIP: true,

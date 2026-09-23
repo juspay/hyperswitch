@@ -101,8 +101,6 @@ export const CONNECTOR_LISTS = {
     // gotyme_sanlam only supports bank transfer payouts (payshap /
     // payshap_proxy) and has no card payout method, so it is skipped for
     // the card payout tests in 00003-CardTest.cy.js
-    // trustly only supports bank transfer payouts (UCS-only connector), so
-    // it is skipped too
     CARD_TEST: ["gotyme_sanlam", "trustly"],
   },
   INCLUDE: {
@@ -112,9 +110,6 @@ export const CONNECTOR_LISTS = {
     PAYOUT_LINK: ["wise"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
-    // Trustly-only extras in 00004-BankTransfer.cy.js: the actual fulfill
-    // call in the manual-fulfill chain, the PSP-rejected alphabetic account
-    // number, and the billing-address-free create.
     BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL: ["trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_ACCOUNT_NUMBER: ["trustly"],
     BANK_TRANSFER_OPEN_BANKING_NO_BILLING: ["trustly"],

@@ -202,11 +202,6 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
     }
   });
 
-  // Trustly payout API calls run through the classic direct integration
-  // (no Po* rollout configs needed - forcing them via UCS makes fulfill 500).
-  // Only the UCS Webhooks rollout config is required: it routes incoming
-  // Trustly webhooks through UCS so the payoutconfirmation event drives the
-  // payout to its terminal status. The step only runs for trustly.
   context("[Payout] [Bank transfer - Open Banking] UCS config setup", () => {
     it("create-ucs-configs-call-test", function () {
       if (globalState.get("connectorId") !== "trustly") {
@@ -223,11 +218,6 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
 
       cy.setupConfigs(globalState, "ucs_enabled", "true");
 
-      // The Webhooks key is scoped ucs_rollout_config_{merchant}_trustly_Webhooks
-      // and carries webhook_flows instead of proxy URLs: when a flow is listed
-      // here, incoming webhooks are classified and processed through UCS. With
-      // "Payout" listed, Trustly's payoutconfirmation event drives the payout
-      // to its terminal status (success).
       cy.createRolloutConfig(globalState, "Webhooks", {
         rollout_percent: 1.0,
         execution_mode: "primary",
