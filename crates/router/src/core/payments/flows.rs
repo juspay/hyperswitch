@@ -328,7 +328,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _processor: &domain::Processor,
-        _unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
+        _rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -347,7 +347,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _processor: &domain::Processor,
-        _unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
+        _rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()>
     where
         F: Clone,

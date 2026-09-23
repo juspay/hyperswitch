@@ -61,7 +61,7 @@ where
         RouterData<Self, types::PaymentsPreAuthenticateData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        let unified_connector_service_execution_mode = context.kill_switch_settings();
+        let rollout_settings = context.rollout_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
@@ -78,7 +78,7 @@ where
             merchant_connector_account,
             processor,
             connector_enum,
-            unified_connector_service_execution_mode,
+            rollout_settings,
         )
         .await
         .map(|(router_data, _)| router_data)

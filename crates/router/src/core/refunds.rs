@@ -264,7 +264,7 @@ pub async fn refund_reverse_core(
                 &updated_state,
                 processor,
                 router_data,
-                unified_connector_service::kill_switch::KillSwitchSettings {
+                unified_connector_service::kill_switch::RolloutSettings {
                     execution_mode: ExecutionMode::Primary,
                     kill_switch_enabled: rollout_result.kill_switch_enabled,
                     kill_switch_threshold: rollout_result.kill_switch_threshold,
@@ -615,7 +615,7 @@ pub async fn trigger_refund_to_gateway(
                     state,
                     platform.get_processor(),
                     router_data.clone(),
-                    unified_connector_service::kill_switch::KillSwitchSettings {
+                    unified_connector_service::kill_switch::RolloutSettings {
                         execution_mode: ExecutionMode::Primary,
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
@@ -981,7 +981,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     &ucs_state,
                     ucs_platform.get_processor(),
                     ucs_router_data,
-                    unified_connector_service::kill_switch::KillSwitchSettings::inert(
+                    unified_connector_service::kill_switch::RolloutSettings::inert(
                         ExecutionMode::Shadow,
                     ),
                     merchant_connector_account,
@@ -1298,7 +1298,7 @@ pub async fn sync_refund_with_gateway(
                     state,
                     platform.get_processor(),
                     router_data.clone(),
-                    unified_connector_service::kill_switch::KillSwitchSettings {
+                    unified_connector_service::kill_switch::RolloutSettings {
                         execution_mode: ExecutionMode::Primary,
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
@@ -1549,7 +1549,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     &state,
                     &processor,
                     router_data,
-                    unified_connector_service::kill_switch::KillSwitchSettings::inert(
+                    unified_connector_service::kill_switch::RolloutSettings::inert(
                         ExecutionMode::Shadow,
                     ),
                     merchant_connector_account,

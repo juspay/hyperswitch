@@ -130,7 +130,7 @@ async fn read_counter(
 /// The scope's kill switch settings, resolved once by the gate and carried to the failure
 /// path so a failure counts against the same threshold the gate used.
 #[derive(Debug, Clone, Copy)]
-pub struct KillSwitchSettings {
+pub struct RolloutSettings {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
@@ -138,7 +138,7 @@ pub struct KillSwitchSettings {
     pub connector_decline_threshold: Option<u64>,
 }
 
-impl KillSwitchSettings {
+impl RolloutSettings {
     /// For calls no rollout config governs: a shadow run, or a path the gate does not gate.
     /// Nothing reads the counter for these, so the switch cannot divert them.
     pub fn inert(execution_mode: ExecutionMode) -> Self {
@@ -196,7 +196,7 @@ struct TrippableFailure {
 pub async fn record_decline(
     state: &SessionState,
     context: UcsFailureContext<'_>,
-    settings: KillSwitchSettings,
+    settings: RolloutSettings,
 ) {
     if let Some(failure) = trippable_failure_for_reason(
         state,
@@ -216,7 +216,7 @@ pub async fn record_decline(
 pub async fn record_failure(
     state: &SessionState,
     context: UcsFailureContext<'_>,
-    settings: KillSwitchSettings,
+    settings: RolloutSettings,
     error: &UnifiedConnectorServiceError,
 ) {
     if let Some(failure) = trippable_failure(state, &context, settings, error).await {
@@ -281,7 +281,7 @@ async fn record_trippable_failure(
 async fn trippable_failure(
     state: &SessionState,
     context: &UcsFailureContext<'_>,
-    settings: KillSwitchSettings,
+    settings: RolloutSettings,
     error: &UnifiedConnectorServiceError,
 ) -> Option<TrippableFailure> {
     let reason = error.ucs_kill_switch_reason()?;
@@ -293,7 +293,7 @@ async fn trippable_failure(
 async fn trippable_failure_for_reason(
     state: &SessionState,
     context: &UcsFailureContext<'_>,
-    settings: KillSwitchSettings,
+    settings: RolloutSettings,
     reason: UcsKillSwitchReason,
 ) -> Option<TrippableFailure> {
     // Only the path serving merchant traffic can trip, and only a connector that has a direct

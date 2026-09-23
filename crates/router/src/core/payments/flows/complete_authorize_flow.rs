@@ -768,7 +768,7 @@ pub async fn call_unified_connector_service_authenticate(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     connector: connector_enums::Connector,
-    unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
+    rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
 ) -> errors::CustomResult<
     types::RouterData<
         api::Authenticate,
@@ -812,7 +812,7 @@ pub async fn call_unified_connector_service_authenticate(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -822,7 +822,7 @@ pub async fn call_unified_connector_service_authenticate(
         state,
         payment_authenticate_request,
         headers_builder,
-        unified_connector_service_execution_mode,
+        rollout_settings,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_authenticate(
                 payment_authenticate_request,
@@ -895,7 +895,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
-    unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
+    rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     force_3ds_challenge: Option<bool>,
     notification_url: Option<common_utils::types::Url>,
     acquirer_metadata: Option<serde_json::Value>,
@@ -971,7 +971,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -981,7 +981,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         state,
         payment_authenticate_request,
         headers_builder,
-        unified_connector_service_execution_mode,
+        rollout_settings,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_authenticate(
                 payment_authenticate_request,
@@ -1033,7 +1033,7 @@ pub async fn call_unified_connector_service_post_authenticate(
     #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
-    unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
+    rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PostAuthenticate,
@@ -1077,7 +1077,7 @@ pub async fn call_unified_connector_service_post_authenticate(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1087,7 +1087,7 @@ pub async fn call_unified_connector_service_post_authenticate(
         state,
         payment_post_authenticate_request,
         headers_builder,
-        unified_connector_service_execution_mode,
+        rollout_settings,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_post_authenticate(
                 payment_post_authenticate_request,
@@ -1156,7 +1156,7 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
-    unified_connector_service_execution_mode: crate::core::unified_connector_service::kill_switch::KillSwitchSettings,
+    rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PostAuthenticate,
@@ -1220,7 +1220,7 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1230,7 +1230,7 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
         state,
         payment_post_authenticate_request,
         headers_builder,
-        unified_connector_service_execution_mode,
+        rollout_settings,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_post_authenticate(
                 payment_post_authenticate_request,

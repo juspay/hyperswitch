@@ -3781,7 +3781,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOu
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
-    kill_switch_settings: kill_switch::KillSwitchSettings,
+    rollout_settings: kill_switch::RolloutSettings,
     handler: F,
 ) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
@@ -3868,7 +3868,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        kill_switch_settings,
+                        rollout_settings,
                     )
                     .await;
                 }
@@ -3903,7 +3903,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        kill_switch_settings,
+                        rollout_settings,
                         error.current_context(),
                     )
                     .await;
@@ -3944,7 +3944,7 @@ where
                                 payment_method,
                                 payment_method_type,
                             },
-                            kill_switch_settings,
+                            rollout_settings,
                             error.current_context(),
                         )
                         .await;
@@ -3983,7 +3983,7 @@ where
         status_code,
         response_body,
         external_latency,
-        kill_switch_settings.execution_mode,
+        rollout_settings.execution_mode,
     );
 
     // Set external latency on router data
@@ -4003,7 +4003,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
-    kill_switch_settings: kill_switch::KillSwitchSettings,
+    rollout_settings: kill_switch::RolloutSettings,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -4091,7 +4091,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        kill_switch_settings,
+                        rollout_settings,
                     )
                     .await;
                 }
@@ -4126,7 +4126,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        kill_switch_settings,
+                        rollout_settings,
                         error.current_context(),
                     )
                     .await;
@@ -4168,7 +4168,7 @@ where
                                 payment_method,
                                 payment_method_type,
                             },
-                            kill_switch_settings,
+                            rollout_settings,
                             error.current_context(),
                         )
                         .await;
@@ -4208,7 +4208,7 @@ where
         status_code,
         response_body,
         external_latency,
-        kill_switch_settings.execution_mode,
+        rollout_settings.execution_mode,
     );
 
     // Set external latency on router data
@@ -4301,7 +4301,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     state: &SessionState,
     processor: &Processor,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
-    kill_switch_settings: kill_switch::KillSwitchSettings,
+    rollout_settings: kill_switch::RolloutSettings,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
@@ -4347,7 +4347,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         })
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
-        .get_grpc_headers_ucs(kill_switch_settings.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4361,7 +4361,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         state,
         ucs_refund_request,
         grpc_header_builder,
-        kill_switch_settings,
+        rollout_settings,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
@@ -4396,7 +4396,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     state: &SessionState,
     processor: &Processor,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
-    kill_switch_settings: kill_switch::KillSwitchSettings,
+    rollout_settings: kill_switch::RolloutSettings,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
@@ -4443,7 +4443,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         .map(ucs_types::UcsResourceId::Refund);
 
     let grpc_header_builder = state
-        .get_grpc_headers_ucs(kill_switch_settings.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4457,7 +4457,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         state,
         ucs_refund_sync_request,
         grpc_header_builder,
-        kill_switch_settings,
+        rollout_settings,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
@@ -4492,7 +4492,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
     state: &SessionState,
     processor: &Processor,
     router_data: RouterData<refunds::VoidPostRefund, RefundsData, RefundsResponseData>,
-    kill_switch_settings: kill_switch::KillSwitchSettings,
+    rollout_settings: kill_switch::RolloutSettings,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RefundReverseUcsResponse> {
@@ -4531,7 +4531,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         .transpose()?
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
-        .get_grpc_headers_ucs(kill_switch_settings.execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4542,7 +4542,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         state,
         grpc_request,
         grpc_header_builder,
-        kill_switch_settings,
+        rollout_settings,
         |mut router_data, grpc_request, grpc_headers| async move {
             let grpc_response = ucs_client
                 .refund_void_post_refund(grpc_request, connector_auth_metadata, grpc_headers)

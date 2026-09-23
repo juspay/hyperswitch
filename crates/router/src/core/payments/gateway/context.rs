@@ -95,10 +95,10 @@ impl RouterGatewayContext {
 
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)
     /// The kill switch settings this request resolved, for the UCS logging wrappers.
-    pub fn kill_switch_settings(
+    pub fn rollout_settings(
         &self,
-    ) -> crate::core::unified_connector_service::kill_switch::KillSwitchSettings {
-        crate::core::unified_connector_service::kill_switch::KillSwitchSettings {
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
             execution_mode: self.execution_mode,
             kill_switch_enabled: self.kill_switch_enabled,
             kill_switch_threshold: self.kill_switch_threshold,

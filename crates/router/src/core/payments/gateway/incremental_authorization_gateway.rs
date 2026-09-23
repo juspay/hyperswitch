@@ -72,7 +72,7 @@ where
         RouterData<Self, types::PaymentsIncrementalAuthorizationData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        let unified_connector_service_execution_mode = context.kill_switch_settings();
+        let rollout_settings = context.rollout_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = context.processor;
         let lineage_ids = context.lineage_ids;
@@ -115,7 +115,7 @@ where
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let header_payload = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode.execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -126,7 +126,7 @@ where
                 state,
                 incremental_authorization_request,
                 header_payload,
-                unified_connector_service_execution_mode,
+                rollout_settings,
                 |mut router_data, incremental_authorization_request, grpc_headers| async move {
                     let response = match Box::pin(client.payment_incremental_authorization(
                         incremental_authorization_request,

@@ -3567,7 +3567,7 @@ where
                     &merchant_connector_account,
                     &external_vault_merchant_connector_account,
                     platform.get_processor(),
-                    crate::core::unified_connector_service::kill_switch::KillSwitchSettings {
+                    crate::core::unified_connector_service::kill_switch::RolloutSettings {
                         execution_mode: execution_mode,
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
@@ -7205,7 +7205,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
                 // No rollout config governs the external-vault proxy path, so nothing can divert it.
-                crate::core::unified_connector_service::kill_switch::KillSwitchSettings::inert(
+                crate::core::unified_connector_service::kill_switch::RolloutSettings::inert(
                     ExecutionMode::Primary,
                 ),
             )
