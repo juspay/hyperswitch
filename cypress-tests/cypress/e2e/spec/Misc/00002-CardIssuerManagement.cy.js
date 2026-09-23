@@ -61,6 +61,10 @@ describe("Card Issuer Management", () => {
   });
 
   context("Edge Case Tests", () => {
+    it("should handle listing with empty query", () => {
+      cy.listCardIssuers(globalState);
+    });
+
     it("should fail to update non-existent issuer", () => {
       cy.updateCardIssuer(
         "non-existent-id-12345",
