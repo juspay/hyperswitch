@@ -3,39 +3,74 @@ import * as utils from "../../configs/Routing/Utils";
 
 let globalState;
 
+// AuthToken JWT payload includes merchant_id and profile_id — decode locally
+// so we can retarget the test at the merchant we just created.
+function decodeJwtPayload(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error("[SurchargeDSLConfiguration] Invalid JWT format");
+  }
+  const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+  const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+  return JSON.parse(atob(padded));
+}
+
 describe("Surcharge DSL Configuration Test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
 
-      if (!(globalState.get("email") && globalState.get("password"))) {
-        return;
-      }
+      // Create a fresh user + merchant so we get an active AuthToken.
+      // Env-based credentials don't reliably yield an AuthToken because the
+      // env user may not have an active role on the test merchant.
+      const uniqueSuffix = `${Date.now()}${Math.floor(Math.random() * 10000)}`;
+      const surchargeEmail = `cypress_surcharge_dsl_${uniqueSuffix}@cypresstest.in`;
+      const surchargePassword = `Cypress@${uniqueSuffix}`;
 
       cy.request({
         method: "POST",
-        url: `${globalState.get("baseUrl")}/user/v2/signin?token_only=true`,
-        headers: { "Content-Type": "application/json" },
+        url: `${globalState.get("baseUrl")}/user/signup_with_merchant_id`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("adminApiKey"),
+        },
         body: {
-          email: globalState.get("email"),
-          password: globalState.get("password"),
+          email: surchargeEmail,
+          password: surchargePassword,
+          company_name: "Juspay",
+          name: "CypressSurchargeDSL",
         },
         failOnStatusCode: false,
-      }).then((signinResp) => {
-        if (signinResp.status !== 200) {
+      }).then((signupResp) => {
+        if (signupResp.status !== 200) {
           throw new Error(
-            `[SurchargeDSLConfiguration] Login failed (${signinResp.status}): ${JSON.stringify(signinResp.body)}`
+            `[SurchargeDSLConfiguration] signup_with_merchant_id failed (${signupResp.status}): ${JSON.stringify(signupResp.body)}`
           );
         }
-        const { token, token_type } = signinResp.body;
-        if (token_type === "user_info") {
-          globalState.set("userInfoToken", token);
-        } else if (token_type === "totp") {
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/user/v2/signin?token_only=true`,
+          headers: { "Content-Type": "application/json" },
+          body: { email: surchargeEmail, password: surchargePassword },
+          failOnStatusCode: false,
+        }).then((signinResp) => {
+          if (signinResp.status !== 200) {
+            throw new Error(
+              `[SurchargeDSLConfiguration] Signin failed (${signinResp.status}): ${JSON.stringify(signinResp.body)}`
+            );
+          }
+          if (signinResp.body.token_type !== "totp") {
+            throw new Error(
+              `[SurchargeDSLConfiguration] Expected totp from signin, got "${signinResp.body.token_type}"`
+            );
+          }
+
           cy.request({
             method: "GET",
             url: `${globalState.get("baseUrl")}/user/2fa/terminate?skip_two_factor_auth=true`,
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${signinResp.body.token}`,
               "Content-Type": "application/json",
             },
             failOnStatusCode: false,
@@ -45,13 +80,26 @@ describe("Surcharge DSL Configuration Test", () => {
                 `[SurchargeDSLConfiguration] 2FA terminate failed (${totpResp.status}): ${JSON.stringify(totpResp.body)}`
               );
             }
-            globalState.set("userInfoToken", totpResp.body.token);
+            if (totpResp.body.token_type !== "user_info") {
+              throw new Error(
+                `[SurchargeDSLConfiguration] Expected user_info from 2FA terminate, got "${totpResp.body.token_type}"`
+              );
+            }
+            const authToken = totpResp.body.token;
+            const payload = decodeJwtPayload(authToken);
+            if (!payload.merchant_id || !payload.profile_id) {
+              throw new Error(
+                `[SurchargeDSLConfiguration] AuthToken missing merchant_id/profile_id: ${JSON.stringify(payload)}`
+              );
+            }
+            // Retarget the entire spec at the freshly-created merchant so the
+            // surcharge DSL config is created/read/deleted on a profile we
+            // actually have an active role on.
+            globalState.set("userInfoToken", authToken);
+            globalState.set("merchantId", payload.merchant_id);
+            globalState.set("profileId", payload.profile_id);
           });
-        } else {
-          throw new Error(
-            `[SurchargeDSLConfiguration] Unexpected token_type "${token_type}" from signin`
-          );
-        }
+        });
       });
     });
   });
