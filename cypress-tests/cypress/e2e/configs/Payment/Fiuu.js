@@ -244,7 +244,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 60000,
+          TIMEOUT: 1000,
         },
       },
       Request: {
@@ -264,7 +264,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 60000,
+          TIMEOUT: 1000,
         },
       },
       Request: {
@@ -284,7 +284,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 60000,
+          TIMEOUT: 1000,
         },
       },
       Request: {},
@@ -299,7 +299,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 60000,
+          TIMEOUT: 1000,
         },
       },
       Request: {},
@@ -314,7 +314,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 6000,
+          TIMEOUT: 1000,
         },
       },
       Request: {
@@ -331,7 +331,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 6000,
+          TIMEOUT: 1000,
         },
       },
       Request: {
@@ -356,7 +356,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 6000,
+          TIMEOUT: 1000,
         },
       },
       Request: {
@@ -373,7 +373,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 6000,
+          TIMEOUT: 1000,
         },
       },
       Request: {
@@ -916,6 +916,37 @@ export const connectorDetails = {
         },
       },
     },
+    CaptureGreaterAmount: {
+      Request: {
+        amount_to_capture: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    "3DSCaptureGreaterAmount": {
+      Request: {
+        amount_to_capture: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a capture_method of manual. The expected state is manual_multiple",
+            code: "IR_14",
+          },
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -931,8 +962,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "05",
-          error_message: "Do not honor",
+          error_code: "CC_82",
+          error_message: "Invalid CVV/CVC",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
