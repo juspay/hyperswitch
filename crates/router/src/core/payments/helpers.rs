@@ -9678,12 +9678,13 @@ pub async fn is_merchant_eligible_authentication_service(
         .get_org_id()
         .get_authentication_service_eligible_key();
     let org_eligible = db
-        .find_config_by_key(&org_key)
+        .find_config_by_key_optional(&org_key)
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
         })
         .ok()
+        .flatten()
         .map(|c| c.config.to_lowercase() == "true");
 
     Ok(org_eligible
@@ -9692,12 +9693,13 @@ pub async fn is_merchant_eligible_authentication_service(
                 .get_account()
                 .get_id()
                 .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
+            db.find_config_by_key_optional(&merchant_key)
                 .await
                 .inspect_err(|error| {
                     logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
                 })
                 .ok()
+                .flatten()
                 .map(|c| c.config.to_lowercase() == "true")
                 .unwrap_or(false)
         })
