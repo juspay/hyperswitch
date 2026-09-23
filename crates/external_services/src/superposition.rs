@@ -1087,6 +1087,16 @@ impl SuperpositionClient {
     pub fn superposition_sdk_client(&self) -> &superposition_sdk::Client {
         &self.sdk_client
     }
+
+    /// Superposition organization this client is bound to.
+    pub fn configured_org_id(&self) -> &str {
+        &self.org_id
+    }
+
+    /// Superposition workspace this client is bound to.
+    pub fn configured_workspace_id(&self) -> &str {
+        &self.workspace_id
+    }
 }
 
 /// Trait for configs that can be written to Superposition.
