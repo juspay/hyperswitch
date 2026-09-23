@@ -269,10 +269,6 @@ async fn trippable_failure_for_reason(
     let scope_can_trip = matches!(execution_mode, ExecutionMode::Primary)
         && !is_ucs_only_connector(state, context.connector_name).await;
 
-    if !scope_can_trip {
-        return None;
-    }
-
     // Only a connector 2xx carrying a refusal is a decline. A connector 4xx/5xx
     // (`ConnectorRejected`) stays on `kill_switch_threshold` as before: the status code
     // alone cannot separate a genuine decline from a request UCS built wrongly.
@@ -281,8 +277,6 @@ async fn trippable_failure_for_reason(
         _ => UcsFailureClass::IntegrationFailure,
     };
 
-    // Declines only count when the scope opts in with `connector_decline_threshold`;
-    // existing configs are unaffected until updated.
     let rollout_scope = build_merchant_rollout_scope(
         context.merchant_id,
         context.connector_name,
@@ -293,27 +287,36 @@ async fn trippable_failure_for_reason(
 
     // Read here rather than threaded through `ucs_logging_wrapper`, which does not carry
     // it; the lookup is cached and only runs on an already-failing call.
-    let rollout = crate::core::payments::helpers::should_execute_based_on_rollout_with_precedence(
-        state,
-        &[format!(
-            "{}_{rollout_scope}",
-            crate::consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX
-        )],
-    )
-    .await
-    .unwrap_or_default();
-
-    let threshold = match failure_class {
-        UcsFailureClass::ConnectorDecline => rollout.connector_decline_threshold?,
-        UcsFailureClass::IntegrationFailure => rollout.kill_switch_threshold,
+    let rollout = match scope_can_trip {
+        true => Some(
+            crate::core::payments::helpers::should_execute_based_on_rollout_with_precedence(
+                state,
+                &[format!(
+                    "{}_{rollout_scope}",
+                    crate::consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX
+                )],
+            )
+            .await
+            .unwrap_or_default(),
+        ),
+        false => None,
     };
 
-    Some(TrippableFailure {
-        rollout_scope,
-        reason,
-        failure_class,
-        threshold,
-        kill_switch_enabled: rollout.kill_switch_enabled,
+    rollout.and_then(|rollout| {
+        // Declines only count when the scope opts in with `connector_decline_threshold`;
+        // existing configs are unaffected until updated.
+        let threshold = match failure_class {
+            UcsFailureClass::ConnectorDecline => rollout.connector_decline_threshold,
+            UcsFailureClass::IntegrationFailure => Some(rollout.kill_switch_threshold),
+        };
+
+        threshold.map(|threshold| TrippableFailure {
+            rollout_scope,
+            reason,
+            failure_class,
+            threshold,
+            kill_switch_enabled: rollout.kill_switch_enabled,
+        })
     })
 }
 
