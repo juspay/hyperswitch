@@ -1325,6 +1325,7 @@ impl Conversion for domain::Customer {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             id: global_customer_id,
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 
@@ -1408,6 +1409,7 @@ impl Conversion for domain::Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            preferred_ui_connector: item.preferred_ui_connector,
         })
     }
 
@@ -1438,6 +1440,7 @@ impl Conversion for domain::Customer {
                 .as_ref()
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 }
@@ -1548,6 +1551,7 @@ impl Conversion for domain::Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 
@@ -1671,6 +1675,7 @@ impl Conversion for domain::Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            preferred_ui_connector: item.preferred_ui_connector,
         })
     }
 
@@ -1703,6 +1708,7 @@ impl Conversion for domain::Customer {
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
             customer_id: Some(self.id),
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 }

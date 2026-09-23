@@ -1059,3 +1059,21 @@ config! {
 impl DatabaseBackedConfig for CardIssuerListMaxLimit {
     const KEY: &'static str = "card_issuer_list_max_limit";
 }
+
+config! {
+    superposition_key = PREFERRED_GATEWAY_ROUTING_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PreferredGatewayRoutingEnabled {
+    const KEY: &'static str = "preferred_gateway_routing_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}

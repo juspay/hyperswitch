@@ -1315,6 +1315,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 
@@ -1430,6 +1431,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             storage_type: None,
             compatibility_updated_at: item.compatibility_updated_at,
             connector_payment_method_details: item.connector_payment_method_details,
+            preferred_ui_connector: item.preferred_ui_connector,
         })
     }
 
@@ -1489,6 +1491,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 }
@@ -1543,6 +1546,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
             compatibility_updated_at: self.compatibility_updated_at,
             connector_payment_method_details: None,
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 
@@ -1690,6 +1694,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
                     .map(ExposeInterface::expose),
                 auxiliary_fingerprint_id: storage_model.auxiliary_fingerprint_id,
                 compatibility_updated_at: storage_model.compatibility_updated_at,
+                preferred_ui_connector: storage_model.preferred_ui_connector,
             })
         }
         .await
@@ -1741,6 +1746,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             compatibility_updated_at: self.compatibility_updated_at,
             external_vault_source: self.external_vault_source,
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
+            preferred_ui_connector: self.preferred_ui_connector,
         })
     }
 }

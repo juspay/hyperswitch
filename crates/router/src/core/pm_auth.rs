@@ -546,6 +546,7 @@ async fn store_bank_details_in_payment_methods(
                 storage_type: None,
                 compatibility_updated_at: None,
                 connector_payment_method_details: None,
+                preferred_gateways: None,
             };
 
             new_entries.push(pm_new);

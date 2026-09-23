@@ -1586,6 +1586,7 @@ impl DomainPaymentMethodWrapper {
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
             connector_payment_method_details: None,
+            preferred_gateways: None,
         }))
     }
 
@@ -1710,6 +1711,7 @@ impl DomainPaymentMethodWrapper {
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
             connector_payment_method_details: None,
+            preferred_gateways: None,
         }))
     }
 }
@@ -1904,6 +1906,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
             connector_payment_method_details: None,
+            preferred_gateways: None,
         }))
     }
 }

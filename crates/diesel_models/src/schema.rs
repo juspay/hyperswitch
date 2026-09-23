@@ -512,6 +512,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        preferred_gateways -> Nullable<Jsonb>,
     }
 }
 
@@ -1485,6 +1486,7 @@ diesel::table! {
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
         connector_payment_method_details -> Nullable<Jsonb>,
+        preferred_gateways -> Nullable<Jsonb>,
     }
 }
 

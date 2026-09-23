@@ -4745,6 +4745,7 @@ pub async fn create_payment_method_for_intent(
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id,
                 compatibility_updated_at: None,
+                preferred_gateways: None,
             },
             storage_scheme,
             Some(payment_method_modular_backward_compat_action(
@@ -4841,6 +4842,7 @@ pub async fn construct_payment_method_object(
         network_tokenization_data: None,
         auxiliary_fingerprint_id,
         compatibility_updated_at: None,
+        preferred_gateways: None,
     })
 }
 
@@ -4910,6 +4912,7 @@ pub async fn create_payment_method_for_confirm(
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id: None,
                 compatibility_updated_at: None,
+                preferred_gateways: None,
             },
             storage_scheme,
             Some(payment_method_modular_backward_compat_action(

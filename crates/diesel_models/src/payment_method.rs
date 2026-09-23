@@ -82,6 +82,7 @@ pub struct PaymentMethod {
     pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
+    pub preferred_ui_connector: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -125,6 +126,7 @@ pub struct PaymentMethod {
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub auxiliary_fingerprint_id: Option<String>,
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
+    pub preferred_ui_connector: Option<String>,
     pub external_vault_token_data: Option<Encryption>,
 }
 
@@ -193,6 +195,7 @@ pub struct PaymentMethodNew {
     pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
+    pub preferred_ui_connector: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -233,6 +236,7 @@ pub struct PaymentMethodNew {
     pub customer_details: Option<Encryption>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub preferred_ui_connector: Option<String>,
 }
 
 impl PaymentMethodNew {
@@ -1401,6 +1405,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             id: payment_method_new.id.clone(),
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
             auxiliary_fingerprint_id: payment_method_new.auxiliary_fingerprint_id.clone(),
+            preferred_ui_connector: payment_method_new.preferred_ui_connector.clone(),
         }
     }
 }
@@ -1457,6 +1462,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
             connector_payment_method_details: None,
             external_vault_source: payment_method_new.external_vault_source.clone(),
+            preferred_ui_connector: payment_method_new.preferred_ui_connector.clone(),
         }
     }
 }

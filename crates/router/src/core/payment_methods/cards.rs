@@ -225,6 +225,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     storage_type: None,
                     compatibility_updated_at: None,
                     connector_payment_method_details: None,
+                    preferred_gateways: None,
                 },
                 self.provider.get_account().storage_scheme,
                 compat_action,

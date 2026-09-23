@@ -106,6 +106,7 @@ pub struct PaymentMethod {
     pub storage_type: Option<common_enums::StorageType>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
+    pub preferred_routing_connector: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -158,6 +159,7 @@ pub struct PaymentMethod {
     pub network_tokenization_data:
         Option<Encryptable<PaymentMethodNetworkTokenizationDataDomainType>>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
+    pub preferred_routing_connector: Option<String>,
 }
 
 impl PaymentMethod {
@@ -1139,6 +1141,7 @@ mod tests {
             storage_type: None,
             compatibility_updated_at: Some(common_utils::date_time::now()),
             connector_payment_method_details: None,
+            preferred_routing_connector: None,
         };
         payment_method.clone()
     }
