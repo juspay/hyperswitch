@@ -2536,14 +2536,9 @@ pub struct RolloutConfig {
     pub kill_switch_enabled: bool,
     #[serde(default = "default_kill_switch_threshold")]
     pub kill_switch_threshold: u64,
-    /// Kill-switch threshold for connector declines: calls UCS answered successfully
-    /// (gRPC OK) that carry a connector refusal such as `PROCESSOR_DECLINED` or
-    /// `INSUFFICIENT_FUND`.
-    ///
-    /// These are counted separately from transport and integration failures because a
-    /// decline is usually the issuer's verdict and identical on the direct path, so it
-    /// should not divert traffic at the same rate. Left unset, declines never trip the
-    /// kill switch, which is the behaviour before this field existed.
+    /// Threshold for connector declines (UCS answered, the connector refused).
+    /// Unset means declines never trip the kill switch; other failures still use
+    /// `kill_switch_threshold`.
     #[serde(default)]
     pub connector_decline_threshold: Option<u64>,
 }

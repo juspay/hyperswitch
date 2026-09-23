@@ -126,11 +126,9 @@ pub struct UcsFailureContext<'a> {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
 
-/// Which threshold a failure is measured against.
-///
-/// A connector decline is the issuer's verdict and normally identical on the direct path, so
-/// it should not divert traffic as readily as a transport or integration fault. Splitting the
-/// two lets an operator tolerate declines while still failing fast on real UCS problems.
+/// Which threshold a failure is measured against. A connector decline is usually the
+/// issuer's verdict and identical on the direct path, so it is counted separately from
+/// transport and integration faults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum UcsFailureClass {
@@ -183,9 +181,8 @@ async fn record_trippable_failure(
 
     let (outcome, redis_count) = increment_counter(state, failure, context).await;
 
-    // Everything an alert needs from one line: the scope and its parts, the threshold
-    // being compared against, the counter after this increment, and whether that tips
-    // the scope into shadow.
+    // Everything an alert needs from one line: scope, threshold, resulting counter,
+    // and whether that tips the scope into shadow.
     let tripped = redis_count.is_some_and(|count| exceeds_threshold(count, failure.threshold));
 
     logger::warn!(
@@ -231,10 +228,8 @@ async fn trippable_failure(
         _ => UcsFailureClass::UcsFault,
     };
 
-    // A decline only counts when the scope opts in with `connector_decline_threshold`.
-    // Without it declines are ignored entirely, which is the behaviour before this field
-    // existed: the issuer's verdict is the same on the direct path, so diverting does not
-    // recover the payment.
+    // Declines only count when the scope opts in with `connector_decline_threshold`;
+    // existing configs are unaffected until updated.
     let rollout_scope = build_merchant_rollout_scope(
         context.merchant_id,
         context.connector_name,
@@ -243,9 +238,8 @@ async fn trippable_failure(
         context.payment_method_type,
     );
 
-    // The scope's own config decides which threshold applies. Read here rather than
-    // threaded through `ucs_logging_wrapper`, which does not carry it; the lookup is
-    // cached by `find_config_by_key_unwrap_or` and only runs on an already-failing call.
+    // Read here rather than threaded through `ucs_logging_wrapper`, which does not carry
+    // it; the lookup is cached and only runs on an already-failing call.
     let rollout = crate::core::payments::helpers::should_execute_based_on_rollout_with_precedence(
         state,
         &[format!(
