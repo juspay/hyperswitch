@@ -24404,7 +24404,7 @@
           },
           "merchant_fingerprint_id": {
             "type": "string",
-            "description": "Merchant-scoped fingerprint of the card. Equal for the same card saved by different\ncustomers of one merchant, so it identifies a card reused across accounts. Null when the\nmerchant does not have fingerprinting enabled.",
+            "description": "A merchant-scoped fingerprint of the card, identical for the same card saved against\ndifferent customers of the merchant. Present only when payment method fingerprinting is\nenabled.",
             "example": "wyH7yWdtaRhxDkVE1cvs",
             "nullable": true
           }
