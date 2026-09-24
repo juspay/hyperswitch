@@ -87,10 +87,12 @@ async fn read_counters(
 ) -> error_stack::Result<ScopeCounters, storage_impl::errors::RedisError> {
     let count = read_counter(state, rollout_scope, UcsFailureClass::IntegrationFailure).await?;
 
-    let decline_count = match settings.connector_decline_threshold {
-        Some(_) => read_counter(state, rollout_scope, UcsFailureClass::ConnectorDecline).await?,
-        // Nothing to compare against, so the read is skipped rather than fetched and ignored.
-        None => 0,
+    // Nothing to compare against when the scope sets no threshold, so the read is skipped
+    // rather than fetched and ignored.
+    let decline_count = if settings.connector_decline_threshold.is_some() {
+        read_counter(state, rollout_scope, UcsFailureClass::ConnectorDecline).await?
+    } else {
+        0
     };
 
     Ok(ScopeCounters {
@@ -129,19 +131,18 @@ pub async fn is_kill_switched(
                 // value is already reported by UCS_KILL_SWITCH_COUNTER_INCREMENTED at the
                 // moment it changes; logging every read would re-state that at the highest
                 // frequency in the module.
+                // Both can be over at once, so the log names each independently rather
+                // than picking one `failure_class` and hiding the other.
                 if exceeded || decline_exceeded {
                     logger::warn!(
                         rollout_scope = %rollout_scope,
                         kill_switch_enabled = kill_switch_enabled,
                         redis_count = count,
                         threshold = kill_switch_threshold,
+                        integration_exceeded = exceeded,
                         decline_count = decline_count,
                         connector_decline_threshold = ?settings.connector_decline_threshold,
-                        failure_class = %if exceeded {
-                            UcsFailureClass::IntegrationFailure
-                        } else {
-                            UcsFailureClass::ConnectorDecline
-                        },
+                        decline_exceeded = decline_exceeded,
                         tripped = true,
                         request_id = ?state.request_id,
                         "UCS_KILL_SWITCH_COUNTER_EXCEEDS_THRESHOLD"
@@ -598,16 +599,19 @@ pub async fn trip_status(
         })
         .map(|rc| (rc.kill_switch_threshold, rc.connector_decline_threshold));
 
-    let connector_decline_threshold = rollout_config.and_then(|(_, decline)| decline);
-    let threshold: Option<u64> = rollout_config.map(|(integration, _)| integration);
+    let (threshold, connector_decline_threshold) = match rollout_config {
+        Some((integration, decline)) => (Some(integration), decline),
+        None => (None, None),
+    };
 
     // Only read when something can come of it, matching the gate.
-    let decline_counter = match connector_decline_threshold {
-        Some(_) => read_counter(&state, rollout_scope, UcsFailureClass::ConnectorDecline)
+    let decline_counter = if connector_decline_threshold.is_some() {
+        read_counter(&state, rollout_scope, UcsFailureClass::ConnectorDecline)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to read the UCS kill switch decline counter")?,
-        None => 0,
+            .attach_printable("Failed to read the UCS kill switch decline counter")?
+    } else {
+        0
     };
 
     let tripped = match threshold {
