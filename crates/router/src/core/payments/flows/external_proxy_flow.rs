@@ -407,7 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         processor: &domain::Processor,
-        rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
+        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
