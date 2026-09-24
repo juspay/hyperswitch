@@ -10250,7 +10250,11 @@ impl
             customer_info,
             payment_method,
             browser_info,
-            merchant_transaction_id: Some(router_data.attempt_id.clone()),
+            // The `fraud_check` row id, not `attempt_id`: a retry inherits the
+            // attempt's `active_frm_id` but gets a fresh `attempt_id`, so only
+            // this is stable for the life of the risk evaluation. Providers key
+            // their dedup/correlation on it.
+            merchant_transaction_id: Some(request.frm_id.clone()),
             order_details,
             address: Some(payments_grpc::PaymentAddress::foreign_try_from(
                 router_data.address.clone(),

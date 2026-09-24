@@ -150,6 +150,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 )?,
                 customer_name: customer_details.as_ref().and_then(|c| c.name.clone()),
                 payment_method_data_full: self.payment_method_data.clone(),
+                frm_id: self.fraud_check.frm_id.clone(),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
