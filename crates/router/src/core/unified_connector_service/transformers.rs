@@ -1503,8 +1503,8 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
-            // Typed 3DS contract (UCS proto fields 17-24). Sending any of these switches
-            // UCS to the typed transport, which never reads the JSON blobs for 3DS values.
+            // 3DS fields (UCS proto 17-24). UCS reads 3DS values only from these; the
+            // `metadata` / `connector_feature_data` passthroughs never carry them.
             merchant_details: None,
             acquirer_details: None,
             device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
@@ -1673,8 +1673,8 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
-            // Typed 3DS contract (UCS proto fields 17-24). Sending any of these switches
-            // UCS to the typed transport, which never reads the JSON blobs for 3DS values.
+            // 3DS fields (UCS proto 17-24). UCS reads 3DS values only from these; the
+            // `metadata` / `connector_feature_data` passthroughs never carry them.
             merchant_details: None,
             acquirer_details: None,
             device_channel: ucs_device_channel(router_data.request.device_channel.clone()),

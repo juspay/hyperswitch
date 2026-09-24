@@ -37,7 +37,7 @@ url = { version = "2.5.4", features = ["serde"] }
 
 # TEMPORARY: pinned to the UCS branch carrying the typed 3DS contract
 # (juspay/hyperswitch-prism#2267). Replace with the release tag once cut.
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "1c6f9d9e71", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "04f6012427", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
