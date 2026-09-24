@@ -8187,6 +8187,80 @@ pub fn get_authorise_integrity_object<T>(
     })
 }
 
+/// Returns the connector-reported amount as the captured amount when the payment is charged
+/// (fully or partially), `None` otherwise.
+pub fn get_amount_captured(status: AttemptStatus, amount: Option<MinorUnit>) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
+/// Returns the connector-reported amount as the capturable amount when the payment is
+/// authorized (fully or partially), `None` otherwise.
+pub fn get_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
 pub fn get_sync_integrity_object<T>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,

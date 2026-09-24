@@ -563,11 +563,11 @@ pub async fn construct_refund_router_data<'a, F>(
     Ok(router_data)
 }
 
-/// Resolves the `payments.accept_amount_mismatch` config for the processor merchant and payment
+/// Resolves the `payments.accept_payment_amount_mismatch` config for the processor merchant and payment
 /// method type. Without a payment method type the config cannot be scoped, so the integrity
 /// check stays strict.
 #[cfg(feature = "v1")]
-pub async fn get_accept_amount_mismatch(
+pub async fn get_accept_payment_amount_mismatch(
     state: &SessionState,
     processor: &domain::Processor,
     payment_method_type: Option<enums::PaymentMethodType>,
@@ -577,7 +577,7 @@ pub async fn get_accept_amount_mismatch(
             let accept_amount_mismatch = dimension_state::Dimensions::new()
                 .with_processor_merchant_id(processor.get_processor_merchant_id())
                 .with_payment_method_type(payment_method_type)
-                .get_accept_amount_mismatch(
+                .get_accept_payment_amount_mismatch(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
                     Some(processor.get_account().get_id()),
@@ -693,9 +693,6 @@ pub async fn construct_refund_router_data<'a, F>(
                 }
             });
 
-    let accept_amount_mismatch =
-        get_accept_amount_mismatch(state, processor, payment_attempt.payment_method_type).await;
-
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: processor.get_account().get_id().clone(),
@@ -773,7 +770,8 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch,
+        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
+        ),
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,

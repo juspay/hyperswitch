@@ -1061,17 +1061,17 @@ impl DatabaseBackedConfig for CardIssuerListMaxLimit {
 }
 
 config! {
-    superposition_key = ACCEPT_AMOUNT_MISMATCH,
+    superposition_key = ACCEPT_PAYMENT_AMOUNT_MISMATCH,
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndPaymentMethodType,
     targeting_key = id_type::MerchantId
 }
 
-impl DatabaseBackedConfig for AcceptAmountMismatch {
-    const KEY: &'static str = "accept_amount_mismatch";
+impl DatabaseBackedConfig for AcceptPaymentAmountMismatch {
+    const KEY: &'static str = "accept_payment_amount_mismatch";
 
-    // "accept_amount_mismatch_{processor_merchant_id}_{payment_method_type}"
+    // "accept_payment_amount_mismatch_{processor_merchant_id}_{payment_method_type}"
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()

@@ -533,10 +533,10 @@ pub mod superposition {
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
-    /// Accept connector amount mismatch configuration key (scoped by processor merchant and
-    /// payment method type). When enabled, a connector-reported amount that differs from the
-    /// requested amount does not fail the integrity check.
-    pub const ACCEPT_AMOUNT_MISMATCH: &str = "payments.accept_amount_mismatch";
+    /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
+    /// and payment method type). When enabled, a connector-reported payment amount that differs
+    /// from the requested amount does not fail the integrity check. Refunds are not affected.
+    pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

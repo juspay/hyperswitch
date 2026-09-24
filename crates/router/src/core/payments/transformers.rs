@@ -2207,7 +2207,7 @@ where
     .await;
 
     let accept_amount_mismatch =
-        core_utils::get_accept_amount_mismatch(state, processor, payment_method_type).await;
+        core_utils::get_accept_payment_amount_mismatch(state, processor, payment_method_type).await;
 
     let router_data = types::RouterData {
         flow: PhantomData,

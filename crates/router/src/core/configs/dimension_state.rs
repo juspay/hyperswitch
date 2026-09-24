@@ -88,6 +88,9 @@ pub struct HasPaymentMethodType;
 
 // Dimensional State with type parameters
 
+/// Zero-sized type-state markers, one per dimension.
+type DimensionMarkers<Pm, M, O, P, Cn, PRT, Ev, Pmt> = PhantomData<(Pm, M, O, P, Cn, PRT, Ev, Pmt)>;
+
 /// Dimensional state with type-level guarantees about which dimensions are present.
 ///
 /// Uses the type-state pattern where type parameters indicate which fields are available.
@@ -111,7 +114,7 @@ pub struct Dimensions<Pm, M, O, P, Cn, PRT, Ev, Pmt> {
     payout_retry_type: Option<PayoutRetryType>,
     incoming_webhook_event: Option<IncomingWebhookEvent>,
     payment_method_type: Option<PaymentMethodType>,
-    _phantom: PhantomData<(Pm, M, O, P, Cn, PRT, Ev, Pmt)>,
+    _phantom: DimensionMarkers<Pm, M, O, P, Cn, PRT, Ev, Pmt>,
 }
 
 impl

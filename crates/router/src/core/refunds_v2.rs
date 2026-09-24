@@ -561,12 +561,9 @@ pub fn perform_integrity_check<F>(
 where
     F: Debug + Clone + 'static,
 {
+
     // Initiating Integrity check
-    let integrity_result = check_refund_integrity(
-        &router_data.request,
-        &router_data.response,
-        router_data.accept_amount_mismatch,
-    );
+    let integrity_result = check_refund_integrity(&router_data.request, &router_data.response);
     router_data.integrity_check = integrity_result;
     router_data
 }
@@ -626,7 +623,6 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
 pub fn check_refund_integrity<T, Request>(
     request: &Request,
     refund_response_data: &Result<types::RefundsResponseData, ErrorResponse>,
-    accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: FlowIntegrity,
@@ -640,7 +636,7 @@ where
     request.check_integrity(
         request,
         connector_refund_id.to_owned(),
-        accept_amount_mismatch,
+        common_types::primitive_wrappers::AcceptAmountMismatchBool::default(),
     )
 }
 

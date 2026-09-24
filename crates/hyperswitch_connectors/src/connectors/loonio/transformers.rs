@@ -4,7 +4,12 @@ use std::collections::HashMap;
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    id_type,
+    pii::Email,
+    request::Method,
+    types::{FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{
@@ -259,8 +264,28 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                             },
                         )
                         });
+                let status = enums::AttemptStatus::from(sync_response.state);
+                let amount = sync_response
+                    .amount
+                    .zip(sync_response.currency_code)
+                    .map(|(amount, currency)| {
+                        utils::convert_back_amount_to_minor_units(
+                            &FloatMajorUnitForConnector,
+                            amount,
+                            currency,
+                        )
+                    })
+                    .transpose()?;
+                let amount_captured = utils::get_amount_captured(status, amount);
+                let amount_capturable = utils::get_amount_capturable(status, amount);
                 Ok(Self {
-                    status: enums::AttemptStatus::from(sync_response.state),
+                    status,
+                    amount_captured: amount_captured
+                        .map(|amount| amount.get_amount_as_i64())
+                        .or(item.data.amount_captured),
+                    minor_amount_captured: amount_captured.or(item.data.minor_amount_captured),
+                    minor_amount_capturable: amount_capturable
+                        .or(item.data.minor_amount_capturable),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             sync_response.transaction_id,
@@ -295,8 +320,27 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         },
                     )
                 });
+
+                let amount = webhook_body
+                    .currency_code
+                    .map(|currency| {
+                        utils::convert_back_amount_to_minor_units(
+                            &FloatMajorUnitForConnector,
+                            webhook_body.amount,
+                            currency,
+                        )
+                    })
+                    .transpose()?;
+                let amount_captured = utils::get_amount_captured(payment_status, amount);
+                let amount_capturable = utils::get_amount_capturable(payment_status, amount);
                 Ok(Self {
                     status: payment_status,
+                    amount_captured: amount_captured
+                        .map(|amount| amount.get_amount_as_i64())
+                        .or(item.data.amount_captured),
+                    minor_amount_captured: amount_captured.or(item.data.minor_amount_captured),
+                    minor_amount_capturable: amount_capturable
+                        .or(item.data.minor_amount_capturable),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             webhook_body.api_transaction_id,

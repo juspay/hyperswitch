@@ -403,7 +403,7 @@ mod bool_wrappers {
     }
 
     /// Bool that represents if the merchant accepts a connector-reported amount that differs
-    /// from the requested amount (resolved from the `payments.accept_amount_mismatch` config,
+    /// from the requested amount (resolved from the `payments.accept_payment_amount_mismatch` config,
     /// scoped by merchant and payment method type)
     #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
     pub struct AcceptAmountMismatchBool(bool);

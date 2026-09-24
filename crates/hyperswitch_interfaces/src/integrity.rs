@@ -53,13 +53,11 @@ pub struct AmountMismatchTolerance {
 }
 
 impl AmountMismatchTolerance {
-    /// Tolerance driven only by the merchant's `accept_amount_mismatch` config: any difference
-    /// is permitted when it is enabled, otherwise the connector-reported amount must exactly
-    /// match what was requested.
-    fn from_accept_amount_mismatch(accept_amount_mismatch: AcceptAmountMismatchBool) -> Self {
+    /// No tolerance: the connector-reported amount must exactly match what was requested.
+    fn strict() -> Self {
         Self {
-            allow_lower: AllowLowerAmount::new(*accept_amount_mismatch),
-            allow_higher: AllowHigherAmount::new(*accept_amount_mismatch),
+            allow_lower: AllowLowerAmount::new(false),
+            allow_higher: AllowHigherAmount::new(false),
         }
     }
 
@@ -111,7 +109,9 @@ where
         &self,
         request: &Request,
         connector_refund_id: Option<String>,
-        accept_amount_mismatch: AcceptAmountMismatchBool,
+        // The merchant's accept-amount-mismatch config applies to payments only; refunds are
+        // always checked strictly.
+        _accept_amount_mismatch: AcceptAmountMismatchBool,
     ) -> Result<(), IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
@@ -120,7 +120,7 @@ where
                     req_integrity_object,
                     res_integrity_object,
                     connector_refund_id,
-                    AmountMismatchTolerance::from_accept_amount_mismatch(accept_amount_mismatch),
+                    AmountMismatchTolerance::strict(),
                 )
             }
             None => Ok(()),
