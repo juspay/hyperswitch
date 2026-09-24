@@ -8239,18 +8239,9 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
-// `system.payment_integration_type` is a merchant-level dimension config (see
-// crates/router/src/core/configs/dimension_config.rs). It is resolved from
-// Superposition FIRST — the plain `configs` table is only consulted as a
-// fallback when the Superposition fetch itself errors (crates/router/src/core/configs.rs,
-// fetch_db_config). Since the deployed integ environment has Superposition
-// reachable with a seeded default for this key, writing the plain `configs`
-// table entry has no effect there — this must go through Superposition, the
-// same way it was validated manually in pr-14173-test-results.md.
-//
-// requires = DimensionsWithProcessorAndProviderMerchantId, so the context
-// needs both dimensions; for a standalone (non-platform) merchant both equal
-// the merchant's own account id.
+// `system.payment_integration_type` resolves from Superposition first (see
+// dimension_config.rs); the plain `configs` table fallback is a no-op
+// wherever Superposition is reachable, so this must go through Superposition.
 function merchantIntegrationTypeContext(globalState) {
   const merchantId = globalState.get("merchantId");
   return {
@@ -8275,9 +8266,6 @@ Cypress.Commands.add("deleteMerchantIntegrationType", (globalState) => {
   );
 });
 
-// Raw create/update payment calls that accept an optional X-Integration-Type
-// header and assert the expected status (200, or 422 with the IR_06 mismatch
-// error), since none of the generic payment commands expose custom headers.
 Cypress.Commands.add(
   "createPaymentIntentWithIntegrationTypeHeader",
   (requestBody, globalState, { headerValue, expectedStatus } = {}) => {
@@ -8307,10 +8295,8 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("error");
           expect(response.body.error.code).to.equal("IR_06");
         }
-        // logRequestId invokes cy.task, so this callback must hand back a cy
-        // chainable rather than a plain value — cy.wrap keeps the response
-        // available to the caller's .then() without tripping Cypress's
-        // "mixing up async and sync code" check.
+        // cy.wrap, not a plain return: logRequestId already invoked cy.task
+        // in this callback, and Cypress rejects mixing that with a bare value.
         return cy.wrap(response);
       });
   }
@@ -8350,8 +8336,6 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("error");
           expect(response.body.error.code).to.equal("IR_06");
         }
-        // See createPaymentIntentWithIntegrationTypeHeader above for why
-        // this returns cy.wrap(response) rather than response directly.
         return cy.wrap(response);
       });
   }

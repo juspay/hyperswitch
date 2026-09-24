@@ -3,19 +3,11 @@ import State from "../../../utils/State";
 
 let globalState;
 
-// Matrix from PR #14173 (merchant `system.payment_integration_type` x request
-// `X-Integration-Type` header), verified live against integ.hyperswitch.io:
-//
-//   merchant config      | no header | client | server
-//   ---------------------|-----------|--------|-------
-//   unset (default)      |    200    |  200   |  422   <- behaves as "client", not "client_and_server"
-//   client                |    200    |  200   |  422
-//   server                |    422    |  422   |  200
-//   client_and_server     |    200    |  200   |  200
-//
-// An absent header reads as "client". A mismatch returns 422 (IR_06) with
-// message: `x-integration-type` header value `<header>` does not match the
-// merchant integration type `<merchant>`.
+// merchant config | no header | client | server
+// unset (default) |    200    |  200   |  422   <- behaves as "client", not "client_and_server"
+// client           |    200    |  200   |  422
+// server           |    422    |  422   |  200
+// client_and_server|    200    |  200   |  200
 const MATRIX = [
   { merchantConfig: undefined, header: undefined, expectedStatus: 200 },
   { merchantConfig: undefined, header: "client", expectedStatus: 200 },
@@ -44,10 +36,7 @@ const MATRIX = [
 ];
 
 describe("X-Integration-Type header validation against merchant integration_type", () => {
-  // A single payment created up front, under the default (unset) merchant
-  // config with no header — always succeeds regardless of what the matrix
-  // sets the merchant config to afterwards, so every "update intent" case
-  // below has a stable target to test the header check against.
+  // Stable payment for every "update intent" case below to target.
   let baselinePaymentId;
 
   before("seed global state", () => {
