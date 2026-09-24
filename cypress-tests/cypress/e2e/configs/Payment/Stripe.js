@@ -850,6 +850,34 @@ export const connectorDetails = {
         },
       },
     }),
+    // Baseline MIT for the error_on_requires_action differential flow.
+    // Uses the "always requires authentication" card (4000002500003155) saved
+    // via the 3DS CIT above; the spec asserts the actual status conditionally
+    // because Stripe's sandbox behavior for mandate-based MITs on this card
+    // can be either `requires_customer_action` or `succeeded`.
+    MITWithoutErrorOnRequiresAction: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    MITWithErrorOnRequiresActionFailure: {
+      Request: {
+        amount: 6000,
+        connector_metadata: {
+          stripe: {
+            error_on_requires_action: true,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         amount: 0,
