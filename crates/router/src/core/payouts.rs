@@ -2,6 +2,7 @@
 use strum::IntoEnumIterator;
 pub mod access_token;
 pub mod gateway;
+pub mod guards;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -1051,16 +1052,21 @@ pub async fn payouts_fulfill_core(
         .await?;
     }
 
-    Box::pin(fulfill_payout(
-        &state,
-        &platform,
-        header_payload,
-        &connector_data,
-        &mut payout_data,
-        &dimensions,
-    ))
-    .await
-    .attach_printable("Payout fulfillment failed for given Payout request")?;
+    let is_blocked =
+        guards::is_payout_blocked(&state, &platform, &mut payout_data, &dimensions).await?;
+
+    if !is_blocked {
+        Box::pin(fulfill_payout(
+            &state,
+            &platform,
+            header_payload,
+            &connector_data,
+            &mut payout_data,
+            &dimensions,
+        ))
+        .await
+        .attach_printable("Payout fulfillment failed for given Payout request")?;
+    }
 
     trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
@@ -1509,6 +1515,34 @@ pub async fn call_connector_payout(
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
         helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
     }
+
+    let is_blocked = guards::is_payout_blocked(state, platform, payout_data, dimensions).await?;
+
+    if !is_blocked {
+        Box::pin(run_payout_connector_flows(
+            state,
+            platform,
+            header_payload,
+            connector_data,
+            payout_data,
+            dimensions,
+        ))
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn run_payout_connector_flows(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    let payouts = &payout_data.payouts.to_owned();
+
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
         payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(

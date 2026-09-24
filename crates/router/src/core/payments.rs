@@ -14418,7 +14418,7 @@ impl EligibilityCheck for BlockListCheck {
         let payment_method_data = decrypted_payment_method_data
             .or_else(|| payment_elgibility_data.payment_method_data.clone());
 
-        let block_reason = blocklist_utils::should_payment_be_blocked(
+        let block_reason = blocklist_utils::check_blocklist(
             state,
             platform.get_processor(),
             &payment_method_data,
