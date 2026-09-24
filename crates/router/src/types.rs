@@ -88,12 +88,12 @@ pub use hyperswitch_domain_models::{
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData, ResponseId,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -129,10 +129,10 @@ pub use hyperswitch_interfaces::{
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
         PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
         PaymentsPreAuthorizeType, PaymentsPushNotificationType, PaymentsSessionType,
-        PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
-        RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
-        SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
-        UploadFileType, VerifyWebhookSourceType,
+        PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType,
+        SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        VerifyWebhookSourceType,
     },
 };
 

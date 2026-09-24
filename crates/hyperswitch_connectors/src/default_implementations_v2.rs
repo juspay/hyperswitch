@@ -59,12 +59,12 @@ use hyperswitch_domain_models::{
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -137,8 +137,7 @@ use hyperswitch_interfaces::{
             PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2,
             PaymentsGenerateQrV2, PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2,
             PaymentsPostProcessingV2, PaymentsPreAuthenticateV2, PaymentsPushNotificationV2,
-            PaymentsSettlementSplitCreate, SurchargeCalculationV2,
-            TaxCalculationV2,
+            PaymentsSettlementSplitCreate, SurchargeCalculationV2, TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2, RefundVoidPostRefundV2},
         revenue_recovery_v2::{

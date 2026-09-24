@@ -293,7 +293,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payme {}
 
-
 impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData> for Payme {
     fn get_headers(
         &self,
