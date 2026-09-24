@@ -7427,7 +7427,16 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
 // User API calls
 Cypress.Commands.add("signupUserWithMerchant", (namePrefix, globalState) => {
   const baseUrl = globalState.get("baseUrl");
-  const randomPart = crypto.randomInt(10000);
+  // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
+  // (available in the browser) to avoid modulo bias.
+  const randomBuf = new Uint32Array(1);
+  const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
+  let randomWord;
+  do {
+    crypto.getRandomValues(randomBuf);
+    randomWord = randomBuf[0];
+  } while (randomWord >= maxUnbiased);
+  const randomPart = randomWord % 10000;
   const uniqueSuffix = `${Date.now()}${randomPart}`;
   const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
   const password = `Cypress@${uniqueSuffix}`;
