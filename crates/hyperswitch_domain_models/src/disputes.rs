@@ -13,8 +13,6 @@ pub struct DisputeListConstraints {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub currency: Option<Vec<common_enums::Currency>>,
     pub time_range: Option<common_utils::types::TimeRange>,
-    /// Connected (processor) merchant ids to narrow a platform listing to specific
-    /// connected merchants. Only applicable to platform dispute listings.
     pub processor_merchant_id: Option<Vec<common_utils::id_type::MerchantId>>,
 }
 

@@ -289,10 +289,6 @@ pub async fn get_filters_for_disputes(
     ))
 }
 
-/// Lists disputes across all connected merchants under a platform merchant.
-///
-/// Returns a slim, non-PII summary built from raw dispute rows, so no per-merchant decryption
-/// is performed.
 #[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list_for_platform(

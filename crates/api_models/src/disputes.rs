@@ -181,11 +181,6 @@ pub struct DisputeListFilters {
     pub dispute_stage: Vec<DisputeStage>,
 }
 
-/// Query constraints for the platform disputes list (`GET /disputes/platform/list`).
-///
-/// Mirrors [`DisputeListGetConstraints`] but is scoped to a platform merchant: the list
-/// aggregates disputes across all of the platform's connected merchants and can optionally be
-/// narrowed to specific connected merchants via `processor_merchant_id`.
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -227,12 +222,6 @@ pub struct PlatformDisputeListConstraints {
     pub time_range: Option<TimeRange>,
 }
 
-/// A single item in the platform disputes list.
-///
-/// A platform listing aggregates disputes across many connected merchants, so each item carries
-/// the connected merchant (`processor_merchant_id`) that owns it. Dispute records hold no
-/// encrypted PII, so the item is built directly from the raw row with no per-merchant
-/// decryption (mirroring the platform payments list).
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Serialize)]
 pub struct PlatformDisputeListItem {
@@ -282,8 +271,6 @@ pub struct PlatformDisputeListItem {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-/// Available filter values for a platform disputes list, aggregated across all of the
-/// platform's connected merchants.
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Serialize)]
 pub struct PlatformDisputeListFilters {
