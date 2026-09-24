@@ -742,14 +742,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                                 | common_enums::AttemptStatus::Authorized
                         );
 
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
-                        // and the leg runs on UCS. On the direct gateway the Authenticate leg has
-                        // already sent the `trataPeticion` request carrying the 3DS authentication
-                        // data, and that request is the authorization itself: Redsys answers with a
-                        // final Ds_Response, a challenge (creq) or a pending code that only PSync can
-                        // resolve. Running the Authorize leg afterwards would repeat the same request
-                        // with the same Ds_Merchant_Order, which Redsys rejects as a repeated order
-                        // (SIS0051), so never continue there.
+                        // On the direct gateway the Authenticate leg already sent the authorization, so never continue.
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status

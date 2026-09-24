@@ -1152,11 +1152,7 @@ fn get_redsys_attempt_status(
     }
 }
 
-// Reads the 3DS server transaction id and protocol version for the Authorize leg.
-//
-// The authentication step copies the Authenticate response's `authentication_data` into the
-// request (`ucs_authentication_data`) and wraps it under the `authentication_data` key of the
-// connector metadata. Read the typed field, and keep the flat metadata parse for the legacy shape.
+// Reads the 3DS data for the Authorize leg; the flat connector metadata is the legacy shape.
 fn get_threeds_exempt_data(
     authentication_data: Option<&router_request_types::UcsAuthenticationData>,
     connector_meta: Option<serde_json::Value>,
@@ -1406,11 +1402,7 @@ impl<F>
                     item.http_code,
                     prev_status,
                 )?;
-                // A pending Ds_Response without a challenge form means Redsys is still processing
-                // the operation and there is nothing for the customer to do. Surface it as
-                // `Pending` (payment `processing`, resolved by PSync) rather than
-                // `AuthenticationPending`, which would leave the payment in
-                // `requires_customer_action` with no next action.
+                // A pending Ds_Response without a challenge has no next action, so let PSync resolve it.
                 let has_challenge = matches!(
                     &response,
                     Ok(PaymentsResponseData::TransactionResponse { redirection_data, .. })
