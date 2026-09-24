@@ -1557,7 +1557,7 @@ pub struct PaymentMethodResponse {
     /// different customers of the merchant. Present only when payment method fingerprinting is
     /// enabled.
     #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
-    pub merchant_fingerprint_id: Option<String>,
+    pub fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
