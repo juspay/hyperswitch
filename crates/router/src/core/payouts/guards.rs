@@ -27,7 +27,6 @@ pub enum PayoutGuardOutcome {
 pub struct PayoutBlockDetails {
     pub error_code: String,
     pub error_message: Option<String>,
-    pub active_frm_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -88,7 +87,6 @@ impl PayoutGuard for BlocklistGuard {
             PayoutGuardOutcome::Block(PayoutBlockDetails {
                 error_code: BLOCKLIST_ERROR_CODE.to_string(),
                 error_message: Some(reason.error_message()),
-                active_frm_id: None,
             })
         }))
     }
@@ -143,15 +141,6 @@ async fn run_guard<G: PayoutGuard + Sync>(
     }
 }
 
-async fn run_payout_guards(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payout_data: &PayoutData,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-) -> RouterResult<PayoutGuardOutcome> {
-    run_guard(BlocklistGuard, state, platform, payout_data, dimensions).await
-}
-
 /// Runs the pre-connector payout guards and marks the payout failed if one blocks it.
 /// Returns whether the payout was blocked. Expects `payout_method_data` to be resolved already.
 #[instrument(skip_all)]
@@ -164,7 +153,16 @@ pub async fn is_payout_blocked(
     let profile_dimensions =
         dimensions.with_profile_id(payout_data.business_profile.get_id().clone());
 
-    match run_payout_guards(state, platform, payout_data, &profile_dimensions).await? {
+    let guard_outcome = run_guard(
+        BlocklistGuard,
+        state,
+        platform,
+        payout_data,
+        &profile_dimensions,
+    )
+    .await?;
+
+    match guard_outcome {
         PayoutGuardOutcome::Block(block_details) => {
             update_blocked_payout_tracker(state, platform, payout_data, block_details).await?;
             Ok(true)
@@ -189,7 +187,7 @@ async fn update_blocked_payout_tracker(
                 status: common_enums::PayoutStatus::Failed,
                 error_code: Some(block_details.error_code),
                 error_message: block_details.error_message,
-                active_frm_id: block_details.active_frm_id,
+                active_frm_id: None,
                 is_eligible: Some(false),
                 unified_code: None,
                 unified_message: None,
