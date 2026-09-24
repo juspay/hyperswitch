@@ -848,10 +848,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 };
 
                 match replayed {
-                    Some(arm) => (
-                        arm == common_enums::RevenueRecoveryAbArm::Hybrid,
-                        None,
-                    ),
+                    Some(arm) => (arm == common_enums::RevenueRecoveryAbArm::Hybrid, None),
                     None => {
                         let resolved = dimensions
                             .get_revenue_recovery_ab_algorithm(
