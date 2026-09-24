@@ -194,6 +194,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = state.store.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
 
+        // Each fork below gets its own span rather than the caller's. These are
+        // spawned side by side and joined together, so under one shared span
+        // they are separable only by the order the scheduler picks, and a
+        // record/replay comparison pairs them positionally — reading a
+        // transposition as a behaviour change. The concurrency was always here;
+        // naming each fork writes it down.
         let business_profile_fut = tokio::spawn(
             async move {
                 store
@@ -207,7 +213,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("business_profile")),
         );
 
         let store = state.store.clone();
@@ -229,7 +235,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -257,7 +263,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("shipping_address")),
         );
 
         let m_merchant_id = processor_merchant_id.clone();
@@ -285,7 +291,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("billing_address")),
         );
 
         let store = state.clone().store;
@@ -306,7 +312,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .map(|x| x.transpose())
                     .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("config_update")),
         );
 
         // Based on whether a retry can be performed or not, fetch relevant entities
@@ -388,6 +394,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
+            .or(payment_intent.setup_future_usage);
+
+        // An attempt created without setup_future_usage (create with confirm=false, then confirm
+        // with off_session) picks it up from the intent, as new retry attempts do. Connector
+        // requests already use `setup_future_usage_applied.or(intent)`; this lets decisions made
+        // before the connector call, such as connector customer creation, see the same value.
+        payment_attempt.setup_future_usage_applied = payment_attempt
+            .setup_future_usage_applied
             .or(payment_intent.setup_future_usage);
 
         payment_intent.psd2_sca_exemption_type = request
@@ -558,7 +572,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
                     .await)
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
         let n_payment_method_billing_address_id =
@@ -602,7 +616,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_method_billing")),
         );
 
         let mandate_type = m_helpers::get_mandate_type(
@@ -638,7 +652,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("mandate_details")),
         );
 
         // Parallel calls - level 2
@@ -2855,6 +2869,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             payment_data.mandate_id.is_some(),
             payment_data.payment_attempt.is_stored_credential,
         );
+        let m_active_frm_id = payment_data
+            .frm_message
+            .as_ref()
+            .map(|fraud_check| fraud_check.frm_id.clone());
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
             async move {
@@ -2938,6 +2956,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -2945,7 +2964,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_attempt")),
         );
 
         let billing_address = payment_data.address.get_payment_billing();
@@ -3073,7 +3092,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
                 .await
             }
-            .in_current_span(),
+            .instrument(tracing::debug_span!("payment_intent")),
         );
 
         let (payment_intent, payment_attempt) = tokio::try_join!(
@@ -3367,7 +3386,8 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         }),
         card_bin: offer_pmd
             .as_ref()
-            .and_then(|offer_pmd| offer_pmd.get_card_iin()),
+            .and_then(|offer_pmd| offer_pmd.get_offer_card_bin())
+            .map(hyperswitch_masking::Secret::new),
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),

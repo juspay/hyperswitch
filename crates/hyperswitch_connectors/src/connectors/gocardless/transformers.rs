@@ -836,27 +836,33 @@ pub struct GocardlessWebhookEvent {
     pub events: Vec<WebhookEvent>,
 }
 
+/// `resource_type` decides how `action` and `links` are parsed. Action names such as
+/// `created`, `failed` and `cancelled` are shared between resource types, so they cannot be
+/// told apart on their own.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WebhookEvent {
-    pub resource_type: WebhookResourceType,
-    pub action: WebhookAction,
-    pub links: WebhooksLink,
+#[serde(tag = "resource_type", rename_all = "snake_case")]
+pub enum WebhookEvent {
+    Payments(PaymentWebhookEvent),
+    Refunds(RefundWebhookEvent),
+    Mandates(MandateWebhookEvent),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WebhookResourceType {
-    Payments,
-    Refunds,
-    Mandates,
+pub struct PaymentWebhookEvent {
+    pub action: PaymentsAction,
+    pub links: PaymentWebhooksLink,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum WebhookAction {
-    PaymentsAction(PaymentsAction),
-    RefundsAction(RefundsAction),
-    MandatesAction(MandatesAction),
+pub struct RefundWebhookEvent {
+    pub action: RefundsAction,
+    pub links: RefundWebhookLink,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MandateWebhookEvent {
+    pub action: MandatesAction,
+    pub links: MandateWebhookLink,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -872,7 +878,7 @@ pub enum PaymentsAction {
     SurchargeFeeDebited,
     Failed,
     Cancelled,
-    ResubmissionRequired,
+    ResubmissionRequested,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -906,14 +912,6 @@ pub enum MandatesAction {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum WebhooksLink {
-    PaymentWebhooksLink(PaymentWebhooksLink),
-    RefundWebhookLink(RefundWebhookLink),
-    MandateWebhookLink(MandateWebhookLink),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundWebhookLink {
     pub refund: String,
 }
@@ -928,45 +926,34 @@ pub struct MandateWebhookLink {
     pub mandate: String,
 }
 
-impl TryFrom<&WebhookEvent> for GocardlessPaymentsResponse {
+impl TryFrom<&PaymentWebhookEvent> for GocardlessPaymentsResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &WebhookEvent) -> Result<Self, Self::Error> {
-        let id = match &item.links {
-            WebhooksLink::PaymentWebhooksLink(link) => link.payment.to_owned(),
-            WebhooksLink::RefundWebhookLink(_) | WebhooksLink::MandateWebhookLink(_) => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)?
-            }
-        };
+    fn try_from(item: &PaymentWebhookEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             payments: PaymentResponse {
                 status: GocardlessPaymentStatus::try_from(&item.action)?,
-                id,
+                id: item.links.payment.to_owned(),
             },
         })
     }
 }
 
-impl TryFrom<&WebhookAction> for GocardlessPaymentStatus {
+impl TryFrom<&PaymentsAction> for GocardlessPaymentStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &WebhookAction) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAction) -> Result<Self, Self::Error> {
         match item {
-            WebhookAction::PaymentsAction(action) => match action {
-                PaymentsAction::CustomerApprovalGranted | PaymentsAction::Submitted => {
-                    Ok(Self::Submitted)
-                }
-                PaymentsAction::CustomerApprovalDenied => Ok(Self::CustomerApprovalDenied),
-                PaymentsAction::LateFailureSettled => Ok(Self::Failed),
-                PaymentsAction::Failed => Ok(Self::Failed),
-                PaymentsAction::Cancelled => Ok(Self::Cancelled),
-                PaymentsAction::Confirmed => Ok(Self::Confirmed),
-                PaymentsAction::PaidOut => Ok(Self::PaidOut),
-                PaymentsAction::SurchargeFeeDebited
-                | PaymentsAction::ResubmissionRequired
-                | PaymentsAction::Created => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
-            },
-            WebhookAction::RefundsAction(_) | WebhookAction::MandatesAction(_) => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)?
+            PaymentsAction::CustomerApprovalGranted | PaymentsAction::Submitted => {
+                Ok(Self::Submitted)
             }
+            PaymentsAction::CustomerApprovalDenied => Ok(Self::CustomerApprovalDenied),
+            PaymentsAction::LateFailureSettled => Ok(Self::Failed),
+            PaymentsAction::Failed => Ok(Self::Failed),
+            PaymentsAction::Cancelled => Ok(Self::Cancelled),
+            PaymentsAction::Confirmed => Ok(Self::Confirmed),
+            PaymentsAction::PaidOut => Ok(Self::PaidOut),
+            PaymentsAction::SurchargeFeeDebited
+            | PaymentsAction::ResubmissionRequested
+            | PaymentsAction::Created => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
         }
     }
 }

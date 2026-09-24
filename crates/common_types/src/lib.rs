@@ -4,6 +4,7 @@
 
 pub mod consts;
 pub mod customers;
+pub mod disputes;
 pub mod domain;
 pub mod payment_methods;
 pub mod payments;
