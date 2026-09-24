@@ -36,6 +36,18 @@
   </a>
 </p>
 
+<p align="center">
+  <!-- Keep these links. Translations will automatically update with the README. -->
+  <a href="https://readme-i18n.com/de/juspay/hyperswitch">Deutsch</a> | 
+  <a href="https://readme-i18n.com/es/juspay/hyperswitch">Español</a> | 
+  <a href="https://readme-i18n.com/fr/juspay/hyperswitch">français</a> | 
+  <a href="https://readme-i18n.com/ja/juspay/hyperswitch">日本語</a> | 
+  <a href="https://readme-i18n.com/ko/juspay/hyperswitch">한국어</a> | 
+  <a href="https://readme-i18n.com/pt/juspay/hyperswitch">Português</a> | 
+  <a href="https://readme-i18n.com/ru/juspay/hyperswitch">Русский</a> | 
+  <a href="https://readme-i18n.com/zh/juspay/hyperswitch">中文</a>
+</p>
+
 <hr/>
 
 <details>
