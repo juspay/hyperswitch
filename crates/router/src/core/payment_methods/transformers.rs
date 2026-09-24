@@ -693,15 +693,18 @@ pub fn generate_payment_method_response(
     raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
     billing: Option<api::Address>,
     acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+    card_info: Option<api_models::payment_methods::CardInfoDetails>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
         .clone()
         .map(|data| data.into_inner())
         .and_then(|data| match data {
-            payment_method_data::PaymentMethodsData::Card(card) => Some(
-                api::PaymentMethodResponseData::Card(Box::new(card.to_card_details_from_locker())),
-            ),
+            payment_method_data::PaymentMethodsData::Card(card) => {
+                let mut card_details = card.to_card_details_from_locker();
+                card_details.card_info = card_info;
+                Some(api::PaymentMethodResponseData::Card(Box::new(card_details)))
+            }
             payment_method_data::PaymentMethodsData::BankDebit(bank_debit) => {
                 Some(api::PaymentMethodResponseData::BankDebit(bank_debit.into()))
             }
