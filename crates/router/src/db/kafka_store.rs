@@ -1971,24 +1971,6 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        self.diesel_store
-            .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                preprocessing_id,
-                processor_merchant_id,
-                storage_scheme,
-                key_store,
-            )
-            .await
-    }
-
-    #[cfg(feature = "v1")]
     async fn get_filters_for_payments(
         &self,
         pi: &[hyperswitch_domain_models::payments::PaymentIntent],
