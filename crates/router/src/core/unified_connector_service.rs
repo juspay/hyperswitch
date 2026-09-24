@@ -4350,6 +4350,8 @@ pub async fn call_unified_connector_service_for_refund_execute(
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4446,6 +4448,8 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4534,6 +4538,8 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4636,6 +4642,8 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4756,6 +4764,8 @@ pub async fn call_unified_connector_service_for_notify_connector(
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
