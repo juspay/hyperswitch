@@ -561,7 +561,6 @@ pub fn perform_integrity_check<F>(
 where
     F: Debug + Clone + 'static,
 {
-
     // Initiating Integrity check
     let integrity_result = check_refund_integrity(&router_data.request, &router_data.response);
     router_data.integrity_check = integrity_result;
