@@ -187,7 +187,7 @@ pub struct DisputeListFilters {
 /// aggregates disputes across all of the platform's connected merchants and can optionally be
 /// narrowed to specific connected merchants via `processor_merchant_id`.
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PlatformDisputeListConstraints {
     /// The identifier for dispute
@@ -196,19 +196,15 @@ pub struct PlatformDisputeListConstraints {
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// The comma separated list of connected (processor) merchant ids to filter the list.
     /// When omitted, disputes across all connected merchants under the platform are returned.
-    #[schema(value_type = Option<Vec<String>>, example = "connected_merchant_1,connected_merchant_2")]
     #[serde(default, deserialize_with = "parse_comma_separated_merchant_ids")]
     pub processor_merchant_id: Option<Vec<common_utils::id_type::MerchantId>>,
     /// Limit on the number of objects to return
     #[serde(default)]
-    #[schema(value_type = Option<u32>)]
     pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of object
     #[serde(default)]
-    #[schema(value_type = Option<u32>)]
     pub offset: common_utils::types::list::PageOffset,
     /// The identifier for business profile
-    #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The comma separated list of status of the disputes
     #[serde(default, deserialize_with = "parse_comma_separated")]
@@ -238,25 +234,21 @@ pub struct PlatformDisputeListConstraints {
 /// encrypted PII, so the item is built directly from the raw row with no per-merchant
 /// decryption (mirroring the platform payments list).
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PlatformDisputeListItem {
     /// The identifier for dispute
     pub dispute_id: String,
     /// The identifier for payment_intent
-    #[schema(value_type = String)]
     pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for payment_attempt
     pub attempt_id: String,
     /// Identifier of the platform merchant. Equals the caller's merchant id.
-    #[schema(value_type = String, example = "platform_merchant_1")]
     pub merchant_id: common_utils::id_type::MerchantId,
     /// Identifier of the connected merchant that owns this dispute.
-    #[schema(value_type = Option<String>, example = "connected_merchant_1")]
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     /// The dispute amount
     pub amount: StringMinorUnit,
     /// The three-letter ISO currency code
-    #[schema(value_type = Currency)]
     pub currency: Currency,
     /// Stage of the dispute
     pub dispute_stage: DisputeStage,
@@ -285,33 +277,28 @@ pub struct PlatformDisputeListItem {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     /// The `profile_id` associated with the dispute
-    #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
-    #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 /// Available filter values for a platform disputes list, aggregated across all of the
 /// platform's connected merchants.
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PlatformDisputeListFilters {
     /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
     pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
-    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<Currency>,
     /// The list of available dispute status filters
-    #[schema(value_type = Vec<DisputeStatus>)]
     pub dispute_status: Vec<DisputeStatus>,
     /// The list of available dispute stage filters
-    #[schema(value_type = Vec<DisputeStage>)]
     pub dispute_stage: Vec<DisputeStage>,
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize)]
 pub struct PlatformDisputeListResponse {
     /// The number of disputes included in the current response.
     pub count: usize,
