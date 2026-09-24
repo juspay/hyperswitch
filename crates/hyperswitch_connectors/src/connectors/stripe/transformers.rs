@@ -5083,6 +5083,43 @@ pub struct WebhookEventObjectData {
     pub status: Option<WebhookEventStatus>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
+    pub network_details: Option<StripeDisputeNetworkDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeDisputeNetworkDetails {
+    Visa {
+        visa: Option<StripeVisaDisputeNetworkDetails>,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StripeVisaDisputeNetworkDetails {
+    pub rapid_dispute_resolution: Option<bool>,
+}
+
+impl From<StripeDisputeNetworkDetails> for Option<common_types::disputes::AdditionalDetails> {
+    fn from(network_details: StripeDisputeNetworkDetails) -> Self {
+        match network_details {
+            StripeDisputeNetworkDetails::Visa { visa } => visa
+                .and_then(|visa| visa.rapid_dispute_resolution)
+                .map(|applied| common_types::disputes::AdditionalDetails {
+                    network_details: Some(common_types::disputes::DisputeNetworkDetails::Visa {
+                        rapid_dispute_resolution: Some(
+                            common_types::disputes::RapidDisputeResolution {
+                                applied: primitive_wrappers::RapidDisputeResolutionAppliedBool::new(
+                                    applied,
+                                ),
+                            },
+                        ),
+                    }),
+                }),
+            StripeDisputeNetworkDetails::Unknown => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]

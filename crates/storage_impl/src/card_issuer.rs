@@ -1,5 +1,7 @@
 use common_utils::id_type;
-pub use diesel_models::card_issuer::{CardIssuer, NewCardIssuer, UpdateCardIssuer};
+pub use diesel_models::card_issuer::{
+    CardIssuer, CardIssuerListItem, NewCardIssuer, UpdateCardIssuer,
+};
 use error_stack::report;
 use hyperswitch_domain_models::card_issuer::CardIssuersInterface;
 use router_env::{instrument, tracing};
@@ -7,9 +9,12 @@ use router_env::{instrument, tracing};
 use crate::{
     errors::StorageError,
     kv_router_store::KVRouterStore,
+    redis::cache::{self, CacheKind, CONFIG_CACHE},
     utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
+
+const CARD_ISSUERS_LIST_CACHE_KEY: &str = "card_issuers_list";
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
@@ -20,10 +25,18 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         &self,
         new: NewCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        new.insert(&conn)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        let insert_call = || async {
+            let conn = pg_connection_write(self).await?;
+            new.insert(&conn)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+        cache::publish_and_redact(
+            self,
+            CacheKind::Config(CARD_ISSUERS_LIST_CACHE_KEY.into()),
+            insert_call,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -32,10 +45,18 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         id: id_type::CardIssuerId,
         update: UpdateCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::update(&conn, id, update)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        let update_call = || async {
+            let conn = pg_connection_write(self).await?;
+            CardIssuer::update(&conn, id, update)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+        cache::publish_and_redact(
+            self,
+            CacheKind::Config(CARD_ISSUERS_LIST_CACHE_KEY.into()),
+            update_call,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -43,22 +64,38 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         &self,
         id: id_type::CardIssuerId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::delete_by_id(&conn, id)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        let delete_call = || async {
+            let conn = pg_connection_write(self).await?;
+            CardIssuer::delete_by_id(&conn, id)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+        cache::publish_and_redact(
+            self,
+            CacheKind::Config(CARD_ISSUERS_LIST_CACHE_KEY.into()),
+            delete_call,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
-        query: Option<String>,
-        limit: Option<u8>,
-    ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::list_filtered(&conn, query, limit.map(i64::from))
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        limit: i64,
+    ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
+        let fetch_func = || async {
+            let conn = pg_connection_read(self).await?;
+            CardIssuer::list_all(&conn, limit)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+        cache::get_or_populate_in_memory(
+            self,
+            CARD_ISSUERS_LIST_CACHE_KEY,
+            fetch_func,
+            &CONFIG_CACHE,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -82,10 +119,7 @@ impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
         &self,
         new: NewCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        new.insert(&conn)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        self.router_store.insert_card_issuer(new).await
     }
 
     #[instrument(skip_all)]
@@ -94,10 +128,7 @@ impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
         id: id_type::CardIssuerId,
         update: UpdateCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::update(&conn, id, update)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        self.router_store.update_card_issuer(id, update).await
     }
 
     #[instrument(skip_all)]
@@ -105,22 +136,15 @@ impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
         &self,
         id: id_type::CardIssuerId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_connection_write(self).await?;
-        CardIssuer::delete_by_id(&conn, id)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        self.router_store.delete_card_issuer(id).await
     }
 
     #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
-        query: Option<String>,
-        limit: Option<u8>,
-    ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::list_filtered(&conn, query, limit.map(i64::from))
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        limit: i64,
+    ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
+        self.router_store.list_card_issuers(limit).await
     }
 
     #[instrument(skip_all)]
@@ -128,10 +152,7 @@ impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
         &self,
         ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let conn = pg_connection_read(self).await?;
-        CardIssuer::find_by_ids(&conn, ids)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        self.router_store.get_card_issuers_by_ids(ids).await
     }
 }
 
@@ -188,21 +209,21 @@ impl CardIssuersInterface for MockDb {
 
     async fn list_card_issuers(
         &self,
-        query: Option<String>,
-        limit: Option<u8>,
-    ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        let card_issuers = self.card_issuers.lock().await;
-        let filtered: Vec<CardIssuer> = card_issuers
+        limit: i64,
+    ) -> CustomResult<Vec<CardIssuerListItem>, StorageError> {
+        let mut card_issuers_list = self
+            .card_issuers
+            .lock()
+            .await
             .iter()
-            .filter(|ci| {
-                query
-                    .as_ref()
-                    .is_none_or(|q| ci.issuer_name.contains(q.as_str()))
+            .map(|card_issuer| CardIssuerListItem {
+                id: card_issuer.id.clone(),
+                issuer_name: card_issuer.issuer_name.clone(),
             })
-            .take(limit.map_or(usize::MAX, usize::from))
-            .cloned()
-            .collect();
-        Ok(filtered)
+            .collect::<Vec<_>>();
+        card_issuers_list.sort_by(|a, b| a.issuer_name.cmp(&b.issuer_name));
+        card_issuers_list.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+        Ok(card_issuers_list)
     }
 
     async fn get_card_issuers_by_ids(
