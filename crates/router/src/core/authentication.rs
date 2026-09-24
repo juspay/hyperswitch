@@ -475,6 +475,7 @@ where
                 kill_switch_enabled: rollout_result.kill_switch_enabled,
                 kill_switch_threshold: rollout_result.kill_switch_threshold,
                 connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
             },
             session_state: updated_state,
             platform,
@@ -1475,6 +1476,7 @@ async fn call_ucs_authenticate_proxy(
                 kill_switch_enabled: rollout_result.kill_switch_enabled,
                 kill_switch_threshold: rollout_result.kill_switch_threshold,
                 connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
             },
             Some(
                 payment_intent

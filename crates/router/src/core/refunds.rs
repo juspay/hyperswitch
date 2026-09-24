@@ -233,6 +233,7 @@ pub async fn refund_reverse_core(
         kill_switch_enabled: rollout_result.kill_switch_enabled,
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -269,6 +270,7 @@ pub async fn refund_reverse_core(
                     kill_switch_enabled: rollout_result.kill_switch_enabled,
                     kill_switch_threshold: rollout_result.kill_switch_threshold,
                     connector_decline_threshold: rollout_result.connector_decline_threshold,
+                    rollout_scope: rollout_result.rollout_scope.clone(),
                 },
                 merchant_connector_account,
             )
@@ -578,6 +580,7 @@ pub async fn trigger_refund_to_gateway(
         kill_switch_enabled: rollout_result.kill_switch_enabled,
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -620,6 +623,7 @@ pub async fn trigger_refund_to_gateway(
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
                         connector_decline_threshold: rollout_result.connector_decline_threshold,
+                        rollout_scope: rollout_result.rollout_scope.clone(),
                     },
                     merchant_connector_account,
                 )
@@ -1265,6 +1269,7 @@ pub async fn sync_refund_with_gateway(
         kill_switch_enabled: rollout_result.kill_switch_enabled,
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -1303,6 +1308,7 @@ pub async fn sync_refund_with_gateway(
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
                         connector_decline_threshold: rollout_result.connector_decline_threshold,
+                        rollout_scope: rollout_result.rollout_scope.clone(),
                     },
                     merchant_connector_account,
                 )

@@ -220,6 +220,7 @@ where
         kill_switch_enabled: rollout_result.kill_switch_enabled,
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode: match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 common_enums::ExecutionMode::Primary

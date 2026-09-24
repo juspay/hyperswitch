@@ -968,7 +968,7 @@ where
         determine_connector_integration_type(state, connector_enum).await?;
 
     // Try keys highest → lowest precedence, use first match found
-    let rollout_result =
+    let mut rollout_result =
         should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
@@ -1046,15 +1046,15 @@ where
             router_data.payment_method_type,
         );
 
+        // This is the scope the decision is made under. Every connector call the decision
+        // authorises counts against it, including the flows that inherit it without gating
+        // for themselves.
+        rollout_result.rollout_scope = Some(rollout_scope.clone());
+
         if Box::pin(kill_switch::is_kill_switched(
             state,
             &rollout_scope,
-            kill_switch::RolloutSettings {
-                execution_mode: rollout_result.execution_mode,
-                kill_switch_enabled: rollout_result.kill_switch_enabled,
-                kill_switch_threshold: rollout_result.kill_switch_threshold,
-                connector_decline_threshold: rollout_result.connector_decline_threshold,
-            },
+            rollout_result.rollout_settings(),
         ))
         .await
         {
@@ -3873,7 +3873,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        rollout_settings,
+                        rollout_settings.clone(),
                     )
                     .await;
                 }
@@ -3908,7 +3908,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        rollout_settings,
+                        rollout_settings.clone(),
                         error.current_context(),
                     )
                     .await;
@@ -3949,7 +3949,7 @@ where
                                 payment_method,
                                 payment_method_type,
                             },
-                            rollout_settings,
+                            rollout_settings.clone(),
                             error.current_context(),
                         )
                         .await;
@@ -4097,7 +4097,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        rollout_settings,
+                        rollout_settings.clone(),
                     )
                     .await;
                 }
@@ -4132,7 +4132,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        rollout_settings,
+                        rollout_settings.clone(),
                         error.current_context(),
                     )
                     .await;
@@ -4174,7 +4174,7 @@ where
                                 payment_method,
                                 payment_method_type,
                             },
-                            rollout_settings,
+                            rollout_settings.clone(),
                             error.current_context(),
                         )
                         .await;
@@ -4369,7 +4369,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         state,
         ucs_refund_request,
         grpc_header_builder,
-        rollout_settings,
+        rollout_settings.clone(),
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
@@ -4467,7 +4467,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         state,
         ucs_refund_sync_request,
         grpc_header_builder,
-        rollout_settings,
+        rollout_settings.clone(),
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
@@ -4554,7 +4554,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         state,
         grpc_request,
         grpc_header_builder,
-        rollout_settings,
+        rollout_settings.clone(),
         |mut router_data, grpc_request, grpc_headers| async move {
             let grpc_response = ucs_client
                 .refund_void_post_refund(grpc_request, connector_auth_metadata, grpc_headers)

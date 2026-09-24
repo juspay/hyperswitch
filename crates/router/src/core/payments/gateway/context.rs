@@ -50,6 +50,9 @@ pub struct RouterGatewayContext {
     pub kill_switch_threshold: u64,
     /// `None` means connector declines never trip this scope.
     pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate decided under. Carried so the flows that inherit this context
+    /// without gating for themselves count against the scope that authorised them.
+    pub rollout_scope: Option<String>,
 }
 
 /// Implementation of GatewayContext trait for RouterGatewayContext
@@ -90,6 +93,8 @@ impl RouterGatewayContext {
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
             connector_decline_threshold: None,
+            // The direct path is not gated, so no scope decided it.
+            rollout_scope: None,
         }
     }
 
@@ -103,6 +108,7 @@ impl RouterGatewayContext {
             kill_switch_enabled: self.kill_switch_enabled,
             kill_switch_threshold: self.kill_switch_threshold,
             connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
         }
     }
 

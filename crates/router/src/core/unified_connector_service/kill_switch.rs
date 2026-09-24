@@ -83,7 +83,7 @@ struct ScopeCounters {
 async fn read_counters(
     state: &SessionState,
     rollout_scope: &str,
-    settings: RolloutSettings,
+    settings: &RolloutSettings,
 ) -> error_stack::Result<ScopeCounters, storage_impl::errors::RedisError> {
     let count = read_counter(state, rollout_scope, UcsFailureClass::IntegrationFailure).await?;
 
@@ -120,7 +120,7 @@ pub async fn is_kill_switched(
     let kill_switch_threshold = settings.kill_switch_threshold;
 
     if kill_switch_enabled {
-        match read_counters(state, rollout_scope, settings).await {
+        match read_counters(state, rollout_scope, &settings).await {
             Ok(ScopeCounters {
                 count,
                 exceeded,
@@ -196,13 +196,21 @@ async fn read_counter(
 
 /// The scope's kill switch settings, resolved once by the gate and carried to the failure
 /// path so a failure counts against the same threshold the gate used.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RolloutSettings {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
     /// `None` means connector declines never trip this scope.
     pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate read this config from, carried rather than rebuilt at the failure
+    /// path. A payment's later calls run under a different flow (`CreateConnectorCustomer`
+    /// inherits the Authorize decision without gating for itself), so rebuilding the scope
+    /// from the failing call's own flow names a key nothing ever reads: it would accumulate
+    /// a counter, borrow this scope's thresholds, and divert nothing.
+    ///
+    /// `None` on paths no gate governs, where a failure counts against nothing.
+    pub rollout_scope: Option<String>,
 }
 
 impl RolloutSettings {
@@ -215,6 +223,7 @@ impl RolloutSettings {
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
             connector_decline_threshold: None,
+            rollout_scope: None,
         }
     }
 }
@@ -377,17 +386,9 @@ async fn trippable_failure_for_reason(
         _ => UcsFailureClass::IntegrationFailure,
     };
 
-    let rollout_scope = build_merchant_rollout_scope(
-        context.merchant_id,
-        context.connector_name,
-        context.flow_name,
-        context.payment_method,
-        context.payment_method_type,
-    );
-
-    // The thresholds are the gate's own read of this scope's config, carried on the request.
-    // Re-reading here could see a different value than the gate used and count the failure
-    // against the wrong threshold.
+    // The scope and thresholds are the gate's own, carried on the request. Rebuilding the
+    // scope here from this call's flow would name a different key than the gate read, and
+    // re-reading the config could see a different value than the gate used.
     scope_can_trip
         .then_some(match failure_class {
             // Declines only count when the scope opts in with `connector_decline_threshold`;
@@ -396,7 +397,8 @@ async fn trippable_failure_for_reason(
             UcsFailureClass::IntegrationFailure => Some(settings.kill_switch_threshold),
         })
         .flatten()
-        .map(|threshold| TrippableFailure {
+        .zip(settings.rollout_scope.clone())
+        .map(|(threshold, rollout_scope)| TrippableFailure {
             rollout_scope,
             reason,
             failure_class,
