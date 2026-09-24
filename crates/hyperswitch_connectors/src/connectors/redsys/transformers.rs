@@ -1152,6 +1152,42 @@ fn get_redsys_attempt_status(
     }
 }
 
+// Reads the 3DS server transaction id and protocol version carried over from the authentication
+// step. That metadata is either the exempt data built by `build_threeds_invoke_exempt_response`, or
+// the `authentication_data` the authentication step merges into the metadata it hands over.
+fn get_threeds_exempt_data(
+    connector_meta: Option<serde_json::Value>,
+) -> Result<ThreeDsInvokeExempt, Error> {
+    if let Ok(threeds_meta_data) =
+        connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta.clone())
+    {
+        return Ok(threeds_meta_data);
+    }
+
+    let authentication_data = connector_meta
+        .as_ref()
+        .and_then(|metadata| metadata.get("authentication_data"))
+        .map(|value| {
+            serde_json::from_value::<router_request_types::UcsAuthenticationData>(value.clone())
+                .change_context(errors::ConnectorError::NoConnectorMetaData)
+                .attach_printable("Failed to parse authentication_data from connector_meta")
+        })
+        .transpose()?
+        .ok_or_else(missing_field_err("connector_meta_data.authentication_data"))?;
+
+    Ok(ThreeDsInvokeExempt {
+        message_version: authentication_data
+            .message_version
+            .ok_or_else(missing_field_err("authentication_data.message_version"))?
+            .to_string(),
+        three_d_s_server_trans_i_d: authentication_data
+            .threeds_server_transaction_id
+            .ok_or_else(missing_field_err(
+                "authentication_data.threeds_server_transaction_id",
+            ))?,
+    })
+}
+
 impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransaction {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1179,8 +1215,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             }) => (connector_metadata.clone(), order_id.clone()),
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let threeds_meta_data =
-            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())?;
+        let threeds_meta_data = get_threeds_exempt_data(connector_meta_data.clone())?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
             .set_three_d_s_server_trans_i_d(threeds_meta_data.three_d_s_server_trans_i_d)
             .set_protocol_version(threeds_meta_data.message_version)
@@ -1368,14 +1403,31 @@ impl<F>
                 )?;
 
                 router_env::logger::info!(connector_authorize_response=?response_data);
-                get_payments_response(
+                let (response, status) = get_payments_response(
                     response_data,
                     item.data.request.capture_method,
                     connector_metadata,
                     item.data.request.authentication_data.clone().map(Box::new),
                     item.http_code,
                     prev_status,
-                )?
+                )?;
+                // A pending Ds_Response without a challenge form means Redsys is still processing
+                // the operation and there is nothing for the customer to do. Surface it as
+                // `Pending` (payment `processing`, resolved by PSync) rather than
+                // `AuthenticationPending`, which would leave the payment in
+                // `requires_customer_action` with no next action.
+                let has_challenge = matches!(
+                    &response,
+                    Ok(PaymentsResponseData::TransactionResponse { redirection_data, .. })
+                        if redirection_data.is_some()
+                );
+                let status =
+                    if status == enums::AttemptStatus::AuthenticationPending && !has_challenge {
+                        enums::AttemptStatus::Pending
+                    } else {
+                        status
+                    };
+                (response, status)
             }
             RedsysResponse::RedsysErrorResponse(response) => {
                 let response = Err(ErrorResponse {
