@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.24.0
+
+### Features
+
+- **core:**
+  - Prefer business profile FRM routing configuration with merchant account fallback ([#14365](https://github.com/juspay/hyperswitch/pull/14365)) ([`2fc3374`](https://github.com/juspay/hyperswitch/commit/2fc33749066b45d44579fd077805d5cbd24656d2))
+  - Add surcharge_percentage in surcharge details in payment response ([#14354](https://github.com/juspay/hyperswitch/pull/14354)) ([`f46bd99`](https://github.com/juspay/hyperswitch/commit/f46bd9901f3731999b26e5ac876f31524184e32e))
+- **offers:** Send up to 9-digit card BIN to Offer Engine ([#14259](https://github.com/juspay/hyperswitch/pull/14259)) ([`eee4aba`](https://github.com/juspay/hyperswitch/commit/eee4abac0d739da8b84111d36ad867bf34a6c905))
+- **router:** [Stripe] add support to store and return rapid_dispute_resolution details in dispute additional_details from dispute webhooks ([#14337](https://github.com/juspay/hyperswitch/pull/14337)) ([`bf86419`](https://github.com/juspay/hyperswitch/commit/bf86419e5f175e00fff1f30c199fd8d4421929f7))
+
+### Bug Fixes
+
+- **cypress-tests:** Add missing connector_metadata for Noon card payments ([#14369](https://github.com/juspay/hyperswitch/pull/14369)) ([`a0e95e8`](https://github.com/juspay/hyperswitch/commit/a0e95e884b788b125664d903096508f2c1ca9f83))
+
+**Full Changelog:** [`2026.09.23.0...2026.09.24.0`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0...2026.09.24.0)
+
+- - -
+
 ## 2026.09.23.0
 
 ### Features

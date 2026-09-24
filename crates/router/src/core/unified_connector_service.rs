@@ -3926,10 +3926,27 @@ where
                     ),
                 }
 
-                let error_body = serde_json::json!({
+                let mut error_body = serde_json::json!({
                     "error": error.to_string(),
                     "error_type": "ucs_call_failed"
                 });
+                // The status was produced by the router's own transport rather than returned by
+                // UCS. The root cause goes on the connector event, which is merchant visible, and
+                // the full source chain goes to the log below. The chain carries the HTTP/2 reason
+                // and initiator, which distinguishes a request that was never written from a
+                // stream that failed after UCS had already processed it.
+                if let Some(transport) = error.current_context().transport_failure() {
+                    if let Some(body) = error_body.as_object_mut() {
+                        body.insert(
+                            "transport_error".to_string(),
+                            serde_json::Value::from(transport.root_cause.clone()),
+                        );
+                    }
+                    logger::error!(
+                        transport_error_chain = %transport.source_chain,
+                        "ucs_call_failed: gRPC transport failure toward UCS"
+                    );
+                }
                 let api_error: errors::ApiErrorResponse = error.current_context().switch();
                 (
                     api_error.status_code().as_u16(),
@@ -4131,10 +4148,27 @@ where
                     ),
                 }
 
-                let error_body = serde_json::json!({
+                let mut error_body = serde_json::json!({
                     "error": error.to_string(),
                     "error_type": "ucs_call_failed"
                 });
+                // The status was produced by the router's own transport rather than returned by
+                // UCS. The root cause goes on the connector event, which is merchant visible, and
+                // the full source chain goes to the log below. The chain carries the HTTP/2 reason
+                // and initiator, which distinguishes a request that was never written from a
+                // stream that failed after UCS had already processed it.
+                if let Some(transport) = error.current_context().transport_failure() {
+                    if let Some(body) = error_body.as_object_mut() {
+                        body.insert(
+                            "transport_error".to_string(),
+                            serde_json::Value::from(transport.root_cause.clone()),
+                        );
+                    }
+                    logger::error!(
+                        transport_error_chain = %transport.source_chain,
+                        "ucs_call_failed: gRPC transport failure toward UCS"
+                    );
+                }
                 (
                     error.current_context().http_status(),
                     Some(error_body),
