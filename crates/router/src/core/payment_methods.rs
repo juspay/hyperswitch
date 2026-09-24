@@ -2020,21 +2020,13 @@ pub async fn create_volatile_payment_method_core(
 async fn payment_method_resolver(
     state: &SessionState,
     platform: &domain::Platform,
-    profile: &domain::Profile,
     customer_id: &id_type::GlobalCustomerId,
     req: &api::PaymentMethodCreate,
     payment_method_data: domain::PaymentMethodVaultingData,
 ) -> RouterResult<PaymentMethodResolver> {
     let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
     locker
-        .resolve_payment_method(
-            state,
-            platform,
-            profile,
-            customer_id,
-            req,
-            payment_method_data,
-        )
+        .resolve_payment_method(state, platform, customer_id, req, payment_method_data)
         .await
 }
 
@@ -2115,21 +2107,17 @@ pub struct FingerprintDetails {
 fn spawn_merchant_fingerprint_task(
     state: &SessionState,
     platform: &domain::Platform,
-    profile: &domain::Profile,
     payment_method_data: &domain::PaymentMethodVaultingData,
 ) -> tokio::task::JoinHandle<Option<String>> {
     use router_env::tracing::Instrument;
 
     let state = state.clone();
     let platform = platform.clone();
-    let profile = profile.clone();
     let payment_method_data = payment_method_data.clone();
 
     tokio::spawn(
-        async move {
-            resolve_merchant_fingerprint_id(&state, &platform, &profile, &payment_method_data).await
-        }
-        .in_current_span(),
+        async move { resolve_merchant_fingerprint_id(&state, &platform, &payment_method_data).await }
+            .in_current_span(),
     )
 }
 
@@ -2137,27 +2125,20 @@ fn spawn_merchant_fingerprint_task(
 async fn resolve_merchant_fingerprint_id(
     state: &SessionState,
     platform: &domain::Platform,
-    profile: &domain::Profile,
     payment_method_data: &domain::PaymentMethodVaultingData,
 ) -> Option<String> {
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_organization_id(
             platform
                 .get_provider()
                 .get_account()
                 .organization_id
                 .clone(),
-        )
-        .with_profile_id(profile.get_id().clone());
+        );
 
-    let is_enabled = utils::get_should_generate_payment_method_fingerprint(
-        state,
-        &dimensions,
-        Some(profile.get_id()),
-    )
-    .await;
+    let is_enabled =
+        utils::get_should_generate_payment_method_fingerprint(state, &dimensions, None).await;
 
     let merchant_fingerprint_secret = match is_enabled {
         true => core_utils::get_merchant_fingerprint_secret(
@@ -2223,7 +2204,6 @@ pub trait LockerOperations: Send + Sync {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        profile: &domain::Profile,
         customer_id: &id_type::GlobalCustomerId,
         req: &api::PaymentMethodCreate,
         payment_method_data: domain::PaymentMethodVaultingData,
@@ -2359,7 +2339,6 @@ impl LockerOperations for GenericLocker {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        profile: &domain::Profile,
         customer_id: &id_type::GlobalCustomerId,
         _req: &api::PaymentMethodCreate,
         payment_method_data: domain::PaymentMethodVaultingData,
@@ -2369,7 +2348,7 @@ impl LockerOperations for GenericLocker {
         // The auxiliary fingerprint runs as its own task so it never sits in front of the
         // primary one, and is awaited only when the primary lookup misses.
         let merchant_fingerprint_task =
-            spawn_merchant_fingerprint_task(state, platform, profile, &payment_method_data);
+            spawn_merchant_fingerprint_task(state, platform, &payment_method_data);
 
         let auxiliary_fingerprint_task = {
             use router_env::tracing::Instrument;
@@ -2693,7 +2672,6 @@ impl LockerOperations for LegacyLocker {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        _profile: &domain::Profile,
         customer_id: &id_type::GlobalCustomerId,
         _req: &api::PaymentMethodCreate,
         payment_method_data: domain::PaymentMethodVaultingData,
@@ -2917,15 +2895,8 @@ async fn create_or_fetch_payment_method_core(
 
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    let resolver = payment_method_resolver(
-        state,
-        platform,
-        profile,
-        customer_id,
-        &req,
-        payment_method_data,
-    )
-    .await?;
+    let resolver =
+        payment_method_resolver(state, platform, customer_id, &req, payment_method_data).await?;
 
     Box::pin(resolver.execute(
         state,
@@ -3412,7 +3383,6 @@ pub async fn create_generic_volatile_payment_method(
             let resolution = payment_method_resolver(
                 state,
                 platform,
-                profile,
                 customer_id,
                 &req,
                 payment_method_data.clone(),

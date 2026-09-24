@@ -521,8 +521,8 @@ config! {
     superposition_key = SHOULD_GENERATE_PAYMENT_METHOD_FINGERPRINT,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-    targeting_key = id_type::ProfileId
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ShouldGeneratePaymentMethodFingerprint {
