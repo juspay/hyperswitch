@@ -3,11 +3,6 @@ import State from "../../../utils/State";
 
 let globalState;
 
-// merchant config | no header | client | server
-// unset (default) |    200    |  200   |  422   <- behaves as "client", not "client_and_server"
-// client           |    200    |  200   |  422
-// server           |    422    |  422   |  200
-// client_and_server|    200    |  200   |  200
 const MATRIX = [
   { merchantConfig: undefined, header: undefined, expectedStatus: 200 },
   { merchantConfig: undefined, header: "client", expectedStatus: 200 },
