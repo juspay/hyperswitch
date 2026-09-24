@@ -617,11 +617,11 @@ pub enum MandateTransactionType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MandateActivation {
-    /// The connector issued a mandate identifier but the customer's action is still pending.
+    /// The connector issued a mandate identifier but the customer's action is still pending
     Pending,
-    /// The payment succeeded and the connector mandate can be treated as active.
+    /// The payment succeeded and the connector mandate can be treated as active
     Successful,
-    /// The mandate could not be activated (missing identifier or terminal/non-success status).
+    /// The mandate could not be activated (non-success status)
     Failed,
 }
 

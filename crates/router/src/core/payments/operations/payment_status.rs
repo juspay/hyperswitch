@@ -531,6 +531,9 @@ async fn get_tracker_for_sync<
             mandate_reference_id: None,
         })
         .or_else(|| {
+            // Some CIT setup flows only have the connector mandate reference at this point.
+            // Preserve it so status responses can still carry mandate details before an
+            // internal mandate_id is available.
             payment_attempt
                 .connector_mandate_detail
                 .clone()

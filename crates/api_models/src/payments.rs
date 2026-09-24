@@ -10485,7 +10485,7 @@ pub struct SantanderData {
     #[schema(value_type = Option<String>, example = "E9040088820260710172800044983797")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,
-    #[schema(value_type = Option<SantanderJourneyName>, example = "Journey_1")]
+    #[schema(value_type = Option<SantanderJourneyName>, example = "journey_1")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub journey_name: Option<SantanderJourneyName>,
     /// Actual timestamp when the payment was completed, as reported by Santander.
@@ -10501,17 +10501,18 @@ pub struct SantanderData {
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
 pub enum SantanderJourneyName {
-    #[serde(rename = "Journey_1")]
-    Jornada1,
-    #[serde(rename = "Journey_2")]
-    Jornada2,
-    #[serde(rename = "Journey_3")]
-    Jornada3,
-    #[serde(rename = "Journey_4")]
-    Jornada4,
-    #[serde(rename = "Awaiting_Definition")]
-    AguardandoDefinicao,
+    #[serde(rename = "journey_1")]
+    Journey1,
+    #[serde(rename = "journey_2")]
+    Journey2,
+    #[serde(rename = "journey_3")]
+    Journey3,
+    #[serde(rename = "journey_4")]
+    Journey4,
+    #[serde(rename = "awaiting_definition")]
+    AwaitingDefinition,
 }
 
 impl ConnectorMetadata {

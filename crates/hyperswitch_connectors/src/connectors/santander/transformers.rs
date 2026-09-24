@@ -237,27 +237,31 @@ impl
             Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?,
             None => None,
         };
-        let is_pix_automatico_journey_3_or_4 = matches!(
-            journey.as_ref(),
-            Some(SantanderJourneyType::Jornada3 | SantanderJourneyType::Jornada4)
-        );
         let mandate_reference = Box::new(Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
         }));
-        let connector_transaction_id = if is_pix_automatico_journey_3_or_4 {
-            item.response
-                .ativacao
-                .as_ref()
-                .and_then(|activation| activation.dados_jornada.as_ref())
-                .and_then(|journey| journey.txid.clone())
-                .unwrap_or_else(|| item.data.connector_request_reference_id.clone())
-        } else {
-            item.response.id_rec.clone().expose()
+        let connector_transaction_id = match journey.as_ref() {
+            Some(SantanderJourneyType::Jornada3 | SantanderJourneyType::Jornada4) => Some(
+                item.response
+                    .ativacao
+                    .as_ref()
+                    .and_then(|activation| activation.dados_jornada.as_ref())
+                    .and_then(|journey| journey.txid.clone())
+                    .unwrap_or_else(|| item.data.connector_request_reference_id.clone()),
+            ),
+            Some(SantanderJourneyType::Jornada2) | None => {
+                Some(item.response.id_rec.clone().expose())
+            }
+            Some(SantanderJourneyType::Jornada1 | SantanderJourneyType::AguardandoDefinicao) => {
+                None
+            }
         };
-        let resource_id = ResponseId::ConnectorTransactionId(connector_transaction_id);
+        let resource_id = connector_transaction_id
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId);
 
         Ok(Self {
             status,
@@ -1415,6 +1419,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 }
             }
             SantanderPaymentsSyncResponse::PixQrWebhook(pix_data) => {
+                let has_end_to_end_id = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| !pix.end_to_end_id.clone().expose().is_empty())
+                    .unwrap_or(false);
+                let attempt_status = if has_end_to_end_id {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Failure
+                };
                 let connector_metadata = pix_data
                     .pix
                     .first()
@@ -1422,7 +1436,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         let data = SantanderData {
                             end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
                             journey_name: None,
-                            paid_at: Some(pix.horario),
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
                         };
                         serde_json::to_value(data)
                             .change_context(errors::ConnectorError::ParsingFailed)
@@ -1437,8 +1452,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         field_name: "txid".into(),
                     })?;
 
-                // Preserve existing `TransactionResponse` fields and only update
-                // `resource_id` and `connector_metadata`.
                 let response = match item.data.response.clone() {
                     Ok(PaymentsResponseData::TransactionResponse {
                         redirection_data,
@@ -1466,69 +1479,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 };
 
                 Ok(Self {
-                    status: AttemptStatus::Charged,
-                    response,
-                    ..item.data
-                })
-            }
-            SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(cobr_data) => {
-                let entry = cobr_data.cobsr.first().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "cobsr".into(),
-                    },
-                )?;
-
-                let attempt_status = match entry.status {
-                    SantanderPixAutomaticoCobrStatus::Concluida => {
-                        let has_end_to_end_id = entry
-                            .pix
-                            .as_ref()
-                            .and_then(|pix_list| pix_list.first())
-                            .map(|pix| !pix.end_to_end_id.clone().expose().is_empty())
-                            .unwrap_or(false);
-                        if has_end_to_end_id {
-                            AttemptStatus::Charged
-                        } else {
-                            AttemptStatus::Failure
-                        }
-                    }
-                    SantanderPixAutomaticoCobrStatus::Cancelada => AttemptStatus::Voided,
-                    SantanderPixAutomaticoCobrStatus::Expirada
-                    | SantanderPixAutomaticoCobrStatus::Rejeitada => AttemptStatus::Failure,
-                    _ => AttemptStatus::Pending,
-                };
-
-                let connector_metadata = entry
-                    .pix
-                    .as_ref()
-                    .and_then(|pix_list| pix_list.first())
-                    .map(|pix| {
-                        let data = SantanderData {
-                            end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
-                            journey_name: None,
-                            paid_at: (attempt_status == AttemptStatus::Charged)
-                                .then_some(pix.horario),
-                        };
-                        serde_json::to_value(data)
-                            .change_context(errors::ConnectorError::ParsingFailed)
-                    })
-                    .transpose()?;
-
-                Ok(Self {
                     status: attempt_status,
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(entry.txid.clone()),
-                        redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
-                        connector_metadata,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
-                        connector_response_reference_id: Some(entry.id_rec.clone()),
-                        incremental_authorization_allowed: None,
-                        authentication_data: None,
-                        charges: None,
-                        payment_account_reference: None,
-                    }),
+                    response,
                     ..item.data
                 })
             }
@@ -3483,11 +3435,11 @@ fn get_pix_automatico_journey_name(
 impl From<&SantanderJourneyType> for SantanderJourneyName {
     fn from(journey_type: &SantanderJourneyType) -> Self {
         match journey_type {
-            SantanderJourneyType::Jornada1 => Self::Jornada1,
-            SantanderJourneyType::Jornada2 => Self::Jornada2,
-            SantanderJourneyType::Jornada3 => Self::Jornada3,
-            SantanderJourneyType::Jornada4 => Self::Jornada4,
-            SantanderJourneyType::AguardandoDefinicao => Self::AguardandoDefinicao,
+            SantanderJourneyType::Jornada1 => Self::Journey1,
+            SantanderJourneyType::Jornada2 => Self::Journey2,
+            SantanderJourneyType::Jornada3 => Self::Journey3,
+            SantanderJourneyType::Jornada4 => Self::Journey4,
+            SantanderJourneyType::AguardandoDefinicao => Self::AwaitingDefinition,
         }
     }
 }

@@ -12497,23 +12497,6 @@ where
 }
 
 #[cfg(feature = "v1")]
-fn validate_connector_mandate_status_for_mit(
-    mandate_reference_record: &mandates::PaymentsMandateReferenceRecord,
-) -> RouterResult<()> {
-    common_utils::fp_utils::when(
-        matches!(
-            mandate_reference_record.connector_mandate_status,
-            Some(enums::ConnectorMandateStatus::Inactive)
-        ),
-        || {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "connector mandate is inactive".into()
-            }))
-        },
-    )
-}
-
-#[cfg(feature = "v1")]
 pub fn get_mandate_reference_id<F: Clone, D>(
     action_type: Option<ActionType>,
     connector_routing_data: api::ConnectorRoutingData,
@@ -12555,8 +12538,6 @@ where
                     report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                         .attach_printable("No mandate record found for merchant connector ID")
                 })?;
-
-            validate_connector_mandate_status_for_mit(mandate_reference_record)?;
 
             if let Some(mandate_currency) =
                 mandate_reference_record.original_payment_authorized_currency
@@ -12632,10 +12613,6 @@ where
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
-                            validate_connector_mandate_status_for_mit(
-                                mandate_reference_record,
-                            )?;
-
                             common_utils::fp_utils::when(
                                 mandate_reference_record
                                     .original_payment_authorized_currency

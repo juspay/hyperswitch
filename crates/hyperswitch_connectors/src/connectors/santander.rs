@@ -83,12 +83,11 @@ use crate::{
             SantanderSetupMandateRequest, SantanderWebhookRegisterRequest,
         },
         responses::{
-            SanatanderAccessTokenResponse, SantanderBoletoEventType,
-            SantanderBoletoWebhookRegisterResponse, SantanderCreatePixPayloadLocationResponse,
-            SantanderEmptyResponse, SantanderErrorResponse, SantanderGenericErrorResponse,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
-            SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
-            SantanderPixAutomaticoCobrWebhookBody, SantanderPixAutomaticoRecWebhookBody,
+            SanatanderAccessTokenResponse, SantanderBoletoWebhookRegisterResponse,
+            SantanderCreatePixPayloadLocationResponse, SantanderEmptyResponse,
+            SantanderErrorResponse, SantanderGenericErrorResponse, SantanderPaymentsResponse,
+            SantanderPaymentsSyncResponse, SantanderPixAutomaticRecResponse,
+            SantanderPixAutomaticSolicitationResponse, SantanderPixAutomaticoRecWebhookBody,
             SantanderPixQrWebhookBody, SantanderPixWebhookRegisterResponse,
             SantanderRefundResponse, SantanderUpdateResponse, SantanderVoidResponse,
             SantanderWebhookBody,
@@ -1506,8 +1505,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
                 pix_data.valor.original.clone()
             }
-            SantanderPaymentsSyncResponse::PixQrWebhook(_)
-            | SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(_) => convert_amount(
+            SantanderPaymentsSyncResponse::PixQrWebhook(_) => convert_amount(
                 self.amount_converter,
                 data.request.amount,
                 data.request.currency,
@@ -2103,21 +2101,6 @@ impl webhooks::IncomingWebhook for Santander {
                     PaymentIdType::ConnectorTransactionId(txid),
                 ))
             }
-            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
-                let entry = cobsr
-                    .first()
-                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-                // Santander sends a dummy webhook with "TESTE" in idRec during
-                // webhook registration, skip DB lookups for these.
-                if transformers::is_dummy_webhook(&entry.id_rec) {
-                    return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
-                }
-
-                Ok(ObjectReferenceId::PaymentId(
-                    PaymentIdType::ConnectorTransactionId(entry.txid.clone()),
-                ))
-            }
             SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
                 let entry = recs
                     .first()
@@ -2158,9 +2141,6 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Err(errors::ConnectorError::WebhookReferenceIdNotFound.into()),
                 }
             }
-            SantanderWebhookBody::Boleto(body) => Ok(ObjectReferenceId::PaymentId(
-                PaymentIdType::ConnectorTransactionId(body.bank_number),
-            )),
         }
     }
 
@@ -2192,39 +2172,6 @@ impl webhooks::IncomingWebhook for Santander {
                     Ok(IncomingWebhookEvent::PaymentIntentSuccess)
                 } else {
                     Ok(IncomingWebhookEvent::PaymentIntentFailure)
-                }
-            }
-            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
-                let entry = cobsr
-                    .first()
-                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-                // Santander sends a dummy webhook with "TESTE" in idRec during
-                // webhook registration. Acknowledge without processing.
-                if transformers::is_dummy_webhook(&entry.id_rec) {
-                    return Ok(IncomingWebhookEvent::EventNotSupported);
-                }
-
-                let is_payment_successful = entry
-                    .pix
-                    .as_ref()
-                    .and_then(|pix_list| pix_list.first())
-                    .is_some_and(|pix| !pix.end_to_end_id.peek().is_empty());
-
-                match entry.status {
-                    responses::SantanderPixAutomaticoCobrStatus::Concluida => {
-                        if is_payment_successful {
-                            Ok(IncomingWebhookEvent::PaymentIntentSuccess)
-                        } else {
-                            Ok(IncomingWebhookEvent::PaymentIntentFailure)
-                        }
-                    }
-                    responses::SantanderPixAutomaticoCobrStatus::Expirada
-                    | responses::SantanderPixAutomaticoCobrStatus::Rejeitada
-                    | responses::SantanderPixAutomaticoCobrStatus::Cancelada => {
-                        Ok(IncomingWebhookEvent::PaymentIntentFailure)
-                    }
-                    _ => Ok(IncomingWebhookEvent::EventNotSupported),
                 }
             }
             SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
@@ -2261,11 +2208,6 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Ok(IncomingWebhookEvent::EventNotSupported),
                 }
             }
-            SantanderWebhookBody::Boleto(body) => match body.function {
-                SantanderBoletoEventType::Pagamento => {
-                    Ok(IncomingWebhookEvent::PaymentIntentSuccess)
-                }
-            },
         }
     }
 
@@ -2306,48 +2248,6 @@ impl webhooks::IncomingWebhook for Santander {
                     })
                 })
                 .transpose()
-            }
-            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
-                let entry = cobsr
-                    .first()
-                    .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-                if transformers::is_dummy_webhook(&entry.id_rec) {
-                    return Ok(None);
-                }
-
-                match entry.status {
-                    responses::SantanderPixAutomaticoCobrStatus::Concluida => {
-                        let pix = entry
-                            .pix
-                            .as_ref()
-                            .and_then(|pix_list| pix_list.first())
-                            .filter(|pix| !pix.end_to_end_id.peek().is_empty());
-
-                        pix.map(|pix| {
-                            let amount = pix
-                                .valor
-                                .clone()
-                                .parse_value::<StringMajorUnit>("StringMajorUnit")
-                                .change_context(errors::ConnectorError::ParsingFailed)
-                                .and_then(|amount| {
-                                    self.amount_converter
-                                        .convert_back(amount, enums::Currency::BRL)
-                                        .change_context(errors::ConnectorError::ParsingFailed)
-                                })?;
-
-                            Ok(webhooks::IncomingWebhookMandateDetailsUpdate {
-                                connector_mandate_status: Some(
-                                    enums::ConnectorMandateStatus::Active,
-                                ),
-                                original_payment_authorized_amount: Some(amount),
-                                original_payment_authorized_currency: Some(enums::Currency::BRL),
-                            })
-                        })
-                        .transpose()
-                    }
-                    _ => Ok(None),
-                }
             }
             SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
                 let entry = recs
@@ -2396,7 +2296,6 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Ok(None),
                 }
             }
-            _ => Ok(None),
         }
     }
 
