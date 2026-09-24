@@ -1725,6 +1725,13 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
+                // #14284: this function rebuilds the metadata from scratch on every failed
+                // attempt, so anything not explicitly carried forward is wiped. The A/B
+                // assignment must survive, or each retry would re-resolve it and the invoice
+                // could change arms mid-recovery — exactly what storing it prevents.
+                recovery_routing: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.recovery_routing.clone()),
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

@@ -14170,6 +14170,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Which A/B arm this invoice was assigned to, resolved once and replayed on every
+    /// later retry (#14284). A plain string rather than the enum so an unrecognised value
+    /// degrades to "resolve again" instead of failing deserialization of the whole intent.
+    #[schema(value_type = Option<String>, example = "hybrid")]
+    #[serde(default)]
+    pub recovery_routing: Option<String>,
 }
 
 #[cfg(feature = "v2")]

@@ -452,6 +452,16 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Revenue-recovery A/B master gate: `false` (default) keeps today's behaviour exactly,
+    /// so it doubles as the kill switch. Deliberately separate from the algorithm key below:
+    /// a bool cannot encode three states, and a gate living inside the experiment-driven
+    /// value could not be forced off for one merchant, because variant overrides are
+    /// themselves contexts keyed on `variantIds`.
+    pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
+    /// Which retry implementation an invoice is assigned to while A/B is on: `"hybrid"` or
+    /// `"decider"`. Resolved once per invoice and then replayed from the intent, never
+    /// re-read, so a ramp change mid-recovery cannot move an invoice between arms.
+    pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
     /// Days from the first attempt during which an invoice may still be retried
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
