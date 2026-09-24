@@ -527,12 +527,6 @@ config! {
 
 impl DatabaseBackedConfig for ShouldGeneratePaymentMethodFingerprint {
     const KEY: &'static str = "should_generate_payment_method_fingerprint";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_profile_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-    }
 }
 
 config! {

@@ -192,6 +192,12 @@ pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 /// Vault Get Fingerprint request url
 pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
+/// Label for the auxiliary fingerprint in a batched vault fingerprint request
+pub const AUXILIARY_FINGERPRINT_LABEL: &str = "auxiliary";
+
+/// Label for the merchant fingerprint in a batched vault fingerprint request
+pub const MERCHANT_FINGERPRINT_LABEL: &str = "merchant";
+
 /// Vault Retrieve request url
 pub const V2_VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
@@ -319,6 +325,12 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
+
+/// Redis key prefix for the merchant-scoped card fingerprint, which is never persisted
+pub const MERCHANT_FINGERPRINT_REDIS_PREFIX: &str = "merchant_fingerprint";
+
+/// How long a merchant-scoped card fingerprint stays retrievable after the card was last vaulted
+pub const MERCHANT_FINGERPRINT_TTL: i64 = 86400; // 1 day
 
 // Countries and separately encoded territories where PSD2 or the equivalent UK
 // strong customer authentication rules apply.
@@ -503,8 +515,8 @@ pub mod superposition {
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
-    /// Merchant-scoped payment method fingerprint configuration key (org, merchant and profile
-    /// scoped). When enabled, vaulting a card also stores a merchant-keyed fingerprint on it.
+    /// Merchant-scoped payment method fingerprint configuration key (org and merchant scoped).
+    /// When enabled, vaulting a card also derives a merchant-keyed fingerprint for it.
     pub const SHOULD_GENERATE_PAYMENT_METHOD_FINGERPRINT: &str =
         "vaulting.should_generate_payment_method_fingerprint";
     /// Timeout (in seconds) for fetching a network token from the tokenization service during a

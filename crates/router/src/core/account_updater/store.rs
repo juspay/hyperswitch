@@ -84,24 +84,25 @@ async fn write_refreshed_card(
 
     let vaulting_data = domain::PaymentMethodVaultingData::Card(new_card);
 
-    let (fingerprint_id_result, auxiliary_fingerprint_id_result) = tokio::join!(
-        vault::get_fingerprint_id_for_payment_method(
-            state,
-            &vaulting_data,
-            customer_id.get_string_repr().to_owned(),
-        ),
-        vault::get_auxiliary_fingerprint_id_for_payment_method(
-            state,
-            &vaulting_data,
-            customer_id.get_string_repr().to_owned(),
-        ),
-    );
+    let merchant_fingerprint_secret =
+        pm_core::resolve_merchant_fingerprint_secret(state, platform, &vaulting_data).await;
 
-    let locker_fingerprint_id = fingerprint_id_result
-        .change_context(AccountUpdaterError::StoreFailed)
-        .attach_printable("Failed to fingerprint the refreshed card")?;
+    let vault::PaymentMethodFingerprints {
+        locker_fingerprint_id,
+        auxiliary_fingerprint_id,
+        merchant_fingerprint_id,
+    } = vault::get_fingerprints_for_payment_method(
+        state,
+        &vaulting_data,
+        customer_id.get_string_repr().to_owned(),
+        merchant_fingerprint_secret,
+    )
+    .await
+    .change_context(AccountUpdaterError::StoreFailed)
+    .attach_printable("Failed to fingerprint the refreshed card")?;
 
-    let auxiliary_fingerprint_id = auxiliary_fingerprint_id_result
+    let auxiliary_fingerprint_id = auxiliary_fingerprint_id
+        .get_required_value("auxiliary_fingerprint_id")
         .change_context(AccountUpdaterError::StoreFailed)
         .attach_printable("Failed to compute the auxiliary fingerprint for the refreshed card")?;
 
@@ -111,7 +112,7 @@ async fn write_refreshed_card(
         );
         Ok(None)
     } else {
-        Box::pin(store_refreshed_card(
+        let refreshed_payment_method = Box::pin(store_refreshed_card(
             state,
             platform,
             profile,
@@ -122,8 +123,16 @@ async fn write_refreshed_card(
             locker_fingerprint_id,
             auxiliary_fingerprint_id,
         ))
-        .await
-        .map(Some)
+        .await?;
+
+        pm_core::cache_merchant_fingerprint_id(
+            state,
+            &refreshed_payment_method.id,
+            merchant_fingerprint_id.as_deref(),
+        )
+        .await;
+
+        Ok(Some(refreshed_payment_method))
     }
 }
 
@@ -338,7 +347,6 @@ async fn build_refreshed_payment_method(
         updated_by: Some(created_by_string),
         locker_fingerprint_id: Some(locker_fingerprint_id),
         auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id),
-        merchant_fingerprint_id: None,
         version: payment_method.version,
         network_token_requestor_reference_id: payment_method
             .network_token_requestor_reference_id

@@ -45,7 +45,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use storage_impl::StorageError;
 
 use super::payments::helpers;
@@ -65,7 +65,7 @@ use crate::{
         payments::PaymentData,
     },
     db::StorageInterface,
-    routes::{metrics, SessionState},
+    routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -81,7 +81,7 @@ pub async fn get_merchant_fingerprint_secret(
     match merchant_account.fingerprint_secret.as_ref() {
         Some(secret) => Ok(secret.peek().clone()),
         None => {
-            logger::warn!(
+            router_env::logger::warn!(
                 merchant_id = ?merchant_account.get_id(),
                 "fingerprint_secret missing from merchant account; falling back to Superposition"
             );
@@ -132,7 +132,7 @@ pub async fn get_feature_config(
         return FeatureConfig {
             is_payment_method_modular_allowed: matches!(
                 context.merchant_mode,
-                metrics::MerchantMode::Modular
+                MerchantMode::Modular
             ),
         };
     }
