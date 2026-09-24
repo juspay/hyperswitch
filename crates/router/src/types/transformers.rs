@@ -760,10 +760,6 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     }
 }
 
-// Maps a raw dispute row to the slim platform list item. Dispute records hold no encrypted
-// PII, so this reads only non-encrypted columns and performs no decryption (mirroring the
-// platform payments list). `merchant_id` is the platform's id, `processor_merchant_id` is the
-// connected merchant that owns the dispute.
 #[cfg(feature = "v1")]
 impl ForeignFrom<storage::Dispute> for api_models::disputes::PlatformDisputeListItem {
     fn foreign_from(dispute: storage::Dispute) -> Self {

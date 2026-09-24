@@ -301,7 +301,6 @@ pub async fn retrieve_disputes_list_for_platform(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     constraints: api_models::disputes::PlatformDisputeListConstraints,
 ) -> RouterResponse<api_models::disputes::PlatformDisputeListResponse> {
-    // This endpoint is exclusively for platform merchants - not connected, not standard.
     common_utils::fp_utils::when(
         !platform.get_provider().get_account().is_platform_account(),
         || {
@@ -348,7 +347,6 @@ pub async fn get_platform_disputes_filters(
     platform: domain::Platform,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
 ) -> RouterResponse<api_models::disputes::PlatformDisputeListFilters> {
-    // This endpoint is exclusively for platform merchants - not connected, not standard.
     common_utils::fp_utils::when(
         !platform.get_provider().get_account().is_platform_account(),
         || {
@@ -360,7 +358,6 @@ pub async fn get_platform_disputes_filters(
 
     let db = state.store.as_ref();
 
-    // Every connected merchant lives under the platform's organization.
     let merchant_accounts = db
         .list_merchant_accounts_by_organization_id(
             platform.get_provider().get_account().get_org_id(),
@@ -382,8 +379,6 @@ pub async fn get_platform_disputes_filters(
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        // `list_payment_connectors` operates on a processor identity; build one for this
-        // connected merchant (provider == processor since we are not acting on its behalf).
         let processor = domain::Platform::new(
             connected_account.clone(),
             key_store.clone(),

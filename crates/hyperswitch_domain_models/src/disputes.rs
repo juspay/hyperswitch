@@ -122,7 +122,6 @@ impl
             time_range,
         } = value;
         let profile_id_from_request_body = profile_id;
-        // Match both the profile ID from the request body and the list of authenticated profile IDs coming from auth layer
         let profile_id_list = match (profile_id_from_request_body, auth_profile_id_list) {
             (None, None) => None,
             (None, Some(auth_profile_id_list)) => Some(auth_profile_id_list),
