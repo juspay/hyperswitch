@@ -183,7 +183,7 @@ impl TryFrom<enums::PaymentMethodType> for PaymentMethodContainer {
             }),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Payment method type not supported".to_string(),
-                connector: "Getnet".into(),
+                connector: "Getnet",
             }
             .into()),
         }
@@ -200,7 +200,7 @@ impl TryFrom<&GetnetRouterData<&PaymentsAuthorizeRouterData>> for GetnetPayments
                 if item.router_data.is_three_ds() {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "3DS payments".to_string(),
-                        connector: "Getnet".into(),
+                        connector: "Getnet",
                     }
                     .into());
                 }

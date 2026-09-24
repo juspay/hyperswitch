@@ -495,7 +495,7 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "payout creation is not supported".to_string(),
-                connector: "Envoy".into(),
+                connector: "Envoy",
             })?,
         };
 

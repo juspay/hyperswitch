@@ -261,7 +261,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                         if !item.router_data.clone().is_three_ds() {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Non-ThreeDs".to_owned(),
-                                connector: "deutschebank".into(),
+                                connector: "deutschebank",
                             }
                             .into())
                         } else {

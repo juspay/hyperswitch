@@ -508,7 +508,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::Mifinity(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
-                    connector: "payme".into(),
+                    connector: "payme",
                 }
                 .into()),
             },
@@ -1213,7 +1213,7 @@ impl TryFrom<&PaymeRouterData<&PaymentsCaptureRouterData>> for PaymentCaptureReq
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
-                connector: "Payme".into(),
+                connector: "Payme",
             })?
         }
         Ok(Self {

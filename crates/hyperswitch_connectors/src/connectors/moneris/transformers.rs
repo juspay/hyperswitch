@@ -114,7 +114,7 @@ impl TryFrom<&MonerisRouterData<&PaymentsAuthorizeRouterData>> for MonerisPaymen
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Card 3DS".to_string(),
-                        connector: "Moneris".into(),
+                        connector: "Moneris",
                     })?
                 };
                 let idempotency_key = common_utils::generate_uuid_v4().to_string();

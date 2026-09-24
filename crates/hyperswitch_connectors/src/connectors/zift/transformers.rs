@@ -271,7 +271,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                 {
                     Err(errors::ConnectorError::NotSupported {
                         message: "3DS flow".to_string(),
-                        connector: "Zift".into(),
+                        connector: "Zift",
                     }
                     .into())
                 }
@@ -342,7 +342,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
-                        connector: "Zift".into(),
+                        connector: "Zift",
                     })?,
                 };
                 let mandate_request = ZiftMandatePaymentRequest {
@@ -980,7 +980,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
                 ),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: "Only card supported for mandate setup".to_string(),
-                    connector: "Zift".into(),
+                    connector: "Zift",
                 })?,
             };
 

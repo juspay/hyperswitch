@@ -158,7 +158,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Payment method tokenization not supported".to_string(),
-            connector: "ACI".into(),
+            connector: "ACI",
         }
         .into())
     }
@@ -172,7 +172,7 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Payment sessions not supported".to_string(),
-            connector: "ACI".into(),
+            connector: "ACI",
         }
         .into())
     }
@@ -186,7 +186,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Access token authentication not supported".to_string(),
-            connector: "ACI".into(),
+            connector: "ACI",
         }
         .into())
     }

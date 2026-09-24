@@ -346,7 +346,7 @@ impl TryFrom<common_enums::BankType> for AccountType {
             | common_enums::BankType::SubscriptionShare
             | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
                 message: format!("bank_type {b_type} is not supported"),
-                connector: "gocardless".into(),
+                connector: "gocardless",
             }
             .into()),
         }

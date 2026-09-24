@@ -774,7 +774,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Tesouro".into(),
+                        connector: "Tesouro",
                     })?
                 }
                 get_card_payment_method(card, item.router_data.request.is_mandate_payment())

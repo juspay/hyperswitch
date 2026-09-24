@@ -787,7 +787,7 @@ impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseD
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: format!("Country {country:?} is not supported by Nordea"),
-                    connector: "Nordea".into(),
+                    connector: "Nordea",
                 }
                 .into())
             }
@@ -906,7 +906,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: format!("Country {country:?} is not supported by Nordea"),
-                    connector: "Nordea".into(),
+                    connector: "Nordea",
                 }
                 .into())
             }
@@ -1171,7 +1171,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture".to_string(),
-            connector: "Nordea".into(),
+            connector: "Nordea",
         }
         .into())
     }
@@ -1185,7 +1185,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Payments Cancel".to_string(),
-            connector: "Nordea".into(),
+            connector: "Nordea",
         }
         .into())
     }
@@ -1199,7 +1199,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nordea 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Personal API Refunds flow".to_string(),
-            connector: "Nordea".into(),
+            connector: "Nordea",
         }
         .into())
     }

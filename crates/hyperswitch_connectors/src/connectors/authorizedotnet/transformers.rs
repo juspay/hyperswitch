@@ -1129,7 +1129,7 @@ impl
         if item.router_data.is_three_ds() {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
-                connector: "Authorizedotnet".into(),
+                connector: "Authorizedotnet",
             }
             .into());
         };
@@ -2550,12 +2550,12 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>>
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),
-                    connector: "authorizedotnet".into(),
+                    connector: "authorizedotnet",
                 })
             }
             Some(enums::CaptureMethod::Scheduled) => Err(errors::ConnectorError::NotSupported {
                 message: enums::CaptureMethod::Scheduled.to_string(),
-                connector: "authorizedotnet".into(),
+                connector: "authorizedotnet",
             }),
         }?;
         let transaction_request = TransactionConfirmRequest {

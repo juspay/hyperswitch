@@ -70,7 +70,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Stax".into(),
+                        connector: "Stax",
                     })?
                 }
                 let pm_token = item.router_data.get_payment_method_token()?;

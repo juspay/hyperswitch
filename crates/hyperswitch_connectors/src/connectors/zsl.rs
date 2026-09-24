@@ -267,7 +267,7 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Session flow".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -283,7 +283,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "PaymentMethod Tokenization flow ".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -297,7 +297,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "AccessTokenAuth flow".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -311,7 +311,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "SetupMandate flow".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -325,7 +325,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture flow".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -339,7 +339,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Zs
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Void flow ".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -353,7 +353,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zsl {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Refund flow".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }
@@ -367,7 +367,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Zsl {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Rsync flow ".to_owned(),
-            connector: "Zsl".into(),
+            connector: "Zsl",
         }
         .into())
     }

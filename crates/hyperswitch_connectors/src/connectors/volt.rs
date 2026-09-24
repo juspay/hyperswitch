@@ -492,7 +492,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture".to_string(),
-            connector: "Volt".into(),
+            connector: "Volt",
         }
         .into())
     }

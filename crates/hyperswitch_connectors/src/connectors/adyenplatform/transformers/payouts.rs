@@ -409,7 +409,7 @@ impl<F> TryFrom<StoredPaymentCounterparty<'_, F>>
             }
             _ => Err(ConnectorError::NotSupported {
                 message: "Stored payment method is only supported for card payouts".to_string(),
-                connector: "Adyenplatform".into(),
+                connector: "Adyenplatform",
             }
             .into()),
         }
@@ -541,31 +541,31 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                     },
                     payouts::BankTransfer::Ach(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyenplatform".into(),
+                        connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::Bacs(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyenplatform".into(),
+                        connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::Pix(..)
                     | payouts::BankTransfer::PixKey(..)
                     | payouts::BankTransfer::PixEmv(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyenplatform".into(),
+                        connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::Trustly(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Trustly is not supported".to_string(),
-                        connector: "Adyenplatform".into(),
+                        connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::OpenBanking(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via OpenBanking is not supported".to_string(),
-                        connector: "Adyenplatform".into(),
+                        connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::Payshap(..)
                     | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(ConnectorError::NotSupported {
                             message: "Bank transfer via PayShap is not supported".to_string(),
-                            connector: "Adyenplatform".into(),
+                            connector: "Adyenplatform",
                         })?
                     }
                 };
@@ -734,7 +734,7 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
             enums::PayoutType::Wallet | enums::PayoutType::BankRedirect => {
                 Err(report!(ConnectorError::NotSupported {
                     message: "Bakredirect or wallet payouts".to_string(),
-                    connector: "Adyenplatform".into(),
+                    connector: "Adyenplatform",
                 }))
             }
         }

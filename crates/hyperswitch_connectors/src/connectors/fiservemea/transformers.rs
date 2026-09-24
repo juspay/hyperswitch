@@ -96,7 +96,7 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "Fiservemea".into(),
+                connector: "Fiservemea",
             })?
         }
 

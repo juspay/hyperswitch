@@ -168,7 +168,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
-            connector: "worldline".into(),
+            connector: "worldline",
         }
     )
 }

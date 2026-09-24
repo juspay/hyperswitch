@@ -444,11 +444,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Kla
             }
             None => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: "payment_experience not supported".to_string(),
-                connector: "klarna".into(),
+                connector: "klarna",
             })),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: "payment_experience not supported".to_string(),
-                connector: "klarna".into(),
+                connector: "klarna",
             })),
         }
     }
@@ -676,7 +676,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna".into(),
+                        connector: "klarna",
                     })),
                     #[cfg(feature = "v2")]
                     (
@@ -817,7 +817,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna".into(),
+                        connector: "klarna",
                     })),
                 }
             }
@@ -963,7 +963,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna".into(),
+                        connector: "klarna",
                     })),
                     #[cfg(feature = "v2")]
                     (
@@ -1104,7 +1104,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
-                        connector: "klarna".into(),
+                        connector: "klarna",
                     })),
                 }
             }

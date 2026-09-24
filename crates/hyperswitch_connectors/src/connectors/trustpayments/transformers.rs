@@ -356,7 +356,7 @@ impl TryFrom<&TrustpaymentsRouterData<&PaymentsAuthorizeRouterData>>
                     | Some(common_enums::CaptureMethod::SequentialAutomatic) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Capture method not supported by TrustPayments".to_string(),
-                            connector: "TrustPayments".into(),
+                            connector: "TrustPayments",
                         }
                         .into());
                     }

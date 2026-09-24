@@ -239,9 +239,7 @@ impl<const T: u8> ConnectorIntegration<Authorize, PaymentsAuthorizeData, Payment
             | PaymentMethod::PayLater => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
-                connector: Into::<transformers::DummyConnectors>::into(T)
-                    .get_dummy_connector_id()
-                    .into(),
+                connector: Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id(),
             })),
         }
     }

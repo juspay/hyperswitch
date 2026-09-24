@@ -3150,7 +3150,7 @@ impl
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen".into(),
+                            connector: "Adyen",
                         })?
                     }
                 }
@@ -3201,7 +3201,7 @@ impl
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen".into(),
+                            connector: "Adyen",
                         })?
                     }
                 }
@@ -3209,7 +3209,7 @@ impl
             mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
-                    connector: "Adyen".into(),
+                    connector: "Adyen",
                 })?
             }
         }?;
@@ -6356,7 +6356,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
-                connector: "Adyen".into(),
+                connector: "Adyen",
             })?,
             PayoutMethodData::BankTransfer(bd) => {
                 let bank_details = match bd {
@@ -6371,35 +6371,35 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     payouts::BankTransfer::Ach(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyen".into(),
+                        connector: "Adyen",
                     })?,
                     payouts::BankTransfer::Bacs(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyen".into(),
+                        connector: "Adyen",
                     })?,
                     payouts::BankTransfer::Pix(..)
                     | payouts::BankTransfer::PixKey(..)
                     | payouts::BankTransfer::PixEmv(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyen".into(),
+                        connector: "Adyen",
                     })?,
                     payouts::BankTransfer::Trustly(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via Trustly is not supported".to_string(),
-                            connector: "Adyen".into(),
+                            connector: "Adyen",
                         })?
                     }
                     payouts::BankTransfer::OpenBanking(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via OpenBanking is not supported".to_string(),
-                            connector: "Adyen".into(),
+                            connector: "Adyen",
                         })?
                     }
                     payouts::BankTransfer::Payshap(..)
                     | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via PayShap is not supported".to_string(),
-                            connector: "Adyen".into(),
+                            connector: "Adyen",
                         })?
                     }
                 };
@@ -6442,17 +6442,17 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     payouts::Wallet::Venmo(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Venmo Wallet is not supported".to_string(),
-                        connector: "Adyen".into(),
+                        connector: "Adyen",
                     })?,
                     payouts::Wallet::ApplePayDecrypt(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Apple Pay Decrypt Wallet is not supported".to_string(),
-                            connector: "Adyen".into(),
+                            connector: "Adyen",
                         })?
                     }
                     payouts::Wallet::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Google Pay Decrypt Wallet is not supported".to_string(),
-                        connector: "Adyen".into(),
+                        connector: "Adyen",
                     })?,
                 };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6487,11 +6487,11 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             }
             PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Bank redirect payout creation is not supported".to_string(),
-                connector: "Adyen".into(),
+                connector: "Adyen",
             })?,
             PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Passthrough payout creation is not supported".to_string(),
-                connector: "Adyen".into(),
+                connector: "Adyen",
             })?,
             PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
                 error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
@@ -7246,7 +7246,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
             enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
-                    connector: "Adyen".into(),
+                    connector: "Adyen",
                 }
                 .into())
             }

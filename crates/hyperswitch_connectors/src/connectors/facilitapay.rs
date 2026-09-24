@@ -692,7 +692,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Facilit
         if req.request.payment_amount != req.request.refund_amount {
             return Err(errors::ConnectorError::NotSupported {
                 message: "Partial refund not supported by Facilitapay".to_string(),
-                connector: "Facilitapay".into(),
+                connector: "Facilitapay",
             }
             .into());
         }

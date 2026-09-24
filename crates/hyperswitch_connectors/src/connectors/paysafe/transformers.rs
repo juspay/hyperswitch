@@ -1552,7 +1552,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     "Mandate Payment with {} {}",
                     item.router_data.payment_method, item.router_data.auth_type
                 ),
-                connector: "Paysafe".into(),
+                connector: "Paysafe",
             })?
         };
 

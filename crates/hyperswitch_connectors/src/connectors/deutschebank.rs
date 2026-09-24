@@ -358,7 +358,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         } else if !req.is_three_ds() && req.request.is_card() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Non-ThreeDs".to_owned(),
-                connector: "deutschebank".into(),
+                connector: "deutschebank",
             }
             .into())
         } else if req.request.connector_mandate_id().is_none() {

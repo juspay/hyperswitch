@@ -394,7 +394,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture".to_string(),
-            connector: "Payjustnowinstore".into(),
+            connector: "Payjustnowinstore",
         }
         .into())
     }

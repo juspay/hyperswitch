@@ -135,7 +135,7 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                 if item.router_data.is_three_ds() {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "3DS flow".to_string(),
-                        connector: "Globalpay".into(),
+                        connector: "Globalpay",
                     }
                     .into());
                 }

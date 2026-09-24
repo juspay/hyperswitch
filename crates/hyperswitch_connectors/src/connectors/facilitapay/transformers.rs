@@ -234,7 +234,7 @@ fn convert_to_document_type(document_type: &str) -> Result<DocumentType, errors:
         "tax_id" | "taxid" => Ok(DocumentType::TaxId),
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Document type '{document_type}'"),
-            connector: "Facilitapay".into(),
+            connector: "Facilitapay",
         }),
     }
 }

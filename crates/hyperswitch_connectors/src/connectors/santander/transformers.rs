@@ -428,7 +428,7 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
             }
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: item.0.payment_method.to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             })),
         }?;
 
@@ -1041,7 +1041,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                                 "Payment method type {:?} is not supported for mandates",
                                 value.router_data.request.payment_method_type
                             ),
-                            connector: "Santander".into(),
+                            connector: "Santander",
                         }
                         .into());
                     }
@@ -1098,7 +1098,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                                 "Payment method type {:?} is not supported for mandates",
                                 value.router_data.request.payment_method_type
                             ),
-                            connector: "Santander".into(),
+                            connector: "Santander",
                         }
                         .into());
                     }
@@ -1767,7 +1767,7 @@ impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPaymentsCancelR
                     "Pre-authorization Cancel for Payment method {}",
                     item.payment_method
                 ),
-                connector: "Santander".into(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -2003,7 +2003,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
                         Err(errors::ConnectorError::NotSupported {
                             message: "Only CPF and CNPJ documents are supported for Santander"
                                 .to_string(),
-                            connector: "Santander".into(),
+                            connector: "Santander",
                         })
                     }
                 }?;

@@ -948,7 +948,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         } else {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: self.id().into(),
+                connector: self.id(),
             }
             .into())
         }
@@ -1027,7 +1027,7 @@ fn get_connector_payment_method_type_info(
             .get(&payment_method)
             .ok_or_else(|| errors::ConnectorError::NotSupported {
                 message: payment_method.to_string(),
-                connector: connector.into(),
+                connector,
             })?;
 
     payment_method_type
@@ -1035,7 +1035,7 @@ fn get_connector_payment_method_type_info(
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
                     message: format!("{payment_method} {pmt}"),
-                    connector: connector.into(),
+                    connector,
                 }
                 .into()
             })

@@ -404,7 +404,7 @@ impl TryFrom<&DatatransRouterData<&types::PaymentsAuthorizeRouterData>>
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
-                        connector: "DataTrans".into(),
+                        connector: "DataTrans",
                     })?,
                 };
                 Ok(Self {

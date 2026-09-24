@@ -260,7 +260,7 @@ impl TryFrom<(&WalletData, &Option<PaymentMethodToken>)> for TokenizedCardData {
             return Err(error_stack::Report::from(
                 errors::ConnectorError::NotSupported {
                     message: "Wallet type used".to_string(),
-                    connector: "Archipel".into(),
+                    connector: "Archipel",
                 },
             ));
         };
@@ -813,7 +813,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                 .get_authentication_data()
                 .change_context(errors::ConnectorError::NotSupported {
                     message: "Selected 3DS authentication method".to_string(),
-                    connector: "archipel".into(),
+                    connector: "archipel",
                 })?;
             Some(Archipel3DS::from(auth_data))
         } else {

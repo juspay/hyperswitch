@@ -174,7 +174,7 @@ impl ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, Paym
             }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -288,7 +288,7 @@ impl ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, Paym
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
@@ -314,13 +314,13 @@ impl ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, Paym
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -442,7 +442,7 @@ where
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into());
             }
@@ -1103,14 +1103,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     } else {
                         Err(errors::ConnectorError::NotSupported {
                             message: req.payment_method.to_string(),
-                            connector: "Santander".into(),
+                            connector: "Santander",
                         }
                         .into())
                     }
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
@@ -1142,13 +1142,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -1184,7 +1184,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 Some(enums::PaymentMethodType::Boleto) => Ok(Method::Post),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             };
@@ -1382,7 +1382,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     }
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: req.payment_method.to_string(),
-                        connector: "Santander".into(),
+                        connector: "Santander",
                     }
                     .into()),
                 },
@@ -1448,13 +1448,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     }
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: req.payment_method.to_string(),
-                        connector: "Santander".into(),
+                        connector: "Santander",
                     }
                     .into()),
                 },
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             }
@@ -1685,7 +1685,7 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
@@ -1717,13 +1717,13 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -1847,13 +1847,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             }
             .into()),
         }
@@ -1886,7 +1886,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
                 Some(enums::PaymentMethodType::PixQr) => Ok(Method::Put),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
-                    connector: "Santander".into(),
+                    connector: "Santander",
                 }
                 .into()),
             };
@@ -2252,7 +2252,7 @@ impl ConnectorSpecifications for Santander {
             }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Scope type not supported".to_string(),
-                connector: "Santander".into(),
+                connector: "Santander",
             })?,
         }
     }
@@ -2498,7 +2498,7 @@ impl
                 _ => {
                     return Err(errors::ConnectorError::NotSupported {
                         message: req.payment_method.to_string(),
-                        connector: "Santander".into(),
+                        connector: "Santander",
                     }
                     .into());
                 }

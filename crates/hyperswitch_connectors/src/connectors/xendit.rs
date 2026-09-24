@@ -180,7 +180,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Cancel/Void flow".to_string(),
-            connector: "Xendit".into(),
+            connector: "Xendit",
         }
         .into())
     }
@@ -703,7 +703,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         if amount_to_capture != authorized_amount {
             Err(report!(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
-                connector: "Xendit".into()
+                connector: "Xendit"
             }))
         } else {
             let connector_router_data = xendit::XenditRouterData::from((amount_to_capture, req));

@@ -185,7 +185,7 @@ impl ConnectorValidation for Celero {
         } else {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: self.id().into(),
+                connector: self.id(),
             }
             .into())
         }

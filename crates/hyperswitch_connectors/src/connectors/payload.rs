@@ -1423,7 +1423,7 @@ impl ConnectorSpecifications for Payload {
             }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Scope type not supported".to_string(),
-                connector: "Payload".into(),
+                connector: "Payload",
             })?,
         }
     }

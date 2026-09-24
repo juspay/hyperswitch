@@ -305,7 +305,7 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::Expired
             | enums::AttemptStatus::CaptureReview => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
-                connector: "recurly".into(),
+                connector: "recurly",
             }
             .into()),
         }

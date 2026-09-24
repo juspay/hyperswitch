@@ -282,7 +282,7 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             BankNames::Handelsbanken => Ok(Self::Handelsbanken),
             _ => Err(Into::into(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
-                connector: "Multisafepay".into(),
+                connector: "Multisafepay",
             })),
         }
     }

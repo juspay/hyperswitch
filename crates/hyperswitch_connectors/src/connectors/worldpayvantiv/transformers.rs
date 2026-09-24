@@ -530,7 +530,7 @@ impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
             common_enums::CardNetwork::UnionPay => Ok(Self::UnionPay),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "worldpayvantiv".into(),
+                connector: "worldpayvantiv",
             }
             .into()),
         }
@@ -549,7 +549,7 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
             connector_utils::CardIssuer::JCB => Ok(Self::JCB),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "worldpayvantiv".into(),
+                connector: "worldpayvantiv",
             }
             .into()),
         }
@@ -789,7 +789,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "Worldpayvantiv".into(),
+                connector: "Worldpayvantiv",
             })?
         }
         let worldpayvantiv_metadata =
@@ -940,7 +940,7 @@ impl TryFrom<&SetupMandateRouterData> for CnpOnlineRequest {
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "Worldpayvantiv".into(),
+                connector: "Worldpayvantiv",
             })?
         }
 
@@ -4694,7 +4694,7 @@ fn get_vantiv_card_data(
                                 "Invalid Apple Pay network '{}'. Supported networks: Visa,MasterCard,AmEx,Discover,DinersClub,JCB,UnionPay",
                                 apple_pay_data.payment_method.network
                             ),
-                            connector: "worldpay_vativ".into()
+                            connector: "worldpay_vativ"
                         })
                     })?;
 
@@ -4748,7 +4748,7 @@ fn get_vantiv_card_data(
                                     "Invalid Google Pay card network '{}'. Supported networks: VISA, MASTERCARD, AMEX, DISCOVER, JCB, UNIONPAY",
                                     google_pay_data.info.card_network
                                 ),
-                                connector: "worldpay_vativ".into()
+                                connector: "worldpay_vativ"
                             })
                         })?;
 
@@ -4953,7 +4953,7 @@ fn get_dispute_stage(
         "retrievalrequest" => Ok(common_enums::enums::DisputeStage::PreDispute),
         _ => Err(errors::ConnectorError::NotSupported {
             message: format!("Dispute stage {dispute_cycle}",),
-            connector: "worldpayvantiv".into(),
+            connector: "worldpayvantiv",
         }
         .into()),
     }
