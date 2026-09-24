@@ -12266,8 +12266,8 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI and 30 s in all other envs
-    cy.wait(30000);
+    // Polling interval is 10 s in CI and 15 s in all other envs
+    cy.wait(15000);
   }
 );
 
@@ -12335,8 +12335,8 @@ Cypress.Commands.add("deleteSuperpositionContext", (globalState, context) => {
       }
     });
   });
-  // Polling interval is 10 s in CI and 30 s in all other envs
-  cy.wait(30000);
+  // Polling interval is 10 s in CI and 15 s in all other envs
+  cy.wait(15000);
 });
 
 // Set an arbitrary superposition config.

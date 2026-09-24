@@ -75,7 +75,8 @@ const isEnvSet = (name) =>
   process.env[`CYPRESS_${name}`] !== undefined;
 
 // development.toml mirrors the local router config, so the fallback below is
-// local-only; remote targets front superposition next to the router API.
+// local-only; remote targets (integ/sandbox) provide SUPERPOSITION_* vars via
+// cypress-tests/cypress.env.json or shell exports.
 const routerTarget =
   process.env.CYPRESS_BASEURL || process.env.BASEURL || "http://localhost:8080";
 const isLocalRouterTarget = (() => {
@@ -87,43 +88,15 @@ const isLocalRouterTarget = (() => {
   }
 })();
 
-// https://integ.hyperswitch.io/api → https://integ.hyperswitch.io/superposition
-const deriveSuperpositionBaseUrl = () => {
-  try {
-    const url = new URL(routerTarget);
-    const apiPath = url.pathname.replace(/\/+$/, "");
-    if (!/^(?:\/v\d+)?\/api$/i.test(apiPath)) {
-      return undefined; // no /api mount — don't guess
-    }
-    return url.origin + apiPath.replace(/api$/i, "superposition");
-  } catch {
-    return undefined;
-  }
-};
-
 const applySuperpositionFallback = async (config) => {
+  if (!isLocalRouterTarget) {
+    return;
+  }
+
   const missing = Object.keys(superpositionEnvMapping).filter(
     (name) => !isEnvSet(name)
   );
   if (missing.length === 0) {
-    return;
-  }
-
-  if (!isLocalRouterTarget) {
-    // Derive only the endpoint for remote targets; never fabricate the secret.
-    if (
-      missing.includes("SUPERPOSITION_BASE_URL") &&
-      config.env.SUPERPOSITION_BASE_URL === undefined
-    ) {
-      const derived = deriveSuperpositionBaseUrl();
-      if (derived !== undefined) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[cypress.config] Superposition endpoint derived from router target (${derived})`
-        );
-        config.env.SUPERPOSITION_BASE_URL = derived;
-      }
-    }
     return;
   }
 
