@@ -16,10 +16,7 @@ use router_env::logger;
 
 use crate::{
     consts,
-    core::{
-        errors, metrics,
-        unified_connector_service::determine_connector_integration_type,
-    },
+    core::{errors, metrics, unified_connector_service::determine_connector_integration_type},
     routes::SessionState,
 };
 
