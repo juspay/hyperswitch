@@ -3628,7 +3628,7 @@ impl ConnectorSpecifications for Adyen {
             )]),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Scope type not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
         }
     }

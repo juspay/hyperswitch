@@ -53,7 +53,9 @@ pub enum ConnectorError {
     #[error("{message} is not supported by {connector}")]
     NotSupported {
         message: String,
-        connector: &'static str,
+        /// Owned so the connector can be named at runtime. Errors surfaced through UCS know
+        /// the connector only as a value on the call, not as a compile-time literal.
+        connector: Cow<'static, str>,
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
