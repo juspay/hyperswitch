@@ -8585,9 +8585,7 @@ pub fn add_connector_response_to_additional_payment_data(
                         .clone()
                         .or(card_type.map(|card_type| card_type.to_string())),
                     card_subtype: additional_card_data.card_subtype.clone().or(card_subtype),
-                    card_segment_type: additional_card_data
-                        .card_segment_type
-                        .or(card_segment_type),
+                    card_segment_type: additional_card_data.card_segment_type.or(card_segment_type),
                     funding_source: additional_card_data.funding_source.or(funding_source),
                     card_issuing_country: additional_card_data
                         .card_issuing_country
