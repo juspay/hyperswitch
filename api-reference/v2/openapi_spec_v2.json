@@ -1615,7 +1615,7 @@
         ],
         "summary": "Customers - Create",
         "description": "Creates a customer object and stores the customer details to be reused for future payments.\nIncase the customer already exists in the system, this API will respond with the customer details.",
-        "operationId": "Create a Customer",
+        "operationId": "Create a Customer V1",
         "parameters": [
           {
             "name": "X-Profile-Id",
@@ -1893,7 +1893,7 @@
         ],
         "summary": "Customers - Retrieve",
         "description": "Retrieves a customer's details.",
-        "operationId": "Retrieve a Customer",
+        "operationId": "Retrieve a Customer V1",
         "parameters": [
           {
             "name": "id",
@@ -1942,7 +1942,7 @@
         ],
         "summary": "Customers - Update",
         "description": "Updates the customer's details in a customer object.",
-        "operationId": "Update a Customer",
+        "operationId": "Update a Customer V1",
         "parameters": [
           {
             "name": "id",
@@ -2009,7 +2009,7 @@
         ],
         "summary": "Customers - Delete",
         "description": "Delete a customer record.",
-        "operationId": "Delete a Customer",
+        "operationId": "Delete a Customer V1",
         "parameters": [
           {
             "name": "id",
@@ -2105,7 +2105,7 @@
         ],
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
-        "operationId": "List all Customers for a Merchant",
+        "operationId": "List all Customers for a Merchant V1",
         "parameters": [
           {
             "name": "X-Profile-Id",
@@ -2647,9 +2647,9 @@
         "parameters": [
           {
             "name": "payment_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for payment",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2658,9 +2658,9 @@
           },
           {
             "name": "profile_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for business profile",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2669,9 +2669,9 @@
           },
           {
             "name": "customer_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for customer",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true,
@@ -2682,9 +2682,9 @@
           },
           {
             "name": "starting_after",
-            "in": "path",
+            "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2693,9 +2693,9 @@
           },
           {
             "name": "ending_before",
-            "in": "path",
+            "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2704,27 +2704,27 @@
           },
           {
             "name": "limit",
-            "in": "path",
+            "in": "query",
             "description": "limit on the number of objects to return",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/common_utils.types.list.PageSize"
             }
           },
           {
             "name": "offset",
-            "in": "path",
+            "in": "query",
             "description": "The starting point within a list of objects",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
             }
           },
           {
             "name": "created",
-            "in": "path",
+            "in": "query",
             "description": "The time at which payment is created",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2734,9 +2734,9 @@
           },
           {
             "name": "created.lt",
-            "in": "path",
+            "in": "query",
             "description": "Time less than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2746,9 +2746,9 @@
           },
           {
             "name": "created.gt",
-            "in": "path",
+            "in": "query",
             "description": "Time greater than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2758,9 +2758,9 @@
           },
           {
             "name": "created.lte",
-            "in": "path",
+            "in": "query",
             "description": "Time less than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2770,9 +2770,9 @@
           },
           {
             "name": "created.gte",
-            "in": "path",
+            "in": "query",
             "description": "Time greater than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2782,9 +2782,9 @@
           },
           {
             "name": "start_amount",
-            "in": "path",
+            "in": "query",
             "description": "The start amount to filter list of transactions which are greater than or equal to the start amount",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
               "format": "int64",
@@ -2793,9 +2793,9 @@
           },
           {
             "name": "end_amount",
-            "in": "path",
+            "in": "query",
             "description": "The end amount to filter list of transactions which are less than or equal to the end amount",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
               "format": "int64",
@@ -2804,9 +2804,9 @@
           },
           {
             "name": "connector",
-            "in": "path",
+            "in": "query",
             "description": "The connector to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2817,9 +2817,9 @@
           },
           {
             "name": "currency",
-            "in": "path",
+            "in": "query",
             "description": "The currency to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2830,9 +2830,9 @@
           },
           {
             "name": "status",
-            "in": "path",
+            "in": "query",
             "description": "The payment status to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2843,9 +2843,9 @@
           },
           {
             "name": "payment_method_type",
-            "in": "path",
+            "in": "query",
             "description": "The payment method type to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2856,9 +2856,9 @@
           },
           {
             "name": "payment_method_subtype",
-            "in": "path",
+            "in": "query",
             "description": "The payment method subtype to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2869,9 +2869,9 @@
           },
           {
             "name": "authentication_type",
-            "in": "path",
+            "in": "query",
             "description": "The authentication type to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2882,9 +2882,9 @@
           },
           {
             "name": "merchant_connector_id",
-            "in": "path",
+            "in": "query",
             "description": "The merchant connector id to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2895,27 +2895,27 @@
           },
           {
             "name": "order_on",
-            "in": "path",
+            "in": "query",
             "description": "The field on which the payments list should be sorted",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/SortOn"
             }
           },
           {
             "name": "order_by",
-            "in": "path",
+            "in": "query",
             "description": "The order in which payments list should be sorted",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/SortBy"
             }
           },
           {
             "name": "card_network",
-            "in": "path",
+            "in": "query",
             "description": "The card networks to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2926,9 +2926,9 @@
           },
           {
             "name": "merchant_order_reference_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for merchant order reference id",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -3077,7 +3077,7 @@
         ],
         "summary": "Payment Method - Create",
         "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
-        "operationId": "Create Payment Method",
+        "operationId": "Create Payment Method V1",
         "parameters": [
           {
             "name": "X-Profile-Id",
@@ -3131,15 +3131,6 @@
         "description": "Creates a payment method for customer with billing information and other metadata.",
         "operationId": "Create Payment Method Intent",
         "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "The unique identifier for the Payment Method",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "X-Profile-Id",
             "in": "header",
@@ -3254,6 +3245,15 @@
         "operationId": "Update Payment Method",
         "parameters": [
           {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Profile-Id",
             "in": "header",
             "description": "Profile ID associated to the payment method",
@@ -3303,8 +3303,17 @@
         ],
         "summary": "Payment Method - Update",
         "description": "Update an existing payment method of a customer.",
-        "operationId": "Update Payment Method",
+        "operationId": "Update Payment Method V1",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "X-Profile-Id",
             "in": "header",
@@ -3453,7 +3462,7 @@
         "tags": [
           "Payment Methods"
         ],
-        "operationId": "Retrieve Payment Method",
+        "operationId": "Retrieve Payment Method V1",
         "parameters": [
           {
             "name": "id",
@@ -3502,7 +3511,7 @@
         ],
         "summary": "Payment Method - Delete",
         "description": "Deletes a payment method of a customer.",
-        "operationId": "Delete Payment Method",
+        "operationId": "Delete Payment Method V1",
         "parameters": [
           {
             "name": "id",
@@ -3645,7 +3654,7 @@
         ],
         "summary": "Payment Method - List Customer Saved Payment Methods",
         "description": "List the payment methods saved for a customer",
-        "operationId": "List Customer Saved Payment Methods",
+        "operationId": "List Customer Saved Payment Methods V1",
         "parameters": [
           {
             "name": "id",
@@ -3747,7 +3756,7 @@
         ],
         "summary": "Payment Method - Get Payment Method Token Data",
         "description": "Retrieve the Payment method id associated with a payment method token.",
-        "operationId": "Get Payment Method Token Data",
+        "operationId": "Get Payment Method Token Data V1",
         "parameters": [
           {
             "name": "payment_method_temporary_token",
@@ -3910,7 +3919,7 @@
         ],
         "summary": "Payment Method Session - Create",
         "description": "Create a payment method session for a customer\nThis is used to list the saved payment methods for the customer\nThe customer can also add a new payment method using this session",
-        "operationId": "Create a payment method session",
+        "operationId": "Create a payment method session V1",
         "parameters": [
           {
             "name": "X-Profile-Id",
@@ -4086,7 +4095,7 @@
         ],
         "summary": "Payment Method Session - Retrieve",
         "description": "Retrieve the payment method session",
-        "operationId": "Retrieve the payment method session",
+        "operationId": "Retrieve the payment method session V1",
         "parameters": [
           {
             "name": "id",
@@ -4135,7 +4144,7 @@
         ],
         "summary": "Payment Method Session - Delete a saved payment method",
         "description": "Delete a saved payment method from the given payment method session.",
-        "operationId": "Delete a saved payment method",
+        "operationId": "Delete a saved payment method V1",
         "parameters": [
           {
             "name": "id",
@@ -4254,7 +4263,7 @@
         ],
         "summary": "Payment Method Session - List Payment Methods",
         "description": "List payment methods for the given payment method session.\nThis endpoint lists the enabled payment methods for the profile and the saved payment methods of the customer.",
-        "operationId": "List Payment methods for a Payment Method Session",
+        "operationId": "List Payment methods for a Payment Method Session V1",
         "parameters": [
           {
             "name": "id",
@@ -4379,7 +4388,7 @@
         ],
         "summary": "Payment Method Session - Update a saved payment method",
         "description": "Update a saved payment method from the given payment method session.",
-        "operationId": "Update a saved payment method",
+        "operationId": "Update a saved payment method V1",
         "parameters": [
           {
             "name": "id",
@@ -4530,7 +4539,7 @@
         ],
         "summary": "Payment Method Session - Confirm a payment method session",
         "description": "**Confirms a payment method session object with the payment method data**",
-        "operationId": "Confirm the payment method session",
+        "operationId": "Confirm the payment method session V1",
         "parameters": [
           {
             "name": "id",
@@ -4826,7 +4835,7 @@
         "operationId": "Retrieve Revenue Recovery Info",
         "parameters": [
           {
-            "name": "recovery_recovery_id",
+            "name": "revenue_recovery_id",
             "in": "path",
             "description": "The payment intent id",
             "required": true,
@@ -5040,7 +5049,7 @@
         ],
         "summary": "Proxy",
         "description": "Create a proxy request",
-        "operationId": "Proxy Request",
+        "operationId": "Proxy Request V1",
         "parameters": [
           {
             "name": "X-Profile-Id",
@@ -5186,6 +5195,17 @@
         "summary": "Tokenization - Delete",
         "description": "Delete a token entry with customer_id and session_id",
         "operationId": "delete_tokenized_data_api",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -31458,7 +31478,7 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
-            "default": "Instant",
+            "default": "instant",
             "nullable": true
           },
           "metadata": {

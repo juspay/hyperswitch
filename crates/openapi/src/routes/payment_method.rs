@@ -267,7 +267,6 @@ pub async fn default_payment_method_set_api() {}
     post,
     path = "/v2/payment-methods/create-intent",
     params (
-        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
         (
             "X-Profile-Id" = String, Header,
             description = "Profile ID associated to the payment method",
@@ -366,7 +365,7 @@ pub async fn create_payment_method_api() {}
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
-    operation_id = "Create Payment Method",
+    operation_id = "Create Payment Method V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -413,7 +412,7 @@ pub async fn payment_method_retrieve_api() {}
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
-    operation_id = "Retrieve Payment Method",
+    operation_id = "Retrieve Payment Method V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -426,6 +425,7 @@ pub async fn payment_method_retrieve_api_v1() {}
     put,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
     params(
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
         (
             "X-Profile-Id" = String, Header,
             description = "Profile ID associated to the payment method",
@@ -454,6 +454,7 @@ pub async fn payment_method_update_api() {}
     put,
     path = "/v1/payment-methods/{id}/update-saved-payment-method",
     params(
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
         (
             "X-Profile-Id" = String, Header,
             description = "Profile ID associated to the payment method",
@@ -469,7 +470,7 @@ pub async fn payment_method_update_api() {}
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Payment Methods",
-    operation_id = "Update Payment Method",
+    operation_id = "Update Payment Method V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -518,7 +519,7 @@ pub async fn payment_method_delete_api() {}
         (status = 404, description = "Payment Method Not Found"),
     ),
     tag = "Payment Methods",
-    operation_id = "Delete Payment Method",
+    operation_id = "Delete Payment Method V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -587,7 +588,7 @@ pub async fn payment_method_get_token_details_api() {}
         (status = 404, description = "Payment Method Not Found | Payment method token either expired or does not exist"),
     ),
     tag = "Payment Methods",
-    operation_id = "Get Payment Method Token Data",
+    operation_id = "Get Payment Method Token Data V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -636,7 +637,7 @@ pub async fn list_customer_payment_method_api() {}
         (status = 404, description = "Customer Not Found"),
     ),
     tag = "Payment Methods",
-    operation_id = "List Customer Saved Payment Methods",
+    operation_id = "List Customer Saved Payment Methods V1",
     security(("api_key" = []))
 )]
 #[cfg(feature = "v2")]
@@ -704,7 +705,7 @@ pub fn payment_method_session_create() {}
         (status = 400, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "Create a payment method session",
+    operation_id = "Create a payment method session V1",
     security(("api_key" = []))
 )]
 pub fn payment_method_session_create_v1() {}
@@ -754,7 +755,7 @@ pub fn payment_method_session_retrieve() {}
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "Retrieve the payment method session",
+    operation_id = "Retrieve the payment method session V1",
     security(("api_key" = []))
 )]
 pub fn payment_method_session_retrieve_v1() {}
@@ -806,7 +807,7 @@ pub fn payment_method_session_list_payment_methods() {}
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "List Payment methods for a Payment Method Session",
+    operation_id = "List Payment methods for a Payment Method Session V1",
     security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_list_payment_methods_v1() {}
@@ -886,7 +887,7 @@ pub fn payment_method_session_update_saved_payment_method() {}
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "Update a saved payment method",
+    operation_id = "Update a saved payment method V1",
     security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_update_saved_payment_method_v1() {}
@@ -954,7 +955,7 @@ pub fn payment_method_session_delete_saved_payment_method() {}
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",
-    operation_id = "Delete a saved payment method",
+    operation_id = "Delete a saved payment method V1",
     security(("publishable_key__client_secret" = []))
 )]
 pub fn payment_method_session_delete_saved_payment_method_v1() {}
@@ -1081,7 +1082,7 @@ pub fn payment_method_session_confirm() {}
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payment Method Session",
-  operation_id = "Confirm the payment method session",
+  operation_id = "Confirm the payment method session V1",
   security(("publishable_key__client_secret" = [])),
 )]
 #[cfg(feature = "v2")]
