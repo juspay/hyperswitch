@@ -1052,21 +1052,16 @@ pub async fn payouts_fulfill_core(
         .await?;
     }
 
-    let is_blocked =
-        guards::is_payout_blocked(&state, &platform, &mut payout_data, &dimensions).await?;
-
-    if !is_blocked {
-        Box::pin(fulfill_payout(
-            &state,
-            &platform,
-            header_payload,
-            &connector_data,
-            &mut payout_data,
-            &dimensions,
-        ))
-        .await
-        .attach_printable("Payout fulfillment failed for given Payout request")?;
-    }
+    Box::pin(fulfill_payout(
+        &state,
+        &platform,
+        header_payload,
+        &connector_data,
+        &mut payout_data,
+        &dimensions,
+    ))
+    .await
+    .attach_printable("Payout fulfillment failed for given Payout request")?;
 
     trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
