@@ -1990,6 +1990,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -2095,6 +2096,7 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            test_mode: router_data.test_mode,
         })
     }
 }
