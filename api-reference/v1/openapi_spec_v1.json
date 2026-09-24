@@ -34948,7 +34948,8 @@
           },
           "refund_uncaptured_amount": {
             "type": "boolean",
-            "description": "Decider to refund the uncaptured amount. (Currently not fully supported or behavior may vary by connector).",
+            "description": "Decider to refund the uncaptured amount. This field is currently ignored and has no effect on the capture; what happens to the uncaptured amount is determined by the payment's `capture_method`. To be deprecated soon.",
+            "deprecated": true,
             "nullable": true
           },
           "statement_descriptor_suffix": {
