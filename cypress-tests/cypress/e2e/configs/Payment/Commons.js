@@ -4559,7 +4559,7 @@ export const connectorDetails = {
         },
       },
     }),
-    // ---- BIN-based eligibility blocklist exchanges (spec 57) ----
+    // ---- BIN-based eligibility blocklist exchanges (spec 54) ----
     // Setup: saved cards vaulted onto a dedicated customer. The blocklist
     // guard matches the derived card_isin of each saved card.
     SavedCard411111: getCustomExchange({

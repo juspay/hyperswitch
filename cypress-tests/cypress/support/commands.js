@@ -8492,7 +8492,7 @@ Cypress.Commands.add("paymentsClientListCallTest", (data, globalState) => {
           expect(
             paymentMethod.payment_method_data?.card?.card_isin,
             "card_isin"
-          ).to.not.be.null;
+          ).to.be.a("string");
         }
       }
 
