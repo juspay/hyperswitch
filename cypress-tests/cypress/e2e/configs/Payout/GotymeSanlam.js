@@ -76,6 +76,106 @@ export const connectorDetails = {
         },
       },
     },
+    /*
+     * FRM (pre-FRM) scenarios for the sanlam_payshield -> gotyme_sanlam
+     * payout chain (see cypress/e2e/spec/Payout/00009-PayoutFrm.cy.js).
+     * The Payshield sandbox flags an amount over 1,000,000 cents as fraud;
+     * frm_message details (frm_status, frm_score, frm_error) are asserted
+     * separately in the spec since they contain non-deterministic ids and
+     * can't be part of a fixed deep-equal Response body.
+     */
+    frm_legit: {
+      Create: {
+        Request: {
+          amount: 1000,
+          currency: "ZAR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank_transfer: {
+              payout_method_type: "payshap",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+    },
+    frm_fraud: {
+      Create: {
+        Request: {
+          amount: 10000000,
+          currency: "ZAR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank_transfer: {
+              payout_method_type: "payshap",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+            connector: null,
+            merchant_connector_id: null,
+            status: "failed",
+            error_code: "fraud",
+          },
+        },
+      },
+    },
+    frm_transaction_failure_fail_closed: {
+      Create: {
+        Request: {
+          amount: 1000,
+          currency: "ZAR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank_transfer: {
+              payout_method_type: "payshap",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+            connector: null,
+            merchant_connector_id: null,
+            status: "failed",
+            error_code: "transaction_failure",
+          },
+        },
+      },
+    },
+    frm_transaction_failure_fail_open: {
+      Create: {
+        Request: {
+          amount: 1000,
+          currency: "ZAR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank_transfer: {
+              payout_method_type: "payshap",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+    },
     payshap_proxy: {
       Create: {
         Request: {

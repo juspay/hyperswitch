@@ -110,6 +110,9 @@ export const CONNECTOR_LISTS = {
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_PAYSHAP: ["gotyme_sanlam"],
     BANK_TRANSFER_PAYSHAP_PROXY: ["gotyme_sanlam"],
+    // Payout FRM (sanlam_payshield pre-FRM gating gotyme_sanlam payouts) -
+    // only verified connector pairing
+    PAYOUT_FRM: ["gotyme_sanlam"],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
