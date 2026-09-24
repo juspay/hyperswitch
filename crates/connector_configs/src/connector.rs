@@ -132,14 +132,29 @@ pub struct AccountIdConfigForApplePay {
     pub decrypt: Option<Vec<InputData>>,
 }
 
+pub type AccountIdConfigForPayout = Vec<InputData>;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum AccountIDSupportedMethods {
+    Payment(AccountIdPaymentSupportedMethods),
+    Payout(AccountIdPayoutSupportedMethods),
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AccountIDSupportedMethods {
-    apple_pay: HashMap<String, AccountIdConfigForApplePay>,
-    card: HashMap<String, AccountIdConfigForCard>,
-    interac: HashMap<String, AccountIdConfigForRedirect>,
-    pay_safe_card: HashMap<String, AccountIdConfigForRedirect>,
-    skrill: HashMap<String, AccountIdConfigForRedirect>,
+pub struct AccountIdPaymentSupportedMethods {
+    apple_pay: Option<HashMap<String, AccountIdConfigForApplePay>>,
+    card: Option<HashMap<String, AccountIdConfigForCard>>,
+    interac: Option<HashMap<String, AccountIdConfigForRedirect>>,
+    pay_safe_card: Option<HashMap<String, AccountIdConfigForRedirect>>,
+    skrill: Option<HashMap<String, AccountIdConfigForRedirect>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccountIdPayoutSupportedMethods {
+    pay_safe_card: Option<HashMap<String, AccountIdConfigForPayout>>,
 }
 
 #[serde_with::skip_serializing_none]
