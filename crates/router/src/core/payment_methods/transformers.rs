@@ -29,9 +29,9 @@ use hyperswitch_domain_models::payment_methods::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
-use hyperswitch_masking::Mask;
-#[cfg(feature = "v1")]
 use hyperswitch_interfaces::consts::USER_AGENT;
+#[cfg(feature = "v1")]
+use hyperswitch_masking::Mask;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use josekit::jwe;
 #[cfg(feature = "v1")]
