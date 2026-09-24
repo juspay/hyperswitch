@@ -80,7 +80,6 @@ use quick_xml::{
     events::{BytesDecl, BytesText, Event},
     Writer,
 };
-use rand::Rng;
 use regex::Regex;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
@@ -296,6 +295,7 @@ impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
                     common_types::payments::GpayEcryptedTokenizationData {
                         token_type: encrypted_data.token_type,
                         token: encrypted_data.token,
+                        auth_method: encrypted_data.auth_method,
                     },
                 )
             }
@@ -361,8 +361,7 @@ pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) ->
 
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
-    let mut rng = rand::thread_rng();
-    (0..length).map(|_| Rng::gen(&mut rng)).collect()
+    common_utils::generate_random_bytes(length)
 }
 
 pub(crate) fn missing_field_err(
@@ -1912,6 +1911,8 @@ pub trait AddressDetailsData {
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>>;
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
@@ -2149,6 +2150,24 @@ impl AddressDetailsData for AddressDetails {
                 }
             })
             .transpose()
+    }
+
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error> {
+        let country = self.get_country()?;
+        let state = self.get_state()?;
+        match country {
+            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
+                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            _ => Ok(state.clone()),
+        }
+    }
+
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
+        self.get_billing_state_code().ok()
     }
 
     fn get_optional_city(&self) -> Option<String> {
@@ -3657,7 +3676,8 @@ macro_rules! capture_method_not_supported {
 macro_rules! get_formatted_date_time {
     ($date_format:tt) => {{
         let format = time::macros::format_description!($date_format);
-        time::OffsetDateTime::now_utc()
+        common_utils::date_time::now()
+            .assume_utc()
             .format(&format)
             .change_context(ConnectorError::InvalidDateFormat)
     }};
@@ -6912,6 +6932,7 @@ pub enum PaymentMethodDataType {
     AmazonPay,
     AmazonPayRedirect,
     Skrill,
+    Neteller,
     Paysera,
     MomoRedirect,
     KakaoPayRedirect,
@@ -7063,6 +7084,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 payment_method_data::WalletData::Skrill(_) => Self::Skrill,
+                payment_method_data::WalletData::Neteller(_) => Self::Neteller,
                 payment_method_data::WalletData::Paysera(_) => Self::Paysera,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
@@ -7930,27 +7952,24 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
 }
 
 pub fn generate_12_digit_number() -> u64 {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(100_000_000_000..=999_999_999_999)
+    const MIN: i64 = 100_000_000_000;
+    const MAX: i64 = 999_999_999_999;
+    u64::try_from(common_utils::generate_random_number_in_range(MIN, MAX))
+        .unwrap_or(100_000_000_000)
 }
 
 pub fn generate_random_string_containing_digits(min_len: usize, max_len: usize) -> String {
-    let mut rng = rand::thread_rng();
-    let len = rng.gen_range(min_len..=max_len);
+    common_utils::generate_random_numeric_string(random_length(min_len, max_len))
+}
 
-    (0..len)
-        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
-        .collect()
+/// Pick a length in `min_len..=max_len` through the seamed index draw.
+fn random_length(min_len: usize, max_len: usize) -> usize {
+    let span = max_len.saturating_sub(min_len).saturating_add(1);
+    min_len.saturating_add(common_utils::generate_random_index(span).unwrap_or(0))
 }
 
 pub fn generate_alphanumeric_code(min_len: usize, max_len: usize) -> String {
-    let mut rng = rand::thread_rng();
-    let len = rng.gen_range(min_len..=max_len);
-
-    rng.sample_iter(&rand::distributions::Alphanumeric)
-        .take(len)
-        .map(char::from)
-        .collect()
+    common_utils::generate_random_alphanumeric_string(random_length(min_len, max_len))
 }
 
 /// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.

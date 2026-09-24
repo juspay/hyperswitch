@@ -526,7 +526,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         None
                     };
 
-                    let uuid = uuid::Uuid::new_v4().to_string();
+                    let uuid = common_utils::generate_uuid_v4().to_string();
                     let auth_details =
                         TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
                     let private_key = auth_details.private_key.clone();
@@ -711,7 +711,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                         TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
 
                     let private_key = auth_details.private_key.clone();
-                    let uuid = uuid::Uuid::new_v4().to_string();
+                    let uuid = common_utils::generate_uuid_v4().to_string();
                     let account_payout_data = AccountPayoutData {
                         account_i_d: account_id.account_id,
                         amount: item.amount.clone(),
@@ -880,7 +880,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
         };
         let private_key = auth_details.private_key.clone();
 
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::generate_uuid_v4().to_string();
         let signature = generate_trustly_signature(
             TrustlyMethod::GetWithdrawals.as_str(),
             uuid.as_str(),

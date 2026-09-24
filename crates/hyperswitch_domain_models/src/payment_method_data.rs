@@ -330,6 +330,14 @@ impl PaymentMethodData {
         matches!(self, Self::NetworkToken(_))
     }
 
+    pub fn is_google_pay_pan_only(&self) -> bool {
+        if let Self::Wallet(WalletData::GooglePay(gpay_data)) = self {
+            gpay_data.is_pan_only()
+        } else {
+            false
+        }
+    }
+
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
         match self {
             Self::Card(card) => card.co_badged_card_data.as_ref(),
@@ -394,6 +402,11 @@ impl EligibilityCardBin {
         self.card_bin.get_card_isin()
     }
 
+    /// The BIN digits sent to Offer Engine, or all of them when fewer were provided
+    pub fn get_offer_card_bin(&self) -> String {
+        self.card_bin.get_offer_card_bin()
+    }
+
     /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
     /// number of digits provided)
     pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
@@ -434,6 +447,14 @@ impl EligibilityPaymentMethodData {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
             Self::CardBin(card_bin) => Some(card_bin.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    pub fn get_offer_card_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_offer_card_bin()),
+            Self::CardBin(card_bin) => Some(card_bin.get_offer_card_bin()),
             _ => None,
         }
     }
@@ -1075,6 +1096,7 @@ pub enum WalletData {
     BluecodeRedirect {},
     Paysera(Box<PayseraData>),
     Skrill(Box<SkrillData>),
+    Neteller(Box<NetellerData>),
     MomoRedirect(MomoRedirection),
     KakaoPayRedirect(KakaoPayRedirection),
     GoPayRedirect(GoPayRedirection),
@@ -1181,6 +1203,20 @@ pub struct GooglePayWalletData {
     pub tokenization_data: common_types::payments::GpayTokenizationData,
 }
 
+impl GooglePayWalletData {
+    pub fn is_pan_only(&self) -> bool {
+        self.tokenization_data
+            .get_encrypted_auth_method()
+            .map(|auth_method| auth_method == common_enums::GooglePayAuthMethod::PanOnly)
+            .unwrap_or_else(|| {
+                self.info
+                    .assurance_details
+                    .as_ref()
+                    .is_some_and(|assurance_details| !assurance_details.card_holder_authenticated)
+            })
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ApplePayRedirectData {}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1237,6 +1273,9 @@ pub struct PayseraData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct NetellerData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MomoRedirection {}
@@ -2658,6 +2697,9 @@ impl From<api_models::payments::WalletData> for WalletData {
                 Self::AmazonPayRedirect(Box::new(AmazonPayRedirect {}))
             }
             api_models::payments::WalletData::Skrill(_) => Self::Skrill(Box::new(SkrillData {})),
+            api_models::payments::WalletData::Neteller(_) => {
+                Self::Neteller(Box::new(NetellerData {}))
+            }
             api_models::payments::WalletData::Paysera(_) => Self::Paysera(Box::new(PayseraData {})),
             api_models::payments::WalletData::MomoRedirect(_) => {
                 Self::MomoRedirect(MomoRedirection {})
@@ -3680,6 +3722,7 @@ impl GetPaymentMethodType for WalletData {
             Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
             Self::AmazonPayRedirect(_) => api_enums::PaymentMethodType::AmazonPay,
             Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Neteller(_) => api_enums::PaymentMethodType::Neteller,
             Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
