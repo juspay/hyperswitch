@@ -4316,6 +4316,10 @@ Cypress.Commands.add(
       failOnStatusCode: false,
       body: createConfirmPaymentBody,
     }).then((response) => {
+      cy.task(
+        "cli_log",
+        `[createConfirmPaymentTest] payment_id=${response.body.payment_id} http_status=${response.status} payment_status=${response.body.status} next_action_type=${response.body.next_action?.type}`
+      );
       logRequestId(response.headers["x-request-id"]);
       storeRequestId(response.headers["x-request-id"], globalState);
 
@@ -4749,6 +4753,10 @@ Cypress.Commands.add(
       failOnStatusCode: false,
       body: requestBody,
     }).then((response) => {
+      cy.task(
+        "cli_log",
+        `[captureCallTest] payment_id=${paymentId} http_status=${response.status} payment_status=${response.body.status} error=${JSON.stringify(response.body.error)}`
+      );
       logRequestId(response.headers["x-request-id"]);
       storeRequestId(response.headers["x-request-id"], globalState);
       cy.wrap(response).then(() => {
@@ -4922,6 +4930,10 @@ Cypress.Commands.add(
       headers: headers,
       failOnStatusCode: false,
     }).then((response) => {
+      cy.task(
+        "cli_log",
+        `[retrievePaymentCallTest] payment_id=${payment_id} http_status=${response.status} payment_status=${response.body.status}`
+      );
       logRequestId(response.headers["x-request-id"]);
       storeRequestId(response.headers["x-request-id"], globalState);
 

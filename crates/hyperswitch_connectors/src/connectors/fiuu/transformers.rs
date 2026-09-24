@@ -825,7 +825,7 @@ pub struct FiuuRecurringResponse {
     #[serde(rename = "orderid")]
     order_id: Option<String>,
     #[serde(rename = "tranID")]
-    tran_id: Option<String>,
+    tran_id: Option<u64>,
     reason: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -947,18 +947,6 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                     })
                 }
                 RequestData::NonThreeDS(non_threeds_data) => {
-                    let mandate_reference =
-                        non_threeds_data
-                            .extra_parameters
-                            .as_ref()
-                            .and_then(|extra_p| {
-                                extra_p.token.as_ref().map(|token| MandateReference {
-                                    connector_mandate_id: Some(token.clone().expose()),
-                                    payment_method_id: None,
-                                    mandate_metadata: None,
-                                    connector_mandate_request_reference_id: None,
-                                })
-                            });
                     let status = match non_threeds_data.status.as_str() {
                         "00" => {
                             if item.data.request.is_auto_capture()? {
@@ -986,7 +974,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(data.txn_id),
+                            connector_transaction_id: Some(non_threeds_data.tran_id.clone()),
                             connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
@@ -994,8 +982,19 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             connector_metadata: None,
                         })
                     } else {
+                        let mandate_reference =
+                            non_threeds_data.extra_parameters.as_ref().and_then(|ep| {
+                                ep.token.as_ref().map(|token| MandateReference {
+                                    connector_mandate_id: Some(token.clone().expose()),
+                                    payment_method_id: None,
+                                    mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
+                                })
+                            });
                         Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                non_threeds_data.tran_id.clone(),
+                            ),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
@@ -1025,9 +1024,8 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                         );
                         let connector_transaction_id = recurring_response
                             .tran_id
-                            .as_ref()
                             .map_or(ResponseId::NoResponseId, |tran_id| {
-                                ResponseId::ConnectorTransactionId(tran_id.clone())
+                                ResponseId::ConnectorTransactionId(tran_id.to_string())
                             });
                         let response = if status == common_enums::AttemptStatus::Failure {
                             Err(ErrorResponse {
@@ -1042,7 +1040,9 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 reason: recurring_response.reason.clone(),
                                 status_code: item.http_code,
                                 attempt_status: None,
-                                connector_transaction_id: recurring_response.tran_id.clone(),
+                                connector_transaction_id: recurring_response
+                                    .tran_id
+                                    .map(|id| id.to_string()),
                                 connector_response_reference_id: None,
                                 network_advice_code: None,
                                 network_decline_code: None,
@@ -1261,6 +1261,27 @@ pub struct FiuuPaymentSyncRequest {
     skey: Secret<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct FiuuRedirectTxnId {
+    #[serde(rename = "tranID")]
+    tran_id: Option<String>,
+}
+
+fn get_redirect_transaction_id(encoded_data: Option<&str>) -> Option<String> {
+    encoded_data.and_then(|data| {
+        serde_urlencoded::from_str::<FiuuRedirectTxnId>(data)
+            .map_err(|err| {
+                router_env::logger::warn!(
+                    "Failed to parse Fiuu redirect transaction id from encoded_data for sync: {:?}",
+                    err
+                );
+            })
+            .ok()
+            .and_then(|response| response.tran_id)
+            .filter(|transaction_id| !transaction_id.is_empty())
+    })
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum FiuuPaymentResponse {
@@ -1321,11 +1342,22 @@ impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
     type Error = Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
-        let txn_id = item
+        let stored_txn_id = item
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let redirect_txn_id = get_redirect_transaction_id(item.request.encoded_data.as_deref());
+        let txn_id = match redirect_txn_id {
+            Some(redirect_txn_id) if redirect_txn_id != stored_txn_id => {
+                router_env::logger::info!(
+                    "Using Fiuu redirect transaction id for payment sync request"
+                );
+                redirect_txn_id
+            }
+            Some(redirect_txn_id) => redirect_txn_id,
+            None => stored_txn_id,
+        };
         let merchant_id = auth.merchant_id.peek().to_string();
         let verify_key = auth.verify_key.peek().to_string();
         let amount = StringMajorUnitForConnector
@@ -1413,6 +1445,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let stat_name = response.stat_name;
                 let stat_code = response.stat_code.clone();
                 let txn_id = response.tran_id;
+                router_env::logger::info!(
+                    "Fiuu sync response: txn_id={} stat_code={:?} stat_name={:?} capture_method={:?} current_status={:?}",
+                    txn_id, stat_code, stat_name, item.data.request.capture_method, item.data.status
+                );
                 let status = enums::AttemptStatus::try_from(FiuuSyncStatus {
                     stat_name,
                     stat_code,
@@ -1763,11 +1799,11 @@ impl TryFrom<&PaymentsCancelRouterData> for FiuuPaymentCancelRequest {
         let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
         let txn_id = item.request.connector_transaction_id.clone();
         let merchant_id = auth.merchant_id.peek().to_string();
-        let secret_key = auth.secret_key.peek().to_string();
+        let verify_key = auth.verify_key.peek().to_string();
         Ok(Self {
             txn_id: txn_id.clone(),
             domain: merchant_id.clone(),
-            skey: calculate_signature(format!("{txn_id}{merchant_id}{secret_key}"))?,
+            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}"))?,
         })
     }
 }
