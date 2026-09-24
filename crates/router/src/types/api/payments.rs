@@ -88,12 +88,12 @@ impl PaymentIdTypeExt for PaymentIdType {
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_)
-            | Self::PaymentAttemptId(_)
-            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id".into(),
-            })
-            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
+                Err(errors::ValidationError::IncorrectValueProvided {
+                    field_name: "payment_id".into(),
+                })
+                .attach_printable("Expected payment intent ID but got connector transaction ID")
+            }
         }
     }
 
@@ -103,12 +103,12 @@ impl PaymentIdTypeExt for PaymentIdType {
     ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_)
-            | Self::PaymentAttemptId(_)
-            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id".into(),
-            })
-            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
+                Err(errors::ValidationError::IncorrectValueProvided {
+                    field_name: "payment_id".into(),
+                })
+                .attach_printable("Expected payment intent ID but got connector transaction ID")
+            }
         }
     }
 }
