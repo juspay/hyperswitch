@@ -585,6 +585,12 @@ export const CONNECTOR_LISTS = {
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
     EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix", "payu"],
+    // The mock fiuu environment never surfaces saved `card` payment methods
+    // in the payments client list (customer_payment_methods is [] regardless
+    // of blocklist-guard state), so the hardcoded expected_card_isins in
+    // Commons eligibility_api cannot be satisfied; skip only the client-list
+    // assertions, the guard/eligibility tests are unaffected.
+    SAVED_CARD_FILTERING: ["fiuu"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped

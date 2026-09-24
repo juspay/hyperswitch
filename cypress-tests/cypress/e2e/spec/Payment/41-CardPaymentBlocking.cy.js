@@ -11,7 +11,18 @@ describe("Business Profile Payment Method Blocking", () => {
     });
   });
 
-  after("flush global state", () => {
+  after("reset payment method blocking and flush global state", () => {
+    cy.UpdateBusinessProfileTest(
+      {
+        payment_method_blocking: {},
+      },
+      false, // is_connector_agnostic_enabled
+      false, // collect_billing_address_from_wallet_connector
+      false, // collect_shipping_address_from_wallet_connector
+      false, // always_collect_billing_address_from_wallet_connector
+      false, // always_collect_shipping_address_from_wallet_connector
+      globalState
+    );
     cy.task("setGlobalState", globalState.data);
   });
 
