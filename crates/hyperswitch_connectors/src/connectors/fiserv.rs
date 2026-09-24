@@ -45,9 +45,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
-use time::OffsetDateTime;
 use transformers as fiserv;
-use uuid::Uuid;
 
 use crate::{
     constants::headers, types::ResponseRouterData, utils as connector_utils, utils::convert_amount,
@@ -95,14 +93,14 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let timestamp = common_utils::date_time::now_unix_timestamp_millis();
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
         let fiserv_req = self.get_request_body(req, connectors)?;
 
-        let client_request_id = Uuid::new_v4().to_string();
+        let client_request_id = common_utils::generate_uuid_v4().to_string();
         let hmac = self
             .generate_authorization_signature(
                 auth,

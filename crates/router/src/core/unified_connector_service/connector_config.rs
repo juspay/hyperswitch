@@ -92,6 +92,27 @@ impl SantanderPayoutMetadataCompat {
     }
 }
 
+/// Optional nSure.ai settings that are not credentials, so they live on the
+/// merchant connector account metadata rather than the auth type.
+#[derive(Debug, serde::Deserialize)]
+pub struct NsureMetadata {
+    api_version: Option<String>,
+}
+
+/// JP Morgan Orbital merchant provisioning facts. Neither value is a secret: they
+/// travel in the request body, not in a header. `bin` selects the back-end
+/// authorization host ("000001" = Stratus/US, "000002" = Tandem/Canada) and
+/// `terminal_id` is the 3-digit merchant terminal. They cannot be derived by the
+/// connector, so they are read from the merchant connector account metadata and
+/// forwarded verbatim. If they are absent, UCS rejects the payment with an
+/// actionable error rather than guessing - guessing would silently route a Tandem
+/// (Canadian) merchant at the Stratus host.
+#[derive(Debug, serde::Deserialize)]
+pub struct JpmorganOrbitalMetadata {
+    bin: Option<String>,
+    terminal_id: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
     brand_id: Secret<String>,
@@ -126,7 +147,7 @@ pub struct WorldpayxmlMetadata {
 
 /// Paysafe payment method details for account_id configuration.
 /// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
-/// Skrill and paysafecard.
+/// Skrill, paysafecard and Neteller.
 /// This struct is compatible with the UCS Paysafe connector expectations
 /// (proto `PaysafePaymentMethodDetails` in the UCS `PaysafeConfig`).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -150,6 +171,9 @@ pub struct PaysafePaymentMethodDetails {
     /// paysafecard account IDs by currency
     #[serde(default)]
     pub pay_safe_card: HashMap<Currency, PaysafeRedirectAccountId>,
+    /// Neteller wallet account IDs by currency
+    #[serde(default)]
+    pub neteller: HashMap<Currency, PaysafeRedirectAccountId>,
 }
 
 /// Paysafe card account ID configuration for a specific currency
@@ -192,6 +216,11 @@ pub struct PaysafeRedirectAccountId {
     /// Processing account ID (native metadata key: `three_ds`)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct GlobalpayMetadata {
+    account_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -281,10 +310,26 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// D24 (Directa24) connector configuration
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Worldpay Native RAFT connector configuration
     Worldpayraft {
         license: Secret<String>,
         merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// PayNearMe connector configuration
+    Paynearme {
+        /// PayNearMe API Secret Key. Used only to compute the HMAC-SHA256
+        /// request signature; it is never transmitted to PayNearMe.
+        api_key: Secret<String>,
+        /// PayNearMe Site Identifier.
+        key1: Secret<String>,
         base_url: Option<String>,
     },
     /// Fiservcommercehub connector configuration
@@ -362,6 +407,8 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_name: Option<Secret<String>>,
     },
     /// Fiserv connector configuration
     Fiserv {
@@ -392,6 +439,21 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         client_id: Secret<String>,
         merchant_id: Secret<String>,
+    },
+    /// Etisalat Payment Gateway (EPG). All requests carry auth in the JSON body:
+    /// `user_name`, `password`, and `customer` (merchant identifier).
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+    },
+    /// Merchante (MerchantE by Omise) — credentials are sent inside the
+    /// urlencoded request body (`profile_id` + `profile_key`), not headers.
+    /// Field order and names must mirror hyperswitch-prism's
+    /// `ConnectorSpecificConfig::Merchante` variant.
+    Merchante {
+        profile_id: Secret<String>,
+        profile_key: Secret<String>,
     },
     /// Nuvei connector configuration
     Nuvei {
@@ -504,6 +566,20 @@ pub enum ConnectorSpecificConfig {
         product_activation_key: Secret<String>,
         payment_access_key: Secret<String>,
         tariff_id: Secret<String>,
+    },
+    /// nSure.ai connector configuration.
+    ///
+    /// `api_key` is the authorization key, sent verbatim in the `Authorization`
+    /// header with no `Bearer`/`Basic` prefix. `app_id` is the Application ID
+    /// from the same nSure.ai portal screen. `api_version` reaches the provider
+    /// as `x-nsure-api-version`; the connector-service defaults it to 2.0.0 when
+    /// unset.
+    Nsure {
+        api_key: Secret<String>,
+        /// Optional on the connector-service side; a header-key-only account
+        /// authenticates with `api_key` alone.
+        app_id: Option<Secret<String>>,
+        api_version: Option<String>,
     },
     /// Gigadat connector configuration
     Gigadat {
@@ -669,6 +745,21 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
+    /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
+    /// Field names must match `ConnectorSpecificConfig::JpmorganOrbital` in the
+    /// connector-service repo (`crates/types-traits/domain_types/src/router_data.rs`).
+    /// `username`    = `orbitalConnectionUsername` header (from `api_key`)
+    /// `password`    = `orbitalConnectionPassword` header (from `api_secret`)
+    /// `merchant_id` = `merchantID` header, also echoed as body `merchant.merchantID` (from `key1`)
+    /// `bin` / `terminal_id` are non-secret provisioning values read from MCA metadata.
+    JpmorganOrbital {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        bin: Option<String>,
+        terminal_id: Option<String>,
+    },
     /// Finix connector configuration
     Finix {
         finix_user_name: Secret<String>,
@@ -733,8 +824,6 @@ pub enum ConnectorSpecificConfig {
         response_decryption_private_key: Secret<String>,
         card_sync_key_id: String,
     },
-    /// Netcetera authentication connector configuration (no connector-specific config needed)
-    Netcetera,
     /// Santander payout connector configuration
     Santander {
         certificates: Secret<String>,
@@ -749,6 +838,26 @@ pub enum ConnectorSpecificConfig {
         brand_id: Option<Secret<String>>,
         destination_account_number: Option<Secret<String>>,
     },
+    /// Saferpay (SIX Payment Services) connector configuration
+    Saferpay {
+        /// API username (HTTP Basic username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic password)
+        key1: Secret<String>,
+        /// CustomerId (RequestHeader.CustomerId)
+        api_secret: Secret<String>,
+        /// TerminalId (request body TerminalId)
+        key2: Secret<String>,
+    },
+    /// Global Payments Heartland (Portico gateway) connector configuration
+    GlobalpaymentsHeartland {
+        /// Portico SecretAPIKey (skapi_cert_... / skapi_prod_...), sent in the SOAP
+        /// body at Ver1.0/Header/SecretAPIKey
+        api_key: Secret<String>,
+    },
+    /// Pay.com connector configuration
+    /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
+    Paydotcom { api_key: Secret<String> },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -946,6 +1055,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Celero requires HeaderKey auth type")),
             },
+            Connector::Paydotcom => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Paydotcom {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Paydotcom requires HeaderKey auth type")),
+            },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
                     api_key: api_key.clone(),
@@ -1032,10 +1147,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Datatrans requires BodyKey auth type")),
             },
             Connector::Globalpay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
-                    app_id: key1.clone(),
-                    app_key: api_key.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let globalpay_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<GlobalpayMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Globalpay metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Globalpay {
+                        app_id: key1.clone(),
+                        app_key: api_key.clone(),
+                        account_name: globalpay_meta.and_then(|m| m.account_name),
+                    })
+                }
                 _ => Err(err("Globalpay requires BodyKey auth type")),
             },
             Connector::Hipay => match auth {
@@ -1258,6 +1383,29 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
             },
+            Connector::JpmorganOrbital => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => {
+                    let orbital_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<JpmorganOrbitalMetadata>(m.clone())
+                                .map_err(|_| err("Invalid JP Morgan Orbital metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::JpmorganOrbital {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        bin: orbital_meta.as_ref().and_then(|m| m.bin.clone()),
+                        terminal_id: orbital_meta.as_ref().and_then(|m| m.terminal_id.clone()),
+                    })
+                }
+                _ => Err(err("JpmorganOrbital requires SignatureKey auth type")),
+            },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1394,6 +1542,30 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Moneris requires SignatureKey auth type")),
             },
+            Connector::Etisalat => match auth {
+                // api_key -> EPG Password, key1 -> EPG UserName,
+                // api_secret -> EPG Customer (merchant identifier).
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Etisalat {
+                    user_name: api_key.clone(),
+                    password: key1.clone(),
+                    customer: api_secret.clone(),
+                }),
+                _ => Err(err("Etisalat requires SignatureKey auth type")),
+            },
+            Connector::Merchante => match auth {
+                // api_key -> Merchante Profile Key (32-char secret),
+                // key1    -> Merchante Profile ID  (20-digit merchant id).
+                // Mirrors the hyperswitch-prism `ConnectorEnum::Merchante` arm.
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Merchante {
+                    profile_key: api_key.clone(),
+                    profile_id: key1.clone(),
+                }),
+                _ => Err(err("Merchante requires BodyKey auth type")),
+            },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1418,6 +1590,32 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Novalnet requires SignatureKey auth type")),
             },
+            Connector::Nsure => {
+                // Mirrors `connector_validation`, which accepts both shapes:
+                // BodyKey carries the authorization key plus the portal
+                // Application ID; HeaderKey carries the key alone, which the
+                // connector-service accepts since `app_id` is optional there.
+                let (api_key, app_id) = match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => {
+                        (api_key.clone(), Some(key1.clone()))
+                    }
+                    ConnectorAuthType::HeaderKey { api_key } => (api_key.clone(), None),
+                    _ => return Err(err("Nsure requires BodyKey or HeaderKey auth type")),
+                };
+
+                let nsure_meta = metadata
+                    .map(|m| {
+                        serde_json::from_value::<NsureMetadata>(m.clone())
+                            .map_err(|_| err("Invalid Nsure metadata format"))
+                    })
+                    .transpose()?;
+
+                Ok(Self::Nsure {
+                    api_key,
+                    app_id,
+                    api_version: nsure_meta.and_then(|m| m.api_version),
+                })
+            }
             Connector::Nuvei => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1819,6 +2017,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Citigate requires BodyKey auth type")),
             },
+            // `key1` is D24's read-only API Key (the `X-Login` on PSync GETs);
+            // `api_secret` is the API Signature used as the HMAC-SHA256 key.
+            Connector::D24 => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::D24 {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("D24 requires SignatureKey auth type")),
+            },
             Connector::Worldpayraft => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                     license: api_key.clone(),
@@ -1826,6 +2039,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Worldpayraft requires BodyKey auth type")),
+            },
+            Connector::Paynearme => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Paynearme requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
@@ -1855,7 +2076,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
-            Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
                     certificate,
@@ -1898,6 +2118,26 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),
             },
+            Connector::Saferpay => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Saferpay {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    key2: key2.clone(),
+                }),
+                _ => Err(err("Saferpay requires MultiAuthKey auth type")),
+            },
+            Connector::GlobalpaymentsHeartland => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("GlobalpaymentsHeartland requires HeaderKey auth type")),
+            },
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -1929,19 +2169,20 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
+    // Netcetera has no connector-specific config on the wire: connector-service's
+    // `ConnectorSpecificConfig` oneof has no `netcetera` case at all, so sending
+    // this header makes UCS hard-error on deserialization instead of falling back
+    // to the legacy auth header. Suppress it here so UCS takes the legacy-header
+    // path (`x-auth` / `x-api-key` / `x-key1`), which does work for Netcetera.
+    if matches!(connector, Connector::Netcetera) {
+        return Ok(None);
+    }
+
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
         merchant_account_metadata,
     ))?;
-
-    // Netcetera has no connector-specific config on the wire (connector-service's
-    // `ConnectorSpecificConfig` oneof has no `netcetera` case), so sending this header makes
-    // UCS hard-error on deserialization instead of falling back to the legacy auth header.
-    // Suppress it here so UCS takes the legacy-header path, which does work for Netcetera.
-    if matches!(config, ConnectorSpecificConfig::Netcetera) {
-        return Ok(None);
-    }
 
     let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -270,6 +270,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Vipps
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Skrill
+                | PaymentMethodType::Neteller
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
                     | enums::CaptureMethod::SequentialAutomatic
@@ -374,6 +375,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Breadpay
                 | PaymentMethodType::Paysera
                 | PaymentMethodType::Skrill
+                | PaymentMethodType::Neteller
                 | PaymentMethodType::CardRedirect
                 | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
@@ -2207,6 +2209,7 @@ impl IncomingWebhook for Adyen {
             connector_status: notif.event_code.to_string(),
             created_at: notif.event_date,
             updated_at: notif.event_date,
+            additional_details: None,
         })
     }
 
