@@ -401,6 +401,34 @@ mod bool_wrappers {
             bool::from_sql(value).map(Self)
         }
     }
+
+    /// Bool that represents if the merchant accepts a connector-reported amount that differs
+    /// from the requested amount (resolved from the `payments.accept_amount_mismatch` config,
+    /// scoped by merchant and payment method type)
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+    pub struct AcceptAmountMismatchBool(bool);
+
+    impl AcceptAmountMismatchBool {
+        /// Creates a new instance of `AcceptAmountMismatchBool`
+        pub fn new(value: bool) -> Self {
+            Self(value)
+        }
+    }
+
+    impl Default for AcceptAmountMismatchBool {
+        /// Default for `AcceptAmountMismatchBool` is `false`
+        fn default() -> Self {
+            Self(false)
+        }
+    }
+
+    impl Deref for AcceptAmountMismatchBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 }
 
 mod u32_wrappers {

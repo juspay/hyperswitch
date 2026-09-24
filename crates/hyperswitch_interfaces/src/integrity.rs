@@ -1,3 +1,4 @@
+use common_types::primitive_wrappers::AcceptAmountMismatchBool;
 use common_utils::{errors::IntegrityCheckError, types::MinorUnit};
 use hyperswitch_domain_models::router_request_types::{
     AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentsAuthorizeData, PaymentsCaptureData,
@@ -52,11 +53,13 @@ pub struct AmountMismatchTolerance {
 }
 
 impl AmountMismatchTolerance {
-    /// No tolerance: the connector-reported amount must exactly match what was requested.
-    fn strict() -> Self {
+    /// Tolerance driven only by the merchant's `accept_amount_mismatch` config: any difference
+    /// is permitted when it is enabled, otherwise the connector-reported amount must exactly
+    /// match what was requested.
+    fn from_accept_amount_mismatch(accept_amount_mismatch: AcceptAmountMismatchBool) -> Self {
         Self {
-            allow_lower: AllowLowerAmount::new(false),
-            allow_higher: AllowHigherAmount::new(false),
+            allow_lower: AllowLowerAmount::new(*accept_amount_mismatch),
+            allow_higher: AllowHigherAmount::new(*accept_amount_mismatch),
         }
     }
 
@@ -95,6 +98,7 @@ pub trait CheckIntegrity<Request, T> {
         &self,
         request: &Request,
         connector_transaction_id: Option<String>,
+        accept_amount_mismatch: AcceptAmountMismatchBool,
     ) -> Result<(), IntegrityCheckError>;
 }
 
@@ -107,6 +111,7 @@ where
         &self,
         request: &Request,
         connector_refund_id: Option<String>,
+        accept_amount_mismatch: AcceptAmountMismatchBool,
     ) -> Result<(), IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
@@ -115,7 +120,7 @@ where
                     req_integrity_object,
                     res_integrity_object,
                     connector_refund_id,
-                    AmountMismatchTolerance::strict(),
+                    AmountMismatchTolerance::from_accept_amount_mismatch(accept_amount_mismatch),
                 )
             }
             None => Ok(()),
@@ -132,18 +137,22 @@ where
         &self,
         request: &Request,
         connector_transaction_id: Option<String>,
+        accept_amount_mismatch: AcceptAmountMismatchBool,
     ) -> Result<(), IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
                 // Partial authorization: the connector may legitimately authorize less than
-                // requested. It must never authorize more, so `allow_higher` stays false.
+                // requested. Authorizing more is only accepted when the merchant has opted into
+                // `accept_amount_mismatch`, which permits a difference in either direction.
                 let amount_tolerance = AmountMismatchTolerance {
                     allow_lower: AllowLowerAmount::new(
-                        self.enable_partial_authorization
-                            .is_some_and(|enabled| enabled.is_true()),
+                        *accept_amount_mismatch
+                            || self
+                                .enable_partial_authorization
+                                .is_some_and(|enabled| enabled.is_true()),
                     ),
-                    allow_higher: AllowHigherAmount::new(false),
+                    allow_higher: AllowHigherAmount::new(*accept_amount_mismatch),
                 };
                 T::compare(
                     req_integrity_object,
@@ -166,17 +175,19 @@ where
         &self,
         request: &Request,
         connector_transaction_id: Option<String>,
+        accept_amount_mismatch: AcceptAmountMismatchBool,
     ) -> Result<(), IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
                 // Overcapture: the merchant may be allowed to capture more than the originally
-                // requested amount. Capturing less is a separate, unrelated concern, so
-                // `allow_lower` stays false.
+                // requested amount. Capturing less is only accepted when the merchant has opted
+                // into `accept_amount_mismatch`, which permits a difference in either direction.
                 let amount_tolerance = AmountMismatchTolerance {
-                    allow_lower: AllowLowerAmount::new(false),
+                    allow_lower: AllowLowerAmount::new(*accept_amount_mismatch),
                     allow_higher: AllowHigherAmount::new(
-                        self.is_overcapture_enabled.is_some_and(|enabled| *enabled),
+                        *accept_amount_mismatch
+                            || self.is_overcapture_enabled.is_some_and(|enabled| *enabled),
                     ),
                 };
                 T::compare(
@@ -200,20 +211,31 @@ where
         &self,
         request: &Request,
         connector_transaction_id: Option<String>,
+        accept_amount_mismatch: AcceptAmountMismatchBool,
     ) -> Result<(), IntegrityCheckError> {
         match request.get_response_integrity_object() {
             Some(res_integrity_object) => {
                 let req_integrity_object = request.get_request_integrity_object();
-                // TODO: `PaymentsSyncData` has no `enable_partial_authorization`/
-                // `is_overcapture_enabled` field today, so a payment left partially
-                // authorized or overcaptured will keep failing every subsequent sync's
-                // integrity check with strict tolerance. Needs the same plumbing added to
-                // `PaymentsSyncData` as was done for `PaymentsAuthorizeData`/`PaymentsCaptureData`.
+                // A sync may report a partially authorized (lower) or overcaptured (higher)
+                // amount, so both feature tolerances apply here, in addition to the merchant's
+                // `accept_amount_mismatch` opt-in which permits a difference in either direction.
+                let amount_tolerance = AmountMismatchTolerance {
+                    allow_lower: AllowLowerAmount::new(
+                        *accept_amount_mismatch
+                            || self
+                                .enable_partial_authorization
+                                .is_some_and(|enabled| enabled.is_true()),
+                    ),
+                    allow_higher: AllowHigherAmount::new(
+                        *accept_amount_mismatch
+                            || self.is_overcapture_enabled.is_some_and(|enabled| *enabled),
+                    ),
+                };
                 T::compare(
                     req_integrity_object,
                     res_integrity_object,
                     connector_transaction_id,
-                    AmountMismatchTolerance::strict(),
+                    amount_tolerance,
                 )
             }
             None => Ok(()),

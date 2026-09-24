@@ -913,9 +913,12 @@ async fn execute_refund_execute_via_direct(
     let mut refund_router_data_res = router_data_res.to_refund_failed_response()?;
 
     // Perform integrity check
+    // Read from the router data sent to the connector: connectors on the V2 interface rebuild
+    // the returned router data from `RefundFlowData`, which does not carry this flag.
     let integrity_result = check_refund_integrity(
         &refund_router_data_res.request,
         &refund_router_data_res.response,
+        router_data.accept_amount_mismatch,
     );
     refund_router_data_res.integrity_check = integrity_result;
 
@@ -998,6 +1001,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
 pub fn check_refund_integrity<T, Request>(
     request: &Request,
     refund_response_data: &Result<types::RefundsResponseData, ErrorResponse>,
+    accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: FlowIntegrity,
@@ -1008,7 +1012,11 @@ where
         .map(|resp_data| resp_data.connector_refund_id.clone())
         .ok();
 
-    request.check_integrity(request, connector_refund_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_refund_id.to_owned(),
+        accept_amount_mismatch,
+    )
 }
 
 // ********************************************** REFUND SYNC **********************************************
@@ -1471,9 +1479,12 @@ async fn execute_refund_sync_via_direct(
     let mut refund_router_data_res = router_data_res.to_refund_failed_response()?;
 
     // Perform integrity check
+    // Read from the router data sent to the connector: connectors on the V2 interface rebuild
+    // the returned router data from `RefundFlowData`, which does not carry this flag.
     let integrity_result = check_refund_integrity(
         &refund_router_data_res.request,
         &refund_router_data_res.response,
+        router_data.accept_amount_mismatch,
     );
     refund_router_data_res.integrity_check = integrity_result;
 

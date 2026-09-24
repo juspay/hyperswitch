@@ -2666,6 +2666,7 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
     [86400, 4],  # 24 hour *  4  = 96 hours
 ], start_after = 60 }, max_retries_count = 17 }, schema = { type = "object" }, description = "Refund sync retry process tracker mapping configuration", change_reason = "Initial setup" }
 "payments.requires_cvv" = { value = true, schema = { type = "boolean" }, description = "Whether CVV is required for payments", change_reason = "Initial setup" }
+"payments.accept_amount_mismatch" = { value = false, schema = { type = "boolean" }, description = "Whether to accept a connector-reported amount that differs from the requested amount for a merchant and payment method type. When true, the amount mismatch does not fail the integrity check and the payment is updated with the amount actually received instead of being moved to conflicted", change_reason = "Initial setup" }
 "routing.routing_result_source" = { value = "hyperswitch_routing", schema = { enum = [
     "decision_engine",
     "hyperswitch_routing",

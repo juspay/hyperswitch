@@ -103,6 +103,11 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub integrity_check: Result<(), IntegrityCheckError>,
 
+    /// Whether a connector-reported amount that differs from the requested amount should be
+    /// accepted by the integrity check, resolved from the `payments.accept_amount_mismatch`
+    /// config for the processor merchant and payment method type
+    pub accept_amount_mismatch: primitive_wrappers::AcceptAmountMismatchBool,
+
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
     pub header_payload: Option<payments::HeaderPayload>,

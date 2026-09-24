@@ -5453,6 +5453,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payout_id: router_data.payout_id,
         connector_response: router_data.connector_response,
         integrity_check: Ok(()),
+        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
+        ),
         connector_wallets_details: router_data.connector_wallets_details,
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
@@ -9295,6 +9297,7 @@ pub async fn fetch_active_surcharge_mca(
 pub fn check_integrity_based_on_flow<T, Request>(
     request: &Request,
     payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
+    accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: FlowIntegrity,
@@ -9318,7 +9321,11 @@ where
         },
         Err(_) => &None,
     };
-    request.check_integrity(request, connector_transaction_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_transaction_id.to_owned(),
+        accept_amount_mismatch,
+    )
 }
 
 pub async fn config_skip_saving_wallet_at_connector(

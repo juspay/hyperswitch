@@ -1200,6 +1200,13 @@ pub struct PaymentsSyncData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub connector_mandate_id: Option<String>,
+    /// Whether partial authorization was enabled for this payment. Used to avoid treating a
+    /// legitimately lower authorized amount as an integrity mismatch on sync.
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+    /// Whether overcapture was applied for this payment by the connector. Used to avoid treating
+    /// a legitimate overcapture as an integrity mismatch on sync.
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

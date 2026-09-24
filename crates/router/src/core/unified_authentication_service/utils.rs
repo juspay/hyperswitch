@@ -138,6 +138,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
+        ),
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -709,6 +711,8 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
+        ),
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
