@@ -113,68 +113,6 @@ impl UcsIntegrationErrorCode {
     }
 }
 
-// Local enums that mirror Prism's (connector-service) common_enums, used as an
-// intermediate step when parsing UCS proto string fields before converting to HS
-// domain enums.  Prism serialises all of these as snake_case strings.
-
-#[derive(Debug, Clone, Copy, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-enum UcsCardSegmentType {
-    Consumer,
-    Commercial,
-}
-
-impl From<UcsCardSegmentType> for common_enums::CardSegmentType {
-    fn from(value: UcsCardSegmentType) -> Self {
-        match value {
-            UcsCardSegmentType::Consumer => Self::Consumer,
-            UcsCardSegmentType::Commercial => Self::Commercial,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-enum UcsFundingSource {
-    Credit,
-    Debit,
-    Prepaid,
-    ChargeCard,
-    DeferredDebit,
-}
-
-impl From<UcsFundingSource> for common_enums::FundingSource {
-    fn from(value: UcsFundingSource) -> Self {
-        match value {
-            UcsFundingSource::Credit => Self::Credit,
-            UcsFundingSource::Debit => Self::Debit,
-            UcsFundingSource::Prepaid => Self::Prepaid,
-            UcsFundingSource::ChargeCard => Self::ChargeCard,
-            UcsFundingSource::DeferredDebit => Self::DeferredDebit,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-enum UcsCardType {
-    Credit,
-    Debit,
-    Prepaid,
-    ChargeCard,
-}
-
-impl From<UcsCardType> for common_enums::CardType {
-    fn from(value: UcsCardType) -> Self {
-        match value {
-            UcsCardType::Credit => Self::Credit,
-            UcsCardType::Debit => Self::Debit,
-            UcsCardType::Prepaid => Self::Prepaid,
-            UcsCardType::ChargeCard => Self::ChargeCard,
-        }
-    }
-}
-
 /// Unified Connector Service error variants
 #[derive(Debug, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
@@ -812,82 +750,6 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
     }
 }
 
-fn parse_ucs_card_segment_type(
-    raw_str: Option<String>,
-    payment_method: &str,
-) -> Option<common_enums::CardSegmentType> {
-    raw_str.and_then(|raw_str| {
-        UcsCardSegmentType::from_str(&raw_str)
-            .inspect_err(|e| {
-                router_env::logger::warn!(
-                    parse_error = ?e,
-                    raw_value = %raw_str,
-                    payment_method = %payment_method,
-                    "Failed to parse CardSegmentType from UCS proto field"
-                );
-            })
-            .ok()
-            .map(common_enums::CardSegmentType::from)
-    })
-}
-
-fn parse_ucs_funding_source(
-    raw_str: Option<String>,
-    payment_method: &str,
-) -> Option<common_enums::FundingSource> {
-    raw_str.and_then(|raw_str| {
-        UcsFundingSource::from_str(&raw_str)
-            .inspect_err(|e| {
-                router_env::logger::warn!(
-                    parse_error = ?e,
-                    raw_value = %raw_str,
-                    payment_method = %payment_method,
-                    "Failed to parse FundingSource from UCS proto field"
-                );
-            })
-            .ok()
-            .map(common_enums::FundingSource::from)
-    })
-}
-
-fn parse_ucs_card_type(
-    raw_str: Option<String>,
-    payment_method: &str,
-) -> Option<common_enums::CardType> {
-    raw_str.and_then(|raw_str| {
-        UcsCardType::from_str(&raw_str)
-            .inspect_err(|e| {
-                router_env::logger::warn!(
-                    parse_error = ?e,
-                    raw_value = %raw_str,
-                    payment_method = %payment_method,
-                    "Failed to parse CardType from UCS proto field"
-                );
-            })
-            .ok()
-            .map(common_enums::CardType::from)
-    })
-}
-
-fn parse_ucs_issuer_country(
-    raw_str: Option<String>,
-    payment_method: &str,
-) -> Option<common_enums::CountryAlpha2> {
-    raw_str.and_then(|raw_str| {
-        let result = payments_grpc::CountryAlpha2::from_str_name(&raw_str)
-            .filter(|c| *c != payments_grpc::CountryAlpha2::Unspecified)
-            .and_then(|c| common_enums::CountryAlpha2::from_str(c.as_str_name()).ok());
-        if result.is_none() {
-            router_env::logger::warn!(
-                raw_value = %raw_str,
-                payment_method = %payment_method,
-                "Failed to parse CountryAlpha2 from UCS proto field"
-            );
-        }
-        result
-    })
-}
-
 // Transformer for AdditionalPaymentMethodConnectorResponse
 impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     for AdditionalPaymentMethodConnectorResponse
@@ -948,20 +810,30 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 device_pan_bin: google_pay_data.device_pan_bin,
                 card_bin: google_pay_data.card_bin,
                 card_subtype: google_pay_data.card_subtype,
-                card_segment_type: parse_ucs_card_segment_type(
-                    google_pay_data.card_segment_type,
-                    "GooglePay",
-                ),
-                funding_source: parse_ucs_funding_source(
-                    google_pay_data.funding_source,
-                    "GooglePay",
-                ),
-                card_type: parse_ucs_card_type(google_pay_data.card_type, "GooglePay"),
+                card_segment_type: google_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: google_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                card_type: google_pay_data.card_type.and_then(|raw| {
+                    payments_grpc::CardType::try_from(raw)
+                        .ok()
+                        .and_then(|ct| common_enums::CardType::foreign_try_from(ct).ok())
+                }),
                 issuer_name: google_pay_data.issuer_name,
-                issuer_country: parse_ucs_issuer_country(
-                    google_pay_data.issuer_country,
-                    "GooglePay",
-                ),
+                issuer_country: google_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -972,19 +844,25 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 device_pan_bin: apple_pay_data.device_pan_bin,
                 card_bin: apple_pay_data.card_bin,
                 card_subtype: apple_pay_data.card_subtype,
-                card_segment_type: parse_ucs_card_segment_type(
-                    apple_pay_data.card_segment_type,
-                    "ApplePay",
-                ),
-                funding_source: parse_ucs_funding_source(
-                    apple_pay_data.funding_source,
-                    "ApplePay",
-                ),
+                card_segment_type: apple_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: apple_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
                 issuer_name: apple_pay_data.issuer_name,
-                issuer_country: parse_ucs_issuer_country(
-                    apple_pay_data.issuer_country,
-                    "ApplePay",
-                ),
+                issuer_country: apple_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {
@@ -1190,6 +1068,59 @@ impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderT
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankHolderType unspecified")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardSegmentType> for common_enums::CardSegmentType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardSegmentType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardSegmentType::Consumer => Ok(Self::Consumer),
+            payments_grpc::CardSegmentType::Commercial => Ok(Self::Commercial),
+            payments_grpc::CardSegmentType::Business => Ok(Self::Business),
+            payments_grpc::CardSegmentType::Government => Ok(Self::Government),
+            payments_grpc::CardSegmentType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardSegmentType from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::FundingSource> for common_enums::FundingSource {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::FundingSource) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::FundingSource::Credit => Ok(Self::Credit),
+            payments_grpc::FundingSource::Debit => Ok(Self::Debit),
+            payments_grpc::FundingSource::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::FundingSource::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::FundingSource::DeferredDebit => Ok(Self::DeferredDebit),
+            payments_grpc::FundingSource::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified FundingSource from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardType> for common_enums::CardType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardType::Credit => Ok(Self::Credit),
+            payments_grpc::CardType::Debit => Ok(Self::Debit),
+            payments_grpc::CardType::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::CardType::Store => Ok(Self::Store),
+            payments_grpc::CardType::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::CardType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardType from gRPC")),
         }
     }
 }
