@@ -617,7 +617,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        processor: &domain::Processor,
+        platform: &domain::Platform,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         locale: &Option<String>,

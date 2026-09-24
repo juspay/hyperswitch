@@ -1068,6 +1068,18 @@ config! {
     targeting_key = id_type::ProfileId
 }
 
+config! {
+    superposition_key = PREFERRED_GATEWAY_ENABLED_PAYMENT_METHOD_TYPES,
+    output = String,
+    default = String::from("interac"),
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for PreferredGatewayEnabledPaymentMethodTypes {
+    const KEY: &'static str = "preferred_gateway_enabled_payment_method_types";
+}
+
 impl DatabaseBackedConfig for PreferredGatewayRoutingEnabled {
     const KEY: &'static str = "preferred_gateway_routing_enabled";
 

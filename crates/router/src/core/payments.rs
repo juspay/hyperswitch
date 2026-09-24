@@ -362,7 +362,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platform.get_processor(),
+                    &platform,
                     platform.get_initiator(),
                     payment_data,
                     router_data,
@@ -473,7 +473,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platform.get_processor(),
+                    &platform,
                     platform.get_initiator(),
                     payment_data,
                     router_data,
@@ -629,7 +629,7 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
-            platform.get_processor(),
+            &platform,
             platform.get_initiator(),
             payment_data,
             router_data,
@@ -1126,7 +1126,7 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
-                            platform.get_processor(),
+                            &platform,
                             payment_data,
                             router_data,
                             &locale,
@@ -1353,7 +1353,7 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
-                            platform.get_processor(),
+                            &platform,
                             payment_data,
                             router_data,
                             &locale,
@@ -1783,7 +1783,7 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
-            platform.get_processor(),
+            &platform,
             payment_data,
             router_data,
             &locale,
@@ -1910,7 +1910,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platform.get_processor(),
+                    &platform,
                     platform.get_initiator(),
                     payment_data,
                     router_data,
@@ -2046,7 +2046,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platform.get_processor(),
+                    &platform,
                     platform.get_initiator(),
                     payment_data,
                     router_data,
@@ -3316,7 +3316,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platform.get_processor(),
+                    &platform,
                     payment_data,
                     router_data,
                     &locale,
@@ -12137,25 +12137,19 @@ pub async fn decide_connector(
 // consult it, so widening the feature is a config change, not a code change.
 #[cfg(feature = "v1")]
 pub async fn preferred_gateway_enabled_payment_method_types(state: &SessionState) -> Vec<String> {
-    state
-        .store
-        .find_config_by_key_unwrap_or(
-            "preferred_gateway_enabled_payment_method_types",
-            "interac".to_string(),
+    let dimensions: crate::core::configs::dimension_state::DimensionsGlobal =
+        crate::core::configs::dimension_state::Dimensions::new();
+    dimensions
+        .get_preferred_gateway_enabled_payment_method_types(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
         )
         .await
-        .map(|config| {
-            config
-                .config
-                .split(',')
-                .map(|pmt| pmt.trim().to_string())
-                .filter(|pmt| !pmt.is_empty())
-                .collect()
-        })
-        .unwrap_or_else(|error| {
-            logger::error!(?error, "Failed to fetch preferred-gateway PMT config");
-            vec!["interac".to_string()]
-        })
+        .split(',')
+        .map(|pmt| pmt.trim().to_string())
+        .filter(|pmt| !pmt.is_empty())
+        .collect()
 }
 
 // The stored preference is keyed by payment method type, then holds
@@ -12172,13 +12166,7 @@ fn preferred_gateway_for_profile(
         .get(payment_method_type)?
         .as_array()?
         .iter()
-        .find_map(|entry| {
-            if entry.get("key")?.as_str()? == profile_id {
-                entry.get("value")?.as_str().map(str::to_string)
-            } else {
-                None
-            }
-        })
+        .find_map(|entry| entry.get(profile_id)?.as_str().map(str::to_string))
 }
 
 #[allow(clippy::too_many_arguments)]

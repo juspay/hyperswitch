@@ -1589,14 +1589,26 @@ impl HybridRoutingStage {
             .open_router
             .dynamic_routing_enabled
             .then(|| {
-                // The DE matches preferredGateway by exact string against the eligible list, so the
-                // stored connector name is resolved to its "connector:mca_id" entry; a preference
-                // outside the eligible list is dropped here.
+                // The DE matches preferredGateway by exact string against the eligible list.
+                // The stored preference is always "connector:mca_id": an exact entry match
+                // pins the precise account (profiles with several accounts of one
+                // connector), else the connector-name half picks this profile's own entry.
+                // Anything else, or a preference outside the eligible list, is dropped.
                 let preferred_gateway = input.preferred_gateway.as_ref().and_then(|preferred| {
+                    let preferred_connector_name =
+                        preferred.split_once(':').map(|(name, _)| name)?;
                     input
                         .static_connectors
                         .iter()
-                        .find(|choice| choice.connector.to_string().eq_ignore_ascii_case(preferred))
+                        .find(|choice| choice.to_string().eq_ignore_ascii_case(preferred))
+                        .or_else(|| {
+                            input.static_connectors.iter().find(|choice| {
+                                choice
+                                    .connector
+                                    .to_string()
+                                    .eq_ignore_ascii_case(preferred_connector_name)
+                            })
+                        })
                         .map(|choice| choice.to_string())
                 });
 
