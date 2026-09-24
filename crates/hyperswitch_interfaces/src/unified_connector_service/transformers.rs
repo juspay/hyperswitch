@@ -790,6 +790,14 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 card_network: card_data.card_network,
                 domestic_network: card_data.domestic_network,
                 auth_code: card_data.auth_code,
+                // The gRPC contract carries no normalized card attributes yet
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 let upi_mode = upi_data
