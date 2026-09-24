@@ -8,15 +8,28 @@ let payoutBody;
 describe("[Payout] Saved Card", () => {
   let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
+  before("seed global state", function () {
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
 
-      // Check if the connector supports card payouts (based on the connector configuration in creds)
-      if (!globalState.get("payoutsExecution")) {
-        shouldContinue = false;
-      }
-    });
+        if (!globalState.get("payoutsExecution")) {
+          shouldContinue = false;
+        }
+
+        if (
+          !utils.CONNECTOR_LISTS.INCLUDE.SAVED_CARD.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          shouldContinue = false;
+        }
+      })
+      .then(() => {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
@@ -131,15 +144,28 @@ describe("[Payout] Saved Card", () => {
 describe("[Payout] Saved Bank transfer", () => {
   let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
+  before("seed global state", function () {
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
 
-      // Check if the connector supports card payouts (based on the connector configuration in creds)
-      if (!globalState.get("payoutsExecution")) {
-        shouldContinue = false;
-      }
-    });
+        if (!globalState.get("payoutsExecution")) {
+          shouldContinue = false;
+        }
+
+        if (
+          !utils.CONNECTOR_LISTS.INCLUDE.SAVED_BANK_TRANSFER_SEPA.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          shouldContinue = false;
+        }
+      })
+      .then(() => {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {

@@ -1,4 +1,6 @@
 mod transformers;
+use std::collections::{HashMap, HashSet};
+
 use api_models::merchant_connector_webhook_management::{
     ConnectorWebhookRegisterRequest as ApiConnectorWebhookRegisterRequest, ScopeIdentifier,
     WebhookRegistrationResult,
@@ -19,6 +21,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::api::{ConnectorSpecifications, ConnectorValidation};
+use storage_impl::behaviour::ForeignInto;
 use transformers as configure_connector_webhook_flow;
 
 use crate::{
@@ -36,9 +39,9 @@ use crate::{
     types::{self, api, domain},
 };
 
-fn to_error_response<E: std::fmt::Display>(err: E) -> types::ErrorResponse {
+fn to_error_response<E: std::fmt::Display>(err: E) -> Box<types::ErrorResponse> {
     router_env::logger::error!(error=%err, "Webhook access token error");
-    types::ErrorResponse {
+    Box::new(types::ErrorResponse {
         code: "WEBHOOK_ACCESS_TOKEN_ERROR".to_string(),
         message: "Failed to obtain access token for webhook registration".to_string(),
         status_code: 500,
@@ -50,7 +53,7 @@ fn to_error_response<E: std::fmt::Display>(err: E) -> types::ErrorResponse {
         network_decline_code: None,
         network_error_message: None,
         connector_metadata: None,
-    }
+    })
 }
 
 async fn fetch_access_token_for_webhook(
@@ -62,7 +65,7 @@ async fn fetch_access_token_for_webhook(
         ConnectorWebhookRegisterResponse,
     >,
     current_flow_info: Option<CurrentFlowInfo>,
-) -> Result<Option<types::AccessToken>, types::ErrorResponse> {
+) -> Result<Option<types::AccessToken>, Box<types::ErrorResponse>> {
     if !connector_data
         .connector_name
         .supports_access_token(router_data.payment_method)
@@ -143,7 +146,7 @@ async fn fetch_access_token_for_webhook(
                     connector=%connector_data.connector_name,
                     "Access token response contained an error"
                 );
-                err
+                Box::new(err)
             })?;
 
             let modified_token = types::AccessToken {
@@ -231,6 +234,14 @@ pub async fn register_connector_webhook(
         Option<common_utils::pii::SecretSerdeValue>,
         Option<String>,
     );
+    type GroupedRegistrationOutcomes = HashMap<
+        ScopeIdentifier,
+        Vec<(
+            WebhookRegistrationResult,
+            Option<common_utils::pii::SecretSerdeValue>,
+            Option<String>,
+        )>,
+    >;
 
     let registration_futures = registration_plan.into_iter().map(|(identifier, base_url)| {
         let state = &state;
@@ -384,24 +395,63 @@ pub async fn register_connector_webhook(
         .into_iter()
         .collect::<errors::RouterResult<Vec<RegistrationOutcome>>>()?;
     let mut results = Vec::with_capacity(registration_outcomes.len());
+    let mut grouped_outcomes: GroupedRegistrationOutcomes = HashMap::new();
+
+    for (identifier, result, metadata, connector_webhook_id) in registration_outcomes {
+        results.push(result.clone());
+        grouped_outcomes.entry(identifier).or_default().push((
+            result,
+            metadata,
+            connector_webhook_id,
+        ));
+    }
+
+    // An identifier is considered fully registered only when every planned
+    // registration call for that identifier succeeds. Partially-failed
+    // identifiers are not persisted (and any existing entries for them are
+    // removed) so that the list API does not surface an incomplete scope.
     let mut registration_entries = Vec::new();
     let mut metadata_patches = Vec::new();
     let mut first_successful_webhook_id = None;
+    let mut successful_identifiers = HashSet::new();
+    let mut scopes_to_remove = Vec::new();
 
-    for (identifier, result, metadata, connector_webhook_id) in registration_outcomes {
-        if let Some(metadata) = metadata {
-            metadata_patches.push(metadata);
-        }
+    for identifier in &requested {
+        let all_succeeded = grouped_outcomes
+            .get(identifier)
+            .map(|outcomes| {
+                outcomes.iter().all(|(result, _, webhook_id)| {
+                    matches!(
+                        result.status,
+                        common_enums::WebhookRegistrationStatus::Success
+                    ) && webhook_id.is_some()
+                })
+            })
+            .unwrap_or(false);
 
-        if let Some(webhook_id) = connector_webhook_id {
-            if first_successful_webhook_id.is_none() {
-                first_successful_webhook_id = Some(webhook_id.clone());
+        if all_succeeded {
+            successful_identifiers.insert(identifier.clone());
+            if let Some(outcomes) = grouped_outcomes.get(identifier) {
+                for (_, metadata, connector_webhook_id) in outcomes {
+                    if let Some(webhook_id) = connector_webhook_id {
+                        if first_successful_webhook_id.is_none() {
+                            first_successful_webhook_id = Some(webhook_id.clone());
+                        }
+                        registration_entries.push((webhook_id.clone(), identifier.clone()));
+                    }
+                    if let Some(metadata) = metadata {
+                        metadata_patches.push(metadata.clone());
+                    }
+                }
             }
-            registration_entries.push((webhook_id, identifier));
+        } else {
+            scopes_to_remove.push(identifier.clone());
         }
-
-        results.push(result);
     }
+
+    // Fully successful re-registrations should also replace any stale entries
+    // for the same scope so the list API does not show duplicate/outdated IDs.
+    scopes_to_remove.extend(successful_identifiers.iter().cloned());
 
     // Run the GenerateSecret flow only when the connector requires it (e.g. Adyen) AND the
     // register step returned a connector_webhook_id to operate on. A failure here does not
@@ -431,6 +481,7 @@ pub async fn register_connector_webhook(
             registration_entries,
             generated_secret,
             metadata_patches,
+            &scopes_to_remove,
         )?;
 
     let should_update_db = matches!(
@@ -448,7 +499,7 @@ pub async fn register_connector_webhook(
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), mca_update.into(), &key_store)
+        db.update_merchant_connector_account(mca.clone(), mca_update.foreign_into(), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {

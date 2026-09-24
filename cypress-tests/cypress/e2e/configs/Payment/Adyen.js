@@ -515,6 +515,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -531,6 +532,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -547,6 +549,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -563,6 +566,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -610,7 +614,26 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -619,7 +642,7 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -629,6 +652,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -659,6 +683,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -785,6 +810,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -802,6 +828,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -819,6 +846,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -837,6 +865,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -1096,13 +1125,6 @@ export const connectorDetails = {
     ConnectorTestingData: {
       Request: {
         currency: "USD",
-        connector_metadata: {
-          adyen: {
-            testing: {
-              holder_name: "Test Holder Name Override",
-            },
-          },
-        },
       },
       Response: {
         status: 200,
@@ -1117,16 +1139,16 @@ export const connectorDetails = {
         payment_method_data: {
           card: {
             card_number: "4111111111111111",
-            card_exp_month: "12",
+            card_exp_month: "03",
             card_exp_year: "2030",
-            card_cvc: "123",
+            card_cvc: "737",
             card_holder_name: "Original Card Holder",
           },
         },
         connector_metadata: {
           adyen: {
             testing: {
-              holder_name: "Test Holder Name Override",
+              holder_name: "CARD_EXPIRED",
             },
           },
         },
@@ -1137,6 +1159,36 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+        },
+      },
+    },
+    BlockImplicitCustomerCreationAllowed: {
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    BlockImplicitCustomerCreationBlocked: {
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        email: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_02",
+            message: "Customer does not exist in our records",
+          },
         },
       },
     },
@@ -1216,6 +1268,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "ideal",
           payment_method_data: {
@@ -1295,6 +1348,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
           payment_method_data: {
@@ -1372,6 +1426,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "open_banking_uk",
           payment_method_data: {
@@ -1449,6 +1504,7 @@ export const connectorDetails = {
       },
       MandateSingleUseAutoCapture: {
         Request: {
+          amount: 6540,
           payment_method: "bank_redirect",
           payment_method_type: "trustly",
           payment_method_data: {
@@ -1670,6 +1726,7 @@ export const connectorDetails = {
     }),
     PaypalWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "paypal",
         payment_method_data: {
@@ -1700,6 +1757,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "kakao_pay",
         payment_method_data: {
@@ -1726,6 +1784,7 @@ export const connectorDetails = {
     }),
     GcashWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "gcash",
         payment_method_data: {
@@ -1756,6 +1815,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "twint",
         payment_method_data: {
@@ -1782,6 +1842,7 @@ export const connectorDetails = {
     }),
     DanaWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "dana",
         payment_method_data: {
@@ -1808,6 +1869,7 @@ export const connectorDetails = {
     }),
     GoPayWalletMandateCIT: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "wallet",
         payment_method_type: "go_pay",
         payment_method_data: {

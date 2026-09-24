@@ -341,6 +341,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -358,6 +359,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -375,6 +377,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -392,6 +395,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -444,13 +448,31 @@ export const connectorDetails = {
     MITAutoCapture: getCustomExchange({
       //MIT is not implemented for Nexinets
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: germanBillingAddress,
+      },
+    }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      //MIT is not implemented for Nexinets
+      Request: {
+        amount: 6000,
+        currency: "EUR",
+        billing: germanBillingAddress,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
     }),
     MITManualCapture: getCustomExchange({
       //MIT is not implemented for Nexinets
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: germanBillingAddress,
       },
@@ -458,12 +480,14 @@ export const connectorDetails = {
     MITWithoutBillingAddress: getCustomExchange({
       //MIT is not implemented for Nexinets
       Request: {
+        amount: 6000,
         billing: null,
         currency: "EUR",
       },
     }),
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -499,6 +523,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -636,6 +661,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -654,6 +680,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -672,6 +699,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -691,6 +719,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,

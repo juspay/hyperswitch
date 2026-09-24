@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsCancelRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -123,17 +123,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
 
-        let frm_response = if cfg!(feature = "frm") {
-            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), platform.get_processor().get_account().get_id().clone())
+        #[cfg(feature = "frm")]
+        let frm_response = match payment_attempt.active_frm_id.clone() {
+            Some(frm_id) => db
+                .find_fraud_check_by_frm_id(frm_id)
                 .await
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .to_not_found_response(errors::ApiErrorResponse::FraudCheckNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {attempt_id}", platform.get_processor().get_account().get_id())
+                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", platform.get_processor().get_account().get_id())
                 })
-                .ok()
-        } else {
-            None
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to fetch fraud check record")
+                })
+                .ok(),
+            None => None,
         };
+        #[cfg(not(feature = "frm"))]
+        let frm_response = None;
 
         let profile_id = payment_intent
             .profile_id
@@ -255,7 +261,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
                 .map_or((None, None), |fraud_check| {
                     (
                         Some(Some(fraud_check.frm_status.to_string())),
-                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                        Some(
+                            fraud_check
+                                .frm_reason
+                                .map(|reason| match reason {
+                                    serde_json::Value::String(s) => s,
+                                    other => other.to_string(),
+                                })
+                                .or(fraud_check.frm_error),
+                        ),
                     )
                 });
         let attempt_status_update = storage::PaymentAttemptUpdate::RejectUpdate {

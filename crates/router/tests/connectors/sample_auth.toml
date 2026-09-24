@@ -349,7 +349,7 @@ api_secret = "Secret key"
 
 [authipay]
 api_key = "MyApiKey"
-api_secret = "MySecretKey"
+key1 = "MySecretKey"
 
 [checkbook]
 api_key="Client ID"
@@ -405,3 +405,12 @@ key1 = "Account Id"
 
 [givepayments]
 api_key = "API Key"
+
+[saferpay]
+api_key = "api_key"
+key1 = "key1"
+api_secret = "api_secret"
+key2 = "key2"
+
+[globalpayments_heartland]
+api_key = "Secret API Key"

@@ -100,7 +100,7 @@ mod storage_impl {
         ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             let result =
-                storage_types::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
                     &conn,
                     processor_merchant_id,
                     payment_id,
@@ -112,7 +112,7 @@ mod storage_impl {
             match result {
                 Some(dispute) => Ok(Some(dispute)),
                 None => {
-                    storage_types::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
+                    storage_types::Dispute::find_optional_by_merchant_id_payment_id_connector_dispute_id(
                         &conn,
                         processor_merchant_id,
                         payment_id,
@@ -302,6 +302,7 @@ mod storage_impl {
                         dispute_currency: dispute.dispute_currency,
                         processor_merchant_id: dispute.processor_merchant_id.clone(),
                         created_by: dispute.created_by.clone(),
+                        additional_details: dispute.additional_details.clone(),
                     };
 
                     let key = created_dispute.get_partition_key();
@@ -384,7 +385,7 @@ mod storage_impl {
             let database_call = || async {
                 let conn = connection::pg_connection_read(self).await?;
                 let result =
-                    storage_types::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                    storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
                         &conn,
                         processor_merchant_id,
                         payment_id,
@@ -393,24 +394,18 @@ mod storage_impl {
                     .await;
 
                 match result {
-                    Ok(dispute) => Ok(dispute),
-                    Err(error) => {
-                        if matches!(
-                            error.current_context(),
-                            diesel_models::errors::DatabaseError::NotFound
-                        ) {
-                            storage_types::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
-                                &conn,
-                                processor_merchant_id,
-                                payment_id,
-                                connector_dispute_id,
-                            )
-                            .await
-                            .map_err(|error| report!(errors::StorageError::from(error)))
-                        } else {
-                            Err(report!(errors::StorageError::from(error)))
-                        }
+                    Ok(Some(dispute)) => Ok(Some(dispute)),
+                    Ok(None) => {
+                        storage_types::Dispute::find_optional_by_merchant_id_payment_id_connector_dispute_id(
+                            &conn,
+                            processor_merchant_id,
+                            payment_id,
+                            connector_dispute_id,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
                     }
+                    Err(error) => Err(report!(errors::StorageError::from(error))),
                 }
             };
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
@@ -739,6 +734,7 @@ impl DisputeInterface for MockDb {
             dispute_currency: dispute.dispute_currency,
             processor_merchant_id: dispute.processor_merchant_id,
             created_by: dispute.created_by,
+            additional_details: dispute.additional_details,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -812,16 +808,8 @@ impl DisputeInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-        let limit_usize = dispute_constraints
-            .limit
-            .unwrap_or(u32::MAX)
-            .try_into()
-            .unwrap_or(usize::MAX);
-        let offset_usize = dispute_constraints
-            .offset
-            .unwrap_or(0)
-            .try_into()
-            .unwrap_or(usize::MIN);
+        let limit_usize = dispute_constraints.limit.as_usize();
+        let offset_usize = dispute_constraints.offset.as_usize();
         let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
             .filter(|dispute| {
@@ -922,7 +910,12 @@ impl DisputeInterface for MockDb {
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
+                additional_details,
             } => {
+                if additional_details.is_some() {
+                    dispute_to_update.additional_details = additional_details;
+                }
+
                 if connector_reason.is_some() {
                     dispute_to_update.connector_reason = connector_reason;
                 }
@@ -1068,6 +1061,7 @@ mod tests {
                 dispute_currency: Some(Currency::default()),
                 processor_merchant_id: Some(dispute_ids.merchant_id),
                 created_by: None,
+                additional_details: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
             }
@@ -1273,8 +1267,8 @@ mod tests {
                         connector: None,
                         merchant_connector_id: None,
                         currency: None,
-                        limit: None,
-                        offset: None,
+                        limit: Default::default(),
+                        offset: Default::default(),
                         dispute_status: None,
                         dispute_stage: None,
                         reason: None,
@@ -1403,6 +1397,7 @@ mod tests {
                             connector_reason_code: Some("updated_connector_reason_code".into()),
                             challenge_required_by: Some(datetime!(2019-01-10 0:00)),
                             connector_updated_at: Some(datetime!(2019-01-11 0:00)),
+                            additional_details: None,
                         },
                         diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                     )

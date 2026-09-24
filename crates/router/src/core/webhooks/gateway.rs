@@ -12,7 +12,6 @@ use hyperswitch_interfaces::webhooks::{
 };
 use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
-use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
 
 #[cfg(feature = "v1")]
@@ -576,11 +575,16 @@ fn spawn_shadow_ucs_run(
                 logger::warn!(?error, "UCS shadow webhook run failed");
             }
             let shadow_snapshot = WebhookShadowSnapshot::from_result(&shadow_result);
+            let merchant_id = inner_ctx
+                .merchant_connector_account
+                .as_ref()
+                .map(|mca| mca.merchant_id.clone());
             report_shadow_diff(
                 &inner_ctx.state,
                 &inner_ctx.connector_name,
                 &primary_snapshot,
                 &shadow_snapshot,
+                merchant_id,
             )
             .await;
         }
@@ -687,6 +691,7 @@ async fn report_shadow_diff(
     connector_name: &str,
     primary: &WebhookShadowSnapshot,
     shadow: &WebhookShadowSnapshot,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     logger::info!(
         primary_event_type = ?primary.event_type,
@@ -708,6 +713,7 @@ async fn report_shadow_diff(
             config,
             connector_name.to_string(),
             state.get_request_id_str(),
+            merchant_id.as_ref(),
         )
         .await;
     }
@@ -761,7 +767,7 @@ pub(super) async fn verify_webhook_source_via_connector(
 
     let connector_enum = api_models::enums::Connector::from_str(&ctx.connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| {
             format!("unable to parse connector name {:?}", ctx.connector_name)
@@ -893,7 +899,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
             .get_id()
             .get_string_repr(),
         ctx.connector_name,
-        OffsetDateTime::now_utc().unix_timestamp()
+        common_utils::date_time::now_unix_timestamp()
     )
 }
 

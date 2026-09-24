@@ -7,8 +7,8 @@ use router_env::{logger, tracing::Instrument};
 use crate::redis::cache::{
     CacheKey, CacheKind, CacheRedact, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE,
     CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE, DECISION_MANAGER_CACHE,
-    ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE, PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE,
-    SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE, SURCHARGE_CACHE,
+    ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE, MCA_LIST_CACHE, PM_FILTERS_CGRAPH_CACHE,
+    ROUTING_CACHE, SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE, SURCHARGE_CACHE,
 };
 
 #[async_trait::async_trait]
@@ -115,6 +115,15 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                 .await;
                             key
                         }
+                        CacheKind::MerchantConnectorAccountList(key) => {
+                            MCA_LIST_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: message.tenant.clone(),
+                                })
+                                .await;
+                            key
+                        }
                         CacheKind::CGraph(key) => {
                             CGRAPH_CACHE
                                 .remove(CacheKey {
@@ -200,6 +209,12 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                     prefix: message.tenant.clone(),
                                 })
                                 .await;
+                            MCA_LIST_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: message.tenant.clone(),
+                                })
+                                .await;
                             CGRAPH_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
@@ -265,5 +280,24 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             }
         }
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl PubSubInterface for redis_interface::RedisConnectionWithContext {
+    async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
+        self.redis_conn.subscribe(channel).await
+    }
+
+    async fn publish<'a>(
+        &self,
+        channel: &str,
+        key: CacheKind<'a>,
+    ) -> error_stack::Result<usize, redis_errors::RedisError> {
+        self.redis_conn.publish(channel, key).await
+    }
+
+    async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
+        self.redis_conn.on_message().await
     }
 }

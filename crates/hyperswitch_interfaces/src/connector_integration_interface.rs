@@ -782,6 +782,21 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "payouts")]
+    fn generate_payout_connector_request_reference_id(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> String {
+        match self {
+            Self::Old(connector) => {
+                connector.generate_payout_connector_request_reference_id(payout_attempt)
+            }
+            Self::New(connector) => {
+                connector.generate_payout_connector_request_reference_id(payout_attempt)
+            }
+        }
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_customer_id(
         &self,
@@ -825,16 +840,39 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "frm")]
+    fn get_payment_frm_metadata(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payment_frm_metadata(payment_attempt),
+            Self::New(connector) => connector.get_payment_frm_metadata(payment_attempt),
+        }
+    }
+
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payout_frm_metadata(payout_attempt),
+            Self::New(connector) => connector.get_payout_frm_metadata(payout_attempt),
+        }
+    }
+
     fn is_payment_recurrence_operation_needed(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        setup_future_usage: Option<common_enums::FutureUsage>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         match self {
             Self::Old(connector) => {
-                connector.is_payment_recurrence_operation_needed(payment_intent)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
             Self::New(connector) => {
-                connector.is_payment_recurrence_operation_needed(payment_intent)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
         }
     }

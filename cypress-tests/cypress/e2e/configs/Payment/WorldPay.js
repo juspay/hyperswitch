@@ -57,6 +57,9 @@ const paymentMethodDataNoThreeDsResponse = {
   card: {
     last4: "4242",
     card_type: "CREDIT",
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: "Visa",
     card_issuer: "STRIPE PAYMENTS UK LIMITED",
     card_issuing_country: "UNITEDKINGDOM",
@@ -76,8 +79,11 @@ const paymentMethodDataThreeDsResponse = {
   card: {
     last4: "1091",
     card_type: "CREDIT",
+    card_subtype: "VISA TRADITIONAL",
+    card_segment_type: "consumer",
+    funding_source: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -467,6 +473,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -483,6 +490,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -499,6 +507,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -515,6 +524,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -545,7 +555,26 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -554,7 +583,7 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -598,6 +627,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -633,6 +663,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -669,13 +700,14 @@ export const connectorDetails = {
           status: "failed",
           error_code: "13",
           error_message: "INVALID AMOUNT",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "UE_1000",
+          unified_message: "Issue with Payment Method details",
         },
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -693,6 +725,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
@@ -710,6 +743,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDsTestCardDetailsRequest,
@@ -728,6 +762,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDsTestCardDetailsRequest,

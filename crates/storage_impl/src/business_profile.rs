@@ -7,14 +7,60 @@ use hyperswitch_domain_models::{
     },
     merchant_key_store::MerchantKeyStore,
 };
+#[cfg(feature = "accounts_cache")]
+use router_env::logger;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "accounts_cache")]
+use crate::redis::{
+    cache,
+    cache::{CacheKind, ACCOUNTS_CACHE},
+};
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
+#[cfg(feature = "accounts_cache")]
+use crate::{metrics, RedisConnInterface};
+
+/// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
+#[cfg(feature = "accounts_cache")]
+fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
+    format!("business_profile_{}", profile_id.get_string_repr())
+}
+
+/// Invalidates the cached profile on a best-effort basis.
+///
+/// Callers invoke this only after their database write has committed, so a redis failure must not
+/// fail their request: the write did succeed, and returning an error would both misreport that and
+/// invite a retry, without clearing the stale entry either way. The staleness is instead bounded by
+/// the cache TTLs, and the failure is logged and counted so it stays visible.
+#[cfg(feature = "accounts_cache")]
+async fn publish_and_redact_business_profile_cache(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    profile_id: &common_utils::id_type::ProfileId,
+) {
+    let redaction_result = cache::redact_from_redis_and_publish(
+        store,
+        [CacheKind::Accounts(profile_cache_key(profile_id).into())],
+    )
+    .await;
+
+    if let Err(error) = redaction_result {
+        metrics::CACHE_REDACTION_FAILURE_COUNT.add(
+            1,
+            router_env::metric_attributes!(("entity", "business_profile")),
+        );
+        logger::error!(
+            ?error,
+            profile_id = profile_id.get_string_repr(),
+            "Failed to invalidate business profile cache after a committed database write, \
+             cached entries may be stale until they expire"
+        );
+    }
+}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
@@ -117,21 +163,23 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
         let conn = pg_accounts_connection_write(self).await?;
-        business_profile
-            .construct_new()
-            .await
-            .change_context(StorageError::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
+        Box::pin(
+            business_profile
+                .construct_new()
+                .await
+                .change_context(StorageError::EncryptionError)?
+                .insert(&conn),
+        )
+        .await
+        .map_err(|error| report!(StorageError::from(error)))?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -140,12 +188,46 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
-        self.call_database_new(
-            merchant_key_store,
-            diesel::Profile::find_by_profile_id(&conn, profile_id),
-        )
-        .await
+        let fetch_func = || async {
+            let conn = pg_accounts_connection_read(self).await?;
+            diesel::Profile::find_by_profile_id(&conn, profile_id)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+        let state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            Box::pin(cache::get_or_populate_in_memory(
+                self,
+                &profile_cache_key(profile_id),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            ))
+            .await?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+        }
     }
 
     async fn find_business_profile_by_merchant_id_profile_id(
@@ -154,12 +236,46 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
-        self.call_database_new(
-            merchant_key_store,
-            diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id),
-        )
-        .await
+        let fetch_func = || async {
+            let conn = pg_accounts_connection_read(self).await?;
+            diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+        let state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            Box::pin(cache::get_or_populate_in_memory(
+                self,
+                &profile_cache_key(profile_id),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            ))
+            .await?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+        }
     }
 
     #[instrument(skip_all)]
@@ -185,12 +301,19 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
         let conn = pg_accounts_connection_write(self).await?;
-        Conversion::convert(current_state)
-            .await
-            .change_context(StorageError::EncryptionError)?
-            .update_by_profile_id(&conn, ProfileUpdateInternal::foreign_from(profile_update))
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?
+        let updated_profile = Box::pin(
+            Conversion::convert(current_state)
+                .await
+                .change_context(StorageError::EncryptionError)?
+                .update_by_profile_id(&conn, ProfileUpdateInternal::foreign_from(profile_update)),
+        )
+        .await
+        .map_err(|error| report!(StorageError::from(error)))?;
+
+        #[cfg(feature = "accounts_cache")]
+        publish_and_redact_business_profile_cache(self, updated_profile.get_id()).await;
+
+        updated_profile
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -208,9 +331,15 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
         let conn = pg_accounts_connection_write(self).await?;
-        diesel::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        let is_deleted =
+            diesel::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))?;
+
+        #[cfg(feature = "accounts_cache")]
+        publish_and_redact_business_profile_cache(self, profile_id).await;
+
+        Ok(is_deleted)
     }
 
     #[instrument(skip_all)]
@@ -545,6 +674,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     metadata,
                     routing_algorithm,
                     intent_fulfillment_time,
+                    order_fulfillment_time: intent_fulfillment_time,
                     frm_routing_algorithm,
                     payout_routing_algorithm,
                     is_recon_enabled: None,
@@ -596,6 +726,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                         .map(Encryption::from),
                     payment_method_blocking,
                     default_fallback_routing: None,
+                    apple_pay_certificates: None,
+                    apple_pay_certificates_encrypted: None,
                 }
             }
             domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -613,6 +745,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm,
                 is_recon_enabled: None,
@@ -662,6 +795,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -676,6 +811,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -725,6 +861,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -739,6 +877,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -788,6 +927,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -802,6 +943,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -851,6 +993,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -866,6 +1010,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -916,6 +1061,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     .map(Encryption::from),
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -930,6 +1077,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -979,6 +1127,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::AcquirerConfigBucketUpdate {
                 acquirer_config_map,
@@ -993,6 +1143,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1043,6 +1194,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1057,6 +1210,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1106,6 +1260,75 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 payment_method_blocking: None,
                 default_fallback_routing,
                 network_tokenization_credentials: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                order_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
+                acquirer_config_map: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+                billing_processor_id: None,
+                surcharge_connector_details: None,
+                is_l2_l3_enabled: None,
+                payment_method_blocking: None,
+                default_fallback_routing: None,
+                network_tokenization_credentials: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -1136,6 +1359,7 @@ impl Conversion for domain::Profile {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            order_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled,
@@ -1196,6 +1420,10 @@ impl Conversion for domain::Profile {
                 .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
             default_fallback_routing: self.default_fallback_routing,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(|data| data.into()),
         })
     }
 
@@ -1213,6 +1441,7 @@ impl Conversion for domain::Profile {
             outgoing_webhook_custom_http_headers,
             card_testing_secret_key,
             network_tokenization_credentials,
+            apple_pay_certificates_encrypted,
         ) = async {
             let outgoing_webhook_custom_http_headers = item
                 .outgoing_webhook_custom_http_headers
@@ -1259,10 +1488,26 @@ impl Conversion for domain::Profile {
                 })
                 .await?;
 
+            let apple_pay_certificates_encrypted = item
+                .apple_pay_certificates_encrypted
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>((
                 outgoing_webhook_custom_http_headers,
                 card_testing_secret_key,
                 network_tokenization_credentials,
+                apple_pay_certificates_encrypted,
             ))
         }
         .await
@@ -1347,6 +1592,8 @@ impl Conversion for domain::Profile {
             network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking,
             default_fallback_routing: item.default_fallback_routing,
+            apple_pay_certificates: item.apple_pay_certificates,
+            apple_pay_certificates_encrypted,
         }
         .into())
     }
@@ -1370,6 +1617,7 @@ impl Conversion for domain::Profile {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            order_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled,
@@ -1531,6 +1779,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     split_txns_enabled,
                     billing_processor_id,
                     surcharge_connector_details,
+                    apple_pay_certificates: None,
+                    apple_pay_certificates_encrypted: None,
                 }
             }
             domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1591,6 +1841,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1649,6 +1901,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1707,6 +1961,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1765,6 +2021,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1823,6 +2081,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1881,6 +2141,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1939,6 +2201,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1997,6 +2261,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2056,6 +2322,69 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 split_txns_enabled: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+            },
+            domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                is_l2_l3_enabled: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                split_txns_enabled: None,
+                billing_processor_id: None,
+                surcharge_connector_details: None,
+                apple_pay_certificates,
+                apple_pay_certificates_encrypted,
             },
         }
     }
@@ -2143,6 +2472,8 @@ impl Conversion for domain::Profile {
             surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         })
     }
 
@@ -2243,6 +2574,7 @@ impl Conversion for domain::Profile {
                     merchant_category_code: item.merchant_category_code,
                     merchant_country_code: item.merchant_country_code,
                     split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                    is_manual_retry_enabled: item.is_manual_retry_enabled,
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
                 }

@@ -128,13 +128,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             profile_id: &attempt.profile_id,
             organization_id: &attempt.organization_id,
             card_network: attempt
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
+                .extract_card_network()
                 .map(|network| network.to_string()),
             card_discovery: attempt
                 .card_discovery
@@ -289,6 +283,9 @@ impl<'a> KafkaPaymentAttempt<'a> {
             network_transaction_link_id: _,
             authorized_amount: _,
             external_surcharge_details: _,
+            applied_offer_details: _,
+            payment_account_reference: _,
+            active_frm_id: _,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -340,14 +337,8 @@ impl<'a> KafkaPaymentAttempt<'a> {
             client_version: client_version.as_ref(),
             profile_id,
             organization_id,
-            card_network: payment_method_data
-                .as_ref()
-                .map(|data| data.peek())
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
+            card_network: attempt
+                .extract_card_network()
                 .map(|network| network.to_string()),
             card_discovery: card_discovery.map(|discovery| discovery.to_string()),
             payment_token: payment_token.clone(),

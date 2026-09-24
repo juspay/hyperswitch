@@ -112,13 +112,18 @@ where
                 grpc_headers,
                 unified_connector_service_execution_mode,
                 |mut router_data, granular_payout_transfer_request, grpc_headers| async move {
-                    let response = Box::pin(client.payout_transfer(
+                    let response = match Box::pin(client.payout_transfer(
                         granular_payout_transfer_request,
                         connector_auth_metadata,
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to transfer payout")?;
+                    {
+                        Ok(resp) => resp,
+                        Err(report) => {
+                            return Err(report.attach_printable("Failed to transfer payout"));
+                        }
+                    };
 
                     let payout_transfer_response = response.into_inner();
 
@@ -140,7 +145,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .change_context(ConnectorError::ResponseHandlingFailed)?;
+            .map_err(payout_gateway::convert_ucs_error_to_connector_error)?;
 
         Ok(updated_router_data)
     }

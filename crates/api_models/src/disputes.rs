@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
-use common_utils::types::{StringMinorUnit, TimeRange};
-use hyperswitch_masking::{Deserialize, Serialize};
+use common_utils::{
+    pii::EmailStrategy,
+    types::{StringMinorUnit, TimeRange},
+};
+use hyperswitch_masking::{Deserialize, Secret, Serialize};
 use serde::de::Error;
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
@@ -58,6 +61,9 @@ pub struct DisputeResponse {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount
     pub is_already_refunded: bool,
+    /// Additional details of the dispute, such as card network specific details
+    #[schema(value_type = Option<AdditionalDetails>)]
+    pub additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
@@ -103,6 +109,10 @@ pub struct DisputeResponsePaymentsRetrieve {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     #[smithy(value_type = "String")]
     pub created_at: PrimitiveDateTime,
+    /// Additional details of the dispute, such as card network specific details
+    #[schema(value_type = Option<AdditionalDetails>)]
+    #[smithy(value_type = "Option<AdditionalDetails>")]
+    pub additional_details: Option<common_types::disputes::AdditionalDetails>,
 }
 
 #[derive(Debug, Serialize, Deserialize, strum::Display, Clone, ToSchema)]
@@ -137,9 +147,11 @@ pub struct DisputeListGetConstraints {
     /// The payment_id against which dispute is raised
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// Limit on the number of objects to return
-    pub limit: Option<u32>,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of object
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
     /// The identifier for business profile
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
@@ -193,7 +205,8 @@ pub struct SubmitEvidenceRequest {
     /// File Id of customer communication
     pub customer_communication: Option<String>,
     /// Customer email address
-    pub customer_email_address: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub customer_email_address: Option<Secret<String, EmailStrategy>>,
     /// Customer name
     pub customer_name: Option<String>,
     /// IP address of the customer

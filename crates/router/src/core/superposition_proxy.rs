@@ -1,17 +1,20 @@
 use actix_web::{HttpRequest, HttpResponse};
 pub use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
-    PaginatedListResponse, ResolveConfigResponse,
+    PaginatedListResponse, ResolveConfigExplanationResponse, ResolveConfigResponse,
 };
 use async_trait::async_trait;
 use common_utils::events::ApiEventMetric;
 use external_services::superposition::{
     context_put_from_request, create_context_output_to_struct, doc_map_to_json, document_to_value,
+    get_default_config_output_to_struct, get_dimension_output_to_struct,
     list_audit_logs_to_response, list_contexts_to_response, list_default_configs_to_response,
-    list_dimensions_to_response, map_sdk_error, parse_datetime, value_to_document, AuditAction,
-    ContextFilterSortOn, ContextPutRequest, CreateContextInputBuilder, DateTime,
-    DimensionMatchStrategy, GetDetailedResolvedConfigInputBuilder, ListAuditLogsInputBuilder,
-    ListContextsInputBuilder, ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy,
+    list_dimensions_to_response, map_sdk_error, parse_datetime,
+    resolve_config_explanation_to_response, value_to_document, AuditAction, ContextFilterSortOn,
+    ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
+    GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder, GetDimensionInputBuilder,
+    GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionClient,
     SuperpositionError,
 };
 
@@ -169,32 +172,41 @@ fn map_superposition_err(
     }
 }
 
-/// Extract the `x-org-id` and `x-workspace` headers required by every proxy
-/// endpoint, returning a `400` response if either is missing.
-pub fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResponse> {
-    let org_id = req
-        .headers()
-        .get("x-org-id")
-        .and_then(|v| v.to_str().ok())
+/// Read the `x-org-id` and `x-workspace` headers and check them against the
+/// configured Superposition scope. These name a Superposition org/workspace, a
+/// different namespace from the JWT's `organization_id`, so config is the only
+/// trusted source to compare against.
+pub fn extract_proxy_headers(
+    req: &HttpRequest,
+    superposition_client: &SuperpositionClient,
+) -> Result<(String, String), HttpResponse> {
+    let superposition_org_id = required_header(req, "x-org-id")?;
+    let superposition_workspace_id = required_header(req, "x-workspace")?;
+
+    let org_matches = superposition_org_id == superposition_client.configured_org_id();
+    let workspace_matches =
+        superposition_workspace_id == superposition_client.configured_workspace_id();
+
+    match (org_matches, workspace_matches) {
+        (true, true) => Ok((superposition_org_id, superposition_workspace_id)),
+        _ => Err(actix_web::ResponseError::error_response(
+            &errors::ApiErrorResponse::AccessForbidden {
+                resource: "superposition org and workspace".to_string(),
+            },
+        )),
+    }
+}
+
+fn required_header(req: &HttpRequest, name: &'static str) -> Result<String, HttpResponse> {
+    req.headers()
+        .get(name)
+        .and_then(|value| value.to_str().ok())
         .map(String::from)
         .ok_or_else(|| {
             HttpResponse::BadRequest().json(serde_json::json!({
-                "error": { "message": "missing required header: x-org-id" }
+                "error": { "message": format!("missing required header: {name}") }
             }))
-        })?;
-
-    let workspace_id = req
-        .headers()
-        .get("x-workspace")
-        .and_then(|v| v.to_str().ok())
-        .map(String::from)
-        .ok_or_else(|| {
-            HttpResponse::BadRequest().json(serde_json::json!({
-                "error": { "message": "missing required header: x-workspace" }
-            }))
-        })?;
-
-    Ok((org_id, workspace_id))
+        })
 }
 
 /// Typed `ListContexts` query params, parsed from the raw key/value pairs
@@ -349,7 +361,7 @@ pub trait SuperpositionProxyFlow: Sized {
 
 /// Generic entry point shared by every Superposition proxy handler: runs the flow and
 /// wraps the result in a JSON `ApplicationResponse`.
-pub async fn handle_proxy_flow<R: SuperpositionProxyFlow>(
+pub async fn handle_superposition_proxy_flow<R: SuperpositionProxyFlow>(
     state: SessionState,
     auth: UserFromToken,
     request: R,
@@ -499,6 +511,90 @@ impl SuperpositionProxyFlow for ListDimensionsQuery {
     }
 }
 
+/// `GetDimension` request: the name of the dimension to fetch.
+#[derive(Debug, Clone)]
+pub struct GetDimensionRequest(pub String);
+
+#[async_trait(?Send)]
+impl SuperpositionProxyFlow for GetDimensionRequest {
+    type InputBuilder = GetDimensionInputBuilder;
+    type Response = DimensionResponse;
+
+    fn into_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::InputBuilder, error_stack::Report<errors::ApiErrorResponse>> {
+        Ok(GetDimensionInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .dimension(self.0))
+    }
+
+    async fn execute(
+        self,
+        state: &SessionState,
+        _auth: &UserFromToken,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        let output = self
+            .into_input(org_id, workspace_id)?
+            .send_with(state.superposition_service.superposition_sdk_client())
+            .await
+            .map_err(|sdk_error| {
+                map_superposition_err(
+                    error_stack::report!(map_sdk_error(sdk_error)),
+                    "Failed to get dimension from Superposition",
+                )
+            })?;
+
+        Ok(get_dimension_output_to_struct(&output))
+    }
+}
+
+/// `GetDefaultConfig` request: the key of the default config to fetch.
+#[derive(Debug, Clone)]
+pub struct GetDefaultConfigRequest(pub String);
+
+#[async_trait(?Send)]
+impl SuperpositionProxyFlow for GetDefaultConfigRequest {
+    type InputBuilder = GetDefaultConfigInputBuilder;
+    type Response = DefaultConfigResponse;
+
+    fn into_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::InputBuilder, error_stack::Report<errors::ApiErrorResponse>> {
+        Ok(GetDefaultConfigInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .key(self.0))
+    }
+
+    async fn execute(
+        self,
+        state: &SessionState,
+        _auth: &UserFromToken,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        let output = self
+            .into_input(org_id, workspace_id)?
+            .send_with(state.superposition_service.superposition_sdk_client())
+            .await
+            .map_err(|sdk_error| {
+                map_superposition_err(
+                    error_stack::report!(map_sdk_error(sdk_error)),
+                    "Failed to get default config from Superposition",
+                )
+            })?;
+
+        Ok(get_default_config_output_to_struct(&output))
+    }
+}
+
 #[async_trait(?Send)]
 impl SuperpositionProxyFlow for ContextPutRequest {
     type InputBuilder = CreateContextInputBuilder;
@@ -607,6 +703,60 @@ impl SuperpositionProxyFlow for ResolveDetailedConfigRequest {
     }
 }
 
+/// `GetResolvedConfigExplanation` request: config key plus context dimensions.
+#[derive(Debug, Clone)]
+pub struct ResolveConfigExplanationRequest {
+    pub key: String,
+    pub context: serde_json::Map<String, serde_json::Value>,
+}
+
+#[async_trait(?Send)]
+impl SuperpositionProxyFlow for ResolveConfigExplanationRequest {
+    type InputBuilder = GetResolvedConfigExplanationInputBuilder;
+    type Response = ResolveConfigExplanationResponse;
+
+    fn into_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::InputBuilder, error_stack::Report<errors::ApiErrorResponse>> {
+        let mut builder = GetResolvedConfigExplanationInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .key(self.key);
+
+        for (dimension_key, dimension_value) in self.context {
+            builder = builder.context(dimension_key, value_to_document(dimension_value));
+        }
+
+        Ok(builder)
+    }
+
+    async fn execute(
+        self,
+        state: &SessionState,
+        auth: &UserFromToken,
+        org_id: String,
+        workspace_id: String,
+    ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        let context_json = serde_json::Value::Object(self.context.clone());
+        validate_superposition_context_body(&context_json, auth)?;
+
+        let output = self
+            .into_input(org_id, workspace_id)?
+            .send_with(state.superposition_service.superposition_sdk_client())
+            .await
+            .map_err(|sdk_error| {
+                map_superposition_err(
+                    error_stack::report!(map_sdk_error(sdk_error)),
+                    "Failed to resolve config explanation from Superposition",
+                )
+            })?;
+
+        Ok(resolve_config_explanation_to_response(&output))
+    }
+}
+
 #[async_trait(?Send)]
 impl SuperpositionProxyFlow for ListAuditLogsQuery {
     type InputBuilder = ListAuditLogsInputBuilder;
@@ -647,10 +797,13 @@ impl SuperpositionProxyFlow for ListAuditLogsQuery {
     async fn execute(
         self,
         state: &SessionState,
-        _auth: &UserFromToken,
+        auth: &UserFromToken,
         org_id: String,
         workspace_id: String,
     ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        require_superposition_context(&self.dimension_params)?;
+        validate_superposition_params(&self.dimension_params, auth)?;
+
         let output = self
             .into_input(org_id, workspace_id)?
             .send_with(state.superposition_service.superposition_sdk_client())

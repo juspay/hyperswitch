@@ -4,9 +4,11 @@
 
 pub mod consts;
 pub mod customers;
+pub mod disputes;
 pub mod domain;
 pub mod payment_methods;
 pub mod payments;
+pub mod payouts;
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
 pub mod refunds;

@@ -1,0 +1,25 @@
+---
+title: "List Routing Algorithms"
+description: "Curl example for listing routing algorithms."
+---
+
+# List Routing Algorithms
+
+## Request
+
+```bash
+curl --request POST "$BASE_URL/routing/list/merchant_demo" \
+  --header "$AUTH_HEADER"
+```
+
+## Response
+
+```json
+[
+  {
+    "rule_id": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0",
+    "name": "priority rule",
+    "algorithm_for": "payment"
+  }
+]
+```

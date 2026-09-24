@@ -1086,15 +1086,18 @@ impl ConnectorSpecifications for Mollie {
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
+        // Mollie registers a mandate by sending `sequenceType: first` with a `customerId`,
+        // so a connector customer is required for any off-session card setup (including
+        // zero-auth mandates). We intentionally don't gate on `customer_acceptance`: it may
+        // be supplied nested inside `mandate_data` (not surfaced on the attempt) and its
+        // placement doesn't change whether Mollie needs a customer.
         if matches!(
             payment_attempt.setup_future_usage_applied,
             Some(enums::FutureUsage::OffSession)
-        ) && payment_attempt.customer_acceptance.is_some()
-            && matches!(
-                payment_attempt.payment_method,
-                Some(enums::PaymentMethod::Card)
-            )
-        {
+        ) && matches!(
+            payment_attempt.payment_method,
+            Some(enums::PaymentMethod::Card)
+        ) {
             api::ConnectorCustomerAction::CallConnectorCustomer
         } else {
             api::ConnectorCustomerAction::NoAction

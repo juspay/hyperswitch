@@ -59,6 +59,7 @@ pub async fn get_store(
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
+    let database_event_emitter = Arc::clone(&key_manager_state.event_emitter);
     // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
@@ -89,6 +90,7 @@ pub async fn get_store(
             &config.redis,
             master_enc_key,
             Some(key_manager_state.clone()),
+            Arc::clone(&database_event_emitter),
         )
         .await?
     } else {
@@ -99,6 +101,7 @@ pub async fn get_store(
             cache_store,
             storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
             Some(key_manager_state.clone()),
+            database_event_emitter,
         )
         .await?
     };
@@ -120,12 +123,25 @@ pub async fn get_store(
 pub async fn get_cache_store(
     config: &Settings,
     shut_down_signal: oneshot::Sender<()>,
+    event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
     _test_transaction: bool,
 ) -> StorageResult<Arc<RedisStore>> {
-    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal).await
+    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal, event_emitter).await
 }
 
+// deja: the per-merchant data-encryption key (DEK) is random. It is stored
+// (master-key-encrypted) in merchant_key_store AND used to encrypt the merchant's
+// own columns, so it must replay to the recorded value or the substituted DB rows
+// and the response body diverge. Ok-only: the ring error type is non-serializable.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::services",
+        operation = "generate_aes256_key",
+        codec = ResultOkCodec,
+    )
+)]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 

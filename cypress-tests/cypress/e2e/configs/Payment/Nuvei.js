@@ -374,6 +374,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -404,6 +405,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -424,7 +426,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -437,6 +439,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -456,6 +459,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -475,6 +479,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -494,6 +499,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -512,7 +518,28 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
+        amount: 6000,
         amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        amount_to_capture: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -654,6 +681,7 @@ export const connectorDetails = {
     // Payment method ID mandate scenarios
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -674,6 +702,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -694,6 +723,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
@@ -714,6 +744,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
@@ -1011,9 +1042,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
-          error_code: null,
-          error_message: null,
+          status: "failed",
+          error_code: "-1",
+          error_message: "System Error",
         },
       },
     },

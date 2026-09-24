@@ -12,6 +12,8 @@ pub mod client_session;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
+#[cfg(feature = "v1")]
+pub mod server_integration;
 #[cfg(feature = "v2")]
 pub mod session_operation;
 pub mod tokenization;
@@ -73,6 +75,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -172,7 +175,7 @@ use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_m
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core,
+        authentication as authentication_core, offer_engine,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -315,7 +318,7 @@ where
                 )
                 .await?;
 
-            let (router_data, _mca_type_details) = complete_connector_service(
+            let (router_data, _mca_type_details) = Box::pin(complete_connector_service(
                 &updated_state,
                 platform.get_processor(),
                 &operation,
@@ -331,7 +334,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-            )
+            ))
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
@@ -426,7 +429,7 @@ where
                 )
                 .await?;
 
-            let (router_data, _mca_type_details) = complete_connector_service(
+            let (router_data, _mca_type_details) = Box::pin(complete_connector_service(
                 &updated_state,
                 platform.get_processor(),
                 &operation,
@@ -442,7 +445,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-            )
+            ))
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
@@ -826,6 +829,7 @@ where
         &operation,
         state,
         platform,
+        &business_profile,
         &mut payment_data,
         connector.as_ref(),
     )
@@ -859,6 +863,7 @@ where
 
     let mut connector_http_status_code = None;
     let mut external_latency = None;
+    let mut current_flow_info_for_recurrence_webhook = None;
     if let Some(connector_details) = connector {
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
@@ -869,39 +874,18 @@ where
         let mut should_continue_capture: bool = true;
         #[cfg(feature = "frm")]
         let frm_configs = if state.conf.frm.enabled {
-            match Box::pin(frm_core::call_frm_before_connector_call(
+            Box::pin(frm_core::call_frm_before_connector_call(
                 &operation,
                 platform,
                 &mut payment_data,
+                &business_profile,
                 state,
                 &mut frm_info,
                 &mut should_continue_transaction,
                 &mut should_continue_capture,
+                &dimensions,
             ))
-            .await
-            {
-                Ok(configs) => configs,
-                Err(e) => {
-                    // Log the error
-                    logger::info!(
-                        "FRM call before connector failed : payment_id={:?}, error={:?}",
-                        payment_data.get_payment_intent().payment_id,
-                        e
-                    );
-                    metrics::FRM_FAILURE.add(
-                        1,
-                        router_env::metric_attributes!(
-                            (
-                                "merchant_id",
-                                platform.get_processor().get_account().get_id().clone()
-                            ),
-                            ("error_type", e.current_context().to_string())
-                        ),
-                    );
-                    // Continue with default values
-                    None
-                }
-            }
+            .await?
         } else {
             None
         };
@@ -1042,7 +1026,7 @@ where
                     };
 
                     let (merchant_connector_account, router_data, tokenization_action) =
-                        call_connector_service_prerequisites(
+                        Box::pin(call_connector_service_prerequisites(
                             state,
                             platform,
                             connector.connector_data.clone(),
@@ -1053,7 +1037,7 @@ where
                             false,
                             None,
                             &feature_config,
-                        )
+                        ))
                         .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
@@ -1089,7 +1073,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = complete_connector_service(
+                    let (router_data, mca) = Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1107,7 +1091,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                    )
+                    ))
                     .await?;
 
                     let op_ref = &operation;
@@ -1117,6 +1101,7 @@ where
 
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1166,6 +1151,7 @@ where
                         complete_postprocessing_steps_if_required(
                             state,
                             platform.get_processor(),
+                            &business_profile,
                             &mca,
                             &connector.connector_data,
                             &mut payment_data,
@@ -1229,7 +1215,7 @@ where
                     };
 
                     let (merchant_connector_account, router_data, tokenization_action) =
-                        call_connector_service_prerequisites(
+                        Box::pin(call_connector_service_prerequisites(
                             state,
                             platform,
                             connector_data.clone(),
@@ -1240,7 +1226,7 @@ where
                             false,
                             routing_decision,
                             &feature_config,
-                        )
+                        ))
                         .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
@@ -1276,7 +1262,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = complete_connector_service(
+                    let (router_data, mca) = Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1294,7 +1280,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                    )
+                    ))
                     .await?;
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
@@ -1342,6 +1328,7 @@ where
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1391,6 +1378,7 @@ where
                         complete_postprocessing_steps_if_required(
                             state,
                             platform.get_processor(),
+                            &business_profile,
                             &mca,
                             &connector_data,
                             &mut payment_data,
@@ -1465,7 +1453,7 @@ where
                     frm_configs
                         .clone()
                         .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "frm_configs",
+                            field_name: "frm_configs".into(),
                         })
                         .attach_printable("Frm configs label not found")?,
                     &mut should_continue_capture,
@@ -1491,6 +1479,15 @@ where
         }
 
         let payment_intent_status = payment_data.get_payment_intent().status;
+        let retain_payment_method_token_for_retry = payment_intent_status
+            .is_eligible_for_manual_retry()
+            && business_profile.is_manual_retry_enabled == Some(true)
+            && business_profile.intent_fulfillment_time.is_some()
+            && payment_data
+                .get_payment_method_info()
+                .is_some_and(|payment_method| {
+                    payment_method.version == common_enums::ApiVersion::V2
+                });
 
         payment_data
             .get_payment_attempt()
@@ -1501,6 +1498,7 @@ where
             .async_map(|key_for_hyperswitch_token| async move {
                 if key_for_hyperswitch_token
                     .should_delete_payment_method_token(payment_intent_status)
+                    && !retain_payment_method_token_for_retry
                 {
                     let _ = key_for_hyperswitch_token.delete(state).await;
                 }
@@ -1534,16 +1532,42 @@ where
         )
         .await?;
 
-    utils::trigger_payments_webhook(
-        platform,
-        business_profile,
-        cloned_payment_data,
-        state,
-        operation,
-    )
-    .await
-    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
-    .ok();
+    let should_delay_webhook_for_recurring_payment = current_flow_info_for_recurrence_webhook
+        .is_some()
+        && payment_data
+            .get_payment_attempt_connector()
+            .and_then(|connector_name| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    connector_name,
+                    api::GetToken::Connector,
+                    None,
+                )
+                .ok()
+            })
+            .and_then(|connector_data| {
+                let setup_future_usage = payment_data.get_payment_intent().setup_future_usage;
+                connector_data
+                    .connector
+                    .is_payment_recurrence_operation_needed(
+                        setup_future_usage,
+                        current_flow_info_for_recurrence_webhook,
+                    )
+            })
+            .unwrap_or(false);
+
+    if !should_delay_webhook_for_recurring_payment {
+        utils::trigger_payments_webhook(
+            platform,
+            business_profile,
+            cloned_payment_data,
+            state,
+            operation,
+        )
+        .await
+        .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+        .ok();
+    }
 
     Ok((
         payment_data,
@@ -1784,6 +1808,7 @@ where
         complete_postprocessing_steps_if_required(
             state,
             platform.get_processor(),
+            &business_profile,
             &mca,
             &connector,
             &mut payment_data,
@@ -2331,6 +2356,10 @@ where
                 .map(|cached| common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: cached.external_surcharge_id,
                     external_surcharge_amount: cached.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            cached.surcharge_percentage,
+                        ),
                     sale_notified: false,
                 })
         };
@@ -2765,6 +2794,19 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
+    // Log the inputs of the modular-vs-legacy decision so a wrong branch is diagnosable:
+    // the feature flag, the payment method's version and the modular/legacy modification
+    // timestamps are everything `should_use_modular_pm_path` looks at.
+    let pm_decision_inputs = payment_data
+        .get_payment_method_info()
+        .map(|pm| (pm.version, pm.compatibility_updated_at, pm.last_modified));
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        is_payment_method_modular_allowed = feature_config.is_payment_method_modular_allowed,
+        payment_method_decision_inputs = ?pm_decision_inputs,
+        "resolving modular vs legacy payment method update path"
+    );
+
     if payment_data.get_payment_method_info().is_some_and(|pm| {
         feature_config.should_use_modular_pm_path(
             Some(pm.version),
@@ -2772,9 +2814,9 @@ where
             Some(pm.last_modified),
         )
     }) {
-        logger::debug!(
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Modular merchant detected; calling update_modular_pm_and_mandate"
+            "Modular payment method path selected; calling update_modular_pm_and_mandate"
         );
 
         let domain_payment_method_data =
@@ -2793,9 +2835,11 @@ where
             )
             .await?;
     } else {
-        logger::debug!(
+        // Reached when the flag is off, the timestamps favour legacy, or there is no
+        // payment_method_info at all — the decision-inputs log above disambiguates.
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Non-modular merchant; calling save_pm_and_mandate"
+            "Legacy payment method path selected; calling save_pm_and_mandate"
         );
         operation
             .to_post_update_tracker()?
@@ -2967,7 +3011,7 @@ pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData,
     dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -3082,190 +3126,256 @@ where
         )
         .await?;
 
-    // Dispatch on the resolved connector call type, mirroring `payments_operation_core`: the
-    // prerequisites and the unified-connector-service decision both happen inside the match arm.
-    // The external vault proxy flow currently supports only a single, predetermined connector.
-    let (connector, merchant_connector_account, router_data) = match connector {
-        Some(ConnectorCallType::PreDetermined(connector_routing_data)) => {
-            let connector = connector_routing_data.connector_data;
-
-            // `choose_connector` does not persist the chosen connector in the payment attempt for
-            // this flow, so set it explicitly — the confirm update tracker reads it back.
-            payment_data
-                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
-
-            let (
-                merchant_connector_account,
-                external_vault_merchant_connector_account,
-                router_data,
-            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
-                state,
-                &platform,
-                &mut payment_data,
-                &connector,
-                &business_profile,
-                header_payload.clone(),
-            )
-            .await?;
-
-            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
-                state,
-                req_state.clone(),
-                &platform,
-                &operation,
-                &mut payment_data,
-                &connector,
-                merchant_connector_account.clone(),
-                external_vault_merchant_connector_account,
-                router_data,
-                call_connector_action.clone(),
-                header_payload.clone(),
-                &business_profile,
-                &dimensions,
-                return_raw_connector_response,
-            )
-            .await?;
-
-            (connector, merchant_connector_account, router_data)
-        }
-        Some(ConnectorCallType::Retryable(connectors)) => {
-            // The proxy flow does not retry — use the first eligible connector.
-            let connector = connectors
-                .into_iter()
-                .next()
-                .ok_or_else(|| {
-                    error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("No eligible connector resolved for external vault proxy")
-                })?
-                .connector_data;
-
-            // `choose_connector` does not persist the chosen connector in the payment attempt for
-            // this flow, so set it explicitly — the confirm update tracker reads it back.
-            payment_data
-                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
-
-            let (
-                merchant_connector_account,
-                external_vault_merchant_connector_account,
-                router_data,
-            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
-                state,
-                &platform,
-                &mut payment_data,
-                &connector,
-                &business_profile,
-                header_payload.clone(),
-            )
-            .await?;
-
-            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
-                state,
-                req_state.clone(),
-                &platform,
-                &operation,
-                &mut payment_data,
-                &connector,
-                merchant_connector_account.clone(),
-                external_vault_merchant_connector_account,
-                router_data,
-                call_connector_action.clone(),
-                header_payload.clone(),
-                &business_profile,
-                &dimensions,
-                return_raw_connector_response,
-            )
-            .await?;
-
-            (connector, merchant_connector_account, router_data)
-        }
-        Some(ConnectorCallType::SessionMultiple(_)) => {
-            return Err(
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                    "SessionMultiple connector call type is not supported for external vault proxy",
-                ),
-            )
-        }
-        None => {
-            return Err(
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("No eligible connector resolved for external vault proxy"),
-            )
-        }
-    };
-
-    let op_ref = &operation;
-    let should_trigger_post_processing_flows = is_operation_confirm(&operation);
-
-    let operation = Box::new(PaymentResponse);
-
-    let connector_http_status_code = router_data.connector_http_status_code;
-    let external_latency = router_data.external_latency;
-
-    add_connector_http_status_code_metrics(connector_http_status_code);
-
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    let routable_connectors =
-        convert_connector_data_to_routable_connectors(&[connector.clone().into()])
-            .map_err(|e| logger::error!(routable_connector_error=?e))
-            .unwrap_or_default();
-
-    let router_data_for_pm_mandate = router_data.clone();
-
-    handle_pm_and_mandate_post_update(
+    tokenize_in_router_when_external_authentication_proxy(
         state,
-        operation.as_ref(),
-        &router_data_for_pm_mandate,
-        &platform,
         &mut payment_data,
         &business_profile,
-        req.get_payment_method_data(),
-        &feature_config,
-        &dimensions.without_profile_id(),
+        platform.get_processor().get_key_store(),
     )
     .await?;
 
-    let mut payment_data = operation
-        .to_post_update_tracker()?
-        .update_tracker(
-            state,
-            platform.get_processor(),
-            payment_data,
-            router_data,
-            &locale,
-            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-            routable_connectors,
-            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-            &business_profile,
-            &dimensions.without_profile_id(),
-        )
-        .await?;
-
-    if should_trigger_post_processing_flows {
-        complete_postprocessing_steps_if_required(
-            state,
-            platform.get_processor(),
-            &merchant_connector_account,
-            &connector,
-            &mut payment_data,
-            op_ref,
-            Some(header_payload.clone()),
-        )
-        .await?;
+    // Dispatch external 3DS (Netcetera-over-VGS) pre-/post-authentication if eligible, exactly
+    // the same trait hook `payments_operation_core` dispatches for the normal flow — never a
+    // free function called directly. `should_continue_confirm_transaction=false` means either a
+    // challenge is pending (SDK must drive `/3ds/authentication` next) or authentication failed;
+    // either way the connector must not be called this round.
+    let mut should_continue_confirm_transaction = true;
+    if let Some(connector_call_type) = connector.as_ref() {
+        operation
+            .to_domain()?
+            .call_external_three_ds_authentication_if_eligible(
+                state,
+                &mut payment_data,
+                &mut should_continue_confirm_transaction,
+                connector_call_type,
+                &business_profile,
+                platform.get_processor(),
+                platform.get_initiator(),
+                mandate_type,
+            )
+            .await?;
     }
 
-    let cloned_payment_data = payment_data.clone();
+    let (payment_data, connector_http_status_code, external_latency) =
+        if should_continue_confirm_transaction {
+            // Dispatch on the resolved connector call type, mirroring `payments_operation_core`: the
+            // prerequisites and the unified-connector-service decision both happen inside the match arm.
+            // The external vault proxy flow currently supports only a single, predetermined connector.
+            let (connector, merchant_connector_account, router_data) = match connector {
+                Some(ConnectorCallType::PreDetermined(connector_routing_data)) => {
+                    let connector = connector_routing_data.connector_data;
 
-    utils::trigger_payments_webhook(
-        &platform,
-        business_profile,
-        cloned_payment_data,
-        state,
-        operation,
-    )
-    .await
-    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
-    .ok();
+                    // `choose_connector` does not persist the chosen connector in the payment attempt for
+                    // this flow, so set it explicitly — the confirm update tracker reads it back.
+                    payment_data.set_connector_in_payment_attempt(Some(
+                        connector.connector_name.to_string(),
+                    ));
+
+                    let (
+                        merchant_connector_account,
+                        external_vault_merchant_connector_account,
+                        router_data,
+                    ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
+                        state,
+                        &platform,
+                        &mut payment_data,
+                        &connector,
+                        &business_profile,
+                        header_payload.clone(),
+                    )
+                    .await?;
+
+                    let router_data =
+                        decide_unified_connector_service_call_for_external_vault_proxy_v1(
+                            state,
+                            req_state.clone(),
+                            &platform,
+                            &operation,
+                            &mut payment_data,
+                            &connector,
+                            merchant_connector_account.clone(),
+                            external_vault_merchant_connector_account,
+                            router_data,
+                            call_connector_action.clone(),
+                            header_payload.clone(),
+                            &business_profile,
+                            &dimensions,
+                            return_raw_connector_response,
+                        )
+                        .await?;
+
+                    (connector, merchant_connector_account, router_data)
+                }
+                Some(ConnectorCallType::Retryable(connectors)) => {
+                    // The proxy flow does not retry — use the first eligible connector.
+                    let connector = connectors
+                        .into_iter()
+                        .next()
+                        .ok_or_else(|| {
+                            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "No eligible connector resolved for external vault proxy",
+                                )
+                        })?
+                        .connector_data;
+
+                    // `choose_connector` does not persist the chosen connector in the payment attempt for
+                    // this flow, so set it explicitly — the confirm update tracker reads it back.
+                    payment_data.set_connector_in_payment_attempt(Some(
+                        connector.connector_name.to_string(),
+                    ));
+
+                    let (
+                        merchant_connector_account,
+                        external_vault_merchant_connector_account,
+                        router_data,
+                    ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
+                        state,
+                        &platform,
+                        &mut payment_data,
+                        &connector,
+                        &business_profile,
+                        header_payload.clone(),
+                    )
+                    .await?;
+
+                    let router_data =
+                        decide_unified_connector_service_call_for_external_vault_proxy_v1(
+                            state,
+                            req_state.clone(),
+                            &platform,
+                            &operation,
+                            &mut payment_data,
+                            &connector,
+                            merchant_connector_account.clone(),
+                            external_vault_merchant_connector_account,
+                            router_data,
+                            call_connector_action.clone(),
+                            header_payload.clone(),
+                            &business_profile,
+                            &dimensions,
+                            return_raw_connector_response,
+                        )
+                        .await?;
+
+                    (connector, merchant_connector_account, router_data)
+                }
+                Some(ConnectorCallType::SessionMultiple(_)) => return Err(error_stack::report!(
+                    errors::ApiErrorResponse::InternalServerError
+                )
+                .attach_printable(
+                    "SessionMultiple connector call type is not supported for external vault proxy",
+                )),
+                None => {
+                    return Err(
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "No eligible connector resolved for external vault proxy",
+                            ),
+                    )
+                }
+            };
+
+            let op_ref = &operation;
+            let should_trigger_post_processing_flows = is_operation_confirm(&operation);
+
+            let operation = Box::new(PaymentResponse);
+
+            let connector_http_status_code = router_data.connector_http_status_code;
+            let external_latency = router_data.external_latency;
+
+            add_connector_http_status_code_metrics(connector_http_status_code);
+
+            #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+            let routable_connectors =
+                convert_connector_data_to_routable_connectors(&[connector.clone().into()])
+                    .map_err(|e| logger::error!(routable_connector_error=?e))
+                    .unwrap_or_default();
+
+            let router_data_for_pm_mandate = router_data.clone();
+
+            handle_pm_and_mandate_post_update(
+                state,
+                operation.as_ref(),
+                &router_data_for_pm_mandate,
+                &platform,
+                &mut payment_data,
+                &business_profile,
+                req.get_payment_method_data(),
+                &feature_config,
+                &dimensions.without_profile_id(),
+            )
+            .await?;
+
+            let mut payment_data = operation
+                .to_post_update_tracker()?
+                .update_tracker(
+                    state,
+                    platform.get_processor(),
+                    payment_data,
+                    router_data,
+                    &locale,
+                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                    routable_connectors,
+                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+                    &business_profile,
+                    &dimensions.without_profile_id(),
+                )
+                .await?;
+
+            if should_trigger_post_processing_flows {
+                complete_postprocessing_steps_if_required(
+                    state,
+                    platform.get_processor(),
+                    &business_profile,
+                    &merchant_connector_account,
+                    &connector,
+                    &mut payment_data,
+                    op_ref,
+                    Some(header_payload.clone()),
+                )
+                .await?;
+            }
+
+            utils::trigger_payments_webhook(
+                &platform,
+                business_profile.clone(),
+                payment_data.clone(),
+                state,
+                operation,
+            )
+            .await
+            .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+            .ok();
+
+            (payment_data, connector_http_status_code, external_latency)
+        } else {
+            let (operation, payment_data) = operation
+                .to_update_tracker()?
+                .update_trackers(
+                    state,
+                    req_state.clone(),
+                    platform.get_processor(),
+                    payment_data,
+                    None,
+                    header_payload.clone(),
+                    &dimensions.without_profile_id(),
+                )
+                .await?;
+
+            utils::trigger_payments_webhook(
+                &platform,
+                business_profile.clone(),
+                payment_data.clone(),
+                state,
+                operation,
+            )
+            .await
+            .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+            .ok();
+
+            (payment_data, None, None)
+        };
 
     Ok((
         payment_data,
@@ -3320,8 +3430,15 @@ where
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
     }
 
-    // Fetch the external vault MCA from business_profile
-    let external_vault_mca_id = business_profile
+    let provider_business_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile)
+            .await
+            .inspect_err(|err| {
+                logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault MCA lookup");
+            })?;
+
+    // Fetch the external vault MCA from the provider's business_profile
+    let external_vault_mca_id = provider_business_profile
         .external_vault_details
         .get_vault_connector_id()
         .ok_or_else(|| {
@@ -3329,30 +3446,29 @@ where
                 .attach_printable("external vault is not enabled for this business profile")
         })?;
 
-    let profile_id = payment_data
-        .get_payment_intent()
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?
-        .clone();
-
-    let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        platform.get_processor(),
-        None,
-        &profile_id,
-        &connector.connector_name.to_string(),
-        Some(&external_vault_mca_id),
-    )
-    .await?;
+    let external_vault_merchant_connector_account =
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    },
+                )?,
+        ));
 
     let router_data = payment_data
         .construct_router_data(
             state,
             connector.connector.id(),
             platform.get_processor(),
+            business_profile,
             &merchant_connector_account,
             None,
             Some(header_payload),
@@ -3549,7 +3665,7 @@ pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     return_raw_connector_response: Option<bool>,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync,
+    F: Send + Clone + Sync + 'static,
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
@@ -4525,7 +4641,7 @@ pub trait PaymentRedirectFlow: Sync {
         #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })?;
 
         #[cfg(feature = "v2")]
@@ -4973,7 +5089,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_customer_action".to_string()].join(", "),
                 })
@@ -5154,6 +5270,24 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                payment_intent
+                    .profile_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing profile_id in payment_intent")?,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                id: payment_intent
+                    .profile_id
+                    .as_ref()
+                    .map(|profile_id| profile_id.get_string_repr().to_owned())
+                    .unwrap_or_default(),
+            })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
 
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -5210,9 +5344,12 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 merchant_id: req.merchant_id.clone(),
                 feature_metadata: Some(api_models::payments::FeatureMetadata {
                     redirect_response: Some(api_models::payments::RedirectResponse {
-                        param: req.param.map(Secret::new),
+                        param: req.param.clone().map(Secret::new),
                         json_payload: Some(
-                            req.json_payload.unwrap_or(serde_json::json!({})).into(),
+                            req.json_payload
+                                .clone()
+                                .unwrap_or(serde_json::json!({}))
+                                .into(),
                         ),
                     }),
                     search_tags: None,
@@ -5225,7 +5362,71 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
-            if is_setup_mandate {
+
+            let provider_business_profile = helpers::resolve_provider_profile(
+                state,
+                &platform,
+                &business_profile,
+            )
+            .await
+            .inspect_err(|err| {
+                logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault probe");
+            })?;
+
+            let is_external_vault_payment = provider_business_profile
+                .external_vault_details
+                .is_external_vault_enabled()
+                && match payment_attempt.payment_token.as_ref() {
+                    Some(token) => read_external_vault_alias_from_temp_locker(
+                        state,
+                        token,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .inspect_err(|err| {
+                        logger::error!(read_external_vault_alias_error=?err, "payment_token did not resolve to an external-vault alias (expected for a non-proxied card; check for a genuine Redis failure otherwise)");
+                    })
+                    .is_ok(),
+                    None => false,
+                };
+            if is_external_vault_payment {
+                let payment_token = payment_attempt
+                    .payment_token
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "payment_token missing on attempt for external vault 3DS redirect completion",
+                    )?;
+
+                let external_vault_req = api::PaymentsRequest {
+                    payment_id: Some(req.resource_id.clone()),
+                    merchant_id: req.merchant_id.clone(),
+                    payment_token: Some(payment_token),
+                    payment_method: Some(common_enums::PaymentMethod::Card),
+                    payment_method_type: payment_attempt.payment_method_type,
+                    ..Default::default()
+                };
+                Box::pin(external_vault_proxy_for_payments_core::<
+                    api::ExternalVaultProxy,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    PaymentData<api::ExternalVaultProxy>,
+                >(
+                    state.clone(),
+                    req_state,
+                    platform.clone(),
+                    payment_intent.profile_id.clone(),
+                    PaymentExternalVaultProxyConfirm,
+                    external_vault_req,
+                    services::api::AuthFlow::Merchant,
+                    connector_action,
+                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
+                ))
+                .await?
+            } else if is_setup_mandate {
                 Box::pin(payments_core::<
                     api::SetupMandate,
                     api::PaymentsResponse,
@@ -5451,6 +5652,7 @@ pub async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     platform: &domain::Platform,
+    business_profile: &domain::Profile,
     payment_data: &mut D,
     connector_call_type_optional: Option<&ConnectorCallType>,
 ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>
@@ -5506,7 +5708,14 @@ where
         }
 
         let decide_wallet_flow = wallet
-            .decide_wallet_flow(state, payment_data, &merchant_connector_account)
+            .decide_wallet_flow(
+                state,
+                payment_data,
+                &merchant_connector_account,
+                business_profile,
+                platform.get_processor(),
+            )
+            .await
             .attach_printable("Failed to decide wallet flow")?;
 
         let payment_method_token = match decide_wallet_flow {
@@ -5588,6 +5797,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
+    business_profile: &domain::Profile,
     connector: api::ConnectorData,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
@@ -5683,6 +5893,7 @@ where
         connector_customer_map,
         processor,
         initiator,
+        business_profile,
         &merchant_connector_account,
         payment_data,
         router_data.access_token.as_ref(),
@@ -5965,9 +6176,12 @@ where
         if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
             (payment_method_data, customer_id)
         {
-            let vault_operation =
-                get_vault_operation_for_pre_network_tokenization(state, customer_id, card_data)
-                    .await;
+            let vault_operation = Box::pin(get_vault_operation_for_pre_network_tokenization(
+                state,
+                customer_id,
+                card_data,
+            ))
+            .await;
             match vault_operation {
                 payments::VaultOperation::SaveCardAndNetworkTokenData(
                     card_and_network_token_data,
@@ -6079,6 +6293,7 @@ where
             state,
             connector.connector.id(),
             platform.get_processor(),
+            business_profile,
             &merchant_connector_account,
             merchant_recipient_data,
             None,
@@ -6169,12 +6384,18 @@ where
         execution_path,
         execution_mode,
     };
-    // Update feature metadata to track Direct routing usage for stickiness
-    update_gateway_system_in_feature_metadata(payment_data, gateway_context.get_gateway_system())?;
+
+    if core_utils::get_flow_name::<F>().unwrap_or_default() != "PSync" {
+        update_gateway_system_in_feature_metadata(
+            payment_data,
+            gateway_context.get_gateway_system(),
+        )?;
+    }
     let (updated_customer, call_connector_service_response) = call_connector_service(
         &updated_state,
         processor,
         initiator,
+        business_profile,
         connector,
         operation,
         payment_data,
@@ -7041,6 +7262,7 @@ where
             state,
             connector.connector.id(),
             platform.get_processor(),
+            business_profile,
             &merchant_connector_account,
             merchant_recipient_data,
             Some(header_payload.clone()),
@@ -7341,11 +7563,13 @@ where
         Ok(None)
     }
 
-    fn decide_wallet_flow(
+    async fn decide_wallet_flow(
         &self,
         state: &SessionState,
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        business_profile: &domain::Profile,
+        processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse>;
 
     async fn decrypt_wallet_token(
@@ -7361,11 +7585,13 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    fn decide_wallet_flow(
+    async fn decide_wallet_flow(
         &self,
         state: &SessionState,
         _payment_data: &D,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _business_profile: &domain::Profile,
+        _processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
         let paze_keys = state
             .conf
@@ -7469,13 +7695,21 @@ where
         }
     }
 
-    fn decide_wallet_flow(
+    async fn decide_wallet_flow(
         &self,
         state: &SessionState,
         payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        business_profile: &domain::Profile,
+        processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
-        let apple_pay_metadata = check_apple_pay_metadata(state, Some(merchant_connector_account));
+        let apple_pay_metadata = check_apple_pay_metadata(
+            state,
+            Some(merchant_connector_account),
+            business_profile,
+            processor,
+        )
+        .await;
 
         add_apple_pay_flow_metrics(
             &apple_pay_metadata,
@@ -7511,33 +7745,11 @@ where
                     "Apple Pay wallet data not found in the payment method data during the Apple Pay decryption flow",
                 )?;
 
-        let apple_pay_data =
-            ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to parse apple pay token to json")?
-                .decrypt(
-                    &apple_pay_payment_processing_details.payment_processing_certificate,
-                    &apple_pay_payment_processing_details.payment_processing_certificate_key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to decrypt apple pay token")?;
-
-        let apple_pay_predecrypt_internal = apple_pay_data
-            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
-                "ApplePayPredecryptDataInternal",
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "failed to parse decrypted apple pay response to ApplePayPredecryptData",
-            )?;
-
-        let apple_pay_predecrypt =
-            common_types::payments::ApplePayPredecryptData::try_from(apple_pay_predecrypt_internal)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "failed to convert ApplePayPredecryptDataInternal to ApplePayPredecryptData",
-                )?;
+        let apple_pay_predecrypt = decrypt_apple_pay_wallet_data(
+            apple_pay_payment_processing_details,
+            apple_pay_wallet_data,
+        )
+        .await?;
 
         Ok(PaymentMethodToken::ApplePayDecrypt(Box::new(
             apple_pay_predecrypt,
@@ -7590,11 +7802,13 @@ where
             Ok(None)
         }
     }
-    fn decide_wallet_flow(
+    async fn decide_wallet_flow(
         &self,
         state: &SessionState,
         _payment_data: &D,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _business_profile: &domain::Profile,
+        _processor: &domain::Processor,
     ) -> CustomResult<Option<DecideWalletFlow>, errors::ApiErrorResponse> {
         Ok(
             get_google_pay_connector_wallet_details(state, merchant_connector_account)
@@ -7622,38 +7836,108 @@ where
                     "Google Pay wallet data not found in the payment method data during the Google Pay decryption flow",
                 )?;
 
-        let decryptor = helpers::GooglePayTokenDecryptor::new(
-            google_pay_payment_processing_details
-                .google_pay_root_signing_keys
-                .clone(),
-            google_pay_payment_processing_details
-                .google_pay_recipient_id
-                .clone(),
-            google_pay_payment_processing_details
-                .google_pay_private_key
-                .clone(),
+        let google_pay_data = decrypt_google_pay_wallet_data(
+            google_pay_payment_processing_details,
+            google_pay_wallet_data,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to create google pay token decryptor")?;
-
-        // should_verify_token is set to false to disable verification of token
-        let google_pay_data_internal = decryptor
-            .decrypt_token(
-                google_pay_wallet_data
-                    .tokenization_data
-                    .get_encrypted_google_pay_token()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
-                    .clone(),
-                false,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to decrypt google pay token")?;
-        let google_pay_data =
-            common_types::payments::GPayPredecryptData::from(google_pay_data_internal);
+        .await?;
         Ok(PaymentMethodToken::GooglePayDecrypt(Box::new(
             google_pay_data,
         )))
     }
+}
+
+/// Shared by the confirm flow (`WalletFlow::decrypt_wallet_token`) and the eligibility check.
+async fn decrypt_apple_pay_wallet_data(
+    payment_processing_details: &payments_api::PaymentProcessingDetails,
+    apple_pay_wallet_data: &domain::ApplePayWalletData,
+) -> CustomResult<common_types::payments::ApplePayPredecryptData, errors::ApiErrorResponse> {
+    let apple_pay_data =
+        ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse apple pay token to json")?
+            .decrypt(
+                &payment_processing_details.payment_processing_certificate,
+                &payment_processing_details.payment_processing_certificate_key,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to decrypt apple pay token")?;
+
+    let apple_pay_predecrypt_internal = apple_pay_data
+        .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
+            "ApplePayPredecryptDataInternal",
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "failed to parse decrypted apple pay response to ApplePayPredecryptData",
+        )?;
+
+    common_types::payments::ApplePayPredecryptData::try_from(apple_pay_predecrypt_internal)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "failed to convert ApplePayPredecryptDataInternal to ApplePayPredecryptData",
+        )
+}
+
+/// Shared by the confirm flow (`WalletFlow::decrypt_wallet_token`) and the eligibility check.
+async fn decrypt_google_pay_wallet_data(
+    payment_processing_details: &GooglePayPaymentProcessingDetails,
+    google_pay_wallet_data: &domain::GooglePayWalletData,
+) -> CustomResult<common_types::payments::GPayPredecryptData, errors::ApiErrorResponse> {
+    let decryptor = helpers::GooglePayTokenDecryptor::new(
+        payment_processing_details
+            .google_pay_root_signing_keys
+            .clone(),
+        payment_processing_details.google_pay_recipient_id.clone(),
+        payment_processing_details.google_pay_private_key.clone(),
+        // INTERNAL_GATEWAY additionally enforces that the decrypted token's
+        // gatewayMerchantId matches the merchant being paid. Signature verification stays
+        // off, and DIRECT recipients are merchant supplied and left unverified, as today.
+        payment_processing_details.google_pay_tokenization_type,
+        payment_processing_details
+            .google_pay_gateway_merchant_id
+            .clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to create google pay token decryptor")?;
+
+    let google_pay_token = google_pay_wallet_data
+        .tokenization_data
+        .get_encrypted_google_pay_token()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .clone();
+
+    // should_verify_token is set to false to disable verification of token
+    let google_pay_data_internal = decryptor
+        .decrypt_token(google_pay_token, false)
+        .map_err(|error| {
+            logger::warn!(?error, "failed to decrypt google pay token");
+            let api_error = match error.current_context() {
+                // The gateway merchant id carried by the token does not match the gateway
+                // merchant id configured for the merchant (or is missing from either side).
+                // Authorization was never attempted with the connector; this is a gateway
+                // configuration mismatch, so report it as an invalid request instead of a
+                // connector authorization failure.
+                errors::GooglePayDecryptionError::InvalidGatewayMerchantId => {
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Failed to decrypt the Google Pay token: gateway merchant id \
+                                  in the token does not match the gateway merchant id \
+                                  configured for the merchant"
+                            .to_string(),
+                    }
+                }
+
+                // Everything else, including a recipient that does not match the configured
+                // gateway, is our own fault and stays a server error as it is today.
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            error.change_context(api_error)
+        })
+        .attach_printable("failed to decrypt google pay token")?;
+    Ok(common_types::payments::GPayPredecryptData::from(
+        google_pay_data_internal,
+    ))
 }
 
 #[derive(Debug, Clone)]
@@ -7775,7 +8059,7 @@ where
     let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
         .await;
 
     let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
@@ -7985,6 +8269,7 @@ where
                 state,
                 connector_id,
                 processor,
+                business_profile,
                 &merchant_connector_account,
                 None,
                 Some(header_payload.clone()),
@@ -8146,7 +8431,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "authentication_product_ids",
+            field_name: "authentication_product_ids".into(),
         })?;
     let merchant_connector_account = state
         .store
@@ -8286,15 +8571,15 @@ pub fn validate_customer_details_for_click_to_pay(
         (Some(_), Some(_), None) => Ok(()),
         (Some(_), None, Some(_)) => Ok(()),
         (None, Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "phone",
+            field_name: "phone".into(),
         })
         .attach_printable("phone number is not present in payment_intent.customer_details"),
         (Some(_), None, None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "phone_country_code",
+            field_name: "phone_country_code".into(),
         })
         .attach_printable("phone_country_code is not present in payment_intent.customer_details"),
         (_, _, _) => Err(errors::ApiErrorResponse::MissingRequiredFields {
-            field_names: vec!["phone", "phone_country_code", "email"],
+            field_names: vec!["phone".into(), "phone_country_code".into(), "email".into()],
         })
         .attach_printable("either of phone, phone_country_code or email is not present in payment_intent.customer_details"),
     }
@@ -8307,6 +8592,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     connector_customer_map: Option<&pii::SecretSerdeValue>,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
+    business_profile: &domain::Profile,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut D,
     access_token: Option<&AccessToken>,
@@ -8379,6 +8665,7 @@ where
                             state,
                             connector.connector.id(),
                             processor,
+                            business_profile,
                             merchant_connector_account,
                             None,
                             None,
@@ -8601,6 +8888,7 @@ where
 async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
     state: &SessionState,
     processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_conn_account: &helpers::MerchantConnectorAccountType,
     connector: &api::ConnectorData,
     payment_data: &mut D,
@@ -8622,6 +8910,7 @@ where
             state,
             connector.connector.id(),
             processor,
+            business_profile,
             merchant_conn_account,
             None,
             header_payload,
@@ -8950,34 +9239,119 @@ async fn get_feature_data(
     }
 }
 
-fn decide_apple_pay_flow(
+async fn decide_apple_pay_flow(
     state: &SessionState,
     payment_method_type: Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
+    business_profile: &domain::Profile,
+    processor: &domain::Processor,
 ) -> Option<domain::ApplePayFlow> {
-    payment_method_type.and_then(|pmt| match pmt {
-        enums::PaymentMethodType::ApplePay => {
-            check_apple_pay_metadata(state, merchant_connector_account)
+    match payment_method_type {
+        Some(enums::PaymentMethodType::ApplePay) => {
+            check_apple_pay_metadata(
+                state,
+                merchant_connector_account,
+                business_profile,
+                processor,
+            )
+            .await
         }
         _ => None,
+    }
+}
+
+#[cfg(feature = "v1")]
+struct ApplePayCertificateAccounts<'a> {
+    processor: &'a domain::Processor,
+    business_profile: Option<&'a domain::Profile>,
+    merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+}
+
+#[cfg(feature = "v1")]
+async fn resolve_managed_apple_pay_certificate(
+    accounts: &ApplePayCertificateAccounts<'_>,
+) -> Option<payments_api::PaymentProcessingDetails> {
+    let (data, encrypted_data) = accounts
+        .merchant_connector_account
+        .get_apple_pay_certificate_cache()
+        .or_else(|| {
+            accounts.business_profile.and_then(|profile| {
+                profile
+                    .apple_pay_certificates
+                    .clone()
+                    .map(|data| (data, profile.apple_pay_certificates_encrypted.clone()))
+            })
+        })
+        .or_else(|| {
+            accounts
+                .processor
+                .get_account()
+                .apple_pay_certificates
+                .clone()
+                .map(|data| {
+                    (
+                        data,
+                        accounts
+                            .processor
+                            .get_account()
+                            .apple_pay_certificates_encrypted
+                            .clone(),
+                    )
+                })
+        })?;
+
+    let certificate = data
+        .get("data")
+        .and_then(|data| data.get("payment_processing_certificate"))
+        .and_then(|value| value.as_str())?
+        .to_string();
+    let certificate_key_json: Secret<serde_json::Value> = encrypted_data?.into_inner();
+    let certificate_key = certificate_key_json
+        .peek()
+        .get("data")
+        .and_then(|data| data.get("payment_processing_certificate_key"))
+        .and_then(|value| value.as_str())?
+        .to_string();
+
+    Some(payments_api::PaymentProcessingDetails {
+        payment_processing_certificate: Secret::new(certificate),
+        payment_processing_certificate_key: Secret::new(certificate_key),
     })
 }
 
-fn check_apple_pay_metadata(
+async fn check_apple_pay_metadata(
     state: &SessionState,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
+    _business_profile: &domain::Profile,
+    _processor: &domain::Processor,
 ) -> Option<domain::ApplePayFlow> {
-    merchant_connector_account.and_then(|mca| {
-        let metadata = mca.get_metadata();
-        metadata.and_then(|apple_pay_metadata| {
-            let parsed_metadata = get_applepay_metadata(Some(apple_pay_metadata.clone()));
+    let mca = merchant_connector_account?;
 
-            parsed_metadata.ok().and_then(|metadata| match metadata {
-                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                    apple_pay_combined,
-                ) => match apple_pay_combined.get_combined_metadata_required() {
-                    Ok(api_models::payments::ApplePayCombinedMetadata::Simplified { .. }) => {
-                        Some(domain::ApplePayFlow::DecryptAtApplication(
+    #[cfg(feature = "v1")]
+    let managed_certificate = resolve_managed_apple_pay_certificate(&ApplePayCertificateAccounts {
+        processor: _processor,
+        business_profile: Some(_business_profile),
+        merchant_connector_account: mca,
+    })
+    .await
+    .map(domain::ApplePayFlow::DecryptAtApplication);
+    #[cfg(not(feature = "v1"))]
+    let managed_certificate: Option<domain::ApplePayFlow> = None;
+
+    match managed_certificate {
+        Some(managed_certificate) => Some(managed_certificate),
+        None => {
+            let metadata = mca.get_metadata();
+            metadata.and_then(|apple_pay_metadata| {
+                let parsed_metadata = get_applepay_metadata(Some(apple_pay_metadata.clone()));
+
+                parsed_metadata.ok().and_then(|metadata| match metadata {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                        apple_pay_combined,
+                    ) => match apple_pay_combined.get_combined_metadata_required() {
+                        Ok(api_models::payments::ApplePayCombinedMetadata::Simplified {
+                            ..
+                        }) => Some(domain::ApplePayFlow::DecryptAtApplication(
                             payments_api::PaymentProcessingDetails {
                                 payment_processing_certificate: state
                                     .conf
@@ -8992,54 +9366,56 @@ fn check_apple_pay_metadata(
                                     .apple_pay_ppc_key
                                     .clone(),
                             },
-                        ))
-                    }
-                    Ok(api_models::payments::ApplePayCombinedMetadata::Manual {
-                        payment_request_data: _,
-                        session_token_data,
-                    }) => {
-                        if let Some(manual_payment_processing_details_at) =
-                            session_token_data.payment_processing_details_at
-                        {
-                            match manual_payment_processing_details_at {
-                                payments_api::PaymentProcessingDetailsAt::Hyperswitch(
-                                    payment_processing_details,
-                                ) => Some(domain::ApplePayFlow::DecryptAtApplication(
-                                    payment_processing_details,
-                                )),
-                                payments_api::PaymentProcessingDetailsAt::Connector => {
-                                    Some(domain::ApplePayFlow::SkipDecryption)
+                        )),
+                        Ok(api_models::payments::ApplePayCombinedMetadata::Manual {
+                            payment_request_data: _,
+                            session_token_data,
+                        }) => {
+                            if let Some(manual_payment_processing_details_at) =
+                                session_token_data.payment_processing_details_at
+                            {
+                                match manual_payment_processing_details_at {
+                                    payments_api::PaymentProcessingDetailsAt::Hyperswitch(
+                                        payment_processing_details,
+                                    ) => Some(domain::ApplePayFlow::DecryptAtApplication(
+                                        payment_processing_details,
+                                    )),
+                                    payments_api::PaymentProcessingDetailsAt::Connector => {
+                                        Some(domain::ApplePayFlow::SkipDecryption)
+                                    }
                                 }
+                            } else {
+                                Some(domain::ApplePayFlow::SkipDecryption)
                             }
-                        } else {
-                            Some(domain::ApplePayFlow::SkipDecryption)
                         }
-                    }
-                    Err(_) => {
-                        // In the case were only predecrypted token in enabled donot throw error , just skip decryption
-                        if apple_pay_combined.is_predecrypted_token_supported() {
-                            Some(domain::ApplePayFlow::SkipDecryption)
-                        } else {
-                            None
+                        Err(_) => {
+                            // In the case were only predecrypted token in enabled donot throw error , just skip decryption
+                            if apple_pay_combined.is_predecrypted_token_supported() {
+                                Some(domain::ApplePayFlow::SkipDecryption)
+                            } else {
+                                None
+                            }
                         }
+                    },
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => {
+                        Some(domain::ApplePayFlow::SkipDecryption)
                     }
-                },
-                api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => {
-                    Some(domain::ApplePayFlow::SkipDecryption)
-                }
+                })
             })
-        })
-    })
+        }
+    }
 }
 
 fn get_google_pay_connector_wallet_details(
     state: &SessionState,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> Option<GooglePayPaymentProcessingDetails> {
-    let google_pay_root_signing_keys = state
+    let google_pay_decrypt_keys = state
         .conf
         .google_pay_decrypt_keys
         .as_ref()
+        .map(|google_pay_keys| google_pay_keys.get_inner());
+    let google_pay_root_signing_keys = google_pay_decrypt_keys
         .map(|google_pay_keys| google_pay_keys.google_pay_root_signing_keys.clone());
     match merchant_connector_account.get_connector_wallets_details() {
         Some(wallet_details) => {
@@ -9057,31 +9433,68 @@ fn get_google_pay_connector_wallet_details(
                     |google_pay_wallet_details| {
                         match google_pay_wallet_details.provider_details {
                             api_models::payments::GooglePayProviderDetails::GooglePayMerchantDetails(merchant_details) => {
-                                match (
-                                    merchant_details
-                                        .merchant_info
-                                        .tokenization_specification
-                                        .parameters
-                                        .private_key,
-                                    google_pay_root_signing_keys,
-                                    merchant_details
-                                        .merchant_info
-                                        .tokenization_specification
-                                        .parameters
-                                        .recipient_id,
-                                    ) {
-                                        (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
-                                            Some(GooglePayPaymentProcessingDetails {
-                                                google_pay_private_key,
-                                                google_pay_root_signing_keys,
-                                                google_pay_recipient_id
-                                            })
-                                        }
-                                        _ => {
-                                            logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
-                                            None
+                                let tokenization_specification = merchant_details.merchant_info.tokenization_specification;
+
+                                match tokenization_specification.tokenization_type {
+                                    // The merchant registered no key of its own: the token is
+                                    // encrypted to Hyperswitch's gateway key, and the recipient is
+                                    // derived from the same gateway id that was sent to Google in
+                                    // the session response.
+                                    api_models::payments::GooglePayTokenizationType::InternalGateway => {
+                                        let google_pay_gateway_id = google_pay_decrypt_keys
+                                            .and_then(|google_pay_keys| google_pay_keys.google_pay_gateway_id.clone());
+                                        let google_pay_private_key = google_pay_decrypt_keys
+                                            .and_then(|google_pay_keys| google_pay_keys.google_pay_private_key.clone());
+                                        // The same merchant id that was sent to Google as
+                                        // gateway_merchant_id when the sheet was raised.
+                                        let google_pay_gateway_merchant_id = merchant_connector_account
+                                            .get_merchant_id()
+                                            .map(|merchant_id| merchant_id.get_string_repr().to_owned());
+
+                                        match (google_pay_private_key, google_pay_root_signing_keys, google_pay_gateway_id) {
+                                            (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_gateway_id)) => {
+                                                Some(GooglePayPaymentProcessingDetails {
+                                                    google_pay_private_key,
+                                                    google_pay_root_signing_keys,
+                                                    google_pay_recipient_id: Secret::new(format!(
+                                                        "{}{}",
+                                                        consts::GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX,
+                                                        google_pay_gateway_id
+                                                    )),
+                                                    google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType::InternalGateway,
+                                                    google_pay_gateway_merchant_id,
+                                                })
+                                            }
+                                            _ => {
+                                                logger::warn!("One or more of the following fields are missing in google_pay_decrypt_keys for an INTERNAL_GATEWAY merchant: google_pay_private_key, google_pay_root_signing_keys, google_pay_gateway_id");
+                                                None
+                                            }
                                         }
                                     }
+                                    // The connector decrypts the token, Hyperswitch never sees the card.
+                                    api_models::payments::GooglePayTokenizationType::PaymentGateway => None,
+                                    api_models::payments::GooglePayTokenizationType::Direct => {
+                                        match (
+                                            tokenization_specification.parameters.private_key,
+                                            google_pay_root_signing_keys,
+                                            tokenization_specification.parameters.recipient_id,
+                                            ) {
+                                                (Some(google_pay_private_key), Some(google_pay_root_signing_keys), Some(google_pay_recipient_id)) => {
+                                                    Some(GooglePayPaymentProcessingDetails {
+                                                        google_pay_private_key,
+                                                        google_pay_root_signing_keys,
+                                                        google_pay_recipient_id,
+                                                        google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType::Direct,
+                                                        google_pay_gateway_merchant_id: None,
+                                                    })
+                                                }
+                                                _ => {
+                                                    logger::warn!("One or more of the following fields are missing in GooglePayMerchantDetails: google_pay_private_key, google_pay_root_signing_keys, google_pay_recipient_id");
+                                                    None
+                                                }
+                                            }
+                                    }
+                                }
                             }
                         }
                     }
@@ -9130,14 +9543,18 @@ async fn decide_payment_method_tokenize_action(
     payment_intent_data: payments::PaymentIntent,
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
+    is_network_transaction_id_flow: bool,
 ) -> RouterResult<TokenizationAction> {
     if matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
     ) {
         match pm_parent_token {
-            None => Ok(TokenizationAction::TokenizeInConnector),
-            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
+            // If the payment method is not stored in the router and this is not a network tokenization flow,
+            // there is no need to resolve the payment method data from the payment method ID.
+            // In this case, only connector-side tokenization is required.
+            None if !is_network_transaction_id_flow => Ok(TokenizationAction::TokenizeInConnector),
+            None | Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
         }
     } else {
         match pm_parent_token {
@@ -9193,6 +9610,14 @@ pub struct GooglePayPaymentProcessingDetails {
     pub google_pay_private_key: Secret<String>,
     pub google_pay_root_signing_keys: Secret<String>,
     pub google_pay_recipient_id: Secret<String>,
+    /// Tokenization type configured on the MCA. `INTERNAL_GATEWAY` additionally enforces that
+    /// the decrypted token's `gatewayMerchantId` matches the merchant being paid; signature
+    /// verification stays off, as it does for `DIRECT`, whose recipients are typed by the
+    /// merchant and are therefore left unverified.
+    pub google_pay_tokenization_type: api_models::payments::GooglePayTokenizationType,
+    /// Hyperswitch merchant id sent to Google as `gateway_merchant_id`, checked against the
+    /// decrypted token. Set for `INTERNAL_GATEWAY` only.
+    pub google_pay_gateway_merchant_id: Option<String>,
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
@@ -9280,6 +9705,13 @@ where
                     payment_data.get_payment_attempt().authentication_type,
                 )?;
 
+            let is_network_transaction_id_flow = payment_data
+                .get_mandate_id()
+                .as_ref()
+                .and_then(|inner| inner.mandate_reference_id.as_ref())
+                .map(|mandate_reference| mandate_reference.is_network_mandate_id())
+                .unwrap_or(false);
+
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
                 &connector,
@@ -9287,6 +9719,7 @@ where
                 payment_data.get_payment_intent().clone(),
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
+                is_network_transaction_id_flow,
             )
             .await?;
 
@@ -9514,7 +9947,8 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
             | storage::PaymentTokenData::PermanentCard(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_),
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_),
         )
         | None => {
             logger::debug!(
@@ -9548,6 +9982,8 @@ pub struct PaymentDataUpdateRequestFields {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Clone)]
@@ -9613,12 +10049,150 @@ where
     pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
 }
 
+/// Decrypts an Apple Pay wallet token for the pre-confirm eligibility check, using the specific
+/// merchant connector account (MCA) that generated the wallet's session token. Fails open
+/// (`Ok(None)`) when the MCA or its decrypt certificates can't be resolved; a genuine decrypt
+/// failure (bad cert/key) still propagates as an `Err`.
+#[cfg(feature = "v1")]
+async fn decrypt_apple_pay_wallet_for_eligibility(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    apple_pay_wallet_data: &domain::ApplePayWalletData,
+) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
+    let payment_processing_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor.get_account().get_id(),
+            merchant_connector_id,
+            processor.get_key_store(),
+        )
+        .await
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                merchant_connector_id = merchant_connector_id.get_string_repr(),
+                "failed to fetch the merchant connector account for Apple Pay eligibility decryption"
+            )
+        })
+        .ok()
+        .map(|merchant_connector_account| {
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account))
+        });
+
+    let payment_processing_details = match payment_processing_details {
+        Some(merchant_connector_account) => {
+            match check_apple_pay_metadata(
+                state,
+                Some(&merchant_connector_account),
+                business_profile,
+                processor,
+            )
+            .await
+            {
+                Some(domain::ApplePayFlow::DecryptAtApplication(payment_processing_details)) => {
+                    Some(payment_processing_details)
+                }
+                Some(domain::ApplePayFlow::SkipDecryption) | None => {
+                    logger::warn!(
+                        merchant_connector_id = merchant_connector_id.get_string_repr(),
+                        "Apple Pay decrypt-at-application not configured for this connector account; skipping eligibility decryption"
+                    );
+                    None
+                }
+            }
+        }
+        None => None,
+    };
+
+    match payment_processing_details {
+        Some(payment_processing_details) => {
+            let apple_pay_predecrypt =
+                decrypt_apple_pay_wallet_data(&payment_processing_details, apple_pay_wallet_data)
+                    .await?;
+
+            Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
+                        apple_pay_predecrypt,
+                    ),
+                    ..apple_pay_wallet_data.clone()
+                }),
+            )))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Decrypts a Google Pay wallet token for the pre-confirm eligibility check, using the specific
+/// merchant connector account (MCA) that generated the wallet's session token. Fails open
+/// (`Ok(None)`) when the MCA or its decrypt keys can't be resolved; a genuine decrypt failure
+/// (bad key) still propagates as an `Err`.
+#[cfg(feature = "v1")]
+async fn decrypt_google_pay_wallet_for_eligibility(
+    state: &SessionState,
+    processor: &domain::Processor,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    google_pay_wallet_data: &domain::GooglePayWalletData,
+) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
+    let payment_processing_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor.get_account().get_id(),
+            merchant_connector_id,
+            processor.get_key_store(),
+        )
+        .await
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                merchant_connector_id = merchant_connector_id.get_string_repr(),
+                "failed to fetch the merchant connector account for Google Pay eligibility decryption"
+            )
+        })
+        .ok()
+        .map(|merchant_connector_account| {
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account))
+        })
+        .and_then(|merchant_connector_account| {
+            get_google_pay_connector_wallet_details(state, &merchant_connector_account).or_else(
+                || {
+                    logger::warn!(
+                        merchant_connector_id = merchant_connector_id.get_string_repr(),
+                        "Google Pay decrypt keys not configured for this connector account; skipping eligibility decryption"
+                    );
+                    None
+                },
+            )
+        });
+
+    match payment_processing_details {
+        Some(payment_processing_details) => {
+            let google_pay_predecrypt =
+                decrypt_google_pay_wallet_data(&payment_processing_details, google_pay_wallet_data)
+                    .await?;
+
+            Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
+                        google_pay_predecrypt,
+                    ),
+                    ..google_pay_wallet_data.clone()
+                }),
+            )))
+        }
+        None => Ok(None),
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct PaymentEligibilityData {
     pub payment_method_data: Option<domain::EligibilityPaymentMethodData>,
     pub payment_intent: storage::PaymentIntent,
     pub browser_info: Option<pii::SecretSerdeValue>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -9631,7 +10205,7 @@ impl PaymentEligibilityData {
         payments_eligibility_request
             .validate_payment_method_input()
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "Either payment_token or payment_method_data",
+                field_name: "Either payment_token or payment_method_data".into(),
             })?;
         let payment_intent = state
             .store
@@ -9680,11 +10254,97 @@ impl PaymentEligibilityData {
             .transpose()?
             .map(pii::SecretSerdeValue::new);
 
+        let wallet_payment_method_type = match &payment_method_data {
+            Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                google_pay_data,
+            ))) if google_pay_data
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .is_none() =>
+            {
+                Some(storage_enums::PaymentMethodType::GooglePay)
+            }
+            Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                apple_pay_data,
+            ))) if apple_pay_data
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .is_none() =>
+            {
+                Some(storage_enums::PaymentMethodType::ApplePay)
+            }
+            _ => None,
+        };
+
+        let merchant_connector_id = match wallet_payment_method_type {
+            Some(payment_method_type) => {
+                Self::resolve_wallet_merchant_connector_id_from_pre_routing(
+                    state,
+                    platform,
+                    &payment_intent,
+                    payment_method_type,
+                )
+                .await?
+            }
+            None => None,
+        };
+
         Ok(Self {
             payment_method_data,
             browser_info,
             payment_intent,
+            merchant_connector_id,
         })
+    }
+
+    /// Reads the MCA that will decrypt the wallet token from `pre_routing_results`, written to
+    /// the attempt by `list_payment_methods`. `None` when pre-routing has not run: callers fail
+    /// open rather than block.
+    async fn resolve_wallet_merchant_connector_id_from_pre_routing(
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: &storage::PaymentIntent,
+        payment_method_type: storage_enums::PaymentMethodType,
+    ) -> CustomResult<Option<id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse> {
+        let payment_attempt = state
+            .store
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &payment_intent.payment_id,
+                &payment_intent.processor_merchant_id,
+                &payment_intent.active_attempt.get_id(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable(
+                "Error while fetching the payment attempt to resolve the wallet pre-routing connector",
+            )?;
+
+        Ok(payment_attempt
+            .straight_through_algorithm
+            .and_then(|straight_through_algorithm| {
+                straight_through_algorithm
+                    .parse_value::<storage::PaymentRoutingInfo>("PaymentRoutingInfo")
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "failed to parse straight_through_algorithm as PaymentRoutingInfo for eligibility check"
+                        )
+                    })
+                    .ok()
+            })
+            .and_then(|routing_info| routing_info.pre_routing_results)
+            .and_then(|mut pre_routing_results| pre_routing_results.remove(&payment_method_type))
+            .and_then(|pre_routing_choice| match pre_routing_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    Some(routable_connector)
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.into_iter().next()
+                }
+            })
+            .and_then(|routable_connector| routable_connector.merchant_connector_id))
     }
 
     /// Resolves a `payment_token` to raw card data for blocklist checks: modular
@@ -9728,8 +10388,9 @@ impl PaymentEligibilityData {
                 platform,
                 profile_id,
                 payment_method_id.as_str(),
-                None, // CVC is not collected during the eligibility check
-                true, // fetch raw card detail from the internal vault
+                None,  // CVC is not collected during the eligibility check
+                true,  // fetch raw card detail from the internal vault
+                false, // an eligibility check is not a payment
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -9775,8 +10436,9 @@ impl PaymentEligibilityData {
                         platform,
                         profile_id,
                         payment_method.get_id(),
-                        None, // CVC is not collected during the eligibility check
-                        true, // fetch raw card detail from the internal vault
+                        None,  // CVC is not collected during the eligibility check
+                        true,  // fetch raw card detail from the internal vault
+                        false, // an eligibility check is not a payment
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -9851,7 +10513,8 @@ impl PaymentEligibilityData {
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_) => None,
         };
 
         Ok(payment_method_data)
@@ -10126,7 +10789,6 @@ pub async fn list_payments(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    helpers::validate_payment_list_request(&constraints)?;
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
@@ -10203,8 +10865,6 @@ pub async fn list_payments(
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10280,8 +10940,7 @@ pub async fn revenue_recovery_list_payments(
 ) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
+            // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10417,19 +11076,17 @@ pub async fn revenue_recovery_list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     platform: domain::Platform,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
+    _profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
-            let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
+            let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
                     platform.get_processor().get_account().get_id(),
-                    &pi_fetch_constraints,
+                    &fetch_constraints,
                     platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
@@ -10441,7 +11098,7 @@ pub async fn apply_filters_on_payments(
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
                     platform.get_processor().get_account().get_id(),
-                    &pi_fetch_constraints,
+                    &fetch_constraints,
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -10670,20 +11327,42 @@ pub async fn add_process_sync_task(
         payment_attempt.get_id(),
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = storage::ProcessTrackerNew::new(
-        process_tracker_id,
-        task,
-        runner,
-        tag,
-        tracking_data,
-        None,
-        schedule_time,
-        common_types::consts::API_VERSION,
-        application_source,
-    )
-    .map_err(errors::StorageError::from)?;
+    let tracking_data = tracking_data
+        .encode_to_value()
+        .change_context(errors::StorageError::SerializationFailed)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    if let Some(existing_process) = db.find_process_by_id(&process_tracker_id).await? {
+        db.as_scheduler()
+            .update_process(
+                existing_process,
+                storage::ProcessTrackerUpdate::Update {
+                    name: Some(task.to_string()),
+                    retry_count: Some(0),
+                    schedule_time: Some(schedule_time),
+                    tracking_data: Some(tracking_data),
+                    business_status: Some(storage::business_status::PENDING.to_string()),
+                    status: Some(storage_enums::ProcessTrackerStatus::New),
+                    updated_at: Some(common_utils::date_time::now()),
+                },
+            )
+            .await?;
+    } else {
+        let process_tracker_entry = storage::ProcessTrackerNew::new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            tracking_data,
+            None,
+            schedule_time,
+            common_types::consts::API_VERSION,
+            application_source,
+        )
+        .map_err(errors::StorageError::from)?;
+
+        db.insert_process(process_tracker_entry).await?;
+    }
+
     Ok(())
 }
 
@@ -10802,10 +11481,13 @@ pub async fn get_vault_operation_for_pre_network_tokenization(
     customer_id: id_type::CustomerId,
     card_data: &hyperswitch_domain_models::payment_method_data::Card,
 ) -> payments::VaultOperation {
-    let pre_tokenization_response =
-        tokenization::pre_payment_tokenization(state, customer_id, card_data)
-            .await
-            .ok();
+    let pre_tokenization_response = Box::pin(tokenization::pre_payment_tokenization(
+        state,
+        customer_id,
+        card_data,
+    ))
+    .await
+    .ok();
     match pre_tokenization_response {
         Some((Some(token_response), Some(token_ref))) => {
             let token_data = domain::NetworkTokenData::from(token_response);
@@ -10850,7 +11532,7 @@ pub async fn choose_connector<F, Req, D>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector_choice = operation
@@ -10903,6 +11585,7 @@ where
                             fallback_config,
                             backend_input,
                             transaction_type,
+                            dimensions,
                         )
                         .await?;
                         ConnectorCallType::SessionMultiple(routing_output)
@@ -11204,7 +11887,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
@@ -11456,7 +12139,7 @@ pub async fn decide_connector<F, D>(
     is_payment_method_modular_allowed: bool,
 ) -> RouterResult<ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     // Pre-determined flow
@@ -11467,6 +12150,7 @@ where
         &state.conf.connectors,
         payment_data,
         routing_data,
+        business_profile,
     )
     .inspect_err(|err| {
         logger::error!(
@@ -11664,7 +12348,11 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let has_token_data = payment_data.get_token_data().is_some();
-    let is_token_data_present = has_token_data || is_payment_method_modular_allowed;
+    let is_volatile_payment_method = payment_data
+        .get_payment_method_info()
+        .is_some_and(domain::PaymentMethod::is_pm_volatile);
+    let is_token_data_present =
+        has_token_data || (is_payment_method_modular_allowed && !is_volatile_payment_method);
 
     match (
         payment_data.get_payment_intent().setup_future_usage,
@@ -12379,6 +13067,7 @@ pub async fn perform_session_token_routing<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     mut backend_input: dsl_inputs::BackendInput,
     transaction_type: enums::TransactionType,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
@@ -12386,11 +13075,16 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids = routing::get_active_mca_ids(&state, processor.get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Active mca_ids not found".to_string(),
-        })?;
+    // Degrade to an empty active set on a transient MCA fetch error, with an explicit
+    // log, instead of returning a client-facing error for an infra failure. Note the
+    // empty set filters out every MCA-carrying choice, so a warm-cache request yields no
+    // session tokens and a cold-cache refresh can still hard-error.
+    let active_mca_ids = routing::get_active_mca_ids_for_session(
+        &state,
+        processor.get_key_store(),
+        business_profile.get_id(),
+    )
+    .await;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
@@ -12402,6 +13096,12 @@ where
         active_mca_ids: &active_mca_ids,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
+        dimensions,
+        payment_id: payment_data
+            .get_payment_intent()
+            .payment_id
+            .get_string_repr()
+            .to_string(),
     };
 
     let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile
@@ -12670,6 +13370,127 @@ pub async fn route_connector_v1_for_payouts(
     Ok(ConnectorCallType::Retryable(connector_data))
 }
 
+#[cfg(feature = "v1")]
+pub async fn tokenize_external_vault_alias_proxy(
+    state: &SessionState,
+    external_vault_pmd: &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method: common_enums::PaymentMethod,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<String> {
+    let alias_json = serde_json::to_string(external_vault_pmd)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize external_vault_pmd for temp-locker tokenization")?;
+    let token = common_utils::generate_id(consts::ID_LENGTH, "token");
+    let intent_fulfillment_time = business_profile
+        .get_order_fulfillment_time()
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+    vault::create_tokenize_with_configurable_expiry(
+        state,
+        alias_json,
+        None,
+        token.clone(),
+        key_store.key.get_inner(),
+        Some(intent_fulfillment_time),
+    )
+    .await
+    .attach_printable("Failed to store external_vault alias in temp locker")?;
+    let token_data = storage::PaymentTokenData::temporary_generic(token.clone());
+    ParentPaymentMethodToken::create_key_for_token((&token, payment_method))
+        .insert(intent_fulfillment_time, token_data, state)
+        .await?;
+    Ok(token)
+}
+
+/// Proxy analogue of `tokenize_in_router_when_confirm_false_or_external_authentication`: creates
+/// the vault-alias temp-locker token up front when external 3DS was requested, before the
+/// eligibility/pre-authentication hook runs.
+#[cfg(feature = "v1")]
+pub async fn tokenize_in_router_when_external_authentication_proxy<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let is_external_authentication_requested = payment_data
+        .get_payment_intent()
+        .request_external_three_ds_authentication
+        .unwrap_or(false);
+    let external_vault_pmd = is_external_authentication_requested
+        .then(|| payment_data.get_external_vault_pmd().cloned())
+        .flatten();
+
+    if let Some(external_vault_pmd) = external_vault_pmd {
+        let payment_method = payment_data
+            .get_payment_attempt()
+            .payment_method
+            .unwrap_or(common_enums::PaymentMethod::Card);
+
+        let alias_token = tokenize_external_vault_alias_proxy(
+            state,
+            &external_vault_pmd,
+            payment_method,
+            business_profile,
+            key_store,
+        )
+        .await
+        .attach_printable(
+            "Failed to create external vault alias token ahead of 3DS eligibility check",
+        )?;
+        payment_data.set_token(alias_token);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub(crate) async fn read_external_vault_alias_from_temp_locker(
+    state: &SessionState,
+    token: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData> {
+    let alias_json = vault::get_tokenized_data(state, token, false, key_store.key.get_inner())
+        .await
+        .attach_printable("Failed to read external_vault alias from temp locker")?
+        .value1;
+    serde_json::from_str(&alias_json)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse external_vault alias from temp locker")
+}
+
+#[cfg(feature = "v1")]
+pub(crate) async fn resolve_external_vault_alias_from_payment_token(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_token: String,
+    payment_method: common_enums::PaymentMethod,
+) -> RouterResult<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData> {
+    let key_store = platform.get_processor().get_key_store();
+    let token_data =
+        helpers::retrieve_payment_token_data(state, payment_token, Some(payment_method)).await?;
+
+    match token_data {
+        storage::PaymentTokenData::TemporaryGeneric(generic) => {
+            read_external_vault_alias_from_temp_locker(state, &generic.token, key_store).await
+        }
+        // A permanent (saved) payment method token has no CVC to recover here — the CVC-bearing
+        // 3DS flow always resolves through a `TemporaryGeneric` alias instead. Fail loudly rather
+        // than silently building a cvc-less card.
+        storage::PaymentTokenData::Permanent(_) | storage::PaymentTokenData::PermanentCard(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "external vault alias resolution from a saved payment method token is not supported \
+                 (no CVC recoverable from the modular service)",
+            )
+        }
+        other => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+            "unexpected payment_token kind for external vault alias resolution: {other:?}"
+        ))?,
+    }
+}
+
 #[cfg(feature = "v2")]
 pub async fn payment_external_authentication(
     _state: SessionState,
@@ -12798,23 +13619,13 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let payment_method_details = helpers::get_payment_method_details_from_payment_token(
-        &state,
-        &payment_attempt,
-        &payment_intent,
-        &platform,
-        storage_scheme,
-    )
-    .await?
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("missing payment_method_details")?;
     let browser_info: Option<BrowserInformation> = payment_attempt
         .browser_info
         .clone()
         .map(|browser_information| browser_information.parse_value("BrowserInformation"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_info",
+            field_name: "browser_info".into(),
         })?;
     let payment_connector_name = payment_attempt
         .connector
@@ -12843,66 +13654,102 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-    let authentication_response =
-        if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
-            .await?
+
+    let provider_business_profile = helpers::resolve_provider_profile(&state, &platform, &business_profile)
+        .await
+        .inspect_err(|err| {
+            logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault probe");
+        })?;
+
+    let is_external_vault_payment = if provider_business_profile
+        .external_vault_details
+        .is_external_vault_enabled()
+    {
+        match payment_attempt.payment_token.as_ref() {
+            Some(token) => read_external_vault_alias_from_temp_locker(
+                &state,
+                token,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .is_ok(),
+            None => false,
+        }
+    } else {
+        false
+    };
+    let authentication_response = if is_external_vault_payment {
+        Box::pin(authentication_core::perform_authentication_proxy(
+            &state,
+            &platform,
+            &payment_intent,
+            &payment_attempt,
+            &business_profile,
+            amount,
+            currency,
+            billing_address.as_ref().map(|address| address.into()),
+            shipping_address.as_ref().map(|address| address.into()),
+            optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+            HeaderPayload::default(),
+            req.device_channel,
+            req.sdk_information,
+        ))
+        .await?
+    } else if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
+        .await?
+    {
+        let authentication_id = payment_attempt
+            .authentication_id
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
+
+        let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
+            authentication_id: authentication_id.clone(),
+            client_secret: None,
+            sdk_information: req.sdk_information.clone(),
+            device_channel: req.device_channel,
+            threeds_method_comp_ind: req.threeds_method_comp_ind,
+        };
+        // If micro service is enabled we do api call else do internal function call
+        let response = if let Some(auth_config) = &state.conf.micro_services.authentication_service
         {
-            let authentication_id = payment_attempt
-                .authentication_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication_id in payment_attempt")?;
+            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                auth_config,
+                &req_identifier,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create auth client")?;
 
-            let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
-                authentication_id: authentication_id.clone(),
-                client_secret: None,
-                sdk_information: req.sdk_information.clone(),
-                device_channel: req.device_channel,
-                threeds_method_comp_ind: req.threeds_method_comp_ind,
-            };
-            // If micro service is enabled we do api call else do internal function call
-            let response = if let Some(auth_config) =
-                &state.conf.micro_services.authentication_service
-            {
-                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                    auth_config,
-                    &req_identifier,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create auth client")?;
-
-                crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
-                    &state,
-                    &client,
-                    authenticate_req,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication authenticate flow")?
-            } else {
+            crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
+                &state,
+                &client,
+                authenticate_req,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to call authentication authenticate flow")?
+        } else {
+            Box::pin(
                 crate::core::unified_authentication_service::authentication_authenticate_core(
                     state.clone(),
                     platform.clone(),
                     authenticate_req,
                     services::api::AuthFlow::Client,
-                )
-                .await?
-                .get_json_body()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to get json body from authentication authenticate response",
-                )?
-            };
+                ),
+            )
+            .await?
+            .get_json_body()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get json body from authentication authenticate response")?
+        };
 
-            let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
-                status: payment_attempt.status,
-                external_three_ds_authentication_attempted: Some(true),
-                external_threeds_authentication_type: response
-                    .transaction_status
-                    .as_ref()
-                    .and_then(|transaction_status| {
-                        match transaction_status {
+        let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+            status: payment_attempt.status,
+            external_three_ds_authentication_attempted: Some(true),
+            external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
+                |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
                     | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
@@ -12911,86 +13758,96 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                         Some(common_enums::DecoupledAuthenticationType::Frictionless)
                     }
                     _ => None,
-                }
-                    }),
-                authentication_connector: response.authentication_connector.map(|c| c.to_string()),
-                authentication_id: Some(response.authentication_id.clone()),
-                updated_by: storage_scheme.to_string(),
-            };
+                },
+            ),
+            authentication_connector: response.authentication_connector.map(|c| c.to_string()),
+            authentication_id: Some(response.authentication_id.clone()),
+            updated_by: storage_scheme.to_string(),
+        };
 
-            db.update_payment_attempt_with_attempt_id(
-                payment_attempt.clone(),
-                attempt_update,
-                storage_scheme,
+        db.update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            storage_scheme,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
+
+        authentication::AuthenticationResponse {
+            trans_status: response
+                .transaction_status
+                .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
+            acs_url: response.acs_url,
+            challenge_request: response.challenge_request,
+            acs_reference_number: response.acs_reference_number,
+            acs_trans_id: response.acs_trans_id,
+            three_dsserver_trans_id: response.three_ds_server_transaction_id,
+            acs_signed_content: response.acs_signed_content,
+            challenge_request_key: None,
+            error_message: response.error_message,
+        }
+    } else {
+        let authentication = db
+            .find_authentication_by_processor_merchant_id_authentication_id(
+                processor_merchant_id,
+                &payment_attempt
+                    .authentication_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing authentication_id in payment_attempt")?,
                 platform.get_processor().get_key_store(),
+                key_manager_state,
+                storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Error while updating the payment_attempt")?;
-
-            authentication::AuthenticationResponse {
-                trans_status: response
-                    .transaction_status
-                    .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
-                acs_url: response.acs_url,
-                challenge_request: response.challenge_request,
-                acs_reference_number: response.acs_reference_number,
-                acs_trans_id: response.acs_trans_id,
-                three_dsserver_trans_id: response.three_ds_server_transaction_id,
-                acs_signed_content: response.acs_signed_content,
-                challenge_request_key: None,
-                error_message: response.error_message,
-            }
-        } else {
-            let authentication = db
-                .find_authentication_by_processor_merchant_id_authentication_id(
-                    processor_merchant_id,
-                    &payment_attempt
-                        .authentication_id
-                        .clone()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("missing authentication_id in payment_attempt")?,
-                    platform.get_processor().get_key_store(),
-                    key_manager_state,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching authentication record")?;
-            Box::pin(authentication_core::perform_authentication(
-                &state,
-                business_profile.merchant_id,
-                authentication_connector,
-                payment_method_details.0,
-                payment_method_details.1,
-                billing_address
-                    .as_ref()
-                    .map(|address| address.into())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "billing_address",
-                    })?,
-                shipping_address.as_ref().map(|address| address.into()),
-                browser_info,
-                merchant_connector_account,
-                Some(amount),
-                Some(currency),
-                authentication::MessageCategory::Payment,
-                req.device_channel,
-                authentication,
-                return_url,
-                req.sdk_information,
-                req.threeds_method_comp_ind,
-                optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-                webhook_url,
-                authentication_details.three_ds_requestor_url.clone(),
-                payment_intent.psd2_sca_exemption_type,
-                payment_intent.payment_id,
-                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            ))
-            .await?
-        };
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while fetching authentication record")?;
+        let payment_method_details = helpers::get_payment_method_details_from_payment_token(
+            &state,
+            &payment_attempt,
+            &payment_intent,
+            &platform,
+            storage_scheme,
+        )
+        .await?
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("missing payment_method_details")?;
+        Box::pin(authentication_core::perform_authentication(
+            &state,
+            business_profile.merchant_id,
+            authentication_connector,
+            payment_method_details.0,
+            payment_method_details.1,
+            billing_address
+                .as_ref()
+                .map(|address| address.into())
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing_address".into(),
+                })?,
+            shipping_address.as_ref().map(|address| address.into()),
+            browser_info,
+            merchant_connector_account,
+            Some(amount),
+            Some(currency),
+            authentication::MessageCategory::Payment,
+            req.device_channel,
+            authentication,
+            return_url,
+            req.sdk_information,
+            req.threeds_method_comp_ind,
+            optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+            webhook_url,
+            authentication_details.three_ds_requestor_url.clone(),
+            payment_intent.psd2_sca_exemption_type,
+            payment_intent.payment_id,
+            payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+        ))
+        .await?
+    };
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,
@@ -13040,7 +13897,7 @@ pub async fn payment_start_redirection(
         || {
             Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow: "PaymentStartRedirection".to_string(),
-                field_name: "status".to_string(),
+                field_name: "status".into(),
                 current_value: payment_intent.status.to_string(),
                 states: ["requires_customer_action".to_string()].join(", "),
             })
@@ -13115,6 +13972,7 @@ pub async fn payments_manual_update(
         connector_transaction_id,
         amount_capturable,
         update_amount_captured,
+        amount_captured,
     } = req;
     let key_store = state
         .store
@@ -13152,6 +14010,23 @@ pub async fn payments_manual_update(
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
+
+    if let Some(amount_captured) = amount_captured {
+        utils::when(update_amount_captured == Some(true), || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_captured cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            })
+        })?;
+        utils::when(
+            amount_captured > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_captured should be less than or equal to amount".to_string(),
                 })
             },
         )?;
@@ -13207,7 +14082,7 @@ pub async fn payments_manual_update(
             .unwrap_or(payment_attempt.net_amount.get_total_amount());
         Some(new_captured_amount)
     } else {
-        None
+        amount_captured
     };
 
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
@@ -13451,7 +14326,10 @@ trait EligibilityCheck {
 #[derive(Debug, Clone)]
 pub enum CheckResult {
     Allow,
-    Deny { message: String },
+    Deny {
+        message: String,
+        code: Option<common_enums::BlockReasonCode>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -13459,8 +14337,8 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
     fn from(result: CheckResult) -> Self {
         match result {
             CheckResult::Allow => None,
-            CheckResult::Deny { message } => Some(api_models::payments::SdkNextAction {
-                next_action: api_models::payments::NextActionCall::Deny { message },
+            CheckResult::Deny { message, code } => Some(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Deny { message, code },
                 should_block_confirm: None,
             }),
         }
@@ -13482,23 +14360,7 @@ impl EligibilityCheck for BlockListCheck {
         platform: &domain::Platform,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         let merchant_id = platform.get_processor().get_account().get_id();
-        let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-        let blocklist_guard_enabled = state
-            .store
-            .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-            .await;
-
-        Ok(match blocklist_guard_enabled {
-            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-            // If it is not present in db we are defaulting it to false
-            Err(inner) => {
-                if !inner.current_context().is_db_not_found() {
-                    logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-                }
-                false
-            }
-        })
+        Ok(blocklist_utils::is_blocklist_guard_enabled(state, merchant_id).await)
     }
 
     async fn execute_check(
@@ -13508,10 +14370,58 @@ impl EligibilityCheck for BlockListCheck {
         payment_elgibility_data: &PaymentEligibilityData,
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
+        // Decrypt first so the blocklist runs against the DPAN. On skip (no MCA, keys not
+        // configured) we fall back to the encrypted data, which yields no probes.
+        let decrypted_payment_method_data = match (
+            &payment_elgibility_data.payment_method_data,
+            payment_elgibility_data.merchant_connector_id.as_ref(),
+        ) {
+            (
+                Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                    google_pay_data,
+                ))),
+                Some(merchant_connector_id),
+            ) if google_pay_data
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .is_none() =>
+            {
+                decrypt_google_pay_wallet_for_eligibility(
+                    state,
+                    platform.get_processor(),
+                    merchant_connector_id,
+                    google_pay_data,
+                )
+                .await?
+            }
+            (
+                Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                    apple_pay_data,
+                ))),
+                Some(merchant_connector_id),
+            ) if apple_pay_data
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .is_none() =>
+            {
+                decrypt_apple_pay_wallet_for_eligibility(
+                    state,
+                    platform.get_processor(),
+                    business_profile,
+                    merchant_connector_id,
+                    apple_pay_data,
+                )
+                .await?
+            }
+            _ => None,
+        };
+        let payment_method_data = decrypted_payment_method_data
+            .or_else(|| payment_elgibility_data.payment_method_data.clone());
+
         let block_reason = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
-            &payment_elgibility_data.payment_method_data,
+            &payment_method_data,
             business_profile,
         )
         .await?;
@@ -13520,6 +14430,7 @@ impl EligibilityCheck for BlockListCheck {
                 logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
                 Ok(CheckResult::Deny {
                     message: reason.error_message(),
+                    code: Some(reason.into()),
                 })
             }
             None => Ok(CheckResult::Allow),
@@ -13578,6 +14489,7 @@ impl EligibilityCheck for CardTestingCheck {
                         errors::ApiErrorResponse::PreconditionFailed { message } => {
                             Ok(CheckResult::Deny {
                                 message: message.to_string(),
+                                code: None,
                             })
                         }
                         // For any other error, propagate it
@@ -13787,6 +14699,7 @@ async fn previous_connector_surcharge_id(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
 async fn store_external_surcharge_in_redis(
     state: &SessionState,
     payment_id: &id_type::PaymentId,
@@ -13795,6 +14708,7 @@ async fn store_external_surcharge_in_redis(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     external_surcharge_id: String,
+    surcharge_percentage: Option<f64>,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
@@ -13809,6 +14723,7 @@ async fn store_external_surcharge_in_redis(
             payment_method,
             payment_method_type,
             external_surcharge_id,
+            surcharge_percentage,
         };
     redis_conn
         .serialize_and_set_key_with_expiry(
@@ -13884,6 +14799,10 @@ async fn calculate_external_surcharge(
             {
                 Some(resp) => {
                     let surcharge_amount = resp.surcharge_amount;
+                    let surcharge_percentage = resp
+                        .surcharge_fee_percent
+                        .as_ref()
+                        .map(|percent| percent.get_percentage());
                     let external_surcharge_id = resp.connector_surcharge_id.clone();
                     let merchant_id = processor.get_account().get_id().clone();
                     let storage_scheme = processor.get_account().storage_scheme;
@@ -13898,6 +14817,7 @@ async fn calculate_external_surcharge(
                         inputs.payment_method,
                         inputs.payment_method_type,
                         external_surcharge_id,
+                        surcharge_percentage,
                     )
                     .await
                     .attach_printable("eligibility: failed to write surcharge to Redis")?;
@@ -14123,6 +15043,12 @@ async fn calculate_mit_external_surcharge(
                 Ok(Some(resp)) => Some(common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: resp.connector_surcharge_id,
                     external_surcharge_amount: resp.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            resp.surcharge_fee_percent
+                                .as_ref()
+                                .map(|percent| percent.get_percentage()),
+                        ),
                     sale_notified: false,
                 }),
                 Ok(None) => None,
@@ -14180,6 +15106,36 @@ pub async fn payments_submit_eligibility(
     let state_for_surcharge = state.clone();
     let platform_for_surcharge = platform.clone();
 
+    // Capture Offer Engine inputs (order amount, currency, customer, card BIN)
+    // before the eligibility handler takes ownership of the eligibility data.
+    let offer_order_amount = payment_eligibility_data.payment_intent.amount;
+    let offer_currency = payment_eligibility_data.payment_intent.currency;
+    let offer_customer_id = payment_eligibility_data.payment_intent.customer_id.clone();
+    let offer_card_bin = payment_eligibility_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.get_offer_card_bin())
+        .map(Secret::new);
+    // Forward whatever card attributes the request carried; Offer Engine uses
+    // them when present and ignores the rest.
+    let offer_card = payment_eligibility_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.get_card_data());
+    let offer_card_network = offer_card.and_then(|card| {
+        card.card_network
+            .as_ref()
+            .map(|network| network.to_string())
+    });
+    let offer_card_type = offer_card.and_then(|card| card.card_type.clone());
+    let offer_bank_code = offer_card.and_then(|card| card.bank_code.clone());
+    let offer_card_country = offer_card.and_then(|card| card.card_issuing_country.clone());
+    let offer_card_number = offer_card.map(|card| card.card_number.clone());
+    let offer_payment_method_type = eligibility_req
+        .payment_method_type
+        .to_string()
+        .to_uppercase();
+
     let eligibility_handler =
         EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
     let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
@@ -14200,13 +15156,218 @@ pub async fn payments_submit_eligibility(
         }
     };
 
+    // Offer Engine eligibility: resolve `/list` and, when an offer is selected,
+    // store the quote for confirm to validate `/apply` against.
+    let (amount_details, offer_details) = resolve_offer_eligibility_details(
+        &state_for_surcharge,
+        platform_for_surcharge.get_processor(),
+        &profile_id,
+        &payment_id,
+        &sdk_next_action.next_action,
+        offer_order_amount,
+        offer_currency,
+        offer_customer_id.as_ref(),
+        offer_payment_method_type,
+        offer_card_bin,
+        offer_card_network,
+        offer_card_type,
+        offer_bank_code,
+        offer_card_country,
+        offer_card_number,
+    )
+    .await?;
+
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
             surcharge_details,
+            amount_details,
+            offer_details,
         },
     ))
+}
+
+/// Resolve Offer Engine eligibility into `(amount_details, offer_details)` for the
+/// eligibility response.
+///
+/// Both are `None` when eligibility is denied, the payment method is not one Offer
+/// Engine serves, or Offer Engine is not available. A `/list` failure is failed
+/// **open** (logged + metered, payable amount unchanged); `/apply` at confirm stays
+/// fail-closed.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
+async fn resolve_offer_eligibility_details(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: &id_type::ProfileId,
+    payment_id: &id_type::PaymentId,
+    next_action: &api_models::payments::NextActionCall,
+    order_amount: MinorUnit,
+    currency: Option<common_enums::Currency>,
+    customer_id: Option<&id_type::CustomerId>,
+    payment_method_type: String,
+    card_bin: Option<Secret<String>>,
+    card_network: Option<String>,
+    card_type: Option<String>,
+    bank_code: Option<String>,
+    card_country: Option<String>,
+    card_number: Option<::cards::CardNumber>,
+) -> RouterResult<(
+    Option<api_models::payments::EligibilityAmountDetails>,
+    Option<api_models::payments::EligibilityOfferDetails>,
+)> {
+    let offer_context = if matches!(
+        next_action,
+        api_models::payments::NextActionCall::Deny { .. }
+    ) || !offer_engine::is_supported_payment_method_type(
+        &payment_method_type,
+    ) {
+        None
+    } else {
+        // Target config at merchant/org/profile so superposition can override per
+        // dimension; falls back to global when no override is configured.
+        let offer_dimensions = Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().clone())
+            .with_profile_id(profile_id.clone());
+        let resolved_config =
+            match offer_engine::resolve_offer_engine_credential_source(state, &offer_dimensions)
+                .await
+            {
+                offer_engine::OfferEngineCredentialSource::None => None,
+                offer_engine::OfferEngineCredentialSource::Application => {
+                    offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(
+                        state,
+                    )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
+                    .ok()
+                }
+                offer_engine::OfferEngineCredentialSource::Merchant => {
+                    offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                        state,
+                        processor.get_account(),
+                    )
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "offer engine: unable to resolve offer config; offers unavailable"
+                        )
+                    })
+                    .ok()
+                }
+            };
+        resolved_config.zip(currency)
+    };
+
+    match offer_context {
+        None => Ok((None, None)),
+        Some((offer_config, currency)) => {
+            let card_alias = match card_number.as_ref() {
+                Some(card_number) => match offer_engine::velocity::generate_card_alias(
+                    state,
+                    processor.get_account(),
+                    card_number,
+                )
+                .await
+                {
+                    Ok(alias) => Some(alias),
+                    Err(error) => {
+                        logger::warn!(
+                            ?error,
+                            "offer velocity: card_alias unavailable; treating offers as unavailable"
+                        );
+                        return Ok((None, None));
+                    }
+                },
+                None => None,
+            };
+            let ctx = offer_engine::eligibility::OfferEligibilityContext {
+                payment_id: payment_id.clone(),
+                order_amount,
+                currency,
+                customer_id: customer_id.cloned(),
+                payment_method_reference: payment_id.get_string_repr().to_string(),
+                payment_method_type,
+                payment_method: card_network,
+                card_bin,
+                card_type,
+                bank_code,
+                card_country,
+                card_alias,
+            };
+
+            let selected =
+                offer_engine::eligibility::run_offer_eligibility(state, offer_config, ctx)
+                    .await
+                    .unwrap_or_else(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Offer Engine /list failed; proceeding without offers (fail-open)"
+                        );
+                        metrics::OFFER_ENGINE_LIST_FAILURES.add(1, &[]);
+                        None
+                    });
+
+            match selected {
+                // Enabled but no eligible offer: payable amount unchanged.
+                None => Ok((
+                    Some(api_models::payments::EligibilityAmountDetails {
+                        total_amount: order_amount,
+                        net_amount: order_amount,
+                        currency,
+                    }),
+                    Some(api_models::payments::EligibilityOfferDetails::default()),
+                )),
+                // Eligible offer: store the quote for confirm to validate `/apply`
+                // against (keyed by a generated offer_quote_id; TTL kept).
+                Some(selected) => {
+                    let processor_merchant_id = processor.get_account().get_id().clone();
+                    // Issue a unique quote id; confirm echoes it back to apply this offer.
+                    let offer_quote_id = common_utils::generate_time_ordered_id("offer_quote");
+                    let quotes = HashMap::from([(
+                        offer_quote_id.clone(),
+                        client_session::OfferQuote {
+                            offer_id: selected.offer_id.clone(),
+                            offer_amount: selected.offer_amount,
+                            currency: selected.currency,
+                        },
+                    )]);
+                    client_session::ClientSessionManager::store_offer_quotes(
+                        state,
+                        &processor_merchant_id,
+                        payment_id,
+                        quotes,
+                    )
+                    .await?;
+
+                    Ok((
+                        Some(api_models::payments::EligibilityAmountDetails {
+                            total_amount: order_amount,
+                            net_amount: order_amount - selected.offer_amount,
+                            currency,
+                        }),
+                        Some(api_models::payments::EligibilityOfferDetails {
+                            uplifted_offer_quote_ids: vec![offer_quote_id.clone()],
+                            eligible_offers: vec![api_models::payments::EligibleOffer {
+                                offer_quote_id,
+                                offer_amount: selected.offer_amount,
+                                currency: selected.currency,
+                                code: selected.code,
+                                title: selected.title,
+                                description: selected.description,
+                            }],
+                        }),
+                    ))
+                }
+            }
+        }
+    }
 }
 
 pub trait PaymentMethodChecker<F> {

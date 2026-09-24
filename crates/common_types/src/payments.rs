@@ -59,6 +59,9 @@ pub enum SplitPaymentsRequest {
     /// XenditSplitPayment
     #[smithy(value_type = "XenditSplitRequest")]
     XenditSplitPayment(XenditSplitRequest),
+    /// PayloadSplitPayment
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -98,6 +101,54 @@ pub struct StripeSplitPaymentRequest {
     pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// A single ledger entry distributing payment to one receiver for Payload split payments
+pub struct PayloadLedgerItem {
+    /// Amount in minor units to be routed to this receiver out of the payment
+    #[schema(value_type = i64, example = 995)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// processing_id of the receiver
+    #[smithy(value_type = "String")]
+    pub receiver_id: String,
+}
+impl_to_sql_from_sql_json!(PayloadLedgerItem);
+
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+    ToSchema,
+    SmithyModel,
+)]
+#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries
+pub struct PayloadSplitPaymentRequest {
+    /// Ledger entries specifying how the payment is distributed across receivers
+    #[smithy(value_type = "Vec<PayloadLedgerItem>")]
+    pub ledger: Vec<PayloadLedgerItem>,
+}
+impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -154,7 +205,7 @@ impl MerchantCountryCode {
             .parse::<u32>()
             .map_err(Report::from)
             .change_context(errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| {
                 format!("Country code {country_code} is negative or too large")
@@ -162,7 +213,7 @@ impl MerchantCountryCode {
 
         common_enums::Country::from_numeric(code)
             .map_err(|_| errors::ValidationError::IncorrectValueProvided {
-                field_name: "merchant_country_code",
+                field_name: "merchant_country_code".into(),
             })
             .attach_printable_lazy(|| format!("Invalid country code {code}"))
     }
@@ -409,6 +460,9 @@ pub enum ConnectorChargeResponseData {
     /// XenditChargeResponseData
     #[smithy(value_type = "XenditChargeResponseData")]
     XenditSplitPayment(XenditChargeResponseData),
+    /// PayloadChargeResponseData
+    #[smithy(value_type = "PayloadSplitPaymentRequest")]
+    PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
@@ -601,6 +655,11 @@ pub struct GpayEcryptedTokenizationData {
     /// Token generated for the wallet
     #[smithy(value_type = "String")]
     pub token: String,
+    /// The authentication method used by Google Pay (PAN_ONLY or CRYPTOGRAM_3DS)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
 }
 
 #[derive(
@@ -610,6 +669,11 @@ pub struct GpayEcryptedTokenizationData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// This struct represents the decrypted Google Pay payment data
 pub struct GPayPredecryptData {
+    /// Indicates whether Google Pay supplied a funding PAN or a tokenized device PAN.
+    #[schema(value_type = Option<GooglePayAuthMethod>)]
+    #[smithy(value_type = "Option<GooglePayAuthMethod>")]
+    pub auth_method: Option<common_enums::GooglePayAuthMethod>,
+
     /// The card's expiry month
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
@@ -672,8 +736,53 @@ impl GpayTokenizationData {
             .token_type
             .clone())
     }
+
+    /// Get the Google Pay auth method (PAN_ONLY or CRYPTOGRAM_3DS)
+    pub fn get_encrypted_auth_method(&self) -> Option<common_enums::GooglePayAuthMethod> {
+        match self {
+            Self::Encrypted(encrypted) => encrypted.auth_method,
+            Self::Decrypted(_) => None,
+        }
+    }
 }
 impl GPayPredecryptData {
+    /// Bin of the decrypted PAN, when it is a tokenized DPAN (`auth_method` is `CRYPTOGRAM_3DS`)
+    pub fn get_device_pan_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::Cryptogram) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_some() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::PanOnly) | None => None,
+        }
+    }
+
+    /// Bin of the decrypted PAN, when it is the underlying card's real PAN (`auth_method` is
+    /// `PAN_ONLY`)
+    pub fn get_card_bin(&self) -> Option<String> {
+        match self.auth_method {
+            Some(enums::GooglePayAuthMethod::PanOnly) => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            None if self.cryptogram.is_none() => {
+                Some(self.application_primary_account_number.get_card_isin())
+            }
+            Some(enums::GooglePayAuthMethod::Cryptogram) | None => None,
+        }
+    }
+
+    /// The decrypted PAN's card expiry month
+    pub fn get_card_exp_month(&self) -> Secret<String> {
+        self.card_exp_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_card_exp_year(&self) -> Secret<String> {
+        self.card_exp_year.clone()
+    }
+
     /// Get the four-digit expiration year from the Google Pay pre-decrypt data
     pub fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, errors::ValidationError> {
         let mut year = self.card_exp_year.peek().clone();
@@ -768,6 +877,27 @@ pub struct ApplePayPredecryptData {
     #[schema(value_type = ApplePayCryptogramData)]
     #[smithy(value_type = "ApplePayCryptogramData")]
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
+}
+
+impl ApplePayPredecryptData {
+    /// The decrypted PAN's card expiry month
+    pub fn get_application_expiration_month(&self) -> Secret<String> {
+        self.application_expiration_month.clone()
+    }
+
+    /// The decrypted PAN's card expiry year
+    pub fn get_application_expiration_year(&self) -> Secret<String> {
+        self.application_expiration_year.clone()
+    }
+
+    /// Bin of the decrypted PAN
+    pub fn get_device_pan_bin(&self) -> String {
+        self.application_primary_account_number.get_card_isin()
+    }
 }
 
 #[derive(
@@ -899,7 +1029,7 @@ impl ApplePayPredecryptData {
 }
 
 /// type of action that needs to taken after consuming recovery payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryAction {
     /// Stops the process tracker and update the payment intent.
@@ -1067,7 +1197,7 @@ impl PaymentIntentStateMetadata {
 
     /// Check if post capture void is issued for the payment intent
     pub fn is_post_capture_void_issued(&self) -> bool {
-        self.post_capture_void.is_some()
+        self.is_post_capture_void_pending() || self.is_post_capture_void_successful()
     }
 
     /// Check if post capture void is applied for the payment intent
@@ -1593,8 +1723,80 @@ pub struct ExternalSurchargeDetails {
     pub external_surcharge_id: String,
     /// Surcharge amount in minor units
     pub external_surcharge_amount: MinorUnit,
+    /// Surcharge percentage returned by the connector (e.g. InterPayments), if provided.
+    /// Stored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.
+    #[schema(value_type = Option<f64>)]
+    pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
 }
 
+impl ExternalSurchargeDetails {
+    /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
+    /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
+    pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {
+        value.and_then(Decimal::from_f64)
+    }
+
+    /// The surcharge percentage as an `f64` for API responses, if present.
+    pub fn surcharge_percentage_as_f64(&self) -> Option<f64> {
+        self.surcharge_percentage.and_then(|value| value.to_f64())
+    }
+}
+
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
+
+/// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt`
+/// as JSONB. Versioned (tagged by `version`) for forward-compatible schema evolution.
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum AppliedOfferDetails {
+    /// Version 1 of the applied-offer details.
+    V1(AppliedOfferDetailsV1),
+}
+
+impl AppliedOfferDetails {
+    /// Borrow the inner current-version details.
+    pub fn inner(&self) -> &AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+
+    /// Consume into the inner current-version details.
+    pub fn into_inner(self) -> AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+}
+
+/// Version 1 of the applied-offer details.
+#[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
+pub struct AppliedOfferDetailsV1 {
+    /// Quote id issued at eligibility and echoed back at confirm to apply this offer
+    pub offer_quote_id: String,
+    /// Offer Engine merchant id the offer was applied under
+    pub offer_engine_merchant_id: String,
+    /// Offer Engine transaction id (the Hyperswitch payment attempt id used at `/apply`)
+    pub offer_engine_txn_id: String,
+    /// Offer Engine offer id that was applied
+    pub offer_id: String,
+    /// Charge-reducing offer amount in minor units
+    pub offer_amount: MinorUnit,
+    /// Currency of the applied offer amount
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: enums::Currency,
+}
+
+impl_to_sql_from_sql_json!(AppliedOfferDetails);

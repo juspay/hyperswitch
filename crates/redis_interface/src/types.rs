@@ -8,6 +8,7 @@
 //! because Rust does not allow splitting a struct definition across files.
 
 use common_utils::errors::CustomResult;
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::errors;
 
@@ -30,6 +31,12 @@ pub struct RedisValue {
 pub struct RedisSettings {
     pub host: String,
     pub port: u16,
+    /// Username for Redis ACL authentication (Redis 6+ / Redis Cloud).
+    /// When unset, the `default` user is assumed.
+    pub username: Option<String>,
+    /// Password for Redis `AUTH` / ACL authentication.
+    /// When unset, the connection handshake is unauthenticated.
+    pub password: Option<Secret<String>>,
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
@@ -61,6 +68,22 @@ pub struct RedisSettings {
 }
 
 impl RedisSettings {
+    /// The configured ACL username, if any.
+    ///
+    /// Emptiness is enforced by [`Self::validate`], not here.
+    pub(crate) fn auth_username(&self) -> Option<&str> {
+        self.username.as_deref()
+    }
+
+    /// The configured password, if any.
+    ///
+    /// Emptiness is enforced by [`Self::validate`], not here.
+    pub(crate) fn auth_password(&self) -> Option<&str> {
+        self.password
+            .as_ref()
+            .map(|password| password.peek().as_str())
+    }
+
     /// Validates the Redis configuration provided.
     pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
@@ -70,6 +93,37 @@ impl RedisSettings {
                 "Redis `host` must be specified".into(),
             ))
         })?;
+
+        when(
+            self.username
+                .as_ref()
+                .is_some_and(|username| username.is_default_or_empty()),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `username` must not be empty when specified".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.password
+                .as_ref()
+                .is_some_and(|password| password.is_default_or_empty()),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `password` must not be empty when specified".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.auth_username().is_some() && self.auth_password().is_none(),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `password` must be specified when `username` is set".into(),
+                ))
+            },
+        )?;
 
         when(self.cluster_enabled && self.cluster_urls.is_empty(), || {
             Err(errors::RedisError::InvalidConfiguration(
@@ -105,6 +159,8 @@ impl Default for RedisSettings {
         Self {
             host: "127.0.0.1".to_string(),
             port: 6379,
+            username: None,
+            password: None,
             cluster_enabled: false,
             cluster_urls: vec![],
             use_legacy_version: false,
@@ -161,24 +217,28 @@ impl RedisEntryId {
 // ─── Reply type enums ────────────────────────────────────────────────────────
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum HsetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum MsetnxReply {
     KeysSet,
     KeysNotSet, // At least one existing key
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum DelReply {
     KeyDeleted,
     KeyNotDeleted, // Key not found
@@ -196,6 +256,7 @@ impl DelReply {
 
 /// Reply from SADD command
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum SaddReply {
     /// Returned when atleast 1 value was inserted to Set
     /// i64 value represent the total number of values that were inserted.
@@ -355,6 +416,11 @@ impl std::error::Error for StreamTrimThresholdError {}
 pub struct RedisKey(String);
 
 impl RedisKey {
+    #[cfg(feature = "deja")]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
     pub fn tenant_aware_key(&self, pool: &crate::RedisConnectionPool) -> String {
         pool.add_prefix(&self.0)
     }
@@ -450,6 +516,74 @@ mod tests {
         assert_eq!(settings.default_hash_ttl, 900);
         assert_eq!(settings.broadcast_channel_capacity, 32);
         assert_eq!(settings.max_failure_threshold_seconds, 5);
+    }
+
+    #[test]
+    fn test_redis_settings_validate_username_without_password() {
+        let settings = RedisSettings {
+            username: Some("app_user".to_string()),
+            password: None,
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_username_with_password() {
+        let settings = RedisSettings {
+            username: Some("app_user".to_string()),
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_password_only() {
+        let settings = RedisSettings {
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_empty_username_rejected() {
+        let settings = RedisSettings {
+            username: Some(String::new()),
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_whitespace_username_rejected() {
+        let settings = RedisSettings {
+            username: Some("   ".to_string()),
+            password: Some("secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_empty_password_rejected() {
+        let settings = RedisSettings {
+            password: Some(String::new().into()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_password_masked_in_debug() {
+        let settings = RedisSettings {
+            password: Some("super_secret".to_string().into()),
+            ..RedisSettings::default()
+        };
+        let debug_output = format!("{settings:?}");
+        assert!(!debug_output.contains("super_secret"));
     }
 
     #[test]

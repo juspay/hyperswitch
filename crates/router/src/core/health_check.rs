@@ -92,7 +92,7 @@ impl HealthCheckInterface for app::SessionState {
             let mut url = locker.host.to_owned();
             url.push_str(consts::LOCKER_HEALTH_CALL_PATH);
             let request = services::Request::new(services::Method::Get, &url);
-            services::call_connector_api(self, request, "health_check_for_locker")
+            services::call_connector_api(self, request, "health_check_for_locker", None)
                 .await
                 .change_context(errors::HealthCheckLockerError::FailedToCallLocker)?
                 .map_err(|_| {
@@ -162,7 +162,7 @@ impl HealthCheckInterface for app::SessionState {
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckOutGoing> {
         let request = services::Request::new(services::Method::Get, consts::OUTGOING_CALL_URL);
-        services::call_connector_api(self, request, "outgoing_health_check")
+        services::call_connector_api(self, request, "outgoing_health_check", None)
             .await
             .map_err(|err| errors::HealthCheckOutGoing::OutGoingFailed {
                 message: err.to_string(),
@@ -201,11 +201,16 @@ impl HealthCheckInterface for app::SessionState {
         if self.conf.open_router.dynamic_routing_enabled {
             let url = format!("{}/{}", self.conf.open_router.url, "health");
             let request = services::Request::new(services::Method::Get, &url);
-            let _ = services::call_connector_api(self, request, "health_check_for_decision_engine")
-                .await
-                .change_context(
-                    errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
-                )?;
+            let _ = services::call_connector_api(
+                self,
+                request,
+                "health_check_for_decision_engine",
+                None,
+            )
+            .await
+            .change_context(
+                errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
+            )?;
 
             logger::debug!("Decision engine health check successful");
             Ok(HealthState::Running)
@@ -218,15 +223,64 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_unified_connector_service(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError> {
-        if let Some(_ucs_client) = &self.grpc_client.unified_connector_service_client {
-            // For now, we'll just check if the client exists and is configured
-            // In the future, this could be enhanced to make an actual health check call
-            // to the unified connector service if it supports health check endpoints
-            logger::debug!("Unified Connector Service client is configured and available");
-            Ok(HealthState::Running)
-        } else {
-            logger::debug!("Unified Connector Service client not configured");
-            Ok(HealthState::NotApplicable)
+        // TODO: remove this fallback once `health_check.proto` is compiled unconditionally.
+        //
+        // The `grpc.health.v1` stubs are generated inside the `dynamic_routing` block of
+        // `external_services/build.rs`. Without that feature there is no health client to call, so
+        // this reports only whether the client was configured, which is the behaviour that
+        // preceded the gRPC health check.
+        //
+        // The coupling is incidental: dynamic routing was the only consumer of the health proto
+        // when it was introduced. Compiling it unconditionally is deliberately left to a separate
+        // change, because it modifies build configuration shared with three other protos and the
+        // `deja_dynamic_routing_descriptor` that the deja boundary decodes at runtime.
+        //
+        // Release builds enable `dynamic_routing`, so deployed environments perform the real
+        // check. Local `cargo run` does not, which is the gap this TODO tracks.
+        #[cfg(not(feature = "dynamic_routing"))]
+        {
+            return Ok(match self.grpc_client.unified_connector_service_client {
+                Some(_) => {
+                    logger::debug!("Unified Connector Service client is configured and available");
+                    HealthState::Running
+                }
+                None => {
+                    logger::debug!("Unified Connector Service client not configured");
+                    HealthState::NotApplicable
+                }
+            });
+        }
+
+        #[cfg(feature = "dynamic_routing")]
+        match &self.grpc_client.unified_connector_service_client {
+            Some(ucs_client) => {
+                let serving = ucs_client
+                    .health_check()
+                    .await
+                    .map_err(|status| {
+                        logger::error!(
+                            grpc_code = ?status.code(),
+                            grpc_message = %status.message(),
+                            "Unified Connector Service gRPC health check failed"
+                        );
+                        error_stack::report!(
+                            errors::HealthCheckUnifiedConnectorServiceError::FailedToCallUnifiedConnectorService
+                        )
+                    })?;
+                if serving {
+                    logger::debug!("Unified Connector Service reported SERVING");
+                    Ok(HealthState::Running)
+                } else {
+                    logger::error!("Unified Connector Service reported NOT_SERVING");
+                    Err(error_stack::report!(
+                        errors::HealthCheckUnifiedConnectorServiceError::FailedToCallUnifiedConnectorService
+                    ))
+                }
+            }
+            None => {
+                logger::debug!("Unified Connector Service client not configured");
+                Ok(HealthState::NotApplicable)
+            }
         }
     }
 }

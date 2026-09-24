@@ -1,0 +1,101 @@
+---
+title: "Payment Audit"
+description: "Search a payment or request and inspect the full routing timeline"
+---
+
+## What It Shows
+
+Payment Audit is the operator-facing timeline view for a single payment or request.
+
+Use it when you want to answer questions like:
+
+- which gateway was decided for this payment
+- which priority rule was hit
+- whether a score update succeeded or failed
+- what structured event payload was captured at each step
+
+The page is designed for exact lookups first and broad operator filtering second.
+
+## Search Inputs
+
+The page supports these filters:
+
+- `payment_id`
+- `request_id`
+- `gateway`
+- `route`
+- `status`
+- `flow_type`
+- time window: `15m`, `1h`, `12h`, `1d`, `1w`
+
+Use an exact `payment_id` when you have it. If you only have a request trace, use `request_id`.
+Payment Audit is always merchant-scoped by the authenticated JWT or API key. The route does not
+accept `scope` or `merchant_id` query params.
+
+## Timeline Stages
+
+The timeline is built from analytics events captured by the live request flows.
+
+Current stages include:
+
+- `gateway_decided`
+- `rule_applied`
+- `score_updated`
+- `preview_evaluated`
+- `request_read_failed`
+- `validation_failed`
+- `request_parse_failed`
+- `score_update_failed`
+
+The raw flow type remains visible as well, for example `decide_gateway_decision`,
+`decide_gateway_rule_hit`, `update_gateway_score_update`, or `routing_evaluate_advanced`.
+
+## Data Sources
+
+Payment Audit reads from the same ClickHouse analytics store used by the analytics surface.
+
+The read path is split intentionally:
+
+- exact `payment_id` / `request_id` lookups read the raw `analytics_domain_events` timeline
+- broad search results read pre-aggregated `analytics_payment_audit_summary_buckets`
+
+Both views correlate events through the write-time `lookup_key`, which prefers `payment_id` and
+falls back to `request_id`.
+
+Relevant fields include:
+
+- `merchant_id`
+- `payment_id`
+- `request_id`
+- `event_stage`
+- `route`
+- `gateway`
+- `routing_approach`
+- `rule_name`
+- `status`
+- `error_code`
+- `error_message`
+- `details`
+
+The `details` field is shown as structured JSON when available.
+
+## Route
+
+When the dashboard profile is running, open:
+
+- `http://localhost:8081/dashboard/audit`
+
+## Related Files
+
+- `website/src/components/pages/PaymentAuditPage.tsx`
+- `src/routes/analytics.rs`
+- `src/analytics/models.rs`
+- `src/analytics/service.rs`
+- `src/decider/gatewaydecider/`
+- `src/feedback/gateway_scoring_service.rs`
+
+## Related Docs
+
+- [Analytics](/decision-engine-api-reference/analytics) — the broader operator-facing metrics view.
+- [ClickHouse Analytics](/decision-engine-api-reference/clickhouse-analytics) — the underlying ingestion pipeline and schema.
+- [Dashboard](/decision-engine-api-reference/dashboard-guide) — where this view is surfaced.

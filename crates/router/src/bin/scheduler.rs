@@ -29,11 +29,35 @@ use tokio::sync::{mpsc, oneshot};
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 #[tokio::main]
 async fn main() -> CustomResult<(), ProcessTrackerError> {
+    // Pin the rustls crypto backend
+    #[cfg(feature = "gcp_kms")]
+    #[allow(clippy::expect_used)]
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("Failed to install default rustls CryptoProvider");
+
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
+
+    // Install the Deja runtime hook BEFORE AppState construction: state setup
+    // opens redis/DB pools whose instrumented calls would otherwise resolve —
+    // and permanently latch — the hook ahead of the configured install.
+    #[cfg(feature = "deja")]
+    let deja_install_report = {
+        // An empty deja broker list inherits the analytics Kafka brokers
+        // (shared cluster provisioning, separate producer client).
+        let analytics_brokers = match &conf.events.source {
+            router::events::EventsSource::Kafka { kafka } => Some(kafka.brokers()),
+            _ => None,
+        };
+        router::deja_boot::install(&conf.deja, analytics_brokers).map_err(|message| {
+            error_stack::report!(ProcessTrackerError::ConfigurationError).attach_printable(message)
+        })?
+    };
+
     let api_client = Box::new(
         services::ProxyClient::new(&conf.proxy)
             .change_context(ProcessTrackerError::ConfigurationError)?,
@@ -79,6 +103,15 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
             "superposition_provider",
             "superposition_sdk",
         ],
+    );
+
+    #[cfg(feature = "deja")]
+    router_env::tracing::info!(
+        target: "deja",
+        mode = deja_install_report.mode,
+        run_id = ?deja_install_report.run_id,
+        detail = ?deja_install_report.detail,
+        "deja runtime hook initialized"
     );
 
     #[allow(clippy::expect_used)]
@@ -160,7 +193,7 @@ pub async fn deep_health_check(
     for (tenant, _) in stores {
         let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "tenant_id",
+                field_name: "tenant_id".into(),
             }
             .into()
         });
@@ -364,6 +397,54 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                         Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
                             .attach_printable(
                                 "Cannot run batch blocklist upload workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::NetworkTokenizationWorkflow => Ok(Box::new(
+                    workflows::network_tokenization::NetworkTokenizationWorkflow,
+                )),
+                storage::ProcessTrackerRunner::OfferEngineNotifyWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::offer_engine_notify::OfferEngineNotifyWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run offer engine notify workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::BlocklistExportWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_export::BlocklistExportWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist export workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::BlocklistProfileCloneWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_profile_clone::BlocklistProfileCloneWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist profile clone workflow when v1 feature is disabled",
                             )
                     }
                 }

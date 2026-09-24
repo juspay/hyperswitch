@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
-use tokio::time::{timeout, Duration};
+use tokio::time::Duration;
 use tonic::{
     metadata::{MetadataMap, MetadataValue},
     transport::Uri,
@@ -21,33 +21,52 @@ use crate::{
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
+
+/// The transport under every UCS service client. Under the `deja` feature it is
+/// the gRPC egress boundary wrapper — every unary rpc (payment, refund, …) is
+/// recorded/substituted at the wire level with rank-2 span-path identity;
+/// otherwise it is the raw tonic channel. Threading this alias through the
+/// client fields + their construction keeps the feature-off build byte-identical.
+#[cfg(feature = "deja")]
+pub type UcsChannel = super::deja_transport::DejaGrpcTransport<tonic::transport::Channel>;
+/// The transport under every UCS service client (raw tonic channel; see the
+/// `deja`-gated definition above for the recording/substituting variant).
+#[cfg(not(feature = "deja"))]
+pub type UcsChannel = tonic::transport::Channel;
 /// Contains the  Unified Connector Service client
 #[derive(Debug, Clone)]
 pub struct UnifiedConnectorServiceClient {
     /// The Payment Service Client
-    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<tonic::transport::Channel>,
+    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<UcsChannel>,
     /// The Refund Service Client
-    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<tonic::transport::Channel>,
+    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<UcsChannel>,
     /// The Event Service Client
-    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<tonic::transport::Channel>,
+    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<UcsChannel>,
     /// The Recurring Payment Service Client
-    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<tonic::transport::Channel>,
+    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<UcsChannel>,
     /// The Dispute Service Client
-    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<tonic::transport::Channel>,
+    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<UcsChannel>,
     /// The Payment Method Service Client
-    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<tonic::transport::Channel>,
+    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<UcsChannel>,
     /// The Customer Service Client
-    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<tonic::transport::Channel>,
+    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<UcsChannel>,
     /// The Merchant Authentication Service Client
     pub merchant_authentication_service_client:
-        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<UcsChannel>,
     /// The Payment Method Authentication Service Client
     pub payment_method_authentication_service_client:
-        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<UcsChannel>,
         /// The Payout Service Client
-    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<tonic::transport::Channel>,
+    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<UcsChannel>,
     /// The Surcharge Service Client
-    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<tonic::transport::Channel>,
+    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
+    /// The Fraud and Risk Management Service Client
+    pub frm_service_client: payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<UcsChannel>,
+    /// Standard gRPC health client (grpc.health.v1) over the same shared channel, used by the
+    /// router health endpoint to prove UCS is reachable from this pod. Gated like the module it
+    /// comes from: the health proto is only compiled under `dynamic_routing`.
+    #[cfg(feature = "dynamic_routing")]
+    pub health_client: super::health_check_client::HealthClient<UcsChannel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -62,6 +81,19 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Per-RPC timeout (seconds) for calls to the unified connector service.
     #[serde(default)]
     pub request_timeout: UcsRequestTimeoutInSeconds,
+
+    /// HTTP/2 PING keepalive interval (seconds) on the shared channel. PINGs are sent while idle.
+    #[serde(default)]
+    pub keep_alive_interval: UcsKeepAliveIntervalInSeconds,
+
+    /// Time (seconds) to wait for a keepalive PING acknowledgement before the connection is
+    /// treated as dead and re-established.
+    #[serde(default)]
+    pub keep_alive_timeout: UcsKeepAliveTimeoutInSeconds,
+
+    /// TCP keepalive idle time (seconds) on the shared channel.
+    #[serde(default)]
+    pub tcp_keepalive: UcsTcpKeepAliveInSeconds,
 
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
@@ -95,6 +127,57 @@ impl Default for UcsRequestTimeoutInSeconds {
 
 impl UcsRequestTimeoutInSeconds {
     /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// HTTP/2 PING keepalive interval for the Unified Connector Service channel, in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsKeepAliveIntervalInSeconds(u64);
+
+impl Default for UcsKeepAliveIntervalInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_KEEP_ALIVE_INTERVAL_SECS)
+    }
+}
+
+impl UcsKeepAliveIntervalInSeconds {
+    /// Return the interval as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// Keepalive PING acknowledgement timeout for the Unified Connector Service channel, in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsKeepAliveTimeoutInSeconds(u64);
+
+impl Default for UcsKeepAliveTimeoutInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS)
+    }
+}
+
+impl UcsKeepAliveTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// TCP keepalive idle time for the Unified Connector Service channel, in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsTcpKeepAliveInSeconds(u64);
+
+impl Default for UcsTcpKeepAliveInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_TCP_KEEPALIVE_SECS)
+    }
+}
+
+impl UcsTcpKeepAliveInSeconds {
+    /// Return the idle time as a [`Duration`].
     pub fn as_duration(self) -> Duration {
         Duration::from_secs(self.0)
     }
@@ -189,32 +272,49 @@ pub struct HyperswitchVaultMetadata {
     pub certificate: Option<Secret<String>>,
 }
 
-/// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
-#[macro_export]
-macro_rules! build_grpc_client {
-    ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
-        let endpoint = tonic::transport::Channel::builder($uri.clone())
-            .timeout($request_timeout.as_duration());
-        match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
-            Ok(Ok(channel)) => <$client>::new(channel),
-            Ok(Err(err)) => {
-                router_env::logger::error!(
-                    "Failed to connect to Unified Connector Service for {}: {:?}",
-                    $name,
-                    err
-                );
-                return None;
-            }
-            Err(err) => {
-                router_env::logger::error!(
-                    "Connection to Unified Connector Service timed out for {}: {:?}",
-                    $name,
-                    err
-                );
-                return None;
-            }
-        }
-    }};
+/// Failure to build the Unified Connector Service client from configuration.
+///
+/// Fatal at startup by design: a configured UCS that cannot be set up must stop the pod from
+/// starting rather than silently degrading every payment on this pod to the direct connector
+/// path, which is not an option for `ucs_only_connectors`.
+#[derive(Debug, thiserror::Error)]
+pub enum UcsClientBuildError {
+    /// The configured `base_url` is not a valid URI
+    #[error("Failed to parse Unified Connector Service base_url as a URI: {0}")]
+    InvalidUri(String),
+    /// The transport boundary did not yield a usable channel
+    #[error("Unified Connector Service transport could not be constructed")]
+    TransportUnavailable,
+}
+
+/// Builds the single shared channel to the Unified Connector Service.
+///
+/// One lazily connected HTTP/2 connection carries every UCS service client, so no client-specific
+/// channel can sit idle for hours. HTTP/2 PING keepalive runs while idle: a connection that dies
+/// without a GOAWAY is detected within `keep_alive_interval + keep_alive_timeout` and rebuilt by
+/// tonic's reconnect layer before the next RPC, instead of the next RPC failing with
+/// `transport error`. `connect_lazy` performs no I/O here; the first RPC (or the router health
+/// check) opens the connection, and a failed dial fails only that RPC and is retried on the next.
+fn build_ucs_channel(
+    uri: Uri,
+    config: &UnifiedConnectorServiceClientConfig,
+) -> tonic::transport::Channel {
+    tonic::transport::Channel::builder(uri)
+        .connect_timeout(config.connection_timeout.as_duration())
+        .timeout(config.request_timeout.as_duration())
+        .http2_keep_alive_interval(config.keep_alive_interval.as_duration())
+        .keep_alive_timeout(config.keep_alive_timeout.as_duration())
+        .keep_alive_while_idle(true)
+        .tcp_keepalive(Some(config.tcp_keepalive.as_duration()))
+        // Flow-control windows are deliberately left at hyper's defaults (5 MiB connection,
+        // 2 MiB stream). They are not the per-connection 64 KiB of the HTTP/2 spec, so a single
+        // shared connection is not a throughput regression against the eleven it replaces:
+        // gRPC payloads here are a few KiB and never approach the window, and the windows are
+        // receive-side credit rather than a bandwidth cap. `http2_adaptive_window` is
+        // intentionally not enabled; it would *lower* the initial windows to 65,535 bytes and
+        // rely on BDP sampling to grow them back, which only helps on high bandwidth-delay
+        // links carrying large payloads, not on same-region RPCs of this size.
+        .connect_lazy()
 }
 
 /// VGS proxy data
@@ -227,152 +327,102 @@ pub struct VgsMetadata {
 }
 
 impl UnifiedConnectorServiceClient {
-    /// Builds the connection to the gRPC service
-    pub async fn build_connections(config: &GrpcClientSettings) -> Option<Self> {
-        match &config.unified_connector_service {
-            Some(unified_connector_service_client_config) => {
-                let uri: Uri = match unified_connector_service_client_config
-                    .base_url
-                    .get_string_repr()
-                    .parse()
-                {
-                    Ok(parsed_uri) => parsed_uri,
-                    Err(err) => {
-                        logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
-                        return None;
-                    }
-                };
+    /// Builds every UCS service client over one shared channel.
+    ///
+    /// Returns `Ok(None)` when UCS is not configured. Returns `Err` when it is configured but the
+    /// client cannot be built; the caller treats that as fatal at startup.
+    pub async fn build_connections(
+        config: &GrpcClientSettings,
+    ) -> Result<Option<Self>, UcsClientBuildError> {
+        let Some(ucs_config) = &config.unified_connector_service else {
+            logger::info!("Unified Connector Service is not configured; client not built");
+            return Ok(None);
+        };
 
-                let connection_timeout = unified_connector_service_client_config.connection_timeout;
-                let request_timeout = unified_connector_service_client_config.request_timeout;
+        let uri: Uri = ucs_config.base_url.get_string_repr().parse().map_err(
+            |err: tonic::codegen::http::uri::InvalidUri| {
+                logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
+                UcsClientBuildError::InvalidUri(err.to_string())
+            },
+        )?;
 
-                let payment_service_client = build_grpc_client!(
-                    payments_grpc::payment_service_client::PaymentServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "payment_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
+        let channel = build_ucs_channel(uri, ucs_config);
 
-                let refund_service_client = build_grpc_client!(
-                    payments_grpc::refund_service_client::RefundServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "refund_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
+        // deja: the same channel handed to the gRPC egress boundary so every unary rpc is
+        // recorded/substituted at the wire level. Under replay no transport is connected at all.
+        #[cfg(feature = "deja")]
+        let transport: UcsChannel =
+            super::deja_transport::connect_or_substitute(|| async { Some(channel) })
+                .await
+                .ok_or(UcsClientBuildError::TransportUnavailable)?;
 
-                let event_service_client = build_grpc_client!(
-                    payments_grpc::event_service_client::EventServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "event_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
+        #[cfg(not(feature = "deja"))]
+        let transport: UcsChannel = channel;
 
-                let recurring_payment_service_client = build_grpc_client!(
-                    payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "recurring_payment_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
+        logger::info!(
+            keep_alive_interval = ?ucs_config.keep_alive_interval.as_duration(),
+            keep_alive_timeout = ?ucs_config.keep_alive_timeout.as_duration(),
+            tcp_keepalive = ?ucs_config.tcp_keepalive.as_duration(),
+            "Unified Connector Service clients built over one shared lazily-connected channel"
+        );
 
-                let dispute_service_client = build_grpc_client!(
-                    payments_grpc::dispute_service_client::DisputeServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "dispute_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
+        Ok(Some(Self {
+            payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient::new(
+                transport.clone(),
+            ),
+            refund_service_client: payments_grpc::refund_service_client::RefundServiceClient::new(
+                transport.clone(),
+            ),
+            event_service_client: payments_grpc::event_service_client::EventServiceClient::new(
+                transport.clone(),
+            ),
+            recurring_payment_service_client:
+                payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient::new(
+                    transport.clone(),
+                ),
+            dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient::new(
+                transport.clone(),
+            ),
+            payment_method_service_client:
+                payments_grpc::payment_method_service_client::PaymentMethodServiceClient::new(
+                    transport.clone(),
+                ),
+            customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient::new(
+                transport.clone(),
+            ),
+            merchant_authentication_service_client:
+                payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient::new(
+                    transport.clone(),
+                ),
+            payment_method_authentication_service_client:
+                payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient::new(
+                    transport.clone(),
+                ),
+            payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient::new(
+                transport.clone(),
+            ),
+            surcharge_service_client:
+                payments_grpc::surcharge_service_client::SurchargeServiceClient::new(
+                    transport.clone(),
+                ),
+            frm_service_client:
+                payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient::new(
+                    transport.clone(),
+                ),
+            #[cfg(feature = "dynamic_routing")]
+            health_client: super::health_check_client::HealthClient::new(transport.clone()),
+        }))
+    }
 
-                let payment_method_service_client = build_grpc_client!(
-                    payments_grpc::payment_method_service_client::PaymentMethodServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "payment_method_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
-
-                let customer_service_client = build_grpc_client!(
-                    payments_grpc::customer_service_client::CustomerServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "customer_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
-
-                let merchant_authentication_service_client = build_grpc_client!(
-                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
-                    "merchant_authentication_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
-
-                let payment_method_authentication_service_client = build_grpc_client!(
-                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
-                    "payment_method_authentication_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
-
-                let payout_service_client = build_grpc_client!(
-                    payments_grpc::payout_service_client::PayoutServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "payout_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
-
-                let surcharge_service_client = build_grpc_client!(
-                    payments_grpc::surcharge_service_client::SurchargeServiceClient<
-                        tonic::transport::Channel,
-                    >,
-                    "surcharge_service_client",
-                    uri,
-                    connection_timeout,
-                    request_timeout
-                );
-
-                logger::info!("Successfully connected to Unified Connector Service");
-
-                Some(Self {
-                    payment_service_client,
-                    refund_service_client,
-                    event_service_client,
-                    recurring_payment_service_client,
-                    dispute_service_client,
-                    payment_method_service_client,
-                    customer_service_client,
-                    merchant_authentication_service_client,
-                    payment_method_authentication_service_client,
-                    payout_service_client,
-                    surcharge_service_client,
-                })
-            }
-            None => {
-                router_env::logger::error!(?config.unified_connector_service, "Unified Connector Service config is missing");
-                None
-            }
-        }
+    /// Standard gRPC health check (grpc.health.v1 `Check`, empty service name) against UCS over
+    /// the shared channel. `Ok(true)` means UCS reported `SERVING`.
+    #[cfg(feature = "dynamic_routing")]
+    pub async fn health_check(&self) -> Result<bool, tonic::Status> {
+        let request = tonic::Request::new(super::health_check_client::HealthCheckRequest {
+            service: String::new(),
+        });
+        let response = self.health_client.clone().check(request).await?;
+        Ok(response.into_inner().status() == super::health_check_client::ServingStatus::Serving)
     }
 
     /// Performs Payment Method Tokenize
@@ -407,6 +457,44 @@ impl UnifiedConnectorServiceClient {
                     method="payment_method_tokenize",
                     connector_name=?connector_name,
                     "UCS payment_method_tokenize gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Method Refresh
+    pub async fn payment_method_refresh(
+        &self,
+        payment_method_refresh_request: payments_grpc::PaymentMethodServiceRefreshRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        timeout: Duration,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentMethodServiceRefreshResponse>,
+    > {
+        let mut request = tonic::Request::new(payment_method_refresh_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+        request.set_timeout(timeout);
+
+        self.payment_method_service_client
+            .clone()
+            .refresh(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_method_refresh",
+                    connector_name=?connector_name,
+                    "UCS payment_method_refresh gRPC call failed"
                 )
             })
     }
@@ -1057,6 +1145,40 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Voids or reverses a refund before connector settlement.
+    pub async fn refund_void_post_refund(
+        &self,
+        request_data: payments_grpc::RefundServiceVoidPostRefundRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::RefundResponse>> {
+        let mut request = tonic::Request::new(request_data);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.refund_service_client
+            .clone()
+            .void_post_refund(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="refund_void_post_refund",
+                    connector_name=?connector_name,
+                    "UCS refund void post-refund gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payout Create
     pub async fn payout_create(
         &self,
@@ -1172,6 +1294,45 @@ impl UnifiedConnectorServiceClient {
                     method="payout_transfer",
                     connector_name=?connector_name,
                     "UCS payout transfer gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Eligibility (e.g. SEPA VoP / payee verification).
+    pub async fn payout_eligibility(
+        &self,
+        payout_eligibility_request: payments_grpc::PayoutMethodEligibilityRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PayoutMethodEligibilityResponse>,
+    > {
+        let mut request = tonic::Request::new(payout_eligibility_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .eligibility(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_eligibility",
+                    connector_name=?connector_name,
+                    "UCS payout eligibility gRPC call failed"
                 )
             })
     }
@@ -1391,13 +1552,59 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .calculate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
                     method="surcharge_calculate",
                     connector_name=?connector_name,
                     "UCS surcharge_calculate gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs a pre-authorization risk check via the FRM Service.
+    pub async fn frm_pre_risk_check(
+        &self,
+        pre_risk_check_request: payments_grpc::FrmServicePreRiskCheckRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::FrmServicePreRiskCheckResponse>>
+    {
+        let mut request = tonic::Request::new(pre_risk_check_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        // FRM providers are onboarded as `payment_vas`, which the shared builder
+        // maps to `x-frm-connector`.
+        let metadata = build_unified_connector_service_grpc_headers_for_connector_type(
+            connector_auth_metadata,
+            grpc_headers,
+            ConnectorType::PaymentVas,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.frm_service_client
+            .clone()
+            .pre_risk_check(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="frm_pre_risk_check",
+                    connector_name=?connector_name,
+                    "UCS frm_pre_risk_check gRPC call failed"
                 )
             })
     }
@@ -1466,6 +1673,9 @@ fn build_unified_connector_service_grpc_headers_for_connector_type(
         ConnectorType::PaymentProcessor => consts::UCS_HEADER_CONNECTOR,
         ConnectorType::PayoutProcessor => consts::UCS_HEADER_PAYOUT_CONNECTOR,
         ConnectorType::SurchargeProcessor => consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        // FRM providers are onboarded as `payment_vas` and are selected by
+        // `x-frm-connector`, the same way surcharge uses its own header.
+        ConnectorType::PaymentVas => consts::UCS_HEADER_FRM_CONNECTOR,
         connector_type => {
             return Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
@@ -1683,11 +1893,20 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
     // Remove the default connector header
     metadata.remove(consts::UCS_HEADER_CONNECTOR);
 
-    // Choose header based on event type
+    // Choose header based on event type. FRM events are routed by
+    // `x-frm-connector` (mirroring the risk-check path); surcharge events by
+    // `x-surcharge-connector`; everything else by the default `x-connector`.
     let is_surcharge_event = matches!(
         event_type,
         payments_grpc::NotifyEventType::SurchargePaymentSucceeded
             | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+    let is_frm_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::FrmPaymentSucceeded
+            | payments_grpc::NotifyEventType::FrmPaymentFailure
+            | payments_grpc::NotifyEventType::FrmRefundProcessed
+            | payments_grpc::NotifyEventType::FrmChargebackReceived
     );
 
     let connector_name = meta.connector_name.clone();
@@ -1708,6 +1927,8 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
 
     if is_surcharge_event {
         metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else if is_frm_event {
+        metadata.append(consts::UCS_HEADER_FRM_CONNECTOR, connector_value);
     } else {
         metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
     }
