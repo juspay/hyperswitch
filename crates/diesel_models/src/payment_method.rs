@@ -82,6 +82,8 @@ pub struct PaymentMethod {
     pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
+    // Do not use this column in v1 business logic.
+    pub merchant_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -126,7 +128,7 @@ pub struct PaymentMethod {
     pub auxiliary_fingerprint_id: Option<String>,
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
     pub external_vault_token_data: Option<Encryption>,
-    pub fingerprint_id: Option<String>,
+    pub merchant_fingerprint_id: Option<String>,
 }
 
 impl PaymentMethod {
@@ -194,6 +196,8 @@ pub struct PaymentMethodNew {
     pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
+    // Do not use this column in v1 business logic.
+    pub merchant_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -225,7 +229,7 @@ pub struct PaymentMethodNew {
     pub external_vault_token_data: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub auxiliary_fingerprint_id: Option<String>,
-    pub fingerprint_id: Option<String>,
+    pub merchant_fingerprint_id: Option<String>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
@@ -1403,6 +1407,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             id: payment_method_new.id.clone(),
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
             auxiliary_fingerprint_id: payment_method_new.auxiliary_fingerprint_id.clone(),
+            merchant_fingerprint_id: payment_method_new.merchant_fingerprint_id.clone(),
         }
     }
 }
@@ -1438,7 +1443,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .clone(),
             locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
             auxiliary_fingerprint_id: payment_method_new.auxiliary_fingerprint_id.clone(),
-            fingerprint_id: payment_method_new.fingerprint_id.clone(),
+            merchant_fingerprint_id: payment_method_new.merchant_fingerprint_id.clone(),
             payment_method_type_v2: payment_method_new.payment_method_type_v2,
             payment_method_subtype: payment_method_new.payment_method_subtype,
             id: payment_method_new.id.clone(),

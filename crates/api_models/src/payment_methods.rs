@@ -1557,7 +1557,7 @@ pub struct PaymentMethodResponse {
     /// customers of one merchant, so it identifies a card reused across accounts. Null when the
     /// merchant does not have fingerprinting enabled.
     #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
-    pub fingerprint_id: Option<String>,
+    pub merchant_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]

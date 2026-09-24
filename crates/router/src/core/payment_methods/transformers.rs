@@ -786,7 +786,7 @@ pub fn generate_payment_method_response(
         raw_payment_method_data,
         billing,
         acknowledgement_status,
-        fingerprint_id: payment_method.fingerprint_id.clone(),
+        merchant_fingerprint_id: payment_method.merchant_fingerprint_id.clone(),
     };
 
     Ok(resp)

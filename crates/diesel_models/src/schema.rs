@@ -1484,6 +1484,8 @@ diesel::table! {
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
         connector_payment_method_details -> Nullable<Jsonb>,
+        #[max_length = 64]
+        merchant_fingerprint_id -> Nullable<Varchar>,
     }
 }
 

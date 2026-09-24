@@ -1,0 +1,1 @@
+ALTER TABLE payment_methods DROP COLUMN IF EXISTS merchant_fingerprint_id;

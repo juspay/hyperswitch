@@ -338,8 +338,7 @@ async fn build_refreshed_payment_method(
         updated_by: Some(created_by_string),
         locker_fingerprint_id: Some(locker_fingerprint_id),
         auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id),
-        // The refreshed card has a different PAN, so the stored fingerprint no longer describes it.
-        fingerprint_id: None,
+        merchant_fingerprint_id: None,
         version: payment_method.version,
         network_token_requestor_reference_id: payment_method
             .network_token_requestor_reference_id

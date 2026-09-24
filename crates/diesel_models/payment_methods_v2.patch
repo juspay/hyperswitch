@@ -73,7 +73,7 @@ diff --git a/crates/diesel_models/src/schema_v2.rs b/crates/diesel_models/src/sc
 +        connector_payment_method_details -> Nullable<Jsonb>,
 +        external_vault_token_data -> Nullable<Bytea>,
 +        #[max_length = 64]
-+        fingerprint_id -> Nullable<Varchar>,
++        merchant_fingerprint_id -> Nullable<Varchar>,
      }
  }
  

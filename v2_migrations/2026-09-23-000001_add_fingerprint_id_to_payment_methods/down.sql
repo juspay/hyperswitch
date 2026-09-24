@@ -1,1 +1,0 @@
-ALTER TABLE payment_methods DROP COLUMN IF EXISTS fingerprint_id;

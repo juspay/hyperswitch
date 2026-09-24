@@ -1315,6 +1315,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
+            merchant_fingerprint_id: None,
         })
     }
 
@@ -1489,6 +1490,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
+            merchant_fingerprint_id: None,
         })
     }
 }
@@ -1541,7 +1543,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
-            fingerprint_id: self.fingerprint_id,
+            merchant_fingerprint_id: self.merchant_fingerprint_id,
             compatibility_updated_at: self.compatibility_updated_at,
             connector_payment_method_details: None,
         })
@@ -1690,7 +1692,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
                     .network_transaction_link_id
                     .map(ExposeInterface::expose),
                 auxiliary_fingerprint_id: storage_model.auxiliary_fingerprint_id,
-                fingerprint_id: storage_model.fingerprint_id,
+                merchant_fingerprint_id: storage_model.merchant_fingerprint_id,
                 compatibility_updated_at: storage_model.compatibility_updated_at,
             })
         }
@@ -1743,7 +1745,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             compatibility_updated_at: self.compatibility_updated_at,
             external_vault_source: self.external_vault_source,
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
-            fingerprint_id: self.fingerprint_id,
+            merchant_fingerprint_id: self.merchant_fingerprint_id,
         })
     }
 }
