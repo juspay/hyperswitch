@@ -27,8 +27,6 @@ pub struct ConnectorMandateReferenceId {
     pub payment_method_id: Option<String>,
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
-    #[serde(default)]
-    pub mandate_activation: Option<String>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -41,9 +39,6 @@ impl ConnectorMandateReferenceId {
     }
     pub fn get_connector_mandate_id(&self) -> Option<String> {
         self.connector_mandate_id.clone()
-    }
-    pub fn get_mandate_activation(&self) -> Option<&str> {
-        self.mandate_activation.as_deref()
     }
 }
 common_utils::impl_to_sql_from_sql_json!(NetworkDetails);

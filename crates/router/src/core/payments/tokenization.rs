@@ -398,9 +398,13 @@ where
                     .await?;
                     ((res, dc, None), None)
                 } else {
-                    let payment_method_status = common_enums::PaymentMethodStatus::from(
-                        save_payment_method_data.attempt_status,
-                    );
+                    let payment_method_status = if connector_mandate_id.is_some() {
+                        common_enums::PaymentMethodStatus::Active
+                    } else {
+                        common_enums::PaymentMethodStatus::from(
+                            save_payment_method_data.attempt_status,
+                        )
+                    };
                     pm_status = Some(payment_method_status);
                     Box::pin(save_card_and_network_token_in_locker(
                         state,
@@ -1970,21 +1974,26 @@ pub fn update_connector_mandate_details(
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
-                let updated_record = PaymentsMandateReferenceRecord {
-                    connector_mandate_id: connector_mandate_id.clone(),
-                    payment_method_type,
-                    original_payment_authorized_amount: authorized_amount,
-                    original_payment_authorized_currency: authorized_currency,
-                    mandate_metadata: mandate_metadata.clone(),
-                    connector_mandate_status: Some(connector_mandate_status),
-                    connector_mandate_request_reference_id: connector_mandate_request_reference_id
-                        .clone(),
-                    connector_customer_id: None,
-                };
-
                 payment_mandate_reference
                     .entry(mca_id)
-                    .and_modify(|pm| *pm = updated_record)
+                    .and_modify(|pm| {
+                        pm.connector_mandate_id = connector_mandate_id.clone();
+                        pm.payment_method_type = payment_method_type;
+                        if authorized_amount.is_some() {
+                            pm.original_payment_authorized_amount = authorized_amount;
+                        }
+                        if authorized_currency.is_some() {
+                            pm.original_payment_authorized_currency = authorized_currency;
+                        }
+                        if mandate_metadata.is_some() {
+                            pm.mandate_metadata = mandate_metadata.clone();
+                        }
+                        pm.connector_mandate_status = Some(connector_mandate_status);
+                        if connector_mandate_request_reference_id.is_some() {
+                            pm.connector_mandate_request_reference_id =
+                                connector_mandate_request_reference_id.clone();
+                        }
+                    })
                     .or_insert(PaymentsMandateReferenceRecord {
                         connector_mandate_id,
                         payment_method_type,

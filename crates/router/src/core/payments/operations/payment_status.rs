@@ -24,6 +24,7 @@ use crate::{
     types::{
         api, domain,
         storage::{self, enums},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -522,18 +523,33 @@ async fn get_tracker_for_sync<
         .await
         .transpose()?;
 
+    let mandate_id = payment_attempt
+        .mandate_id
+        .clone()
+        .map(|id| mandates::MandateIds {
+            mandate_id: Some(id),
+            mandate_reference_id: None,
+        })
+        .or_else(|| {
+            payment_attempt
+                .connector_mandate_detail
+                .clone()
+                .map(|connector_mandate_detail| mandates::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                        mandates::ConnectorMandateReferenceId::foreign_from(
+                            connector_mandate_detail,
+                        ),
+                    )),
+                })
+        });
+
     let payment_data = PaymentData {
         flow: PhantomData,
         payment_intent,
         currency,
         amount,
-        mandate_id: payment_attempt
-            .mandate_id
-            .clone()
-            .map(|id| mandates::MandateIds {
-                mandate_id: Some(id),
-                mandate_reference_id: None,
-            }),
+        mandate_id,
         mandate_connector: None,
         setup_mandate: None,
         customer_acceptance: None,

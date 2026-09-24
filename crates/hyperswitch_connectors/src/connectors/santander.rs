@@ -15,7 +15,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -1513,12 +1513,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                 data.request.currency,
             )?,
             // No amount is sent back in Boleto response
-            SantanderPaymentsSyncResponse::Boleto(_) => convert_amount(
-                self.amount_converter,
-                data.request.amount,
-                data.request.currency,
-            )?,
-            SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(_) => {
+            SantanderPaymentsSyncResponse::Boleto(_)
+            | SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(_)
+            | SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(_) => {
                 convert_amount(
                     self.amount_converter,
                     data.request.amount,
@@ -2133,9 +2130,7 @@ impl webhooks::IncomingWebhook for Santander {
                 }
 
                 if matches!(&entry.status, responses::RecurrenceStatus::Criada) {
-                    return Ok(ObjectReferenceId::PaymentId(
-                        PaymentIdType::ConnectorTransactionId(entry.id_rec.clone()),
-                    ));
+                    return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
                 }
 
                 match transformers::get_pix_automatico_journey_type(entry) {
@@ -2247,7 +2242,7 @@ impl webhooks::IncomingWebhook for Santander {
                             Some(
                                 responses::SantanderJourneyType::Jornada1
                                 | responses::SantanderJourneyType::Jornada2,
-                            ) => Ok(IncomingWebhookEvent::PaymentIntentSuccessAndMandateActive),
+                            ) => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
                             Some(
                                 responses::SantanderJourneyType::Jornada3
                                 | responses::SantanderJourneyType::Jornada4,
@@ -2271,6 +2266,137 @@ impl webhooks::IncomingWebhook for Santander {
                     Ok(IncomingWebhookEvent::PaymentIntentSuccess)
                 }
             },
+        }
+    }
+
+    fn get_webhook_mandate_details_update(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<webhooks::IncomingWebhookMandateDetailsUpdate>, errors::ConnectorError>
+    {
+        if request.body.is_empty() {
+            return Ok(None);
+        }
+
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        match body {
+            SantanderWebhookBody::PixQr(SantanderPixQrWebhookBody { pix }) => {
+                let pix = pix
+                    .first()
+                    .filter(|pix| !pix.end_to_end_id.peek().is_empty());
+
+                pix.map(|pix| {
+                    let amount = serde_json::Value::String(pix.valor.clone())
+                        .parse_value::<StringMajorUnit>("StringMajorUnit")
+                        .change_context(errors::ConnectorError::ParsingFailed)
+                        .and_then(|amount| {
+                            self.amount_converter
+                                .convert_back(amount, enums::Currency::BRL)
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                        })?;
+
+                    Ok(webhooks::IncomingWebhookMandateDetailsUpdate {
+                        connector_mandate_status: None,
+                        original_payment_authorized_amount: Some(amount),
+                        original_payment_authorized_currency: Some(enums::Currency::BRL),
+                    })
+                })
+                .transpose()
+            }
+            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
+                let entry = cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Ok(None);
+                }
+
+                match entry.status {
+                    responses::SantanderPixAutomaticoCobrStatus::Concluida => {
+                        let pix = entry
+                            .pix
+                            .as_ref()
+                            .and_then(|pix_list| pix_list.first())
+                            .filter(|pix| !pix.end_to_end_id.peek().is_empty());
+
+                        pix.map(|pix| {
+                            let amount = pix
+                                .valor
+                                .clone()
+                                .parse_value::<StringMajorUnit>("StringMajorUnit")
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                                .and_then(|amount| {
+                                    self.amount_converter
+                                        .convert_back(amount, enums::Currency::BRL)
+                                        .change_context(errors::ConnectorError::ParsingFailed)
+                                })?;
+
+                            Ok(webhooks::IncomingWebhookMandateDetailsUpdate {
+                                connector_mandate_status: Some(
+                                    enums::ConnectorMandateStatus::Active,
+                                ),
+                                original_payment_authorized_amount: Some(amount),
+                                original_payment_authorized_currency: Some(enums::Currency::BRL),
+                            })
+                        })
+                        .transpose()
+                    }
+                    _ => Ok(None),
+                }
+            }
+            SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
+                let entry = recs
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Ok(None);
+                }
+
+                match entry.status {
+                    responses::RecurrenceStatus::Aprovada => {
+                        match transformers::get_pix_automatico_journey_type(entry) {
+                            Some(
+                                responses::SantanderJourneyType::Jornada1
+                                | responses::SantanderJourneyType::Jornada2,
+                            ) => Ok(Some(webhooks::IncomingWebhookMandateDetailsUpdate {
+                                connector_mandate_status: Some(
+                                    enums::ConnectorMandateStatus::Active,
+                                ),
+                                original_payment_authorized_amount: Some(MinorUnit::zero()),
+                                original_payment_authorized_currency: Some(enums::Currency::BRL),
+                            })),
+                            Some(
+                                responses::SantanderJourneyType::Jornada3
+                                | responses::SantanderJourneyType::Jornada4,
+                            ) => Ok(Some(webhooks::IncomingWebhookMandateDetailsUpdate {
+                                connector_mandate_status: Some(
+                                    enums::ConnectorMandateStatus::Active,
+                                ),
+                                original_payment_authorized_amount: None,
+                                original_payment_authorized_currency: None,
+                            })),
+                            _ => Ok(None),
+                        }
+                    }
+                    responses::RecurrenceStatus::Rejeitada
+                    | responses::RecurrenceStatus::Expirada
+                    | responses::RecurrenceStatus::Cancelada => {
+                        Ok(Some(webhooks::IncomingWebhookMandateDetailsUpdate {
+                            connector_mandate_status: Some(enums::ConnectorMandateStatus::Inactive),
+                            original_payment_authorized_amount: None,
+                            original_payment_authorized_currency: None,
+                        }))
+                    }
+                    _ => Ok(None),
+                }
+            }
+            _ => Ok(None),
         }
     }
 

@@ -421,6 +421,19 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_webhook_mandate_details_update(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<crate::webhooks::IncomingWebhookMandateDetailsUpdate>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_webhook_mandate_details_update(request),
+            Self::New(connector) => connector.get_webhook_mandate_details_update(request),
+        }
+    }
+
     fn get_additional_payment_method_data(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,

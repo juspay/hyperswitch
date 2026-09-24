@@ -1,6 +1,6 @@
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 use std::future::Future;
-use std::{collections::HashMap, ops::Deref, str::FromStr};
+use std::{collections::HashMap, ops::Deref};
 
 #[cfg(feature = "v1")]
 use ::payment_methods::client::{
@@ -93,106 +93,34 @@ where
     let _task_handle = tokio::spawn(future.in_current_span());
 }
 
-const CONNECTOR_MANDATE_ACTIVATION_METADATA_KEY: &str = "connector_mandate_activation";
+fn get_mandate_activation(payment_attempt: &PaymentAttempt) -> MandateActivation {
+    #[cfg(feature = "v1")]
+    {
+        return MandateActivation::from(payment_attempt);
+    }
 
-fn get_connector_mandate_activation_from_metadata(
-    mandate_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
-) -> Option<MandateActivation> {
-    match mandate_metadata.map(ExposeInterface::expose) {
-        Some(serde_json::Value::Object(metadata)) => metadata
-            .get(CONNECTOR_MANDATE_ACTIVATION_METADATA_KEY)
-            .cloned()
-            .and_then(parse_connector_mandate_activation),
-        _ => None,
+    #[cfg(not(feature = "v1"))]
+    {
+        let _ = payment_attempt;
+        MandateActivation::Failed
     }
 }
 
-fn get_connector_mandate_activation_from_attempt(
-    payment_attempt: &PaymentAttempt,
-) -> Option<MandateActivation> {
-    payment_attempt
-        .connector_mandate_detail
-        .as_ref()
-        .and_then(|mandate_detail| {
-            mandate_detail
-                .get_mandate_activation()
-                .and_then(parse_connector_mandate_activation_str)
-                .or_else(|| {
-                    get_connector_mandate_activation_from_metadata(
-                        mandate_detail.mandate_metadata.clone(),
-                    )
-                })
-        })
-}
-
-fn get_connector_mandate_activation_from_reference(
-    connector_mandate_reference_id: &ConnectorMandateReferenceId,
-) -> Option<MandateActivation> {
-    connector_mandate_reference_id
-        .get_mandate_activation()
-        .or_else(|| {
-            get_connector_mandate_activation_from_metadata(
-                connector_mandate_reference_id.get_mandate_metadata(),
-            )
-        })
-}
-
-fn get_connector_mandate_activation(payment_attempt: &PaymentAttempt) -> MandateActivation {
-    get_connector_mandate_activation_from_attempt(payment_attempt)
-        .unwrap_or_else(|| MandateActivation::from(payment_attempt))
-}
-
-fn is_connector_mandate_activation_pending(payment_attempt: &PaymentAttempt) -> bool {
+fn is_mandate_activation_pending(payment_attempt: &PaymentAttempt) -> bool {
     matches!(
-        get_connector_mandate_activation_from_attempt(payment_attempt),
-        Some(MandateActivation::Pending)
+        get_mandate_activation(payment_attempt),
+        MandateActivation::Pending
     )
 }
 
 fn should_persist_original_authorized_amount(payment_attempt: &PaymentAttempt) -> bool {
-    !is_connector_mandate_activation_pending(payment_attempt)
+    !is_mandate_activation_pending(payment_attempt)
         || matches!(
             payment_attempt.status,
             enums::AttemptStatus::Charged
                 | enums::AttemptStatus::Authorized
                 | enums::AttemptStatus::PartiallyAuthorized
         )
-}
-
-fn parse_connector_mandate_activation_str(value: &str) -> Option<MandateActivation> {
-    MandateActivation::from_str(value).ok()
-}
-
-fn parse_connector_mandate_activation(value: serde_json::Value) -> Option<MandateActivation> {
-    value
-        .as_str()
-        .and_then(parse_connector_mandate_activation_str)
-}
-
-fn extract_connector_mandate_activation(
-    mandate_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
-) -> (
-    Option<MandateActivation>,
-    Option<hyperswitch_masking::Secret<serde_json::Value>>,
-) {
-    match mandate_metadata.map(ExposeInterface::expose) {
-        Some(serde_json::Value::Object(mut metadata)) => {
-            let mandate_activation = metadata
-                .remove(CONNECTOR_MANDATE_ACTIVATION_METADATA_KEY)
-                .and_then(parse_connector_mandate_activation);
-            let mandate_metadata = if metadata.is_empty() {
-                None
-            } else {
-                Some(hyperswitch_masking::Secret::new(serde_json::Value::Object(
-                    metadata,
-                )))
-            };
-
-            (mandate_activation, mandate_metadata)
-        }
-        Some(metadata) => (None, Some(hyperswitch_masking::Secret::new(metadata))),
-        None => (None, None),
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -391,31 +319,11 @@ where
                                     ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
                                 )?;
                                 let is_mandate_activation_pending =
-                                    is_connector_mandate_activation_pending(
-                                        &payment_data.payment_attempt,
-                                    );
+                                    is_mandate_activation_pending(&payment_data.payment_attempt);
                                 let connector_token_status = if is_mandate_activation_pending {
                                     ConnectorTokenStatus::Inactive
                                 } else {
                                     ConnectorTokenStatus::Active
-                                };
-                                let (
-                                    original_payment_authorized_amount,
-                                    original_payment_authorized_currency,
-                                ) = if should_persist_original_authorized_amount(
-                                    &payment_data.payment_attempt,
-                                ) {
-                                    (
-                                        Some(
-                                            payment_data
-                                                .payment_attempt
-                                                .net_amount
-                                                .get_total_amount(),
-                                        ),
-                                        payment_data.payment_attempt.currency,
-                                    )
-                                } else {
-                                    (None, None)
                                 };
                                 let mandate_metadata = payment_data
                                     .payment_attempt
@@ -433,8 +341,8 @@ where
                                             status: connector_token_status,
                                             connector_token_request_reference_id: mandate_reference
                                                 .connector_mandate_request_reference_id,
-                                            original_payment_authorized_amount,
-                                            original_payment_authorized_currency,
+                                            original_payment_authorized_amount: None,
+                                            original_payment_authorized_currency: None,
                                             metadata: mandate_metadata,
                                             connector_customer_id: connector_customer_id.clone(),
                                             token: hyperswitch_masking::Secret::new(
@@ -575,6 +483,8 @@ async fn update_pm_connector_mandate_details<F, Req>(
     initiator: Option<&domain::Initiator>,
     payment_data: &PaymentData<F>,
     router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
+    original_payment_authorized_amount: Option<MinorUnit>,
+    connector_mandate_status_override: Option<common_enums::ConnectorMandateStatus>,
 ) -> RouterResult<()>
 where
     F: Clone + Send + Sync,
@@ -682,26 +592,18 @@ where
                         )
                     })
                     .unwrap_or((None, None, None));
-            let connector_mandate_status = match get_connector_mandate_activation(payment_attempt) {
-                MandateActivation::Pending => existing_connector_mandate_status
-                    .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
-                MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
-                MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
-            };
-            let (authorized_amount, authorized_currency) =
-                if should_persist_original_authorized_amount(payment_attempt) {
-                    (
-                        Some(
-                            payment_attempt
-                                .net_amount
-                                .get_total_amount()
-                                .get_amount_as_i64(),
-                        ),
-                        payment_attempt.currency,
-                    )
-                } else {
-                    (None, None)
-                };
+            let connector_mandate_status = connector_mandate_status_override.unwrap_or_else(|| {
+                match get_mandate_activation(payment_attempt) {
+                    MandateActivation::Pending => existing_connector_mandate_status
+                        .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
+                    MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
+                    MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
+                }
+            });
+            let (authorized_amount, authorized_currency) = original_payment_authorized_amount
+                .filter(|_| should_persist_original_authorized_amount(payment_attempt))
+                .map(|amount| (Some(amount.get_amount_as_i64()), payment_attempt.currency))
+                .unwrap_or((None, None));
 
             let connector_mandate_details = tokenization::update_connector_mandate_details(
                 Some(mandate_details),
@@ -745,7 +647,7 @@ async fn persist_connector_mandate_on_payment_method<F>(
     platform: &domain::Platform,
     payment_data: &PaymentData<F>,
     connector_mandate_reference_id: &Option<ConnectorMandateReferenceId>,
-    authorized_amount: MinorUnit,
+    original_payment_authorized_amount: Option<MinorUnit>,
 ) -> RouterResult<()>
 where
     F: Clone + Send + Sync,
@@ -764,33 +666,16 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse existing payment method mandate details")?;
 
-        let existing_connector_mandate_status = existing_mandate_details
-            .payments
-            .as_ref()
-            .and_then(|payments| payments.0.get(&merchant_connector_id))
-            .and_then(|record| record.connector_mandate_status);
-
-        let connector_mandate_status =
-            match get_connector_mandate_activation_from_reference(&connector_mandate_reference_id)
-                .or_else(|| {
-                    get_connector_mandate_activation_from_attempt(&payment_data.payment_attempt)
-                })
-                .unwrap_or_else(|| MandateActivation::from(&payment_data.payment_attempt))
-            {
-                MandateActivation::Pending => existing_connector_mandate_status
-                    .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
-                MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
-                MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
-            };
-        let (authorized_amount, authorized_currency) =
-            if should_persist_original_authorized_amount(&payment_data.payment_attempt) {
+        let connector_mandate_status = common_enums::ConnectorMandateStatus::Inactive;
+        let (authorized_amount, authorized_currency) = original_payment_authorized_amount
+            .filter(|_| should_persist_original_authorized_amount(&payment_data.payment_attempt))
+            .map(|amount| {
                 (
-                    Some(authorized_amount.get_amount_as_i64()),
+                    Some(amount.get_amount_as_i64()),
                     payment_data.payment_attempt.currency,
                 )
-            } else {
-                (None, None)
-            };
+            })
+            .unwrap_or((None, None));
 
         let connector_mandate_details = tokenization::update_connector_mandate_details(
             Some(existing_mandate_details),
@@ -1085,7 +970,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         platform,
                         payment_data,
                         &connector_mandate_reference_id,
-                        payment_data.payment_attempt.net_amount.get_order_amount(),
+                        None,
                     )
                     .await?;
 
@@ -1234,6 +1119,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 initiator,
                 payment_data,
                 router_data,
+                None,
+                Some(common_enums::ConnectorMandateStatus::Inactive),
             )
             .await
             {
@@ -1565,6 +1452,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 initiator,
                 payment_data,
                 router_data,
+                router_data.authorized_amount,
+                None,
             )
             .await
             {
@@ -2396,7 +2285,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 platform,
                 payment_data,
                 &connector_mandate_reference_id,
-                payment_data.payment_attempt.net_amount.get_total_amount(),
+                None,
             )
             .await?;
         }
@@ -2457,6 +2346,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 initiator,
                 payment_data,
                 router_data,
+                None,
+                Some(common_enums::ConnectorMandateStatus::Inactive),
             )
             .await
             {
@@ -2616,6 +2507,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 initiator,
                 payment_data,
                 router_data,
+                None,
+                Some(common_enums::ConnectorMandateStatus::Inactive),
             )
             .await
             {
@@ -3812,7 +3705,7 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
             .map(|last_modified_by| last_modified_by.to_string());
 
         let payment_method_status_update =
-            if is_connector_mandate_activation_pending(&payment_data.payment_attempt) {
+            if is_mandate_activation_pending(&payment_data.payment_attempt) {
                 None
             } else if payment_method.status != common_enums::PaymentMethodStatus::Active
                 && payment_method.status != attempt_status.into()
@@ -4072,7 +3965,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             Some(data) => Some(mandates::MandateIds {
                 mandate_id: None,
                 mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
-                    mandates::ConnectorMandateReferenceId::new(
+                    ConnectorMandateReferenceId::new(
                         mandate_reference_id,
                         None,
                         None,
@@ -4085,12 +3978,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             None => payment_data.mandate_data,
         };
 
+        let is_mandate_activation_pending = is_mandate_activation_pending(&updated_payment_attempt);
+
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
         payment_data.mandate_data = mandate_data_updated;
 
         if let Some(payment_method) = &payment_data.payment_method {
-            if is_connector_mandate_activation_pending(&updated_payment_attempt) {
+            if is_mandate_activation_pending {
                 return Ok(payment_data);
             }
 
@@ -4626,30 +4521,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("missing connector id")?;
 
-                let net_amount = payment_data.payment_attempt.amount_details.get_net_amount();
-                let currency = payment_data.payment_intent.amount_details.currency;
                 let is_mandate_activation_pending =
-                    is_connector_mandate_activation_pending(&payment_data.payment_attempt);
+                    is_mandate_activation_pending(&payment_data.payment_attempt);
                 let connector_token_status = if is_mandate_activation_pending {
                     common_enums::ConnectorTokenStatus::Inactive
                 } else {
                     common_enums::ConnectorTokenStatus::Active
                 };
-                let (original_payment_authorized_amount, original_payment_authorized_currency) =
-                    if should_persist_original_authorized_amount(&payment_data.payment_attempt) {
-                        (Some(net_amount), Some(currency))
-                    } else {
-                        (None, None)
-                    };
-
                 let connector_token_details_for_payment_method_update =
                     api_models::payment_methods::ConnectorTokenDetails {
                         connector_id,
                         status: connector_token_status,
                         connector_token_request_reference_id: connector_token
                             .and_then(|details| details.connector_token_request_reference_id),
-                        original_payment_authorized_amount,
-                        original_payment_authorized_currency,
+                        original_payment_authorized_amount: None,
+                        original_payment_authorized_currency: None,
                         metadata: None,
                         connector_customer_id: None,
                         token: hyperswitch_masking::Secret::new(token),
@@ -4705,16 +4591,11 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {
-    let (mandate_activation, mandate_metadata) =
-        extract_connector_mandate_activation(mandate_metadata);
     let mut original_connector_mandate_reference_id = payment_data
         .payment_attempt
         .connector_mandate_detail
         .as_ref()
         .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
-    let existing_mandate_activation = original_connector_mandate_reference_id
-        .as_ref()
-        .and_then(get_connector_mandate_activation_from_reference);
     let connector_mandate_reference_id = if connector_mandate_id.is_some() {
         if let Some(ref mut record) = original_connector_mandate_reference_id {
             record.update(
@@ -4738,10 +4619,6 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
     } else {
         original_connector_mandate_reference_id
     };
-    let connector_mandate_reference_id = connector_mandate_reference_id.map(|mut record| {
-        record.set_mandate_activation(mandate_activation.or(existing_mandate_activation));
-        record
-    });
 
     payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
         .clone()

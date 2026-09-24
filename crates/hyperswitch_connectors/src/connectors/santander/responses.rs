@@ -400,6 +400,7 @@ pub enum SantanderPaymentsSyncResponse {
     PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
     PixQrWebhook(Box<SantanderPixQrWebhookResponse>),
     PixAutomaticoCobrWebhook(Box<SantanderPixAutomaticoCobrWebhookResponse>),
+    PixAutomaticoRecWebhook(Box<SantanderPixAutomaticoRecWebhookBody>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
     PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
 }

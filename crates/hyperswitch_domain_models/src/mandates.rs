@@ -745,7 +745,6 @@ pub struct ConnectorMandateReferenceId {
     mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
     updated_mandate_details: Option<UpdatedMandateDetails>,
-    mandate_activation: Option<MandateActivation>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -764,7 +763,6 @@ impl ConnectorMandateReferenceId {
             mandate_metadata,
             connector_mandate_request_reference_id,
             updated_mandate_details,
-            mandate_activation: None,
         }
     }
 
@@ -779,12 +777,6 @@ impl ConnectorMandateReferenceId {
     }
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
-    }
-    pub fn get_mandate_activation(&self) -> Option<MandateActivation> {
-        self.mandate_activation
-    }
-    pub fn set_mandate_activation(&mut self, mandate_activation: Option<MandateActivation>) {
-        self.mandate_activation = mandate_activation;
     }
 
     pub fn update(
