@@ -7427,7 +7427,7 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
 // User API calls
 Cypress.Commands.add("signupUserWithMerchant", (namePrefix, globalState) => {
   const baseUrl = globalState.get("baseUrl");
-  const randomPart = crypto.getRandomValues(new Uint32Array(1))[0] % 10000;
+  const randomPart = crypto.randomInt(10000);
   const uniqueSuffix = `${Date.now()}${randomPart}`;
   const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
   const password = `Cypress@${uniqueSuffix}`;
