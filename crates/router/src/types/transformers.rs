@@ -756,6 +756,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             profile_id: dispute.profile_id,
             merchant_connector_id: dispute.merchant_connector_id,
             is_already_refunded: false,
+            additional_details: dispute.additional_details,
         }
     }
 }
@@ -815,6 +816,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+            additional_details: dispute.additional_details,
         }
     }
 }
@@ -2906,6 +2908,22 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             signature_network: None,
             auth_code: None,
         }
+    }
+}
+
+impl ForeignTryFrom<storage::CardIssuerListItem> for card_issuer_types::CardIssuerResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(from: storage::CardIssuerListItem) -> Result<Self, Self::Error> {
+        let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "issuer_name".into(),
+            },
+        )?;
+        Ok(Self {
+            id: from.id,
+            issuer_name,
+        })
     }
 }
 

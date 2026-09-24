@@ -547,6 +547,8 @@ pub mod superposition {
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
     /// Payout FRM call configuration key
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Maximum number of card issuers a list request reads
+    pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

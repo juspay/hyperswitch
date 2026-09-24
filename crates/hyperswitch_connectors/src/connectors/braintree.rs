@@ -1148,6 +1148,7 @@ impl IncomingWebhook for Braintree {
                 connector_status: dispute_data.status,
                 created_at: dispute_data.created_at,
                 updated_at: dispute_data.updated_at,
+                additional_details: None,
             }),
             None => Err(errors::ConnectorError::WebhookResourceObjectNotFound)?,
         }
