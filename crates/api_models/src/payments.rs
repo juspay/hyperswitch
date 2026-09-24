@@ -29,7 +29,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit, TimeRange},
 };
 use error_stack::ResultExt;
 
@@ -1997,6 +1997,12 @@ pub struct RequestSurchargeDetails {
     pub surcharge_amount: MinorUnit,
     #[smithy(value_type = "Option<i64>")]
     pub tax_amount: Option<MinorUnit>,
+    /// The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if
+    /// available. Present only on responses when an external surcharge connector supplied it;
+    /// ignored on requests.
+    #[schema(value_type = Option<f64>, example = 3.25)]
+    #[smithy(value_type = "Option<f64>")]
+    pub surcharge_percentage: Option<f64>,
 }
 
 // for v2 use the type from common_utils::types
@@ -3873,6 +3879,7 @@ impl GetPaymentMethodType for WalletData {
                 api_enums::PaymentMethodType::AmazonPay
             }
             Self::Skrill(_) => api_enums::PaymentMethodType::Skrill,
+            Self::Neteller(_) => api_enums::PaymentMethodType::Neteller,
             Self::Paysera(_) => api_enums::PaymentMethodType::Paysera,
             Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
@@ -4370,6 +4377,31 @@ impl AdditionalPaymentData {
     pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
         match self {
             Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
+
+    /// Wallet providers report the network as a free-form string in their own spelling.
+    pub fn get_wallet_card_network(&self) -> Option<&str> {
+        match self {
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal: _,
+            } => apple_pay
+                .as_ref()
+                .map(|apple_pay| apple_pay.network.as_str())
+                .or_else(|| {
+                    google_pay
+                        .as_ref()
+                        .and_then(|google_pay| google_pay.card_network.as_deref())
+                })
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|samsung_pay| samsung_pay.card_network.as_deref())
+                }),
             _ => None,
         }
     }
@@ -5373,6 +5405,10 @@ pub enum WalletData {
     #[schema(title = "Skrill")]
     #[smithy(value_type = "SkrillData")]
     Skrill(SkrillData),
+    /// The wallet data for Neteller
+    #[schema(title = "Neteller")]
+    #[smithy(value_type = "NetellerData")]
+    Neteller(NetellerData),
     // The wallet data for Swish
     #[schema(title = "SwishQr")]
     #[smithy(value_type = "SwishQrData")]
@@ -5434,6 +5470,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::AmazonPay(_)
             | Self::AmazonPayRedirect(_)
             | Self::Skrill(_)
+            | Self::Neteller(_)
             | Self::Paysera(_)
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
@@ -5681,6 +5718,12 @@ pub struct AmazonPayRedirectData {}
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SkrillData {}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetellerData {}
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
@@ -9333,7 +9376,7 @@ pub struct PaymentListFilterConstraints {
     pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
+    pub time_range: Option<TimeRange>,
     /// The list of connectors to filter payments list
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
@@ -10119,6 +10162,44 @@ pub struct GpayTokenParameters {
     pub public_key: Option<Secret<String>>,
 }
 
+/// The tokenization type sent to the Google Pay SDK.
+///
+/// Unlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:
+/// the Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during
+/// the session flow before this is built, so it can never leak into an SDK response.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum GooglePayTokenizationSpecificationType {
+    PaymentGateway,
+    Direct,
+}
+
+/// Resolves the caller-facing [`GooglePayTokenizationType`] into the SDK-side equivalent.
+///
+/// `INTERNAL_GATEWAY` is not a tokenization type Google understands: sessions served through it
+/// go through Hyperswitch's own registered gateway, which the SDK knows as `PAYMENT_GATEWAY`.
+impl From<GooglePayTokenizationType> for GooglePayTokenizationSpecificationType {
+    fn from(tokenization_type: GooglePayTokenizationType) -> Self {
+        match tokenization_type {
+            GooglePayTokenizationType::Direct => Self::Direct,
+            GooglePayTokenizationType::PaymentGateway
+            | GooglePayTokenizationType::InternalGateway => Self::PaymentGateway,
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
@@ -10126,8 +10207,8 @@ pub struct GpayTokenParameters {
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
-    #[smithy(value_type = "String")]
-    pub token_specification_type: String,
+    #[smithy(value_type = "GooglePayTokenizationSpecificationType")]
+    pub token_specification_type: GooglePayTokenizationSpecificationType,
     /// The parameters for the token specification Google Pay
     #[smithy(value_type = "GpayTokenParameters")]
     pub parameters: GpayTokenParameters,
@@ -10295,6 +10376,18 @@ pub struct ConnectorMetadata {
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
+    #[smithy(value_type = "Option<StripeConnectorMetadata>")]
+    pub stripe: Option<StripeConnectorMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeConnectorMetadata {
+    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
+    /// instead of returning a `requires_action` status, since there's no customer present to
+    /// complete additional authentication.
+    #[smithy(value_type = "Option<bool>")]
+    pub error_on_requires_action: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10591,6 +10684,11 @@ pub struct SessionTokenInfo {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     #[serde(flatten)]
     pub payment_processing_details_at: Option<PaymentProcessingDetailsAt>,
+    /// Optional in the request, always populated (defaults to `raw`) in the response
+    #[serde(serialize_with = "serialize_payment_processing_detail_input_type")]
+    #[schema(value_type = Option<PaymentProcessingDetailInputType>)]
+    #[smithy(value_type = "Option<PaymentProcessingDetailInputType>")]
+    pub payment_processing_detail_input_type: Option<PaymentProcessingDetailInputType>,
 }
 
 #[derive(
@@ -10626,11 +10724,51 @@ pub struct PaymentProcessingDetails {
     pub payment_processing_certificate_key: Secret<String>,
 }
 
+/// Specifies how the Apple Pay payment processing details are supplied.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentProcessingDetailInputType {
+    /// The payment processing certificates are supplied as raw values.
+    #[default]
+    Raw,
+    /// The payment processing certificates are linked from an organization level resource.
+    LinkHierarchicalResource,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
     #[schema(value_type = Option<CountryAlpha2>)]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+}
+
+/// Serializes the payment processing detail input type in its unwrapped form, so that the response
+/// always carries a concrete value even when it was not provided in the request.
+// serde's `serialize_with` requires the function to accept a reference to the field.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn serialize_payment_processing_detail_input_type<S>(
+    payment_processing_detail_input_type: &Option<PaymentProcessingDetailInputType>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    Serialize::serialize(
+        &payment_processing_detail_input_type.unwrap_or_default(),
+        serializer,
+    )
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -10668,18 +10806,25 @@ pub struct GooglePayMerchantInfo {
 pub struct GooglePayTokenizationSpecification {
     #[serde(rename = "type")]
     pub tokenization_type: GooglePayTokenizationType,
+    /// Absent for `INTERNAL_GATEWAY`, where the merchant supplies no key material at all.
+    #[serde(default)]
     pub parameters: GooglePayTokenizationParameters,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, strum::Display,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayTokenizationType {
     PaymentGateway,
     Direct,
+    /// Hyperswitch-internal marker: the token is encrypted to Hyperswitch's own registered
+    /// gateway key. Never sent to Google as-is; resolved to `PAYMENT_GATEWAY` in the session flow.
+    InternalGateway,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayTokenizationParameters {
     pub gateway: Option<String>,
     pub public_key: Option<Secret<String>>,
@@ -10719,6 +10864,14 @@ impl IntegrationType {
 
     pub fn is_server(self) -> bool {
         matches!(self, Self::Server)
+    }
+
+    /// The header spelling of this value.
+    pub fn as_header_value(self) -> &'static str {
+        match self {
+            Self::Client => "client",
+            Self::Server => "server",
+        }
     }
 }
 
@@ -10782,7 +10935,7 @@ pub enum SessionToken {
 /// Top-level vault details returned in the session-tokens response.
 /// For v1: contains both internal vault (SDK authorization) and external vault details.
 /// For v2: contains only external vault details.
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VaultDetails {
     /// Internal vault details containing the SDK authorization token (v1 only)
     pub internal_vault: Option<InternalVaultSessionDetails>,
@@ -10791,20 +10944,20 @@ pub struct VaultDetails {
 }
 
 /// Internal vault details for SDK authorization
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct InternalVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the internal vault session
     pub sdk_authorization: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
     Vgs(VgsSessionDetails),
     HyperswitchVault(HyperswitchVaultSessionDetails),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VgsSessionDetails {
     /// The identifier of the external vault
     #[schema(value_type = String)]
@@ -10813,7 +10966,7 @@ pub struct VgsSessionDetails {
     pub sdk_env: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
@@ -11771,6 +11924,8 @@ pub struct PaymentsManualUpdateRequest {
     /// Whether to update amount_captured using amount_to_capture from the attempt.
     /// When true, amount_captured will be set to amount_to_capture
     pub update_amount_captured: Option<bool>,
+    /// The amount that has been captured for the payment.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -12996,12 +13151,18 @@ pub struct PaymentLinkResponse {
 pub struct RetrievePaymentLinkResponse {
     /// Identifier for Payment Link
     pub payment_link_id: String,
+    /// Identifier for the associated Payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Identifier for the processor merchant
     #[schema(value_type = Option<String>)]
     pub processor_merchant_id: Option<id_type::MerchantId>,
+    /// Identifier for the business profile
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
     /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
@@ -13130,59 +13291,32 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentLinkListConstraints {
-    /// limit on the number of objects to return
-    pub limit: Option<i64>,
+    /// Limit on the number of objects to return (default: 10, max: 100)
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
-    /// The time at which payment link is created
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
+    /// Number of records to skip (default: 0)
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
 
-    /// Time less than the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lt"
-    )]
-    pub created_lt: Option<PrimitiveDateTime>,
-
-    /// Time greater than the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.gt"
-    )]
-    pub created_gt: Option<PrimitiveDateTime>,
-
-    /// Time less than or equals to the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(
-        default,
-        with = "common_utils::custom_serde::iso8601::option",
-        rename = "created.lte"
-    )]
-    pub created_lte: Option<PrimitiveDateTime>,
-
-    /// Time greater than or equals to the payment link created time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gte")]
-    pub created_gte: Option<PrimitiveDateTime>,
+    /// Time range filter with start_time (mandatory) and optional end_time
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentLinkListResponse {
-    /// The number of payment links included in the list
+    /// The number of payment links included in the current page
     pub size: usize,
-    // The list of payment link response objects
-    pub data: Vec<PaymentLinkResponse>,
+    /// The total number of payment links matching the given filters
+    pub total_count: i64,
+    /// The list of payment link response objects
+    pub data: Vec<RetrievePaymentLinkResponse>,
 }
 
 /// Configure a custom payment link for the particular payment
