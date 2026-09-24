@@ -447,12 +447,8 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      // Mandates set up through a paybox zero-auth payment stay `processing`,
-      // so the saved payment method remains `inactive` on retrieve even after
-      // a successful MIT payment. Here the MIT call itself succeeds
-      // (specs 11/12 run for paybox), so only the assertion is skipped —
-      // unlike 15-ZeroAuthMandate, where the calls fail with 400 and the
-      // spec is excluded (ZERO_AUTH_MANDATE in Utils.js).
+      // Zero-auth mandates stay `processing`, so the saved payment method
+      // remains `inactive` on retrieve even after a successful MIT payment.
       Configs: {
         skipPaymentMethodStatusAssertion: true,
       },
@@ -585,14 +581,8 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
-      // Paybox zero-auth (setup_mandate) CIT payments stay `processing` at the
-      // connector, so the generic retrieve check infers an expected
-      // payment_method_status of `inactive` from the payment status. The saved
-      // payment method is however `active` for it (the CIT activates the
-      // mandate's PM), so the inferred expectation can never match — skip the
-      // assertion, same as MITAutoCapture above. (This config also feeds specs
-      // 11/12/13, which do run for paybox; 15-ZeroAuthMandate itself is
-      // excluded for paybox — see ZERO_AUTH_MANDATE in Utils.js.)
+      // Zero-auth CIT stays `processing`, so the generic retrieve check's
+      // inferred `payment_method_status` can never match for paybox.
       Configs: {
         skipPaymentMethodStatusAssertion: true,
       },

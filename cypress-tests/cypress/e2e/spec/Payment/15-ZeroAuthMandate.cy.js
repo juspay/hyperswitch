@@ -20,8 +20,6 @@ describe("Card - SingleUse Mandates flow test", () => {
             globalState.get("connectorId"),
             utils.CONNECTOR_LISTS.EXCLUDE.MANDATE_ID_TEST
           ) ||
-          // see ZERO_AUTH_MANDATE in Utils.js — the connector-side reason
-          // this spec can't pass for the listed connectors
           utils.shouldExcludeConnector(
             globalState.get("connectorId"),
             utils.CONNECTOR_LISTS.EXCLUDE.ZERO_AUTH_MANDATE
