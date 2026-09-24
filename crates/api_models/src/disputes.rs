@@ -189,10 +189,9 @@ pub struct PlatformDisputeListConstraints {
     pub dispute_id: Option<String>,
     /// The payment_id against which dispute is raised
     pub payment_id: Option<common_utils::id_type::PaymentId>,
-    /// The comma separated list of connected (processor) merchant ids to filter the list.
+    /// The connected (processor) merchant id to filter the list by.
     /// When omitted, disputes across all connected merchants under the platform are returned.
-    #[serde(default, deserialize_with = "parse_comma_separated_merchant_ids")]
-    pub processor_merchant_id: Option<Vec<common_utils::id_type::MerchantId>>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     /// Limit on the number of objects to return
     #[serde(default)]
     pub limit: common_utils::types::list::PageSize,
@@ -396,36 +395,4 @@ where
                 .collect::<Result<_, _>>()
         })
         .transpose()
-}
-
-/// Deserializes a comma-separated string of merchant ids into `Option<Vec<MerchantId>>`.
-/// `MerchantId` does not implement `FromStr`, so it cannot use [`parse_comma_separated`].
-#[cfg(feature = "v1")]
-fn parse_comma_separated_merchant_ids<'de, D>(
-    v: D,
-) -> Result<Option<Vec<common_utils::id_type::MerchantId>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let opt_str: Option<String> = Option::deserialize(v)?;
-    match opt_str {
-        Some(s) if s.trim().is_empty() => Ok(None),
-        Some(s) => {
-            let mut result = Vec::with_capacity(s.matches(',').count() + 1);
-            for item in s.split(',') {
-                let trimmed_item = item.trim();
-                if !trimmed_item.is_empty() {
-                    let merchant_id = common_utils::id_type::MerchantId::wrap(
-                        trimmed_item.to_string(),
-                    )
-                    .map_err(|e| {
-                        D::Error::custom(format!("Invalid merchant_id '{trimmed_item}': {e}"))
-                    })?;
-                    result.push(merchant_id);
-                }
-            }
-            Ok(Some(result))
-        }
-        None => Ok(None),
-    }
 }

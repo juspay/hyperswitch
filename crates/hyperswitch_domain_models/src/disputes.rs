@@ -155,7 +155,8 @@ impl
             merchant_connector_id,
             currency,
             time_range,
-            processor_merchant_id,
+            processor_merchant_id: processor_merchant_id
+                .map(|processor_merchant_id| vec![processor_merchant_id]),
         })
     }
 }
