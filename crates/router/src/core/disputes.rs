@@ -289,16 +289,10 @@ pub async fn get_filters_for_disputes(
     ))
 }
 
-/// Lists disputes aggregated across all connected merchants under a platform merchant.
+/// Lists disputes across all connected merchants under a platform merchant.
 ///
-/// Unlike [`retrieve_disputes_list`], which scopes to a single processor merchant, this filters
-/// on `dispute.merchant_id` (= the platform's id) and can optionally be narrowed to specific
-/// connected merchants via `processor_merchant_id`.
-///
-/// The response is an intentionally slim, non-PII summary built directly from the raw dispute
-/// rows. Dispute records hold no encrypted PII, so no per-merchant decryption is performed here
-/// (mirroring the platform payments list); this also leaves room to add only further non-PII
-/// fields to the aggregate response later without needing any encryption/decryption.
+/// Returns a slim, non-PII summary built from raw dispute rows, so no per-merchant decryption
+/// is performed.
 #[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list_for_platform(
@@ -347,10 +341,6 @@ pub async fn retrieve_disputes_list_for_platform(
     ))
 }
 
-/// Available dispute filter values for a platform, aggregated across all of its connected
-/// merchants. Connectors are derived from the *configured* merchant connector accounts of every
-/// connected merchant under the platform's organization (mirroring [`get_filters_for_disputes`]
-/// and the platform payment filters). The remaining filters are the full set of supported values.
 #[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_platform_disputes_filters(

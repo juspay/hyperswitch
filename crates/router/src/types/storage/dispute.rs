@@ -16,10 +16,6 @@ pub trait DisputeDbExt: Sized {
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
-    /// List dispute rows for a platform merchant across all of its connected merchants.
-    /// Filters on `dispute.merchant_id` (which equals the platform's id on connected-merchant
-    /// rows) instead of `processor_merchant_id`, with an optional `processor_merchant_id`
-    /// filter to narrow to specific connected merchants.
     #[cfg(feature = "v1")]
     async fn filter_by_constraints_for_platform(
         conn: &DatabaseConnectionWithContext<'_>,
@@ -27,7 +23,6 @@ pub trait DisputeDbExt: Sized {
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
-    /// Total count of disputes matching a platform listing's constraints (ignores limit/offset).
     #[cfg(feature = "v1")]
     async fn get_disputes_count_for_platform(
         conn: &DatabaseConnectionWithContext<'_>,
@@ -140,10 +135,6 @@ impl DisputeDbExt for Dispute {
         platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        // Platform listings aggregate across every connected merchant, so filter on
-        // `merchant_id` (= the platform's id on connected-merchant rows) rather than
-        // `processor_merchant_id`. An optional `processor_merchant_id` filter narrows the
-        // result to specific connected merchants.
         let mut filter = diesel_models::boxed_list_query!(
             Dispute,
             scope = dsl::merchant_id.eq(platform_merchant_id.to_owned()),
@@ -212,7 +203,6 @@ impl DisputeDbExt for Dispute {
         platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
-        // `total_count` ignores limit/offset/order so the caller can paginate.
         let mut filter = diesel_models::list::into_boxed_list(
             <Self as HasTable>::table()
                 .count()
