@@ -2339,10 +2339,6 @@ pub async fn get_fingerprints_for_payment_method(
     customer_id: String,
     merchant_fingerprint_secret: Option<Secret<String>>,
 ) -> CustomResult<PaymentMethodFingerprints, errors::VaultError> {
-    let locker_data = serde_json::to_string(&payment_method_data.to_fingerprint_data())
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode Vaulting data to string")?;
-
     // Absent for payment methods that carry nothing to fingerprint beyond the locker payload.
     let auxiliary_data = payment_method_data
         .to_auxiliary_fingerprint_data()
@@ -2374,7 +2370,13 @@ pub async fn get_fingerprints_for_payment_method(
     let pm_types::VaultFingerprintResponse {
         fingerprint_id,
         mut additional,
-    } = call_vault_for_fingerprints(state, locker_data, customer_id, additional).await?;
+    } = call_vault_for_fingerprints(
+        state,
+        &payment_method_data.to_fingerprint_data(),
+        customer_id,
+        additional,
+    )
+    .await?;
 
     // A vault without batch support ignores the request and returns only the locker fingerprint.
     let auxiliary_fingerprint_id = match (
@@ -2394,13 +2396,16 @@ pub async fn get_fingerprints_for_payment_method(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all)]
-async fn call_vault_for_fingerprints(
+async fn call_vault_for_fingerprints<D: serde::Serialize>(
     state: &routes::SessionState,
-    data: String,
+    data: &D,
     key: String,
     additional: Option<Vec<pm_types::AdditionalVaultFingerprint>>,
 ) -> CustomResult<pm_types::VaultFingerprintResponse, errors::VaultError> {
+    let data = serde_json::to_string(data)
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode Vaulting data to string")?;
+
     let payload = pm_types::VaultFingerprintRequestNew {
         key,
         data,
@@ -2433,10 +2438,6 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
     data: &D,
     key: String,
 ) -> CustomResult<String, errors::VaultError> {
-    let data = serde_json::to_string(data)
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode Vaulting data to string")?;
-
     Ok(call_vault_for_fingerprints(state, data, key, None)
         .await?
         .fingerprint_id)
