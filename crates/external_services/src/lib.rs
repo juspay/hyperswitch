@@ -67,6 +67,20 @@ pub mod consts {
     /// Default per-RPC timeout (seconds) for unified connector service calls.
     pub(crate) const DEFAULT_UCS_REQUEST_TIMEOUT_SECS: u64 = 35;
 
+    /// Default HTTP/2 PING keepalive interval (seconds) on the shared channel to the unified
+    /// connector service. PINGs are sent while idle so a dead connection is detected and
+    /// re-established in the background instead of by the next payment RPC.
+    pub(crate) const DEFAULT_UCS_KEEP_ALIVE_INTERVAL_SECS: u64 = 30;
+
+    /// Default time (seconds) to wait for a keepalive PING acknowledgement before the
+    /// connection to the unified connector service is treated as dead. Matches the gRPC-Go
+    /// client default; a tighter value drops connections during ordinary load spikes.
+    pub(crate) const DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS: u64 = 20;
+
+    /// Default TCP keepalive idle time (seconds) on the shared channel to the unified connector
+    /// service. OS-level backstop for the HTTP/2 PING keepalive.
+    pub(crate) const DEFAULT_UCS_TCP_KEEPALIVE_SECS: u64 = 60;
+
     /// General purpose base64 engine
     #[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -80,6 +94,7 @@ pub mod consts {
 
     /// Header key used to specify the surcharge connector name in UCS requests.
     pub(crate) const UCS_HEADER_SURCHARGE_CONNECTOR: &str = "x-surcharge-connector";
+    pub(crate) const UCS_HEADER_FRM_CONNECTOR: &str = "x-frm-connector";
 
     /// Header key used to indicate the authentication type being used.
     pub(crate) const UCS_HEADER_AUTH_TYPE: &str = "x-auth";
