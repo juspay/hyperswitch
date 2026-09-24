@@ -563,9 +563,10 @@ pub async fn trip_status(
     let rollout_scope = rollout_scope_in(&key_or_scope);
 
     let counter_value: u64 =
-        read_counter(&state, rollout_scope, UcsFailureClass::IntegrationFailure).await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to read the UCS kill switch counter")?;
+        read_counter(&state, rollout_scope, UcsFailureClass::IntegrationFailure)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to read the UCS kill switch counter")?;
 
     // Fetch the kill_switch_threshold from the RolloutConfig for this scope.
     // Uses the scope-level config key (without org prefix) since trip_status
