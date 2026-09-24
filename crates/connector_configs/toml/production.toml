@@ -8210,6 +8210,10 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[revolv3.debit]]
 payment_method_type = "UnionPay"
+[[revolv3.wallet]]
+payment_method_type = "google_pay"
+[[revolv3.wallet]]
+payment_method_type = "apple_pay"
 [revolv3.connector_auth.HeaderKey]
 api_key = "Static Tokens"
 
