@@ -6501,8 +6501,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6514,8 +6512,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[cfg(feature = "v1")]
@@ -6535,9 +6531,6 @@ impl fmt::Display for PaymentIdType {
             ),
             Self::PaymentAttemptId(payment_attempt_id) => {
                 write!(f, "payment_attempt_id = \"{payment_attempt_id}\"")
-            }
-            Self::PreprocessingId(preprocessing_id) => {
-                write!(f, "preprocessing_id = \"{preprocessing_id}\"")
             }
         }
     }

@@ -698,12 +698,6 @@ pub async fn get_payment_intent_payment_attempt(
                     )
                     .await?;
             }
-            api_models::payments::PaymentIdType::PreprocessingId(_) => {
-                return Err(errors::StorageError::ValueNotFound(
-                    "no payment found for the given preprocessing_id".to_string(),
-                )
-                .into());
-            }
         }
         error_stack::Result::<_, errors::StorageError>::Ok((pi, pa))
     };
