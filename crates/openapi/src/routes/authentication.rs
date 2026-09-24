@@ -64,8 +64,9 @@ pub async fn authentication_authenticate() {}
 ///
 #[utoipa::path(
     post,
-    path = "/authentication/{authentication_id}/redirect",
+    path = "/authentication/{merchant_id}/{authentication_id}/redirect",
     params(
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("authentication_id" = String, Path, description = "The identifier for authentication"),
     ),
     request_body = AuthenticationSyncPostUpdateRequest,
@@ -85,8 +86,9 @@ pub async fn authentication_redirect() {}
 ///
 #[utoipa::path(
     post,
-    path = "/authentication/{authentication_id}/sync",
+    path = "/authentication/{merchant_id}/{authentication_id}/sync",
     params(
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("authentication_id" = String, Path, description = "The identifier for authentication"),
     ),
     request_body = AuthenticationSyncRequest,

@@ -9523,7 +9523,7 @@
         ]
       }
     },
-    "/authentication/{authentication_id}/redirect": {
+    "/authentication/{merchant_id}/{authentication_id}/redirect": {
       "post": {
         "tags": [
           "Authentication"
@@ -9532,6 +9532,15 @@
         "description": "Redirect an authentication for accessing our APIs from your servers.\n",
         "operationId": "Redirect an Authentication",
         "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "authentication_id",
             "in": "path",
@@ -9563,7 +9572,7 @@
         "security": []
       }
     },
-    "/authentication/{authentication_id}/sync": {
+    "/authentication/{merchant_id}/{authentication_id}/sync": {
       "post": {
         "tags": [
           "Authentication"
@@ -9572,6 +9581,15 @@
         "description": "Sync an authentication for accessing our APIs from your servers.\n",
         "operationId": "Sync an Authentication",
         "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "authentication_id",
             "in": "path",
