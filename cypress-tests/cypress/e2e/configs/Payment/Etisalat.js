@@ -19,6 +19,21 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
+// pm_filters.etisalat (config/development.toml) restricts eligibility to
+// AE, BH, KW, OM, QA, SA, EG — without a matching billing country the
+// connector is excluded from routing (IR_39 "No eligible connector").
+const billing = {
+  address: {
+    line1: "1467",
+    city: "Dubai",
+    state: "Dubai",
+    zip: "00000",
+    country: "AE",
+    first_name: "John",
+    last_name: "Doe",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -26,6 +41,7 @@ export const connectorDetails = {
         currency: "USD",
         amount: 6000,
         customer_acceptance: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -43,6 +59,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -60,6 +77,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -78,6 +96,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         authentication_type: "three_ds",
+        billing,
       },
       Response: {
         status: 200,
@@ -96,6 +115,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         authentication_type: "three_ds",
+        billing,
       },
       Response: {
         status: 200,
@@ -111,6 +131,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         customer_acceptance: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -164,6 +185,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -180,6 +202,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
+        billing,
       },
       Response: {
         status: 200,
@@ -195,6 +218,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        billing,
       },
       Response: {
         status: 200,
@@ -210,6 +234,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         setup_future_usage: "off_session",
+        billing,
       },
       Response: {
         status: 200,
@@ -226,6 +251,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
+        billing,
       },
       Response: {
         status: 200,
@@ -241,6 +267,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        billing,
       },
       Response: {
         status: 200,
@@ -252,6 +279,7 @@ export const connectorDetails = {
     SaveCardConfirmManualCaptureOffSession: getCustomExchange({
       Request: {
         setup_future_usage: "off_session",
+        billing,
       },
       Response: {
         status: 200,
@@ -299,6 +327,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -316,6 +345,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -333,6 +363,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
+        billing,
       },
       Response: {
         status: 200,
@@ -350,6 +381,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: null,
+        billing,
       },
       Response: {
         status: 200,
