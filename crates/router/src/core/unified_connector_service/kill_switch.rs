@@ -25,12 +25,31 @@ use crate::{
     routes::SessionState,
 };
 
-/// Hash field name for the failure counter.
+/// Hash field holding the integration-failure counter. Named `counter` rather than something
+/// symmetrical with the decline field because scopes in flight already hold their count under
+/// this name; renaming it would silently reset every live counter on deploy.
 const COUNTER_FIELD: &str = "counter";
+
+/// Hash field holding the connector-decline counter, in the same hash as [`COUNTER_FIELD`].
+/// Separate because the two classes are measured against separate thresholds: sharing one
+/// field would mean `connector_decline_threshold: N` trips on N failures of any kind rather
+/// than N declines.
+const DECLINE_COUNTER_FIELD: &str = "counter_connector_decline";
 
 /// Whether the counter has reached or exceeded the threshold.
 fn exceeds_threshold(count: u64, threshold: u64) -> bool {
     count >= threshold
+}
+
+impl UcsFailureClass {
+    /// The hash field this class counts into. Each class has its own field so it is measured
+    /// only against its own threshold.
+    fn counter_field(self) -> &'static str {
+        match self {
+            Self::ConnectorDecline => DECLINE_COUNTER_FIELD,
+            Self::IntegrationFailure => COUNTER_FIELD,
+        }
+    }
 }
 
 /// Redis key holding the failure counter for a scope.
@@ -51,6 +70,39 @@ fn rollout_scope_in(key_or_scope: &str) -> &str {
     }
 }
 
+/// Both of a scope's counters and whether each has reached its own threshold.
+struct ScopeCounters {
+    count: u64,
+    exceeded: bool,
+    decline_count: u64,
+    decline_exceeded: bool,
+}
+
+/// Reads both counters for a scope. Each class is compared only against its own threshold;
+/// a scope with no `connector_decline_threshold` never trips on declines.
+async fn read_counters(
+    state: &SessionState,
+    rollout_scope: &str,
+    settings: RolloutSettings,
+) -> error_stack::Result<ScopeCounters, storage_impl::errors::RedisError> {
+    let count = read_counter(state, rollout_scope, UcsFailureClass::IntegrationFailure).await?;
+
+    let decline_count = match settings.connector_decline_threshold {
+        Some(_) => read_counter(state, rollout_scope, UcsFailureClass::ConnectorDecline).await?,
+        // Nothing to compare against, so the read is skipped rather than fetched and ignored.
+        None => 0,
+    };
+
+    Ok(ScopeCounters {
+        count,
+        exceeded: exceeds_threshold(count, settings.kill_switch_threshold),
+        decline_count,
+        decline_exceeded: settings
+            .connector_decline_threshold
+            .is_some_and(|threshold| exceeds_threshold(decline_count, threshold)),
+    })
+}
+
 /// Whether the kill switch should divert this scope to shadow mode.
 ///
 /// Checks: per-scope `kill_switch_enabled` from RolloutConfig must be true. Then reads the
@@ -60,29 +112,42 @@ fn rollout_scope_in(key_or_scope: &str) -> &str {
 pub async fn is_kill_switched(
     state: &SessionState,
     rollout_scope: &str,
-    kill_switch_enabled: bool,
-    kill_switch_threshold: u64,
+    settings: RolloutSettings,
 ) -> bool {
+    let kill_switch_enabled = settings.kill_switch_enabled;
+    let kill_switch_threshold = settings.kill_switch_threshold;
+
     if kill_switch_enabled {
-        match read_counter(state, rollout_scope).await {
-            Ok(count) => {
-                let exceeded = exceeds_threshold(count, kill_switch_threshold);
+        match read_counters(state, rollout_scope, settings).await {
+            Ok(ScopeCounters {
+                count,
+                exceeded,
+                decline_count,
+                decline_exceeded,
+            }) => {
                 // Only when it matters. This runs on every UCS call, and the counter's
                 // value is already reported by UCS_KILL_SWITCH_COUNTER_INCREMENTED at the
                 // moment it changes; logging every read would re-state that at the highest
                 // frequency in the module.
-                if exceeded {
+                if exceeded || decline_exceeded {
                     logger::warn!(
                         rollout_scope = %rollout_scope,
                         kill_switch_enabled = kill_switch_enabled,
                         redis_count = count,
                         threshold = kill_switch_threshold,
+                        decline_count = decline_count,
+                        connector_decline_threshold = ?settings.connector_decline_threshold,
+                        failure_class = %if exceeded {
+                            UcsFailureClass::IntegrationFailure
+                        } else {
+                            UcsFailureClass::ConnectorDecline
+                        },
                         tripped = true,
                         request_id = ?state.request_id,
                         "UCS_KILL_SWITCH_COUNTER_EXCEEDS_THRESHOLD"
                     );
                 }
-                exceeded
+                exceeded || decline_exceeded
             }
             // Fails closed: the scope goes to shadow when Redis cannot answer.
             Err(error) => {
@@ -115,12 +180,13 @@ pub async fn is_kill_switched(
 async fn read_counter(
     state: &SessionState,
     rollout_scope: &str,
+    failure_class: UcsFailureClass,
 ) -> error_stack::Result<u64, storage_impl::errors::RedisError> {
     let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
     let count: u64 = state
         .store
         .get_redis_conn()?
-        .get_hash_field::<Option<u64>>(&key, COUNTER_FIELD)
+        .get_hash_field::<Option<u64>>(&key, failure_class.counter_field())
         .await?
         .unwrap_or(0);
 
@@ -367,7 +433,7 @@ async fn increment_counter(
     failure: &TrippableFailure,
     context: &UcsFailureContext<'_>,
 ) -> (IncrementOutcome, Option<u64>) {
-    match write_counter(state, &failure.rollout_scope).await {
+    match write_counter(state, &failure.rollout_scope, failure.failure_class).await {
         Ok(counts) => {
             // HINCRBY returns the value of each field after the increment; this call
             // increments exactly one field.
@@ -415,12 +481,13 @@ async fn increment_counter(
 async fn write_counter(
     state: &SessionState,
     rollout_scope: &str,
+    failure_class: UcsFailureClass,
 ) -> error_stack::Result<Vec<usize>, storage_impl::errors::RedisError> {
     let conn = state.store.get_redis_conn()?;
     let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
 
     let result = conn
-        .increment_fields_in_hash(&key, &[(COUNTER_FIELD, 1)])
+        .increment_fields_in_hash(&key, &[(failure_class.counter_field(), 1)])
         .await?;
 
     conn.set_expiry(&key, consts::UCS_KILL_SWITCH_TTL_IN_SECONDS)
@@ -444,6 +511,13 @@ pub struct KillSwitchStatusResponse {
     pub counter: u64,
     /// `None` when no `RolloutConfig` exists for this scope — falls back to trip-on-first-failure.
     pub threshold: Option<u64>,
+    /// Connector declines, counted separately from `counter` and measured against
+    /// `connector_decline_threshold`.
+    pub decline_counter: u64,
+    /// `None` when the scope does not set one, in which case declines never trip it.
+    pub connector_decline_threshold: Option<u64>,
+    /// True when either counter has reached its own threshold — the same condition the gate
+    /// diverts on.
     pub tripped: bool,
 }
 
@@ -488,8 +562,8 @@ pub async fn trip_status(
 ) -> errors::RouterResponse<KillSwitchStatusResponse> {
     let rollout_scope = rollout_scope_in(&key_or_scope);
 
-    let counter_value: u64 = read_counter(&state, rollout_scope)
-        .await
+    let counter_value: u64 =
+        read_counter(&state, rollout_scope, UcsFailureClass::IntegrationFailure).await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to read the UCS kill switch counter")?;
 
@@ -501,7 +575,7 @@ pub async fn trip_status(
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         rollout_scope
     );
-    let threshold: Option<u64> = state
+    let rollout_config: Option<(u64, Option<u64>)> = state
         .store
         .find_config_by_key_unwrap_or(
             &config_key,
@@ -521,18 +595,33 @@ pub async fn trip_status(
                 })
                 .ok()
         })
-        .map(|rc| rc.kill_switch_threshold);
+        .map(|rc| (rc.kill_switch_threshold, rc.connector_decline_threshold));
+
+    let connector_decline_threshold = rollout_config.and_then(|(_, decline)| decline);
+    let threshold: Option<u64> = rollout_config.map(|(integration, _)| integration);
+
+    // Only read when something can come of it, matching the gate.
+    let decline_counter = match connector_decline_threshold {
+        Some(_) => read_counter(&state, rollout_scope, UcsFailureClass::ConnectorDecline)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to read the UCS kill switch decline counter")?,
+        None => 0,
+    };
 
     let tripped = match threshold {
         Some(t) => exceeds_threshold(counter_value, t),
         None => counter_value > 0,
-    };
+    } || connector_decline_threshold
+        .is_some_and(|threshold| exceeds_threshold(decline_counter, threshold));
 
     Ok(crate::services::ApplicationResponse::Json(
         KillSwitchStatusResponse {
             rollout_scope: rollout_scope.to_string(),
             counter: counter_value,
             threshold,
+            decline_counter,
+            connector_decline_threshold,
             tripped,
         },
     ))
@@ -692,6 +781,27 @@ mod tests {
 
         assert!(key.starts_with(consts::UCS_KILL_SWITCH_REDIS_PREFIX));
         assert!(!key.starts_with(consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX));
+    }
+
+    /// The whole point of a separate `connector_decline_threshold`: a decline must not be
+    /// measured against a count that integration failures contributed to. Sharing one field
+    /// would make `connector_decline_threshold: N` mean "N failures of any kind".
+    #[test]
+    fn each_failure_class_counts_into_its_own_field() {
+        assert_ne!(
+            UcsFailureClass::ConnectorDecline.counter_field(),
+            UcsFailureClass::IntegrationFailure.counter_field()
+        );
+    }
+
+    /// Scopes in flight already hold their count under `counter`. Renaming that field would
+    /// silently reset every live counter on deploy, un-tripping scopes that had tripped.
+    #[test]
+    fn integration_failures_keep_the_pre_existing_field_name() {
+        assert_eq!(
+            UcsFailureClass::IntegrationFailure.counter_field(),
+            "counter"
+        );
     }
 
     #[test]
