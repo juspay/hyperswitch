@@ -15,8 +15,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         unified_authentication_service::PreAuthenticate, AccessTokenAuth, Authorize, Capture,
-        CompleteAuthorize, Execute, PSync, PaymentMethodToken, RSync, Session, SetupMandate,
-        Void,
+        CompleteAuthorize, Execute, PSync, PaymentMethodToken, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,

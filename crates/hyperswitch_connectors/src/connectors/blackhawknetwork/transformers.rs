@@ -12,7 +12,9 @@ use hyperswitch_domain_models::{
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, PaymentsGiftCardBalanceCheckRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsGiftCardBalanceCheckRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
 use hyperswitch_masking::Secret;
