@@ -4445,6 +4445,7 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
             challenge_required_by: None,
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 }

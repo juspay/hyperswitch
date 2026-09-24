@@ -3934,6 +3934,10 @@ where
             .map(|surcharge_amount| RequestSurchargeDetails {
                 surcharge_amount,
                 tax_amount: payment_attempt.net_amount.get_tax_on_surcharge(),
+                surcharge_percentage: payment_attempt
+                    .external_surcharge_details
+                    .as_ref()
+                    .and_then(|details| details.surcharge_percentage_as_f64()),
             });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
@@ -4867,6 +4871,10 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 RequestSurchargeDetails {
                     surcharge_amount,
                     tax_amount: pa.net_amount.get_tax_on_surcharge(),
+                    surcharge_percentage: pa
+                        .external_surcharge_details
+                        .as_ref()
+                        .and_then(|details| details.surcharge_percentage_as_f64()),
                 }
             }),
             merchant_decision: None,
