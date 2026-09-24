@@ -1320,6 +1320,7 @@ async fn payout_incoming_webhook_update_status(
             unified_code: None,
             unified_message: None,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            active_frm_id: None,
         }
     } else {
         PayoutAttemptUpdate::StatusUpdate {
@@ -1332,6 +1333,7 @@ async fn payout_incoming_webhook_update_status(
             unified_code: None,
             unified_message: None,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            active_frm_id: None,
         }
     };
 
@@ -2483,7 +2485,6 @@ async fn update_payment_attempt_associated_data(
     );
 
     match sender_payment_instrument_id {
-
         Some(sender_payment_instrument_id) => {
             let attempt_update = storage::PaymentAttemptUpdate::AssociatedDataUpdate {
                 sender_payment_instrument_id: Some(sender_payment_instrument_id),

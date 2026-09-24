@@ -280,3 +280,10 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GotymeSanlamPayoutResponse>> for Pa
         })
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GotymeSanlamFrmMetadata {
+    pub profile_id: String,
+    pub connector_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+}

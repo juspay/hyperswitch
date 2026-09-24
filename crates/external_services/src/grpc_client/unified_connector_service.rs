@@ -60,6 +60,8 @@ pub struct UnifiedConnectorServiceClient {
     pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<UcsChannel>,
     /// The Surcharge Service Client
     pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
+    /// The Fraud and Risk Management Service Client
+    pub frm_service_client: payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<UcsChannel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -402,6 +404,16 @@ impl UnifiedConnectorServiceClient {
                     request_timeout
                 );
 
+                let frm_service_client = build_grpc_client!(
+                    payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<
+                        UcsChannel,
+                    >,
+                    "frm_service_client",
+                    uri,
+                    connection_timeout,
+                    request_timeout
+                );
+
                 // Replay connected nothing — the boundary stands in for every channel — so the
                 // usual claim would be false there. Every other mode performed the same eager
                 // connect it always did.
@@ -429,6 +441,7 @@ impl UnifiedConnectorServiceClient {
                     payment_method_authentication_service_client,
                     payout_service_client,
                     surcharge_service_client,
+                    frm_service_client,
                 })
             }
             None => {
@@ -1565,13 +1578,59 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .calculate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
                     method="surcharge_calculate",
                     connector_name=?connector_name,
                     "UCS surcharge_calculate gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs a pre-authorization risk check via the FRM Service.
+    pub async fn frm_pre_risk_check(
+        &self,
+        pre_risk_check_request: payments_grpc::FrmServicePreRiskCheckRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::FrmServicePreRiskCheckResponse>>
+    {
+        let mut request = tonic::Request::new(pre_risk_check_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        // FRM providers are onboarded as `payment_vas`, which the shared builder
+        // maps to `x-frm-connector`.
+        let metadata = build_unified_connector_service_grpc_headers_for_connector_type(
+            connector_auth_metadata,
+            grpc_headers,
+            ConnectorType::PaymentVas,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.frm_service_client
+            .clone()
+            .pre_risk_check(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="frm_pre_risk_check",
+                    connector_name=?connector_name,
+                    "UCS frm_pre_risk_check gRPC call failed"
                 )
             })
     }
@@ -1640,6 +1699,9 @@ fn build_unified_connector_service_grpc_headers_for_connector_type(
         ConnectorType::PaymentProcessor => consts::UCS_HEADER_CONNECTOR,
         ConnectorType::PayoutProcessor => consts::UCS_HEADER_PAYOUT_CONNECTOR,
         ConnectorType::SurchargeProcessor => consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        // FRM providers are onboarded as `payment_vas` and are selected by
+        // `x-frm-connector`, the same way surcharge uses its own header.
+        ConnectorType::PaymentVas => consts::UCS_HEADER_FRM_CONNECTOR,
         connector_type => {
             return Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
@@ -1857,11 +1919,20 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
     // Remove the default connector header
     metadata.remove(consts::UCS_HEADER_CONNECTOR);
 
-    // Choose header based on event type
+    // Choose header based on event type. FRM events are routed by
+    // `x-frm-connector` (mirroring the risk-check path); surcharge events by
+    // `x-surcharge-connector`; everything else by the default `x-connector`.
     let is_surcharge_event = matches!(
         event_type,
         payments_grpc::NotifyEventType::SurchargePaymentSucceeded
             | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+    let is_frm_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::FrmPaymentSucceeded
+            | payments_grpc::NotifyEventType::FrmPaymentFailure
+            | payments_grpc::NotifyEventType::FrmRefundProcessed
+            | payments_grpc::NotifyEventType::FrmChargebackReceived
     );
 
     let connector_name = meta.connector_name.clone();
@@ -1882,6 +1953,8 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
 
     if is_surcharge_event {
         metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else if is_frm_event {
+        metadata.append(consts::UCS_HEADER_FRM_CONNECTOR, connector_value);
     } else {
         metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
     }

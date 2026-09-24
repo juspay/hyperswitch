@@ -7,6 +7,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile, Merchant]
         },
+        PaymentLink: {
+            scopes: [Read],
+            entities: [Profile, Merchant]
+        },
         Refund: {
             scopes: [Read, Write],
             entities: [Profile, Merchant]
@@ -121,6 +125,7 @@ generate_permissions! {
 pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<&'static str> {
     match (resource, entity_type) {
         (Resource::Payment, _) => Some("Payments"),
+        (Resource::PaymentLink, _) => Some("Payment Links"),
         (Resource::Refund, _) => Some("Refunds"),
         (Resource::Dispute, _) => Some("Disputes"),
         (Resource::Mandate, _) => Some("Mandates"),

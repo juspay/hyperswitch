@@ -27,6 +27,7 @@ use crate::{
             cards, transformers::list_customer_payment_methods_from_modular_service,
         },
         payments::helpers,
+        utils as core_utils,
     },
     pii::PeekInterface,
     routes::{self, payment_methods::ParentPaymentMethodToken},
@@ -37,9 +38,55 @@ use crate::{
     },
 };
 
+/// How far ahead of the payment tokens a token pin is expired.
+///
+/// A pin that outlived the token it names would hand out a token the token store has already
+/// forgotten. Both are written within the same build, so a small margin is enough.
+const PIN_EXPIRY_MARGIN_IN_SECS: i64 = 5;
+
 // ---------------------------------------------------------------------------
 // Trait: CustomerPaymentMethodsFetcher
 // ---------------------------------------------------------------------------
+
+/// Hands back the payment token this payment has already agreed on for `payment_method_id`,
+/// pinning `payment_token` as that token when this is the first call to get there.
+///
+/// The token is the one part of a listing that is newly generated on every call; pinning it —
+/// rather than caching the built listing — is what lets two calls for a payment agree without
+/// ever serving a list that outlived the configuration it was built from.
+///
+/// The pin is a single writer: whichever call stores its token first wins, and a call racing it
+/// reads that token back instead of its own, so concurrent callers answer with the same token.
+/// Both tokens resolve to the same saved payment method, so the one that loses is simply unused.
+///
+/// The pin expires a little before the token itself does, so it can never name a token the token
+/// store has already forgotten. Without a payment there is nothing to pin against, and the freshly
+/// generated token is returned unchanged.
+async fn pinned_payment_token(
+    state: &routes::SessionState,
+    payment_intent: Option<&storage::PaymentIntent>,
+    payment_method_id: &str,
+    payment_token: String,
+    intent_fulfillment_time: i64,
+) -> String {
+    match payment_intent {
+        None => payment_token,
+        Some(payment_intent) => {
+            let redis_key = payment_intent
+                .payment_id
+                .get_pm_token_redis_key(&payment_intent.processor_merchant_id, payment_method_id);
+
+            core_utils::pin_value(
+                state,
+                &redis_key,
+                "PinnedPaymentToken",
+                payment_token,
+                intent_fulfillment_time.saturating_sub(PIN_EXPIRY_MARGIN_IN_SECS),
+            )
+            .await
+        }
+    }
+}
 
 /// Abstraction over saved-PM retrieval — allows future swap to a remote PM service.
 #[async_trait::async_trait]
@@ -87,7 +134,12 @@ fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
 }
 
 /// DB-backed implementation — delegates to `cards::list_customer_payment_method`.
-pub struct DbCustomerPaymentMethodsFetcher;
+///
+/// `intent_fulfillment_time` is the window `cards::list_customer_payment_method` stores its
+/// tokens for; it is carried here so a token pin cannot outlive the token it names.
+pub struct DbCustomerPaymentMethodsFetcher {
+    pub intent_fulfillment_time: i64,
+}
 
 #[async_trait::async_trait]
 impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
@@ -118,11 +170,28 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
             }
         };
 
-        Ok(response_body
-            .customer_payment_methods
-            .into_iter()
-            .map(to_client_pm)
-            .collect())
+        let intent_fulfillment_time = self.intent_fulfillment_time;
+
+        Ok(
+            futures::future::join_all(response_body.customer_payment_methods.into_iter().map(
+                |payment_method| async move {
+                    let payment_token = pinned_payment_token(
+                        state,
+                        payment_intent,
+                        &payment_method.payment_method_id,
+                        payment_method.payment_token,
+                        intent_fulfillment_time,
+                    )
+                    .await;
+
+                    to_client_pm(CustomerPaymentMethod {
+                        payment_token,
+                        ..payment_method
+                    })
+                },
+            ))
+            .await,
+        )
     }
 }
 
@@ -183,7 +252,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         &self,
         state: &routes::SessionState,
         platform: &domain::Platform,
-        _payment_intent: Option<&storage::PaymentIntent>,
+        payment_intent: Option<&storage::PaymentIntent>,
         _payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -269,6 +338,14 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
                 self.intent_fulfillment_time,
             )
             .await?;
+            let payment_token = pinned_payment_token(
+                state,
+                payment_intent,
+                &pm.id,
+                payment_token,
+                self.intent_fulfillment_time,
+            )
+            .await;
 
             // Build the client-facing response item.
             let payment_method_data = pm.payment_method_data.and_then(|d| d.into());
@@ -613,16 +690,21 @@ async fn fetch_customer_payment_methods(
                 .await
             } else {
                 logger::info!("Fetching customer payment methods from DB");
-                DbCustomerPaymentMethodsFetcher
-                    .fetch(
-                        state,
-                        platform,
-                        Some(&payment_intent_context.payment_intent),
-                        Some(&payment_intent_context.payment_attempt),
-                        customer,
-                        &dimensions,
-                    )
-                    .await
+                DbCustomerPaymentMethodsFetcher {
+                    intent_fulfillment_time: payment_intent_context
+                        .business_profile
+                        .get_order_fulfillment_time()
+                        .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME),
+                }
+                .fetch(
+                    state,
+                    platform,
+                    Some(&payment_intent_context.payment_intent),
+                    Some(&payment_intent_context.payment_attempt),
+                    customer,
+                    &dimensions,
+                )
+                .await
             }
         }
     }

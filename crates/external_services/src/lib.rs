@@ -80,6 +80,7 @@ pub mod consts {
 
     /// Header key used to specify the surcharge connector name in UCS requests.
     pub(crate) const UCS_HEADER_SURCHARGE_CONNECTOR: &str = "x-surcharge-connector";
+    pub(crate) const UCS_HEADER_FRM_CONNECTOR: &str = "x-frm-connector";
 
     /// Header key used to indicate the authentication type being used.
     pub(crate) const UCS_HEADER_AUTH_TYPE: &str = "x-auth";

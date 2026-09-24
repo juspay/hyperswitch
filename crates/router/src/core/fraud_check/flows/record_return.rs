@@ -47,6 +47,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        _business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -162,6 +163,8 @@ impl FeatureFrm<RecordReturn, FraudCheckRecordReturnData> for FrmRecordReturnRou
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
+        // No UCS equivalent for this flow; always direct.
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }

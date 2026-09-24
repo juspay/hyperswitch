@@ -17,6 +17,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_domain_models::{
+    address::AddressDetails,
     payment_method_data::{
         ApplePayWalletData, Card, GooglePayWalletData, PaymentMethodData, WalletData,
     },
@@ -539,7 +540,8 @@ struct FundingAddress {
     address2: Option<Secret<String>>,
     postal_code: Secret<String>,
     city: String,
-    state: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
     country_code: common_enums::CountryAlpha2,
 }
 
@@ -1540,6 +1542,14 @@ fn build_worldpayxml_recipient_party(
         ))
         .and_then(get_worldpayxml_account_reference)?;
 
+    let country_code = address
+        .country
+        .ok_or_else(connector_utils::missing_field_err(
+            "recipient_details.address.country",
+        ))?;
+
+    let address_details = AddressDetails::from(address.clone());
+
     Ok(FundingParty {
         party_type: FundingPartyType::Recipient,
         account_reference,
@@ -1577,17 +1587,19 @@ fn build_worldpayxml_recipient_party(
                 .ok_or_else(connector_utils::missing_field_err(
                     "recipient_details.address.city",
                 ))?,
-            state: address
-                .state
-                .clone()
-                .ok_or_else(connector_utils::missing_field_err(
-                    "recipient_details.address.state",
-                ))?,
-            country_code: address
-                .country
-                .ok_or_else(connector_utils::missing_field_err(
-                    "recipient_details.address.country",
-                ))?,
+            state: match country_code {
+                common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => {
+                    address
+                        .state
+                        .as_ref()
+                        .ok_or_else(connector_utils::missing_field_err(
+                            "recipient_details.address.state",
+                        ))?;
+                    Some(address_details.get_billing_state_code()?)
+                }
+                _ => address.state.clone(),
+            },
+            country_code,
         },
         funding_data: recipient_details
             .phone_number
@@ -1613,6 +1625,8 @@ fn build_worldpayxml_sender_party<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
     card_number: Secret<String>,
 ) -> Result<FundingParty, error_stack::Report<errors::ConnectorError>> {
+    let country_code = router_data.get_billing_country()?;
+
     Ok(FundingParty {
         party_type: FundingPartyType::Sender,
         account_reference: AccountReference {
@@ -1628,8 +1642,13 @@ fn build_worldpayxml_sender_party<F, Req, Res>(
             address2: router_data.get_optional_billing_line2(),
             postal_code: router_data.get_billing_zip()?,
             city: router_data.get_billing_city()?,
-            state: router_data.get_billing_state()?,
-            country_code: router_data.get_billing_country()?,
+            state: match country_code {
+                common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => {
+                    Some(router_data.get_billing_state_code()?)
+                }
+                _ => router_data.get_optional_billing_state_code(),
+            },
+            country_code,
         },
         funding_data: Some(FundingData {
             birth_date: Some(BirthDate::from(router_data.get_customer_date_of_birth()?)),
