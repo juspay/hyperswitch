@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use common_utils::link_utils::EnabledPaymentMethod;
 
@@ -147,7 +147,9 @@ impl
                             .get(&payment_method)
                             .and_then(|pmt_info| {
                                 pmt_info.0.get(&pmt).map(|connector_fields| {
-                                    let mut required_fields = HashMap::new();
+                                    // rendered into the payout link's page as an
+                                    // object, so its keys are kept sorted
+                                    let mut required_fields = BTreeMap::new();
 
                                     for required_field_final in connector_fields.fields.values() {
                                         required_fields.extend(required_field_final.common.clone());
@@ -186,5 +188,43 @@ impl
                 }
             })
             .collect()
+    }
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod payout_required_fields_tests {
+    use common_enums::{PaymentMethod, PaymentMethodType};
+    use common_utils::link_utils::EnabledPaymentMethod;
+
+    use crate::{
+        configs::settings::PayoutRequiredFields,
+        types::{api, transformers::ForeignFrom},
+    };
+
+    // The payout link renders these into its page, so the order of each
+    // method's required fields leaves the process there.
+    #[test]
+    fn required_fields_follow_the_config_not_the_request() {
+        let required = PayoutRequiredFields::default();
+        let render = || {
+            let info = Vec::<api::PayoutEnabledPaymentMethodsInfo>::foreign_from((
+                &required,
+                vec![EnabledPaymentMethod {
+                    payment_method: PaymentMethod::Card,
+                    payment_method_types: [PaymentMethodType::Debit, PaymentMethodType::Credit]
+                        .into_iter()
+                        .collect(),
+                }],
+                api::RequiredFieldsOverrideRequest { billing: None },
+            ));
+            serde_json::to_string(&info).expect("serialize")
+        };
+
+        let first = render();
+        assert!(
+            first.matches("required_field").count() >= 8,
+            "expected the default card fields: {first}"
+        );
+        assert_eq!(first, render());
     }
 }

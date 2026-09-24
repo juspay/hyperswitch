@@ -175,16 +175,7 @@ pub async fn initiate_payout_link(
             let enabled_payout_methods =
                 filter_payout_methods(&state, &platform, &payout, address.as_ref()).await?;
             // Fetch default enabled_payout_methods
-            let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
-            for (payment_method, payment_method_types) in
-                default_config.enabled_payment_methods.clone().into_iter()
-            {
-                let enabled_payment_method = link_utils::EnabledPaymentMethod {
-                    payment_method,
-                    payment_method_types,
-                };
-                default_enabled_payout_methods.push(enabled_payment_method);
-            }
+            let default_enabled_payout_methods = default_config.default_enabled_payment_methods();
             let fallback_enabled_payout_methods = if enabled_payout_methods.is_empty() {
                 &default_enabled_payout_methods
             } else {
@@ -427,16 +418,32 @@ pub async fn filter_payout_methods(
             }
         }
     }
+    response.extend(enabled_payment_methods_from(payment_method_list_hm));
+    Ok(response)
+}
+
+fn enabled_payment_methods_from(
+    payment_method_list_hm: HashMap<
+        common_enums::PaymentMethod,
+        HashSet<common_enums::PaymentMethodType>,
+    >,
+) -> Vec<link_utils::EnabledPaymentMethod> {
+    // Hash-ordered maps; the list leaves the process in the payout link's
+    // page, so it is sorted here.
+    let mut response = Vec::new();
     for (payment_method, payment_method_types) in payment_method_list_hm {
         if !payment_method_types.is_empty() {
+            let mut payment_method_types: Vec<_> = payment_method_types.into_iter().collect();
+            payment_method_types.sort_unstable();
             let enabled_payment_method = link_utils::EnabledPaymentMethod {
                 payment_method,
-                payment_method_types,
+                payment_method_types: payment_method_types.into_iter().collect(),
             };
             response.push(enabled_payment_method);
         }
     }
-    Ok(response)
+    response.sort_unstable_by_key(|method| method.payment_method);
+    response
 }
 
 pub fn check_currency_country_filters(
@@ -474,5 +481,62 @@ pub fn check_currency_country_filters(
                 .map(|currency_hash_set| currency_hash_set.contains(&currency))
         });
         Ok(currency_filter.or(country_filter))
+    }
+}
+
+#[cfg(test)]
+mod enabled_payment_methods_tests {
+    use std::collections::{HashMap, HashSet};
+
+    use common_enums::{PaymentMethod, PaymentMethodType};
+
+    use super::enabled_payment_methods_from;
+
+    // Built per request from the merchant's connector accounts, then rendered
+    // into the payout link's page: one set of accounts must give one list.
+    #[test]
+    fn payout_methods_follow_the_accounts_not_the_process() {
+        let methods = [
+            (
+                PaymentMethod::Card,
+                vec![PaymentMethodType::Credit, PaymentMethodType::Debit],
+            ),
+            (
+                PaymentMethod::BankTransfer,
+                vec![
+                    PaymentMethodType::Ach,
+                    PaymentMethodType::Bacs,
+                    PaymentMethodType::SepaBankTransfer,
+                    PaymentMethodType::Pix,
+                ],
+            ),
+            (
+                PaymentMethod::Wallet,
+                vec![
+                    PaymentMethodType::Paypal,
+                    PaymentMethodType::Venmo,
+                    PaymentMethodType::ApplePay,
+                ],
+            ),
+        ];
+        let table = |reverse: bool| {
+            let mut rows = methods.to_vec();
+            if reverse {
+                rows.reverse();
+                rows.iter_mut().for_each(|(_, types)| types.reverse());
+            }
+            rows.into_iter()
+                .map(|(method, types)| (method, types.into_iter().collect::<HashSet<_>>()))
+                .collect::<HashMap<_, _>>()
+        };
+
+        let first = enabled_payment_methods_from(table(false));
+        let second = enabled_payment_methods_from(table(true));
+
+        assert_eq!(first.len(), methods.len());
+        assert_eq!(
+            serde_json::to_string(&first).expect("serialize"),
+            serde_json::to_string(&second).expect("serialize")
+        );
     }
 }

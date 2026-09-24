@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use cards::CardNumber;
 use common_enums::{BankNames, CardNetwork};
@@ -1317,7 +1317,7 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodTypeInfo {
     pub payment_method_type: api_enums::PaymentMethodType,
-    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+    pub required_fields: Option<BTreeMap<String, RequiredFieldInfo>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, FlatStruct)]

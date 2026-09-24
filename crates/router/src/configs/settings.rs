@@ -613,6 +613,30 @@ pub struct GenericLinkEnvConfig {
     pub enabled_payment_methods: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
+impl GenericLinkEnvConfig {
+    pub fn default_enabled_payment_methods(
+        &self,
+    ) -> Vec<common_utils::link_utils::EnabledPaymentMethod> {
+        // Read once at startup, so the table iterates in this process's hash
+        // order; the list leaves the process on the link, so it is sorted.
+        let mut methods: Vec<_> = self
+            .enabled_payment_methods
+            .iter()
+            .map(|(payment_method, payment_method_types)| {
+                let mut payment_method_types: Vec<_> =
+                    payment_method_types.iter().copied().collect();
+                payment_method_types.sort_unstable();
+                common_utils::link_utils::EnabledPaymentMethod {
+                    payment_method: *payment_method,
+                    payment_method_types: payment_method_types.into_iter().collect(),
+                }
+            })
+            .collect();
+        methods.sort_unstable_by_key(|method| method.payment_method);
+        methods
+    }
+}
+
 impl Default for GenericLinkEnvConfig {
     fn default() -> Self {
         Self {
@@ -623,6 +647,79 @@ impl Default for GenericLinkEnvConfig {
             ui_config: GenericLinkEnvUiConfig::default(),
             enabled_payment_methods: HashMap::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod generic_link_default_tests {
+    use std::collections::{HashMap, HashSet};
+
+    use common_enums::enums::{PaymentMethod, PaymentMethodType};
+
+    use super::GenericLinkEnvConfig;
+
+    fn config(methods: &[(PaymentMethod, Vec<PaymentMethodType>)]) -> GenericLinkEnvConfig {
+        GenericLinkEnvConfig {
+            enabled_payment_methods: methods
+                .iter()
+                .map(|(method, types)| (*method, types.iter().copied().collect::<HashSet<_>>()))
+                .collect::<HashMap<_, _>>(),
+            ..GenericLinkEnvConfig::default()
+        }
+    }
+
+    // The table is read at startup, so each process holds it in its own
+    // order; the list built from it is stored on a link and rendered into its
+    // page, where that order would leave the process. Two tables with one
+    // content stand in for two processes.
+    #[test]
+    fn default_enabled_methods_follow_the_table_not_the_process() {
+        let methods = vec![
+            (
+                PaymentMethod::Card,
+                vec![PaymentMethodType::Credit, PaymentMethodType::Debit],
+            ),
+            (
+                PaymentMethod::BankTransfer,
+                vec![
+                    PaymentMethodType::Ach,
+                    PaymentMethodType::Bacs,
+                    PaymentMethodType::SepaBankTransfer,
+                    PaymentMethodType::Pix,
+                ],
+            ),
+            (
+                PaymentMethod::Wallet,
+                vec![
+                    PaymentMethodType::Paypal,
+                    PaymentMethodType::Venmo,
+                    PaymentMethodType::ApplePay,
+                    PaymentMethodType::GooglePay,
+                ],
+            ),
+            (
+                PaymentMethod::BankRedirect,
+                vec![
+                    PaymentMethodType::Ideal,
+                    PaymentMethodType::Giropay,
+                    PaymentMethodType::Eps,
+                ],
+            ),
+        ];
+        let reversed = methods
+            .iter()
+            .rev()
+            .map(|(method, types)| (*method, types.iter().rev().copied().collect()))
+            .collect::<Vec<_>>();
+
+        let first = config(&methods).default_enabled_payment_methods();
+        let second = config(&reversed).default_enabled_payment_methods();
+
+        assert_eq!(first.len(), methods.len());
+        assert_eq!(
+            serde_json::to_string(&first).expect("serialize"),
+            serde_json::to_string(&second).expect("serialize")
+        );
     }
 }
 

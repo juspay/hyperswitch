@@ -13,6 +13,7 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::Secret;
+use indexmap::IndexSet;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -216,7 +217,7 @@ pub struct EnabledPaymentMethod {
 
     /// An array of associated payment method types
     #[schema(value_type = HashSet<PaymentMethodType>)]
-    pub payment_method_types: HashSet<enums::PaymentMethodType>,
+    pub payment_method_types: IndexSet<enums::PaymentMethodType>,
 }
 
 /// Util function for validating a domain without any wildcard characters.
@@ -349,5 +350,26 @@ mod domain_tests {
                 "Could not validate invalid wildcard domain: {domain}",
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod enabled_payment_method_tests {
+    use super::EnabledPaymentMethod;
+
+    // A merchant's own list is stored on the link and rendered back, so it
+    // keeps the order it was sent in; only duplicates are dropped.
+    #[test]
+    fn payment_method_types_keep_the_order_they_were_sent_in() {
+        // Eight distinct types: a set that happened to keep this order by
+        // chance would do so about once in forty thousand runs.
+        let sent = r#"{"payment_method":"wallet","payment_method_types":["venmo","paypal","apple_pay","venmo","google_pay","samsung_pay","we_chat_pay","ali_pay","amazon_pay"]}"#;
+
+        let parsed: EnabledPaymentMethod = serde_json::from_str(sent).expect("deserialize");
+
+        assert_eq!(
+            serde_json::to_string(&parsed).expect("serialize"),
+            r#"{"payment_method":"wallet","payment_method_types":["venmo","paypal","apple_pay","google_pay","samsung_pay","we_chat_pay","ali_pay","amazon_pay"]}"#
+        );
     }
 }
