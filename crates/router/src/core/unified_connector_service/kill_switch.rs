@@ -18,9 +18,7 @@ use crate::{
     consts,
     core::{
         errors, metrics,
-        unified_connector_service::{
-            build_merchant_rollout_scope, determine_connector_integration_type,
-        },
+        unified_connector_service::determine_connector_integration_type,
     },
     routes::SessionState,
 };
@@ -639,6 +637,9 @@ mod tests {
     use common_enums::{PaymentMethod, PaymentMethodType};
 
     use super::*;
+    // Production code carries the scope from the gate rather than rebuilding it; the tests
+    // still construct scopes directly to assert on their shape.
+    use crate::core::unified_connector_service::build_merchant_rollout_scope;
 
     /// A connector's own answer, arriving through UCS.
     fn connector_error(status_code: u16) -> UnifiedConnectorServiceError {
