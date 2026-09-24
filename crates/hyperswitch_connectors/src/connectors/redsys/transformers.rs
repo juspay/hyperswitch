@@ -1152,40 +1152,32 @@ fn get_redsys_attempt_status(
     }
 }
 
-// Reads the 3DS server transaction id and protocol version carried over from the authentication
-// step. That metadata is either the exempt data built by `build_threeds_invoke_exempt_response`, or
-// the `authentication_data` the authentication step merges into the metadata it hands over.
+// Reads the 3DS server transaction id and protocol version for the Authorize leg.
+//
+// The authentication step copies the Authenticate response's `authentication_data` into the
+// request (`ucs_authentication_data`) and wraps it under the `authentication_data` key of the
+// connector metadata. Read the typed field, and keep the flat metadata parse for the legacy shape.
 fn get_threeds_exempt_data(
+    authentication_data: Option<&router_request_types::UcsAuthenticationData>,
     connector_meta: Option<serde_json::Value>,
 ) -> Result<ThreeDsInvokeExempt, Error> {
-    if let Ok(threeds_meta_data) =
-        connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta.clone())
-    {
-        return Ok(threeds_meta_data);
+    if let Some(authentication_data) = authentication_data {
+        return Ok(ThreeDsInvokeExempt {
+            message_version: authentication_data
+                .message_version
+                .as_ref()
+                .ok_or_else(missing_field_err("ucs_authentication_data.message_version"))?
+                .to_string(),
+            three_d_s_server_trans_i_d: authentication_data
+                .threeds_server_transaction_id
+                .clone()
+                .ok_or_else(missing_field_err(
+                "ucs_authentication_data.threeds_server_transaction_id",
+            ))?,
+        });
     }
 
-    let authentication_data = connector_meta
-        .as_ref()
-        .and_then(|metadata| metadata.get("authentication_data"))
-        .map(|value| {
-            serde_json::from_value::<router_request_types::UcsAuthenticationData>(value.clone())
-                .change_context(errors::ConnectorError::NoConnectorMetaData)
-                .attach_printable("Failed to parse authentication_data from connector_meta")
-        })
-        .transpose()?
-        .ok_or_else(missing_field_err("connector_meta_data.authentication_data"))?;
-
-    Ok(ThreeDsInvokeExempt {
-        message_version: authentication_data
-            .message_version
-            .ok_or_else(missing_field_err("authentication_data.message_version"))?
-            .to_string(),
-        three_d_s_server_trans_i_d: authentication_data
-            .threeds_server_transaction_id
-            .ok_or_else(missing_field_err(
-                "authentication_data.threeds_server_transaction_id",
-            ))?,
-    })
+    connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta)
 }
 
 impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransaction {
@@ -1215,7 +1207,10 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             }) => (connector_metadata.clone(), order_id.clone()),
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let threeds_meta_data = get_threeds_exempt_data(connector_meta_data.clone())?;
+        let threeds_meta_data = get_threeds_exempt_data(
+            item.router_data.request.ucs_authentication_data.as_ref(),
+            connector_meta_data,
+        )?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
             .set_three_d_s_server_trans_i_d(threeds_meta_data.three_d_s_server_trans_i_d)
             .set_protocol_version(threeds_meta_data.message_version)
@@ -2499,5 +2494,69 @@ impl TryFrom<RefundsResponseRouterData<RSync, RedsysSyncResponse>> for RefundsRo
             response,
             ..item.data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_authentication_data(
+        threeds_server_transaction_id: Option<&str>,
+        message_version: Option<&str>,
+    ) -> router_request_types::UcsAuthenticationData {
+        router_request_types::UcsAuthenticationData {
+            eci: None,
+            cavv: None,
+            threeds_server_transaction_id: threeds_server_transaction_id.map(ToString::to_string),
+            message_version: message_version
+                .and_then(|version| SemanticVersion::from_str(version).ok()),
+            ds_trans_id: None,
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: None,
+            ucaf_collection_indicator: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+        }
+    }
+
+    #[test]
+    fn should_read_threeds_exempt_data_from_authentication_data() -> Result<(), Error> {
+        let authentication_data = get_authentication_data(Some("7b34cb"), Some("2.2.0"));
+
+        let threeds_exempt_data = get_threeds_exempt_data(Some(&authentication_data), None)?;
+
+        assert_eq!(threeds_exempt_data.three_d_s_server_trans_i_d, "7b34cb");
+        assert_eq!(threeds_exempt_data.message_version, "2.2.0");
+        Ok(())
+    }
+
+    #[test]
+    fn should_read_threeds_exempt_data_from_legacy_connector_metadata() -> Result<(), Error> {
+        let connector_meta = serde_json::json!({
+            "message_version": "2.2.0",
+            "threeds_server_transaction_id": "7b34cb",
+        });
+
+        let threeds_exempt_data = get_threeds_exempt_data(None, Some(connector_meta))?;
+
+        assert_eq!(threeds_exempt_data.three_d_s_server_trans_i_d, "7b34cb");
+        assert_eq!(threeds_exempt_data.message_version, "2.2.0");
+        Ok(())
+    }
+
+    #[test]
+    fn should_fail_when_authentication_data_lacks_the_protocol_version() {
+        let authentication_data = get_authentication_data(Some("7b34cb"), None);
+
+        assert!(get_threeds_exempt_data(Some(&authentication_data), None).is_err());
+    }
+
+    #[test]
+    fn should_fail_without_authentication_data_and_connector_metadata() {
+        assert!(get_threeds_exempt_data(None, None).is_err());
     }
 }

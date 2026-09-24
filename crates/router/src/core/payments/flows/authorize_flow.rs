@@ -709,26 +709,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ..
                 }) = &mut authorize_router_data.response
                 {
-                    let auth_data_value = serde_json::to_value(&auth_data)
-                        .change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to serialize authentication_data")?;
-
-                    match connector_metadata
-                        .as_mut()
-                        .and_then(|metadata| metadata.as_object_mut())
-                    {
-                        // Add the authentication data alongside whatever the connector already
-                        // stored instead of replacing it: later legs are built from that metadata
-                        // (Redsys reads its 3DS exempt data out of it).
-                        Some(metadata) => {
-                            metadata.insert("authentication_data".to_string(), auth_data_value);
-                        }
-                        None => {
-                            *connector_metadata = Some(serde_json::json!({
-                                "authentication_data": auth_data_value
-                            }));
-                        }
-                    }
+                    *connector_metadata = Some(serde_json::json!({
+                        "authentication_data": auth_data
+                    }));
                 }
             }
 
@@ -738,18 +721,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     redirection_data,
                     ..
                 }) => match connector.connector_name {
-                    // On the direct gateway the Redsys Authenticate leg has already sent the
-                    // `trataPeticion` request carrying the 3DS authentication data, and that
-                    // request is the authorization itself: Redsys answers with a final
-                    // Ds_Response, a challenge (creq) or a pending code that only PSync can
-                    // resolve. Running the Authorize leg afterwards would repeat the same request
-                    // with the same Ds_Merchant_Order, which Redsys rejects as a repeated order
-                    // (SIS0051), so never continue there.
-                    api_models::enums::Connector::Redsys
-                        if gateway_context.execution_path.is_direct_gateway() =>
-                    {
-                        false
-                    }
                     api_models::enums::Connector::Redsys => {
                         // For UCS Redsys: if redirection_data is present (3DS challenge), don't continue
                         // For hyperswitch native: check connector_metadata for PaymentsConnectorThreeDsInvokeData
@@ -772,9 +743,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         );
 
                         // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                        // and the leg runs on UCS. On the direct gateway the Authenticate leg has
+                        // already sent the `trataPeticion` request carrying the 3DS authentication
+                        // data, and that request is the authorization itself: Redsys answers with a
+                        // final Ds_Response, a challenge (creq) or a pending code that only PSync can
+                        // resolve. Running the Authorize leg afterwards would repeat the same request
+                        // with the same Ds_Merchant_Order, which Redsys rejects as a repeated order
+                        // (SIS0051), so never continue there.
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
+                            && !gateway_context.execution_path.is_direct_gateway()
                     }
                     _ => false,
                 },
