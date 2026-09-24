@@ -443,43 +443,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        processor_merchant_id: &common_utils::id_type::MerchantId,
-        _storage_scheme: MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
-    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
-        let key_manager_state = self
-            .get_keymanager_state()
-            .attach_printable("Missing KeyManagerState")?;
-
-        DieselPaymentAttempt::find_by_processor_merchant_id_preprocessing_id(
-            &conn,
-            processor_merchant_id,
-            preprocessing_id,
-        )
-        .await
-        .map_err(|er| {
-            let new_err = diesel_error_to_data_error(*er.current_context());
-            er.change_context(new_err)
-        })
-        .async_map(|diesel_payment_attempt| async {
-            PaymentAttempt::convert_back(
-                key_manager_state,
-                diesel_payment_attempt,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-        })
-        .await?
-    }
-
-    #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
     async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -1708,91 +1671,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             },
         ))
         .await
-    }
-
-    #[cfg(feature = "v1")]
-    #[instrument(skip_all)]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        processor_merchant_id: &common_utils::id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
-            self,
-            storage_scheme,
-            Op::Find,
-        ))
-        .await;
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                        preprocessing_id,
-                        processor_merchant_id,
-                        storage_scheme,
-                        merchant_key_store,
-                    )
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!(
-                    "pa_preprocessing_{}_{preprocessing_id}",
-                    processor_merchant_id.get_string_repr()
-                );
-                let lookup = fallback_reverse_lookup_not_found!(
-                    self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                        .await,
-                    self.router_store
-                        .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                            preprocessing_id,
-                            processor_merchant_id,
-                            storage_scheme,
-                            merchant_key_store,
-                        )
-                        .await
-                );
-                let key = PartitionKey::CombinationKey {
-                    combination: &lookup.pk_id,
-                };
-                let key_manager_state = self
-                    .get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?;
-
-                Box::pin(try_redis_get_else_try_database_get(
-                    async {
-                        let diesel_payment_attempt = Box::pin(kv_wrapper(
-                            self,
-                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
-                            key,
-                        ))
-                        .await?
-                        .try_into_hget()?;
-                        PaymentAttempt::convert_back(
-                            key_manager_state,
-                            diesel_payment_attempt,
-                            merchant_key_store.key.get_inner(),
-                            processor_merchant_id.clone().into(),
-                        )
-                        .await
-                        .change_context(redis_interface::errors::RedisError::UnknownResult)
-                        .attach_printable("Error while constructing domain model")
-                    },
-                    || async {
-                        self.router_store
-                            .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                                preprocessing_id,
-                                processor_merchant_id,
-                                storage_scheme,
-                                merchant_key_store,
-                            )
-                            .await
-                    },
-                ))
-                .await
-            }
-        }
     }
 
     #[cfg(feature = "v1")]

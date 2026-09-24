@@ -1777,15 +1777,9 @@ pub async fn get_payment_attempt_from_object_reference_id(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
-        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
-            .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                id,
-                processor.get_account().get_id(),
-                processor.get_account().storage_scheme,
-                processor.get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
+        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(_)) => {
+            Err(errors::ApiErrorResponse::WebhookResourceNotFound)?
+        }
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("received a non-payment id for retrieving payment")?,
     }
