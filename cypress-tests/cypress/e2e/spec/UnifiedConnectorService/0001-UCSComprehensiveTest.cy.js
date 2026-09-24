@@ -9,7 +9,11 @@ describe("UCS Comprehensive Test", () => {
   before("Initialize and Setup", function () {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      const connectorId = Cypress.env("CYPRESS_CONNECTOR");
+      // Cypress strips the `CYPRESS_` prefix from env vars it injects, so
+      // `CYPRESS_CONNECTOR` reaches `Cypress.env` as `CONNECTOR` and the
+      // prefixed read is always undefined (which made this suite skip
+      // unconditionally). Read the stripped name.
+      const connectorId = Cypress.env("CONNECTOR");
       if (
         utils.shouldIncludeConnector(
           connectorId,

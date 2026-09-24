@@ -758,6 +758,29 @@ function logRequestId(xRequestId) {
   }
 }
 
+// GRACE e2e gate recorder. Appends one JSON line per executed command to the
+// file named by the GRACE_RECORD env var (via the grace_record task in
+// cypress.config.js). Mochawesome reports a TRIGGER_SKIP'd flow as a plain
+// pass; this line stream is the only place a run can tell the two apart.
+Cypress.Commands.add(
+  "graceRecord",
+  ({ flow, triggerSkip = false, requestId = null, httpStatus = null }) => {
+    const connectorId = Cypress.env("CONNECTOR") || null;
+    cy.task(
+      "grace_record",
+      {
+        flow,
+        connector: connectorId,
+        trigger_skip: triggerSkip,
+        request_id: requestId,
+        http_status: httpStatus,
+        execution_path: triggerSkip ? "skipped" : "executed",
+      },
+      { log: false }
+    );
+  }
+);
+
 function validateErrorMessage(response, resData) {
   if (resData.body.status !== "failed") {
     expect(response.body.error_message, "error_message").to.be.null;
@@ -2969,6 +2992,10 @@ Cypress.Commands.add(
         "cli_log",
         "TRIGGER_SKIP enabled, skipping createPaymentIntentTest"
       );
+      cy.graceRecord({
+        flow: `${authentication_type}/PaymentIntent`,
+        triggerSkip: true,
+      });
       return;
     }
 
@@ -3021,6 +3048,12 @@ Cypress.Commands.add(
       body: body,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      cy.graceRecord({
+        flow: `${authentication_type}/PaymentIntent`,
+        triggerSkip: false,
+        requestId: response.headers["x-request-id"] || null,
+        httpStatus: response.status,
+      });
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
@@ -3338,6 +3371,7 @@ Cypress.Commands.add(
     const validatedConfigs = validateConfig(configs);
     if (validatedConfigs?.TRIGGER_SKIP) {
       cy.task("cli_log", "TRIGGER_SKIP enabled, skipping confirmCallTest");
+      cy.graceRecord({ flow: "Confirm", triggerSkip: true });
       return;
     }
 
@@ -3393,6 +3427,12 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       storeRequestId(response.headers["x-request-id"], globalState);
+      cy.graceRecord({
+        flow: "Confirm",
+        triggerSkip: false,
+        requestId: response.headers["x-request-id"] || null,
+        httpStatus: response.status,
+      });
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
