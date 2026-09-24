@@ -252,8 +252,6 @@ pub async fn call_unified_connector_service_for_frm_notification(
 
     let grpc_headers = state
         .get_grpc_headers_ucs(common_enums::ExecutionMode::Primary)
-        .payment_method(None)
-        .payment_method_type(None)
         .lineage_ids(LineageIds::new(
             processor.get_account().get_id().clone(),
             context.profile_id.clone(),

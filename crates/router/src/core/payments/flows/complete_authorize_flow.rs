@@ -813,8 +813,6 @@ pub async fn call_unified_connector_service_authenticate(
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -974,8 +972,6 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
         .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1082,8 +1078,6 @@ pub async fn call_unified_connector_service_post_authenticate(
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1227,8 +1221,6 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
         .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)

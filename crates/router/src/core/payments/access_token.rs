@@ -383,8 +383,6 @@ async fn fetch_access_token_from_ucs(
 
     let grpc_headers = state
         .get_grpc_headers_ucs(common_enums::ExecutionMode::Primary)
-        .payment_method(None)
-        .payment_method_type(None)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
         .resource_id(None)
