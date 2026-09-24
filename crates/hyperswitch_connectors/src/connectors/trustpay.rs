@@ -1258,6 +1258,7 @@ impl webhooks::IncomingWebhook for Trustpay {
             connector_status: payment_info.status.to_string(),
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 }

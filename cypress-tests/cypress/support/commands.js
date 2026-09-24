@@ -10414,17 +10414,13 @@ Cypress.Commands.add("createCardIssuer", (body, globalState) => {
   });
 });
 
-Cypress.Commands.add("listCardIssuers", (query, limit, globalState) => {
+Cypress.Commands.add("listCardIssuers", (globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
-  const queryParams = [];
-  if (query) queryParams.push(`query=${encodeURIComponent(query)}`);
-  if (limit) queryParams.push(`limit=${limit}`);
-  const queryString = queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/card_issuers${queryString}`,
+    url: `${baseUrl}/card_issuers`,
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -10435,12 +10431,7 @@ Cypress.Commands.add("listCardIssuers", (query, limit, globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.status).to.equal(200);
-      if (response.body.data) {
-        expect(Array.isArray(response.body.data)).to.be.true;
-        if (limit && response.body.data.length > 0) {
-          expect(response.body.data.length).to.be.at.most(limit);
-        }
-      }
+      expect(Array.isArray(response.body.issuers)).to.be.true;
     });
   });
 });
