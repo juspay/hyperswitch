@@ -3,30 +3,22 @@ use common_utils::types::{MinorUnit, StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{GiftCardData, PaymentMethodData},
-    router_data::{
-        AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodBalance, RouterData,
-    },
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
         GiftCardBalanceCheck,
     },
     router_request_types::{GiftCardBalanceCheckRequestData, ResponseId},
     router_response_types::{
-        GiftCardBalanceCheckResponseData, PaymentsResponseData, PreprocessingResponseId,
-        RefundsResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, RefundsResponseData,
     },
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsGiftCardBalanceCheckRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
-    },
+    types::{PaymentsAuthorizeRouterData, PaymentsGiftCardBalanceCheckRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{
-    PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 pub struct BlackhawknetworkRouterData<T> {
     pub amount: StringMajorUnit,
@@ -142,43 +134,6 @@ impl TryFrom<&PaymentsGiftCardBalanceCheckRouterData> for BlackhawknetworkVerify
         })
     }
 }
-impl TryFrom<&PaymentsPreProcessingRouterData> for BlackhawknetworkVerifyAccountRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let auth = BlackhawknetworkAuthType::try_from(&item.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let gift_card_data = match &item.request.payment_method_data {
-            Some(PaymentMethodData::GiftCard(gc)) => match gc.as_ref() {
-                GiftCardData::BhnCardNetwork(data) => data,
-                _ => {
-                    return Err(errors::ConnectorError::FlowNotSupported {
-                        flow: "Balance".to_string(),
-                        connector: "BlackHawkNetwork".to_string(),
-                    }
-                    .into())
-                }
-            },
-            _ => {
-                return Err(errors::ConnectorError::FlowNotSupported {
-                    flow: "Balance".to_string(),
-                    connector: "BlackHawkNetwork".to_string(),
-                }
-                .into())
-            }
-        };
-
-        Ok(Self {
-            account_number: gift_card_data.account_number.clone(),
-            product_line_id: auth.product_line_id,
-            account_type: AccountType::GiftCard,
-            pin: gift_card_data.pin.clone(),
-            cvv2: gift_card_data.cvv2.clone(),
-            expiration_date: gift_card_data.expiration_date.clone().map(Secret::new),
-        })
-    }
-}
-
 impl
     TryFrom<
         ResponseRouterData<
@@ -207,31 +162,6 @@ impl
             response: Ok(GiftCardBalanceCheckResponseData {
                 currency: item.response.account.currency,
                 balance: item.response.account.balance,
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<BlackhawknetworkVerifyAccountResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<BlackhawknetworkVerifyAccountResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: PreprocessingResponseId::PreProcessingId(
-                    item.response.account.entity_id,
-                ),
-                connector_metadata: None,
-                session_token: None,
-                connector_response_reference_id: None,
-            }),
-            payment_method_balance: Some(PaymentMethodBalance {
-                currency: item.response.account.currency,
-                amount: item.response.account.balance,
             }),
             ..item.data
         })

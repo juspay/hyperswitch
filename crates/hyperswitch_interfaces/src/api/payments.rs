@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             ExtendAuthorization, GenerateQr, IncrementalAuthorization, PSync, PaymentMethodToken,
             PostCaptureVoid, PostCaptureVoidSync, PostProcessing, PostSessionTokens,
-            PreAuthorizeVoid, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+            PreAuthorizeVoid, PushNotification, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
@@ -22,8 +22,8 @@ use hyperswitch_domain_models::{
         PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
         PaymentsUpdatePostConfirmData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
         SettlementSplitRequestData, SetupMandateRequestData,
@@ -247,12 +247,6 @@ pub trait PaymentsCompleteAuthorize:
 /// trait ConnectorCustomer
 pub trait ConnectorCustomer:
     api::ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
-{
-}
-
-/// trait PaymentsPreProcessing
-pub trait PaymentsPreProcessing:
-    api::ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
 {
 }
 

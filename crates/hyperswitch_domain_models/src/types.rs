@@ -19,7 +19,7 @@ use crate::{
         CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder, Execute,
         ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
-        PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreAuthorizeVoid, PreProcessing,
+        PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreAuthorizeVoid,
         ProcessIncomingWebhook, PushNotification, RSync, SdkSessionUpdate, Session,
         SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm,
         VerifyWebhookSource, Void,
@@ -51,7 +51,7 @@ use crate::{
         PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
         PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
         SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
@@ -85,8 +85,6 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
-pub type PaymentsPreProcessingRouterData =
-    RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPushNotificationRouterData =
     RouterData<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
 pub type PaymentsGenerateQrRouterData =

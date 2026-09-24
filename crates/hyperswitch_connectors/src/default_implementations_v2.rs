@@ -26,8 +26,8 @@ use hyperswitch_domain_models::{
             CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
             PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreAuthorizeVoid,
-            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
-            SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+            PushNotification, Reject, SdkSessionUpdate, Session, SettlementSplitCreate,
+            SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
         },
         refunds::{Execute, RSync, VoidPostRefund},
         revenue_recovery::{
@@ -58,8 +58,8 @@ use hyperswitch_domain_models::{
         PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
         PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
@@ -136,8 +136,8 @@ use hyperswitch_interfaces::{
             PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentUpdatePostConfirmV2,
             PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2,
             PaymentsGenerateQrV2, PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2,
-            PaymentsPostProcessingV2, PaymentsPreAuthenticateV2, PaymentsPreProcessingV2,
-            PaymentsPushNotificationV2, PaymentsSettlementSplitCreate, SurchargeCalculationV2,
+            PaymentsPostProcessingV2, PaymentsPreAuthenticateV2, PaymentsPushNotificationV2,
+            PaymentsSettlementSplitCreate, SurchargeCalculationV2,
             TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2, RefundVoidPostRefundV2},
@@ -178,7 +178,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentsCompleteAuthorizeV2 for $path::$connector{}
             impl PaymentTokenV2 for $path::$connector{}
             impl ConnectorCustomerV2 for $path::$connector{}
-            impl PaymentsPreProcessingV2 for $path::$connector{}
             impl PaymentsSettlementSplitCreate for $path::$connector{}
             impl PaymentsGiftCardBalanceCheckV2 for $path::$connector{}
             impl PaymentsPreAuthenticateV2 for $path::$connector{}
@@ -264,12 +263,6 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             CreateConnectorCustomer,
             PaymentFlowData,
                 ConnectorCustomerData,
-                PaymentsResponseData,
-            > for $path::$connector{}
-            impl ConnectorIntegrationV2<
-            PreProcessing,
-            PaymentFlowData,
-                PaymentsPreProcessingData,
                 PaymentsResponseData,
             > for $path::$connector{}
 

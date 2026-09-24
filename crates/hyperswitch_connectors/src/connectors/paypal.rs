@@ -21,8 +21,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{
             Authorize, Capture, ExtendAuthorization, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostSessionTokens, PreProcessing, SdkSessionUpdate, Session,
-            SetupMandate, Void,
+            PaymentMethodToken, PostSessionTokens, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         unified_authentication_service::PostAuthenticate,
@@ -32,9 +31,9 @@ use hyperswitch_domain_models::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -44,10 +43,9 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsExtendAuthorizationRouterData,
         PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
-        SetupMandateRouterData, VerifyWebhookSourceRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
+        RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        SdkSessionUpdateRouterData, SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -70,9 +68,9 @@ use hyperswitch_interfaces::{
     types::{
         ExtendedAuthorizationType, IncrementalAuthorizationType, PaymentsAuthorizeType,
         PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostAuthenticateType,
-        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSessionType,
-        PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
-        Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
+        PaymentsPostSessionTokensType, PaymentsSessionType, PaymentsSyncType, PaymentsVoidType,
+        RefreshTokenType, RefundExecuteType, RefundSyncType, Response, SdkSessionUpdateType,
+        SetupMandateType, VerifyWebhookSourceType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
@@ -1533,92 +1531,6 @@ impl
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-impl api::PaymentsPreProcessing for Paypal {}
-
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Paypal
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_url(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let order_id = req
-            .request
-            .connector_transaction_id
-            .to_owned()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}v2/checkout/orders/{}?fields=payment_source",
-            self.base_url(connectors),
-            order_id,
-        ))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsPreProcessingRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&PaymentsPreProcessingType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsPreProcessingRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalPreProcessingResponse = res
-            .response
-            .parse_struct("paypal PaypalPreProcessingResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let (status, response) = match PaymentsResponseData::try_from(response) {
-            Ok(data) => (enums::AttemptStatus::AuthenticationSuccessful, Ok(data)),
-            Err(error) => {
-                let mut error: ErrorResponse = error;
-                error.status_code = res.status_code;
-                (enums::AttemptStatus::Failure, Err(error))
-            }
-        };
-
-        Ok(PaymentsPreProcessingRouterData {
-            status,
-            response,
-            ..data.clone()
-        })
     }
 
     fn get_error_response(
