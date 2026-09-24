@@ -192,6 +192,12 @@ pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 /// Vault Get Fingerprint request url
 pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
+/// Label for the auxiliary fingerprint in a batched vault fingerprint request
+pub const AUXILIARY_FINGERPRINT_LABEL: &str = "auxiliary";
+
+/// Label for the merchant fingerprint in a batched vault fingerprint request
+pub const MERCHANT_FINGERPRINT_LABEL: &str = "merchant";
+
 /// Vault Retrieve request url
 pub const V2_VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
@@ -319,6 +325,10 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
+
+/// Redis key prefix for the merchant-scoped card fingerprint, which is never persisted to the
+/// database and lives only for the payment method store TTL
+pub const MERCHANT_FINGERPRINT_REDIS_PREFIX: &str = "merchant_fingerprint";
 
 // Countries and separately encoded territories where PSD2 or the equivalent UK
 // strong customer authentication rules apply.

@@ -48,11 +48,24 @@ pub struct GenericVaultRetrieveRequest {
 pub struct VaultFingerprintRequestNew {
     pub data: String,
     pub key: String,
+    /// Further fingerprints to derive from the same call. The vault never interprets a label; it
+    /// echoes it back so the caller can match each result to what it asked for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub additional: Option<Vec<AdditionalVaultFingerprint>>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AdditionalVaultFingerprint {
+    pub label: String,
+    pub data: String,
+    pub key: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
+    #[serde(default)]
+    pub additional: Option<std::collections::HashMap<String, String>>,
 }
 
 #[cfg(feature = "v1")]
