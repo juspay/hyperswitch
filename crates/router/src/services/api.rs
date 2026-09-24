@@ -642,7 +642,9 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         if header_name == X_HS_LATENCY {
             if let Some(request_duration) = request_duration {
                 if let Ok(external_latency) = header_value.parse::<u128>() {
-                    let updated_duration = request_duration.as_millis() - external_latency;
+                    let updated_duration = request_duration
+                        .as_millis()
+                        .saturating_sub(external_latency);
                     header_value = updated_duration.to_string();
                 }
             }

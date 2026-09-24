@@ -111,10 +111,8 @@ where
         false
     };
 
-    // Total outbound-call time for this payment, summed across every attempt. Each retry builds a
-    // fresh `RouterData` whose `external_latency` starts at `None`, so without accumulating here
-    // only the final attempt would survive into the API event — and `latency - hs_latency` would
-    // then bill every earlier attempt's connector wait to Hyperswitch.
+    // Each retry builds a fresh `RouterData` starting at `None`, so accumulate here to keep
+    // earlier attempts' connector time from being billed to Hyperswitch as `latency - hs_latency`.
     let mut external_latency_total = router_data.external_latency;
 
     if should_step_up {
@@ -262,8 +260,7 @@ where
         }
     }
 
-    // Handed back once, at the single exit: the whole payment's outbound-call time rather than
-    // just the last attempt's.
+    // Report the whole payment's connector time, not just the last attempt's.
     router_data.external_latency = external_latency_total;
 
     Ok(router_data)
