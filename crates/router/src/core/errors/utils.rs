@@ -141,6 +141,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
+            errors::ConnectorError::NotSupportedPreformatted(message) => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: message.clone(),
+                }
+                .into()
+            }
             errors::ConnectorError::CaptureMethodNotSupported => {
                 errors::ApiErrorResponse::NotSupported {
                     message: "Capture Method Not Supported".to_owned(),
@@ -249,6 +255,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 },
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
+                },
+                errors::ConnectorError::NotSupportedPreformatted(message) => {
+                    errors::ApiErrorResponse::NotSupported { message: message.clone() }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -378,6 +387,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::FailedToObtainCertificateKey
                 | errors::ConnectorError::NotImplemented(_)
                 | errors::ConnectorError::NotSupported { .. }
+                | errors::ConnectorError::NotSupportedPreformatted(_)
                 | errors::ConnectorError::MaxFieldLengthViolated { .. }
                 | errors::ConnectorError::FlowNotSupported { .. }
                 | errors::ConnectorError::MissingConnectorMandateID
@@ -521,6 +531,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         message: format!("{message} by {connector}"),
                     }
                 }
+                errors::ConnectorError::NotSupportedPreformatted(message) => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: message.clone(),
+                    }
+                }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
                         message: errors::NotImplementedMessage::Reason(reason.to_string()),
@@ -563,6 +578,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         message: format!("{message} by {connector}"),
                     }
                 }
+                errors::ConnectorError::NotSupportedPreformatted(message) => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: message.clone(),
+                    }
+                }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
                         message: errors::NotImplementedMessage::Reason(reason.to_string()),
@@ -600,6 +620,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
                         message: format!("{message} by {connector}"),
+                    }
+                }
+                errors::ConnectorError::NotSupportedPreformatted(message) => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: message.clone(),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {

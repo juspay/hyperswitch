@@ -2303,11 +2303,9 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
-            // Not supported
-            Self::NotSupported(msg) => ConnectorError::NotSupported {
-                message: msg.clone(),
-                connector: "unified_connector_service",
-            },
+            // Not supported. UCS already sends a complete sentence naming the connector that
+            // refused, so surface it as-is instead of composing a second attribution.
+            Self::NotSupported(msg) => ConnectorError::NotSupportedPreformatted(msg.clone()),
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {
                 ConnectorError::InvalidConnectorName

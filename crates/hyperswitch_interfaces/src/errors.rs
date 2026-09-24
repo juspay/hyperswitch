@@ -55,6 +55,11 @@ pub enum ConnectorError {
         message: String,
         connector: &'static str,
     },
+    /// Not supported, where the message is already a complete sentence and names whatever
+    /// connector it refers to. Rendered as-is, unlike `NotSupported`, which composes one.
+    /// Used for rejections that reach us already formatted, such as those from UCS.
+    #[error("{0}")]
+    NotSupportedPreformatted(String),
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
     #[error("Capture method not supported")]
