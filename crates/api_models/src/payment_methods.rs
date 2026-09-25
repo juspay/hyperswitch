@@ -611,7 +611,9 @@ pub enum BankDebitDetailUpdate {
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodData {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
+    ApplePayDecrypted(Box<ApplePayDecryptedInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
+    GooglePayDecrypted(Box<GooglePayDecryptedInfo>),
     #[schema(value_type = PaypalRedirection)]
     PayPal(Box<payments::PaypalRedirection>),
 }
@@ -1694,6 +1696,12 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
         match wallet_data {
             WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
             WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
+            WalletPaymentMethodData::ApplePayDecrypted(data) => {
+                Self::WalletDetails(data.wallet_info)
+            }
+            WalletPaymentMethodData::GooglePayDecrypted(data) => {
+                Self::WalletDetails(data.wallet_info)
+            }
             WalletPaymentMethodData::PayPal(data) => {
                 Self::WalletDetails(PaymentMethodDataWalletInfo {
                     last4: None,
@@ -1879,6 +1887,22 @@ pub struct PaymentMethodDataWalletInfo {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayDecryptedInfo {
+    /// Apple pay decrypted data
+    pub decrypted_data: ApplePayPredecryptData,
+    /// The information of the payment method
+    pub wallet_info: PaymentMethodDataWalletInfo,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GooglePayDecryptedInfo {
+    /// Google pay decrypted data
+    pub decrypted_data: GPayPredecryptData,
+    /// The information of the payment method
+    pub wallet_info: PaymentMethodDataWalletInfo,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {

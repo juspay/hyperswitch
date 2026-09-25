@@ -1886,6 +1886,26 @@ pub enum WalletDetail {
     },
 }
 
+impl From<common_types::payments::ApplePayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::ApplePayPredecryptData) -> Self {
+        Self::ApplePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.application_expiration_month,
+            expiry_year: data.application_expiration_year,
+        }
+    }
+}
+
+impl From<common_types::payments::GPayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::GPayPredecryptData) -> Self {
+        Self::GooglePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.card_exp_month,
+            expiry_year: data.card_exp_year,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl From<payment_methods::WalletDetail> for WalletDetail {
     fn from(wallet: payment_methods::WalletDetail) -> Self {

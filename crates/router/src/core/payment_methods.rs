@@ -4202,9 +4202,15 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 api::WalletPaymentMethodData::ApplePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
+                api::WalletPaymentMethodData::ApplePayDecrypted(data) => Ok(
+                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
+                ),
                 api::WalletPaymentMethodData::GooglePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
+                api::WalletPaymentMethodData::GooglePayDecrypted(data) => Ok(
+                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
+                ),
                 api::WalletPaymentMethodData::PayPal(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(
                         payment_methods::PaymentMethodDataWalletInfo {
