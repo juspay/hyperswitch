@@ -601,13 +601,15 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method =
+        let payment_method = unified_connector_service::map_card_redirect_for_connector(
+            &router_data.connector,
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
                 router_data.connector_meta_data.as_ref(),
-            )?;
+            )?,
+        );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -2355,13 +2357,15 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method =
+        let payment_method = unified_connector_service::map_card_redirect_for_connector(
+            &router_data.connector,
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
                 router_data.payment_method_token.as_ref(),
                 router_data.connector_meta_data.as_ref(),
-            )?;
+            )?,
+        );
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 

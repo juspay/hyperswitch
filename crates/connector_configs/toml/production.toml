@@ -8234,6 +8234,8 @@ key1 = "Merchant Password"
 [d24]
 [[d24.card_redirect]]
   payment_method_type = "card_redirect"
+[[d24.bank_transfer]]
+  payment_method_type = "local_bank_transfer"
 [d24.connector_auth.SignatureKey]
 api_key = "API Key"
 key1 = "Read-only API Key"

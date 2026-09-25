@@ -156,11 +156,14 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     payments_grpc::card_redirect::CardRedirectType::MomoAtm => {
                         domain_pm::CardRedirectData::MomoAtm {}
                     }
-                    payments_grpc::card_redirect::CardRedirectType::CardRedirect => {
+                    // Hyperswitch has no dedicated WebPay variant: D24 (Directa24) WebPay is
+                    // modelled as the generic card redirect on this side and only becomes
+                    // `WEBPAY` on the way to UCS (see `map_card_redirect_for_connector`).
+                    payments_grpc::card_redirect::CardRedirectType::CardRedirect
+                    | payments_grpc::card_redirect::CardRedirectType::Webpay => {
                         domain_pm::CardRedirectData::CardRedirect {}
                     }
-                    payments_grpc::card_redirect::CardRedirectType::Unspecified
-                    | payments_grpc::card_redirect::CardRedirectType::Webpay => {
+                    payments_grpc::card_redirect::CardRedirectType::Unspecified => {
                         return Err(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed.into()
                         )
@@ -1459,6 +1462,32 @@ pub fn reconstruct_payment_method_data_for_redirect_completion(
         ),
         _ => None,
     }
+}
+
+/// Rewrites a generic card redirect into the connector-specific UCS card redirect type.
+///
+/// Hyperswitch has no dedicated WebPay payment method: D24 (Directa24) WebPay is
+/// configured and requested as the generic `card_redirect`. D24 offers no other card
+/// redirect, and the UCS D24 connector deliberately rejects the generic
+/// `CARD_REDIRECT` marker, so for D24 it is sent to UCS as `WEBPAY`. Every other
+/// connector and payment method passes through unchanged.
+pub fn map_card_redirect_for_connector(
+    connector: &str,
+    mut payment_method: payments_grpc::PaymentMethod,
+) -> payments_grpc::PaymentMethod {
+    let is_d24 = matches!(connector.parse::<Connector>(), Ok(Connector::D24));
+    if is_d24 {
+        if let Some(PaymentMethod::CardRedirect(card_redirect)) =
+            payment_method.payment_method.as_mut()
+        {
+            if card_redirect.r#type()
+                == payments_grpc::card_redirect::CardRedirectType::CardRedirect
+            {
+                card_redirect.set_type(payments_grpc::card_redirect::CardRedirectType::Webpay);
+            }
+        }
+    }
+    payment_method
 }
 
 pub fn build_unified_connector_service_payment_method(

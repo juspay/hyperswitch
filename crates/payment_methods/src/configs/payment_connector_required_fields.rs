@@ -1355,8 +1355,11 @@ impl RequiredFields {
                         enums::PaymentMethodType::CardRedirect,
                         connectors(vec![(
                             // D24 (Directa24) WebPay — Transbank's Chilean redirect method.
+                            // Everything is `common`: D24 rejects a deposit missing any of
+                            // these, whatever the mandate context.
                             Connector::D24,
                             fields(
+                                vec![],
                                 vec![],
                                 vec![
                                     RequiredField::BillingFirstName(
@@ -1367,7 +1370,9 @@ impl RequiredFields {
                                         "last_name",
                                         FieldType::UserFullName,
                                     ),
-                                    RequiredField::BillingEmail,
+                                    // UCS reads the payer email from the customer email
+                                    // (`PaymentsAuthorizeData.email`), not the billing email.
+                                    RequiredField::Email,
                                     // WebPay is Chile-only: Transbank's hosted page only
                                     // accepts Chilean payers.
                                     RequiredField::BillingAddressCountries(vec!["CL"]),
@@ -1386,7 +1391,6 @@ impl RequiredFields {
                                     RequiredField::PixDocumentType(vec!["other"]),
                                     RequiredField::PixDocumentNumber,
                                 ],
-                                vec![],
                             ),
                         )]),
                     ),
@@ -3993,17 +3997,44 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         ),
         (
             enums::PaymentMethodType::LocalBankTransfer,
-            connectors(vec![(
-                Connector::Zsl,
-                fields(
-                    vec![],
-                    vec![
-                        RequiredField::BillingAddressCountries(vec!["CN"]),
-                        RequiredField::BillingAddressCity,
-                    ],
-                    vec![],
+            connectors(vec![
+                (
+                    // D24 (Directa24) local bank transfer — Mexico (SPEI and online banking)
+                    // and Brazil (Pix, Itaú, Nubank, MercadoPago). Everything is `common`: D24
+                    // rejects a deposit missing any of these, whatever the mandate context.
+                    Connector::D24,
+                    fields(
+                        vec![],
+                        vec![],
+                        vec![
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                            // UCS reads the payer email from the customer email
+                            // (`PaymentsAuthorizeData.email`), not from the billing email.
+                            RequiredField::Email,
+                            RequiredField::BillingAddressCountries(vec!["MX", "BR"]),
+                            // `payer.document`: Brazil takes `cpf` / `cnpj` (check digits
+                            // validated in UCS); Mexico takes `other` (CURP / RFC / IFE /
+                            // passport, 7-18 alphanumeric characters). `PixDocumentType` /
+                            // `PixDocumentNumber` resolve to the generic
+                            // `customer.document_details` paths — nothing Pix-specific.
+                            RequiredField::PixDocumentType(vec!["cpf", "cnpj", "other"]),
+                            RequiredField::PixDocumentNumber,
+                        ],
+                    ),
                 ),
-            )]),
+                (
+                    Connector::Zsl,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingAddressCountries(vec!["CN"]),
+                            RequiredField::BillingAddressCity,
+                        ],
+                        vec![],
+                    ),
+                ),
+            ]),
         ),
         (
             enums::PaymentMethodType::Ach,
