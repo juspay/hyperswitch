@@ -36,6 +36,10 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
+import {
+  integrationTypeIntentData,
+  integrationTypeMismatchMessage,
+} from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -8244,18 +8248,11 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
-// Builds the same message validate_integration_type (server_integration.rs)
-// produces for a header/merchant-integration_type mismatch.
-function integrationTypeMismatchMessage(header, merchantConfig) {
-  const headerLabel = header ?? "client";
-  const merchantLabel = merchantConfig ?? "client";
-  return `\`x-integration-type\` header value \`${headerLabel}\` does not match the merchant integration type \`${merchantLabel}\``;
-}
-
 // Creates a payment intent with an optional X-Integration-Type header and
-// asserts the expected status/body for it — success shape, or the full
-// IR_06 mismatch error (code + message) built from the header/merchantConfig
-// actually in effect for this call.
+// asserts the expected status/body for it, via integrationTypeIntentData
+// (Payment/Commons.js) — success shape, or the full IR_06 mismatch error
+// (code + message) built from the header/merchantConfig actually in effect
+// for this call.
 Cypress.Commands.add(
   "integrationTypeChecker",
   (
@@ -8263,31 +8260,9 @@ Cypress.Commands.add(
     globalState,
     { expectedStatus, header, merchantConfig } = {}
   ) => {
-    const data = {
-      Request: {
-        currency: "USD",
-        amount: 6540,
-      },
-      Response: {
-        status: expectedStatus,
-        body:
-          expectedStatus === 200
-            ? { status: "requires_payment_method" }
-            : {
-                error: {
-                  code: "IR_06",
-                  message: integrationTypeMismatchMessage(
-                    header,
-                    merchantConfig
-                  ),
-                },
-              },
-      },
-    };
-
     cy.createPaymentIntentTest(
       createPaymentBody,
-      data,
+      integrationTypeIntentData(expectedStatus, header, merchantConfig),
       "no_three_ds",
       "automatic",
       globalState,
