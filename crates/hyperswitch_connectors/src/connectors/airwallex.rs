@@ -1226,6 +1226,7 @@ impl IncomingWebhook for Airwallex {
             connector_status: dispute_details.status.to_string(),
             created_at: dispute_details.created_at,
             updated_at: dispute_details.updated_at,
+            additional_details: None,
         })
     }
 }

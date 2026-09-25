@@ -104,8 +104,10 @@ pub struct GrpcClientSettings {
 impl GrpcClientSettings {
     /// # Panics
     ///
-    /// This function will panic if it fails to establish a connection with the gRPC server.
-    /// This function will be called at service startup.
+    /// This function will panic if it fails to establish a connection with the gRPC server, or if
+    /// the Unified Connector Service is configured but its client cannot be built. Both are fatal
+    /// at service startup by design: a pod that silently loses UCS would route every payment down
+    /// the direct connector path, which is not an option for `ucs_only_connectors`.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
@@ -136,7 +138,9 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
-            UnifiedConnectorServiceClient::build_connections(self).await;
+            UnifiedConnectorServiceClient::build_connections(self)
+                .await
+                .expect("Failed to build the Unified Connector Service client from configuration");
 
         #[cfg(feature = "revenue_recovery")]
         let recovery_decider_client = {
