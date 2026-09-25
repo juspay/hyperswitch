@@ -48,6 +48,10 @@ impl Default for super::settings::Database {
             min_idle_pool_size: 2,
             max_lifetime: 1800,
             idle_timeout: 300,
+            keepalives_idle: common_utils::DEFAULT_DB_KEEPALIVES_IDLE_SECS,
+            keepalives_interval: common_utils::DEFAULT_DB_KEEPALIVES_INTERVAL_SECS,
+            keepalives_count: common_utils::DEFAULT_DB_KEEPALIVES_COUNT,
+            tcp_user_timeout_ms: common_utils::DEFAULT_DB_TCP_USER_TIMEOUT_MS,
         }
     }
 }
