@@ -49,6 +49,7 @@ pub(crate) fn should_call_connector_for_dispute_sync(
         )
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
     state: SessionState,
@@ -182,6 +183,7 @@ pub async fn retrieve_dispute(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
     state: SessionState,
@@ -588,6 +590,7 @@ pub async fn submit_evidence(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
+#[cfg(feature = "v1")]
 pub async fn attach_evidence(
     state: SessionState,
     platform: domain::Platform,
