@@ -10503,15 +10503,15 @@ pub struct SantanderData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
 pub enum SantanderJourneyName {
-    #[serde(rename = "journey_1")]
+    // PixAutomaticoPush payment method type for zero-amount payments.
     Journey1,
-    #[serde(rename = "journey_2")]
+    // PixAutomaticoQr payment method type for zero-amount payments.
     Journey2,
-    #[serde(rename = "journey_3")]
+    // PixAutomaticoQr payment method type for non-zero payments with immediate QR expiry.
     Journey3,
-    #[serde(rename = "journey_4")]
+    // PixAutomaticoQr payment method type for non-zero payments with scheduled QR expiry.
     Journey4,
-    #[serde(rename = "awaiting_definition")]
+    // Journey could not be determined from the connector response.
     AwaitingDefinition,
 }
 

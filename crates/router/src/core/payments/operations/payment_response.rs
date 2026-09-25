@@ -3701,21 +3701,19 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string());
 
-        let payment_method_status_update =
-            if is_mandate_activation_pending(&payment_data.payment_attempt) {
-                None
-            } else if payment_method.status != common_enums::PaymentMethodStatus::Active
-                && payment_method.status != attempt_status.into()
-            {
-                let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
-                payment_data
-                    .payment_method_info
-                    .as_mut()
-                    .map(|info| info.status = updated_pm_status);
-                Some(updated_pm_status)
-            } else {
-                None
-            };
+        let payment_method_status_update = if payment_method.status
+            != common_enums::PaymentMethodStatus::Active
+            && payment_method.status != attempt_status.into()
+        {
+            let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
+            payment_data
+                .payment_method_info
+                .as_mut()
+                .map(|info| info.status = updated_pm_status);
+            Some(updated_pm_status)
+        } else {
+            None
+        };
 
         let pm_update = storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
             network_transaction_id,
@@ -3975,20 +3973,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             None => payment_data.mandate_data,
         };
 
-        #[cfg(feature = "v1")]
-        let is_mandate_activation_pending = is_mandate_activation_pending(&updated_payment_attempt);
-        #[cfg(feature = "v1")]
-        let should_skip_pm_status_update = is_mandate_activation_pending;
-        #[cfg(not(feature = "v1"))]
-        let should_skip_pm_status_update = false;
-
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
         payment_data.mandate_data = mandate_data_updated;
 
-        if let (false, Some(payment_method)) =
-            (should_skip_pm_status_update, &payment_data.payment_method)
-        {
+        if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {
                 common_enums::AttemptStatus::AuthenticationFailed
                 | common_enums::AttemptStatus::RouterDeclined
