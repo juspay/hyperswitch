@@ -1274,7 +1274,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NmiCancelRequest {
                 let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{cancellation_reason}\"", ))
                     .map_err(|_| ConnectorError::NotSupported {
                         message: format!("Json deserialise error: unknown variant `{cancellation_reason}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason"),
-                        connector: "nmi"
+                        connector: "nmi".into()
                     })?;
                 Ok(Self {
                     transaction_type: TransactionType::Void,

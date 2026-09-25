@@ -297,7 +297,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sh
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Void".to_string(),
-            connector: "Shift4",
+            connector: "Shift4".into(),
         }
         .into())
     }
@@ -402,7 +402,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         if req.request.amount_to_capture != req.request.payment_amount {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
-                connector: "Shift4",
+                connector: "Shift4".into(),
             })?
         }
         Ok(Some(

@@ -486,7 +486,7 @@ fn get_transaction_type(
         (Some(enums::CaptureMethod::Automatic), true) | (None, true) => {
             Err(errors::ConnectorError::NotSupported {
                 message: "Automatic Capture in CIT payments".to_string(),
-                connector: "Paybox",
+                connector: "Paybox".into(),
             })?
         }
         (Some(enums::CaptureMethod::Manual), false) => Ok(AUTH_REQUEST.to_string()),

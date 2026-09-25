@@ -5621,7 +5621,7 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
             | enums::PayoutType::Wallet
             | enums::PayoutType::BankRedirect => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutType is not supported".to_string(),
-                connector: "Cybersource",
+                connector: "Cybersource".into(),
             })?,
         }
     }
@@ -5682,7 +5682,7 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethod is not supported".to_string(),
-                connector: "Cybersource",
+                connector: "Cybersource".into(),
             })?,
         }
     }

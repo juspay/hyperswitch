@@ -959,7 +959,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                         } else {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "No threeds is not supported".to_string(),
-                                connector: "nexixpay",
+                                connector: "nexixpay".into(),
                             }
                             .into())
                         }
@@ -1111,7 +1111,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>>
                 } else {
                     Err(errors::ConnectorError::NotSupported {
                         message: "No threeds is not supported".to_string(),
-                        connector: "nexixpay",
+                        connector: "nexixpay".into(),
                     }
                     .into())
                 }

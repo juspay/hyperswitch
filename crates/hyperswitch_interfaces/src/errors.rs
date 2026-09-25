@@ -50,16 +50,13 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
-    #[error("{message} is not supported by {connector}")]
+    #[error("{}", not_supported_message(.message, .connector))]
     NotSupported {
         message: String,
-        connector: &'static str,
+        /// Owned, so a connector known only at runtime can be named. Errors surfaced through
+        /// UCS carry the connector that refused as a value on the call, not as a literal.
+        connector: Cow<'static, str>,
     },
-    /// Not supported, where the message is already a complete sentence and names whatever
-    /// connector it refers to. Rendered as-is, unlike `NotSupported`, which composes one.
-    /// Used for rejections that reach us already formatted, such as those from UCS.
-    #[error("{0}")]
-    NotSupportedPreformatted(String),
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
     #[error("Capture method not supported")]
@@ -241,5 +238,18 @@ impl ErrorSwitch<ApiClientError> for HttpClientError {
             Self::GatewayTimeoutReceived => ApiClientError::GatewayTimeoutReceived,
             Self::UnexpectedServerResponse => ApiClientError::UnexpectedServerResponse,
         }
+    }
+}
+
+/// Renders a not-supported message, naming the connector that refused.
+///
+/// Some sources send a message that already names the connector, for example UCS sends
+/// "Selected payment method is not supported by <connector>". For those the message is
+/// returned unchanged, so the connector is named once instead of twice.
+pub fn not_supported_message(message: &str, connector: &str) -> String {
+    if message.contains(connector) {
+        message.to_owned()
+    } else {
+        format!("{message} is not supported by {connector}")
     }
 }

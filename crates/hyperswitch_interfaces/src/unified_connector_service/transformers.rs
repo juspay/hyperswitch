@@ -16,7 +16,7 @@ use hyperswitch_masking::ExposeInterface;
 use prost::Message;
 
 use crate::{
-    errors::ConnectorError,
+    errors::{not_supported_message, ConnectorError},
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
@@ -163,8 +163,13 @@ pub enum UnifiedConnectorServiceError {
     NotImplemented(String),
 
     /// The connector does not support this operation.
-    #[error("This operation is not supported: {0}")]
-    NotSupported(String),
+    #[error("{}", not_supported_message(.message, .connector))]
+    NotSupported {
+        /// What the connector refused.
+        message: String,
+        /// Connector that refused the request.
+        connector: String,
+    },
 
     /// Parsing of some value or input failed.
     #[error("Parsing failed")]
@@ -1983,7 +1988,7 @@ impl UnifiedConnectorServiceError {
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidConnectorName
             | Self::MissingConnectorName
-            | Self::NotSupported(_)
+            | Self::NotSupported { .. }
             | Self::FailedToObtainAuthType => 400,
             Self::NotImplemented(_) => 501,
             _ => 500,
@@ -2121,7 +2126,7 @@ impl UnifiedConnectorServiceError {
                 );
             })
             .ok()
-            .and_then(|ie| Self::integration_error_code_to_variant(&ie))
+            .and_then(|ie| Self::integration_error_code_to_variant(&ie, connector_name))
     }
 
     /// Maps a decoded `IntegrationError` proto to the corresponding
@@ -2136,9 +2141,13 @@ impl UnifiedConnectorServiceError {
     /// | MissingRequiredFields   | MissingRequiredFields           | IR_21 |
     /// | InvalidDataFormat       | InvalidDataFormat               | IR_05 |
     /// | NotImplemented          | NotImplemented                  | IR_00 |
+    /// | NotSupported            | NotSupported                    | IR_19 |
     /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
     /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
-    fn integration_error_code_to_variant(ie: &payments_grpc::IntegrationError) -> Option<Self> {
+    fn integration_error_code_to_variant(
+        ie: &payments_grpc::IntegrationError,
+        connector_name: &str,
+    ) -> Option<Self> {
         use UcsIntegrationErrorCode as Code;
 
         UcsIntegrationErrorCode::parse(&ie.error_code).map(|code| match code {
@@ -2156,7 +2165,7 @@ impl UnifiedConnectorServiceError {
             Code::MissingRequiredFields => Self::MissingRequiredFields {
                 field_names: vec![Cow::Owned(ie.error_message.clone())],
             },
-            // Invalid data / validation errors → IR_06
+            // Invalid data / validation errors → IR_05
             Code::InvalidDataFormat
             | Code::MismatchedPaymentData
             | Code::InvalidWallet
@@ -2177,7 +2186,10 @@ impl UnifiedConnectorServiceError {
             Code::NotSupported
             | Code::FlowNotSupported
             | Code::CaptureMethodNotSupported
-            | Code::CurrencyNotSupported => Self::NotSupported(ie.error_message.clone()),
+            | Code::CurrencyNotSupported => Self::NotSupported {
+                message: ie.error_message.clone(),
+                connector: connector_name.to_string(),
+            },
             // UCS internal failures → HE_00
             Code::RequestEncodingFailed
             | Code::HeaderMapConstructionFailed
@@ -2224,7 +2236,7 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 status_code: inner.status_code,
                 reason: inner.reason.clone(),
             },
-            Self::NotSupported(message) => ApiErrorResponse::NotSupported {
+            Self::NotSupported { message, .. } => ApiErrorResponse::NotSupported {
                 message: message.clone(),
             },
             Self::NotImplemented(message) => ApiErrorResponse::NotImplemented {
@@ -2303,9 +2315,11 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
-            // Not supported. UCS already sends a complete sentence naming the connector that
-            // refused, so surface it as-is instead of composing a second attribution.
-            Self::NotSupported(msg) => ConnectorError::NotSupportedPreformatted(msg.clone()),
+            // Not supported
+            Self::NotSupported { message, connector } => ConnectorError::NotSupported {
+                message: message.clone(),
+                connector: connector.clone().into(),
+            },
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {
                 ConnectorError::InvalidConnectorName
@@ -2409,7 +2423,7 @@ impl UnifiedConnectorServiceError {
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
 
             // UCS rejected a request it does not support.
-            Self::NotSupported(_) => Some(UcsKillSwitchReason::UcsRejectedRequest),
+            Self::NotSupported { .. } => Some(UcsKillSwitchReason::UcsRejectedRequest),
 
             // UCS-side by construction: `from_grpc_error` extracts connector errors first.
             Self::TonicStatus { code, .. } => match code {

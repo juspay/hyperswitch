@@ -272,7 +272,7 @@ impl TryFrom<XenditRouterData<&PaymentsAuthorizeRouterData>> for XenditPaymentsR
                 {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "Manual Capture for QRIS payments".to_string(),
-                        connector: "Xendit",
+                        connector: "Xendit".into(),
                     }
                     .into());
                 }

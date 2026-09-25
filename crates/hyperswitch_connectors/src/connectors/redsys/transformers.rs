@@ -551,7 +551,7 @@ fn build_3ds_transaction(params: Transaction3dsParams<'_>) -> Result<RedsysTrans
     if !params.is_three_ds {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} flow for no-3ds cards", params.flow_name),
-            connector: "redsys",
+            connector: "redsys".into(),
         }
         .into())
     } else if params.auth_type != enums::AuthenticationType::ThreeDs {
@@ -857,7 +857,7 @@ fn handle_success_response(
         }
         _ => Err(errors::ConnectorError::NotSupported {
             message: "3DS payment with a non-3DS card".to_owned(),
-            connector: "redsys",
+            connector: "redsys".into(),
         }
         .into()),
     }
@@ -1160,7 +1160,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
         if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "No-3DS cards".to_string(),
-                connector: "redsys",
+                connector: "redsys".into(),
             })?
         };
         let auth = RedsysAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -1215,7 +1215,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthenticateRouterData>> for RedsysTrans
         if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "No-3DS cards".to_string(),
-                connector: "redsys",
+                connector: "redsys".into(),
             })?
         };
 
@@ -1415,7 +1415,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsCompleteAuthorizeRouterData>> for Redsys
         if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "PaymentsComplete flow for no-3ds cards".to_string(),
-                connector: "redsys",
+                connector: "redsys".into(),
             })?
         };
         let card_data =
@@ -2055,7 +2055,7 @@ fn get_transaction_type(
             Some(enums::CaptureMethod::Manual) => Ok(transaction_type::PREAUTHORIZATION.to_owned()),
             Some(capture_method) => Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: "redsys",
+                connector: "redsys".into(),
             }),
         },
         enums::AttemptStatus::VoidInitiated => Ok(transaction_type::CANCELLATION.to_owned()),
@@ -2068,12 +2068,12 @@ fn get_transaction_type(
             Some(enums::CaptureMethod::Manual) => Ok(transaction_type::CONFIRMATION.to_owned()),
             Some(capture_method) => Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: "redsys",
+                connector: "redsys".into(),
             }),
         },
         other_attempt_status => Err(errors::ConnectorError::NotSupported {
             message: format!("Payment sync after terminal status: {other_attempt_status} payment"),
-            connector: "redsys",
+            connector: "redsys".into(),
         }),
     }
 }
