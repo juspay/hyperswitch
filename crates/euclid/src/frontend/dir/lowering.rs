@@ -129,6 +129,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::PixAutomaticoQr => Self::PixAutomaticoQr,
             enums::BankTransferType::Payshap => Self::Payshap,
             enums::BankTransferType::PayshapProxy => Self::PayshapProxy,
+            enums::BankTransferType::Ted => Self::Ted,
             enums::BankTransferType::Pse => Self::Pse,
             enums::BankTransferType::Ach => Self::Ach,
             enums::BankTransferType::SepaBankTransfer => Self::Sepa,

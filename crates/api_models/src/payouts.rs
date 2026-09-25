@@ -322,6 +322,7 @@ impl TryFrom<Bank> for BankTransfer {
                 bank_number: trustly.bank_number,
             })),
             Bank::OpenBanking(open_banking) => Ok(Self::OpenBanking(open_banking)),
+            Bank::Ted(ted) => Ok(Self::Ted(ted)),
         }
     }
 }
@@ -377,6 +378,7 @@ impl From<BankTransfer> for Bank {
             BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
             BankTransfer::Payshap(payshap) => Self::Payshap(payshap),
             BankTransfer::PayshapProxy(payshap_proxy) => Self::PayshapProxy(payshap_proxy),
+            BankTransfer::Ted(ted) => Self::Ted(ted),
         }
     }
 }
@@ -416,6 +418,7 @@ pub enum Bank {
     OpenBanking(OpenBanking),
     Payshap(PayshapBankTransfer),
     PayshapProxy(PayshapProxyBankTransfer),
+    Ted(TedBankTransfer),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -431,6 +434,7 @@ pub enum BankTransfer {
     OpenBanking(OpenBanking),
     Payshap(PayshapBankTransfer),
     PayshapProxy(PayshapProxyBankTransfer),
+    Ted(TedBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -631,6 +635,41 @@ pub struct PayshapProxyBankTransfer {
     /// Shap ID proxy. Required when proxy_type is shap_id.
     #[schema(value_type = Option<String>, example = "21e3123")]
     pub shap_id: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct TedBankTransfer {
+    /// Bank name
+    #[schema(value_type = Option<BankNames>)]
+    pub bank_name: Option<api_enums::BankNames>,
+
+    /// The bank code (COMPE code) used to identify the bank
+    #[schema(value_type = Option<String>, example = "033")]
+    pub bank_code: Option<String>,
+
+    /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
+    #[schema(value_type = Option<String>, example = "90400888")]
+    pub ispb: Option<String>,
+
+    /// The branch code
+    #[schema(value_type = Option<String>, example = "0001")]
+    pub bank_branch: Option<String>,
+
+    /// Bank account number
+    #[schema(value_type = String, example = "000123456")]
+    pub bank_account_number: Secret<String>,
+
+    /// The bank account type (Checking, Savings, Payment)
+    #[schema(value_type = Option<BankType>)]
+    pub bank_account_type: Option<api_enums::BankType>,
+
+    /// Individual taxpayer identification number (CPF for individuals, CNPJ for companies)
+    #[schema(value_type = Option<String>, example = "123.456.789-09")]
+    pub tax_id: Option<Secret<String>>,
+
+    /// Name of the account holder
+    #[schema(value_type = Option<String>, example = "João Silva")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1459,6 +1498,26 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     },
                 ))
             }
+            Bank::Ted(TedBankTransfer {
+                bank_name,
+                bank_code,
+                ispb,
+                bank_branch,
+                bank_account_number,
+                bank_account_type,
+                account_holder_name,
+                ..
+            }) => Self::Ted(Box::new(
+                payout_method_utils::TedBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    bank_name,
+                    bank_code,
+                    ispb,
+                    bank_branch,
+                    bank_account_type,
+                    account_holder_name,
+                },
+            )),
         }
     }
 }
@@ -1608,6 +1667,26 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     },
                 ))
             }
+            BankTransfer::Ted(TedBankTransfer {
+                bank_name,
+                bank_code,
+                ispb,
+                bank_branch,
+                bank_account_number,
+                bank_account_type,
+                account_holder_name,
+                ..
+            }) => Self::Ted(Box::new(
+                payout_method_utils::TedBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    bank_name,
+                    bank_code,
+                    ispb,
+                    bank_branch,
+                    bank_account_type,
+                    account_holder_name,
+                },
+            )),
         }
     }
 }
@@ -1789,6 +1868,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::OpenBanking(_) => Self::OpenBanking,
                 Bank::Payshap(_) => Self::Payshap,
                 Bank::PayshapProxy(_) => Self::PayshapProxy,
+                Bank::Ted(_) => Self::Ted,
             },
             PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
                 BankTransfer::Ach(_) => Self::Ach,
@@ -1801,6 +1881,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankTransfer::OpenBanking(_) => Self::OpenBanking,
                 BankTransfer::Payshap(_) => Self::Payshap,
                 BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
+                BankTransfer::Ted(_) => Self::Ted,
             },
             PayoutMethodData::Wallet(wallet) => match wallet {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,

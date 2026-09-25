@@ -1876,6 +1876,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
             PaymentMethodType::Payshap => Self::BankTransfer,
             PaymentMethodType::PayshapProxy => Self::BankTransfer,
+            PaymentMethodType::Ted => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,

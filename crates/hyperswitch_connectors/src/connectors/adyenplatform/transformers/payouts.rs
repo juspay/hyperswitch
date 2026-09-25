@@ -568,6 +568,10 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                             connector: "Adyenplatform",
                         })?
                     }
+                    payouts::BankTransfer::Ted(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via TED is not supported".to_string(),
+                        connector: "Adyenplatform",
+                    })?,
                 };
                 let counterparty = AdyenPayoutMethodDetails::BankAccount(AdyenBankAccountDetails {
                     account_holder,
