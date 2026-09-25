@@ -8239,33 +8239,6 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
-// `system.payment_integration_type` resolves from Superposition first (see
-// dimension_config.rs); the plain `configs` table fallback is a no-op
-// wherever Superposition is reachable, so this must go through Superposition.
-function merchantIntegrationTypeContext(globalState) {
-  const merchantId = globalState.get("merchantId");
-  return {
-    processor_merchant_id: merchantId,
-    provider_merchant_id: merchantId,
-  };
-}
-
-Cypress.Commands.add("setMerchantIntegrationType", (globalState, value) => {
-  cy.createSuperpositionConfig(
-    globalState,
-    "system.payment_integration_type",
-    value,
-    merchantIntegrationTypeContext(globalState)
-  );
-});
-
-Cypress.Commands.add("deleteMerchantIntegrationType", (globalState) => {
-  cy.deleteSuperpositionContext(
-    globalState,
-    merchantIntegrationTypeContext(globalState)
-  );
-});
-
 Cypress.Commands.add(
   "createPaymentIntentWithIntegrationTypeHeader",
   (requestBody, globalState, { headerValue, expectedStatus } = {}) => {

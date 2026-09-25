@@ -30,55 +30,72 @@ const MATRIX = [
   },
 ];
 
-describe("X-Integration-Type header validation against merchant integration_type", () => {
-  // Stable payment for every "update intent" case below to target.
-  let baselinePaymentId;
+// requires = DimensionsWithProcessorAndProviderMerchantId (dimension_config.rs)
+function merchantIntegrationTypeContext() {
+  const merchantId = globalState.get("merchantId");
+  return {
+    processor_merchant_id: merchantId,
+    provider_merchant_id: merchantId,
+  };
+}
 
+describe("X-Integration-Type header validation against merchant integration_type", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
   });
 
-  before("reset merchant integration_type", () => {
-    cy.deleteMerchantIntegrationType(globalState);
-  });
-
-  before("create baseline payment", () => {
-    cy.createPaymentIntentWithIntegrationTypeHeader(
-      {
-        ...fixtures.createPaymentBody,
-        amount: 6540,
-        confirm: false,
-        profile_id: globalState.get("profileId"),
-        customer_id: globalState.get("customerId"),
-      },
-      globalState,
-      { headerValue: undefined, expectedStatus: 200 }
-    ).then((response) => {
-      baselinePaymentId = response.body.payment_id;
-    });
-  });
-
   after("flush global state", () => {
-    cy.deleteMerchantIntegrationType(globalState);
+    cy.deleteSuperpositionContext(
+      globalState,
+      merchantIntegrationTypeContext()
+    );
     cy.task("setGlobalState", globalState.data);
   });
 
   MATRIX.forEach(({ merchantConfig, header, expectedStatus }) => {
     const label = `merchant=${merchantConfig ?? "unset"} header=${header ?? "none"} -> ${expectedStatus}`;
+    let updatePaymentId;
 
     context(label, () => {
+      before("create payment for update test", () => {
+        cy.createPaymentIntentWithIntegrationTypeHeader(
+          {
+            ...fixtures.createPaymentBody,
+            amount: 6540,
+            confirm: false,
+            profile_id: globalState.get("profileId"),
+            customer_id: globalState.get("customerId"),
+          },
+          globalState,
+          { headerValue: undefined, expectedStatus: 200 }
+        ).then((response) => {
+          updatePaymentId = response.body.payment_id;
+        });
+      });
+
       before("apply merchant integration_type config", () => {
         if (merchantConfig) {
-          cy.setMerchantIntegrationType(globalState, merchantConfig);
+          cy.createSuperpositionConfig(
+            globalState,
+            "system.payment_integration_type",
+            merchantConfig,
+            merchantIntegrationTypeContext()
+          );
         } else {
-          cy.deleteMerchantIntegrationType(globalState);
+          cy.deleteSuperpositionContext(
+            globalState,
+            merchantIntegrationTypeContext()
+          );
         }
       });
 
       after("clean up merchant integration_type config", () => {
-        cy.deleteMerchantIntegrationType(globalState);
+        cy.deleteSuperpositionContext(
+          globalState,
+          merchantIntegrationTypeContext()
+        );
       });
 
       it(`create intent: ${label}`, () => {
@@ -97,7 +114,7 @@ describe("X-Integration-Type header validation against merchant integration_type
 
       it(`update intent: ${label}`, () => {
         cy.updatePaymentWithIntegrationTypeHeader(
-          baselinePaymentId,
+          updatePaymentId,
           { amount: 7000, currency: "USD" },
           globalState,
           { headerValue: header, expectedStatus }
