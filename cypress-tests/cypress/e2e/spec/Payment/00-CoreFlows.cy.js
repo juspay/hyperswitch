@@ -279,7 +279,22 @@ describe("Core flows", () => {
     });
 
     it("List connector feature matrix call", () => {
-      cy.ListConnectorsFeatureMatrixCall(globalState);
+      // Moneris added UCS-routed 3DS support (PreAuthenticate/
+      // PostAuthenticate via hyperswitch-prism), flipping card three_ds
+      // from NotSupported to Supported for both credit and debit. Assert
+      // that flip is reflected in the feature matrix once moneris is the
+      // connector under test.
+      const expectedCardFeatures =
+        globalState.get("connectorId") === "moneris"
+          ? {
+              moneris: {
+                credit: { three_ds: "supported", no_three_ds: "supported" },
+                debit: { three_ds: "supported", no_three_ds: "supported" },
+              },
+            }
+          : {};
+
+      cy.ListConnectorsFeatureMatrixCall(globalState, expectedCardFeatures);
     });
   });
 
