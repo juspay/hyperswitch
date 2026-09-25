@@ -3682,7 +3682,7 @@ where
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
 
         Ok(Self {
-            status, 
+            status,
             /* Commented out fields:
             client_secret: Some(item.response.client_secret.clone().as_str()),
             description: item.response.description.map(|x| x.as_str()),
