@@ -146,7 +146,7 @@ impl From<StripeCard> for payments::Card {
 impl From<StripeWallet> for payments::WalletData {
     fn from(wallet: StripeWallet) -> Self {
         match wallet {
-            StripeWallet::ApplePay(data) => Self::ApplePay(data),
+            StripeWallet::ApplePay(data) => Self::ApplePay(Box::new(data)),
         }
     }
 }

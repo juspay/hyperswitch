@@ -791,6 +791,7 @@ impl
             authentication_flow: authn_data.authentication_type,
             electronic_commerce_indicator: authn_data.eci.clone(),
             status: authn_data.authentication_status,
+            trans_status: authn_data.trans_status.clone(),
             ds_transaction_id: authn_data.threeds_server_transaction_id.clone(),
             version,
             error_code: authn_data.error_code.clone(),
