@@ -57,6 +57,22 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
   },
 };
 
+export const customerCreateResponse = {
+  InvalidPhoneCountryCode: {
+    Response: {
+      status: 400,
+      body: {
+        error: {
+          type: "invalid_request",
+          message:
+            'Invalid value provided:phone_country_code must be a valid country calling code (e.g. "+1"), got "United States"',
+          code: "IR_07",
+        },
+      },
+    },
+  },
+};
+
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",

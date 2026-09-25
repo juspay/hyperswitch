@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { customerCreateResponse } from "../../configs/Payment/Commons";
 
 let globalState;
 
@@ -33,20 +34,10 @@ describe("Customer Create flow test", () => {
       phone_country_code: "United States",
     };
 
-    const data = {
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              'Invalid value provided:phone_country_code must be a valid country calling code (e.g. "+1"), got "United States"',
-            code: "IR_07",
-          },
-        },
-      },
-    };
-
-    cy.createCustomerCallTest(customerCreateBody, globalState, data);
+    cy.createCustomerCallTest(
+      customerCreateBody,
+      globalState,
+      customerCreateResponse.InvalidPhoneCountryCode
+    );
   });
 });
