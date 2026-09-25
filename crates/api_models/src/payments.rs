@@ -1,4 +1,4 @@
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
@@ -38,12 +38,13 @@ pub use self::recipient::{
     RecipientBankAccount, RecipientDetails,
 };
 use crate::customers::CustomerDocumentDetails;
-#[cfg(feature = "v2")]
+
+#[cfg(any(feature = "v1", feature = "v2"))]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
-    D: serde::Deserializer<'de>,
+    D: Deserializer<'de>,
     T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+    <T as std::str::FromStr>::Err: fmt::Debug + fmt::Display + std::error::Error,
 {
     let opt_str: Option<String> = Option::deserialize(v)?;
     match opt_str {
@@ -57,7 +58,7 @@ where
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
                     let parsed_item = trimmed_item.parse::<T>().map_err(|e| {
-                        <D::Error as serde::de::Error>::custom(format!(
+                        <D::Error as de::Error>::custom(format!(
                             "Invalid value '{trimmed_item}': {e}"
                         ))
                     })?;
@@ -71,7 +72,7 @@ where
 }
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use serde::{de, Deserializer};
 use serde::{ser::Serializer, Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -9308,6 +9309,273 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsListResponseItem>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PlatformPaymentListConstraints {
+    /// The identifier for payment
+    pub payment_id: Option<id_type::PaymentId>,
+
+    /// The identifier for business profile
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// The connected (processor) merchant id to filter the list by.
+    /// When omitted, payments across all connected merchants under the platform are returned.
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+
+    /// The identifier for customer
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// limit on the number of objects to return
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
+
+    /// The starting point within a list of objects
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
+
+    /// The created-at time range (`start_time` / `end_time`) to filter payments by.
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+
+    /// The start amount (inclusive) to filter payments by.
+    pub start_amount: Option<i64>,
+
+    /// The end amount (inclusive) to filter payments by.
+    pub end_amount: Option<i64>,
+
+    /// The comma separated list of connectors to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub connector: Option<Vec<api_enums::Connector>>,
+
+    /// The comma separated list of currencies to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub currency: Option<Vec<enums::Currency>>,
+
+    /// The comma separated list of payment status to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub status: Option<Vec<enums::IntentStatus>>,
+
+    /// The comma separated list of payment methods to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+
+    /// The comma separated list of payment method types to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+
+    /// The comma separated list of authentication types to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+
+    /// The comma separated list of merchant connector ids to filter payments list for selected label
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+
+    /// The comma separated list of card networks to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_network: Option<Vec<enums::CardNetwork>>,
+
+    /// The comma separated list of card discovery methods to filter payments list
+    #[serde(deserialize_with = "parse_comma_separated", default)]
+    pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+
+    /// The identifier for merchant order reference id
+    pub merchant_order_reference_id: Option<String>,
+
+    /// The field (`on`) and direction (`by`) on which the payments list should be sorted.
+    #[serde(flatten)]
+    pub order: Option<Order>,
+}
+
+/// A single item in the platform payments list.
+///
+/// Built directly from raw diesel rows with no decryption, since a platform listing spans many
+/// connected merchants each with their own key store. Encrypted/PII fields (customer, billing,
+/// shipping, payment method data) and `connector_response_metadata` (derived on the domain
+/// `PaymentAttempt`) are therefore omitted. Use the single-payment retrieve (scoped to the
+/// connected merchant) when full PII is required.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformPaymentListItem {
+    /// Unique identifier for the payment.
+    pub payment_id: id_type::PaymentId,
+
+    /// Identifier of the platform merchant. Equals the caller's merchant id.
+    pub merchant_id: id_type::MerchantId,
+
+    /// Identifier of the connected merchant that owns this payment.
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+
+    pub status: api_enums::IntentStatus,
+
+    /// Amount in lowest denomination of the currency.
+    pub amount: MinorUnit,
+
+    /// Net amount of the active attempt.
+    pub net_amount: Option<MinorUnit>,
+
+    /// Amount still capturable on the active attempt.
+    pub amount_capturable: MinorUnit,
+
+    /// The current state metadata of the payment intent.
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+
+    /// A secret token unique to this payment intent.
+    pub client_secret: Option<Secret<String>>,
+
+    #[serde(with = "common_utils::custom_serde::iso8601::option", default)]
+    pub created: Option<PrimitiveDateTime>,
+
+    #[serde(with = "common_utils::custom_serde::iso8601::option", default)]
+    pub modified_at: Option<PrimitiveDateTime>,
+
+    pub currency: Option<api_enums::Currency>,
+
+    /// Reference id of the customer (PII fields are intentionally excluded for platform listings).
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Description of the payment.
+    pub description: Option<String>,
+
+    /// Order details associated with the payment.
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+
+    /// Connector used on the active attempt.
+    pub connector: Option<String>,
+
+    /// Payment method of the active attempt.
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// Payment method type of the active attempt.
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The business label of the profile under which this payment was processed.
+    pub business_label: Option<String>,
+
+    /// The business country of the profile under which this payment was processed.
+    pub business_country: Option<api_enums::CountryAlpha2>,
+
+    /// An optional sub-label for the business unit on the active attempt.
+    pub business_sub_label: Option<String>,
+
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// Connector's transaction id for the active attempt.
+    pub connector_transaction_id: Option<String>,
+
+    /// Total number of payment attempts associated with this payment.
+    pub attempt_count: i16,
+
+    /// Identifier of the business profile under which this payment was created.
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// The merchant connector account id used on the active attempt.
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Merchant-supplied order reference id.
+    pub merchant_order_reference_id: Option<String>,
+
+    /// Merchant-supplied metadata.
+    pub metadata: Option<serde_json::Value>,
+
+    /// A human-readable error message from the active attempt, if the payment failed.
+    pub error_message: Option<String>,
+
+    /// Date time at which the payment was last updated.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated: Option<PrimitiveDateTime>,
+
+    /// Whether extended authorization is applied on this payment.
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+
+    /// Date time at which extended authorization was last applied.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
+
+    /// Date time after which this payment cannot be captured.
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
+
+    /// Method through which the card was discovered.
+    pub card_discovery: Option<enums::CardDiscovery>,
+
+    /// The category of a Merchant Initiated Transaction (MIT).
+    pub mit_category: Option<api_enums::MitCategory>,
+
+    /// The tokenization preference for the payment method.
+    pub tokenization: Option<enums::Tokenization>,
+
+    /// Whether 3ds challenge is forced.
+    pub force_3ds_challenge: Option<bool>,
+
+    /// Whether 3ds challenge is triggered.
+    pub force_3ds_challenge_trigger: Option<bool>,
+
+    /// Error code received from the issuer in case of failed payments.
+    pub issuer_error_code: Option<String>,
+
+    /// Error message received from the issuer in case of failed payments.
+    pub issuer_error_message: Option<String>,
+
+    /// Whether the redirection has to open in the iframe.
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates how the payment was initiated.
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+
+    /// Whether partial authorization is allowed for this payment.
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Whether overcapture must be requested for this payment.
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+
+    /// Whether overcapture is effectively enabled for this payment.
+    pub is_overcapture_enabled: Option<primitive_wrappers::OvercaptureEnabledBool>,
+
+    /// Card network response details (e.g. Visa/Mastercard advice codes).
+    pub network_details: Option<NetworkDetails>,
+
+    /// Whether this payment method is stored and previously used.
+    pub is_stored_credential: Option<bool>,
+
+    /// Whether extended authorization was requested for this payment.
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+
+    /// Billing descriptor information for the payment.
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+
+    /// Information identifying partner and merchant details.
+    pub partner_merchant_identifier_details:
+        Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Installment selection confirmed by the customer for this payment.
+    pub installment_data: Option<common_types::payments::InstallmentData>,
+
+    /// A connector-specific identifier representing the stored payment instrument.
+    pub sender_payment_instrument_id: Option<String>,
+
+    /// Surcharge and tax-on-surcharge applied on the active attempt.
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
+    /// Installment options available/selected for this payment.
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformPaymentListResponse {
+    /// The number of payments included in the current response.
+    pub count: usize,
+    /// The total number of payments matching the given constraints (ignores limit/offset).
+    pub total_count: i64,
+    /// The list of payment summaries across the platform's connected merchants.
+    pub data: Vec<PlatformPaymentListItem>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RecoveryPaymentListResponse {
@@ -9475,6 +9743,27 @@ pub struct PaymentListFiltersV2 {
     /// The list of available card networks
     pub card_network: Vec<enums::CardNetwork>,
     /// The list of available Card discovery methods
+    pub card_discovery: Vec<enums::CardDiscovery>,
+}
+
+/// Available filter values for a platform payments list, aggregated across all of the
+/// platform's connected merchants.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PlatformPaymentListFilters {
+    /// The available connector filters, keyed by connector name
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    pub status: Vec<enums::IntentStatus>,
+    /// The available payment methods and their corresponding payment method types
+    pub payment_method: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
+    /// The list of available card networks
+    pub card_network: Vec<enums::CardNetwork>,
+    /// The list of available card discovery methods
     pub card_discovery: Vec<enums::CardDiscovery>,
 }
 
