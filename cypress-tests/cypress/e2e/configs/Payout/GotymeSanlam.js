@@ -102,6 +102,8 @@ export const connectorDetails = {
           status: 200,
           body: {
             payout_type: "bank",
+            status: "initiated",
+            connector: "gotyme_sanlam",
           },
         },
       },
@@ -176,6 +178,8 @@ export const connectorDetails = {
           status: 200,
           body: {
             payout_type: "bank",
+            status: "initiated",
+            connector: "gotyme_sanlam",
           },
         },
       },
