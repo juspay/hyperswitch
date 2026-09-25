@@ -152,7 +152,6 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
-          // Nuvei populates network_transaction_link_id (Mastercard TLID) from its payment response (#13498)
           network_transaction_link_id: "dynamic_tlid",
         },
       },
@@ -183,7 +182,6 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           // payment_method_data removed - Nuvei returns dynamic card metadata (issuer, country) that varies per transaction
-          // Nuvei populates network_transaction_link_id (Mastercard TLID) from its payment response (#13498)
           network_transaction_link_id: "dynamic_tlid",
         },
       },
@@ -254,7 +252,6 @@ export const connectorDetails = {
           amount: 11500,
           amount_capturable: 0,
           amount_received: 11500,
-          // Nuvei populates network_transaction_link_id (Mastercard TLID) from its payment response (#13498)
           network_transaction_link_id: "dynamic_tlid",
         },
       },
