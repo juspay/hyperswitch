@@ -127,6 +127,10 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       }).then((response) => {
         expect(response.body.frm_message.frm_name).to.equal("sanlam_payshield");
         expect(response.body.frm_message.frm_status).to.equal("legit");
+        // Proves the payout actually reached the connector, not just that
+        // FRM flagged it as legit.
+        expect(response.body.status).to.equal("initiated");
+        expect(response.body.connector).to.equal("gotyme_sanlam");
       });
     });
   });
@@ -299,6 +303,10 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
           expect(response.body.frm_message.frm_status).to.equal(
             "transaction_failure"
           );
+          // Proves the payout actually reached the connector despite the
+          // FRM failure, not just that it avoided this one error code.
+          expect(response.body.status).to.equal("initiated");
+          expect(response.body.connector).to.equal("gotyme_sanlam");
         });
       });
     }
