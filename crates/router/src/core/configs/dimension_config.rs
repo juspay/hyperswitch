@@ -1029,3 +1029,33 @@ impl DatabaseBackedConfig for PreFrmFailureMode {
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
+
+config! {
+    superposition_key = PAYOUT_FRM_CALL,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutFrmCall {
+    const KEY: &'static str = "payout_frm_call";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = CARD_ISSUER_LIST_MAX_LIMIT,
+    output = i64,
+    default = 18_000,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for CardIssuerListMaxLimit {
+    const KEY: &'static str = "card_issuer_list_max_limit";
+}

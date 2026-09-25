@@ -313,6 +313,7 @@ impl ProcessTrackerWorkflow<SessionState> for BlocklistExportWorkflow {
                 file_key: None,
                 error_message: None,
                 expires_at: None,
+                metadata: None,
                 updated_at: common_utils::date_time::now(),
             },
         )
@@ -341,6 +342,7 @@ impl ProcessTrackerWorkflow<SessionState> for BlocklistExportWorkflow {
                         )),
                         error_message: None,
                         expires_at: parse_expiry_date(expiration),
+                        metadata: None,
                         updated_at: common_utils::date_time::now(),
                     },
                 )
@@ -401,6 +403,7 @@ impl ProcessTrackerWorkflow<SessionState> for BlocklistExportWorkflow {
                                         .to_string(),
                                 ),
                                 expires_at: None,
+                                metadata: None,
                                 updated_at: common_utils::date_time::now(),
                             },
                         )

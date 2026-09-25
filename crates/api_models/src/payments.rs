@@ -1997,6 +1997,12 @@ pub struct RequestSurchargeDetails {
     pub surcharge_amount: MinorUnit,
     #[smithy(value_type = "Option<i64>")]
     pub tax_amount: Option<MinorUnit>,
+    /// The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if
+    /// available. Present only on responses when an external surcharge connector supplied it;
+    /// ignored on requests.
+    #[schema(value_type = Option<f64>, example = 3.25)]
+    #[smithy(value_type = "Option<f64>")]
+    pub surcharge_percentage: Option<f64>,
 }
 
 // for v2 use the type from common_utils::types
@@ -4371,6 +4377,31 @@ impl AdditionalPaymentData {
     pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
         match self {
             Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
+
+    /// Wallet providers report the network as a free-form string in their own spelling.
+    pub fn get_wallet_card_network(&self) -> Option<&str> {
+        match self {
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+                paypal: _,
+            } => apple_pay
+                .as_ref()
+                .map(|apple_pay| apple_pay.network.as_str())
+                .or_else(|| {
+                    google_pay
+                        .as_ref()
+                        .and_then(|google_pay| google_pay.card_network.as_deref())
+                })
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|samsung_pay| samsung_pay.card_network.as_deref())
+                }),
             _ => None,
         }
     }
@@ -10345,6 +10376,18 @@ pub struct ConnectorMetadata {
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
+    #[smithy(value_type = "Option<StripeConnectorMetadata>")]
+    pub stripe: Option<StripeConnectorMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeConnectorMetadata {
+    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
+    /// instead of returning a `requires_action` status, since there's no customer present to
+    /// complete additional authentication.
+    #[smithy(value_type = "Option<bool>")]
+    pub error_on_requires_action: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -13248,6 +13291,7 @@ pub struct PaymentLinkStatusDetails {
     pub unified_message: Option<String>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
