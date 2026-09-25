@@ -63,6 +63,14 @@ describe("Card - MultiUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateMultiUseNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -76,6 +84,15 @@ describe("Card - MultiUse Mandates flow test", () => {
           globalState
         );
       });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -121,6 +138,14 @@ describe("Card - MultiUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateMultiUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("cit-capture-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -149,6 +174,14 @@ describe("Card - MultiUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("mit-capture-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -172,6 +205,14 @@ describe("Card - MultiUse Mandates flow test", () => {
           "manual",
           globalState
         );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("mit-capture-call-test", () => {
@@ -214,6 +255,14 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateMultiUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("cit-capture-call-test", () => {
@@ -272,6 +321,14 @@ describe("Card - MultiUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateMultiUseNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("MIT for Mandates Call", () => {
         if (!shouldContinue) {
           this.skip();
@@ -310,6 +367,14 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Refund Payment", () => {
@@ -390,14 +455,6 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
       });
 
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITAutoCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -410,14 +467,6 @@ describe("Card - MultiUse Mandates flow test", () => {
           "automatic",
           globalState
         );
-      });
-
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["MITAutoCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );

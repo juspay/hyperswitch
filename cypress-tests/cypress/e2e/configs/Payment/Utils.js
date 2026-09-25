@@ -561,6 +561,7 @@ export const CONNECTOR_LISTS = {
       "finix",
       "mollie",
       "zift",
+      "xendit",
     ],
     MANDATE_ID_TEST: [
       "airwallex",
