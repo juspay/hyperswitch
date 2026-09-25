@@ -2,6 +2,7 @@
 use strum::IntoEnumIterator;
 pub mod access_token;
 pub mod gateway;
+#[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
@@ -1511,7 +1512,10 @@ pub async fn call_connector_payout(
         helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
     }
 
+    #[cfg(feature = "v1")]
     let is_blocked = guards::is_payout_blocked(state, platform, payout_data, dimensions).await?;
+    #[cfg(feature = "v2")]
+    let is_blocked = false;
 
     if !is_blocked {
         Box::pin(run_payout_connector_flows(
