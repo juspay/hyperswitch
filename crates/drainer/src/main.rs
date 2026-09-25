@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use common_utils::collections::HashMap;
 use drainer::{errors::DrainerResult, logger, services, settings, start_drainer, start_web_server};
 use router_env::tracing::Instrument;
 
@@ -56,7 +55,7 @@ async fn main() -> DrainerResult<()> {
     .await
     .expect("Failed to create the server");
 
-    tokio::spawn(
+    router_env::spawn(
         async move {
             let _ = web_server.await;
             logger::error!("The health check probe stopped working!");

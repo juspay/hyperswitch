@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
@@ -741,10 +741,12 @@ impl Drop for RdKafkaProducer {
 impl MessagingInterface for KafkaProducer {
     type MessageClass = EventType;
 
+    // The `events` crate's trait fixes the metadata type, and it does not use the facade.
+    #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
     fn send_message<T>(
         &self,
         data: T,
-        metadata: HashMap<String, String>,
+        metadata: std::collections::HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where

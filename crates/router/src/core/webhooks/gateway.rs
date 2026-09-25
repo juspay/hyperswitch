@@ -565,7 +565,7 @@ fn spawn_shadow_ucs_run(
 
     let request_owned = OwnedRequestDetails::from(request);
 
-    tokio::spawn(
+    router_env::spawn(
         async move {
             let request_ref = request_owned.borrow();
             let shadow_result = UcsIncomingWebhookGateway

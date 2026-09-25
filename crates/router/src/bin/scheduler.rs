@@ -1,8 +1,11 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
 use api_models::health_check::SchedulerHealthCheckResponse;
-use common_utils::ext_traits::{OptionExt, StringExt};
+use common_utils::{
+    collections::HashMap,
+    ext_traits::{OptionExt, StringExt},
+};
 use diesel_models::process_tracker::{self as storage, business_status};
 use error_stack::ResultExt;
 use router::{
@@ -73,7 +76,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
-    let _task_handle = tokio::spawn(
+    let _task_handle = router_env::spawn(
         router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
     );
 
@@ -122,7 +125,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     .await
     .expect("Failed to create the server");
 
-    let _task_handle = tokio::spawn(
+    let _task_handle = router_env::spawn(
         async move {
             let _ = web_server.await;
             logger::error!("The health check probe stopped working!");

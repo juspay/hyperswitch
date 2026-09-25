@@ -1,6 +1,8 @@
 //! Constants that are used in the domain models.
 
-use std::{collections::HashSet, sync::LazyLock};
+use std::sync::LazyLock;
+
+use common_utils::collections::HashSet;
 
 pub static ROUTING_ENABLED_PAYMENT_METHODS: LazyLock<HashSet<common_enums::PaymentMethod>> =
     LazyLock::new(|| {

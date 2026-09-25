@@ -43,7 +43,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             .is_ok()
         {
             let redis_clone = self.clone();
-            let _task_handle = tokio::spawn(
+            let _task_handle = router_env::spawn(
                 async move {
                     if let Err(pubsub_error) = redis_clone.on_message().await {
                         logger::error!(?pubsub_error);

@@ -5312,7 +5312,7 @@ impl
 }
 
 fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<String> {
-    let auxiliary_activities: std::collections::HashSet<&'static str> = [
+    let auxiliary_activities: common_utils::collections::HashSet<&'static str> = [
         "Add Note",
         "Attach Document",
         "Attempted Attach Document",

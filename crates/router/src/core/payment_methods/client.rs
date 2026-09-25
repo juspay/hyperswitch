@@ -296,11 +296,12 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
 
-        let active_mca_ids: std::collections::HashSet<id_type::MerchantConnectorAccountId> =
-            merchant_connector_accounts
-                .iter()
-                .map(|mca| mca.get_id())
-                .collect();
+        let active_mca_ids: common_utils::collections::HashSet<
+            id_type::MerchantConnectorAccountId,
+        > = merchant_connector_accounts
+            .iter()
+            .map(|mca| mca.get_id())
+            .collect();
 
         let mut customer_payment_methods = Vec::with_capacity(items.len());
 
@@ -584,7 +585,7 @@ async fn filter_customer_pms_by_blocklist(
     let guard_enabled =
         blocklist_utils::is_blocklist_guard_enabled(state, processor.get_account().get_id()).await;
 
-    let bins: std::collections::HashSet<String> = if guard_enabled {
+    let bins: common_utils::collections::HashSet<String> = if guard_enabled {
         customer_pms
             .iter()
             .filter_map(
@@ -595,11 +596,11 @@ async fn filter_customer_pms_by_blocklist(
             )
             .collect()
     } else {
-        std::collections::HashSet::new()
+        common_utils::collections::HashSet::new()
     };
 
     let blocked_bins = if bins.is_empty() {
-        std::collections::HashSet::new()
+        common_utils::collections::HashSet::new()
     } else {
         blocklist_utils::get_blocked_bins(state, processor, profile_id, bins).await
     };

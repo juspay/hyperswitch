@@ -1,10 +1,9 @@
 #[cfg(feature = "olap")]
-use std::collections::HashMap;
-
-#[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::enums as api_enums;
 use common_enums::ExecutionMode;
+#[cfg(feature = "olap")]
+use common_utils::collections::HashMap;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     pii,
@@ -958,7 +957,7 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let payment_method = router_data.payment_method;
     let payment_method_type = router_data.payment_method_type;
 
-    tokio::spawn(
+    router_env::spawn(
         (async move {
             let ucs_result =
                 unified_connector_service::call_unified_connector_service_for_refund_execute(
@@ -1394,7 +1393,7 @@ pub async fn sync_refund_with_gateway(
     };
 
     // If the original refund status was not success and upon a force sync it is now success, in that case we update the state metadata of the payment intent
-    tokio::spawn({
+    router_env::spawn({
         let state = state.clone();
         let processor = platform.get_processor().clone();
         let payment_intent = payment_intent.clone();
@@ -1516,7 +1515,7 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let payment_method = router_data.payment_method;
     let payment_method_type = router_data.payment_method_type;
 
-    tokio::spawn(
+    router_env::spawn(
         (async move {
             let ucs_result =
                 unified_connector_service::call_unified_connector_service_for_refund_sync(
@@ -1762,7 +1761,7 @@ pub async fn validate_and_create_refund(
 
             // Update the state metadata of the payment intent if the refund is successful
             if updated_refund.refund_status.is_success() {
-                tokio::spawn({
+                router_env::spawn({
                     let state = state.clone();
                     let processor = platform.get_processor().clone();
                     let payment_intent = payment_intent.clone();

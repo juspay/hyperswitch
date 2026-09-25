@@ -1,11 +1,12 @@
 pub mod transformers;
 
-use std::{collections::HashMap, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::{enums, CaptureMethod, ConnectorIntegrationStatus, PaymentMethodType};
 use common_utils::{
+    collections::HashMap,
     crypto::{HmacSha256, VerifySignature},
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},

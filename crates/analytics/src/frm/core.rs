@@ -1,11 +1,10 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
-
 use api_models::analytics::{
     frm::{FrmDimensions, FrmMetrics, FrmMetricsBucketIdentifier, FrmMetricsBucketResponse},
     AnalyticsMetadata, FrmFilterValue, FrmFiltersResponse, GetFrmFilterRequest,
     GetFrmMetricRequest, MetricsResponse,
 };
+use common_utils::collections::HashMap;
 use error_stack::ResultExt;
 use router_env::{
     logger,
@@ -38,7 +37,8 @@ pub async fn get_metrics(
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
         let merchant_id_scoped = merchant_id.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_frm_metrics(

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
@@ -6,6 +6,7 @@ use api_models::{
 };
 use common_enums::SurchargeEventMapper;
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::{Encode, StringExt},
     request::RequestContent,
@@ -465,7 +466,7 @@ async fn insert_event_and_spawn_webhook_delivery(
     let cloned_content = content.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
-    tokio::spawn(
+    router_env::spawn(
         async move {
             Box::pin(trigger_webhook_and_raise_event(
                 cloned_state,

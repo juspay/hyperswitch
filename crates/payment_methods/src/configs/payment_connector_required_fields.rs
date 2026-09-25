@@ -1,9 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
 use api_models::{
     enums::{self, Connector, FieldType},
     payment_methods::RequiredFieldInfo,
 };
+use common_utils::collections::{HashMap, HashSet};
 
 use crate::configs::settings::{
     BankRedirectConfig, ConnectorFields, Mandates, RequiredFieldFinal,

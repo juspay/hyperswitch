@@ -17,8 +17,6 @@ pub mod utils;
 mod validator;
 pub mod vault;
 use std::borrow::Cow;
-#[cfg(feature = "v1")]
-use std::collections::HashSet;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 #[cfg(feature = "v2")]
@@ -32,6 +30,8 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(feature = "v2")]
 use async_trait::async_trait;
+#[cfg(feature = "v1")]
+use common_utils::collections::HashSet;
 #[cfg(feature = "v1")]
 use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
@@ -2291,7 +2291,7 @@ impl LockerOperations for GenericLocker {
             let state = state.clone();
             let payment_method_data = payment_method_data.clone();
             let customer_id = customer_id.get_string_repr().to_owned();
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     vault::get_auxiliary_fingerprint_id_for_payment_method(
                         &state,
@@ -5068,7 +5068,7 @@ fn create_connector_token_details_update(
         }
         None => {
             let reference_record_hash_map =
-                std::collections::HashMap::from([(connector_id, reference_record)]);
+                common_utils::collections::HashMap::from([(connector_id, reference_record)]);
             let payments_mandate_reference =
                 mandates::PaymentsTokenReference(reference_record_hash_map);
             mandates::CommonMandateReference {

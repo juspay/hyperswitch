@@ -5,7 +5,7 @@ pub mod utils;
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::hash::{Hash, Hasher};
-use std::{collections::HashMap, future::Future, pin::Pin, str::FromStr, sync::Arc};
+use std::{future::Future, pin::Pin, str::FromStr, sync::Arc};
 
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
@@ -17,7 +17,7 @@ use api_models::{
     routing::ConnectorSelection,
 };
 use common_types::payments as common_payments_types;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{collections::HashMap, ext_traits::AsyncExt};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -910,7 +910,7 @@ pub struct SessionRoutingInput<'a> {
     pub transaction_type: &'a api_enums::TransactionType,
     pub chosen: &'a api::SessionConnectorDatas,
     pub active_mca_ids:
-        &'a std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+        &'a common_utils::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     pub default_config: &'a Vec<routing_types::RoutableConnectorChoice>,
     pub backend_input: &'a mut backend::BackendInput,
     /// Resolves whether this profile is cut over to the Decision Engine.
@@ -1163,8 +1163,7 @@ pub struct RoutingConnectorOutcomeWithApproachAndEligibility {
 }
 
 pub struct PreRoutingInput<'a> {
-    pub pre_routing_results:
-        &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    pub pre_routing_results: &'a Option<hyperswitch_domain_models::routing::PreRoutingResults>,
     pub payment_method_type: &'a storage_enums::PaymentMethodType,
     pub connectors: &'a hyperswitch_interfaces::configs::Connectors,
     pub processor: &'a domain::Processor,
@@ -2415,7 +2414,9 @@ pub async fn perform_cgraph_filtering(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
-    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    active_mca_ids: &common_utils::collections::HashSet<
+        common_utils::id_type::MerchantConnectorAccountId,
+    >,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
@@ -2563,7 +2564,9 @@ pub async fn perform_eligibility_analysis(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     profile_id: &common_utils::id_type::ProfileId,
-    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    active_mca_ids: &common_utils::collections::HashSet<
+        common_utils::id_type::MerchantConnectorAccountId,
+    >,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -2632,7 +2635,9 @@ pub async fn perform_fallback_routing(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
-    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    active_mca_ids: &common_utils::collections::HashSet<
+        common_utils::id_type::MerchantConnectorAccountId,
+    >,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let fallback_config = get_fallback_config(state, transaction_data, business_profile).await?;
     let backend_input = match transaction_data {
@@ -3115,7 +3120,9 @@ async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
-    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    active_mca_ids: &common_utils::collections::HashSet<
+        common_utils::id_type::MerchantConnectorAccountId,
+    >,
     de_routing_effective: bool,
     de_connectors: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RoutingResult<(
@@ -3281,7 +3288,9 @@ async fn perform_session_routing_for_pm_type<'a>(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
-    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    active_mca_ids: &common_utils::collections::HashSet<
+        common_utils::id_type::MerchantConnectorAccountId,
+    >,
 ) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
     let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
     let chosen_connectors = get_chosen_connectors(
@@ -4475,7 +4484,7 @@ pub async fn get_active_mca_ids_for_session(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
-) -> std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId> {
+) -> common_utils::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId> {
     match get_active_merchant_connector_accounts(state, key_store, profile_id).await {
         Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
         Err(err) => {
@@ -4484,7 +4493,7 @@ pub async fn get_active_mca_ids_for_session(
                 "euclid_routing: failed to fetch active merchant connector accounts for \
                  session routing; continuing with empty active set"
             );
-            std::collections::HashSet::new()
+            common_utils::collections::HashSet::new()
         }
     }
 }

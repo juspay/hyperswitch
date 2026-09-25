@@ -1,6 +1,5 @@
 #[cfg(feature = "v2")]
-use std::collections::HashMap;
-
+use common_utils::collections::HashMap;
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
@@ -421,7 +420,7 @@ impl AccountReferenceMap {
     fn validate(
         hash_map: &HashMap<id_type::MerchantConnectorAccountId, String>,
     ) -> Result<(), api_error_response::ApiErrorResponse> {
-        let mut seen_values = std::collections::HashSet::new(); // To check uniqueness of values
+        let mut seen_values = common_utils::collections::HashSet::new(); // To check uniqueness of values
 
         for value in hash_map.values() {
             if !seen_values.insert(value.clone()) {
@@ -595,7 +594,7 @@ common_utils::create_list_wrapper!(
             let mca_ids = self
                 .iter()
                 .map(|mca| mca.get_id())
-                .collect::<std::collections::HashSet<_>>();
+                .collect::<common_utils::collections::HashSet<_>>();
 
             connector_mandate_details
             .payments
@@ -802,7 +801,7 @@ common_utils::create_list_wrapper!(
                 .filter(|mca| mca.connector_type == connector_type)
                 .collect()
         }
-        pub fn get_ids(&self) -> std::collections::HashSet<id_type::MerchantConnectorAccountId> {
+        pub fn get_ids(&self) -> common_utils::collections::HashSet<id_type::MerchantConnectorAccountId> {
             self.iter().map(|mca| mca.get_id()).collect()
         }
         pub fn is_merchant_connector_account_id_in_connector_mandate_details(
@@ -812,7 +811,7 @@ common_utils::create_list_wrapper!(
             let mca_ids = self
                 .iter()
                 .map(|mca| mca.get_id())
-                .collect::<std::collections::HashSet<_>>();
+                .collect::<common_utils::collections::HashSet<_>>();
 
             connector_mandate_details
                 .payments

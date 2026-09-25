@@ -7,11 +7,7 @@ pub mod helpers;
 pub mod retry;
 pub mod transformers;
 pub mod validator;
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-    vec::IntoIter,
-};
+use std::{str::FromStr, vec::IntoIter};
 
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "olap")]
@@ -19,6 +15,7 @@ use api_models::{admin::MerchantConnectorInfo, payments as payment_enums};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
+    collections::{HashMap, HashSet},
     consts,
     ext_traits::{AsyncExt, ValueExt},
     id_type::{self, GenerateId},
@@ -4078,7 +4075,7 @@ pub async fn create_payout_link(
         })),
         // Send empty set of whitelisted domains
         (_, true) => {
-            Ok(HashSet::new())
+            Ok(Default::default())
         },
         // Otherwise, fetch and use allowed domains from profile config
         (_, false) => {

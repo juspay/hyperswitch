@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use common_enums::enums;
 use common_utils::{
+    collections::HashMap,
     consts::{PROPHETPAY_REDIRECT_URL, PROPHETPAY_TOKEN},
     errors::CustomResult,
     request::Method,

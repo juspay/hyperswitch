@@ -1,7 +1,6 @@
-#[cfg(feature = "v1")]
-use std::collections::HashSet;
-
 use async_bb8_diesel::AsyncRunQueryDsl;
+#[cfg(feature = "v1")]
+use common_utils::collections::HashSet;
 #[cfg(feature = "v1")]
 use diesel::Table;
 use diesel::{

@@ -177,7 +177,7 @@ impl SubscriberClient {
         let (broadcast_sender, _) =
             tokio::sync::broadcast::channel(conf.broadcast_channel_capacity);
 
-        tokio::spawn(Self::run(push_receiver, broadcast_sender.clone()).in_current_span());
+        router_env::spawn(Self::run(push_receiver, broadcast_sender.clone()).in_current_span());
 
         Ok(Self {
             connection,

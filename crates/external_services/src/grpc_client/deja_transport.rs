@@ -447,6 +447,8 @@ fn reconstruct_hit(
 #[cfg(all(test, feature = "dynamic_routing"))]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod tests {
+    use router_env::tracing::Instrument;
+
     use super::{
         super::dynamic_routing::{
             success_rate_client::success_rate::{
@@ -511,10 +513,11 @@ mod tests {
     async fn inactive_wrapper_is_a_pure_passthrough() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
-        tokio::spawn(
+        router_env::spawn(
             tonic::transport::Server::builder()
                 .add_service(SuccessRateCalculatorServer::new(CannedScorer))
-                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener)),
+                .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+                .in_current_span(),
         );
 
         let pool =

@@ -1,7 +1,5 @@
-use std::collections::HashSet;
-
 use common_enums::{EntityType, MerchantProductType, PermissionGroup, Resource, RoleScope};
-use common_utils::{errors::CustomResult, id_type};
+use common_utils::{collections::HashSet, errors::CustomResult, id_type};
 
 use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};

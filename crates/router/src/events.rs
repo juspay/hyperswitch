@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use common_utils::types::TenantConfig;
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
@@ -138,10 +136,12 @@ impl EventsHandler {
 impl MessagingInterface for EventsHandler {
     type MessageClass = EventType;
 
+    // The `events` crate's trait fixes the metadata type, and it does not use the facade.
+    #[allow(clippy::disallowed_types, clippy::disallowed_methods)]
     fn send_message<T>(
         &self,
         data: T,
-        metadata: HashMap<String, String>,
+        metadata: std::collections::HashMap<String, String>,
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where

@@ -1,8 +1,8 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
 use api_models::payments::PaymentsSessionRequest;
 use async_trait::async_trait;
-use common_utils::{errors::CustomResult, ext_traits::Encode};
+use common_utils::{collections::HashMap, errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::customer;
 use router_env::{instrument, logger, tracing};
@@ -326,10 +326,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         let pre_routing = storage::PaymentRoutingInfo {
             algorithm: None,
             pre_routing_results: Some((|| {
-                let mut pre_routing_results: HashMap<
-                    common_enums::PaymentMethodType,
-                    storage::PreRoutingConnectorChoice,
-                > = HashMap::new();
+                let mut pre_routing_results: hyperswitch_domain_models::routing::PreRoutingResults =
+                    Default::default();
                 for (pm_type, routing_choice) in session_token_routing_result.routing_result {
                     let mut routable_choice_list = vec![];
                     for choice in routing_choice {

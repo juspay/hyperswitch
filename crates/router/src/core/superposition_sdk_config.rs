@@ -160,34 +160,34 @@ pub async fn get_profile_superposition_sdk_config(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mut payment_experiences_consolidated_hm: std::collections::HashMap<
+    let mut payment_experiences_consolidated_hm: common_utils::collections::HashMap<
         api_enums::PaymentMethod,
-        std::collections::HashMap<
+        common_utils::collections::HashMap<
             api_enums::PaymentMethodType,
-            std::collections::HashMap<api_enums::PaymentExperience, Vec<String>>,
+            common_utils::collections::HashMap<api_enums::PaymentExperience, Vec<String>>,
         >,
-    > = std::collections::HashMap::new();
+    > = common_utils::collections::HashMap::new();
 
-    let mut card_networks_consolidated_hm: std::collections::HashMap<
+    let mut card_networks_consolidated_hm: common_utils::collections::HashMap<
         api_enums::PaymentMethod,
-        std::collections::HashMap<
+        common_utils::collections::HashMap<
             api_enums::PaymentMethodType,
-            std::collections::HashMap<api_enums::CardNetwork, Vec<String>>,
+            common_utils::collections::HashMap<api_enums::CardNetwork, Vec<String>>,
         >,
-    > = std::collections::HashMap::new();
+    > = common_utils::collections::HashMap::new();
 
-    let mut banks_consolidated_hm: std::collections::HashMap<
+    let mut banks_consolidated_hm: common_utils::collections::HashMap<
         api_enums::PaymentMethodType,
         Vec<String>,
-    > = std::collections::HashMap::new();
-    let mut bank_debits_consolidated_hm: std::collections::HashMap<
+    > = common_utils::collections::HashMap::new();
+    let mut bank_debits_consolidated_hm: common_utils::collections::HashMap<
         api_enums::PaymentMethodType,
         Vec<String>,
-    > = std::collections::HashMap::new();
-    let mut bank_transfer_consolidated_hm: std::collections::HashMap<
+    > = common_utils::collections::HashMap::new();
+    let mut bank_transfer_consolidated_hm: common_utils::collections::HashMap<
         api_enums::PaymentMethodType,
         Vec<String>,
-    > = std::collections::HashMap::new();
+    > = common_utils::collections::HashMap::new();
 
     for mca in &mcas {
         if let Some(payment_methods_enabled_list) = &mca.payment_methods_enabled {
@@ -268,8 +268,8 @@ pub async fn get_profile_superposition_sdk_config(
         banks_consolidated_hm,
         bank_debits_consolidated_hm,
         bank_transfer_consolidated_hm,
-        required_fields_hm: std::collections::HashMap::new(),
-        pmt_to_auth_connector: std::collections::HashMap::new(),
+        required_fields_hm: common_utils::collections::HashMap::new(),
+        pmt_to_auth_connector: common_utils::collections::HashMap::new(),
         connector_supports_installments: false,
         collect_shipping_details_from_wallets: None,
         collect_billing_details_from_wallets: None,
@@ -533,10 +533,10 @@ fn translate_to_sdk_payment_methods(
     state: &SessionState,
     pms_ctx: &MerchantEnabledPmsContext,
 ) -> error_stack::Result<Vec<SdkPaymentMethod>, errors::ApiErrorResponse> {
-    let mut consolidated_rules: std::collections::HashMap<
+    let mut consolidated_rules: common_utils::collections::HashMap<
         (api_enums::PaymentMethod, api_enums::PaymentMethodType),
         (Option<PaymentMethodCriteria>, Vec<SdkCriteriaRule>),
-    > = std::collections::HashMap::new();
+    > = common_utils::collections::HashMap::new();
 
     // 1. Payment experiences (wallets, paylater, etc.)
     for (payment_method, pmt_map) in &pms_ctx.payment_experiences_consolidated_hm {
@@ -624,10 +624,10 @@ fn translate_to_sdk_payment_methods(
         });
     }
 
-    let mut payment_methods_map: std::collections::HashMap<
+    let mut payment_methods_map: common_utils::collections::HashMap<
         api_enums::PaymentMethod,
         Vec<SdkPaymentMethodType>,
-    > = std::collections::HashMap::new();
+    > = common_utils::collections::HashMap::new();
 
     for ((payment_method, payment_method_type), (payment_method_criteria, rules)) in
         consolidated_rules

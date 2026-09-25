@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use api_models::{webhook_events, webhooks};
-use common_utils::{ext_traits, request, type_name, types::keymanager};
+use common_utils::{collections::HashMap, ext_traits, request, type_name, types::keymanager};
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
@@ -153,7 +151,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let cloned_processor_merchant_id = processor_merchant_id.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
-    tokio::spawn(
+    router_env::spawn(
         async move {
             Box::pin(trigger_webhook_and_raise_event(
                 state,

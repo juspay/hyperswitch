@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use api_models::payments::QrCodeInformation;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
 use common_utils::{
-    errors::CustomResult, ext_traits::Encode, pii, request::Method, types::FloatMajorUnit,
+    collections::HashMap, errors::CustomResult, ext_traits::Encode, pii, request::Method,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{

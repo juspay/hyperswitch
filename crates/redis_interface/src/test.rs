@@ -11,7 +11,12 @@
 //! Run with fred:
 //!     cargo test -p redis_interface --no-default-features --features fred
 
+// redis implements FromRedisValue for std's map, not ours.
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
+
 use std::collections::HashMap;
+
+use router_env::tracing::Instrument;
 
 use crate::{
     ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool,
@@ -1997,9 +2002,12 @@ async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-    tokio::spawn(async move {
-        pool.redis_conn.on_error(shutdown_tx).await;
-    });
+    router_env::spawn(
+        async move {
+            pool.redis_conn.on_error(shutdown_tx).await;
+        }
+        .in_current_span(),
+    );
 
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), shutdown_rx).await;
 
@@ -2052,9 +2060,12 @@ async fn test_on_error_marks_unavailable_after_threshold() {
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     let is_available = pool.redis_conn.is_redis_available.clone();
 
-    tokio::spawn(async move {
-        pool.redis_conn.on_error(shutdown_tx).await;
-    });
+    router_env::spawn(
+        async move {
+            pool.redis_conn.on_error(shutdown_tx).await;
+        }
+        .in_current_span(),
+    );
 
     let result = tokio::time::timeout(std::time::Duration::from_secs(10), shutdown_rx).await;
 

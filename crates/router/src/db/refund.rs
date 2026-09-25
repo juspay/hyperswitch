@@ -1,6 +1,5 @@
 #[cfg(feature = "olap")]
-use std::collections::{HashMap, HashSet};
-
+use common_utils::collections::{HashMap, HashSet};
 #[cfg(feature = "olap")]
 use common_utils::types::{ConnectorTransactionIdTrait, MinorUnit};
 use diesel_models::{errors::DatabaseError, refund as diesel_refund};

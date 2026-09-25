@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use common_utils::errors;
+use common_utils::{collections::HashMap, errors};
 use error_stack::ResultExt;
 use serde::{de::value::MapDeserializer, Deserialize, Serialize};
 

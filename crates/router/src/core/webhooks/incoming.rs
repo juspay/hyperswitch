@@ -1672,7 +1672,7 @@ async fn refunds_incoming_webhook_flow(
             tracing::error!(?err, "Failed to update intent state metadata for refund");
         }
     };
-    tokio::spawn(state_metadata_update.in_current_span());
+    router_env::spawn(state_metadata_update.in_current_span());
 
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
@@ -2702,7 +2702,7 @@ async fn disputes_incoming_webhook_flow(
         if diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute)
             && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
         {
-            tokio::spawn({
+            router_env::spawn({
                 let state = state.clone();
                 let platform = platform.clone();
                 let payment_intent = db

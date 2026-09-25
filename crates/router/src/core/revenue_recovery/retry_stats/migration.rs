@@ -42,7 +42,7 @@ pub async fn migrate_retry_stats_from_csv(
 
     // Reject the whole batch if any cluster_key appears more than once.
     let duplicate_errors = validated_rows.iter().scan(
-        std::collections::HashSet::new(),
+        common_utils::collections::HashSet::new(),
         |seen_keys, (row_number, key, _doc)| {
             Some(
                 (!seen_keys.insert(key.as_db_string())).then(|| CsvParsingError {

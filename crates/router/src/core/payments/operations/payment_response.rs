@@ -1,6 +1,6 @@
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 use std::future::Future;
-use std::{collections::HashMap, ops::Deref};
+use std::ops::Deref;
 
 #[cfg(feature = "v1")]
 use ::payment_methods::client::{
@@ -11,6 +11,7 @@ use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, ConnectorTokenStatus, TokenizationType};
 use common_utils::{
+    collections::HashMap,
     ext_traits::{AsyncExt, Encode, ValueExt},
     types::{keymanager::KeyManagerState, ConnectorTransactionId, MinorUnit},
 };
@@ -30,10 +31,10 @@ use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::PeekInterface;
 use router_derive;
+#[cfg(feature = "v1")]
+use router_env::tracing::Instrument;
 use router_env::{instrument, logger, tracing};
 use storage_impl::behaviour::Conversion;
-#[cfg(feature = "v1")]
-use tracing_futures::Instrument;
 
 #[cfg(feature = "v1")]
 use super::payment_update::PaymentUpdate;
@@ -90,7 +91,7 @@ where
     deja::spawn_fork(future);
 
     #[cfg(not(feature = "deja"))]
-    let _task_handle = tokio::spawn(future.in_current_span());
+    let _task_handle = router_env::spawn(future.in_current_span());
 }
 
 #[cfg(feature = "v1")]
@@ -3142,7 +3143,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     // Own span per fork, not the caller's: these are joined together, so a
     // shared span leaves them separable only by scheduler order and a
     // record/replay comparison reads a transposition as a behaviour change.
-    let payment_attempt_fut = tokio::spawn(
+    let payment_attempt_fut = router_env::spawn(
         async move {
             Box::pin(async move {
                 Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
@@ -3211,7 +3212,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let m_storage_scheme = processor.get_account().storage_scheme;
     let m_payment_data_payment_intent = payment_data.payment_intent.clone();
     let m_payment_intent_update = payment_intent_update.clone();
-    let payment_intent_fut = tokio::spawn(
+    let payment_intent_fut = router_env::spawn(
         async move {
             m_db.update_payment_intent(
                 m_payment_data_payment_intent,
@@ -3240,7 +3241,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .and_then(|mandate_ids| mandate_ids.mandate_id));
     let m_router_data_response = router_data.response.clone();
     let m_storage_scheme = processor.get_account().storage_scheme;
-    let mandate_update_fut = tokio::spawn(
+    let mandate_update_fut = router_env::spawn(
         async move {
             mandate::update_connector_mandate_id(
                 m_db.as_ref(),
@@ -3269,7 +3270,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let de_dimensions = dimensions.with_profile_id(profile_id.clone());
             let payment_attempt = payment_attempt.clone();
 
-            tokio::spawn(
+            router_env::spawn(
                 async move {
                     if routing_utils::is_decision_engine_routing_effective(&state, &de_dimensions)
                         .await

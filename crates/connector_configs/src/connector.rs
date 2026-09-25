@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
@@ -10,6 +8,7 @@ use api_models::{
     merchant_connector_webhook_management::ScopeType,
     payments,
 };
+use common_utils::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::common_config::{CardProvider, InputData, Provider, ZenApplePay};

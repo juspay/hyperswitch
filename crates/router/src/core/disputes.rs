@@ -1,9 +1,12 @@
-use std::{collections::HashMap, ops::Deref, str::FromStr};
+use std::{ops::Deref, str::FromStr};
 
 use api_models::{
     admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
 };
-use common_utils::ext_traits::{Encode, ValueExt};
+use common_utils::{
+    collections::HashMap,
+    ext_traits::{Encode, ValueExt},
+};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
@@ -1145,7 +1148,7 @@ pub async fn schedule_dispute_sync_task(
         let business_profile_id = business_profile.get_id().clone();
         let application_source = state.conf.application_source;
 
-        tokio::spawn(
+        router_env::spawn(
             async move {
                 add_dispute_list_task_to_pt(
                     &*m_db,

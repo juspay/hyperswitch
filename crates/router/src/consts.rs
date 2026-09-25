@@ -3,7 +3,7 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-use std::{collections::HashSet, str::FromStr, sync};
+use std::{str::FromStr, sync};
 
 use api_models::enums::Country;
 use common_utils::{consts, id_type};
@@ -156,7 +156,7 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 
 /// Default allowed domains for payment links
-pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
+pub const DEFAULT_ALLOWED_DOMAINS: Option<common_utils::collections::HashSet<String>> = None;
 
 /// Default hide card nickname field
 pub const DEFAULT_HIDE_CARD_NICKNAME_FIELD: bool = false;

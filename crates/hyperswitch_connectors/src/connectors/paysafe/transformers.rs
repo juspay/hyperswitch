@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
 use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, Currency};
 use common_types::payments::{ApplePayPaymentData, ApplePayPredecryptData};
 use common_utils::{
+    collections::HashMap,
     ext_traits::ValueExt,
     id_type,
     pii::{Email, IpAddress, SecretSerdeValue},
