@@ -1131,6 +1131,8 @@ impl
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
+            customer: None,
+            setup_future_usage: None,
         })
     }
 }
