@@ -3516,7 +3516,7 @@ where
 {
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -3572,7 +3572,13 @@ where
                     &merchant_connector_account,
                     &external_vault_merchant_connector_account,
                     platform.get_processor(),
-                    execution_mode,
+                    crate::core::unified_connector_service::kill_switch::RolloutSettings {
+                        execution_mode,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                        rollout_scope: rollout_result.rollout_scope.clone(),
+                    },
                 )
                 .await?;
             router_data
@@ -3594,6 +3600,10 @@ where
                         lineage_ids: lineage_ids.clone(),
                         merchant_connector_account: merchant_connector_account.clone(),
                         execution_path,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                        rollout_scope: rollout_result.rollout_scope.clone(),
                         execution_mode,
                     },
                 )
@@ -3612,6 +3622,10 @@ where
                 lineage_ids,
                 merchant_connector_account: merchant_connector_account.clone(),
                 execution_path,
+                kill_switch_enabled: rollout_result.kill_switch_enabled,
+                kill_switch_threshold: rollout_result.kill_switch_threshold,
+                connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
                 execution_mode,
             };
 
@@ -6352,7 +6366,7 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         processor,
         &router_data,
@@ -6382,6 +6396,10 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -6943,7 +6961,7 @@ where
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
     // do order creation
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -6973,6 +6991,10 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account_type_details.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -7075,16 +7097,17 @@ where
         // Extract previous gateway from payment data
         let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-        let (execution_path, updated_state) = should_call_unified_connector_service(
-            state,
-            processor,
-            &router_data,
-            previous_gateway,
-            call_connector_action.clone(),
-            None,
-            common_enums::TransactionType::Payment,
-        )
-        .await?;
+        let (execution_path, updated_state, rollout_result) =
+            should_call_unified_connector_service(
+                state,
+                processor,
+                &router_data,
+                previous_gateway,
+                call_connector_action.clone(),
+                None,
+                common_enums::TransactionType::Payment,
+            )
+            .await?;
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -7104,6 +7127,10 @@ where
             lineage_ids,
             merchant_connector_account: merchant_connector_account_type_details.clone(),
             execution_path,
+            kill_switch_enabled: rollout_result.kill_switch_enabled,
+            kill_switch_threshold: rollout_result.kill_switch_threshold,
+            connector_decline_threshold: rollout_result.connector_decline_threshold,
+            rollout_scope: rollout_result.rollout_scope.clone(),
             execution_mode,
         };
         let call_connector_service_response = call_connector_service(
@@ -7188,7 +7215,10 @@ where
                 merchant_connector_account_type_details.clone(),
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
-                ExecutionMode::Primary, //UCS is called in primary mode
+                // No rollout config governs the external-vault proxy path, so nothing can divert it.
+                crate::core::unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
+                    ExecutionMode::Primary,
+                ),
             )
             .await?;
 
@@ -7271,7 +7301,7 @@ where
         )
         .await?;
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -7301,6 +7331,10 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -8373,7 +8407,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         processor,
         &router_data,
@@ -8403,6 +8437,10 @@ where
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 

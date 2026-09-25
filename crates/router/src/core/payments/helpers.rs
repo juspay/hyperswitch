@@ -2536,6 +2536,11 @@ pub struct RolloutConfig {
     pub kill_switch_enabled: bool,
     #[serde(default = "default_kill_switch_threshold")]
     pub kill_switch_threshold: u64,
+    /// Threshold for connector declines (UCS answered, the connector refused).
+    /// Unset means declines never trip the kill switch; other failures still use
+    /// `kill_switch_threshold`.
+    #[serde(default)]
+    pub connector_decline_threshold: Option<u64>,
 }
 
 fn default_kill_switch_enabled() -> bool {
@@ -2563,6 +2568,7 @@ impl Default for RolloutConfig {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
         }
     }
 }
@@ -2577,6 +2583,28 @@ pub struct RolloutExecutionResult {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
+    /// See `RolloutConfig::connector_decline_threshold`.
+    pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate evaluated this config under, set by the gate rather than by
+    /// `From<RolloutConfig>`: the config value does not know which key it was read from.
+    /// `None` until the gate runs, and on paths no gate governs.
+    pub rollout_scope: Option<String>,
+}
+
+impl RolloutExecutionResult {
+    /// The gate-resolved values the failure path needs, so a failure counts against the same
+    /// scope and thresholds the gate used rather than recomputing either.
+    pub fn rollout_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
+        }
+    }
 }
 
 impl Default for RolloutExecutionResult {
@@ -2587,6 +2615,8 @@ impl Default for RolloutExecutionResult {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            rollout_scope: None,
         }
     }
 }
@@ -2678,6 +2708,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            connector_decline_threshold: config.connector_decline_threshold,
                             // Proxy override is sourced from the env-configured comparison
                             // service, not from the DB rollout config — populated by the caller
                             // after conversion.

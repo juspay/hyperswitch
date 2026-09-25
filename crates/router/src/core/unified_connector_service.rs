@@ -53,8 +53,8 @@ use crate::{
             helpers::{
                 is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
                 should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
-                MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
-                WebhookRolloutExecutionResult,
+                MerchantConnectorAccountType, ProxyOverride, RolloutExecutionResult,
+                WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -925,7 +925,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     transaction_type: common_enums::TransactionType,
-) -> RouterResult<(ExecutionPath, SessionState)>
+) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
 where
     R: Send + Sync + Clone,
 {
@@ -968,7 +968,7 @@ where
         determine_connector_integration_type(state, connector_enum).await?;
 
     // Try keys highest → lowest precedence, use first match found
-    let rollout_result =
+    let mut rollout_result =
         should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
@@ -1046,19 +1046,32 @@ where
             router_data.payment_method_type,
         );
 
+        // This is the scope the decision is made under. Every connector call the decision
+        // authorises counts against it, including the flows that inherit it without gating
+        // for themselves.
+        rollout_result.rollout_scope = Some(rollout_scope.clone());
+
         if Box::pin(kill_switch::is_kill_switched(
             state,
             &rollout_scope,
-            rollout_result.kill_switch_enabled,
-            rollout_result.kill_switch_threshold,
+            rollout_result.rollout_settings(),
         ))
         .await
         {
+            // Same dimensions as UCS_KILL_SWITCH_COUNTER_INCREMENTED so one alert can
+            // correlate "counter rose" with "traffic actually diverted".
             router_env::logger::warn!(
+                rollout_scope = %rollout_scope,
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
-                "UCS kill switch counter exceeds threshold for this scope, routing to shadow"
+                payment_method = ?router_data.payment_method,
+                payment_method_type = ?router_data.payment_method_type,
+                kill_switch_enabled = rollout_result.kill_switch_enabled,
+                threshold = rollout_result.kill_switch_threshold,
+                connector_decline_threshold = ?rollout_result.connector_decline_threshold,
+                request_id = ?state.request_id,
+                "UCS_KILL_SWITCH_DIVERTED_TO_SHADOW"
             );
             gateway_system = GatewaySystem::Direct;
             execution_path = ExecutionPath::ShadowUnifiedConnectorService;
@@ -1102,7 +1115,7 @@ where
         flow_name
     );
 
-    Ok((execution_path, session_state))
+    Ok((execution_path, session_state, rollout_result))
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override
@@ -3772,7 +3785,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOu
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
-    execution_mode: ExecutionMode,
+    rollout_settings: kill_switch::RolloutSettings,
     handler: F,
 ) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
@@ -3840,9 +3853,31 @@ where
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
         Ok((updated_router_data, flow_output, grpc_response)) => {
-            let status = updated_router_data
-                .connector_http_status_code
-                .unwrap_or(200);
+            // Every handler sets this from the UCS response, so `None` here means a handler
+            // forgot. Record 0 — UCS's own value for "no HTTP status" and already present in
+            // connector_events — rather than a fabricated 200 that reads as success.
+            let status = updated_router_data.connector_http_status_code.unwrap_or(0);
+
+            // UCS answered gRPC OK with a connector 2xx and the connector still refused
+            // the payment. Counted against `connector_decline_threshold`, so it is a
+            // no-op unless the scope sets one.
+            if updated_router_data.response.is_err() {
+                if let Ok(flow_name) = get_flow_name::<T>() {
+                    kill_switch::record_decline(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        rollout_settings.clone(),
+                    )
+                    .await;
+                }
+            }
 
             // Log the actual gRPC response with masking
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
@@ -3873,7 +3908,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        execution_mode,
+                        rollout_settings.clone(),
                         error.current_context(),
                     )
                     .await;
@@ -3914,7 +3949,7 @@ where
                                 payment_method,
                                 payment_method_type,
                             },
-                            execution_mode,
+                            rollout_settings.clone(),
                             error.current_context(),
                         )
                         .await;
@@ -3970,7 +4005,7 @@ where
         status_code,
         response_body,
         external_latency,
-        execution_mode,
+        rollout_settings.execution_mode,
     );
 
     // Set external latency on router data
@@ -3990,7 +4025,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     state: &SessionState,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
-    execution_mode: ExecutionMode,
+    rollout_settings: kill_switch::RolloutSettings,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -4059,9 +4094,31 @@ where
     // Create and emit connector event after UCS call
     let (status_code, response_body, router_result) = match result {
         Ok((updated_router_data, flow_output, grpc_response)) => {
-            let status = updated_router_data
-                .connector_http_status_code
-                .unwrap_or(200);
+            // Every handler sets this from the UCS response, so `None` here means a handler
+            // forgot. Record 0 — UCS's own value for "no HTTP status" and already present in
+            // connector_events — rather than a fabricated 200 that reads as success.
+            let status = updated_router_data.connector_http_status_code.unwrap_or(0);
+
+            // UCS answered gRPC OK with a connector 2xx and the connector still refused
+            // the payment. Counted against `connector_decline_threshold`, so it is a
+            // no-op unless the scope sets one.
+            if updated_router_data.response.is_err() {
+                if let Ok(flow_name) = get_flow_name::<T>() {
+                    kill_switch::record_decline(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        rollout_settings.clone(),
+                    )
+                    .await;
+                }
+            }
 
             // Log the actual gRPC response
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
@@ -4092,7 +4149,7 @@ where
                             payment_method,
                             payment_method_type,
                         },
-                        execution_mode,
+                        rollout_settings.clone(),
                         error.current_context(),
                     )
                     .await;
@@ -4134,7 +4191,7 @@ where
                                 payment_method,
                                 payment_method_type,
                             },
-                            execution_mode,
+                            rollout_settings.clone(),
                             error.current_context(),
                         )
                         .await;
@@ -4191,7 +4248,7 @@ where
         status_code,
         response_body,
         external_latency,
-        execution_mode,
+        rollout_settings.execution_mode,
     );
 
     // Set external latency on router data
@@ -4284,7 +4341,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     state: &SessionState,
     processor: &Processor,
     router_data: RouterData<refunds::Execute, RefundsData, RefundsResponseData>,
-    execution_mode: ExecutionMode,
+    rollout_settings: kill_switch::RolloutSettings,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::Execute, RefundsData, RefundsResponseData>> {
@@ -4330,7 +4387,9 @@ pub async fn call_unified_connector_service_for_refund_execute(
         })
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
-        .get_grpc_headers_ucs(execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4344,7 +4403,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         state,
         ucs_refund_request,
         grpc_header_builder,
-        execution_mode,
+        rollout_settings.clone(),
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
@@ -4379,7 +4438,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     state: &SessionState,
     processor: &Processor,
     router_data: RouterData<refunds::RSync, RefundsData, RefundsResponseData>,
-    execution_mode: ExecutionMode,
+    rollout_settings: kill_switch::RolloutSettings,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RouterData<refunds::RSync, RefundsData, RefundsResponseData>> {
@@ -4426,7 +4485,9 @@ pub async fn call_unified_connector_service_for_refund_sync(
         .map(ucs_types::UcsResourceId::Refund);
 
     let grpc_header_builder = state
-        .get_grpc_headers_ucs(execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4440,7 +4501,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         state,
         ucs_refund_sync_request,
         grpc_header_builder,
-        execution_mode,
+        rollout_settings.clone(),
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
@@ -4475,7 +4536,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
     state: &SessionState,
     processor: &Processor,
     router_data: RouterData<refunds::VoidPostRefund, RefundsData, RefundsResponseData>,
-    execution_mode: ExecutionMode,
+    rollout_settings: kill_switch::RolloutSettings,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<RefundReverseUcsResponse> {
@@ -4514,7 +4575,9 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         .transpose()?
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_header_builder = state
-        .get_grpc_headers_ucs(execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4525,7 +4588,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         state,
         grpc_request,
         grpc_header_builder,
-        execution_mode,
+        rollout_settings.clone(),
         |mut router_data, grpc_request, grpc_headers| async move {
             let grpc_response = ucs_client
                 .refund_void_post_refund(grpc_request, connector_auth_metadata, grpc_headers)
@@ -4617,6 +4680,8 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
@@ -4737,6 +4802,8 @@ pub async fn call_unified_connector_service_for_notify_connector(
 
     let grpc_header_builder = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)

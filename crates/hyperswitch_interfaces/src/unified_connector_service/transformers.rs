@@ -2412,7 +2412,11 @@ pub enum UcsKillSwitchReason {
     /// The connector rejected the request. May be a legitimate decline or a request UCS built
     /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
     /// to the battle-tested direct path is always safe.
-    ConnectorOutcome,
+    ConnectorRejected,
+    /// UCS answered gRPC OK with a connector 2xx, and the connector still refused the payment.
+    /// A business outcome rather than a failure: the issuer would say the same on the direct
+    /// path, so this is counted against its own threshold.
+    ConnectorDeclined,
 }
 
 impl UnifiedConnectorServiceError {
@@ -2488,7 +2492,7 @@ impl UnifiedConnectorServiceError {
             // wrongly — indistinguishable here. We trip conservatively: a false bypass to the
             // direct path is safe (it served merchants for years), while a missed trip leaves
             // merchants on a potentially broken UCS path.
-            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorOutcome),
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorRejected),
 
             // Per-flow failure markers carrying no further detail.
             Self::WebhookProcessingFailure

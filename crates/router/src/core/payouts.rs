@@ -4411,7 +4411,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         router_data,
@@ -4466,6 +4466,10 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
         lineage_ids,
         merchant_connector_account,
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
     // Update feature metadata to track Direct routing usage for stickiness

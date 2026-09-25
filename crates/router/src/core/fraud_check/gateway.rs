@@ -71,8 +71,8 @@ where
         ConnectorError,
     > {
         let processor = &context.processor;
-        let execution_mode = context.execution_mode;
 
+        let rollout_settings = context.rollout_settings();
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -112,7 +112,9 @@ where
             .attach_printable("Failed to construct request metadata")?;
 
         let header_payload = state
-            .get_grpc_headers_ucs(execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(router_data.payment_method))
+            .payment_method_type(router_data.payment_method_type)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(None)
             .resource_id(None)
@@ -123,7 +125,7 @@ where
             state,
             pre_risk_check_request,
             header_payload,
-            execution_mode,
+            rollout_settings,
             |mut router_data, pre_risk_check_request, grpc_headers| async move {
                 let response = match Box::pin(client.frm_pre_risk_check(
                     pre_risk_check_request,

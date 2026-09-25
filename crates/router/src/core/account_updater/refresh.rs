@@ -51,6 +51,8 @@ pub async fn request_account_updater_refresh(
 
     let grpc_headers = state
         .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
         .resource_id(None)

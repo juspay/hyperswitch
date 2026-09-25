@@ -1620,7 +1620,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
-    unified_connector_service_execution_mode: enums::ExecutionMode,
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
 ) -> errors::CustomResult<
     (
         types::RouterData<
@@ -1668,7 +1668,9 @@ pub async fn call_unified_connector_service_pre_authenticate(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1678,7 +1680,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
         state,
         payment_pre_authenticate_request,
         headers_builder,
-        unified_connector_service_execution_mode,
+        rollout_settings,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_pre_authenticate(
@@ -1748,7 +1750,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
-    unified_connector_service_execution_mode: enums::ExecutionMode,
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PreAuthenticate,
@@ -1813,7 +1815,9 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
         .ok()
         .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
-        .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
         .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
         .merchant_reference_id(merchant_reference_id)
         .resource_id(resource_id)
@@ -1824,7 +1828,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
             state,
             payment_pre_authenticate_request,
             headers_builder,
-            unified_connector_service_execution_mode,
+            rollout_settings,
             |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_pre_authenticate(
                     payment_pre_authenticate_request,

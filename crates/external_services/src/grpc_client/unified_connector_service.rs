@@ -1696,6 +1696,8 @@ fn build_grpc_headers_internal(
         shadow_mode,
         proxy_name,
         config_override,
+        payment_method,
+        payment_method_type,
     } = grpc_headers;
 
     let mut metadata = MetadataMap::new();
@@ -1790,6 +1792,26 @@ fn build_grpc_headers_internal(
             parse(
                 consts::UCS_HEADER_RESOURCE_ID,
                 resource_id.get_string_repr(),
+            )?,
+        );
+    };
+
+    if let Some(payment_method) = payment_method {
+        metadata.append(
+            common_utils_consts::X_PAYMENT_METHOD,
+            parse(
+                common_utils_consts::X_PAYMENT_METHOD,
+                &payment_method.to_string(),
+            )?,
+        );
+    };
+
+    if let Some(payment_method_type) = payment_method_type {
+        metadata.append(
+            common_utils_consts::X_PAYMENT_METHOD_TYPE,
+            parse(
+                common_utils_consts::X_PAYMENT_METHOD_TYPE,
+                &payment_method_type.to_string(),
             )?,
         );
     };
