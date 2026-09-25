@@ -4,6 +4,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
+import { connectorDetails as absaSanlamConnectorDetails } from "./AbsaSanlam.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
@@ -100,6 +101,7 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
+  absa_sanlam: absaSanlamConnectorDetails,
   adyen: adyenConnectorDetails,
   affirm: affirmConnectorDetails,
   airwallex: airwallexConnectorDetails,
@@ -823,6 +825,9 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     FRM: ["stripe"],
+    // Payment FRM (sanlam_payshield pre-FRM gating absa_sanlam bank_debit
+    // payments) - only verified connector pairing
+    FRM_BANK_DEBIT: ["absa_sanlam"],
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     OPEN_BANKING_PIS: ["plaid"],
