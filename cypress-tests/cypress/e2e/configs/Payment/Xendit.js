@@ -1,11 +1,31 @@
 const successfulNo3DSCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "12",
+  card_exp_year: "27",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const successful3DSCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
   card_exp_year: "27",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
+
 const billingDetails = {
+  billing: {
+    country: "ID",
+    first_name: "joseph",
+    last_name: "Doe",
+    line1: "123 Main Street",
+    line2: "",
+    line3: "",
+    city: "San Francisco",
+    state: "CA",
+    zip: "94122",
+  },
   email: "mauro.morandi@nexi.it",
   phone: {
     number: "9123456789",
@@ -28,7 +48,7 @@ const paymentMethodData3ds = {
     card_segment_type: "consumer",
     funding_source: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -53,7 +73,7 @@ const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
-      amount: 1600000,
+      amount: 6000000,
       currency: "IDR",
     },
   },
@@ -63,11 +83,68 @@ const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
-      amount: 8000,
+      amount: 6000000,
       currency: "IDR",
     },
   },
 };
+
+export const blockedPaymentErrorBodyForIssuingCountry = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForDebitCard = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForCardSubtype = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForBinUnavailable = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "We couldn't verify this card's information, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
 export const connectorDetails = {
   real_time_payment_pm: {
     PaymentIntent: {
@@ -76,6 +153,7 @@ export const connectorDetails = {
         amount: 10000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -151,7 +229,9 @@ export const connectorDetails = {
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "IDR",
+        amount: 6000000,
         shipping_cost: 100,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -171,6 +251,7 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -198,6 +279,7 @@ export const connectorDetails = {
         currency: "IDR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -223,6 +305,7 @@ export const connectorDetails = {
         currency: "IDR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -261,14 +344,16 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successful3DSCardDetails,
           billing: billingDetails,
         },
         currency: "IDR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -295,6 +380,7 @@ export const connectorDetails = {
         },
         currency: "IDR",
         mandate_data: multiUseMandateData,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -319,6 +405,7 @@ export const connectorDetails = {
         },
         currency: "IDR",
         mandate_data: multiUseMandateData,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -333,8 +420,12 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        // Xendit returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -343,11 +434,12 @@ export const connectorDetails = {
         currency: "IDR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -357,8 +449,12 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        // Xendit returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
+        amount: 6000000,
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -367,11 +463,13 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing: billingDetails,
+        currency: "IDR",
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -381,8 +479,12 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        // Xendit returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -390,6 +492,8 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing: billingDetails,
+        currency: "IDR",
       },
       Response: {
         status: 200,
@@ -404,14 +508,19 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        // Xendit returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
+        amount: 6000000,
         setup_future_usage: "off_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -421,9 +530,15 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        // Xendit returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
+        amount: 6000000,
         setup_future_usage: "off_session",
+        currency: "IDR",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -438,8 +553,12 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        // Xendit returns "pending" status on authorize and requires PSync to get the actual status,
+        // hence the payment method status is not updated to "active" on retrieve
+        skipPaymentMethodStatusAssertion: true,
       },
       Request: {
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -448,6 +567,7 @@ export const connectorDetails = {
         currency: "IDR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -460,7 +580,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 1000,
+          TIMEOUT: 3000,
         },
       },
       Request: {
@@ -472,11 +592,28 @@ export const connectorDetails = {
         },
         currency: "IDR",
         mandate_data: singleUseMandateData,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        amount: 6000000,
+        authentication_type: "no_three_ds",
+        currency: "IDR",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     },
@@ -485,11 +622,13 @@ export const connectorDetails = {
         amount: 6000000,
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successful3DSCardDetails,
+          billing: billingDetails,
         },
         currency: "IDR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -516,6 +655,297 @@ export const connectorDetails = {
         },
         currency: "IDR",
         mandate_data: singleUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUse3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: singleUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUse3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: singleUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: singleUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: singleUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: multiUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: multiUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateMultiUse3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: multiUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateMultiUse3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "IDR",
+        mandate_data: multiUseMandateData,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
+      },
+      Request: {
+        amount: 6000000,
+        currency: "IDR",
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
+      },
+      Request: {
+        currency: "IDR",
+        amount: 6000000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
+      },
+      Request: { amount: 6000000, currency: "IDR", billing: billingDetails },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITWithoutBillingAddress: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
+      },
+      Request: {
+        amount: 6000000,
+        payment_channel: "telephone_order",
+        billing: null,
+        currency: "IDR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          billing: null,
+        },
+      },
+    },
+    MITExceedingMandateAmount: {
+      Request: {
+        amount: 6000000,
+        currency: "IDR",
       },
       Response: {
         status: 200,
@@ -550,17 +980,20 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        TRIGGER_SKIP: true, // Skip this test as Partial Capture is not supported by Xendit.
       },
       Request: {
         amount_to_capture: 2000000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "partially_captured",
-          amount: 2000000,
-          amount_capturable: 0,
-          amount_received: 2000000,
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "Partial Capture is not supported by Xendit",
+          },
         },
       },
     },
@@ -613,22 +1046,24 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
       },
       Request: {
-        amount: 6000,
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: billingDetails,
         },
         currency: "IDR",
-        billing: billingDetails,
         mandate_data: null,
         customer_acceptance: customerAcceptance,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -638,17 +1073,19 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 3000,
         },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
       },
       Request: {
-        amount: 6000,
+        amount: 6000000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: billingDetails,
         },
-        billing: billingDetails,
         currency: "IDR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
+        billing: billingDetails,
       },
       Response: {
         status: 200,
@@ -656,6 +1093,221 @@ export const connectorDetails = {
           status: "processing",
         },
       },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+          billing: billingDetails,
+        },
+        currency: "IDR",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+        skipPaymentMethodStatusAssertion: true, // Xendit returns "pending" status on authorize and requires PSync to get the actual status, hence the payment method status is not updated to "active" on retrieve
+      },
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+          billing: billingDetails,
+        },
+        currency: "IDR",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    CaptureGreaterAmount: {
+      Request: {
+        amount_to_capture: 600000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    RefundGreaterAmount: {
+      Request: {
+        amount: 60000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails, // no failure test card available for Xendit connector
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "IDR",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentWithBilling: {
+      Request: {
+        currency: "IDR",
+        setup_future_usage: "on_session",
+        billing: billingDetails,
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        currency: "IDR",
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingDetails,
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    },
+    BlockCardType: {
+      Request: {
+        currency: "IDR",
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingDetails,
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    },
+    BlockCardSubtype: {
+      Request: {
+        currency: "IDR",
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingDetails,
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        currency: "IDR",
+        amount: 6000000,
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingDetails,
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };
