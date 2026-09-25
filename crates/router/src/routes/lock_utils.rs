@@ -38,6 +38,7 @@ pub enum ApiIdentifier {
     ConnectorOnboarding,
     Poll,
     ApplePayCertificatesMigration,
+    EntitiesMigration,
     Relay,
     Documentation,
     CardNetworkTokenization,
@@ -279,6 +280,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GsmRuleUpdate
             | Flow::GsmRuleDelete => Self::Gsm,
             Flow::ApplePayCertificatesMigration => Self::ApplePayCertificatesMigration,
+            Flow::EntitiesMigration => Self::EntitiesMigration,
             Flow::UserConnectAccount
             | Flow::UserSignUp
             | Flow::UserSignIn
