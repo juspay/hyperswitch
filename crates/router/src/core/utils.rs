@@ -354,8 +354,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payout_id: Some(payouts.payout_id.get_string_repr().to_string()),
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -541,8 +540,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -564,29 +562,24 @@ pub async fn construct_refund_router_data<'a, F>(
 }
 
 /// Resolves the `payments.accept_payment_amount_mismatch` config for the processor merchant and payment
-/// method type. Without a payment method type the config cannot be scoped, so the integrity
-/// check stays strict.
+/// method type. Without a payment method type the config cannot be scoped, so `None` is returned and
+/// the integrity check stays strict.
 #[cfg(feature = "v1")]
 pub async fn get_accept_payment_amount_mismatch(
     state: &SessionState,
     processor: &domain::Processor,
     payment_method_type: Option<enums::PaymentMethodType>,
-) -> common_types::primitive_wrappers::AcceptAmountMismatchBool {
-    match payment_method_type {
-        Some(payment_method_type) => {
-            let accept_amount_mismatch = dimension_state::Dimensions::new()
-                .with_processor_merchant_id(processor.get_processor_merchant_id())
-                .with_payment_method_type(payment_method_type)
-                .get_accept_payment_amount_mismatch(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    Some(processor.get_account().get_id()),
-                )
-                .await;
-            common_types::primitive_wrappers::AcceptAmountMismatchBool::new(accept_amount_mismatch)
-        }
-        None => common_types::primitive_wrappers::AcceptAmountMismatchBool::default(),
-    }
+) -> Option<common_types::primitive_wrappers::AcceptAmountMismatchBool> {
+    let accept_amount_mismatch = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_payment_method_type(payment_method_type?)
+        .get_accept_payment_amount_mismatch(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(processor.get_account().get_id()),
+        )
+        .await;
+    Some(common_types::primitive_wrappers::AcceptAmountMismatchBool::new(accept_amount_mismatch))
 }
 
 #[cfg(feature = "v1")]
@@ -770,8 +763,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1295,8 +1287,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1411,8 +1402,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1536,8 +1526,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1619,8 +1608,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1734,8 +1722,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1875,8 +1862,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         payment_method_status: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1994,8 +1980,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -2106,8 +2091,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,

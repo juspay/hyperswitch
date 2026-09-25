@@ -229,8 +229,7 @@ where
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
@@ -603,8 +602,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -1022,8 +1020,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -1198,8 +1195,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -1341,8 +1337,7 @@ pub async fn construct_router_data_for_psync<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
@@ -1701,8 +1696,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
@@ -1943,8 +1937,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -2515,8 +2508,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: merchant_recipient_data.map(|data| {
             api_models::admin::AdditionalMerchantData::foreign_from(
                 types::AdditionalMerchantData::OpenBankingRecipientData(data),
@@ -8476,8 +8468,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
-        accept_amount_mismatch: common_types::primitive_wrappers::AcceptAmountMismatchBool::default(
-        ),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
