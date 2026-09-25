@@ -929,6 +929,7 @@ pub fn get_card_detail(
         card_segment_type: None,
         funding_source: None,
         saved_to_locker: true,
+        card_info: None,
     };
     Ok(card_detail)
 }

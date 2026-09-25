@@ -5998,7 +5998,7 @@ async fn resolve_card_info_details(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     payment_method: &domain::PaymentMethod,
-) -> Option<api_models::payment_methods::CardInfoDetails> {
+) -> Option<payment_methods::CardInfoDetails> {
     let card_isin = payment_method
         .payment_method_data
         .as_ref()
@@ -6018,7 +6018,7 @@ async fn resolve_card_info_details(
                     .inspect_err(|error| logger::warn!(?error, "Failed to look up card info"))
                     .ok()
                     .flatten()
-                    .map(api_models::payment_methods::CardInfoDetails::foreign_from),
+                    .map(payment_methods::CardInfoDetails::foreign_from),
                 false => None,
             }
         }

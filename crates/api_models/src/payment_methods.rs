@@ -2179,14 +2179,6 @@ pub struct CardInfoDetails {
     #[schema(example = "USD")]
     pub issuer_currency: Option<String>,
 
-    /// Whether the card supports Level 2 commercial transaction data.
-    #[schema(example = false)]
-    pub level_two_supported: Option<bool>,
-
-    /// Whether the card supports Level 3 commercial transaction data.
-    #[schema(example = false)]
-    pub level_three_supported: Option<bool>,
-
     /// Customer authentication programs required by the issuing country.
     #[schema(value_type = Option<Vec<AuthenticationInfo>>)]
     pub authentication: Option<common_utils::types::CardAuthentication>,

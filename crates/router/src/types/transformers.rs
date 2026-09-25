@@ -174,8 +174,6 @@ impl ForeignFrom<storage::CardInfo> for payment_methods::CardInfoDetails {
             ecom_enabled: card_info.ecom_enabled,
             billpay_enabled: card_info.billpay_enabled,
             issuer_currency: card_info.issuer_currency,
-            level_two_supported: card_info.level_two_supported,
-            level_three_supported: card_info.level_three_supported,
             authentication: card_info.authentication,
         }
     }
