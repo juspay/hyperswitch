@@ -4100,16 +4100,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 
         let webhook_details = self
             .webhook_details
-            .map(|webhook_details| {
-                let existing_webhook_details = business_profile
+            .map(|webhook_details_update| {
+                business_profile
                     .webhook_details
                     .clone()
-                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
-
-                match existing_webhook_details {
-                    Some(existing_details) => existing_details.merge(webhook_details),
-                    None => webhook_details,
-                }
+                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()))
+                    .unwrap_or_default()
+                    .apply_update(webhook_details_update)
             })
             .map(ForeignInto::foreign_into);
 
@@ -4250,7 +4247,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
-                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                return_url: self
+                    .return_url
+                    .map(|return_url| return_url.map(|url| url.to_string()))
+                    .unwrap_or_else(|| business_profile.return_url.clone()),
                 enable_payment_response_hash: self.enable_payment_response_hash,
                 payment_response_hash_key: self.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
@@ -4337,7 +4337,17 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
-        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+        let webhook_details = self
+            .webhook_details
+            .map(|webhook_details_update| {
+                business_profile
+                    .webhook_details
+                    .clone()
+                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()))
+                    .unwrap_or_default()
+                    .apply_update(webhook_details_update)
+            })
+            .map(ForeignInto::foreign_into);
 
         let payment_link_config = self
             .payment_link_config
@@ -4421,7 +4431,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
-                return_url: self.return_url,
+                return_url: self
+                    .return_url
+                    .unwrap_or_else(|| business_profile.return_url.clone()),
                 enable_payment_response_hash: self.enable_payment_response_hash,
                 payment_response_hash_key: self.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,

@@ -865,65 +865,86 @@ pub struct PrimaryBusinessDetails {
     pub business: String,
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetails {
     ///The version for Webhook
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
-    pub webhook_version: Option<String>,
+    pub webhook_version: Option<Option<String>>,
 
     ///The user name for Webhook login
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
-    pub webhook_username: Option<String>,
+    pub webhook_username: Option<Option<String>>,
 
     ///The password for Webhook login
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
-    pub webhook_password: Option<Secret<String>>,
+    pub webhook_password: Option<Option<Secret<String>>>,
 
     ///The url for the webhook endpoint
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
-    pub webhook_url: Option<Secret<String>>,
+    pub webhook_url: Option<Option<Secret<String>>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(example = true)]
-    pub payment_created_enabled: Option<bool>,
+    pub payment_created_enabled: Option<Option<bool>>,
 
     /// If this property is true, a webhook message is posted whenever a payment is successful
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(example = true)]
-    pub payment_succeeded_enabled: Option<bool>,
+    pub payment_succeeded_enabled: Option<Option<bool>>,
 
     /// If this property is true, a webhook message is posted whenever a payment fails
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(example = true)]
-    pub payment_failed_enabled: Option<bool>,
+    pub payment_failed_enabled: Option<Option<bool>>,
 
     /// List of payment statuses that triggers a webhook for payment intents
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
-    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
+    pub payment_statuses_enabled: Option<Option<HashSet<api_enums::IntentStatus>>>,
 
     /// List of refund statuses that triggers a webhook for refunds
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
-    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
+    pub refund_statuses_enabled: Option<Option<HashSet<api_enums::RefundStatus>>>,
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
-    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
+    pub payout_statuses_enabled: Option<Option<HashSet<api_enums::PayoutStatus>>>,
 
     /// List of dispute statuses that trigger outgoing webhooks for disputes
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
-    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
+    pub dispute_statuses_enabled: Option<Option<HashSet<api_enums::DisputeStatus>>>,
 
     /// List of mandate statuses that trigger outgoing webhooks for mandates
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
-    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
+    pub mandate_statuses_enabled: Option<Option<HashSet<api_enums::MandateStatus>>>,
 
     /// List of invoice statuses that trigger outgoing webhooks for subscriptions
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
-    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
+    pub invoice_statuses_enabled: Option<Option<HashSet<api_enums::InvoiceStatus>>>,
+}
+
+fn deserialize_optional_update<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 impl WebhookDetails {
-    pub fn merge(self, other: Self) -> Self {
+    pub fn apply_update(self, other: Self) -> Self {
         Self {
             webhook_version: other.webhook_version.or(self.webhook_version),
             webhook_username: other.webhook_username.or(self.webhook_username),
@@ -976,30 +997,30 @@ impl WebhookDetails {
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        if let Some(payment_statuses) = &self.payment_statuses_enabled {
+        if let Some(Some(payment_statuses)) = &self.payment_statuses_enabled {
             Self::validate_statuses(payment_statuses, "payment")?;
         }
 
-        if let Some(refund_statuses) = &self.refund_statuses_enabled {
+        if let Some(Some(refund_statuses)) = &self.refund_statuses_enabled {
             Self::validate_statuses(refund_statuses, "refund")?;
         }
 
         #[cfg(feature = "payouts")]
         {
-            if let Some(payout_statuses) = &self.payout_statuses_enabled {
+            if let Some(Some(payout_statuses)) = &self.payout_statuses_enabled {
                 Self::validate_statuses(payout_statuses, "payout")?;
             }
         }
 
-        if let Some(dispute_statuses) = &self.dispute_statuses_enabled {
+        if let Some(Some(dispute_statuses)) = &self.dispute_statuses_enabled {
             Self::validate_statuses(dispute_statuses, "dispute")?;
         }
 
-        if let Some(mandate_statuses) = &self.mandate_statuses_enabled {
+        if let Some(Some(mandate_statuses)) = &self.mandate_statuses_enabled {
             Self::validate_statuses(mandate_statuses, "mandate")?;
         }
 
-        if let Some(invoice_statuses) = &self.invoice_statuses_enabled {
+        if let Some(Some(invoice_statuses)) = &self.invoice_statuses_enabled {
             Self::validate_statuses(invoice_statuses, "invoice")?;
         }
 
@@ -3095,8 +3116,9 @@ pub struct ProfileUpdate {
     pub profile_name: Option<String>,
 
     /// The URL to redirect after the completion of the operation
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<Option<url::Url>>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -3109,7 +3131,7 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
-    /// Webhook related details
+    /// Webhook related details. Fields set to `null` are cleared, omitted fields are left unchanged
     pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
@@ -3302,8 +3324,9 @@ pub struct ProfileUpdate {
     pub profile_name: Option<String>,
 
     /// The URL to redirect after the completion of the operation
+    #[serde(default, deserialize_with = "deserialize_optional_update")]
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<common_utils::types::Url>,
+    pub return_url: Option<Option<common_utils::types::Url>>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -3316,7 +3339,7 @@ pub struct ProfileUpdate {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
-    /// Webhook related details
+    /// Webhook related details. Fields set to `null` are cleared, omitted fields are left unchanged
     pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
