@@ -127,23 +127,24 @@ export const connectorDetails = {
           },
         },
       },
-      SavePayoutMethod: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
-        Request: {
-          payment_method: "bank_transfer",
-          payment_method_type: "trustly",
-          bank_transfer: bank_payout_method_data.bank,
-        },
-      },
+      // No SavePayoutMethod key: POST /payment_methods cannot vault a
+      // trustly-typed bank transfer (v1 validate() allows trustly only under
+      // bank_redirect) - recipients get saved via a recurring payout instead
+      // (see 00005-SavePayout.cy.js).
       Token: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
+          amount: 10,
+          currency: "EUR",
           payout_token: "token",
           payout_type: "bank",
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+          },
         },
       },
     },

@@ -118,6 +118,7 @@ export const CONNECTOR_LISTS = {
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
+    SAVED_BANK_TRANSFER_OPEN_BANKING: ["trustly"],
   },
 };
 
