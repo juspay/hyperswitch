@@ -163,6 +163,8 @@ deja = [
     "redis_interface/deja",
     "hyperswitch_domain_models/deja",
     "storage_impl/deja",
+    # Weak: analytics is optional, so its seam only exists where it is enabled.
+    "analytics?/deja",
 ]
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -300,8 +302,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "64f4cddf527ac3df0940ddfcc5b43e36c0f67494", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
