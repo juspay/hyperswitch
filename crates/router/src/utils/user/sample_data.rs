@@ -500,6 +500,7 @@ pub async fn generate_sample_data(
                     created_by: None,
                     created_at: common_utils::date_time::now(),
                     modified_at: common_utils::date_time::now(),
+                    additional_details: None,
                 })
             } else {
                 None

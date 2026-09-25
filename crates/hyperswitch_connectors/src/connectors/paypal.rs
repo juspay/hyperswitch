@@ -2544,6 +2544,7 @@ impl IncomingWebhook for Paypal {
                     challenge_required_by: None,
                     created_at: payload.create_time,
                     updated_at: payload.update_time,
+                    additional_details: None,
                 })
             }
         }
