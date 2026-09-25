@@ -29,6 +29,8 @@ use hyperswitch_domain_models::payment_methods::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
+use hyperswitch_interfaces::consts::USER_AGENT;
+#[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use josekit::jwe;
@@ -2248,12 +2250,17 @@ struct VaultTokenDetailsResponse {
 /// targets `connectors.hyperswitch_vault.base_url` (which already includes the `/v2` prefix) and is
 /// authenticated as the merchant using the external vault connector account's credentials
 /// (`api-key` + profile id) — not the pay server's internal API key.
+///
+/// `proxy_url` — when `Some`, all traffic to the vault is routed through that HTTP CONNECT proxy
+/// (e.g. a Squid egress proxy required by self-hosted / non-PCI deployments). Falls back to the
+/// router-wide `[proxy]` config when `None`.
 #[cfg(feature = "v1")]
 pub async fn get_permanent_pm_id_from_temporary_token(
     state: &routes::SessionState,
     api_key: Secret<String>,
     vault_profile_id: Secret<String>,
     temporary_token: String,
+    proxy_url: Option<common_utils::types::Url>,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     let url = format!(
         "{}/payment-methods/token/{}/details",
@@ -2275,10 +2282,34 @@ pub async fn get_permanent_pm_id_from_temporary_token(
                 headers::X_PROFILE_ID.to_string(),
                 vault_profile_id.expose().into_masked(),
             ),
+            (
+                headers::USER_AGENT.to_string(),
+                USER_AGENT.to_string().into(),
+            ),
         ])
         .build();
 
-    let response = http_client::send_request(&state.conf.proxy, request, None)
+    // If the MCA supplies a per-merchant proxy URL, use it; otherwise fall back to the
+    // router-wide proxy config so the behaviour is unchanged for deployments that have
+    // not set a proxy on the vault connector account.
+    let effective_proxy;
+    let proxy = match proxy_url {
+        Some(url) => {
+            let url_str = url.get_string_repr().to_owned();
+            effective_proxy = hyperswitch_interfaces::types::Proxy {
+                http_url: Some(url_str.clone()),
+                https_url: Some(url_str),
+                idle_pool_connection_timeout: Some(90),
+                bypass_proxy_hosts: None,
+                mitm_ca_certificate: None,
+                mitm_enabled: None,
+            };
+            &effective_proxy
+        }
+        None => &state.conf.proxy,
+    };
+
+    let response = http_client::send_request(proxy, request, None)
         .await
         .inspect_err(|err| {
             logger::error!(
