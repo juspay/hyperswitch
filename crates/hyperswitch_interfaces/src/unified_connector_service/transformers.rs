@@ -162,10 +162,6 @@ pub enum UnifiedConnectorServiceError {
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
 
-    /// The connector does not support this operation.
-    #[error("This operation is not supported: {0}")]
-    NotSupported(String),
-
     /// Parsing of some value or input failed.
     #[error("Parsing failed")]
     ParsingFailed,
@@ -193,6 +189,9 @@ pub enum UnifiedConnectorServiceError {
         code: tonic::Code,
         /// Error message from UCS
         message: String,
+        /// Present only when the status was produced by the router's own transport layer.
+        /// `None` for statuses returned by UCS as a gRPC response.
+        transport: Option<Box<UcsTransportFailure>>,
     },
 
     /// Connector error received through UCS.
@@ -1939,7 +1938,68 @@ impl ForeignFrom<payments_grpc::UpiSource>
     }
 }
 
+/// Detail of a gRPC status that the router's own transport produced, rather than one UCS
+/// returned as a response.
+///
+/// Holds the [`std::error::Error::source`] chain verbatim. Nothing is interpreted or classified:
+/// the chain already names the layer that failed and why, whether that is an `io::ErrorKind`, an
+/// HTTP/2 reason and initiator, a DNS failure or something a future hyper or tonic version
+/// introduces. Recording it whole is what makes the next transport failure diagnosable without
+/// having shipped code that anticipated it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UcsTransportFailure {
+    /// The `source()` chain, outermost first, root cause last, joined with " -> ". Router logs
+    /// only: an inner layer may render the UCS authority or a peer address.
+    pub source_chain: String,
+    /// The root cause alone, the last element of the chain. This is the part that names what
+    /// actually failed (`connection reset by peer (os error 104)`, `stream error received:
+    /// PROTOCOL_ERROR`, ...) and, unlike the outer layers, never carries an address or authority,
+    /// so it is what goes on the merchant-visible connector event.
+    pub root_cause: String,
+}
+
+impl UcsTransportFailure {
+    /// Builds from a [`tonic::Status`].
+    ///
+    /// Returns `None` when the status carries no error source, which is every status UCS returns
+    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport.
+    /// That covers both a connection that was unusable before the request was written and a stream
+    /// that failed after UCS had already processed the request, so it does not by itself say the
+    /// request was unsent; the chain does.
+    pub fn from_status(status: &tonic::Status) -> Option<Self> {
+        let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
+        let mut parts: Vec<String> = Vec::new();
+
+        loop {
+            parts.push(source.to_string());
+            match source.source() {
+                Some(next) => source = next,
+                None => break,
+            }
+        }
+
+        let root_cause = parts.last().cloned().unwrap_or_default();
+
+        Some(Self {
+            source_chain: parts.join(" -> "),
+            root_cause,
+        })
+    }
+}
+
 impl UnifiedConnectorServiceError {
+    /// Client-side transport failure detail, present only when the status was produced by the
+    /// router's own transport rather than returned by UCS.
+    pub fn transport_failure(&self) -> Option<&UcsTransportFailure> {
+        match self {
+            Self::TonicStatus {
+                transport: Some(transport),
+                ..
+            } => Some(transport.as_ref()),
+            _ => None,
+        }
+    }
+
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
@@ -1983,7 +2043,6 @@ impl UnifiedConnectorServiceError {
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidConnectorName
             | Self::MissingConnectorName
-            | Self::NotSupported(_)
             | Self::FailedToObtainAuthType => 400,
             Self::NotImplemented(_) => 501,
             _ => 500,
@@ -2004,6 +2063,7 @@ impl UnifiedConnectorServiceError {
             .unwrap_or_else(|| Self::TonicStatus {
                 code: status.code(),
                 message: status.message().to_string(),
+                transport: UcsTransportFailure::from_status(status).map(Box::new),
             })
     }
 
@@ -2134,7 +2194,7 @@ impl UnifiedConnectorServiceError {
     /// |-------------------------|---------------------------------|-------|
     /// | MissingRequiredField    | MissingRequiredField            | IR_04 |
     /// | MissingRequiredFields   | MissingRequiredFields           | IR_21 |
-    /// | InvalidDataFormat       | InvalidDataFormat               | IR_05 |
+    /// | InvalidDataFormat       | InvalidDataValue                | IR_06 |
     /// | NotImplemented          | NotImplemented                  | IR_00 |
     /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
     /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
@@ -2171,13 +2231,12 @@ impl UnifiedConnectorServiceError {
             | Code::InvalidConnectorConfig
             | Code::NoConnectorMetaData
             | Code::ConfigurationError => Self::FailedToObtainAuthType,
-            // Not implemented → IR_00
-            Code::NotImplemented => Self::NotImplemented(ie.error_message.clone()),
-            // Unsupported flow / method / currency → IR_19
-            Code::NotSupported
+            // Unsupported flow / feature → IR_00
+            Code::NotImplemented
+            | Code::NotSupported
             | Code::FlowNotSupported
             | Code::CaptureMethodNotSupported
-            | Code::CurrencyNotSupported => Self::NotSupported(ie.error_message.clone()),
+            | Code::CurrencyNotSupported => Self::NotImplemented(ie.error_message.clone()),
             // UCS internal failures → HE_00
             Code::RequestEncodingFailed
             | Code::HeaderMapConstructionFailed
@@ -2193,7 +2252,7 @@ impl UnifiedConnectorServiceError {
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
                     ApiErrorResponse::InvalidRequestData {
                         message: message.clone(),
@@ -2224,24 +2283,6 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 status_code: inner.status_code,
                 reason: inner.reason.clone(),
             },
-            Self::NotSupported(message) => ApiErrorResponse::NotSupported {
-                message: message.clone(),
-            },
-            Self::NotImplemented(message) => ApiErrorResponse::NotImplemented {
-                message: NotImplementedMessage::Reason(message.clone()),
-            },
-            Self::MissingRequiredField { field_name } => ApiErrorResponse::MissingRequiredField {
-                field_name: field_name.clone(),
-            },
-            Self::MissingRequiredFields { field_names } => {
-                ApiErrorResponse::MissingRequiredFields {
-                    field_names: field_names.clone(),
-                }
-            }
-            Self::InvalidDataFormat { field_name } => ApiErrorResponse::InvalidDataFormat {
-                field_name: field_name.to_string(),
-                expected_format: "a valid value".to_string(),
-            },
             _ => ApiErrorResponse::InternalServerError,
         }
     }
@@ -2254,7 +2295,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             // recognize the error_code (or details were empty/undecodable).
             // Server errors → ResponseHandlingFailed, Unimplemented → NotImplemented,
             // anything else → RequestEncodingFailed as a safe client-error default.
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 _ if Self::tonic_status_is_ucs_server_error(*code) => {
                     ConnectorError::ResponseHandlingFailed
                 }
@@ -2303,12 +2344,6 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
-            // Message already names the connector; leave this empty so the render does not
-            // append a second, wrong one.
-            Self::NotSupported(msg) => ConnectorError::NotSupported {
-                message: msg.clone(),
-                connector: "",
-            },
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {
                 ConnectorError::InvalidConnectorName
@@ -2411,9 +2446,6 @@ impl UnifiedConnectorServiceError {
             // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
 
-            // UCS rejected a request it does not support.
-            Self::NotSupported(_) => Some(UcsKillSwitchReason::UcsRejectedRequest),
-
             // UCS-side by construction: `from_grpc_error` extracts connector errors first.
             Self::TonicStatus { code, .. } => match code {
                 // UCS-wide rather than scope-specific. Still worth falling back for: while UCS
@@ -2502,6 +2534,7 @@ mod ucs_kill_switch_reason_tests {
         UnifiedConnectorServiceError::TonicStatus {
             code,
             message: "from ucs".to_string(),
+            transport: None,
         }
     }
 

@@ -74,7 +74,6 @@ pub use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
-    router_flow_types::payments::is_initial_connector_call_flow,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -646,22 +645,49 @@ where
     ))
 }
 
-/// Record a pre-call rejection through the post-update tracker, so the payment leaves
-/// `processing` before the caller returns the error. A tracker write failure is logged and
-/// swallowed.
+/// Whether the request was rejected before the connector was reached, so the payment can be put
+/// back to the state it had before the pre-update tracker committed.
 ///
-/// On the initial authorization the attempt is marked `Failure` explicitly rather than derived
-/// from the status code, so a rejection cannot leave the payment in flight whatever code it
-/// maps to. Later flows leave the status unset: the connector was never called, so the attempt
-/// must keep whatever state the connector already established, and the tracker's flow-aware
-/// derivation preserves it (a PSync on an authorized payment stays `Authorized`).
+/// A response-phase failure (the connector answered but the response could not be read) leaves
+/// the outcome unknown — the payment may have been taken — so it must not be rolled back. Those
+/// map to `ResponseDeserializationFailed` / `ResponseHandlingFailed` and are excluded here.
+#[cfg(feature = "v1")]
+fn rejected_before_connector_call(
+    api_error: &error_stack::Report<errors::ApiErrorResponse>,
+) -> bool {
+    api_error
+        .downcast_ref::<errors::ConnectorError>()
+        .is_some_and(|connector_error| {
+            matches!(
+                connector_error,
+                errors::ConnectorError::NotSupported { .. }
+                    | errors::ConnectorError::NotImplemented(_)
+                    | errors::ConnectorError::MissingRequiredField { .. }
+                    | errors::ConnectorError::MissingRequiredFields { .. }
+                    | errors::ConnectorError::RequestEncodingFailed
+                    | errors::ConnectorError::FailedToObtainAuthType
+                    | errors::ConnectorError::InvalidConnectorName
+            )
+        })
+}
+
+/// Roll a payment back to the state it had before the pre-update tracker committed, then let the
+/// caller return the error.
 ///
-/// Reached once the trackers have already moved the payment to `processing`, which is where
-/// the request is built on the UCS path. The direct path builds its request earlier and
-/// aborts before that, so it commits nothing and has nothing to record here.
+/// UCS builds its request across the wire, so a rejection arrives after the trackers have already
+/// moved the payment to `processing`. Nothing else would ever move it again: no connector call was
+/// made, so there is no transaction for a sync to read. Replaying the post-update tracker with the
+/// pre-call snapshot puts the attempt and the intent back where they were, which is what the direct
+/// path does by rejecting before the trackers run.
+///
+/// The status is taken from the snapshot rather than set to a fixed value, so it is right for any
+/// flow: a fresh confirm returns to `payment_method_awaited` / `requires_payment_method`, a PSync on
+/// an authorized payment returns to `authorized` / `requires_capture`.
+///
+/// A tracker write failure is logged and swallowed: the caller returns the API error either way.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-async fn record_rejected_attempt<F, FData, D>(
+async fn restore_pre_call_state<F, FData, D>(
     state: &SessionState,
     processor: &domain::Processor,
     payment_data: D,
@@ -688,12 +714,9 @@ where
         use actix_web::ResponseError;
         api_error.current_context().status_code().as_u16()
     };
-    // Only the flow making the first connector call can be failed outright here. For any later
-    // flow the connector has already set a status this rejection must not overwrite, so leave
-    // it unset and let the tracker's flow-aware derivation keep the prior status.
-    if is_initial_connector_call_flow::<F>() {
-        error_response.attempt_status = Some(enums::AttemptStatus::Failure);
-    }
+    // The attempt status the payment had before the pre-update tracker committed, carried on the
+    // error response so the tracker writes it back. The intent status follows from it.
+    error_response.attempt_status = Some(payment_data.get_payment_attempt().status);
     router_data.response = Err(error_response);
     // `connector_http_status_code` stays unset: no connector was called, so there is no
     // connector status to report and the connector metrics must not count this.
@@ -1146,6 +1169,9 @@ where
                         )
                         .await?;
 
+                    // Snapshot the state the payment is in before the pre-update tracker commits,
+                    // so a request rejected after the commit can be rolled back to it.
+                    let pre_call_payment_data = payment_data.clone();
                     // Snapshot before `complete_connector_service` consumes it; carries the
                     // error response if the request is rejected after the trackers commit.
                     let pre_call_router_data = call_connector_service_response.router_data.clone();
@@ -1173,18 +1199,14 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Record only a request-phase rejection; a response-phase failure
-                            // leaves the outcome unknown, so keep the existing behavior.
-                            let is_request_phase_rejection = api_error
-                                .downcast_ref::<errors::ConnectorError>()
-                                .is_some_and(|connector_error| {
-                                    connector_error.is_request_phase_rejection()
-                                });
-                            if is_request_phase_rejection {
-                                record_rejected_attempt(
+                            // Roll back only a rejection that arrived before the connector was
+                            // reached; a response-phase failure leaves the outcome unknown, so
+                            // keep the existing behavior.
+                            if rejected_before_connector_call(&api_error) {
+                                restore_pre_call_state(
                                     state,
                                     platform.get_processor(),
-                                    payment_data,
+                                    pre_call_payment_data,
                                     pre_call_router_data,
                                     &api_error,
                                     &locale,
@@ -1367,6 +1389,9 @@ where
                         )
                         .await?;
 
+                    // Snapshot the state the payment is in before the pre-update tracker commits,
+                    // so a request rejected after the commit can be rolled back to it.
+                    let pre_call_payment_data = payment_data.clone();
                     // Snapshot before `complete_connector_service` consumes it; carries the
                     // error response if the request is rejected after the trackers commit.
                     let pre_call_router_data = call_connector_service_response.router_data.clone();
@@ -1394,18 +1419,14 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Record only a request-phase rejection; a response-phase failure
-                            // leaves the outcome unknown, so keep the existing behavior.
-                            let is_request_phase_rejection = api_error
-                                .downcast_ref::<errors::ConnectorError>()
-                                .is_some_and(|connector_error| {
-                                    connector_error.is_request_phase_rejection()
-                                });
-                            if is_request_phase_rejection {
-                                record_rejected_attempt(
+                            // Roll back only a rejection that arrived before the connector was
+                            // reached; a response-phase failure leaves the outcome unknown, so
+                            // keep the existing behavior.
+                            if rejected_before_connector_call(&api_error) {
+                                restore_pre_call_state(
                                     state,
                                     platform.get_processor(),
-                                    payment_data,
+                                    pre_call_payment_data,
                                     pre_call_router_data,
                                     &api_error,
                                     &locale,

@@ -151,37 +151,3 @@ pub fn is_external_three_ds_retry_eligible_flow<F: 'static>() -> bool {
         || (TypeId::of::<F>() == TypeId::of::<SetupMandate>()
             && SetupMandate::supports_external_three_ds_retry())
 }
-
-/// Flows that make the first connector call for an attempt. Only these may record a rejected
-/// request as a failed attempt: a later flow runs against a status the connector has already
-/// established, and a rejection there says nothing about that status. Every other flow stays
-/// ineligible by default.
-pub trait InitialConnectorCall {
-    /// Whether the connector has not been called for this attempt before this flow.
-    fn is_initial_connector_call() -> bool {
-        false
-    }
-}
-
-impl InitialConnectorCall for Authorize {
-    fn is_initial_connector_call() -> bool {
-        true
-    }
-}
-
-impl InitialConnectorCall for SetupMandate {
-    fn is_initial_connector_call() -> bool {
-        true
-    }
-}
-
-/// Resolves the above for an otherwise-unconstrained generic `F` by matching its `TypeId`
-/// against the flows, so callers don't need to carry `F: InitialConnectorCall` through their
-/// whole generic call chain.
-pub fn is_initial_connector_call_flow<F: 'static>() -> bool {
-    use std::any::TypeId;
-
-    (TypeId::of::<F>() == TypeId::of::<Authorize>() && Authorize::is_initial_connector_call())
-        || (TypeId::of::<F>() == TypeId::of::<SetupMandate>()
-            && SetupMandate::is_initial_connector_call())
-}
