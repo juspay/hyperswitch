@@ -5670,8 +5670,8 @@ export const connectorDetails = {
 
 // Builds the same message validate_integration_type (server_integration.rs)
 // produces for a header/merchant-integration_type mismatch. Used by
-// integrationTypeChecker/paymentUpdate in commands.js and by
-// 54-IntegrationTypeValidation.cy.js.
+// integrationTypeChecker/paymentUpdate in commands.js, which
+// 54-IntegrationTypeValidation.cy.js calls into.
 export function integrationTypeMismatchMessage(header, merchantConfig) {
   const headerLabel = header ?? "client";
   const merchantLabel = merchantConfig ?? "client";
