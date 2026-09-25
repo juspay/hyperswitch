@@ -88,6 +88,7 @@ pub fn get_temp_password() -> Secret<String> {
     deja::id(
         component = "router::user::password",
         operation = "get_temp_password",
+        on_miss = common_utils::synth_shape::uuid(&__deja_miss).to_string(),
         codec = SerdeCodec,
     )
 )]
