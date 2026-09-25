@@ -57,7 +57,7 @@ services:
       timeout: 5s
 
   migration_runner:
-    image: docker.io/debian:trixie-slim
+    image: docker.io/debian:bookworm-slim
     pull_policy: always
     command: >
       bash -c "
