@@ -4412,7 +4412,12 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Nyce => Self::Nyce,
             common_enums::CardNetwork::Prop
             | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => Self::Unspecified,
+            | common_enums::CardNetwork::Dinacard
+            | common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => Self::Unspecified,
         }
     }
 }

@@ -1742,7 +1742,12 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -3378,6 +3383,13 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
             card_network: None,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
