@@ -1681,7 +1681,8 @@ Cypress.Commands.add(
     connectorName,
     connectorLabel,
     profilePrefix = "profile",
-    mcaPrefix = "merchantConnector"
+    mcaPrefix = "merchantConnector",
+    frmPaymentMethod = "card"
   ) => {
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
@@ -1700,7 +1701,7 @@ Cypress.Commands.add(
           gateway: getOriginalConnectorName(globalState.get("connectorId")),
           payment_methods: [
             {
-              payment_method: "card",
+              payment_method: frmPaymentMethod,
               flow: "pre",
             },
           ],
@@ -2355,6 +2356,33 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
       "frm_routing_algorithm update should return 200 (success) or 400 (already set)"
     ).to.include(response.status);
   });
+});
+
+// Overwrites the FRM connector's account details with an invalid api_key, to
+// force the FRM connector itself to fail (4xx) - used to test
+// fail_open/fail_closed behavior when pre-FRM is unreachable.
+Cypress.Commands.add("breakFrmConnectorCredentials", (globalState) => {
+  return cy
+    .request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: {
+        connector_type: "payment_vas",
+        connector_account_details: {
+          auth_type: "HeaderKey",
+          api_key: "invalid_key_to_force_frm_failure",
+        },
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      return cy.wrap(response);
+    });
 });
 
 Cypress.Commands.add("deleteFrmConnector", (globalState) => {
@@ -7393,6 +7421,25 @@ Cypress.Commands.add(
     });
   }
 );
+
+// Plain GET /payouts/{payoutID}, returning the response for callers that
+// need targeted assertions (nested fields, inequality checks) rather than
+// retrievePayoutCallTest's whole-object deep-equal below.
+Cypress.Commands.add("getPayoutDetails", (globalState) => {
+  return cy
+    .request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      return cy.wrap(response);
+    });
+});
 
 Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   const payout_id = globalState.get("payoutID");
