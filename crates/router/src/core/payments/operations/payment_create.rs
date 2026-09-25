@@ -1355,15 +1355,19 @@ impl PaymentCreate {
         platform: &domain::Platform,
         payment_method_ref: &str,
     ) -> RouterResult<PaymentMethodWithRawData> {
-        let profile_id = req
-            .profile_id
-            .clone()
-            .or(platform
-                .get_processor()
-                .get_account()
-                .get_default_profile()
-                .clone())
-            .get_required_value("profile_id")?;
+        // Resolve the profile the same way `get_trackers` resolves it for the payment intent,
+        // so the modular service is always called with the profile the intent will actually
+        // belong to (including the `business_country` + `business_label` resolution path).
+        let profile_id = core_utils::get_profile_id_from_business_details(
+            req.business_country,
+            req.business_label.as_ref(),
+            platform.get_processor(),
+            req.profile_id.as_ref(),
+            &*state.store,
+            false,
+        )
+        .await
+        .attach_printable("Failed to resolve profile_id for the modular payment method fetch")?;
 
         let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
             state,
