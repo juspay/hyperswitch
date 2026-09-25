@@ -1816,6 +1816,43 @@ impl ConnectorSpecifications for Nuvei {
         }
     }
 
+    /// Run the Authenticate leg during Authorize: Nuvei's first `/payment.do` carries the `threeD`
+    /// block and returns `transactionStatus: REDIRECT` with the ACS url, so the 3DS challenge is
+    /// negotiated before the payment itself is placed.
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Run the PostAuthenticate leg after the ACS redirect: Nuvei's second `/payment.do` replays the
+    /// payment with `relatedTransactionId` and the `threeD` block omitted.
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::CompleteAuthorize {
+                auth_type,
+                payment_method,
+                ..
+            } => {
+                auth_type.is_three_ds()
+                    && matches!(payment_method, Some(enums::PaymentMethod::Card))
+            }
+            api::CurrentFlowInfo::Authorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*NUVEI_SUPPORTED_PAYMENT_METHODS)
     }
