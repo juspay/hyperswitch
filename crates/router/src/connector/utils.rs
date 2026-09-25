@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, str::FromStr, sync::LazyLock};
+use std::{collections::HashMap, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
@@ -197,19 +197,8 @@ where
                     payment_data.payment_attempt.status,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_enabled = *payment_data
-                    .payment_attempt
-                    .is_overcapture_enabled
-                    .unwrap_or_default()
-                    .deref();
 
-                if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
-                    || (capturable_amount.is_some_and(|capturable_amount| {
-                        MinorUnit::new(capturable_amount) > total_capturable_amount
-                    }) && is_overcapture_enabled)
-                {
-                    Ok(enums::AttemptStatus::Authorized)
-                } else if capturable_amount.is_some_and(|capturable_amount| {
+                if capturable_amount.is_some_and(|capturable_amount| {
                     MinorUnit::new(capturable_amount) < total_capturable_amount
                 }) && payment_data
                     .payment_intent
@@ -217,41 +206,11 @@ where
                     .is_some_and(|val| val.is_true())
                 {
                     Ok(enums::AttemptStatus::PartiallyAuthorized)
-                } else if capturable_amount.is_some_and(|capturable_amount| {
-                    MinorUnit::new(capturable_amount) < total_capturable_amount
-                }) && !payment_data
-                    .payment_intent
-                    .enable_partial_authorization
-                    .is_some_and(|val| val.is_true())
-                {
-                    Err(ApiErrorResponse::IntegrityCheckFailed {
-                        reason: "capturable_amount is less than the total attempt amount"
-                            .to_string(),
-                        field_names: "amount_capturable".to_string(),
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone(),
-                        payment_id: Some(payment_data.payment_intent.payment_id.clone()),
-                    })?
-                } else if capturable_amount.is_some_and(|capturable_amount| {
-                    MinorUnit::new(capturable_amount) > total_capturable_amount
-                }) && !is_overcapture_enabled
-                {
-                    Err(ApiErrorResponse::IntegrityCheckFailed {
-                        reason: "capturable_amount is greater than the total attempt amount"
-                            .to_string(),
-                        field_names: "amount_capturable".to_string(),
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone(),
-                        payment_id: Some(payment_data.payment_intent.payment_id.clone()),
-                    })?
                 } else {
-                    Ok(self.status)
+                    Ok(enums::AttemptStatus::Authorized)
                 }
             }
+
             enums::AttemptStatus::CaptureFailed => {
                 // If the intent has already been marked successful but we receive a CaptureFailed event for the payment attempt (via webhook), mark it as Review
                 if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {

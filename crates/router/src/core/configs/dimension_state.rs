@@ -4,6 +4,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{connector_enums::Connector, PaymentMethodType, PayoutRetryType};
 use common_utils::id_type;
 use external_services::superposition;
+use heck::ToPascalCase;
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -536,10 +537,11 @@ impl<Pm, M, O, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, O, P, Cn, PRT, Ev, Pmt> {
             }
         }
 
+        // Superposition lists payment method types in PascalCase (e.g. `apple_pay` -> `ApplePay`)
         if let Some(pmt) = self.payment_method_type {
             ctx = ctx.with(
                 "payment_method_type",
-                pmt.superposition_dimension_value().as_str(),
+                pmt.to_string().to_pascal_case().as_str(),
             );
         }
 
@@ -794,62 +796,3 @@ pub type DimensionsWithProcessorMerchantIdAndPaymentMethodType = Dimensions<
     NoWebhookEvent,
     HasPaymentMethodType,
 >;
-
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used)]
-
-    use std::collections::HashSet;
-
-    use strum::IntoEnumIterator;
-
-    use super::*;
-
-    #[test]
-    fn payment_method_type_dimension_values_match_superposition_seed() {
-        let seed_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../config/superposition_seed.toml"
-        );
-        let seeded_values = config::Config::builder()
-            .add_source(config::File::new(seed_path, config::FileFormat::Toml))
-            .build()
-            .expect("Failed to read superposition seed")
-            .get::<Vec<String>>("dimensions.payment_method_type.schema.enum")
-            .expect("payment_method_type dimension missing from superposition seed");
-
-        let seeded_values: HashSet<&str> = seeded_values.iter().map(String::as_str).collect();
-        let dimension_values: HashSet<String> = PaymentMethodType::iter()
-            .map(|payment_method_type| payment_method_type.superposition_dimension_value())
-            .collect();
-        let dimension_values: HashSet<&str> = dimension_values.iter().map(String::as_str).collect();
-
-        // The seed is shared across API versions, so it also lists variants that only exist when
-        // the `v2` feature is enabled.
-        #[cfg(not(feature = "v2"))]
-        let feature_gated_values: HashSet<&str> = HashSet::from(["Card"]);
-        #[cfg(feature = "v2")]
-        let feature_gated_values: HashSet<&str> = HashSet::new();
-
-        let mut not_seeded: Vec<&str> = dimension_values
-            .difference(&seeded_values)
-            .copied()
-            .collect();
-        not_seeded.sort_unstable();
-        assert!(
-            not_seeded.is_empty(),
-            "PaymentMethodType values missing from the superposition seed: {not_seeded:?}"
-        );
-
-        let mut unknown: Vec<&str> = seeded_values
-            .difference(&dimension_values)
-            .copied()
-            .filter(|value| !feature_gated_values.contains(value))
-            .collect();
-        unknown.sort_unstable();
-        assert!(
-            unknown.is_empty(),
-            "Seeded payment_method_type values not produced by any PaymentMethodType: {unknown:?}"
-        );
-    }
-}

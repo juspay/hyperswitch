@@ -2688,23 +2688,6 @@ impl PaymentMethodType {
             ),
         }
     }
-    /// Value of the Superposition `payment_method_type` dimension: the PascalCase form of this
-    /// enum's snake_case `Display` value (e.g. `apple_pay` -> `ApplePay`,
-    /// `open_banking_pis` -> `OpenBankingPis`). The Superposition dimension schema must list
-    /// exactly these values.
-    pub fn superposition_dimension_value(&self) -> String {
-        self.to_string()
-            .split('_')
-            .map(|word| {
-                let mut chars = word.chars();
-                chars
-                    .next()
-                    .map(|first| first.to_ascii_uppercase().to_string() + chars.as_str())
-                    .unwrap_or_default()
-            })
-            .collect()
-    }
-
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
             Self::Ach => "ACH Direct Debit",

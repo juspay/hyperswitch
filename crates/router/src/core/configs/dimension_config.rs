@@ -1070,22 +1070,4 @@ config! {
 
 impl DatabaseBackedConfig for AcceptPaymentAmountMismatch {
     const KEY: &'static str = "accept_payment_amount_mismatch";
-
-    // "accept_payment_amount_mismatch_{processor_merchant_id}_{payment_method_type}"
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .and_then(|merchant_id| {
-                dimensions
-                    .get_payment_method_type()
-                    .map(|payment_method_type| {
-                        format!(
-                            "{}_{}_{}",
-                            Self::KEY,
-                            merchant_id.get_string_repr(),
-                            payment_method_type
-                        )
-                    })
-            })
-    }
 }
