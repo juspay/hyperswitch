@@ -8244,13 +8244,66 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
+// Builds the same message validate_integration_type (server_integration.rs)
+// produces for a header/merchant-integration_type mismatch.
+function integrationTypeMismatchMessage(header, merchantConfig) {
+  const headerLabel = header ?? "client";
+  const merchantLabel = merchantConfig ?? "client";
+  return `\`x-integration-type\` header value \`${headerLabel}\` does not match the merchant integration type \`${merchantLabel}\``;
+}
+
+// Creates a payment intent with an optional X-Integration-Type header and
+// asserts the expected status/body for it — success shape, or the full
+// IR_06 mismatch error (code + message) built from the header/merchantConfig
+// actually in effect for this call.
+Cypress.Commands.add(
+  "integrationTypeChecker",
+  (
+    createPaymentBody,
+    globalState,
+    { expectedStatus, header, merchantConfig } = {}
+  ) => {
+    const data = {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+      },
+      Response: {
+        status: expectedStatus,
+        body:
+          expectedStatus === 200
+            ? { status: "requires_payment_method" }
+            : {
+                error: {
+                  code: "IR_06",
+                  message: integrationTypeMismatchMessage(
+                    header,
+                    merchantConfig
+                  ),
+                },
+              },
+      },
+    };
+
+    cy.createPaymentIntentTest(
+      createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState,
+      undefined,
+      header
+    );
+  }
+);
+
 Cypress.Commands.add(
   "paymentUpdate",
   (
     paymentId,
     requestBody,
     globalState,
-    { headerValue, expectedStatus, expectedErrorMessage } = {}
+    { headerValue, expectedStatus, merchantConfig } = {}
   ) => {
     const headers = {
       "Content-Type": "application/json",
@@ -8277,9 +8330,9 @@ Cypress.Commands.add(
         } else {
           expect(response.body).to.have.property("error");
           expect(response.body.error.code).to.equal("IR_06");
-          if (expectedErrorMessage !== undefined) {
-            expect(response.body.error.message).to.equal(expectedErrorMessage);
-          }
+          expect(response.body.error.message).to.equal(
+            integrationTypeMismatchMessage(headerValue, merchantConfig)
+          );
         }
         return cy.wrap(response);
       });

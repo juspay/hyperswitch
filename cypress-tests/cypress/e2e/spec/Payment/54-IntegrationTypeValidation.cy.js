@@ -39,36 +39,6 @@ function merchantIntegrationTypeContext() {
   };
 }
 
-// Mirrors the exact message server_integration.rs's validate_integration_type
-// builds, so the header/merchant-mismatch error is checked in full, not just
-// its code.
-function mismatchMessage(header, merchantConfig) {
-  const merchantLabel = merchantConfig ?? "client";
-  const headerLabel = header ?? "client";
-  return `\`x-integration-type\` header value \`${headerLabel}\` does not match the merchant integration type \`${merchantLabel}\``;
-}
-
-function intentData(expectedStatus, header, merchantConfig) {
-  return {
-    Request: {
-      currency: "USD",
-      amount: 6540,
-    },
-    Response: {
-      status: expectedStatus,
-      body:
-        expectedStatus === 200
-          ? { status: "requires_payment_method" }
-          : {
-              error: {
-                code: "IR_06",
-                message: mismatchMessage(header, merchantConfig),
-              },
-            },
-    },
-  };
-}
-
 describe("X-Integration-Type header validation against merchant integration_type", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -112,17 +82,13 @@ describe("X-Integration-Type header validation against merchant integration_type
         // accepts no header.
         const validHeader = merchantConfig === "server" ? "server" : undefined;
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          intentData(200),
-          "no_three_ds",
-          "automatic",
-          globalState,
-          undefined,
-          validHeader
-        );
+        cy.integrationTypeChecker(fixtures.createPaymentBody, globalState, {
+          expectedStatus: 200,
+          header: validHeader,
+          merchantConfig,
+        });
 
-        // createPaymentIntentTest doesn't return its response chain; capture
+        // integrationTypeChecker doesn't return its response chain; capture
         // the payment id from globalState now, before the "create intent"
         // test below runs and overwrites it with its own payment.
         cy.then(() => {
@@ -138,15 +104,11 @@ describe("X-Integration-Type header validation against merchant integration_type
       });
 
       it(`create intent: ${label}`, () => {
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          intentData(expectedStatus, header, merchantConfig),
-          "no_three_ds",
-          "automatic",
-          globalState,
-          undefined,
-          header
-        );
+        cy.integrationTypeChecker(fixtures.createPaymentBody, globalState, {
+          expectedStatus,
+          header,
+          merchantConfig,
+        });
       });
 
       it(`update intent: ${label}`, () => {
@@ -154,14 +116,7 @@ describe("X-Integration-Type header validation against merchant integration_type
           updatePaymentId,
           { amount: 7000, currency: "USD" },
           globalState,
-          {
-            headerValue: header,
-            expectedStatus,
-            expectedErrorMessage:
-              expectedStatus === 200
-                ? undefined
-                : mismatchMessage(header, merchantConfig),
-          }
+          { headerValue: header, expectedStatus, merchantConfig }
         );
       });
     });
