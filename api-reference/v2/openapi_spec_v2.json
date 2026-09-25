@@ -11519,18 +11519,6 @@
             "example": "USD",
             "nullable": true
           },
-          "level_two_supported": {
-            "type": "boolean",
-            "description": "Whether the card supports Level 2 commercial transaction data.",
-            "example": false,
-            "nullable": true
-          },
-          "level_three_supported": {
-            "type": "boolean",
-            "description": "Whether the card supports Level 3 commercial transaction data.",
-            "example": false,
-            "nullable": true
-          },
           "authentication": {
             "type": "array",
             "items": {
