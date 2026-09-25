@@ -15,6 +15,12 @@ pub struct CardIssuer {
     pub last_modified_at: PrimitiveDateTime,
 }
 
+#[derive(Clone, Debug, Queryable, serde::Serialize, serde::Deserialize)]
+pub struct CardIssuerListItem {
+    pub id: id_type::CardIssuerId,
+    pub issuer_name: String,
+}
+
 #[derive(Clone, Debug, AsChangeset, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = card_issuers)]
 pub struct UpdateCardIssuer {

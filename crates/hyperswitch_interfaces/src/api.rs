@@ -543,12 +543,22 @@ pub trait ConnectorSpecifications {
         ConnectorCustomerAction::NoAction
     }
 
-    /// Gateway specific metadata required for FRM requests.
+    /// Gateway specific metadata required for payment FRM requests.
     /// Connectors should override this method if they need to send connector specific metadata as part of the FRM request.
     #[cfg(feature = "frm")]
-    fn get_frm_metadata(
+    fn get_payment_frm_metadata(
         &self,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    /// Gateway specific metadata required for payout FRM requests.
+    /// Connectors should override this method if they need to send connector specific metadata as part of the FRM request.
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        _payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
     ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
         Ok(None)
     }

@@ -14,7 +14,8 @@ use external_services::superposition::{
     ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
     GetDefaultConfigInputBuilder, GetDetailedResolvedConfigInputBuilder, GetDimensionInputBuilder,
     GetResolvedConfigExplanationInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
-    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionError,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SortBy, SuperpositionClient,
+    SuperpositionError,
 };
 
 use crate::{
@@ -171,32 +172,41 @@ fn map_superposition_err(
     }
 }
 
-/// Extract the `x-org-id` and `x-workspace` headers required by every proxy
-/// endpoint, returning a `400` response if either is missing.
-pub fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResponse> {
-    let org_id = req
-        .headers()
-        .get("x-org-id")
-        .and_then(|v| v.to_str().ok())
+/// Read the `x-org-id` and `x-workspace` headers and check them against the
+/// configured Superposition scope. These name a Superposition org/workspace, a
+/// different namespace from the JWT's `organization_id`, so config is the only
+/// trusted source to compare against.
+pub fn extract_proxy_headers(
+    req: &HttpRequest,
+    superposition_client: &SuperpositionClient,
+) -> Result<(String, String), HttpResponse> {
+    let superposition_org_id = required_header(req, "x-org-id")?;
+    let superposition_workspace_id = required_header(req, "x-workspace")?;
+
+    let org_matches = superposition_org_id == superposition_client.configured_org_id();
+    let workspace_matches =
+        superposition_workspace_id == superposition_client.configured_workspace_id();
+
+    match (org_matches, workspace_matches) {
+        (true, true) => Ok((superposition_org_id, superposition_workspace_id)),
+        _ => Err(actix_web::ResponseError::error_response(
+            &errors::ApiErrorResponse::AccessForbidden {
+                resource: "superposition org and workspace".to_string(),
+            },
+        )),
+    }
+}
+
+fn required_header(req: &HttpRequest, name: &'static str) -> Result<String, HttpResponse> {
+    req.headers()
+        .get(name)
+        .and_then(|value| value.to_str().ok())
         .map(String::from)
         .ok_or_else(|| {
             HttpResponse::BadRequest().json(serde_json::json!({
-                "error": { "message": "missing required header: x-org-id" }
+                "error": { "message": format!("missing required header: {name}") }
             }))
-        })?;
-
-    let workspace_id = req
-        .headers()
-        .get("x-workspace")
-        .and_then(|v| v.to_str().ok())
-        .map(String::from)
-        .ok_or_else(|| {
-            HttpResponse::BadRequest().json(serde_json::json!({
-                "error": { "message": "missing required header: x-workspace" }
-            }))
-        })?;
-
-    Ok((org_id, workspace_id))
+        })
 }
 
 /// Typed `ListContexts` query params, parsed from the raw key/value pairs
@@ -787,10 +797,13 @@ impl SuperpositionProxyFlow for ListAuditLogsQuery {
     async fn execute(
         self,
         state: &SessionState,
-        _auth: &UserFromToken,
+        auth: &UserFromToken,
         org_id: String,
         workspace_id: String,
     ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
+        require_superposition_context(&self.dimension_params)?;
+        validate_superposition_params(&self.dimension_params, auth)?;
+
         let output = self
             .into_input(org_id, workspace_id)?
             .send_with(state.superposition_service.superposition_sdk_client())

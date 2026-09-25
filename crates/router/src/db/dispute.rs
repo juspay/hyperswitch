@@ -350,6 +350,7 @@ mod storage_impl {
                         dispute_currency: dispute.dispute_currency,
                         processor_merchant_id: dispute.processor_merchant_id.clone(),
                         created_by: dispute.created_by.clone(),
+                        additional_details: dispute.additional_details.clone(),
                     };
 
                     let key = created_dispute.get_partition_key();
@@ -815,6 +816,7 @@ impl DisputeInterface for MockDb {
             dispute_currency: dispute.dispute_currency,
             processor_merchant_id: dispute.processor_merchant_id,
             created_by: dispute.created_by,
+            additional_details: dispute.additional_details,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -1169,7 +1171,12 @@ impl DisputeInterface for MockDb {
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
+                additional_details,
             } => {
+                if additional_details.is_some() {
+                    dispute_to_update.additional_details = additional_details;
+                }
+
                 if connector_reason.is_some() {
                     dispute_to_update.connector_reason = connector_reason;
                 }
@@ -1315,6 +1322,7 @@ mod tests {
                 dispute_currency: Some(Currency::default()),
                 processor_merchant_id: Some(dispute_ids.merchant_id),
                 created_by: None,
+                additional_details: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
             }
@@ -1651,6 +1659,7 @@ mod tests {
                             connector_reason_code: Some("updated_connector_reason_code".into()),
                             challenge_required_by: Some(datetime!(2019-01-10 0:00)),
                             connector_updated_at: Some(datetime!(2019-01-11 0:00)),
+                            additional_details: None,
                         },
                         diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                     )

@@ -1351,6 +1351,45 @@ impl RequiredFields {
                             ),
                         )]),
                     ),
+                    (
+                        enums::PaymentMethodType::CardRedirect,
+                        connectors(vec![(
+                            // D24 (Directa24) WebPay — Transbank's Chilean redirect method.
+                            Connector::D24,
+                            fields(
+                                vec![],
+                                vec![
+                                    RequiredField::BillingFirstName(
+                                        "first_name",
+                                        FieldType::UserFullName,
+                                    ),
+                                    RequiredField::BillingLastName(
+                                        "last_name",
+                                        FieldType::UserFullName,
+                                    ),
+                                    RequiredField::BillingEmail,
+                                    // WebPay is Chile-only: Transbank's hosted page only
+                                    // accepts Chilean payers.
+                                    RequiredField::BillingAddressCountries(vec!["CL"]),
+                                    // The Chilean RUT. `PixDocumentType` / `PixDocumentNumber`
+                                    // are misnamed: they resolve to
+                                    // `customer.document_details.document_type` and
+                                    // `customer.document_details.document_number`, the
+                                    // generic customer-document paths D24 needs — there is
+                                    // nothing Pix-specific about them, and no generic
+                                    // customer-document variant exists. Renaming them is a
+                                    // separate change touching every existing call site.
+                                    // `DocumentKind` serializes `rename_all = "snake_case"`,
+                                    // so "other" is the correct option string; UCS maps
+                                    // (DocumentKind::Other, CountryAlpha2::CL) to the D24
+                                    // `document_type` "RUT".
+                                    RequiredField::PixDocumentType(vec!["other"]),
+                                    RequiredField::PixDocumentNumber,
+                                ],
+                                vec![],
+                            ),
+                        )]),
+                    ),
                 ])),
             ),
             (
@@ -1533,6 +1572,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Forte, fields(vec![], card_with_name(), vec![])),
         (Connector::Globalpay, fields(vec![], vec![], card_basic())),
+        (
+            Connector::GlobalpaymentsHeartland,
+            fields(vec![], card_basic(), vec![]),
+        ),
         (
             Connector::Hipay,
             fields(
@@ -1728,6 +1771,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
         (Connector::Revolv3, fields(vec![], vec![], card_with_name())),
+        (Connector::Saferpay, fields(vec![], card_basic(), vec![])),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
         (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
@@ -1864,6 +1908,15 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
         ),
+        // JP Morgan Orbital takes the bare card fields; billing data is optional on the
+        // Orbital Gateway and is only used for AVS when supplied.
+        (
+            Connector::JpmorganOrbital,
+            fields(vec![], card_basic(), vec![]),
+        ),
+        // Pay.com needs only the raw card fields; billing details and address are all
+        // optional on `/v1/charges` and `/v1/holds`.
+        (Connector::Paydotcom, fields(vec![], card_basic(), vec![])),
         (
             Connector::Ilixium,
             // Everything here is `common`, not `non_mandate`: `non_mandate` is only merged when
