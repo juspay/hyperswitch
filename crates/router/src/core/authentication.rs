@@ -642,6 +642,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         customer_name: None,
         metadata: None,
         webhook_url: None,
+        connector_intent_metadata: None,
     };
 
     let psp_router_data: core_types::RouterData<
