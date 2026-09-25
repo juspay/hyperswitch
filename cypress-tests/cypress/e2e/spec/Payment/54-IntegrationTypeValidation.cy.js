@@ -136,7 +136,7 @@ describe("X-Integration-Type header validation against merchant integration_type
       });
 
       it(`update intent: ${label}`, () => {
-        cy.updatePaymentWithIntegrationTypeHeader(
+        cy.paymentUpdate(
           updatePaymentId,
           { amount: 7000, currency: "USD" },
           globalState,

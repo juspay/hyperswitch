@@ -8245,7 +8245,7 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
 });
 
 Cypress.Commands.add(
-  "updatePaymentWithIntegrationTypeHeader",
+  "paymentUpdate",
   (
     paymentId,
     requestBody,
