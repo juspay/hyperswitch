@@ -8250,7 +8250,7 @@ Cypress.Commands.add(
     paymentId,
     requestBody,
     globalState,
-    { headerValue, expectedStatus } = {}
+    { headerValue, expectedStatus, expectedErrorMessage } = {}
   ) => {
     const headers = {
       "Content-Type": "application/json",
@@ -8277,6 +8277,9 @@ Cypress.Commands.add(
         } else {
           expect(response.body).to.have.property("error");
           expect(response.body.error.code).to.equal("IR_06");
+          if (expectedErrorMessage !== undefined) {
+            expect(response.body.error.message).to.equal(expectedErrorMessage);
+          }
         }
         return cy.wrap(response);
       });

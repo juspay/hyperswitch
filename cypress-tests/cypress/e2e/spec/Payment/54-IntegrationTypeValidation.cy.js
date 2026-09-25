@@ -39,7 +39,16 @@ function merchantIntegrationTypeContext() {
   };
 }
 
-function intentData(expectedStatus) {
+// Mirrors the exact message server_integration.rs's validate_integration_type
+// builds, so the header/merchant-mismatch error is checked in full, not just
+// its code.
+function mismatchMessage(header, merchantConfig) {
+  const merchantLabel = merchantConfig ?? "client";
+  const headerLabel = header ?? "client";
+  return `\`x-integration-type\` header value \`${headerLabel}\` does not match the merchant integration type \`${merchantLabel}\``;
+}
+
+function intentData(expectedStatus, header, merchantConfig) {
   return {
     Request: {
       currency: "USD",
@@ -50,7 +59,12 @@ function intentData(expectedStatus) {
       body:
         expectedStatus === 200
           ? { status: "requires_payment_method" }
-          : { error: { code: "IR_06" } },
+          : {
+              error: {
+                code: "IR_06",
+                message: mismatchMessage(header, merchantConfig),
+              },
+            },
     },
   };
 }
@@ -126,7 +140,7 @@ describe("X-Integration-Type header validation against merchant integration_type
       it(`create intent: ${label}`, () => {
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          intentData(expectedStatus),
+          intentData(expectedStatus, header, merchantConfig),
           "no_three_ds",
           "automatic",
           globalState,
@@ -140,7 +154,14 @@ describe("X-Integration-Type header validation against merchant integration_type
           updatePaymentId,
           { amount: 7000, currency: "USD" },
           globalState,
-          { headerValue: header, expectedStatus }
+          {
+            headerValue: header,
+            expectedStatus,
+            expectedErrorMessage:
+              expectedStatus === 200
+                ? undefined
+                : mismatchMessage(header, merchantConfig),
+          }
         );
       });
     });
