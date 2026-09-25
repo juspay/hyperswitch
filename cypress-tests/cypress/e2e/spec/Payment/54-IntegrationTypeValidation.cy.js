@@ -59,26 +59,6 @@ describe("X-Integration-Type header validation against merchant integration_type
     let updatePaymentId;
 
     context(label, () => {
-      before("wait for previous context's config reset to propagate", () => {
-        cy.waitForConfigPropagation(globalState, 200, label);
-      });
-
-      before("create payment for update test", () => {
-        cy.createPaymentIntentWithIntegrationTypeHeader(
-          {
-            ...fixtures.createPaymentBody,
-            amount: 6540,
-            confirm: false,
-            profile_id: globalState.get("profileId"),
-            customer_id: globalState.get("customerId"),
-          },
-          globalState,
-          { headerValue: undefined, expectedStatus: 200 }
-        ).then((response) => {
-          updatePaymentId = response.body.payment_id;
-        });
-      });
-
       before("apply merchant integration_type config", () => {
         if (merchantConfig) {
           cy.createSuperpositionConfig(
@@ -93,6 +73,28 @@ describe("X-Integration-Type header validation against merchant integration_type
             merchantIntegrationTypeContext()
           );
         }
+      });
+
+      before("create payment for update test", () => {
+        // A header value guaranteed to pass under the config just set above,
+        // independent of whatever header this scenario tests against — a
+        // "server" merchant only accepts a "server" header, everything else
+        // accepts no header.
+        const validHeader = merchantConfig === "server" ? "server" : undefined;
+
+        cy.createPaymentIntentWithIntegrationTypeHeader(
+          {
+            ...fixtures.createPaymentBody,
+            amount: 6540,
+            confirm: false,
+            profile_id: globalState.get("profileId"),
+            customer_id: globalState.get("customerId"),
+          },
+          globalState,
+          { headerValue: validHeader, expectedStatus: 200 }
+        ).then((response) => {
+          updatePaymentId = response.body.payment_id;
+        });
       });
 
       after("clean up merchant integration_type config", () => {
