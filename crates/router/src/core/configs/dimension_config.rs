@@ -1059,3 +1059,15 @@ config! {
 impl DatabaseBackedConfig for CardIssuerListMaxLimit {
     const KEY: &'static str = "card_issuer_list_max_limit";
 }
+
+config! {
+    superposition_key = ACCEPT_PAYMENT_AMOUNT_MISMATCH,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndPaymentMethodType,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for AcceptPaymentAmountMismatch {
+    const KEY: &'static str = "accept_payment_amount_mismatch";
+}

@@ -632,7 +632,11 @@ where
         .map(|resp_data| resp_data.connector_refund_id.clone())
         .ok();
 
-    request.check_integrity(request, connector_refund_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_refund_id.to_owned(),
+        common_types::primitive_wrappers::AcceptAmountMismatchBool::default(),
+    )
 }
 
 // ********************************************** REFUND UPDATE **********************************************

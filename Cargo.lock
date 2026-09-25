@@ -8432,6 +8432,7 @@ dependencies = [
  "events",
  "external_services",
  "futures 0.3.31",
+ "heck 0.5.0",
  "hex",
  "hkdf",
  "http 0.2.12",

@@ -229,6 +229,7 @@ where
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
@@ -601,6 +602,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -1018,6 +1020,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -1192,6 +1195,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -1333,6 +1337,7 @@ pub async fn construct_router_data_for_psync<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
@@ -1691,6 +1696,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
@@ -1931,6 +1937,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
@@ -2191,6 +2198,10 @@ where
         processor.get_account().storage_scheme,
     )
     .await;
+
+    let accept_amount_mismatch =
+        core_utils::get_accept_payment_amount_mismatch(state, processor, payment_method_type).await;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id,
@@ -2265,6 +2276,7 @@ where
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch,
         additional_merchant_data: merchant_recipient_data.map(|data| {
             api_models::admin::AdditionalMerchantData::foreign_from(
                 types::AdditionalMerchantData::OpenBankingRecipientData(data),
@@ -2496,6 +2508,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: merchant_recipient_data.map(|data| {
             api_models::admin::AdditionalMerchantData::foreign_from(
                 types::AdditionalMerchantData::OpenBankingRecipientData(data),
@@ -5703,6 +5716,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .connector_mandate_detail
                 .as_ref()
                 .and_then(|d| d.get_connector_mandate_id()),
+            enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
+            is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
         })
     }
 }
@@ -8453,6 +8468,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
