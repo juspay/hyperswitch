@@ -675,7 +675,7 @@ pub fn payments_create() {}
         )
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
+        (status = 200, description = "Gets the payment with final status", body = PaymentsResponseOpenApi),
         (status = 404, description = "No payment found")
     ),
     tag = "Payments",
@@ -885,7 +885,7 @@ pub fn payments_update() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
+        (status = 200, description = "Payment confirmed", body = PaymentsConfirmResponseOpenApi),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
@@ -932,7 +932,7 @@ pub fn payments_confirm() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment captured", body = PaymentsResponse),
+        (status = 200, description = "Payment captured", body = PaymentsResponseOpenApi),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
@@ -1053,7 +1053,7 @@ pub fn payments_cancel() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
+        (status = 200, description = "Payment canceled post capture", body = PaymentsResponseOpenApi),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
@@ -1079,7 +1079,7 @@ pub fn payments_cancel_post_capture() {}
         )
     ),
     responses(
-        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
+        (status = 200, description = "Payment canceled post capture", body = PaymentsResponseOpenApi),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
@@ -1168,7 +1168,7 @@ pub async fn profile_payments_list() {}
       )
   ),
   responses(
-      (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
+      (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponseOpenApi),
       (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
@@ -1233,7 +1233,7 @@ pub fn payments_external_authentication() {}
     ("payment_id" =String, Path, description =  "The identifier for payment")
   ),
  responses(
-      (status = 200, description = "Payments Complete Authorize Success", body = PaymentsResponse),
+      (status = 200, description = "Payments Complete Authorize Success", body = PaymentsResponseOpenApi),
       (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
   ),
   tag = "Payments",
