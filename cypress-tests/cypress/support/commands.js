@@ -2955,7 +2955,8 @@ Cypress.Commands.add(
     authentication_type,
     capture_method,
     globalState,
-    connectedMerchantId
+    connectedMerchantId,
+    integrationTypeHeader
   ) => {
     const {
       Configs: configs = {},
@@ -3002,6 +3003,10 @@ Cypress.Commands.add(
 
     if (connectedMerchantId) {
       headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    if (integrationTypeHeader !== undefined) {
+      headers["X-Integration-Type"] = integrationTypeHeader;
     }
 
     globalState.set("paymentAmount", body.amount);
@@ -8238,42 +8243,6 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "DELETE");
   cy.setConfigs(globalState, key, value, "CREATE");
 });
-
-Cypress.Commands.add(
-  "createPaymentIntentWithIntegrationTypeHeader",
-  (requestBody, globalState, { headerValue, expectedStatus } = {}) => {
-    const headers = {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    };
-    if (headerValue !== undefined) {
-      headers["X-Integration-Type"] = headerValue;
-    }
-
-    return cy
-      .request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/payments`,
-        headers,
-        body: requestBody,
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-
-        expect(response.status).to.equal(expectedStatus);
-        if (expectedStatus === 200) {
-          expect(response.body.status).to.equal("requires_payment_method");
-        } else {
-          expect(response.body).to.have.property("error");
-          expect(response.body.error.code).to.equal("IR_06");
-        }
-        // cy.wrap, not a plain return: logRequestId already invoked cy.task
-        // in this callback, and Cypress rejects mixing that with a bare value.
-        return cy.wrap(response);
-      });
-  }
-);
 
 Cypress.Commands.add(
   "updatePaymentWithIntegrationTypeHeader",

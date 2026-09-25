@@ -39,6 +39,23 @@ function merchantIntegrationTypeContext() {
   };
 }
 
+function intentData(expectedStatus) {
+  return {
+    Request: {
+      currency: "USD",
+      amount: 6540,
+      confirm: false,
+    },
+    Response: {
+      status: expectedStatus,
+      body:
+        expectedStatus === 200
+          ? { status: "requires_payment_method" }
+          : { error: { code: "IR_06" } },
+    },
+  };
+}
+
 describe("X-Integration-Type header validation against merchant integration_type", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -82,18 +99,21 @@ describe("X-Integration-Type header validation against merchant integration_type
         // accepts no header.
         const validHeader = merchantConfig === "server" ? "server" : undefined;
 
-        cy.createPaymentIntentWithIntegrationTypeHeader(
-          {
-            ...fixtures.createPaymentBody,
-            amount: 6540,
-            confirm: false,
-            profile_id: globalState.get("profileId"),
-            customer_id: globalState.get("customerId"),
-          },
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          intentData(200),
+          "no_three_ds",
+          "automatic",
           globalState,
-          { headerValue: validHeader, expectedStatus: 200 }
-        ).then((response) => {
-          updatePaymentId = response.body.payment_id;
+          undefined,
+          validHeader
+        );
+
+        // createPaymentIntentTest doesn't return its response chain; capture
+        // the payment id from globalState now, before the "create intent"
+        // test below runs and overwrites it with its own payment.
+        cy.then(() => {
+          updatePaymentId = globalState.get("paymentID");
         });
       });
 
@@ -105,16 +125,14 @@ describe("X-Integration-Type header validation against merchant integration_type
       });
 
       it(`create intent: ${label}`, () => {
-        cy.createPaymentIntentWithIntegrationTypeHeader(
-          {
-            ...fixtures.createPaymentBody,
-            amount: 6540,
-            confirm: false,
-            profile_id: globalState.get("profileId"),
-            customer_id: globalState.get("customerId"),
-          },
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          intentData(expectedStatus),
+          "no_three_ds",
+          "automatic",
           globalState,
-          { headerValue: header, expectedStatus }
+          undefined,
+          header
         );
       });
 
