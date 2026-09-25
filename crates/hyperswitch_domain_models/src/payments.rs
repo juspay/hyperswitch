@@ -209,6 +209,51 @@ impl PaymentIntent {
                 .is_some()
     }
 
+    #[cfg(feature = "v1")]
+    fn get_fallback_business_details(
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<
+        Option<(common_enums::CountryAlpha2, String)>,
+        common_utils::errors::ParsingError,
+    > {
+        match connector_business_details {
+            Some(business_details) => Ok(Some(business_details)),
+            None => merchant_account.get_business_details_for_profile(business_profile),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_business_details_to_set(
+        &self,
+        connector_business_details: Option<(common_enums::CountryAlpha2, String)>,
+        merchant_account: &crate::merchant_account::MerchantAccount,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<
+        Option<(common_enums::CountryAlpha2, String)>,
+        common_utils::errors::ParsingError,
+    > {
+        match (&self.business_country, &self.business_label) {
+            (None, None) => Self::get_fallback_business_details(
+                connector_business_details,
+                merchant_account,
+                business_profile,
+            ),
+            _ => Ok(None),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn set_business_details(
+        &mut self,
+        business_details: (common_enums::CountryAlpha2, String),
+    ) {
+        let (business_country, business_label) = business_details;
+        self.business_country = Some(business_country);
+        self.business_label = Some(business_label);
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, to complete the redirection flow
     pub fn create_start_redirection_url(

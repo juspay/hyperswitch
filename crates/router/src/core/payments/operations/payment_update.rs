@@ -1480,11 +1480,13 @@ impl PaymentUpdate {
             .clone()
             .map(|i| payment_intent.return_url.replace(i.to_string()));
 
-        payment_intent.business_country = request.business_country;
+        payment_intent.business_country =
+            request.business_country.or(payment_intent.business_country);
 
-        payment_intent
+        payment_intent.business_label = request
             .business_label
-            .clone_from(&request.business_label);
+            .clone()
+            .or(payment_intent.business_label.take());
 
         request
             .statement_descriptor_name

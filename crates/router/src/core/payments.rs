@@ -6159,6 +6159,21 @@ where
     )
     .await?;
 
+    if let Some(business_details) = payment_data
+        .get_payment_intent()
+        .get_business_details_to_set(
+            merchant_connector_account.get_business_details(),
+            platform.get_processor().get_account(),
+            business_profile,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to resolve business details for the payment")?
+    {
+        let mut payment_intent = payment_data.get_payment_intent().clone();
+        payment_intent.set_business_details(business_details);
+        payment_data.set_payment_intent(payment_intent);
+    }
+
     let customer_acceptance = payment_data
         .get_payment_attempt()
         .customer_acceptance
