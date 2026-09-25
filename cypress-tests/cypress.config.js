@@ -17,6 +17,8 @@ const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
 // CYPRESS_ prefixed variable still wins, since those override the config file.
 // Names must match what `cypress/utils/State.js` reads.
 const forwardedEnv = [
+  "GRACE_RECORD",
+  "UCS_EXECUTION_MODE",
   "PM_SERVICE_URL",
   "SUPERPOSITION_BASE_URL",
   "SUPERPOSITION_SECRET",
@@ -32,6 +34,16 @@ const forwardedEnv = [
   }
   return acc;
 }, {});
+
+// GRACE_RECORD names a JSONL file that receives one line per executed API
+// command (see cypress/support/graceRecord.js). Unset = no recording.
+function appendGraceRecord(record) {
+  if (!process.env.GRACE_RECORD) return;
+  fs.appendFileSync(
+    process.env.GRACE_RECORD,
+    JSON.stringify({ ts: new Date().toISOString(), ...record }) + "\n"
+  );
+}
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
@@ -75,6 +87,26 @@ export default defineConfig({
           console.log("Logging console message from task");
           // eslint-disable-next-line no-console
           console.log(message);
+          // A TRIGGER_SKIP command only logs and returns; record it so a
+          // skipped flow is not mistaken for an executed one.
+          const skip = /TRIGGER_SKIP enabled, skipping (\w+)/.exec(
+            String(message)
+          );
+          if (skip && process.env.GRACE_RECORD) {
+            appendGraceRecord({
+              flow: null,
+              command: skip[1],
+              connector: process.env.CYPRESS_CONNECTOR || null,
+              trigger_skip: true,
+              request_id: null,
+              http_status: null,
+              execution_path: null,
+            });
+          }
+          return null;
+        },
+        grace_record: (record) => {
+          appendGraceRecord(record);
           return null;
         },
         computeHmac: ({ key, message, algorithm = "sha512" }) => {

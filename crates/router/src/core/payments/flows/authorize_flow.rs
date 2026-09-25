@@ -583,7 +583,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     _ => false,
                 },
                 api_models::enums::Connector::Shift4 => true,
-                api_models::enums::Connector::Nuvei => true,
+                // Nuvei: never run the next leg after a failed initPayment
+                api_models::enums::Connector::Nuvei => authorize_router_data.response.is_ok(),
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
                 // redirect (frictionless / no challenge), continue straight to the settle Authorize
                 // in this flow; when it returns a redirect, break so the shopper completes the
@@ -627,12 +628,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        if connector.connector.is_authentication_flow_required(
-            api_interface::CurrentFlowInfo::Authorize {
-                auth_type: self.auth_type,
-                request_data: Box::new(self.request.clone()),
-            },
-        ) {
+        let is_nuvei = connector.connector_name == api_models::enums::Connector::Nuvei;
+        // Direct Nuvei has only a no-op Authenticate integration; the Authenticate leg runs on UCS only
+        let skip_authentication = is_nuvei && gateway_context.execution_path.is_direct_gateway();
+        if !skip_authentication
+            && connector.connector.is_authentication_flow_required(
+                api_interface::CurrentFlowInfo::Authorize {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                },
+            )
+        {
             logger::info!(
                 "Authentication flow is required for connector: {}",
                 connector.connector_name
@@ -644,6 +650,42 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             authenticate_request_data.authentication_data =
                 authorize_request_data.ucs_authentication_data.clone();
+
+            // Nuvei: the PreAuthenticate leg's connector state (session token and initPayment
+            // transaction id) is still on the response; the Authenticate leg must reference it
+            if is_nuvei {
+                let mut nuvei_meta = match &self.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        ..
+                    }) => connector_metadata.clone(),
+                    _ => None,
+                };
+                // A CIT stores the card when this leg charges; the Authenticate RPC has no
+                // mandate fields at the pinned client, so the markers travel in NuveiMeta
+                let is_customer_initiated_mandate_payment =
+                    hyperswitch_connectors::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                        &self.request,
+                    );
+                if is_customer_initiated_mandate_payment {
+                    if let Some(serde_json::Value::Object(meta)) = nuvei_meta.as_mut() {
+                        meta.insert(
+                            "is_customer_initiated_mandate_payment".to_string(),
+                            serde_json::Value::Bool(true),
+                        );
+                        if let Some(customer_id) = self.customer_id.as_ref() {
+                            meta.insert(
+                                "customer_id".to_string(),
+                                serde_json::Value::String(
+                                    customer_id.get_string_repr().to_string(),
+                                ),
+                            );
+                        }
+                    }
+                }
+                authenticate_request_data.connector_feature_data =
+                    nuvei_meta.map(hyperswitch_masking::Secret::new);
+            }
 
             let authenticate_response_data: Result<
                 types::PaymentsResponseData,
@@ -685,7 +727,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ..
                 }) = &authenticate_router_data.response
                 {
-                    connector_metadata.clone_into(&mut authorize_request_data.metadata);
+                    // Nuvei: the Authenticate connector state is forwarded as connector_feature_data
+                    // from the response, so the merchant metadata is left untouched
+                    if !is_nuvei {
+                        connector_metadata.clone_into(&mut authorize_request_data.metadata);
+                    }
                     authorize_request_data.ucs_authentication_data =
                         authentication_data.clone().map(|data| *data);
 
@@ -709,9 +755,71 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     ..
                 }) = &mut authorize_router_data.response
                 {
-                    *connector_metadata = Some(serde_json::json!({
-                        "authentication_data": auth_data
-                    }));
+                    match connector_metadata {
+                        // Nuvei: keep the Authenticate leg's connector state (session token,
+                        // related transaction id) next to authentication_data
+                        Some(serde_json::Value::Object(existing)) if is_nuvei => {
+                            existing.insert(
+                                "authentication_data".to_string(),
+                                serde_json::json!(auth_data),
+                            );
+                        }
+                        _ => {
+                            *connector_metadata = Some(serde_json::json!({
+                                "authentication_data": auth_data
+                            }));
+                        }
+                    }
+                }
+            }
+
+            // Nuvei: when the Authenticate leg charged (frictionless Sale/Auth) HS stops here, so
+            // the stored-credential reference and link id it returned in NuveiMeta are lifted
+            // onto the response (the Authenticate RPC has no such fields at the pinned client)
+            if is_nuvei
+                && matches!(
+                    authorize_router_data.status,
+                    common_enums::AttemptStatus::Charged
+                        | common_enums::AttemptStatus::Authorized
+                        | common_enums::AttemptStatus::PartialCharged
+                )
+            {
+                if let Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_metadata: Some(meta),
+                    mandate_reference,
+                    network_txn_link_id,
+                    ..
+                }) = &mut authorize_router_data.response
+                {
+                    let meta_mandate_reference =
+                        meta.get("mandate_reference").and_then(|mandate| {
+                            mandate
+                                .get("connector_mandate_id")
+                                .and_then(serde_json::Value::as_str)
+                                .map(|connector_mandate_id| {
+                                    router_response_types::MandateReference {
+                                        connector_mandate_id: Some(
+                                            connector_mandate_id.to_string(),
+                                        ),
+                                        payment_method_id: None,
+                                        mandate_metadata: mandate
+                                            .get("mandate_metadata")
+                                            .filter(|metadata| !metadata.is_null())
+                                            .cloned()
+                                            .map(hyperswitch_masking::Secret::new),
+                                        connector_mandate_request_reference_id: None,
+                                    }
+                                })
+                        });
+                    if let Some(meta_mandate_reference) = meta_mandate_reference {
+                        *mandate_reference = Box::new(Some(meta_mandate_reference));
+                    }
+                    if let Some(link_id) = meta
+                        .get("network_txn_link_id")
+                        .and_then(serde_json::Value::as_str)
+                    {
+                        *network_txn_link_id = Some(link_id.to_string());
+                    }
                 }
             }
 
@@ -746,6 +854,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
+                    }
+                    // Nuvei: an APPROVED Auth3D without a challenge is settled by the final
+                    // payment; a challenge, a charge or a failure stops here
+                    api_models::enums::Connector::Nuvei => {
+                        redirection_data.is_none()
+                            && authorize_router_data.status
+                                == common_enums::AttemptStatus::AuthenticationPending
                     }
                     _ => false,
                 },
