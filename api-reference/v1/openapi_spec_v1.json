@@ -32292,7 +32292,7 @@
             "description": "Currency code for the payment",
             "example": "USD"
           },
-          "preferredGateways": {
+          "preferredConnector": {
             "type": "array",
             "items": {
               "type": "string"

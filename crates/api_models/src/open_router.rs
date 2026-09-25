@@ -161,8 +161,6 @@ pub struct PaymentInfo {
     /// order, each as its eligible-gateway-list identity ("connector:mca_id");
     /// the decision engine consumes the first entry today
     #[schema(value_type = Option<Vec<String>>, example = json!(["adyen:mca_5678"]))]
-    // Keep the Decision Engine wire contract while using connector terminology internally.
-    #[serde(rename = "preferredGateways")]
     pub preferred_connector: Option<Vec<String>>,
     /// Type of payment transaction being processed
     #[schema(value_type = String, example = "ORDER_PAYMENT")]
@@ -657,12 +655,12 @@ mod preferred_connector_tests {
     use super::PaymentInfo;
 
     #[test]
-    fn connector_terminology_preserves_decision_engine_wire_contract() {
+    fn preferred_connector_uses_decision_engine_wire_contract() {
         let payload = json!({
             "paymentId": "pay_12345",
             "amount": 100,
             "currency": "CAD",
-            "preferredGateways": ["loonio:mca_one"],
+            "preferredConnector": ["loonio:mca_one"],
             "paymentType": "ORDER_PAYMENT",
             "paymentMethodType": "interac",
             "paymentMethod": "bank_redirect"
@@ -673,7 +671,7 @@ mod preferred_connector_tests {
             Some(vec!["loonio:mca_one".to_string()])
         );
         let serialized = serde_json::to_value(payment).expect("serialize DE payment info");
-        assert_eq!(serialized["preferredGateways"], json!(["loonio:mca_one"]));
-        assert!(serialized.get("preferredConnector").is_none());
+        assert_eq!(serialized["preferredConnector"], json!(["loonio:mca_one"]));
+        assert!(serialized.get("preferredGateways").is_none());
     }
 }
