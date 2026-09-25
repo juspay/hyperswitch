@@ -37,7 +37,7 @@ import getConnectorDetails, {
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
 import {
-  integrationTypeIntentData,
+  connectorDetails as commonConnectorDetails,
   integrationTypeMismatchMessage,
 } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
@@ -8249,10 +8249,10 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
 });
 
 // Creates a payment intent with an optional X-Integration-Type header and
-// asserts the expected status/body for it, via integrationTypeIntentData
-// (Payment/Commons.js) — success shape, or the full IR_06 mismatch error
-// (code + message) built from the header/merchantConfig actually in effect
-// for this call.
+// asserts the expected status/body for it, via
+// connectorDetails.card_pm.IntegrationTypeValidation (Payment/Commons.js) —
+// success shape, or the full IR_06 mismatch error (code + message) built
+// from the header/merchantConfig actually in effect for this call.
 Cypress.Commands.add(
   "integrationTypeChecker",
   (
@@ -8262,7 +8262,11 @@ Cypress.Commands.add(
   ) => {
     cy.createPaymentIntentTest(
       createPaymentBody,
-      integrationTypeIntentData(expectedStatus, header, merchantConfig),
+      commonConnectorDetails.card_pm.IntegrationTypeValidation(
+        expectedStatus,
+        header,
+        merchantConfig
+      ),
       "no_three_ds",
       "automatic",
       globalState,
