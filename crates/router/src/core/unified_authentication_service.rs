@@ -1973,7 +1973,7 @@ async fn execute_post_authentication_flow(
 
     let payment_method_data = utils::get_authentication_payment_method_data(&post_auth_response);
 
-    let auth_update_response = utils::external_authentication_update_trackers(
+    let auth_update_response = Box::pin(utils::external_authentication_update_trackers(
         state,
         post_auth_response,
         authentication.clone(),
@@ -1987,7 +1987,7 @@ async fn execute_post_authentication_flow(
         None,
         None,
         merchant_account.storage_scheme,
-    )
+    ))
     .await?;
 
     Ok((
@@ -2441,7 +2441,7 @@ pub async fn authentication_post_sync_core(
         )
         .await?;
 
-    let updated_authentication = utils::external_authentication_update_trackers(
+    let updated_authentication = Box::pin(utils::external_authentication_update_trackers(
         &state,
         post_auth_response,
         authentication.clone(),
@@ -2455,7 +2455,7 @@ pub async fn authentication_post_sync_core(
         None,
         None,
         processor_merchant_account.storage_scheme,
-    )
+    ))
     .await?;
 
     let authentication_details = business_profile

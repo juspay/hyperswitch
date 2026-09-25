@@ -384,6 +384,11 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Prop => Ok(dirval!(CardNetwork = Prop)),
             Self::PrivateLabel => Ok(dirval!(CardNetwork = PrivateLabel)),
             Self::Dinacard => Ok(dirval!(CardNetwork = Dinacard)),
+            Self::AirPlus => Ok(dirval!(CardNetwork = AirPlus)),
+            Self::Aurore => Ok(dirval!(CardNetwork = Aurore)),
+            Self::EftposAustralia => Ok(dirval!(CardNetwork = EftposAustralia)),
+            Self::GeCapital => Ok(dirval!(CardNetwork = GeCapital)),
+            Self::Uatp => Ok(dirval!(CardNetwork = Uatp)),
         }
     }
 }

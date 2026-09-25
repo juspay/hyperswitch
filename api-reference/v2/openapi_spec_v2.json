@@ -11462,7 +11462,12 @@
           "Nyce",
           "Prop",
           "PrivateLabel",
-          "Dinacard"
+          "Dinacard",
+          "AirPlus",
+          "Aurore",
+          "EftposAustralia",
+          "GeCapital",
+          "Uatp"
         ]
       },
       "CardNetworkTokenizeRequest": {
