@@ -2688,6 +2688,7 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
 "payments.should_enable_mit_with_limited_card_data" = { value = false, schema = { type = "boolean" }, description = "Whether to allow merchant-initiated transactions (MIT) with limited card data", change_reason = "Initial setup" }
 "payments.should_perform_eligibility" = { value = false, schema = { type = "boolean" }, description = "Whether the SDK should perform an eligibility check before confirming payment", change_reason = "Initial setup" }
 "payments.should_return_raw_payment_method_details" = { value = false, schema = { type = "boolean" }, description = "Whether to return raw payment method details (v2 only)", change_reason = "Initial setup" }
+"card_issuer.list_max_limit" = { value = 18000, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum number of card issuers the card issuer list endpoint reads", change_reason = "Initial setup" }
 "payments.network_token_fetch_timeout_in_secs" = { value = 4, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Timeout in seconds for network token fetch", change_reason = "Initial setup" }
 should_schedule_modular_backward_compat = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular backward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "system.should_schedule_modular_forward_compat" = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular forward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
@@ -2770,6 +2771,7 @@ connector = { position = 1, schema = { enum = [
     "getnet",
     "gigadat",
     "globalpay",
+    "globalpayments_heartland",
     "globepay",
     "gocardless",
     "gpayments",
@@ -2799,6 +2801,7 @@ connector = { position = 1, schema = { enum = [
     "nuvei",
     "opennode",
     "paybox",
+    "paydotcom",
     "payload",
     "payme",
     "payone",
@@ -2819,6 +2822,7 @@ connector = { position = 1, schema = { enum = [
     "recurly",
     "redsys",
     "revolv3",
+    "saferpay",
     "santander",
     "shift4",
     "silverflow",
@@ -4075,7 +4079,21 @@ _context_ = { connector = "square", payment_method = "Card", payment_method_type
 "dynamic_fields.card.card_number._is_required" = true
 
 [[overrides]]
+_context_ = { connector = "globalpayments_heartland", payment_method = "Card", payment_method_type = "Credit" }
+"dynamic_fields.card.card_cvc._is_required" = true
+"dynamic_fields.card.card_exp_month._is_required" = true
+"dynamic_fields.card.card_exp_year._is_required" = true
+"dynamic_fields.card.card_number._is_required" = true
+
+[[overrides]]
 _context_ = { connector = "stripe", payment_method = "Card", payment_method_type = "Credit" }
+"dynamic_fields.card.card_cvc._is_required" = true
+"dynamic_fields.card.card_exp_month._is_required" = true
+"dynamic_fields.card.card_exp_year._is_required" = true
+"dynamic_fields.card.card_number._is_required" = true
+
+[[overrides]]
+_context_ = { connector = "saferpay", payment_method = "Card", payment_method_type = "Credit" }
 "dynamic_fields.card.card_cvc._is_required" = true
 "dynamic_fields.card.card_exp_month._is_required" = true
 "dynamic_fields.card.card_exp_year._is_required" = true
@@ -4434,7 +4452,21 @@ _context_ = { connector = "square", payment_method = "Card", payment_method_type
 "dynamic_fields.card.card_number._is_required" = true
 
 [[overrides]]
+_context_ = { connector = "globalpayments_heartland", payment_method = "Card", payment_method_type = "Debit" }
+"dynamic_fields.card.card_cvc._is_required" = true
+"dynamic_fields.card.card_exp_month._is_required" = true
+"dynamic_fields.card.card_exp_year._is_required" = true
+"dynamic_fields.card.card_number._is_required" = true
+
+[[overrides]]
 _context_ = { connector = "stripe", payment_method = "Card", payment_method_type = "Debit" }
+"dynamic_fields.card.card_cvc._is_required" = true
+"dynamic_fields.card.card_exp_month._is_required" = true
+"dynamic_fields.card.card_exp_year._is_required" = true
+"dynamic_fields.card.card_number._is_required" = true
+
+[[overrides]]
+_context_ = { connector = "saferpay", payment_method = "Card", payment_method_type = "Debit" }
 "dynamic_fields.card.card_cvc._is_required" = true
 "dynamic_fields.card.card_exp_month._is_required" = true
 "dynamic_fields.card.card_exp_year._is_required" = true

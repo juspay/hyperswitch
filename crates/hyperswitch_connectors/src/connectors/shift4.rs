@@ -1125,4 +1125,34 @@ impl ConnectorSpecifications for Shift4 {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&SHIFT4_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    #[cfg(feature = "v1")]
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
+        // Shift4 only charges a stored card, or a stored Apple Pay / Google Pay payment method,
+        // when the charge carries the customerId that owns it, so an off-session setup
+        // (including zero-auth mandates) needs a connector customer up front. The customer is
+        // created through the UCS CustomerService when the payment is routed to UCS; on the
+        // direct path the Shift4 customer flow is not integrated, so no request is sent and the
+        // payment continues without a customer id.
+        let is_storable_payment_method = match payment_attempt.payment_method {
+            Some(enums::PaymentMethod::Card) => true,
+            Some(enums::PaymentMethod::Wallet) => matches!(
+                payment_attempt.payment_method_type,
+                Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+            ),
+            _ => false,
+        };
+        if matches!(
+            payment_attempt.setup_future_usage_applied,
+            Some(enums::FutureUsage::OffSession)
+        ) && is_storable_payment_method
+        {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
+    }
 }
