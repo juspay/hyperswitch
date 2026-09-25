@@ -3139,75 +3139,81 @@ Cypress.Commands.add(
   }
 );
 
+// Returns the response (wrapped, so callers can chain .then() on it) so
+// this can be reused wherever the payment-method-list call itself is needed
+// alongside custom assertions — see assertCustomerAcceptanceSupport below.
 Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
   const resData = data?.Response || data;
   const clientSecret = globalState.get("clientSecret");
   const paymentIntentID = clientSecret.split("_secret_")[0];
 
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("publishableKey"),
-    },
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+  return cy
+    .request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${clientSecret}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      return cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
 
-      // Verify response against config data if provided (only check fields defined in config)
-      if (resData?.body) {
-        for (const key in resData.body) {
-          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        // Verify response against config data if provided (only check fields defined in config)
+        if (resData?.body) {
+          for (const key in resData.body) {
+            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+          }
         }
-      }
 
-      // Verify intent_data if provided in config (for installment tests)
-      if (resData?.intent_data) {
-        expect(response.body.intent_data, "intent_data").to.exist;
-        for (const key in resData.intent_data) {
+        // Verify intent_data if provided in config (for installment tests)
+        if (resData?.intent_data) {
+          expect(response.body.intent_data, "intent_data").to.exist;
+          for (const key in resData.intent_data) {
+            expect(
+              response.body.intent_data[key],
+              `intent_data.${key}`
+            ).to.deep.equal(resData.intent_data[key]);
+          }
+        }
+
+        expect(response.body).to.have.property("redirect_url");
+        expect(response.body).to.have.property("payment_methods");
+        if (
+          globalState.get("collectBillingDetails") === true ||
+          globalState.get("alwaysCollectBillingDetails") === true
+        ) {
           expect(
-            response.body.intent_data[key],
-            `intent_data.${key}`
-          ).to.deep.equal(resData.intent_data[key]);
-        }
-      }
+            response.body.collect_billing_details_from_wallets,
+            "collectBillingDetailsFromWallets"
+          ).to.be.true;
+        } else
+          expect(
+            response.body.collect_billing_details_from_wallets,
+            "collectBillingDetailsFromWallets"
+          ).to.be.false;
 
-      expect(response.body).to.have.property("redirect_url");
-      expect(response.body).to.have.property("payment_methods");
-      if (
-        globalState.get("collectBillingDetails") === true ||
-        globalState.get("alwaysCollectBillingDetails") === true
-      ) {
-        expect(
-          response.body.collect_billing_details_from_wallets,
-          "collectBillingDetailsFromWallets"
-        ).to.be.true;
-      } else
-        expect(
-          response.body.collect_billing_details_from_wallets,
-          "collectBillingDetailsFromWallets"
-        ).to.be.false;
-
-      if (
-        globalState.get("collectShippingDetails") === true ||
-        globalState.get("alwaysCollectShippingDetails") === true
-      ) {
-        expect(
-          response.body.collect_shipping_details_from_wallets,
-          "collectShippingDetailsFromWallets"
-        ).to.be.true;
-      } else
-        expect(
-          response.body.collect_shipping_details_from_wallets,
-          "collectShippingDetailsFromWallets"
-        ).to.be.false;
-      globalState.set("paymentID", paymentIntentID);
-      cy.log(response);
+        if (
+          globalState.get("collectShippingDetails") === true ||
+          globalState.get("alwaysCollectShippingDetails") === true
+        ) {
+          expect(
+            response.body.collect_shipping_details_from_wallets,
+            "collectShippingDetailsFromWallets"
+          ).to.be.true;
+        } else
+          expect(
+            response.body.collect_shipping_details_from_wallets,
+            "collectShippingDetailsFromWallets"
+          ).to.be.false;
+        globalState.set("paymentID", paymentIntentID);
+        cy.log(response);
+        return cy.wrap(response);
+      });
     });
-  });
 });
 
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
@@ -8277,7 +8283,7 @@ Cypress.Commands.add(
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
   "blocklistCreateRule",
-  (requestBody, cardBin, globalState) => {
+  (requestBody, cardBin, globalState, type = "card_bin") => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const profileId = globalState.get("profileId");
@@ -8285,7 +8291,7 @@ Cypress.Commands.add(
 
     const body = {
       ...requestBody,
-      type: "card_bin",
+      type: type,
       data: cardBin,
     };
 
@@ -8307,9 +8313,7 @@ Cypress.Commands.add(
           expect(response.body)
             .to.have.property("fingerprint_id")
             .to.equal(cardBin);
-          expect(response.body)
-            .to.have.property("data_kind")
-            .to.equal("card_bin");
+          expect(response.body).to.have.property("data_kind").to.equal(type);
           expect(response.body).to.have.property("created_at").to.not.be.null;
           globalState.set("blocklistRuleId", response.body.fingerprint_id);
         } else {
@@ -8357,6 +8361,155 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
     });
   });
 });
+
+// Retrieves the payment (reusing the same GET /payments/{id} shape as
+// retrievePaymentCallTest) and asserts payment_account_reference is present
+// only for card networks that are expected to carry one.
+Cypress.Commands.add("assertPaymentAccountReference", (globalState) => {
+  const paymentId = globalState.get("paymentID");
+
+  return cy
+    .request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}?force_sync=true&expand_attempts=true`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      expect(response.status).to.equal(200);
+
+      const cardNetwork = response.body.payment_method_data?.card?.card_network;
+
+      if (cardNetwork === "Visa" || cardNetwork === "Mastercard") {
+        expect(response.body.payment_account_reference).to.be.a("string").and
+          .not.be.empty;
+      } else if (cardNetwork === "AmericanExpress") {
+        expect(response.body.payment_account_reference).to.be.null;
+      }
+    });
+});
+
+// Fetches the payment method list and asserts every payment_method_type
+// carries a valid `customer_acceptance_support` value, additionally checking
+// the expected value for each `{ paymentMethod, paymentMethodType, expected }`
+// entry passed in.
+Cypress.Commands.add(
+  "assertCustomerAcceptanceSupport",
+  (globalState, expectedEntries = []) => {
+    const validValues = ["supported", "partially_supported", "unsupported"];
+
+    return cy.paymentMethodsCallTest(globalState).then((response) => {
+      const paymentMethods = response.body["payment_methods"] || [];
+      expect(paymentMethods).to.be.an("array");
+
+      const seen = new Set();
+
+      paymentMethods.forEach((paymentMethod) => {
+        (paymentMethod["payment_method_types"] || []).forEach(
+          (paymentMethodType) => {
+            expect(paymentMethodType).to.have.property(
+              "customer_acceptance_support"
+            );
+            expect(validValues).to.include(
+              paymentMethodType["customer_acceptance_support"]
+            );
+
+            expectedEntries.forEach(
+              ({ paymentMethod: pm, paymentMethodType: pmt, expected }) => {
+                if (
+                  paymentMethod["payment_method"] === pm &&
+                  paymentMethodType["payment_method_type"] === pmt
+                ) {
+                  seen.add(`${pm}.${pmt}`);
+                  expect(
+                    paymentMethodType["customer_acceptance_support"],
+                    `${pm}.${pmt} customer_acceptance_support`
+                  ).to.equal(expected);
+                }
+              }
+            );
+          }
+        );
+      });
+
+      expectedEntries.forEach(
+        ({ paymentMethod: pm, paymentMethodType: pmt }) => {
+          expect(seen.has(`${pm}.${pmt}`), `${pm}.${pmt} entry present`).to.be
+            .true;
+        }
+      );
+    });
+  }
+);
+
+// Unlike blocklistCreateRule/blocklistDeleteRule, these accept an
+// `expectSuccess` flag so callers can assert both the success and the
+// expected-rejection boundary cases through the same command, with the
+// assertions living here instead of in the spec file.
+Cypress.Commands.add(
+  "blocklistCreateRuleRaw",
+  (type, data, globalState, expectSuccess = true) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/blocklist`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "X-Profile-Id": profileId,
+        },
+        body: { type, data },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (expectSuccess) {
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("data_kind", type);
+          expect(response.body).to.have.property("fingerprint_id", data);
+        } else {
+          expect(response.status).to.not.equal(200);
+        }
+        return response;
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "blocklistDeleteRuleRaw",
+  (type, data, globalState, expectSuccess = true) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
+
+    return cy
+      .request({
+        method: "DELETE",
+        url: `${baseUrl}/blocklist`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "X-Profile-Id": profileId,
+        },
+        body: { type, data },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (expectSuccess) {
+          expect(response.status).to.equal(200);
+        } else {
+          expect(response.status).to.not.equal(200);
+        }
+        return response;
+      });
+  }
+);
 
 Cypress.Commands.add(
   "paymentsEligibilityCheck",
