@@ -755,7 +755,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 storage_type: None,
                 compatibility_updated_at: None,
                 connector_payment_method_details: None,
-                preferred_gateways: None,
             },
             provider.get_account().storage_scheme,
             None,

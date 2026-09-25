@@ -1061,7 +1061,7 @@ impl DatabaseBackedConfig for CardIssuerListMaxLimit {
 }
 
 config! {
-    superposition_key = PREFERRED_GATEWAY_ROUTING_ENABLED,
+    superposition_key = PREFERRED_CONNECTOR_ROUTING_ENABLED,
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -1069,19 +1069,19 @@ config! {
 }
 
 config! {
-    superposition_key = PREFERRED_GATEWAY_ENABLED_PAYMENT_METHOD_TYPES,
+    superposition_key = PREFERRED_CONNECTOR_ENABLED_PAYMENT_METHOD_TYPES,
     output = String,
     default = String::from("interac"),
     requires = dimension_state::DimensionsGlobal,
     targeting_key = id_type::MerchantId
 }
 
-impl DatabaseBackedConfig for PreferredGatewayEnabledPaymentMethodTypes {
-    const KEY: &'static str = "preferred_gateway_enabled_payment_method_types";
+impl DatabaseBackedConfig for PreferredConnectorEnabledPaymentMethodTypes {
+    const KEY: &'static str = "preferred_connector_enabled_payment_method_types";
 }
 
-impl DatabaseBackedConfig for PreferredGatewayRoutingEnabled {
-    const KEY: &'static str = "preferred_gateway_routing_enabled";
+impl DatabaseBackedConfig for PreferredConnectorRoutingEnabled {
+    const KEY: &'static str = "preferred_connector_routing_enabled";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions

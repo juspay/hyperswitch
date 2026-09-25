@@ -1570,7 +1570,7 @@ pub struct HybridRoutingInput<'a> {
     pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
     pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
     pub static_approach: common_enums::RoutingApproach,
-    pub preferred_gateway: Option<String>,
+    pub preferred_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1594,29 +1594,30 @@ impl HybridRoutingStage {
                 // pins the precise account (profiles with several accounts of one
                 // connector), else the connector-name half picks this profile's own entry.
                 // Anything else, or a preference outside the eligible list, is dropped.
-                let preferred_gateway = input.preferred_gateway.as_ref().and_then(|preferred| {
-                    let preferred_connector_name =
-                        preferred.split_once(':').map(|(name, _)| name)?;
-                    input
-                        .static_connectors
-                        .iter()
-                        .find(|choice| choice.to_string().eq_ignore_ascii_case(preferred))
-                        .or_else(|| {
-                            input.static_connectors.iter().find(|choice| {
-                                choice
-                                    .connector
-                                    .to_string()
-                                    .eq_ignore_ascii_case(preferred_connector_name)
+                let preferred_connector =
+                    input.preferred_connector.as_ref().and_then(|preferred| {
+                        let preferred_connector_name =
+                            preferred.split_once(':').map(|(name, _)| name)?;
+                        input
+                            .static_connectors
+                            .iter()
+                            .find(|choice| choice.to_string().eq_ignore_ascii_case(preferred))
+                            .or_else(|| {
+                                input.static_connectors.iter().find(|choice| {
+                                    choice
+                                        .connector
+                                        .to_string()
+                                        .eq_ignore_ascii_case(preferred_connector_name)
+                                })
                             })
-                        })
-                        .map(|choice| choice.to_string())
-                });
+                            .map(|choice| choice.to_string())
+                    });
 
                 OpenRouterDecideGatewayRequest::construct_sr_request(
                     input.payment_dsl_input.payment_attempt,
                     input.static_connectors.to_vec(),
                     Some(or_types::RankingAlgorithm::SrBasedRouting),
-                    preferred_gateway,
+                    preferred_connector,
                 )
             })
     }
@@ -1729,17 +1730,19 @@ pub async fn perform_hybrid_routing_if_enabled(
     fallback_config: &[routing_types::RoutableConnectorChoice],
     static_connectors: &[routing_types::RoutableConnectorChoice],
     static_approach: common_enums::RoutingApproach,
-    preferred_gateway: Option<String>,
+    preferred_connector: Option<String>,
 ) -> (
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
 ) {
     let stage = HybridRoutingStage;
 
-    // The stored preference is only forwarded when the profile has preferred-gateway routing enabled.
-    let preferred_gateway = match preferred_gateway {
-        Some(gateway) if utils::is_preferred_gateway_routing_enabled(state, dimensions).await => {
-            Some(gateway)
+    // The stored preference is only forwarded when the profile has preferred-connector routing enabled.
+    let preferred_connector = match preferred_connector {
+        Some(connector)
+            if utils::is_preferred_connector_routing_enabled(state, dimensions).await =>
+        {
+            Some(connector)
         }
         _ => None,
     };
@@ -1752,7 +1755,7 @@ pub async fn perform_hybrid_routing_if_enabled(
         fallback_config,
         static_connectors,
         static_approach: static_approach.clone(),
-        preferred_gateway,
+        preferred_connector,
     };
 
     // Flag-aware like every other consumer: with static_routing_enabled off the profile is
@@ -3717,7 +3720,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
         payment_attempt,
         routable_connectors.clone(),
         Some(or_types::RankingAlgorithm::SrBasedRouting),
-        // Preferred-gateway routing rides only the hybrid path; this legacy decide-gateway call sends no preference.
+        // Preferred-connector routing rides only the hybrid path; this legacy decide-gateway call sends no preference.
         None,
     );
 

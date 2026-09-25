@@ -26,9 +26,7 @@ use hyperswitch_domain_models::{
     mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
-use hyperswitch_masking::ExposeInterface;
-#[cfg(feature = "v2")]
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::behaviour::Conversion;
@@ -3333,9 +3331,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
     }
 
-    // Preferred-gateway routing: remember the connector behind an interac success so future
-    // payments can be pinned to it (payment_methods row when one is attached,
-    // otherwise the customers row).
+    // Preferred-connector routing: remember the connector behind an eligible success so future
+    // payments can be pinned to it using the customer record.
     #[cfg(feature = "v1")]
     {
         if payment_attempt.status.is_success() && payment_attempt.payment_method_type.is_some() {
@@ -3344,8 +3341,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .clone()
                 .zip(payment_attempt.merchant_connector_id.as_ref())
             {
-                // Each profile keeps its own entry ({"key": profile_id, "value":
-                // "connector:mca_id"}), so a success on one profile never clobbers
+                // Each profile keeps its own entry ({profile_id: "connector:mca_id"}),
+                // so a success on one profile never clobbers
                 // another profile's memory, and a rerouted (e.g. eliminated-pin)
                 // success updates only its own profile's entry. An attempt without
                 // a known account is not recorded.
@@ -3363,17 +3360,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 let storage_scheme = platform.get_provider().get_account().storage_scheme;
                 let merchant_id = payment_attempt.merchant_id.clone();
                 let customer_id = payment_intent.customer_id.clone();
-                let payment_method_id = payment_attempt.payment_method_id.clone();
 
                 tokio::spawn(
                     async move {
-                        update_preferred_gateways(
+                        update_preferred_connector(
                             &state,
                             &key_store,
                             storage_scheme,
                             &merchant_id,
                             customer_id,
-                            payment_method_id,
                             payment_method_type,
                             profile_id,
                             preferred_connector,
@@ -3734,7 +3729,7 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
 }
 
 /// Upsert this profile's entry in the stored preference map
-/// (`{"<payment_method_type>": [{"key": profile_id, "value": "connector:mca_id"}]}`),
+/// (`{"<payment_method_type>": [{"<profile_id>": "connector:mca_id"}]}`),
 /// keeping every other payment method type's and profile's entry intact.
 /// Returns `None` when the entry is already current, so the caller can skip
 /// the write.
@@ -3781,23 +3776,22 @@ fn upsert_profile_preference(
     Some(serde_json::Value::Object(preferences))
 }
 
-/// Persist the connector behind a successful interac payment: onto the
-/// payment_methods row when the attempt has one, otherwise onto the customers row.
+/// Persist the connector behind a successful eligible payment on the customer row.
 #[cfg(feature = "v1")]
-async fn update_preferred_gateways(
+#[allow(clippy::too_many_arguments)]
+async fn update_preferred_connector(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     merchant_id: &common_utils::id_type::MerchantId,
     customer_id: Option<common_utils::id_type::CustomerId>,
-    payment_method_id: Option<String>,
     payment_method_type: String,
     profile_id: String,
     preferred_connector: String,
 ) -> RouterResult<()> {
     // Same global config as the read gate: only listed payment method types
     // record a preference.
-    if !crate::core::payments::preferred_gateway_enabled_payment_method_types(state)
+    if !crate::core::payments::preferred_connector_enabled_payment_method_types(state)
         .await
         .contains(&payment_method_type)
     {
@@ -3806,37 +3800,7 @@ async fn update_preferred_gateways(
 
     let db = &*state.store;
 
-    if let Some(payment_method_id) = payment_method_id {
-        let payment_method = db
-            .find_payment_method(key_store, &payment_method_id, storage_scheme)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to fetch payment method for the preferred connector update",
-            )?;
-
-        if let Some(updated) = upsert_profile_preference(
-            payment_method.preferred_gateways.as_ref(),
-            &payment_method_type,
-            &profile_id,
-            &preferred_connector,
-        ) {
-            db.update_payment_method(
-                key_store,
-                payment_method,
-                storage::PaymentMethodUpdate::PreferredGatewaysUpdate {
-                    preferred_gateways: Some(updated),
-                    last_modified_by: None,
-                },
-                storage_scheme,
-                // v1-only column; nothing to forward to modular compat.
-                None,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update the payment method's preferred connector")?;
-        }
-    } else if let Some(customer_id) = customer_id {
+    if let Some(customer_id) = customer_id {
         let customer = db
             .find_customer_by_customer_id_merchant_id(
                 &customer_id,
@@ -3849,7 +3813,10 @@ async fn update_preferred_gateways(
             .attach_printable("Failed to fetch customer for the preferred connector update")?;
 
         if let Some(updated) = upsert_profile_preference(
-            customer.preferred_gateways.as_ref(),
+            customer
+                .preferred_connector
+                .as_ref()
+                .map(|value| value.peek()),
             &payment_method_type,
             &profile_id,
             &preferred_connector,
@@ -3858,8 +3825,8 @@ async fn update_preferred_gateways(
                 customer_id,
                 merchant_id.to_owned(),
                 customer,
-                storage::CustomerUpdate::UpdatePreferredGateways {
-                    preferred_gateways: Some(updated),
+                storage::CustomerUpdate::UpdatePreferredConnector {
+                    preferred_connector: Some(common_utils::pii::SecretSerdeValue::new(updated)),
                     last_modified_by: None,
                 },
                 key_store,
@@ -4118,8 +4085,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                     // payment_methods microservice call
                     payment_methods::update_payment_method_status_internal(
                         state,
-                        platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().storage_scheme,
+                        processor.get_key_store(),
+                        processor.get_account().storage_scheme,
                         pm_update_status,
                         payment_method.get_id(),
                         initiator,
@@ -4195,14 +4162,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
             .flatten()
             .map(common_utils::pii::SecretSerdeValue::new);
 
-        let payment_intent_update = response_router_data.get_payment_intent_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
-        let payment_attempt_update = response_router_data.get_payment_attempt_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let payment_attempt = payment_data.payment_attempt;
 
@@ -4210,8 +4173,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4219,10 +4182,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 payment_attempt,
                 payment_attempt_update,
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4462,21 +4425,17 @@ impl
 
         let response_router_data = response;
 
-        let payment_intent_update = response_router_data.get_payment_intent_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
-        let payment_attempt_update = response_router_data.get_payment_attempt_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4484,10 +4443,10 @@ impl
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4530,21 +4489,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let response_router_data = response;
 
-        let payment_intent_update = response_router_data.get_payment_intent_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
-        let payment_attempt_update = response_router_data.get_payment_attempt_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
+        let payment_intent_update = response_router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_attempt_update = response_router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4552,10 +4507,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4862,33 +4817,29 @@ impl<F: Clone + Send + Sync>
 
         use hyperswitch_domain_models::router_data::TrackerPostUpdateObjects;
 
-        let payment_intent_update = router_data.get_payment_intent_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
+        let payment_intent_update = router_data
+            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent.clone(),
                 payment_intent_update,
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_key_store(),
+                processor.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Error while updating the payment_intent")?;
 
-        let payment_attempt_update = router_data.get_payment_attempt_update(
-            &payment_data,
-            platform.get_processor().get_account().storage_scheme,
-        );
+        let payment_attempt_update = router_data
+            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 payment_data.payment_attempt.clone(),
                 payment_attempt_update,
-                platform.get_processor().get_account().storage_scheme,
+                processor.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -5136,5 +5087,98 @@ impl<F: Clone + Send + Sync>
         }
 
         Ok(payment_data)
+    }
+}
+
+#[cfg(all(test, feature = "v1"))]
+#[allow(clippy::expect_used, clippy::indexing_slicing)]
+mod preferred_connector_tests {
+    use serde_json::json;
+
+    use super::upsert_profile_preference;
+    use crate::core::payments::preferred_connector_for_profile;
+
+    #[test]
+    fn preference_updates_preserve_other_profiles_and_payment_method_types() {
+        let existing = json!({
+            "interac": [{"pro_one": "loonio:mca_old"}, {"pro_two": "payper:mca_two"}],
+            "ideal": [{"pro_one": "adyen:mca_three"}]
+        });
+        let updated =
+            upsert_profile_preference(Some(&existing), "interac", "pro_one", "loonio:mca_new")
+                .expect("changed account must update the preference");
+        assert_eq!(
+            updated,
+            json!({
+                "interac": [{"pro_one": "loonio:mca_new"}, {"pro_two": "payper:mca_two"}],
+                "ideal": [{"pro_one": "adyen:mca_three"}]
+            })
+        );
+        assert_eq!(
+            preferred_connector_for_profile(&updated, "interac", "pro_one").as_deref(),
+            Some("loonio:mca_new")
+        );
+        assert_eq!(
+            preferred_connector_for_profile(&updated, "interac", "pro_two").as_deref(),
+            Some("payper:mca_two")
+        );
+        assert_eq!(
+            preferred_connector_for_profile(&updated, "ideal", "pro_one").as_deref(),
+            Some("adyen:mca_three")
+        );
+        assert_eq!(
+            preferred_connector_for_profile(&updated, "interac", "pro_missing"),
+            None
+        );
+        assert_eq!(
+            preferred_connector_for_profile(&updated, "card", "pro_one"),
+            None
+        );
+        assert_eq!(
+            upsert_profile_preference(Some(&updated), "interac", "pro_one", "loonio:mca_new"),
+            None
+        );
+    }
+
+    #[test]
+    fn preference_history_is_bounded_and_newest_profile_is_first() {
+        let mut value = None;
+        for index in 0..11 {
+            value = upsert_profile_preference(
+                value.as_ref(),
+                "interac",
+                &format!("pro_{index}"),
+                "loonio:mca_one",
+            );
+        }
+        let value = value.expect("preferences were recorded");
+        assert_eq!(value["interac"].as_array().expect("profile list").len(), 10);
+        assert_eq!(value["interac"][0], json!({"pro_10": "loonio:mca_one"}));
+        assert_eq!(
+            preferred_connector_for_profile(&value, "interac", "pro_0"),
+            None
+        );
+    }
+
+    #[test]
+    fn malformed_preferences_are_ignored_and_repaired_on_success() {
+        for existing in [
+            json!(null),
+            json!("invalid"),
+            json!({"interac": false}),
+            json!({"interac": [null, {"pro_one": 42}]}),
+        ] {
+            assert_eq!(
+                preferred_connector_for_profile(&existing, "interac", "pro_one"),
+                None
+            );
+            let updated =
+                upsert_profile_preference(Some(&existing), "interac", "pro_one", "loonio:mca_one")
+                    .expect("replace invalid preference");
+            assert_eq!(
+                preferred_connector_for_profile(&updated, "interac", "pro_one").as_deref(),
+                Some("loonio:mca_one")
+            );
+        }
     }
 }

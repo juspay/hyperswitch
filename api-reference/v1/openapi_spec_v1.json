@@ -32297,7 +32297,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Routing hint: connectors preferred for this customer or payment method, in\norder, each as its eligible-gateway-list identity (\"connector:mca_id\");\nthe decision engine consumes the first entry today",
+            "description": "Routing hint: connectors preferred for this customer, in\norder, each as its eligible-gateway-list identity (\"connector:mca_id\");\nthe decision engine consumes the first entry today",
             "example": [
               "adyen:mca_5678"
             ],

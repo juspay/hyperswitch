@@ -2293,13 +2293,13 @@ pub async fn get_routing_result_source(
         .await
 }
 
-/// Whether preferred-gateway routing (pin returning customers to their last successful connector) is enabled for the profile.
-pub async fn is_preferred_gateway_routing_enabled(
+/// Whether preferred-connector routing (pin returning customers to their last successful connector) is enabled for the profile.
+pub async fn is_preferred_connector_routing_enabled(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> bool {
     dimensions
-        .get_preferred_gateway_routing_enabled(
+        .get_preferred_connector_routing_enabled(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,

@@ -125,7 +125,7 @@ pub trait OpenRouterDecideGatewayRequestExt {
         attempt: &PaymentAttempt,
         eligible_gateway_list: Vec<RoutableConnectorChoice>,
         ranking_algorithm: Option<RankingAlgorithm>,
-        preferred_gateway: Option<String>,
+        preferred_connector: Option<String>,
     ) -> Self
     where
         Self: Sized;
@@ -146,7 +146,7 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
         attempt: &PaymentAttempt,
         eligible_gateway_list: Vec<RoutableConnectorChoice>,
         ranking_algorithm: Option<RankingAlgorithm>,
-        preferred_gateway: Option<String>,
+        preferred_connector: Option<String>,
     ) -> Self {
         Self {
             payment_info: PaymentInfo {
@@ -158,7 +158,7 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 payment_method: attempt.payment_method.unwrap_or_default(),
                 metadata: None,
                 card_isin: None,
-                preferred_gateways: preferred_gateway.map(|entry| vec![entry]),
+                preferred_connector: preferred_connector.map(|entry| vec![entry]),
             },
             merchant_id: attempt.profile_id.clone(),
             eligible_gateway_list: Some(
@@ -187,7 +187,7 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                 metadata,
                 payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
                 payment_method: attempt.payment_method.unwrap_or_default(),
-                preferred_gateways: None,
+                preferred_connector: None,
             },
             merchant_id: attempt.profile_id.clone(),
             // eligible gateway list is not used in debit routing

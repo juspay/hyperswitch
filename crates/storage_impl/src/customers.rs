@@ -1325,7 +1325,7 @@ impl Conversion for domain::Customer {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             id: global_customer_id,
-            preferred_gateways: self.preferred_gateways,
+            preferred_connector: self.preferred_connector,
         })
     }
 
@@ -1409,7 +1409,7 @@ impl Conversion for domain::Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            preferred_gateways: item.preferred_gateways,
+            preferred_connector: item.preferred_connector,
         })
     }
 
@@ -1440,7 +1440,7 @@ impl Conversion for domain::Customer {
                 .as_ref()
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
-            preferred_gateways: self.preferred_gateways,
+            preferred_connector: self.preferred_connector,
         })
     }
 }
@@ -1476,7 +1476,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 tax_registration_id: tax_registration_id.map(Encryption::from),
                 document_details: document_details.map(Encryption::from),
                 last_modified_by,
-                preferred_gateways: None,
+                preferred_connector: None,
             },
             domain::CustomerUpdate::ConnectorCustomer {
                 connector_customer,
@@ -1496,7 +1496,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 tax_registration_id: None,
                 document_details: None,
                 last_modified_by,
-                preferred_gateways: None,
+                preferred_connector: None,
             },
             domain::CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
@@ -1516,13 +1516,13 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 tax_registration_id: None,
                 document_details: None,
                 last_modified_by,
-                preferred_gateways: None,
+                preferred_connector: None,
             },
-            domain::CustomerUpdate::UpdatePreferredGateways {
-                preferred_gateways,
+            domain::CustomerUpdate::UpdatePreferredConnector {
+                preferred_connector,
                 last_modified_by,
             } => Self {
-                preferred_gateways,
+                preferred_connector,
                 modified_at: date_time::now(),
                 name: None,
                 email: None,
@@ -1574,7 +1574,7 @@ impl Conversion for domain::Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            preferred_gateways: self.preferred_gateways,
+            preferred_connector: self.preferred_connector,
         })
     }
 
@@ -1698,7 +1698,7 @@ impl Conversion for domain::Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            preferred_gateways: item.preferred_gateways,
+            preferred_connector: item.preferred_connector,
         })
     }
 
@@ -1731,7 +1731,7 @@ impl Conversion for domain::Customer {
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
             customer_id: Some(self.id),
-            preferred_gateways: self.preferred_gateways,
+            preferred_connector: self.preferred_connector,
         })
     }
 }

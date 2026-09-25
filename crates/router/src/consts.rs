@@ -533,11 +533,12 @@ pub mod superposition {
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
-    /// Preferred-gateway routing enablement configuration key per profile
-    pub const PREFERRED_GATEWAY_ROUTING_ENABLED: &str = "routing.preferred_gateway_routing_enabled";
-    /// Payment method types eligible for preferred-gateway routing (comma-separated)
-    pub const PREFERRED_GATEWAY_ENABLED_PAYMENT_METHOD_TYPES: &str =
-        "routing.preferred_gateway_enabled_payment_method_types";
+    /// Preferred-connector routing enablement configuration key per profile
+    pub const PREFERRED_CONNECTOR_ROUTING_ENABLED: &str =
+        "routing.preferred_connector_routing_enabled";
+    /// Payment method types eligible for preferred-connector routing (comma-separated)
+    pub const PREFERRED_CONNECTOR_ENABLED_PAYMENT_METHOD_TYPES: &str =
+        "routing.preferred_connector_enabled_payment_method_types";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
