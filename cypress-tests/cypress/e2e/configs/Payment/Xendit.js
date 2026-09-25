@@ -364,56 +364,6 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 3000,
-        },
-      },
-      Request: {
-        amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: billingDetails,
-        },
-        currency: "IDR",
-        mandate_data: multiUseMandateData,
-        billing: billingDetails,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 3000,
-        },
-      },
-      Request: {
-        amount: 6000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: billingDetails,
-        },
-        currency: "IDR",
-        mandate_data: multiUseMandateData,
-        billing: billingDetails,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
     SaveCardUseNo3DSAutoCapture: {
       Configs: {
         DELAY: {
@@ -576,31 +526,6 @@ export const connectorDetails = {
         },
       },
     },
-    MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 3000,
-        },
-      },
-      Request: {
-        payment_method: "card",
-        amount: 6000000,
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: billingDetails,
-        },
-        currency: "IDR",
-        mandate_data: singleUseMandateData,
-        billing: billingDetails,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
     PaymentIntentOffSession: {
       Request: {
         amount: 6000000,
@@ -636,31 +561,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
           payment_method_data: paymentMethodData3ds,
-        },
-      },
-    },
-    MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 3000,
-        },
-      },
-      Request: {
-        payment_method: "card",
-        amount: 6000000,
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: billingDetails,
-        },
-        currency: "IDR",
-        mandate_data: singleUseMandateData,
-        billing: billingDetails,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
         },
       },
     },
