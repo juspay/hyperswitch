@@ -59,6 +59,10 @@ describe("X-Integration-Type header validation against merchant integration_type
     let updatePaymentId;
 
     context(label, () => {
+      before("wait for previous context's config reset to propagate", () => {
+        cy.waitForConfigPropagation(globalState, 200, label);
+      });
+
       before("create payment for update test", () => {
         cy.createPaymentIntentWithIntegrationTypeHeader(
           {
