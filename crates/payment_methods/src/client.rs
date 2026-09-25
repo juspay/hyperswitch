@@ -78,4 +78,8 @@ impl MicroserviceClient for PaymentMethodClient<'_> {
     fn trace(&self) -> &RequestIdentifier {
         &self.trace
     }
+
+    fn service_name(&self) -> &'static str {
+        "payment_methods"
+    }
 }

@@ -1,5 +1,7 @@
+use std::time::Instant;
+
 use common_utils::{
-    consts::TENANT_HEADER,
+    consts::{TENANT_HEADER, X_MERCHANT_ID},
     request::{Headers, Request},
 };
 use hyperswitch_masking::Maskable;
@@ -11,7 +13,16 @@ use super::{
     state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated},
     MicroserviceClient,
 };
-use crate::api_client::{call_connector_api, ApiClientWrapper};
+use crate::{
+    api_client::{call_connector_api, ApiClientWrapper},
+    events::microservice_api_logs::MicroserviceEvent,
+};
+
+/// Profile id header forwarded to microservices; matched case-insensitively.
+const X_PROFILE_ID: &str = "x-profile-id";
+
+/// Placeholder substituted for query param values in the URL recorded on the API event.
+const REDACTED_QUERY_VALUE: &str = "*** redacted ***";
 
 impl<O: ClientOperation> Validated<O> {
     /// Validate the flow and move into the `Validated` state.
@@ -45,6 +56,15 @@ impl<O: ClientOperation> Validated<O> {
     }
 }
 
+/// Read an identifying header (e.g. `x-merchant-id`) out of the parent headers so the
+/// emitted API event carries it.
+fn get_header_value(headers: &Headers, name: &str) -> Option<String> {
+    headers.iter().find_map(|(key, value)| {
+        key.eq_ignore_ascii_case(name)
+            .then(|| value.clone().into_inner())
+    })
+}
+
 impl<O: ClientOperation> TransformedRequest<O> {
     /// Execute the HTTP call for this operation and capture the raw response payload.
     pub async fn execute(
@@ -53,6 +73,7 @@ impl<O: ClientOperation> TransformedRequest<O> {
         base_url: &Url,
         parent_headers: Headers,
         trace_header: &RequestIdentifier,
+        service_name: &str,
         should_forward_tenant: bool,
     ) -> Result<Executed<O>, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
@@ -77,10 +98,25 @@ impl<O: ClientOperation> TransformedRequest<O> {
         let query_params = self.op.query_params(&self.v1_request);
         if !query_params.is_empty() {
             let mut query = url.query_pairs_mut();
-            for (key, value) in query_params {
-                query.append_pair(key, &value);
+            for (key, value) in &query_params {
+                query.append_pair(key, value);
             }
         }
+
+        // The URL the event records keeps the query keys but redacts their values: query
+        // params carry identifiers (`customer_id` and the like) and the `url` column stores
+        // them unmasked for the table's full 18-month retention.
+        let event_url = {
+            let mut redacted = url.clone();
+            redacted.set_query(None);
+            if !query_params.is_empty() {
+                let mut query = redacted.query_pairs_mut();
+                for (key, _) in &query_params {
+                    query.append_pair(key, REDACTED_QUERY_VALUE);
+                }
+            }
+            redacted.to_string()
+        };
 
         // Step 2: Build headers and inject trace/request/tenant context.
         let mut http_request = Request::new(O::METHOD, url.as_str());
@@ -114,55 +150,95 @@ impl<O: ClientOperation> TransformedRequest<O> {
             }
         }
 
-        // Step 3: Attach body (if any).
-        if let Some(body) = self.op.body(self.request) {
+        // Step 3: Attach body (if any), capturing its masked form for the API event first.
+        let masked_request_body = self.op.body(self.request).map(|body| {
+            let masked = match &body {
+                common_utils::request::RequestContent::Json(inner)
+                | common_utils::request::RequestContent::FormUrlEncoded(inner) => inner
+                    .masked_serialize()
+                    .unwrap_or_else(|err| serde_json::json!({"error": err.to_string()})),
+                _ => serde_json::json!({"request": "non-json body, not captured"}),
+            };
             http_request.set_body(body);
-        }
+            masked
+        });
 
-        // Step 4: Execute request and decode response.
-        let response = call_connector_api(state, http_request, operation, None)
-            .await
-            .map_err(|e| {
+        // Step 4: Build the API event for this call. Merchant/profile identifiers travel in
+        // the parent headers, so read them back from there.
+        let mut microservice_event = MicroserviceEvent::new(
+            state.get_tenant().tenant_id.clone(),
+            service_name.to_string(),
+            operation,
+            masked_request_body,
+            event_url,
+            O::METHOD,
+            get_header_value(&http_request.headers, X_MERCHANT_ID),
+            get_header_value(&http_request.headers, X_PROFILE_ID),
+            state.get_request_id().as_ref(),
+        );
+        let start_time = Instant::now();
+
+        // Step 5: Execute request and decode response.
+        let response = call_connector_api(state, http_request, operation, None).await;
+        microservice_event.set_latency(start_time.elapsed().as_millis());
+
+        let result = match response {
+            Err(e) => {
                 logger::error!(operation, error = ?e, "microservice request failed");
-                MicroserviceClientError {
+                microservice_event.set_error_string(format!("Connector API error: {e}"));
+                Err(MicroserviceClientError {
                     operation: operation.to_string(),
                     kind: MicroserviceClientErrorKind::Transport(format!(
                         "Connector API error: {e}"
                     )),
-                }
-            })?;
-
-        match response {
-            Ok(success) => serde_json::from_slice(&success.response).map_err(|e| {
-                logger::error!(
-                    operation,
-                    error = ?e,
-                    "microservice response decode failed"
-                );
-                MicroserviceClientError {
-                    operation: operation.to_string(),
-                    kind: MicroserviceClientErrorKind::Deserialize(format!(
-                        "Failed to parse response: {e}"
-                    )),
-                }
-            }),
-            Err(err_resp) => {
+                })
+            }
+            Ok(Ok(success)) => {
+                microservice_event.set_status_code(success.status_code);
+                serde_json::from_slice(&success.response).map_err(|e| {
+                    logger::error!(
+                        operation,
+                        error = ?e,
+                        "microservice response decode failed"
+                    );
+                    microservice_event.set_error_string(format!("Failed to parse response: {e}"));
+                    MicroserviceClientError {
+                        operation: operation.to_string(),
+                        kind: MicroserviceClientErrorKind::Deserialize(format!(
+                            "Failed to parse response: {e}"
+                        )),
+                    }
+                })
+            }
+            Ok(Err(err_resp)) => {
                 logger::warn!(
                     operation,
                     status = err_resp.status_code,
                     "microservice upstream error"
                 );
+                microservice_event.set_status_code(err_resp.status_code);
+                // The event records a structured form of the error only; the raw body stays
+                // in the returned error, which travels through logs rather than the event pipe.
+                microservice_event.set_upstream_error(err_resp.status_code, &err_resp.response);
                 let body = String::from_utf8_lossy(&err_resp.response);
+                let truncated_body: String = body.chars().take(500).collect();
                 Err(MicroserviceClientError {
                     operation: operation.to_string(),
                     kind: MicroserviceClientErrorKind::Upstream {
                         status: err_resp.status_code,
-                        body: body.chars().take(500).collect(),
+                        body: truncated_body,
                     },
                 })
             }
-        }
-        .map(|response| Executed {
+        };
+
+        // The response body can carry raw payment method data, which must never reach the
+        // event pipe unmasked — so success events record status/latency only.
+        state
+            .event_handler()
+            .log_microservice_event(&microservice_event);
+
+        result.map(|response| Executed {
             op: self.op,
             response,
         })
@@ -205,6 +281,7 @@ pub async fn execute_microservice_operation<O: ClientOperation>(
             client.base_url(),
             client.parent_headers().clone(),
             client.trace(),
+            client.service_name(),
             client.should_forward_tenant_header(),
         )
         .await?;
