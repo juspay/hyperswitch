@@ -117,14 +117,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
     });
 
     it("verify frm_status is legit", () => {
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-      }).then((response) => {
+      cy.getPayoutDetails(globalState).then((response) => {
         expect(response.body.frm_message.frm_name).to.equal("sanlam_payshield");
         expect(response.body.frm_message.frm_status).to.equal("legit");
         // Proves the payout actually reached the connector, not just that
@@ -163,14 +156,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
     });
 
     it("verify frm_status is fraud and connector was never called", () => {
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-      }).then((response) => {
+      cy.getPayoutDetails(globalState).then((response) => {
         expect(response.body.status).to.equal("failed");
         expect(response.body.error_code).to.equal("fraud");
         expect(response.body.connector).to.be.null;
@@ -235,14 +221,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       });
 
       it("verify payout blocked with transaction_failure", () => {
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-        }).then((response) => {
+        cy.getPayoutDetails(globalState).then((response) => {
           expect(response.body.status).to.equal("failed");
           expect(response.body.error_code).to.equal("transaction_failure");
           expect(response.body.connector).to.be.null;
@@ -291,14 +270,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       });
 
       it("verify FRM failure did not block the payout", () => {
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-        }).then((response) => {
+        cy.getPayoutDetails(globalState).then((response) => {
           expect(response.body.error_code).to.not.equal("transaction_failure");
           expect(response.body.frm_message.frm_status).to.equal(
             "transaction_failure"

@@ -7395,6 +7395,25 @@ Cypress.Commands.add(
   }
 );
 
+// Plain GET /payouts/{payoutID}, returning the response for callers that
+// need targeted assertions (nested fields, inequality checks) rather than
+// retrievePayoutCallTest's whole-object deep-equal below.
+Cypress.Commands.add("getPayoutDetails", (globalState) => {
+  return cy
+    .request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      return cy.wrap(response);
+    });
+});
+
 Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   const payout_id = globalState.get("payoutID");
   const resBody = data?.Response?.body || {};
