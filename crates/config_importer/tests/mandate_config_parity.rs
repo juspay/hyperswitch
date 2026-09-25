@@ -3,6 +3,9 @@
 //! silently downgrades those mandates to `on_session` in that one environment, so these tests
 //! compare the tables across files. Connector lists are compared as sets, so that differences in
 //! ordering do not hide real drift.
+//!
+//! The test only needs to parse TOML, so it lives in this lightweight crate rather than `router`,
+//! which lets CI run it on every pull request without building the router.
 
 // Integration test: assertions use panic!/expect(); allow the production-code lints.
 #![allow(clippy::panic, clippy::expect_used)]
