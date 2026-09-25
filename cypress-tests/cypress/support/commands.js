@@ -5432,7 +5432,8 @@ Cypress.Commands.add(
           const isWalletRequiresAction =
             response.body.status === "requires_customer_action" &&
             response.body.payment_method === "wallet";
-          const isBankRedirect = response.body.payment_method === "bank_redirect";
+          const isBankRedirect =
+            response.body.payment_method === "bank_redirect";
           const isTerminalSuccessForDeferredPm = [
             "succeeded",
             "requires_capture",
