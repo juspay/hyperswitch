@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.17.2-hotfix2
+
+### Features
+
+- **payment:** Spawn async task for modular pm update ([#14428](https://github.com/juspay/hyperswitch/pull/14428)) ([`d7241fe`](https://github.com/juspay/hyperswitch/commit/d7241fed5a0e948d97413929d145200f549a3293))
+
+### Refactors
+
+- **storage:** Find_config_by_key -> find_config_by_key_optional ([#14414](https://github.com/juspay/hyperswitch/pull/14414)) ([`e81bc49`](https://github.com/juspay/hyperswitch/commit/e81bc4985f11c27193e0412c10a5b848fb94cc7e))
+
+**Full Changelog:** [`2026.09.17.2-hotfix1...2026.09.17.2-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.09.17.2-hotfix1...2026.09.17.2-hotfix2)
+
+- - -
+
 ## 2026.09.17.2-hotfix1
 
 ### Features
