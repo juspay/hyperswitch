@@ -368,6 +368,12 @@ where
     );
 
     let auth_user_id = auth_type.get_user_id();
+
+    // The header still holds raw connector time here; it is only turned into Hyperswitch's own
+    // overhead later, on the wire.
+    let hs_latency =
+        overhead_latency.map(|overhead_latency| request_duration.saturating_sub(overhead_latency));
+
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -377,7 +383,7 @@ where
         status_code,
         serialized_request,
         serialized_response,
-        overhead_latency,
+        hs_latency,
         auth_type,
         auth_user_id,
         error,
