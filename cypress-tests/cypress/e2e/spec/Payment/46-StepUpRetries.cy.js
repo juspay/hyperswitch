@@ -43,11 +43,11 @@ describe("Step-Up Retry Tests", () => {
             return;
           }
 
-          const merchantId = globalState.get("merchantId");
-          const key = `step_up_enabled_${merchantId}`;
-          const value = JSON.stringify([connectorId]);
-
-          cy.setConfigs(globalState, key, value, "CREATE");
+          // Step-up used to be the db config `step_up_enabled_{merchant}` holding a
+          // list of connectors. It now resolves from superposition as a boolean
+          // scoped by the `connector` dimension, and the seeded default (`false`)
+          // wins over the db value, so the override has to be set here.
+          cy.setStepUpEnabledConfig(globalState, true, connectorId);
 
           // Set flag indicating Step-Up retry is enabled for assertion validation
           globalState.set("isStepUpRetryEnabled", true);
@@ -164,11 +164,8 @@ describe("Step-Up Retry Tests", () => {
           return;
         }
 
-        const merchantId = globalState.get("merchantId");
-        const key = `step_up_enabled_${merchantId}`;
-
-        // Delete or set empty config to disable Step-Up
-        cy.setConfigs(globalState, key, "[]", "UPDATE");
+        // Delete the override so step-up falls back to its default (false)
+        cy.deleteStepUpEnabledConfig(globalState, connectorId);
 
         // Set flag indicating Step-Up retry is disabled
         globalState.set("isStepUpRetryEnabled", false);

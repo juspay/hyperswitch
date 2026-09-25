@@ -7,7 +7,8 @@ use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
 use crate::{
-    consts::superposition as superposition_consts, db::StorageInterface,
+    consts::superposition as superposition_consts,
+    core::payments::routing::utils::MerchantPreRoutingConfig, db::StorageInterface,
     types::payment_methods as pm_types, utils::id_type,
 };
 
@@ -71,6 +72,45 @@ macro_rules! config {
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
                     crate::core::configs::fetch_db_config_for_objects::<[<$key:camel>], $output>(
+                        storage, superposition_client, self, targeting_key
+                    ).await
+                }
+            }
+        }
+    };
+
+    // Object array config variant (with object_array = true)
+    // Use this when the config value is always a JSON array.
+    // Handles the case where the OpenFeature provider encodes an empty array as an empty
+    // StructValue (which would otherwise be mistaken for an empty object).
+    (
+        superposition_key = $key:ident,
+        output = $output:ty,
+        default = $default:expr,
+        object_array = true,
+        requires = $requirement:ty,
+        targeting_key = $targeting_type:ty
+    ) => {
+        paste::paste! {
+            pub struct [<$key:camel>];
+
+            impl superposition::Config for [<$key:camel>] {
+                type Output = serde_json::Value;
+                type TargetingKey = $targeting_type;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+                fn default_value() -> Self::Output {
+                    serde_json::to_value(&$default).expect("Failed to serialize default")
+                }
+            }
+
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    targeting_key: Option<&$targeting_type>,
+                ) -> $output {
+                    crate::core::configs::fetch_db_config_for_object_array::<[<$key:camel>], $output>(
                         storage, superposition_client, self, targeting_key
                     ).await
                 }
@@ -907,6 +947,97 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
 }
 
 config! {
+    superposition_key = STEP_UP_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for StepUpEnabled {
+    const KEY: &'static str = "step_up_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("step_up_enabled_{}", id.get_string_repr()))
+    }
+
+    /// The legacy DB value at `step_up_enabled_{merchant}` is a JSON array of the connectors
+    /// for which step-up is enabled (e.g. `["stripe","adyen"]`), not a bool. Convert it to a
+    /// bool by checking whether the `connector` from the resolved context is present in that
+    /// list, preserving the pre-migration `connectors_enabled.contains(&connector)` behaviour.
+    fn parse_db_config(config_str: &str, context: Option<&ConfigContext>) -> Option<Self::Output>
+    where
+        Self::Output: super::ConfigType,
+    {
+        let enabled_connectors: Vec<common_enums::connector_enums::Connector> =
+            serde_json::from_str(config_str)
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        "Failed to parse step_up_enabled connector list from db config"
+                    )
+                })
+                .ok()?;
+
+        context
+            .and_then(|ctx| ctx.get("connector"))
+            .and_then(|connector_str| {
+                serde_json::from_value::<common_enums::connector_enums::Connector>(
+                    serde_json::Value::String(connector_str.to_string()),
+                )
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        connector = %connector_str,
+                        "Failed to parse connector from context"
+                    )
+                })
+                .ok()
+            })
+            .map(|connector| enabled_connectors.contains(&connector))
+    }
+}
+
+config! {
+    superposition_key = PRE_ROUTING_DISABLED_PM_PMT,
+    output = MerchantPreRoutingConfig,
+    default = MerchantPreRoutingConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PreRoutingDisabledPmPmt {
+    const KEY: &'static str = "pre_routing_disabled_pm_pmt";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "pre_routing_disabled_pm_pmt_for_{merchant_id}"
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("pre_routing_disabled_pm_pmt_for_{}", id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlocklistGuard {
+    const KEY: &'static str = "blocklist_guard";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("guard_blocklist_for_{}", id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = SAVE_WALLET_DECRYPTED_DATA,
     output = bool,
     default = false,
@@ -922,6 +1053,83 @@ impl DatabaseBackedConfig for SaveWalletDecryptedData {
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SKIP_SAVING_WALLET_AT_CONNECTOR,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndPaymentMethodType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for SkipSavingWalletAtConnector {
+    const KEY: &'static str = "skip_saving_wallet_at_connector";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("skip_saving_wallet_at_connector_{}", id.get_string_repr()))
+    }
+
+    /// The legacy DB value at `skip_saving_wallet_at_connector_{merchant}` is a JSON array of
+    /// the payment method types for which saving the wallet at the connector should be skipped
+    /// (e.g. `["apple_pay","google_pay"]`), not a bool. Convert it to a bool by checking whether
+    /// the `payment_method_type` from the resolved context is present in that list, preserving the
+    /// pre-migration `skip_saving_wallet_at_connector.contains(&payment_method_type)` behaviour.
+    fn parse_db_config(config_str: &str, context: Option<&ConfigContext>) -> Option<Self::Output>
+    where
+        Self::Output: super::ConfigType,
+    {
+        let skip_payment_method_types: Vec<common_enums::PaymentMethodType> =
+            serde_json::from_str(config_str)
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        "Failed to parse skip_saving_wallet_at_connector list from db config"
+                    )
+                })
+                .ok()?;
+
+        context
+            .and_then(|ctx| ctx.get("payment_method_type"))
+            .and_then(|pmt_str| {
+                serde_json::from_value::<common_enums::PaymentMethodType>(
+                    serde_json::Value::String(pmt_str.to_string()),
+                )
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        payment_method_type = %pmt_str,
+                        "Failed to parse payment_method_type from context"
+                    )
+                })
+                .ok()
+            })
+            .map(|payment_method_type| skip_payment_method_types.contains(&payment_method_type))
+    }
+}
+
+config! {
+    superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for PaymentUpdateEnabledForClientAuth {
+    const KEY: &'static str = "payment_update_enabled_for_client_auth";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "payment_update_enabled_for_client_auth_{merchant_id}"
+        dimensions.get_processor_merchant_id().map(|id| {
+            format!(
+                "payment_update_enabled_for_client_auth_{}",
+                id.get_string_repr()
+            )
+        })
     }
 }
 
