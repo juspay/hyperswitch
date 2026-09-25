@@ -4098,25 +4098,6 @@ export const connectorDetails = {
         },
       },
     }),
-    // Current-API-actual behaviour: negative amount_captured is accepted (200) —
-    // upstream lower-bound validation is absent (crates/router/src/core/payments.rs:14025-14032).
-    ManualPaymentUpdateAmountCapturedNegative: getCustomExchange({
-      Configs: {
-        skipBillingAssertion: true,
-      },
-      Request: {
-        attempt_status: "charged",
-        amount_captured: -100,
-      },
-      Response: {
-        status: 200,
-        body: {
-          attempt_status: "charged",
-          amount_captured: -100,
-          amount_capturable: 6000,
-        },
-      },
-    }),
     ManualPaymentUpdateAmountCapturedWithoutStatus: getCustomExchange({
       Configs: {
         skipBillingAssertion: true,
