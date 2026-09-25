@@ -219,70 +219,6 @@ describe("Payment Manual Update Tests", () => {
     });
   });
 
-  context("Manual Payment Update - Update Amount Captured Flag", () => {
-    it("Create Payment Intent -> Manual Update with update_amount_captured -> Retrieve Payment", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent with Manual Capture", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "manual",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Manual Update Payment with update_amount_captured", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Manual Update Payment with update_amount_captured"
-          );
-          return;
-        }
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ManualPaymentUpdateUpdateAmountCaptured"];
-
-        cy.manualPaymentStatusUpdateTest(globalState, data);
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Retrieve Payment to Verify Captured Amount Persistence", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment to Verify Captured Amount Persistence"
-          );
-          return;
-        }
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ManualPaymentUpdateUpdateAmountCaptured"];
-
-        cy.retrievePaymentCallTest({
-          globalState,
-          data,
-          unconfirmedPayment: true,
-        });
-      });
-    });
-  });
-
   context("Manual Payment Update - Negative Cases", () => {
     it("Create Payment Intent -> Manual Update with Invalid Attempt ID", () => {
       let shouldContinue = true;
@@ -362,8 +298,8 @@ describe("Payment Manual Update Tests", () => {
     });
   });
 
-  context("Manual Payment Update - Amount Captured Conflict", () => {
-    it("Create Payment Intent -> Manual Update with amount_captured and update_amount_captured conflict", () => {
+  context("Manual Payment Update - Amount Captured Boundary", () => {
+    it("Create Payment Intent -> Manual Update with amount_captured equal to payment amount -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Manual Capture", () => {
@@ -385,23 +321,282 @@ describe("Payment Manual Update Tests", () => {
       });
 
       cy.step(
-        "Manual Update with amount_captured and update_amount_captured conflict",
+        "Manual Update Payment with amount_captured equal to payment amount",
         () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
-              "Skipping step: Manual Update with amount_captured and update_amount_captured conflict"
+              "Skipping step: Manual Update Payment with amount_captured equal to payment amount"
             );
             return;
           }
 
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["ManualPaymentUpdateAmountConflict"];
+          ]["ManualPaymentUpdateAmountCapturedBoundary"];
 
           cy.manualPaymentStatusUpdateTest(globalState, data);
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
       );
+
+      cy.step("Retrieve Payment to Verify amount_captured Persistence", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment to Verify amount_captured Persistence"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedBoundary"];
+
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          unconfirmedPayment: true,
+        });
+      });
+    });
+  });
+
+  context("Manual Payment Update - Amount Captured Zero", () => {
+    it("Create Payment Intent -> Manual Update with zero amount_captured -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent with Manual Capture", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Manual Update Payment with zero amount_captured", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Payment with zero amount_captured"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedZero"];
+
+        cy.manualPaymentStatusUpdateTest(globalState, data);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment to Verify amount_captured Persistence", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment to Verify amount_captured Persistence"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedZero"];
+
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          unconfirmedPayment: true,
+        });
+      });
+    });
+  });
+
+  context("Manual Payment Update - Amount Captured Negative", () => {
+    it("Create Payment Intent -> Manual Update with negative amount_captured -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent with Manual Capture", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Manual Update Payment with negative amount_captured", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Payment with negative amount_captured"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedNegative"];
+
+        cy.manualPaymentStatusUpdateTest(globalState, data);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment to Verify amount_captured Persistence", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment to Verify amount_captured Persistence"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedNegative"];
+
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          unconfirmedPayment: true,
+        });
+      });
+    });
+  });
+
+  context("Manual Payment Update - Amount Captured Without Status", () => {
+    it("Create Payment Intent -> Manual Update with amount_captured without attempt_status -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent with Manual Capture", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step(
+        "Manual Update Payment with amount_captured without attempt_status",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Manual Update Payment with amount_captured without attempt_status"
+            );
+            return;
+          }
+
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["ManualPaymentUpdateAmountCapturedWithoutStatus"];
+
+          cy.manualPaymentStatusUpdateTest(globalState, data);
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        }
+      );
+
+      cy.step("Retrieve Payment to Verify amount_captured Persistence", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment to Verify amount_captured Persistence"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedWithoutStatus"];
+
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          unconfirmedPayment: true,
+        });
+      });
+    });
+  });
+
+  context("Manual Payment Update - Amount Captured Invalid Type", () => {
+    it("Create Payment Intent -> Manual Update with invalid amount_captured type", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent with Manual Capture", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Manual Update with invalid amount_captured type", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update with invalid amount_captured type"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateAmountCapturedInvalidType"];
+
+        cy.manualPaymentStatusUpdateTest(globalState, data);
+      });
     });
   });
 
