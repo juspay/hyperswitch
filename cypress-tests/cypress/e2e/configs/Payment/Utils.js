@@ -585,9 +585,6 @@ export const CONNECTOR_LISTS = {
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
     EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix", "payu"],
-    // Paybox zero-auth stays `processing` and never settles, so the saved
-    // payment method never becomes usable and this spec's MIT calls 400.
-    ZERO_AUTH_MANDATE: ["paybox"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
