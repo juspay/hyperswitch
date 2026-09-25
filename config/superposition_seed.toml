@@ -2691,11 +2691,12 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
 "payments.should_return_card_info_details" = { value = false, schema = { type = "boolean" }, description = "Whether the payment method retrieve response carries the card's issuing range attributes from the card BIN data", change_reason = "Initial setup" }
 "card_issuer.list_max_limit" = { value = 18000, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum number of card issuers the card issuer list endpoint reads", change_reason = "Initial setup" }
 "payments.network_token_fetch_timeout_in_secs" = { value = 4, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Timeout in seconds for network token fetch", change_reason = "Initial setup" }
-should_schedule_modular_backward_compat = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular backward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
+"system.should_schedule_modular_backward_compat" = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular backward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "system.should_schedule_modular_forward_compat" = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular forward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "payments.should_store_eligibility_check_data_for_authentication" = { value = false, schema = { type = "boolean" }, description = "Whether to store eligibility check data during authentication", change_reason = "Initial setup" }
 "system.should_trigger_backwards_compatibility_inline" = { value = false, schema = { type = "boolean" }, description = "Whether to trigger PM modular backward compatibility inline for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "vaulting.should_trigger_fingerprint_migration" = { value = false, schema = { type = "boolean" }, description = "Whether to trigger fingerprint and entity_id migration for a merchant", change_reason = "Initial setup" }
+"vaulting.should_generate_payment_method_fingerprint" = { value = false, schema = { type = "boolean" }, description = "Whether vaulting a card also derives a merchant-scoped fingerprint for it", change_reason = "Initial setup" }
 "routing.threeds_routing_region_uas" = { value = "region1", schema = { enum = [
     "region1",
     "region2",

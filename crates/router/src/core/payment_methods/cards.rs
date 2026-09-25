@@ -1589,6 +1589,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let payload = pm_types::VaultFingerprintRequestNew {
             key: entity_id,
             data,
+            additional: None,
         }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
@@ -2185,10 +2186,14 @@ pub fn encode_vault_fingerprint_request(
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode Vaulting data to string")?;
 
-        pm_types::VaultFingerprintRequestNew { data, key }
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode VaultFingerprintRequestNew")
+        pm_types::VaultFingerprintRequestNew {
+            data,
+            key,
+            additional: None,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequestNew")
     } else {
         let data = serde_json::to_string(&pmd)
             .change_context(errors::VaultError::RequestEncodingFailed)

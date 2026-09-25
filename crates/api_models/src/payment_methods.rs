@@ -1552,6 +1552,12 @@ pub struct PaymentMethodResponse {
     /// The acknowledgement status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// A merchant-scoped fingerprint of the card, identical for the same card saved against
+    /// different customers of the merchant. Present only when payment method fingerprinting is
+    /// enabled.
+    #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
+    pub fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
