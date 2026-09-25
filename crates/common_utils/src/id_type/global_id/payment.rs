@@ -16,6 +16,17 @@ Example: `0a_pay_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 crate::impl_queryable_id_type!(GlobalPaymentId);
 crate::impl_to_sql_from_sql_global_id_type!(GlobalPaymentId);
 
+// Needed for Superposition experiment bucketing keyed on the invoice (#14284).
+// `global_id_type!` does not generate this the way `impl_id_type_methods!` does for
+// `GlobalCustomerId`, and without it a config targeted on this type hands Superposition a
+// blank identifier, which makes `get_applicable_buckets_from_group` return empty — so no
+// experiment would ever apply and the split would silently collapse to the default.
+impl crate::id_type::TargetingKey for GlobalPaymentId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
+    }
+}
+
 impl GlobalPaymentId {
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
