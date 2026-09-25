@@ -891,6 +891,10 @@ impl IncomingWebhook for Aci {
         // AES-256-GCM tag, which is checked when the body is decrypted with the merchant's
         // webhook secret in `decode_webhook_body`, before this method is called. A webhook
         // that was not encrypted with that secret is rejected there and never reaches here.
+        //
+        // The tag cannot be re-checked here as defence in depth: by the time this method
+        // runs, `request.body` has already been replaced with the decrypted plaintext, so
+        // decrypting it again would always fail.
         Ok(true)
     }
 
@@ -1363,6 +1367,17 @@ mod tests {
 
         let other_secret = b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
         assert!(decode_body(&encrypted_request, other_secret).is_err());
+    }
+
+    /// A merchant without a configured webhook secret gets the literal `"default_secret"`,
+    /// which is not a valid hex key, so the webhook must be rejected.
+    #[test]
+    fn rejects_webhook_when_merchant_has_no_webhook_secret_configured() {
+        let (encrypted_body, auth_tag) = encrypt_like_aci(&webhook_payload());
+        let headers = headers(&auth_tag);
+        let encrypted_request = request(&headers, encrypted_body.as_bytes());
+
+        assert!(decode_body(&encrypted_request, b"default_secret").is_err());
     }
 
     #[test]
