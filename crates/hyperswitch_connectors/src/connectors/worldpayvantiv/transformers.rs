@@ -2115,7 +2115,7 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let additional_payment_method_connector_response = sale_response.fraud_result.as_ref().map(get_additional_payment_method_connector_response);
+                    let additional_payment_method_connector_response = get_additional_payment_method_connector_response(sale_response.fraud_result.as_ref(), sale_response.auth_code.clone());
                     let connector_response = Some(ConnectorResponseData::new(
                         additional_payment_method_connector_response,
                         None,
@@ -2218,7 +2218,7 @@ impl<F>
                                 auth_response.network_transaction_id.clone(),
                             )
                         });
-                    let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
+                    let connector_response = get_additional_payment_method_connector_response(auth_response.fraud_result.as_ref(), auth_response.auth_code.clone()).map(ConnectorResponseData::with_additional_payment_method_data);
 
                     Ok(Self {
                         status,
@@ -2363,10 +2363,11 @@ impl<F>
                                     auth_response.network_transaction_id.clone(),
                                 )
                             });
-                    let connector_response = auth_response
-                        .fraud_result
-                        .as_ref()
-                        .map(get_connector_response);
+                    let connector_response = get_additional_payment_method_connector_response(
+                        auth_response.fraud_result.as_ref(),
+                        auth_response.auth_code.clone(),
+                    )
+                    .map(ConnectorResponseData::with_additional_payment_method_data);
 
                     Ok(Self {
                         status,
@@ -4772,42 +4773,35 @@ fn get_vantiv_card_data(
     }
 }
 
-fn get_connector_response(payment_response: &FraudResult) -> ConnectorResponseData {
-    let payment_checks = Some(serde_json::json!({
-        "avs_result": payment_response.avs_result,
-        "card_validation_result": payment_response.card_validation_result,
-        "authentication_result": payment_response.authentication_result,
-        "advanced_a_v_s_result": payment_response.advanced_a_v_s_result,
-    }));
-
-    ConnectorResponseData::with_additional_payment_method_data(
-        AdditionalPaymentMethodConnectorResponse::Card {
-            authentication_data: None,
-            payment_checks,
-            card_network: None,
-            domestic_network: None,
-            auth_code: None,
-        },
-    )
-}
-
+/// Vantiv returns `fraudResult` only when fraud checks actually ran, but it returns
+/// `authCode` on every approval. Keying the connector response off `fraudResult` alone
+/// therefore dropped the auth code on the ordinary approval path, so both inputs are
+/// optional here and a response is produced whenever either one is present.
 fn get_additional_payment_method_connector_response(
-    payment_response: &FraudResult,
-) -> AdditionalPaymentMethodConnectorResponse {
-    let payment_checks = Some(serde_json::json!({
-        "avs_result": payment_response.avs_result,
-        "card_validation_result": payment_response.card_validation_result,
-        "authentication_result": payment_response.authentication_result,
-        "advanced_a_v_s_result": payment_response.advanced_a_v_s_result,
-    }));
+    fraud_result: Option<&FraudResult>,
+    auth_code: Option<Secret<String>>,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    let payment_checks = fraud_result.map(|fraud_result| {
+        serde_json::json!({
+            "avs_result": fraud_result.avs_result,
+            "card_validation_result": fraud_result.card_validation_result,
+            "authentication_result": fraud_result.authentication_result,
+            "advanced_a_v_s_result": fraud_result.advanced_a_v_s_result,
+        })
+    });
+    let auth_code = auth_code.map(|auth_code| auth_code.expose());
 
-    AdditionalPaymentMethodConnectorResponse::Card {
+    if payment_checks.is_none() && auth_code.is_none() {
+        return None;
+    }
+
+    Some(AdditionalPaymentMethodConnectorResponse::Card {
         authentication_data: None,
         payment_checks,
         card_network: None,
         domestic_network: None,
-        auth_code: None,
-    }
+        auth_code,
+    })
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -5346,4 +5340,76 @@ fn get_last_non_auxiliary_activity_type(activities: Vec<Activity>) -> Option<Str
         }
     }
     last_non_auxiliary_activity
+}
+
+#[cfg(test)]
+mod auth_code_tests {
+    use hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse;
+    use hyperswitch_masking::Secret;
+
+    use super::{get_additional_payment_method_connector_response, FraudResult};
+
+    fn fraud_result() -> FraudResult {
+        FraudResult {
+            avs_result: Some("01".to_string()),
+            card_validation_result: Some("M".to_string()),
+            authentication_result: None,
+            advanced_a_v_s_result: None,
+            advanced_fraud_results: None,
+        }
+    }
+
+    /// Reduce a response down to just the two fields these tests assert on.
+    fn card_fields(
+        response: Option<AdditionalPaymentMethodConnectorResponse>,
+    ) -> Option<(Option<String>, Option<serde_json::Value>)> {
+        match response {
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                auth_code,
+                payment_checks,
+                ..
+            }) => Some((auth_code, payment_checks)),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn auth_code_is_reported_when_vantiv_omits_the_fraud_result() {
+        let card = card_fields(get_additional_payment_method_connector_response(
+            None,
+            Some(Secret::new("123456".to_string())),
+        ));
+
+        // The regression: previously this whole branch collapsed to `None`, so an
+        // approval without fraud checks reported no auth code at all.
+        assert_eq!(
+            card,
+            Some((Some("123456".to_string()), None)),
+            "the auth code must survive when no fraud result is returned"
+        );
+    }
+
+    #[test]
+    fn fraud_checks_and_auth_code_are_reported_together() {
+        let card = card_fields(get_additional_payment_method_connector_response(
+            Some(&fraud_result()),
+            Some(Secret::new("654321".to_string())),
+        ));
+
+        assert_eq!(
+            card.clone().and_then(|(auth_code, _)| auth_code),
+            Some("654321".to_string()),
+            "the auth code must not be dropped when fraud checks are present"
+        );
+        assert!(
+            card.and_then(|(_, payment_checks)| payment_checks)
+                .is_some(),
+            "existing fraud check reporting must be preserved"
+        );
+    }
+
+    #[test]
+    fn nothing_is_reported_when_both_inputs_are_absent() {
+        assert!(get_additional_payment_method_connector_response(None, None).is_none());
+    }
 }
