@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.25.0
+
+### Features
+
+- **payouts:** Add payment method modular fetch to payouts ([#14376](https://github.com/juspay/hyperswitch/pull/14376)) ([`8985a46`](https://github.com/juspay/hyperswitch/commit/8985a461fd49ee8656776651cf0ca6b4576fc10c))
+
+### Bug Fixes
+
+- **ucs:** Shared keepalive gRPC channel, fatal build errors, real health check, transport failure class ([#14273](https://github.com/juspay/hyperswitch/pull/14273)) ([`4b263b2`](https://github.com/juspay/hyperswitch/commit/4b263b28fd7b55711a5e053495f6da58ce3aa41b))
+
+### Refactors
+
+- **card_issuer:** List all card issuers ([#14349](https://github.com/juspay/hyperswitch/pull/14349)) ([`cf95098`](https://github.com/juspay/hyperswitch/commit/cf950989146aacf2224ee73c76a005b5902d969c))
+
+### Miscellaneous Tasks
+
+- **blocklist:** Delete blocklist entries with NULL profile_id ([#14397](https://github.com/juspay/hyperswitch/pull/14397)) ([`6482aa5`](https://github.com/juspay/hyperswitch/commit/6482aa5fe53e9028c6796bebd191c500bce56add))
+
+**Full Changelog:** [`2026.09.24.0...2026.09.25.0`](https://github.com/juspay/hyperswitch/compare/2026.09.24.0...2026.09.25.0)
+
+- - -
+
 ## 2026.09.24.0
 
 ### Features
