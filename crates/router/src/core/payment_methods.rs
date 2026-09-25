@@ -6018,12 +6018,7 @@ async fn resolve_card_info_details(
                     .inspect_err(|error| logger::warn!(?error, "Failed to look up card info"))
                     .ok()
                     .flatten()
-                    .map(|card_info| api_models::payment_methods::CardInfoDetails {
-                        prepaid: card_info.prepaid,
-                        regulated: card_info.regulated,
-                        virtual_card: card_info.virtual_card,
-                        domestic_only: card_info.domestic_only,
-                    }),
+                    .map(api_models::payment_methods::CardInfoDetails::foreign_from),
                 false => None,
             }
         }

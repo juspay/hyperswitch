@@ -2158,6 +2158,38 @@ pub struct CardInfoDetails {
     /// Whether the card may only be used within its issuing country.
     #[schema(example = false)]
     pub domestic_only: Option<bool>,
+
+    /// Whether a prepaid card can be topped up.
+    #[schema(example = false)]
+    pub reloadable_prepaid: Option<bool>,
+
+    /// Whether the issuer blocks gambling transactions on the card.
+    #[schema(example = false)]
+    pub gambling_blocked: Option<bool>,
+
+    /// Whether the card can be used for e-commerce transactions.
+    #[schema(example = true)]
+    pub ecom_enabled: Option<bool>,
+
+    /// Whether the card can be used for bill payments.
+    #[schema(example = true)]
+    pub billpay_enabled: Option<bool>,
+
+    /// The issuer's billing currency, as an ISO 4217 code.
+    #[schema(example = "USD")]
+    pub issuer_currency: Option<String>,
+
+    /// Whether the card supports Level 2 commercial transaction data.
+    #[schema(example = false)]
+    pub level_two_supported: Option<bool>,
+
+    /// Whether the card supports Level 3 commercial transaction data.
+    #[schema(example = false)]
+    pub level_three_supported: Option<bool>,
+
+    /// Customer authentication programs required by the issuing country.
+    #[schema(value_type = Option<Vec<AuthenticationInfo>>)]
+    pub authentication: Option<common_utils::types::CardAuthentication>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
