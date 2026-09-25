@@ -411,9 +411,15 @@ impl IncomingWebhook for Opennode {
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let message = std::str::from_utf8(request.body)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(message.to_string().into_bytes())
+        // OpenNode signs the charge `id`, not the callback body:
+        // `hashed_order = HMAC-SHA256(key = api key, message = charge id)`
+        // (https://developers.opennode.com/docs/charges-webhooks). Returning the
+        // whole urlencoded body made every legitimate callback compare unequal,
+        // and the mismatch surfaces as `Ok(false)` — source-unverified, not an
+        // error — so nothing in the logs said why.
+        let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(notif.id.into_bytes())
     }
 
     fn get_webhook_object_reference_id(
@@ -503,5 +509,123 @@ impl ConnectorSpecifications for Opennode {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&OPENNODE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod webhook_tests {
+    use actix_web::http::header::HeaderMap;
+    use common_utils::id_type::MerchantId;
+    use hyperswitch_interfaces::webhooks::{IncomingWebhook, IncomingWebhookRequestDetails};
+
+    use super::*;
+
+    /// OpenNode's documented callback contract, urlencoded as they POST it.
+    /// Ten fields: none of `payment_method`, `fiat_value`, `net_fiat_value`.
+    /// https://developers.opennode.com/docs/charges-webhooks
+    const DOCUMENTED_CALLBACK: &str = "id=charge-abc123\
+        &callback_url=https%3A%2F%2Fmerchant.example%2Fcb\
+        &success_url=https%3A%2F%2Fmerchant.example%2Fok\
+        &status=paid\
+        &order_id=order-77\
+        &description=coffee\
+        &price=1000\
+        &fee=0\
+        &auto_settle=false\
+        &missing_amt=0\
+        &hashed_order=deadbeef";
+
+    fn request(body: &'static str) -> IncomingWebhookRequestDetails<'static> {
+        static HEADERS: std::sync::OnceLock<HeaderMap> = std::sync::OnceLock::new();
+        IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("https://merchant.example/webhooks/opennode"),
+            headers: HEADERS.get_or_init(HeaderMap::new),
+            body: body.as_bytes(),
+            query_params: String::new(),
+        }
+    }
+
+    fn secrets() -> api_models::webhooks::ConnectorWebhookSecrets {
+        api_models::webhooks::ConnectorWebhookSecrets {
+            secret: b"api-key".to_vec(),
+            additional_secret: None,
+        }
+    }
+
+    #[test]
+    fn signs_the_charge_id_not_the_callback_body() {
+        // `hashed_order` is HMAC-SHA256 over the charge `id`, keyed by the API
+        // key. Handing the verifier the whole body made every legitimate
+        // callback compare unequal.
+        let message = Opennode::new()
+            .get_webhook_source_verification_message(
+                &request(DOCUMENTED_CALLBACK),
+                &MerchantId::default(),
+                &secrets(),
+            )
+            .expect("documented callback must yield a message");
+
+        assert_eq!(message, b"charge-abc123".to_vec());
+        assert_ne!(
+            message,
+            DOCUMENTED_CALLBACK.as_bytes().to_vec(),
+            "the raw body must not be the signed message"
+        );
+    }
+
+    #[test]
+    fn decodes_a_callback_carrying_only_the_documented_fields() {
+        // Every `IncomingWebhook` method deserializes this struct before doing
+        // anything else, so a field that is required but never read rejects the
+        // callback outright. Reference id and event are asserted here because
+        // they are what dispatch goes on to use.
+        let opennode = Opennode::new();
+        let req = request(DOCUMENTED_CALLBACK);
+
+        let reference = opennode
+            .get_webhook_object_reference_id(&req)
+            .expect("documented callback must decode");
+        let event = opennode
+            .get_webhook_event_type(&req, None)
+            .expect("documented callback must decode");
+
+        // ObjectReferenceId carries no PartialEq, so match rather than compare.
+        assert_connector_transaction_id(reference, "charge-abc123");
+        assert_eq!(
+            event,
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+        );
+    }
+
+    #[test]
+    fn still_decodes_a_callback_carrying_the_extra_live_fields() {
+        // The three undocumented fields may well be sent live; making them
+        // optional must not stop them being accepted.
+        let body: &'static str = concat!(
+            "id=charge-abc123&status=paid&hashed_order=deadbeef",
+            "&payment_method=chain&fiat_value=10.00&net_fiat_value=9.70&overpaid_by=0",
+        );
+
+        let reference = Opennode::new()
+            .get_webhook_object_reference_id(&request(body))
+            .expect("live callback must decode");
+
+        assert_connector_transaction_id(reference, "charge-abc123");
+    }
+
+    /// `ObjectReferenceId` does not implement `PartialEq`, so the reference is
+    /// destructured rather than compared. A shape other than the connector
+    /// transaction id fails loudly instead of silently passing a looser check.
+    fn assert_connector_transaction_id(
+        reference: api_models::webhooks::ObjectReferenceId,
+        expected: &str,
+    ) {
+        match reference {
+            api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(id),
+            ) => assert_eq!(id, expected),
+            other => panic!("expected a connector transaction id, got {other:?}"),
+        }
     }
 }
