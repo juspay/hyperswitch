@@ -89,6 +89,27 @@ export default defineConfig({
             .digest("hex");
           return signature;
         },
+        // GRACE e2e gate: append one JSON line per executed Cypress command to
+        // the file named by GRACE_RECORD. Mochawesome cannot tell a
+        // TRIGGER_SKIP pass from a real execution; this stream can. Never
+        // throws — a record failure must not fail the spec mid-flow.
+        grace_record: (entry) => {
+          try {
+            const sink = process.env.GRACE_RECORD;
+            if (sink) {
+              fs.appendFileSync(
+                sink,
+                JSON.stringify({
+                  ts: new Date().toISOString(),
+                  ...entry,
+                }) + "\n"
+              );
+            }
+          } catch {
+            // swallow — recording is best-effort, see header comment
+          }
+          return null;
+        },
       });
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
