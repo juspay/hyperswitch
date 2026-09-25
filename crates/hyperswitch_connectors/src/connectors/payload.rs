@@ -1195,6 +1195,7 @@ impl webhooks::IncomingWebhook for Payload {
             connector_status: webhook_body.trigger.as_str().to_string(),
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 
