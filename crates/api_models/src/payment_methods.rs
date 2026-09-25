@@ -2134,6 +2134,54 @@ pub struct CardDetailFromLocker {
     pub funding_source: Option<api_enums::FundingSource>,
     #[schema(value_type=bool, example = true)]
     pub saved_to_locker: bool,
+    /// Additional attributes of the card's issuing range. Present only when card info details are
+    /// enabled for the merchant and the range is known.
+    pub card_info: Option<CardInfoDetails>,
+}
+
+/// Attributes of the card's issuing range, from the card BIN data.
+#[cfg(feature = "v2")]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct CardInfoDetails {
+    /// Whether the card draws on a pre-loaded balance rather than a line of credit.
+    #[schema(example = false)]
+    pub prepaid: Option<bool>,
+
+    /// Whether the issuer is subject to interchange regulation.
+    #[schema(example = true)]
+    pub regulated: Option<bool>,
+
+    /// Whether the card is a virtual card rather than a physical one.
+    #[schema(example = false)]
+    pub virtual_card: Option<bool>,
+
+    /// Whether the card may only be used within its issuing country.
+    #[schema(example = false)]
+    pub domestic_only: Option<bool>,
+
+    /// Whether a prepaid card can be topped up.
+    #[schema(example = false)]
+    pub reloadable_prepaid: Option<bool>,
+
+    /// Whether the issuer blocks gambling transactions on the card.
+    #[schema(example = false)]
+    pub gambling_blocked: Option<bool>,
+
+    /// Whether the card can be used for e-commerce transactions.
+    #[schema(example = true)]
+    pub ecom_enabled: Option<bool>,
+
+    /// Whether the card can be used for bill payments.
+    #[schema(example = true)]
+    pub billpay_enabled: Option<bool>,
+
+    /// The issuer's billing currency, as an ISO 4217 code.
+    #[schema(example = "USD")]
+    pub issuer_currency: Option<String>,
+
+    /// Customer authentication programs required by the issuing country.
+    #[schema(value_type = Option<Vec<AuthenticationInfo>>)]
+    pub authentication: Option<common_utils::types::CardAuthentication>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2268,6 +2316,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
             card_segment_type: item.card_segment_type,
             funding_source: item.funding_source,
             saved_to_locker: item.saved_to_locker,
+            card_info: None,
         }
     }
 }
@@ -2292,6 +2341,7 @@ impl From<CardDetail> for CardDetailFromLocker {
             funding_source: item.funding_source,
             saved_to_locker: true,
             card_fingerprint: None,
+            card_info: None,
         }
     }
 }
