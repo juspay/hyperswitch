@@ -90,6 +90,7 @@ export const connectorDetails = {
           amount: 1000,
           currency: "ZAR",
           payout_type: "bank",
+          description: "Test Payout",
           payout_method_data: {
             bank_transfer: {
               payout_method_type: "payshap",
@@ -111,6 +112,7 @@ export const connectorDetails = {
           amount: 10000000,
           currency: "ZAR",
           payout_type: "bank",
+          description: "Test Payout",
           payout_method_data: {
             bank_transfer: {
               payout_method_type: "payshap",
@@ -136,6 +138,7 @@ export const connectorDetails = {
           amount: 1000,
           currency: "ZAR",
           payout_type: "bank",
+          description: "Test Payout",
           payout_method_data: {
             bank_transfer: {
               payout_method_type: "payshap",
@@ -161,6 +164,7 @@ export const connectorDetails = {
           amount: 1000,
           currency: "ZAR",
           payout_type: "bank",
+          description: "Test Payout",
           payout_method_data: {
             bank_transfer: {
               payout_method_type: "payshap",
