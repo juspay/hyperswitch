@@ -2358,6 +2358,33 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
   });
 });
 
+// Overwrites the FRM connector's account details with an invalid api_key, to
+// force the FRM connector itself to fail (4xx) - used to test
+// fail_open/fail_closed behavior when pre-FRM is unreachable.
+Cypress.Commands.add("breakFrmConnectorCredentials", (globalState) => {
+  return cy
+    .request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      body: {
+        connector_type: "payment_vas",
+        connector_account_details: {
+          auth_type: "HeaderKey",
+          api_key: "invalid_key_to_force_frm_failure",
+        },
+      },
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      return cy.wrap(response);
+    });
+});
+
 Cypress.Commands.add("deleteFrmConnector", (globalState) => {
   const frmMcaId = globalState.get("frmConnectorId");
 

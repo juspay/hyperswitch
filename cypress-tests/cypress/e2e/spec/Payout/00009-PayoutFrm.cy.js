@@ -170,23 +170,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
     "[Payout FRM] Transaction Failure (4xx from Payshield) — FailClosed blocks",
     () => {
       it("break sanlam_payshield credentials", () => {
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          body: {
-            connector_type: "payment_vas",
-            connector_account_details: {
-              auth_type: "HeaderKey",
-              api_key: "invalid_key_to_force_frm_failure",
-            },
-          },
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-        });
+        cy.breakFrmConnectorCredentials(globalState);
       });
 
       it("set pre_frm_failure_mode=fail_closed via superposition", () => {
