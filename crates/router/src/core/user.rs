@@ -487,8 +487,22 @@ pub async fn change_password(
     }
     let new_password = domain::UserPassword::new(request.new_password)?;
 
+    // The current password is not in `password_history`; the `old_password == new_password`
+    // check above already rejects it.
+    let mut password_history = user.get_password_history().unwrap_or_default();
+
+    if utils::user::password::is_password_reused(&new_password.get_secret(), &password_history)? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
+
+    // The password being replaced becomes the most recent history entry.
+    if let Some(outgoing_password) = user.get_password_hash() {
+        password_history.insert(0, outgoing_password);
+    }
+    password_history.truncate(consts::user::PREVIOUS_PASSWORDS_RETAINED);
 
     let _ = state
         .global_store
@@ -496,6 +510,7 @@ pub async fn change_password(
             user.get_user_id(),
             diesel_models::user::UserUpdate::PasswordUpdate {
                 password: new_password_hash,
+                password_history,
             },
         )
         .await
@@ -592,11 +607,26 @@ pub async fn rotate_password(
         .into();
 
     let password = domain::UserPassword::new(request.password.to_owned())?;
-    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     if user.compare_password(&request.password).is_ok() {
         return Err(UserErrors::ChangePasswordError.into());
     }
+
+    // The current password is not in `password_history`; the `compare_password` check above
+    // already rejects it.
+    let mut password_history = user.get_password_history().unwrap_or_default();
+
+    if utils::user::password::is_password_reused(&password.get_secret(), &password_history)? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    // The password being replaced becomes the most recent history entry.
+    if let Some(outgoing_password) = user.get_password_hash() {
+        password_history.insert(0, outgoing_password);
+    }
+    password_history.truncate(consts::user::PREVIOUS_PASSWORDS_RETAINED);
 
     let user = state
         .global_store
@@ -604,6 +634,7 @@ pub async fn rotate_password(
             &user_token.user_id,
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
+                password_history,
             },
         )
         .await
@@ -641,7 +672,26 @@ pub async fn reset_password_token_only_flow(
     }
 
     let password = domain::UserPassword::new(request.password)?;
+
+    let mut password_history = user_from_db.get_password_history().unwrap_or_default();
+
+    // Unlike the other two password flows, this one has no old-vs-new check of its own, so the
+    // current password is rejected here rather than being carried in `password_history`.
+    if user_from_db
+        .compare_password(&password.get_secret())
+        .is_ok()
+        || utils::user::password::is_password_reused(&password.get_secret(), &password_history)?
+    {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+
+    // The password being replaced becomes the most recent history entry.
+    if let Some(outgoing_password) = user_from_db.get_password_hash() {
+        password_history.insert(0, outgoing_password);
+    }
+    password_history.truncate(consts::user::PREVIOUS_PASSWORDS_RETAINED);
 
     let user = state
         .global_store
@@ -649,6 +699,7 @@ pub async fn reset_password_token_only_flow(
             user_from_db.get_user_id(),
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
+                password_history,
             },
         )
         .await
