@@ -258,7 +258,16 @@ pub async fn get_frm_merchant_connector_account_and_routing_algorithm(
         FrmRoutingAlgorithm,
     )>,
 > {
-    match &platform.get_processor().get_account().frm_routing_algorithm {
+    match payout_data
+        .business_profile
+        .frm_routing_algorithm
+        .as_ref()
+        .or(platform
+            .get_processor()
+            .get_account()
+            .frm_routing_algorithm
+            .as_ref())
+    {
         Some(frm_routing_algorithm_value) => {
             let frm_routing_algorithm: FrmRoutingAlgorithm = frm_routing_algorithm_value
                 .to_owned()
@@ -290,7 +299,7 @@ pub async fn get_payout_frm_applicability(
     frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
     frm_routing_algorithm: FrmRoutingAlgorithm,
 ) -> RouterResult<Option<PayoutFrmApplicability>> {
-    if !frm_merchant_connector_account.is_disabled() {
+    let applicability = if !frm_merchant_connector_account.is_disabled() {
         let frm_configs_value = frm_merchant_connector_account.get_frm_configs().ok_or(
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "frm_configs".into(),
@@ -333,17 +342,29 @@ pub async fn get_payout_frm_applicability(
         }
 
         if connectors.is_empty() {
-            Ok(None)
+            None
         } else {
-            Ok(Some(PayoutFrmApplicability {
+            Some(PayoutFrmApplicability {
                 connectors,
                 frm_merchant_connector_account: Box::new(frm_merchant_connector_account),
                 frm_routing_algorithm,
-            }))
+            })
         }
     } else {
-        Ok(None)
+        None
+    };
+
+    if let Some(ref applicability) = applicability {
+        logger::info!(
+            "Payout FRM applicable connectors: {:?}, FRM connector: {}",
+            applicability.connectors,
+            applicability.frm_routing_algorithm.data
+        );
+    } else {
+        logger::info!("FRM is not applicable for this payout");
     }
+
+    Ok(applicability)
 }
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
@@ -426,6 +447,7 @@ pub async fn pre_payouts_frm_core(
 pub async fn should_call_frm<F, D>(
     _platform: &domain::Platform,
     _payment_data: &D,
+    _business_profile: &domain::Profile,
     _state: &SessionState,
 ) -> RouterResult<(
     bool,
@@ -481,6 +503,7 @@ pub async fn pre_payouts_frm_core(
 pub async fn should_call_frm<F, D>(
     platform: &domain::Platform,
     payment_data: &D,
+    business_profile: &domain::Profile,
     state: &SessionState,
 ) -> RouterResult<(
     bool,
@@ -495,11 +518,11 @@ where
     use common_utils::ext_traits::OptionExt;
 
     let db = &*state.store;
-    match platform
+    match business_profile.frm_routing_algorithm.clone().or(platform
         .get_processor()
         .get_account()
         .frm_routing_algorithm
-        .clone()
+        .clone())
     {
         Some(frm_routing_algorithm_value) => {
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
@@ -891,6 +914,7 @@ async fn decide_and_run_pre_frm<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     platform: &domain::Platform,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
     state: &SessionState,
     frm_info: &mut Option<FrmInfo<F, D>>,
     should_continue_transaction: &mut bool,
@@ -906,7 +930,7 @@ where
         + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-        should_call_frm(platform, payment_data, state).await?;
+        should_call_frm(platform, payment_data, business_profile, state).await?;
     if let Some((frm_routing_algorithm_val, profile_id)) =
         frm_routing_algorithm.zip(frm_connector_label)
     {
@@ -1034,6 +1058,7 @@ pub async fn call_frm_before_connector_call<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     platform: &domain::Platform,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
     state: &SessionState,
     frm_info: &mut Option<FrmInfo<F, D>>,
     should_continue_transaction: &mut bool,
@@ -1060,6 +1085,7 @@ where
         operation,
         platform,
         payment_data,
+        business_profile,
         state,
         frm_info,
         should_continue_transaction,

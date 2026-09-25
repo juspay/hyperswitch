@@ -4,6 +4,46 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.25.0
+
+### Features
+
+- **payouts:** Add payment method modular fetch to payouts ([#14376](https://github.com/juspay/hyperswitch/pull/14376)) ([`8985a46`](https://github.com/juspay/hyperswitch/commit/8985a461fd49ee8656776651cf0ca6b4576fc10c))
+
+### Bug Fixes
+
+- **ucs:** Shared keepalive gRPC channel, fatal build errors, real health check, transport failure class ([#14273](https://github.com/juspay/hyperswitch/pull/14273)) ([`4b263b2`](https://github.com/juspay/hyperswitch/commit/4b263b28fd7b55711a5e053495f6da58ce3aa41b))
+
+### Refactors
+
+- **card_issuer:** List all card issuers ([#14349](https://github.com/juspay/hyperswitch/pull/14349)) ([`cf95098`](https://github.com/juspay/hyperswitch/commit/cf950989146aacf2224ee73c76a005b5902d969c))
+
+### Miscellaneous Tasks
+
+- **blocklist:** Delete blocklist entries with NULL profile_id ([#14397](https://github.com/juspay/hyperswitch/pull/14397)) ([`6482aa5`](https://github.com/juspay/hyperswitch/commit/6482aa5fe53e9028c6796bebd191c500bce56add))
+
+**Full Changelog:** [`2026.09.24.0...2026.09.25.0`](https://github.com/juspay/hyperswitch/compare/2026.09.24.0...2026.09.25.0)
+
+- - -
+
+## 2026.09.24.0
+
+### Features
+
+- **core:**
+  - Prefer business profile FRM routing configuration with merchant account fallback ([#14365](https://github.com/juspay/hyperswitch/pull/14365)) ([`2fc3374`](https://github.com/juspay/hyperswitch/commit/2fc33749066b45d44579fd077805d5cbd24656d2))
+  - Add surcharge_percentage in surcharge details in payment response ([#14354](https://github.com/juspay/hyperswitch/pull/14354)) ([`f46bd99`](https://github.com/juspay/hyperswitch/commit/f46bd9901f3731999b26e5ac876f31524184e32e))
+- **offers:** Send up to 9-digit card BIN to Offer Engine ([#14259](https://github.com/juspay/hyperswitch/pull/14259)) ([`eee4aba`](https://github.com/juspay/hyperswitch/commit/eee4abac0d739da8b84111d36ad867bf34a6c905))
+- **router:** [Stripe] add support to store and return rapid_dispute_resolution details in dispute additional_details from dispute webhooks ([#14337](https://github.com/juspay/hyperswitch/pull/14337)) ([`bf86419`](https://github.com/juspay/hyperswitch/commit/bf86419e5f175e00fff1f30c199fd8d4421929f7))
+
+### Bug Fixes
+
+- **cypress-tests:** Add missing connector_metadata for Noon card payments ([#14369](https://github.com/juspay/hyperswitch/pull/14369)) ([`a0e95e8`](https://github.com/juspay/hyperswitch/commit/a0e95e884b788b125664d903096508f2c1ca9f83))
+
+**Full Changelog:** [`2026.09.23.0...2026.09.24.0`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0...2026.09.24.0)
+
+- - -
+
 ## 2026.09.23.0
 
 ### Features
