@@ -44,7 +44,6 @@ function intentData(expectedStatus) {
     Request: {
       currency: "USD",
       amount: 6540,
-      confirm: false,
     },
     Response: {
       status: expectedStatus,
