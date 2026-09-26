@@ -3492,10 +3492,10 @@ fn is_payment_method_creation_deferred(payment_method: Option<enums::PaymentMeth
 }
 
 #[cfg(feature = "v1")]
-fn get_vaultable_payment_method_data<'a>(
+fn get_vaultable_payment_method_data(
     payment_method: Option<enums::PaymentMethod>,
-    connector_returned_payment_method_data: Option<&'a domain::PaymentMethodData>,
-) -> Option<&'a domain::PaymentMethodData> {
+    connector_returned_payment_method_data: Option<&domain::PaymentMethodData>,
+) -> Option<&domain::PaymentMethodData> {
     match (payment_method?, connector_returned_payment_method_data?) {
         (
             enums::PaymentMethod::BankRedirect,
