@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         ConnectorAuthType, ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData,
-        PaymentMethodBalance, PaymentMethodToken, RouterData,
+        PaymentMethodToken, RouterData,
     },
     router_flow_types::{
         merchant_connector_webhook_management::{
@@ -54,7 +54,7 @@ use hyperswitch_domain_models::{
         ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
-        PaymentsPreProcessingRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -77,8 +77,7 @@ use crate::{
     types::{
         AcceptDisputeRouterData, DefendDisputeRouterData, PaymentsCancelResponseRouterData,
         PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
-        SubmitEvidenceRouterData,
+        RefundsResponseRouterData, ResponseRouterData, SubmitEvidenceRouterData,
     },
     utils::{
         self, is_manual_capture, missing_field_err, AddressDetailsData, BrowserInformationData,
@@ -1868,40 +1867,6 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 }
             },
         }
-    }
-}
-
-impl TryFrom<&PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
-    type Error = Error;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let payment_method = match &item.request.payment_method_data {
-            Some(PaymentMethodData::GiftCard(gift_card_data)) => match gift_card_data.as_ref() {
-                GiftCardData::Givex(gift_card_data) => {
-                    let balance_pm = BalancePmData {
-                        number: gift_card_data.number.clone(),
-                        cvc: gift_card_data.cvc.clone(),
-                    };
-                    Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
-                        balance_pm,
-                    )))
-                }
-                GiftCardData::PaySafeCard {} | GiftCardData::BhnCardNetwork(_) => {
-                    Err(errors::ConnectorError::FlowNotSupported {
-                        flow: "Balance".to_string(),
-                        connector: "adyen".to_string(),
-                    })
-                }
-            },
-            _ => Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Balance".to_string(),
-                connector: "adyen".to_string(),
-            }),
-        }?;
-        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        Ok(Self {
-            payment_method,
-            merchant_account: auth_type.merchant_account,
-        })
     }
 }
 
@@ -4305,36 +4270,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
                 authentication_data: None,
                 charges: None,
                 payment_account_reference: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = Error;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                authentication_data: None,
-                charges: None,
-                payment_account_reference: None,
-            }),
-            payment_method_balance: Some(PaymentMethodBalance {
-                currency: item.response.balance.currency,
-                amount: item.response.balance.value,
             }),
             ..item.data
         })

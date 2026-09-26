@@ -5,12 +5,12 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{Authorize, PreProcessing},
-    router_request_types::{PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId},
+    router_flow_types::Authorize,
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm},
     types::{
         self, AccessTokenAuthenticationRouterData, CreateOrderRouterData,
-        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
+        PaymentsAuthorizeRouterData, PaymentsSyncRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -29,10 +29,7 @@ use crate::{
             NordeaPaymentsConfirmResponse, NordeaPaymentsInitiateResponse,
         },
     },
-    types::{
-        CreateOrderResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        PaymentsSyncResponseRouterData, ResponseRouterData,
-    },
+    types::{CreateOrderResponseRouterData, PaymentsSyncResponseRouterData, ResponseRouterData},
     utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
 
@@ -217,42 +214,6 @@ impl<'de> Deserialize<'de> for PaymentsUrgency {
     }
 }
 
-fn get_creditor_account_from_metadata(
-    router_data: &PaymentsPreProcessingRouterData,
-) -> Result<CreditorAccount, Error> {
-    let metadata: NordeaConnectorMetadataObject =
-        utils::to_connector_meta_from_secret(router_data.connector_meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "merchant_connector_account.metadata",
-            })?;
-    let creditor_account = CreditorAccount {
-        account: AccountNumber {
-            account_type: AccountType::try_from(metadata.account_type.as_str())
-                .unwrap_or(AccountType::Iban),
-            currency: router_data.request.currency,
-            value: metadata.destination_account_number,
-        },
-        country: router_data.get_optional_billing_country(),
-        // Merchant is the beneficiary in this case
-        name: Some(metadata.merchant_name),
-        message: router_data
-            .description
-            .as_ref()
-            .map(|desc| desc.chars().take(20).collect::<String>()),
-        bank: Some(CreditorBank {
-            address: None,
-            bank_code: None,
-            bank_name: None,
-            business_identifier_code: None,
-            country: router_data.get_billing_country()?,
-        }),
-        creditor_address: None,
-        // Either Reference or Message must be supplied in the request
-        reference: None,
-    };
-    Ok(creditor_account)
-}
-
 fn get_creditor_account_from_metadata_for_create_order(
     router_data: &CreateOrderRouterData,
 ) -> Result<CreditorAccount, Error> {
@@ -313,93 +274,6 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
                     let instructed_amount = super::requests::InstructedAmount {
                         amount: item.amount.clone(),
                         currency: item.router_data.request.currency,
-                    };
-
-                    Ok(Self {
-                        creditor_account,
-                        debitor_account,
-                        end_to_end_identification: None,
-                        external_id: Some(item.router_data.connector_request_reference_id.clone()),
-                        instructed_amount,
-                        recurring: None,
-                        request_availability_of_funds: None,
-                        requested_execution_date: None,
-                        tpp_messages: None,
-                        urgency: None,
-                    })
-                }
-                BankDebitData::AchBankDebit { .. }
-                | BankDebitData::BacsBankDebit { .. }
-                | BankDebitData::BecsBankDebit { .. }
-                | BankDebitData::EftDebitOrder { .. }
-                | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        get_unimplemented_payment_method_error_message("Nordea"),
-                    )
-                    .into())
-                }
-            },
-            Some(PaymentMethodData::CardRedirect(_))
-            | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
-            | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
-            | Some(
-                PaymentMethodData::CardWithOptionalCVC(_)
-                | PaymentMethodData::CardWithNetworkTokenDetails(_),
-            )
-            | Some(PaymentMethodData::CardWithLimitedDetails(_))
-            | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
-            | Some(PaymentMethodData::Wallet(_))
-            | Some(PaymentMethodData::PayLater(_))
-            | Some(PaymentMethodData::BankRedirect(_))
-            | Some(PaymentMethodData::BankTransfer(_))
-            | Some(PaymentMethodData::Crypto(_))
-            | Some(PaymentMethodData::MandatePayment)
-            | Some(PaymentMethodData::Reward)
-            | Some(PaymentMethodData::RealTimePayment(_))
-            | Some(PaymentMethodData::MobilePayment(_))
-            | Some(PaymentMethodData::Upi(_))
-            | Some(PaymentMethodData::Voucher(_))
-            | Some(PaymentMethodData::GiftCard(_))
-            | Some(PaymentMethodData::OpenBanking(_))
-            | Some(PaymentMethodData::CardToken(_))
-            | Some(PaymentMethodData::NetworkToken(_))
-            | Some(PaymentMethodData::Card(_))
-            | None => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            }
-        }
-    }
-}
-
-impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaymentsRequest {
-    type Error = Error;
-    fn try_from(
-        item: &NordeaRouterData<&PaymentsPreProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            Some(PaymentMethodData::BankDebit(bank_debit_data)) => match bank_debit_data {
-                BankDebitData::SepaBankDebit { iban, .. } => {
-                    let creditor_account = get_creditor_account_from_metadata(item.router_data)?;
-                    let debitor_account = DebitorAccount {
-                        account: AccountNumber {
-                            account_type: AccountType::Iban,
-                            currency: item.router_data.request.currency,
-                            value: iban,
-                        },
-                        message: item
-                            .router_data
-                            .description
-                            .as_ref()
-                            .map(|desc| desc.chars().take(20).collect::<String>()),
-                    };
-
-                    let instructed_amount = super::requests::InstructedAmount {
-                        amount: item.amount.clone(),
-                        currency: item.router_data.request.currency.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "amount".into(),
-                            },
-                        )?,
                     };
 
                     Ok(Self {
@@ -535,22 +409,6 @@ fn convert_nordea_payment_response(
     let status = common_enums::AttemptStatus::from(payment_response.payment_status.clone());
 
     Ok((response_data, status))
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateResponse>>
-    for RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-{
-    type Error = Error;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<NordeaPaymentsInitiateResponse>,
-    ) -> Result<Self, Self::Error> {
-        let (response, status) = convert_nordea_payment_response(&item.response)?;
-        Ok(Self {
-            status,
-            response: Ok(response),
-            ..item.data
-        })
-    }
 }
 
 impl TryFrom<CreateOrderResponseRouterData<NordeaPaymentsInitiateResponse>>
