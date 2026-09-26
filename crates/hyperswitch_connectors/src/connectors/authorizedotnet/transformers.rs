@@ -485,7 +485,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 payment: PaymentDetails::CreditCard(CreditCardDetails {
                     card_number: (*ccard.card_number).clone(),
                     expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
-                    card_code: Some(ccard.card_cvc.clone()),
+                    // Vaulted cards may have no CVV. Authorize.net allows omission, not an empty value.
+                    card_code: (!ccard.card_cvc.peek().is_empty()).then(|| ccard.card_cvc.clone()),
                 }),
             }),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -2575,5 +2576,189 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 transaction_request,
             },
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use hyperswitch_domain_models::router_request_types::SetupMandateRequestData;
+
+    use super::*;
+
+    fn setup_mandate_data(cvc: &str, test_mode: bool) -> SetupMandateRouterData {
+        let request = SetupMandateRequestData {
+            currency: enums::Currency::USD,
+            payment_method_data: PaymentMethodData::Card(Card {
+                card_number: "4111111111111111".parse().expect("valid test card"),
+                card_exp_month: Secret::new("12".to_string()),
+                card_exp_year: Secret::new("2030".to_string()),
+                card_cvc: Secret::new(cvc.to_string()),
+                ..Default::default()
+            }),
+            amount: 0,
+            confirm: true,
+            customer_acceptance: None,
+            mandate_id: None,
+            setup_future_usage: None,
+            off_session: None,
+            setup_mandate_details: None,
+            router_return_url: None,
+            webhook_url: None,
+            feature_metadata: None,
+            browser_info: None,
+            email: None,
+            customer_name: None,
+            return_url: None,
+            payment_method_type: None,
+            request_incremental_authorization: false,
+            metadata: None,
+            complete_authorize_url: None,
+            capture_method: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
+            minor_amount: common_utils::types::MinorUnit::new(0),
+            shipping_cost: None,
+            connector_testing_data: None,
+            customer_id: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            is_stored_credential: None,
+            billing_descriptor: None,
+            split_payments: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            authentication_data: None,
+            connector_intent_metadata: None,
+            merchant_order_reference_id: None,
+            mit_category: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
+            business_country: None,
+        };
+        RouterData {
+            flow: std::marker::PhantomData,
+            merchant_id: Default::default(),
+            customer_id: None,
+            connector_customer: Some("123456".to_string()),
+            connector: "authorizedotnet".to_string(),
+            payment_id: "setup_test".to_string(),
+            attempt_id: "attempt_test".to_string(),
+            tenant_id: common_utils::id_type::TenantId::get_default_tenant_id(),
+            status: enums::AttemptStatus::Started,
+            payment_method: enums::PaymentMethod::Card,
+            payment_method_type: None,
+            connector_auth_type: ConnectorAuthType::BodyKey {
+                api_key: Secret::new("test_transaction_key".to_string()),
+                key1: Secret::new("test_login".to_string()),
+            },
+            description: None,
+            address: Default::default(),
+            auth_type: enums::AuthenticationType::NoThreeDs,
+            connector_meta_data: None,
+            connector_wallets_details: None,
+            amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            recurring_mandate_payment_data: None,
+            preprocessing_id: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            request,
+            response: Err(ErrorResponse::default()),
+            connector_request_reference_id: "setup_test".to_string(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: None,
+            #[cfg(feature = "payouts")]
+            quote_id: None,
+            test_mode: Some(test_mode),
+            connector_http_status_code: None,
+            external_latency: None,
+            apple_pay_flow: None,
+            frm_metadata: None,
+            dispute_id: None,
+            refund_id: None,
+            payout_id: None,
+            connector_response: None,
+            payment_method_status: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
+            integrity_check: Ok(()),
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            l2_l3_data: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            customer_document_details: None,
+            customer_date_of_birth: None,
+            feature_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        }
+    }
+
+    fn serialized_setup(cvc: &str, test_mode: bool) -> Value {
+        let data = setup_mandate_data(cvc, test_mode);
+        let request = CreateCustomerPaymentProfileRequest::try_from(&data)
+            .expect("setup request should be constructed");
+        serde_json::to_value(request).expect("setup request should serialize")
+    }
+
+    #[test]
+    fn setup_mandate_omits_card_code_when_vaulted_cvv_is_empty() {
+        // Vault retrieval represents an unavailable CVV as an empty string.
+        for test_mode in [true, false] {
+            let value = serialized_setup("", test_mode);
+            let request = value
+                .get("createCustomerPaymentProfileRequest")
+                .expect("setup request");
+            let card = request
+                .pointer("/paymentProfile/payment/creditCard")
+                .expect("credit card details");
+            assert!(card.is_object());
+            assert!(card.get("cardCode").is_none());
+            assert_eq!(
+                card.get("cardNumber").and_then(Value::as_str),
+                Some("4111111111111111")
+            );
+            assert_eq!(
+                card.get("expirationDate").and_then(Value::as_str),
+                Some("2030-12")
+            );
+            assert_eq!(
+                request.get("customerProfileId").and_then(Value::as_str),
+                Some("123456")
+            );
+            assert_eq!(
+                request.get("validationMode").and_then(Value::as_str),
+                Some(if test_mode { "testMode" } else { "liveMode" })
+            );
+        }
+    }
+
+    #[test]
+    fn setup_mandate_preserves_supplied_card_code() {
+        for cvc in ["123", "1234", "012", "0123"] {
+            for test_mode in [true, false] {
+                let value = serialized_setup(cvc, test_mode);
+                let card_code = value.pointer("/createCustomerPaymentProfileRequest/paymentProfile/payment/creditCard/cardCode").and_then(Value::as_str);
+                assert_eq!(card_code, Some(cvc));
+            }
+        }
+    }
+
+    #[test]
+    fn setup_mandate_does_not_silently_drop_invalid_nonempty_card_code() {
+        for cvc in ["12", "12345", "abc", " "] {
+            let value = serialized_setup(cvc, true);
+            let card_code = value.pointer("/createCustomerPaymentProfileRequest/paymentProfile/payment/creditCard/cardCode").and_then(Value::as_str);
+            assert_eq!(card_code, Some(cvc));
+        }
     }
 }
