@@ -2475,7 +2475,7 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
 
 Cypress.Commands.add(
   "createCustomerCallTest",
-  (customerCreateBody, globalState) => {
+  (customerCreateBody, globalState, data = null) => {
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/customers`,
@@ -2511,7 +2511,19 @@ Cypress.Commands.add(
             "phone_country_code"
           ).to.equal(response.body.phone_country_code);
         } else if (response.status === 400) {
-          if (response.body.error.message.includes("already exists")) {
+          if (data?.Response?.body?.error) {
+            const resData = data.Response;
+            expect(response.status, "response status").to.equal(resData.status);
+            expect(response.body.error.type, "error type").to.equal(
+              resData.body.error.type
+            );
+            expect(response.body.error.message, "error message").to.equal(
+              resData.body.error.message
+            );
+            expect(response.body.error.code, "error code").to.equal(
+              resData.body.error.code
+            );
+          } else if (response.body.error.message.includes("already exists")) {
             expect(response.body.error.code).to.equal("IR_12");
             expect(response.body.error.message).to.equal(
               "Customer with the given `customer_id` already exists"
