@@ -4702,6 +4702,7 @@ pub fn build_notify_connector_request(
             )?),
             timestamp: event.created_at.assume_utc().unix_timestamp(),
             state: None,
+            connector_feature_data: None,
         },
         connector_auth_metadata,
         notify_event_type,
