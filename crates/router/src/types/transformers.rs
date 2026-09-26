@@ -1,7 +1,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
-    gsm as gsm_api_types, payment_methods,
+    gsm as gsm_api_types, offer_engine as offer_engine_api, payment_methods,
     payments::{self, CustomerDetails},
     routing::ConnectorSelection,
 };
@@ -25,7 +25,7 @@ use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
-    core::errors,
+    core::{errors, offer_engine},
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -2940,5 +2940,17 @@ impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerRespon
             id: from.id,
             issuer_name,
         })
+    }
+}
+
+impl ForeignFrom<offer_engine::OfferEngineCredentialSource>
+    for offer_engine_api::OfferEngineCredentialSource
+{
+    fn foreign_from(from: offer_engine::OfferEngineCredentialSource) -> Self {
+        match from {
+            offer_engine::OfferEngineCredentialSource::None => Self::None,
+            offer_engine::OfferEngineCredentialSource::Application => Self::Application,
+            offer_engine::OfferEngineCredentialSource::Merchant => Self::Merchant,
+        }
     }
 }
