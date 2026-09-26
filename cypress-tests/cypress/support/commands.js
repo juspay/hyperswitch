@@ -8650,6 +8650,10 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
     manualUpdateBody.error_message = requestData.error_message;
   }
 
+  if (typeof requestData.amount_captured !== "undefined") {
+    manualUpdateBody.amount_captured = requestData.amount_captured;
+  }
+
   cy.request({
     method: "PUT",
     url: completeUrl,
@@ -8690,6 +8694,31 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
             responseData.body.error_message
           );
         }
+
+        if (
+          responseData.body &&
+          typeof responseData.body.amount_captured !== "undefined"
+        ) {
+          expect(response.body.amount_captured, "amount_captured").to.equal(
+            responseData.body.amount_captured
+          );
+        }
+
+        if (
+          responseData.body &&
+          typeof responseData.body.amount_capturable !== "undefined"
+        ) {
+          expect(response.body.amount_capturable, "amount_capturable").to.equal(
+            responseData.body.amount_capturable
+          );
+        }
+      } else if (responseData.body && responseData.body.error) {
+        // Expected error response (e.g. 400/422 IR_06 validation failures).
+        // defaultErrorHandler asserts the keys configured in
+        // Response.body.error, so it covers both error body shapes: 422
+        // validation errors use "type" while 400 deserialize errors use
+        // "error_type", and deserialize messages are matched by substring.
+        defaultErrorHandler(response, responseData);
       } else {
         throw new Error(
           `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
