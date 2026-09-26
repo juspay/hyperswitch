@@ -4280,6 +4280,7 @@ impl CardDetailsPaymentMethod {
             nick_name: self.nick_name,
             card_isin: self.card_isin,
             saved_to_locker: self.saved_to_locker,
+            card_info: None,
         }
     }
 

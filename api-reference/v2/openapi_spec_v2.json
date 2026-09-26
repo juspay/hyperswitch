@@ -7149,6 +7149,18 @@
           }
         }
       },
+      "AuthenticationInfo": {
+        "type": "object",
+        "description": "A single customer-authentication requirement within the [`CardAuthentication`] array.",
+        "properties": {
+          "authentication_name": {
+            "type": "string",
+            "description": "If additional customer authentication is required, this indicates the authentication program\nname; hardcoded based on issuer-country law.",
+            "example": "EU PSD2 - SCA",
+            "nullable": true
+          }
+        }
+      },
       "AuthenticationStatus": {
         "type": "string",
         "enum": [
@@ -11412,6 +11424,14 @@
           "saved_to_locker": {
             "type": "boolean",
             "example": true
+          },
+          "card_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardInfoDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -11440,6 +11460,74 @@
           }
         },
         "additionalProperties": false
+      },
+      "CardInfoDetails": {
+        "type": "object",
+        "description": "Attributes of the card's issuing range, from the card BIN data.",
+        "properties": {
+          "prepaid": {
+            "type": "boolean",
+            "description": "Whether the card draws on a pre-loaded balance rather than a line of credit.",
+            "example": false,
+            "nullable": true
+          },
+          "regulated": {
+            "type": "boolean",
+            "description": "Whether the issuer is subject to interchange regulation.",
+            "example": true,
+            "nullable": true
+          },
+          "virtual_card": {
+            "type": "boolean",
+            "description": "Whether the card is a virtual card rather than a physical one.",
+            "example": false,
+            "nullable": true
+          },
+          "domestic_only": {
+            "type": "boolean",
+            "description": "Whether the card may only be used within its issuing country.",
+            "example": false,
+            "nullable": true
+          },
+          "reloadable_prepaid": {
+            "type": "boolean",
+            "description": "Whether a prepaid card can be topped up.",
+            "example": false,
+            "nullable": true
+          },
+          "gambling_blocked": {
+            "type": "boolean",
+            "description": "Whether the issuer blocks gambling transactions on the card.",
+            "example": false,
+            "nullable": true
+          },
+          "ecom_enabled": {
+            "type": "boolean",
+            "description": "Whether the card can be used for e-commerce transactions.",
+            "example": true,
+            "nullable": true
+          },
+          "billpay_enabled": {
+            "type": "boolean",
+            "description": "Whether the card can be used for bill payments.",
+            "example": true,
+            "nullable": true
+          },
+          "issuer_currency": {
+            "type": "string",
+            "description": "The issuer's billing currency, as an ISO 4217 code.",
+            "example": "USD",
+            "nullable": true
+          },
+          "authentication": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthenticationInfo"
+            },
+            "description": "Customer authentication programs required by the issuing country.",
+            "nullable": true
+          }
+        }
       },
       "CardNetwork": {
         "type": "string",

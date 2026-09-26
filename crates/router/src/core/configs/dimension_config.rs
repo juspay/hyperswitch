@@ -409,6 +409,18 @@ impl DatabaseBackedConfig for ShouldReturnRawPaymentMethodDetails {
 }
 
 config! {
+    superposition_key = SHOULD_RETURN_CARD_INFO_DETAILS,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldReturnCardInfoDetails {
+    const KEY: &'static str = "should_return_card_info_details";
+}
+
+config! {
     superposition_key = SHOULD_CALL_PM_MODULAR_SERVICE,
     output = bool,
     default = false,

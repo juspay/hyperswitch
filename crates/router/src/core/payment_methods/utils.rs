@@ -818,6 +818,20 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
+pub async fn get_should_return_card_info_details(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_return_card_info_details(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
 pub async fn get_should_call_pm_modular_service(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,

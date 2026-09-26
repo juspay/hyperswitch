@@ -487,6 +487,9 @@ pub mod superposition {
     /// Return raw payment method details configuration key
     pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
         "payments.should_return_raw_payment_method_details";
+    /// Return card info details on the payment method read configuration key (org and merchant
+    /// scoped). When enabled, the retrieve response carries the card's issuing range attributes.
+    pub const SHOULD_RETURN_CARD_INFO_DETAILS: &str = "payments.should_return_card_info_details";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "system.should_call_pm_modular_service";
     /// Schedule PM modular forward compatibility PT configuration key
