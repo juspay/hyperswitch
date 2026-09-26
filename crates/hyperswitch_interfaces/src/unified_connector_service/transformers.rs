@@ -189,6 +189,9 @@ pub enum UnifiedConnectorServiceError {
         code: tonic::Code,
         /// Error message from UCS
         message: String,
+        /// Present only when the status was produced by the router's own transport layer.
+        /// `None` for statuses returned by UCS as a gRPC response.
+        transport: Option<Box<UcsTransportFailure>>,
     },
 
     /// Connector error received through UCS.
@@ -807,15 +810,33 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
-                // UCS's GooglePayConnectorResponse proto does not carry bin/issuer data yet
-                device_pan_bin: None,
-                card_bin: None,
-                card_subtype: None,
-                card_segment_type: None,
-                funding_source: None,
-                card_type: None,
-                issuer_name: None,
-                issuer_country: None,
+                device_pan_bin: google_pay_data.device_pan_bin,
+                card_bin: google_pay_data.card_bin,
+                card_subtype: google_pay_data.card_subtype,
+                card_segment_type: google_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: google_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                card_type: google_pay_data.card_type.and_then(|raw| {
+                    payments_grpc::CardType::try_from(raw)
+                        .ok()
+                        .and_then(|ct| common_enums::CardType::foreign_try_from(ct).ok())
+                }),
+                issuer_name: google_pay_data.issuer_name,
+                issuer_country: google_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -823,14 +844,28 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
-                // UCS's ApplePayConnectorResponse proto does not carry bin/issuer data yet
-                device_pan_bin: None,
-                card_bin: None,
-                card_subtype: None,
-                card_segment_type: None,
-                funding_source: None,
-                issuer_name: None,
-                issuer_country: None,
+                device_pan_bin: apple_pay_data.device_pan_bin,
+                card_bin: apple_pay_data.card_bin,
+                card_subtype: apple_pay_data.card_subtype,
+                card_segment_type: apple_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: apple_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                issuer_name: apple_pay_data.issuer_name,
+                issuer_country: apple_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {
@@ -1036,6 +1071,59 @@ impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderT
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankHolderType unspecified")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardSegmentType> for common_enums::CardSegmentType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardSegmentType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardSegmentType::Consumer => Ok(Self::Consumer),
+            payments_grpc::CardSegmentType::Commercial => Ok(Self::Commercial),
+            payments_grpc::CardSegmentType::Business => Ok(Self::Business),
+            payments_grpc::CardSegmentType::Government => Ok(Self::Government),
+            payments_grpc::CardSegmentType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardSegmentType from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::FundingSource> for common_enums::FundingSource {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::FundingSource) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::FundingSource::Credit => Ok(Self::Credit),
+            payments_grpc::FundingSource::Debit => Ok(Self::Debit),
+            payments_grpc::FundingSource::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::FundingSource::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::FundingSource::DeferredDebit => Ok(Self::DeferredDebit),
+            payments_grpc::FundingSource::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified FundingSource from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardType> for common_enums::CardType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardType::Credit => Ok(Self::Credit),
+            payments_grpc::CardType::Debit => Ok(Self::Debit),
+            payments_grpc::CardType::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::CardType::Store => Ok(Self::Store),
+            payments_grpc::CardType::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::CardType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardType from gRPC")),
         }
     }
 }
@@ -1936,7 +2024,68 @@ impl ForeignFrom<payments_grpc::UpiSource>
     }
 }
 
+/// Detail of a gRPC status that the router's own transport produced, rather than one UCS
+/// returned as a response.
+///
+/// Holds the [`std::error::Error::source`] chain verbatim. Nothing is interpreted or classified:
+/// the chain already names the layer that failed and why, whether that is an `io::ErrorKind`, an
+/// HTTP/2 reason and initiator, a DNS failure or something a future hyper or tonic version
+/// introduces. Recording it whole is what makes the next transport failure diagnosable without
+/// having shipped code that anticipated it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UcsTransportFailure {
+    /// The `source()` chain, outermost first, root cause last, joined with " -> ". Router logs
+    /// only: an inner layer may render the UCS authority or a peer address.
+    pub source_chain: String,
+    /// The root cause alone, the last element of the chain. This is the part that names what
+    /// actually failed (`connection reset by peer (os error 104)`, `stream error received:
+    /// PROTOCOL_ERROR`, ...) and, unlike the outer layers, never carries an address or authority,
+    /// so it is what goes on the merchant-visible connector event.
+    pub root_cause: String,
+}
+
+impl UcsTransportFailure {
+    /// Builds from a [`tonic::Status`].
+    ///
+    /// Returns `None` when the status carries no error source, which is every status UCS returns
+    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport.
+    /// That covers both a connection that was unusable before the request was written and a stream
+    /// that failed after UCS had already processed the request, so it does not by itself say the
+    /// request was unsent; the chain does.
+    pub fn from_status(status: &tonic::Status) -> Option<Self> {
+        let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
+        let mut parts: Vec<String> = Vec::new();
+
+        loop {
+            parts.push(source.to_string());
+            match source.source() {
+                Some(next) => source = next,
+                None => break,
+            }
+        }
+
+        let root_cause = parts.last().cloned().unwrap_or_default();
+
+        Some(Self {
+            source_chain: parts.join(" -> "),
+            root_cause,
+        })
+    }
+}
+
 impl UnifiedConnectorServiceError {
+    /// Client-side transport failure detail, present only when the status was produced by the
+    /// router's own transport rather than returned by UCS.
+    pub fn transport_failure(&self) -> Option<&UcsTransportFailure> {
+        match self {
+            Self::TonicStatus {
+                transport: Some(transport),
+                ..
+            } => Some(transport.as_ref()),
+            _ => None,
+        }
+    }
+
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
@@ -2000,6 +2149,7 @@ impl UnifiedConnectorServiceError {
             .unwrap_or_else(|| Self::TonicStatus {
                 code: status.code(),
                 message: status.message().to_string(),
+                transport: UcsTransportFailure::from_status(status).map(Box::new),
             })
     }
 
@@ -2188,7 +2338,7 @@ impl UnifiedConnectorServiceError {
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
                     ApiErrorResponse::InvalidRequestData {
                         message: message.clone(),
@@ -2231,7 +2381,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             // recognize the error_code (or details were empty/undecodable).
             // Server errors → ResponseHandlingFailed, Unimplemented → NotImplemented,
             // anything else → RequestEncodingFailed as a safe client-error default.
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 _ if Self::tonic_status_is_ucs_server_error(*code) => {
                     ConnectorError::ResponseHandlingFailed
                 }
@@ -2470,6 +2620,7 @@ mod ucs_kill_switch_reason_tests {
         UnifiedConnectorServiceError::TonicStatus {
             code,
             message: "from ucs".to_string(),
+            transport: None,
         }
     }
 
