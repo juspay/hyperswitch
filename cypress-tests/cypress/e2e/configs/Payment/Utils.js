@@ -833,6 +833,7 @@ export const CONNECTOR_LISTS = {
     AUTH_CODE: ["checkout", "worldpayxml"],
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
+    CVC_OMIT: ["cybersource"],
     // Add more inclusion lists
   },
 };
