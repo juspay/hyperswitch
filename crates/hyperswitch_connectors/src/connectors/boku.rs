@@ -809,7 +809,8 @@ impl ConnectorSpecifications for Boku {
 #[cfg(test)]
 mod tests {
     use common_enums::enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
-    use hyperswitch_interfaces::api::ConnectorValidation;
+    use common_utils::errors::CustomResult;
+    use hyperswitch_interfaces::{api::ConnectorValidation, errors::ConnectorError};
 
     use super::Boku;
 
@@ -824,37 +825,41 @@ mod tests {
     fn validate_capture_method(
         capture_method: CaptureMethod,
         payment_method_type: PaymentMethodType,
-    ) -> bool {
-        Boku::new()
-            .validate_connector_against_payment_request(
-                Some(capture_method),
-                PaymentMethod::Wallet,
-                Some(payment_method_type),
-            )
-            .is_ok()
+    ) -> CustomResult<(), ConnectorError> {
+        Boku::new().validate_connector_against_payment_request(
+            Some(capture_method),
+            PaymentMethod::Wallet,
+            Some(payment_method_type),
+        )
     }
 
     #[test]
     fn rejects_manual_capture_because_capture_flow_is_not_implemented() {
         for payment_method_type in WALLETS {
-            assert!(!validate_capture_method(
-                CaptureMethod::Manual,
-                payment_method_type
-            ));
+            let result = validate_capture_method(CaptureMethod::Manual, payment_method_type);
+            assert!(
+                matches!(
+                    &result,
+                    Err(err) if matches!(
+                        err.current_context(),
+                        ConnectorError::NotSupported { message, .. }
+                            if *message == CaptureMethod::Manual.to_string()
+                    )
+                ),
+                "expected manual capture to be rejected as not supported for {payment_method_type}, got {result:?}"
+            );
         }
     }
 
     #[test]
     fn accepts_automatic_and_sequential_automatic_capture() {
         for payment_method_type in WALLETS {
-            assert!(validate_capture_method(
-                CaptureMethod::Automatic,
-                payment_method_type
-            ));
+            assert!(validate_capture_method(CaptureMethod::Automatic, payment_method_type).is_ok());
             assert!(validate_capture_method(
                 CaptureMethod::SequentialAutomatic,
                 payment_method_type
-            ));
+            )
+            .is_ok());
         }
     }
 }
