@@ -539,6 +539,8 @@ pub mod superposition {
     /// Payment method types eligible for preferred-connector routing (comma-separated)
     pub const PREFERRED_CONNECTOR_ENABLED_PAYMENT_METHOD_TYPES: &str =
         "routing.preferred_connector_enabled_payment_method_types";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

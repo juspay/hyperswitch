@@ -1089,3 +1089,15 @@ impl DatabaseBackedConfig for PreferredConnectorRoutingEnabled {
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
+
+config! {
+    superposition_key = PAYOUT_BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutBlocklistGuard {
+    const KEY: &'static str = "payout_blocklist_guard";
+}
