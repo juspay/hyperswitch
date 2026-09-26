@@ -157,7 +157,6 @@ pub async fn save_in_locker(
     }
 }
 
-#[derive(Clone)]
 pub struct SavePaymentMethodData<Req> {
     request: Req,
     response: Result<types::PaymentsResponseData, types::ErrorResponse>,

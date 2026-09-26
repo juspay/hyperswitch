@@ -14,7 +14,7 @@ use crate::{
 pub struct SavePaymentMethodAttemptUpdateTrackingData {
     pub attempt_id: String,
     pub payment_id: id_type::PaymentId,
-    pub merchant_id: id_type::MerchantId,
+    pub processor_merchant_id: id_type::MerchantId,
     pub payment_method_id: String,
     pub updated_by: String,
 }

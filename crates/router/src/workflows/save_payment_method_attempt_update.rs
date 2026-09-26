@@ -57,7 +57,7 @@ async fn reconcile(
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &tracking_data.merchant_id,
+            &tracking_data.processor_merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await
@@ -65,7 +65,7 @@ async fn reconcile(
         .attach_printable("Unable to fetch merchant key store")?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&tracking_data.processor_merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to fetch merchant account")?;
@@ -73,7 +73,7 @@ async fn reconcile(
     let payment_attempt = match db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &tracking_data.payment_id,
-            &tracking_data.merchant_id,
+            &tracking_data.processor_merchant_id,
             &tracking_data.attempt_id,
             merchant_account.storage_scheme,
             &key_store,
@@ -102,17 +102,23 @@ async fn reconcile(
         updated_by: tracking_data.updated_by.clone(),
     };
 
-    db.update_payment_attempt_with_attempt_id(
-        payment_attempt,
-        payment_attempt_update,
-        merchant_account.storage_scheme,
-        &key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to update payment attempt with payment_method_id")?;
-
-    Ok(Outcome::Updated)
+    match db
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt,
+            payment_attempt_update,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await
+    {
+        Ok(_) => Ok(Outcome::Updated),
+        // PaymentMethodDetailsUpdate is an atomic compare-and-set: a not-found result after the
+        // preceding read means another writer populated payment_method_id first.
+        Err(err) if err.current_context().is_db_not_found() => Ok(Outcome::AlreadySet),
+        Err(err) => Err(err)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to update payment attempt with payment_method_id"),
+    }
 }
 
 #[async_trait::async_trait]
@@ -215,8 +221,10 @@ mod tests {
             attempt_id: "attempt_123".to_string(),
             payment_id: id_type::PaymentId::wrap("payment_123".to_string())
                 .expect("valid payment_id"),
-            merchant_id: id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_123"))
-                .expect("valid merchant_id"),
+            processor_merchant_id: id_type::MerchantId::try_from(std::borrow::Cow::Borrowed(
+                "merchant_123",
+            ))
+            .expect("valid merchant_id"),
             payment_method_id: "pm_123".to_string(),
             updated_by: "psql".to_string(),
         };
