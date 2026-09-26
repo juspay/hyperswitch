@@ -188,6 +188,119 @@ pub struct DisputeListFilters {
     pub dispute_stage: Vec<DisputeStage>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlatformDisputeListConstraints {
+    /// The identifier for dispute
+    pub dispute_id: Option<String>,
+    /// The payment_id against which dispute is raised
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    /// The connected (processor) merchant id to filter the list by.
+    /// When omitted, disputes across all connected merchants under the platform are returned.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// Limit on the number of objects to return
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
+    /// The starting point within a list of object
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
+    /// The identifier for business profile
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// The comma separated list of status of the disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub dispute_status: Option<Vec<DisputeStatus>>,
+    /// The comma separated list of stages of the disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub dispute_stage: Option<Vec<DisputeStage>>,
+    /// Reason for the dispute
+    pub reason: Option<String>,
+    /// The comma separated list of connectors linked to disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub connector: Option<Vec<String>>,
+    /// The comma separated list of currencies of the disputes
+    #[serde(default, deserialize_with = "parse_comma_separated")]
+    pub currency: Option<Vec<Currency>>,
+    /// The merchant connector id to filter the disputes list
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, Serialize)]
+pub struct PlatformDisputeListItem {
+    /// The identifier for dispute
+    pub dispute_id: String,
+    /// The identifier for payment_intent
+    pub payment_id: common_utils::id_type::PaymentId,
+    /// The identifier for payment_attempt
+    pub attempt_id: String,
+    /// Identifier of the platform merchant. Equals the caller's merchant id.
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Identifier of the connected merchant that owns this dispute.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// The dispute amount
+    pub amount: StringMinorUnit,
+    /// The three-letter ISO currency code
+    pub currency: Currency,
+    /// Stage of the dispute
+    pub dispute_stage: DisputeStage,
+    /// Status of the dispute
+    pub dispute_status: DisputeStatus,
+    /// connector to which dispute is associated with
+    pub connector: String,
+    /// Status of the dispute sent by connector
+    pub connector_status: String,
+    /// Dispute id sent by connector
+    pub connector_dispute_id: String,
+    /// Reason of dispute sent by connector
+    pub connector_reason: Option<String>,
+    /// Reason code of dispute sent by connector
+    pub connector_reason_code: Option<String>,
+    /// Evidence deadline of dispute sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    /// Dispute created time sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    /// Dispute updated time sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub connector_updated_at: Option<PrimitiveDateTime>,
+    /// Time at which dispute is received
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    /// The `profile_id` associated with the dispute
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, Serialize)]
+pub struct PlatformDisputeListFilters {
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<Currency>,
+    /// The list of available dispute status filters
+    pub dispute_status: Vec<DisputeStatus>,
+    /// The list of available dispute stage filters
+    pub dispute_stage: Vec<DisputeStage>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, Serialize)]
+pub struct PlatformDisputeListResponse {
+    /// The number of disputes included in the current response.
+    pub count: usize,
+    /// The total number of disputes matching the given constraints (ignores limit/offset).
+    pub total_count: i64,
+    /// The list of dispute summaries across the platform's connected merchants.
+    pub data: Vec<PlatformDisputeListItem>,
+}
+
 #[derive(Default, Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct SubmitEvidenceRequest {
     ///Dispute Id
