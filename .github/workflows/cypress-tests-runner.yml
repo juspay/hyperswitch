@@ -187,6 +187,11 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
+      - name: Install zstd
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: .github/scripts/install-zstd.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -1790,6 +1795,11 @@ jobs:
       - name: Mask S3 cache location in job logs
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
+
+      - name: Install zstd
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: .github/scripts/install-zstd.sh
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
