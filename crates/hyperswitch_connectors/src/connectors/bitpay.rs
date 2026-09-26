@@ -441,7 +441,7 @@ static BITPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::PaymentMethodType::CryptoCurrency,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods,
             specific_features: None,
         },
@@ -471,5 +471,65 @@ impl ConnectorSpecifications for Bitpay {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&BITPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use api_models::webhooks::IncomingWebhookEvent;
+    use common_enums::enums::{FeatureStatus, PaymentMethod, PaymentMethodType};
+    use hyperswitch_interfaces::{
+        api::ConnectorSpecifications,
+        webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    };
+
+    use super::Bitpay;
+
+    fn event_type_for(event_name: &str) -> IncomingWebhookEvent {
+        let body = serde_json::json!({
+            "event": { "code": 1006, "name": event_name },
+            "data": {
+                "status": "complete",
+                "price": 10.0,
+                "currency": "USD",
+                "amountPaid": 10.0,
+                "id": "INV000",
+                "exceptionStatus": false
+            }
+        })
+        .to_string()
+        .into_bytes();
+        let headers = actix_web::http::header::HeaderMap::new();
+        let request = IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("/webhooks"),
+            headers: &headers,
+            body: &body,
+            query_params: String::new(),
+        };
+        Bitpay::new()
+            .get_webhook_event_type(&request, None)
+            .expect("webhook event type should be derived")
+    }
+
+    #[test]
+    fn refund_complete_webhook_is_not_supported() {
+        assert_eq!(
+            event_type_for("invoice_refundComplete"),
+            IncomingWebhookEvent::EventNotSupported
+        );
+    }
+
+    #[test]
+    fn declares_refunds_not_supported_because_refund_flow_is_not_implemented() {
+        let refunds = Bitpay::new()
+            .get_supported_payment_methods()
+            .and_then(|payment_methods| payment_methods.get(&PaymentMethod::Crypto))
+            .and_then(|payment_method_types| {
+                payment_method_types.get(&PaymentMethodType::CryptoCurrency)
+            })
+            .map(|details| details.refunds);
+
+        assert_eq!(refunds, Some(FeatureStatus::NotSupported));
     }
 }
