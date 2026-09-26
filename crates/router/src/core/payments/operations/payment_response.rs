@@ -3791,6 +3791,9 @@ async fn update_preferred_connector(
     profile_id: String,
     preferred_connector: String,
 ) -> RouterResult<()> {
+    const MAX_LOCK_RETRIES: u32 = 3;
+    const MAX_RETRY_DELAY_MILLISECONDS: u32 = 100;
+
     let is_payment_method_type_enabled =
         crate::core::payments::preferred_connector_enabled_payment_method_types(state)
             .await
@@ -3813,7 +3816,14 @@ async fn update_preferred_connector(
             .attach_printable("Failed to get Redis connection for preferred connector update")?;
         let mut lock_acquired = false;
 
-        for _ in 0..lock_settings.lock_retries {
+        let lock_retries = lock_settings.lock_retries.clamp(1, MAX_LOCK_RETRIES);
+        let retry_delay = std::time::Duration::from_millis(u64::from(
+            lock_settings
+                .delay_between_retries_in_milliseconds
+                .min(MAX_RETRY_DELAY_MILLISECONDS),
+        ));
+
+        for retry in 0..lock_retries {
             match redis_conn
                 .set_key_if_not_exists_with_expiry(
                     &lock_key.as_str().into(),
@@ -3829,10 +3839,9 @@ async fn update_preferred_connector(
                     break;
                 }
                 SetnxReply::KeyNotSet => {
-                    tokio::time::sleep(std::time::Duration::from_millis(u64::from(
-                        lock_settings.delay_between_retries_in_milliseconds,
-                    )))
-                    .await;
+                    if retry + 1 < lock_retries {
+                        tokio::time::sleep(retry_delay).await;
+                    }
                 }
             }
         }
