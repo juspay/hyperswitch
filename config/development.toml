@@ -1259,7 +1259,7 @@ worldpayxml = { payment_method = "card,wallet" }
 paydotcom = { payment_method = "card" }    # Pay.com gateway 3DS settles on CompleteAuthorize; the card must be restorable
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise,trustly"
+payout_connector_list = "nomupay,stripe,wise,trustly,paysafe"
 
 [dummy_connector]
 enabled = true

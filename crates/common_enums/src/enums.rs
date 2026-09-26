@@ -9087,6 +9087,7 @@ pub enum PayoutType {
     Bank,
     Wallet,
     BankRedirect,
+    GiftCard,
 }
 
 /// Type of entity to whom the payout is being carried out to, select from the given list of options

@@ -7086,6 +7086,10 @@ pub async fn get_bank_from_vault(
             }
             .into())
         }
+        api::PayoutMethodData::GiftCard(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Expected bank details, found gift card details instead".to_string(),
+        }
+        .into()),
     }
 }
 

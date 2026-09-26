@@ -9372,6 +9372,22 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     payments_grpc::Passthrough::foreign_try_from(passthrough)?,
                 )
             }
+            api_models::payouts::PayoutMethodData::GiftCard(gift_card) => match gift_card {
+                api_models::payouts::GiftCardPayout::PaySafeCard(paysafe_card) => {
+                    payments_grpc::payout_method::PayoutMethodData::GiftCard(
+                        payments_grpc::GiftCardPayoutData {
+                            gift_card_type: Some(
+                                payments_grpc::gift_card_payout_data::GiftCardType::PaysafeCard(
+                                    payments_grpc::PaysafeCardData {
+                                        consumer_id: paysafe_card.consumer_id.clone(),
+                                        date_of_birth: paysafe_card.date_of_birth.clone(),
+                                    },
+                                ),
+                            ),
+                        },
+                    )
+                }
+            }
         };
 
         Ok(Self {
