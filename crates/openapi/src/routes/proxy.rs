@@ -101,7 +101,7 @@ pub async fn proxy_core() {}
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication"),
     ),
     tag = "Proxy",
-    operation_id = "Proxy Request",
+    operation_id = "Proxy Request V1",
     security(("api_key" = []))
 )]
 

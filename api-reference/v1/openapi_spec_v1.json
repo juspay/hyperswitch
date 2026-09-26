@@ -9423,6 +9423,17 @@
         "summary": "Authentication - Eligibility",
         "description": "Check if an authentication is eligible for a specific merchant.\n",
         "operationId": "Check Authentication Eligibility",
+        "parameters": [
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9466,6 +9477,17 @@
         "summary": "Authentication - Authenticate",
         "description": "Authenticate an authentication for accessing our APIs from your servers.\n",
         "operationId": "Authenticate an Authentication",
+        "parameters": [
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9501,7 +9523,7 @@
         ]
       }
     },
-    "/authentication/{authentication_id}/redirect": {
+    "/authentication/{merchant_id}/{authentication_id}/redirect": {
       "post": {
         "tags": [
           "Authentication"
@@ -9509,6 +9531,26 @@
         "summary": "Authentication - Redirect",
         "description": "Redirect an authentication for accessing our APIs from your servers.\n",
         "operationId": "Redirect an Authentication",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9530,7 +9572,7 @@
         "security": []
       }
     },
-    "/authentication/{authentication_id}/sync": {
+    "/authentication/{merchant_id}/{authentication_id}/sync": {
       "post": {
         "tags": [
           "Authentication"
@@ -9538,6 +9580,26 @@
         "summary": "Authentication - Sync",
         "description": "Sync an authentication for accessing our APIs from your servers.\n",
         "operationId": "Sync an Authentication",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9581,6 +9643,17 @@
         "summary": "Authentication - Enable Authn Methods Token",
         "description": "Enable authn methods token for an authentication.\n",
         "operationId": "Enable Authentication Authn Methods Token",
+        "parameters": [
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9623,6 +9696,17 @@
         ],
         "summary": "Authentication - POST Eligibility Check",
         "operationId": "Submit Eligibility for an Authentication",
+        "parameters": [
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9660,6 +9744,17 @@
         ],
         "summary": "Authentication - GET Eligibility Check",
         "operationId": "Retrieve Eligibility Check data for an Authentication",
+        "parameters": [
+          {
+            "name": "authentication_id",
+            "in": "path",
+            "description": "The identifier for authentication",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -44465,7 +44560,7 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
-            "default": "Instant",
+            "default": "instant",
             "nullable": true
           },
           "metadata": {
