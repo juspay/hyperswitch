@@ -141,6 +141,115 @@ describe("[Payout] Saved Card", () => {
   );
 });
 
+describe("[Payout] Saved Bank transfer - Open Banking", () => {
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+  before("seed global state", function () {
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (!globalState.get("payoutsExecution")) {
+          shouldContinue = false;
+        }
+
+        if (
+          !utils.CONNECTOR_LISTS.INCLUDE.SAVED_BANK_TRANSFER_OPEN_BANKING.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          shouldContinue = false;
+        }
+      })
+      .then(() => {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  // Trustly bank transfers can't be vaulted via POST /payment_methods (422
+  // IR_06 - trustly subtype is only valid for bank_redirect), so the save is
+  // exercised through the connector: a recurring payout makes the payout core
+  // vault the recipient as a saved payout method (subtype "trustly"), which is
+  // then listed and reused via payout_token.
+  context(
+    "[Payout] [Bank Transfer - Open Banking] Save payment method after successful transaction",
+    () => {
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+      beforeEach("reset payoutBody", () => {
+        payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
+        payoutBody.recurring = true;
+      });
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("create customer", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("confirm-payout-call-with-auto-fulfill-test", () => {
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["open_banking"]["Fulfill"];
+
+        cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("list customer payment methods", () => {
+        cy.listCustomerPMCallTest(globalState);
+      });
+
+      it("[Payout] [Bank transfer - Open Banking] Fulfill using Token", () => {
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["open_banking"]["Token"];
+
+        cy.createConfirmWithTokenPayoutTest(
+          payoutBody,
+          data,
+          true,
+          true,
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payout-call-test", () => {
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["open_banking"]["RetrieveAfterFulfill"];
+
+        if (data) {
+          cy.pollPayoutStatusCallTest(globalState);
+        }
+        cy.retrievePayoutCallTest(globalState, data);
+      });
+    }
+  );
+});
+
 describe("[Payout] Saved Bank transfer", () => {
   let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
