@@ -629,6 +629,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ConnectorMetadata,
         api_models::payments::ConnectorMetadataResponse,
         api_models::payments::SantanderData,
+        api_models::payments::SantanderJourneyName,
         api_models::payments::WorldpayxmlData,
         api_models::payments::CheckoutData,
         api_models::payments::WorldpayxmlFundingTransactionType,

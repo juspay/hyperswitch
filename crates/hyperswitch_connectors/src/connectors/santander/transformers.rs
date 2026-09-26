@@ -1,7 +1,8 @@
 use api_models::payments::{
     AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, DiscountTier,
     DiscountType, FeatureMetadata, PollConfig, ProtestType, QrCodeInformation, SantanderData,
-    SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
+    SantanderJourneyName, SantanderMandatePeriodicity, SantanderPaymentDiscountRules,
+    VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
@@ -73,6 +74,7 @@ use crate::{
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
+            SantanderPixAutomaticoRecWebhookBody, SantanderPixAutomaticoRecWebhookEntry,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
             SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
@@ -165,8 +167,7 @@ impl
             .status
             .map(AttemptStatus::from)
             .unwrap_or(AttemptStatus::Pending);
-        let resource_id =
-            ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
+        let resource_id = ResponseId::ConnectorTransactionId(item.response.id_rec.clone().expose());
         let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
@@ -226,7 +227,7 @@ impl
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "response.dadosQR.jornada".into(),
             })?;
-        let expiry_type = journey.and_then(Option::<ExpiryType>::from);
+        let expiry_type = journey.clone().and_then(Option::<ExpiryType>::from);
         let connector_metadata = match item
             .response
             .dados_qr
@@ -242,8 +243,25 @@ impl
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
         }));
-        let resource_id =
-            ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
+        let connector_transaction_id = match journey.as_ref() {
+            Some(SantanderJourneyType::Jornada3 | SantanderJourneyType::Jornada4) => Some(
+                item.response
+                    .ativacao
+                    .as_ref()
+                    .and_then(|activation| activation.dados_jornada.as_ref())
+                    .and_then(|journey| journey.txid.clone())
+                    .unwrap_or_else(|| item.data.connector_request_reference_id.clone()),
+            ),
+            Some(SantanderJourneyType::Jornada2) | None => {
+                Some(item.response.id_rec.clone().expose())
+            }
+            Some(SantanderJourneyType::Jornada1 | SantanderJourneyType::AguardandoDefinicao) => {
+                None
+            }
+        };
+        let resource_id = connector_transaction_id
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId);
 
         Ok(Self {
             status,
@@ -1260,7 +1278,7 @@ impl From<RecurrenceStatus> for AttemptStatus {
             RecurrenceStatus::Aprovada => Self::Charged,
             RecurrenceStatus::Rejeitada => Self::Failure,
             RecurrenceStatus::Expirada => Self::Failure,
-            RecurrenceStatus::Cancelada => Self::Voided,
+            RecurrenceStatus::Cancelada => Self::Failure,
             RecurrenceStatus::Recebida | RecurrenceStatus::Aceita | RecurrenceStatus::Enviada => {
                 Self::Pending
             }
@@ -1355,6 +1373,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                             .map(|pix| {
                                 let data = SantanderData {
                                     end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                                    journey_name: None,
                                     paid_at: (attempt_status == AttemptStatus::Charged)
                                         .then_some(pix.horario),
                                 };
@@ -1399,7 +1418,105 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     }
                 }
             }
+            SantanderPaymentsSyncResponse::PixQrWebhook(pix_data) => {
+                let has_end_to_end_id = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| !pix.end_to_end_id.clone().expose().is_empty())
+                    .unwrap_or(false);
+                let attempt_status = if has_end_to_end_id {
+                    AttemptStatus::Charged
+                } else {
+                    AttemptStatus::Failure
+                };
+                let connector_metadata = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| {
+                        let data = SantanderData {
+                            end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            journey_name: None,
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+
+                let txid = pix_data
+                    .pix
+                    .first()
+                    .map(|pix| pix.txid.clone().expose())
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "txid".into(),
+                    })?;
+
+                let response = match item.data.response.clone() {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        mandate_reference,
+                        network_txn_id,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed,
+                        authentication_data,
+                        charges,
+                        ..
+                    }) => Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(txid),
+                        redirection_data,
+                        mandate_reference,
+                        connector_metadata,
+                        network_txn_id,
+                        network_txn_link_id: None,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed,
+                        authentication_data,
+                        charges,
+                        payment_account_reference: None,
+                    }),
+                    other => other,
+                };
+
+                Ok(Self {
+                    status: attempt_status,
+                    response,
+                    ..item.data
+                })
+            }
             // Journey 1/2
+            SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(rec_data) => {
+                let entry =
+                    rec_data
+                        .recs
+                        .first()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "recs".into(),
+                        })?;
+
+                let status = AttemptStatus::from(entry.status.clone());
+                let connector_metadata =
+                    get_pix_automatico_rec_webhook_connector_metadata(&rec_data)?;
+
+                let mut response = item.data.response.clone();
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ref mut rid,
+                    connector_response_reference_id: ref mut conn_response_ref_id,
+                    connector_metadata: ref mut cm,
+                    ..
+                }) = response
+                {
+                    *rid = ResponseId::ConnectorTransactionId(entry.id_rec.clone());
+                    *conn_response_ref_id = Some(entry.id_rec.clone());
+                    *cm = connector_metadata;
+                }
+
+                Ok(Self {
+                    status,
+                    response,
+                    ..item.data
+                })
+            }
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
                 let status = AttemptStatus::from(res.status.clone());
                 let connector_metadata = if matches!(res.status, RecurrenceStatus::Aprovada) {
@@ -1409,6 +1526,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         .map(|update| {
                             let data = SantanderData {
                                 end_to_end_id: None,
+                                journey_name: res
+                                    .ativacao
+                                    .as_ref()
+                                    .and_then(|activation| activation.tipo_jornada.as_ref())
+                                    .map(SantanderJourneyName::from),
                                 paid_at: Some(update.data),
                             };
                             serde_json::to_value(data)
@@ -1448,6 +1570,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         let paid_at = data.payment.date;
                         let data = SantanderData {
                             end_to_end_id: None,
+                            journey_name: None,
                             paid_at,
                         };
                         serde_json::to_value(data)
@@ -1478,6 +1601,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     .map(|pix| {
                         let data = SantanderData {
                             end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            journey_name: None,
                             paid_at: (attempt_status == AttemptStatus::Charged)
                                 .then_some(pix.horario),
                         };
@@ -3259,4 +3383,72 @@ impl
             ..item.data
         })
     }
+}
+
+pub fn is_dummy_webhook(id_rec: &str) -> bool {
+    id_rec.to_uppercase().contains("TESTE")
+}
+
+fn get_pix_automatico_rec_webhook_connector_metadata(
+    rec_data: &SantanderPixAutomaticoRecWebhookBody,
+) -> Result<Option<Value>, Error> {
+    let connector_metadata = rec_data
+        .recs
+        .first()
+        .filter(|entry| {
+            matches!(entry.status, RecurrenceStatus::Aprovada)
+                && matches!(
+                    get_pix_automatico_journey_type(entry),
+                    Some(SantanderJourneyType::Jornada1 | SantanderJourneyType::Jornada2)
+                )
+        })
+        .and_then(|entry| {
+            entry
+                .atualizacao
+                .as_ref()
+                .and_then(|updates| {
+                    updates
+                        .iter()
+                        .find(|update| matches!(update.status, Some(RecurrenceStatus::Aprovada)))
+                })
+                .map(|update| (entry, update))
+        })
+        .map(|(entry, update)| {
+            let data = SantanderData {
+                end_to_end_id: None,
+                journey_name: get_pix_automatico_journey_name(entry),
+                paid_at: Some(update.data),
+            };
+            serde_json::to_value(data).change_context(errors::ConnectorError::ParsingFailed)
+        })
+        .transpose()?;
+
+    Ok(connector_metadata)
+}
+
+fn get_pix_automatico_journey_name(
+    entry: &SantanderPixAutomaticoRecWebhookEntry,
+) -> Option<SantanderJourneyName> {
+    get_pix_automatico_journey_type(entry).map(SantanderJourneyName::from)
+}
+
+impl From<&SantanderJourneyType> for SantanderJourneyName {
+    fn from(journey_type: &SantanderJourneyType) -> Self {
+        match journey_type {
+            SantanderJourneyType::Jornada1 => Self::Journey1,
+            SantanderJourneyType::Jornada2 => Self::Journey2,
+            SantanderJourneyType::Jornada3 => Self::Journey3,
+            SantanderJourneyType::Jornada4 => Self::Journey4,
+            SantanderJourneyType::AguardandoDefinicao => Self::AwaitingDefinition,
+        }
+    }
+}
+
+pub fn get_pix_automatico_journey_type(
+    entry: &SantanderPixAutomaticoRecWebhookEntry,
+) -> Option<&SantanderJourneyType> {
+    entry
+        .ativacao
+        .as_ref()
+        .and_then(|activation| activation.tipo_jornada.as_ref())
 }

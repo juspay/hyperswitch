@@ -46442,6 +46442,14 @@
             "example": "E9040088820260710172800044983797",
             "nullable": true
           },
+          "journey_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderJourneyName"
+              }
+            ],
+            "nullable": true
+          },
           "paid_at": {
             "type": "string",
             "format": "date-time",
@@ -46451,6 +46459,16 @@
           }
         },
         "additionalProperties": false
+      },
+      "SantanderJourneyName": {
+        "type": "string",
+        "enum": [
+          "journey1",
+          "journey2",
+          "journey3",
+          "journey4",
+          "awaiting_definition"
+        ]
       },
       "SantanderMandateDetails": {
         "type": "object",

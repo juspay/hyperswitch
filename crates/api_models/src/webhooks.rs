@@ -46,6 +46,8 @@ pub enum IncomingWebhookEvent {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    // Mandate created at the connector, waiting for the customer to approve it
+    MandateActionRequired,
     EndpointVerification,
     ExternalAuthenticationARes,
     FrmApproved,
@@ -301,6 +303,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
                 Self::Mandate
             }
+            IncomingWebhookEvent::MandateActionRequired => Self::ReturnResponse,
             IncomingWebhookEvent::PaymentAssociatedDataUpdate => Self::AssociatedDataUpdate,
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted

@@ -10485,6 +10485,9 @@ pub struct SantanderData {
     #[schema(value_type = Option<String>, example = "E9040088820260710172800044983797")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,
+    #[schema(value_type = Option<SantanderJourneyName>, example = "journey_1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub journey_name: Option<SantanderJourneyName>,
     /// Actual timestamp when the payment was completed, as reported by Santander.
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2025-07-20T14:35:00Z")]
     #[serde(
@@ -10492,6 +10495,24 @@ pub struct SantanderData {
         with = "common_utils::custom_serde::iso8601::option"
     )]
     pub paid_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderJourneyName {
+    // PixAutomaticoPush payment method type for zero-amount payments.
+    Journey1,
+    // PixAutomaticoQr payment method type for zero-amount payments.
+    Journey2,
+    // PixAutomaticoQr payment method type for non-zero payments with immediate QR expiry.
+    Journey3,
+    // PixAutomaticoQr payment method type for non-zero payments with scheduled QR expiry.
+    Journey4,
+    // Journey could not be determined from the connector response.
+    AwaitingDefinition,
 }
 
 impl ConnectorMetadata {

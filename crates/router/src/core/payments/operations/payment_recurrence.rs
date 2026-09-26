@@ -97,7 +97,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let attempt_id = payment_intent.active_attempt.get_id();
         let merchant_key_store = platform.get_processor().get_key_store().clone();
 
-        let payment_attempt = store
+        let mut payment_attempt = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &m_payment_id,
                 &m_merchant_id,
@@ -107,6 +107,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if let Some(connector_mandate_detail) = payment_attempt.connector_mandate_detail.as_mut() {
+            connector_mandate_detail.connector_mandate_request_reference_id = None;
+        }
 
         let profile_id = payment_intent
             .profile_id
