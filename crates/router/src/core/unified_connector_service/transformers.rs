@@ -8579,7 +8579,11 @@ impl
             .customer_details
             .as_ref()
             .map(payments_grpc::Customer::foreign_try_from)
-            .transpose()?;
+            .transpose()?
+            .map(|mut customer| {
+                customer.connector_customer_id = router_data.connector_customer.clone();
+                customer
+            });
 
         let priority = router_data
             .request
@@ -8625,7 +8629,10 @@ impl
             destination_currency: destination_currency.into(),
             customer,
             priority,
-            connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
+            connector_payout_method_id: router_data
+                .connector_customer
+                .clone()
+                .or_else(|| router_data.request.connector_transfer_method_id.clone()),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             access_token,
@@ -8788,6 +8795,10 @@ impl
             .as_ref()
             .map(payments_grpc::Customer::foreign_try_from)
             .transpose()?
+            .map(|mut customer| {
+                customer.connector_customer_id = router_data.connector_customer.clone();
+                customer
+            })
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer".into(),
@@ -8812,11 +8823,6 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
-            payout_connector_metadata: router_data
-                .request
-                .payout_connector_metadata
-                .clone()
-                .map(|metadata| Secret::new(metadata.expose().to_string())),
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
@@ -8832,7 +8838,10 @@ impl
                 .priority
                 .map(payments_grpc::payout_enums::PayoutPriority::foreign_from)
                 .map(i32::from),
-            connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
+            connector_payout_method_id: router_data
+                .connector_customer
+                .clone()
+                .or_else(|| router_data.request.connector_transfer_method_id.clone()),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             source_bank_data: router_data
@@ -8842,6 +8851,11 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
+            payout_connector_metadata: router_data
+                .request
+                .payout_connector_metadata
+                .clone()
+                .map(|secret| Secret::new(secret.expose().to_string())),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
@@ -8955,6 +8969,59 @@ impl
             currency: source_currency.into(),
         };
 
+        let billing_address = router_data.address.get_payment_method_billing();
+        let billing_details = billing_address.and_then(|a| a.address.as_ref());
+
+        let first_name = billing_details
+            .and_then(|d| d.first_name.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let last_name = billing_details
+            .and_then(|d| d.last_name.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let phone = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .and_then(|customer_details| customer_details.phone.as_ref())
+            .map(|p| p.peek().to_string().into());
+
+        let vendor_account_details = router_data.request.vendor_details.as_ref();
+        let vendor_details = vendor_account_details.map(|v| &v.vendor_details);
+        let individual_details = vendor_account_details.map(|v| &v.individual_details);
+
+        let account_type = vendor_details.map(|v| v.account_type.clone());
+        let business_profile_mcc = vendor_details
+            .and_then(|v| v.business_profile_mcc)
+            .map(|mcc| mcc.to_string());
+        let business_profile_url = vendor_details
+            .and_then(|v| v.business_profile_url.as_ref())
+            .map(|s| s.clone().into());
+        let business_profile_name = vendor_details
+            .and_then(|v| v.business_profile_name.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let statement_descriptor = vendor_details
+            .and_then(|v| v.business_profile_name.as_ref())
+            .map(|s| s.peek().to_string().into());
+
+        let dob_day = individual_details
+            .and_then(|i| i.individual_dob_day.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let dob_month = individual_details
+            .and_then(|i| i.individual_dob_month.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let dob_year = individual_details
+            .and_then(|i| i.individual_dob_year.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let id_number = individual_details
+            .and_then(|i| i.individual_id_number.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let ssn_last_4 = individual_details
+            .and_then(|i| i.individual_ssn_last_4.as_ref())
+            .map(|s| s.peek().to_string().into());
+        let tos_acceptance_ip = individual_details
+            .and_then(|i| i.tos_acceptance_ip.as_ref())
+            .map(|s| s.peek().to_string().into());
+
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
             address,
@@ -8967,6 +9034,26 @@ impl
                     router_data.request.entity_type,
                 ),
             ),
+            vendor_account_details: Some(payments_grpc::PayoutVendorAccountDetails {
+                vendor_details: Some(payments_grpc::VendorDetails {
+                    account_type,
+                    business_profile_mcc,
+                    business_profile_url,
+                    business_profile_name,
+                    statement_descriptor,
+                }),
+                individual_details: Some(payments_grpc::IndividualDetails {
+                    first_name,
+                    last_name,
+                    phone,
+                    ssn_last_4,
+                    id_number,
+                    dob_day,
+                    dob_month,
+                    dob_year,
+                    tos_acceptance_ip,
+                }),
+            }),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
@@ -9029,6 +9116,10 @@ impl
             amount: Some(money),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
+            connector_payout_id: router_data
+                .connector_customer
+                .clone()
+                .or_else(|| router_data.request.connector_payout_id.clone()),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
@@ -9057,6 +9148,20 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
+            connector_payout_method_id: router_data
+                .connector_customer
+                .clone()
+                .or_else(|| router_data.request.connector_transfer_method_id.clone()),
+            customer: Some(payments_grpc::Customer {
+                connector_customer_id: router_data.connector_customer.clone(),
+                ..router_data
+                    .request
+                    .customer_details
+                    .as_ref()
+                    .map(payments_grpc::Customer::foreign_try_from)
+                    .transpose()?
+                    .unwrap_or_default()
+            }),
             // Debtor account for connectors that need it to perform a status enquiry
             source_bank_data: router_data
                 .request
