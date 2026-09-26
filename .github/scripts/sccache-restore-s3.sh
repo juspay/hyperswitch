@@ -14,7 +14,7 @@ fi
 cache_name="$1"
 pr_number="${2:-}"
 
-shared_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
+shared_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.zst"
 
 mkdir -p "$SCCACHE_DIR"
 
@@ -23,21 +23,27 @@ if [ -z "${CACHE_S3_BUCKET:-}" ]; then
   exit 0
 fi
 
-# Streamed, not written to disk first — avoids doubling disk usage.
+tmp_archive="$(mktemp "${RUNNER_TEMP:-/tmp}/sccache-cache.XXXXXX.tar.zst")"
+trap 'rm -f "$tmp_archive"' EXIT
+
+# Downloaded to a real (seekable) file rather than streamed straight to
+# stdout: that lets the AWS CLI fetch byte ranges over several connections
+# in parallel. Streaming to stdout forces one sequential GET no matter how
+# big the object is, which is far slower for multi-GB caches.
 restore() {
   local key="$1"
   echo "Restoring sccache cache, key: ${key}"
   aws s3 cp \
     "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}${key}" \
-    - \
+    "$tmp_archive" \
     --region "${CACHE_S3_REGION}" --no-progress --only-show-errors \
-    | tar xzf - -C "$SCCACHE_DIR"
+    && zstd -d -q -c "$tmp_archive" | tar xf - -C "$SCCACHE_DIR"
 }
 
 # PR-scoped first (isolates concurrent PRs from each other), falling back to
 # the shared merge_group/main cache — mainly so a PR's first push isn't cold.
 if [ -n "$pr_number" ]; then
-  pr_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}-pr${pr_number}.tar.gz"
+  pr_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}-pr${pr_number}.tar.zst"
   if restore "$pr_key"; then
     exit 0
   fi
