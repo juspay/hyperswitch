@@ -887,7 +887,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         confirm: true,
         statement_descriptor_suffix: None,
         statement_descriptor: None,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         amount: amount.get_amount_as_i64(),
         minor_amount: amount,
         order_tax_amount: payment_data
@@ -4381,6 +4381,10 @@ where
             off_session: payment_intent.off_session,
             capture_on: None,
             capture_method: payment_attempt.capture_method,
+            capture_method_applied: payment_attempt
+                .applied_overrides
+                .as_ref()
+                .and_then(|overrides| overrides.capture_method_applied),
             payment_method: payment_attempt.payment_method,
             payment_method_data: payment_method_data_response,
             payment_token: payment_attempt.payment_token,
@@ -4704,6 +4708,10 @@ fn applied_offer_response(
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
+        let capture_method_applied = pa
+            .applied_overrides
+            .as_ref()
+            .and_then(|overrides| overrides.capture_method_applied);
         // Build `payment_method_data` by first parsing the stored column as
         // `AdditionalPaymentData` and then converting via `PaymentMethodDataResponse::from`
         let payment_method_data = pa
@@ -4785,6 +4793,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             business_sub_label: pa.business_sub_label,
             setup_future_usage: pa.setup_future_usage_applied.or(pi.setup_future_usage),
             capture_method: pa.capture_method,
+            capture_method_applied,
             authentication_type: pa.authentication_type,
             connector_transaction_id,
             attempt_count: pi.attempt_count,
@@ -5519,7 +5528,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: payment_data.payment_attempt.get_effective_capture_method(),
             amount: amount.get_amount_as_i64(),
             order_tax_amount: payment_data
                 .payment_attempt
@@ -6030,7 +6039,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &attempt.processor_merchant_id,
             merchant_connector_account_id,
         ));
-        let capture_method = payment_data.payment_attempt.capture_method;
+        let capture_method = payment_data.payment_attempt.get_effective_capture_method();
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
             minor_amount: Some(amount),
@@ -6261,7 +6270,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             order_amount: payment_data.payment_intent.amount,
             currency: payment_data.currency,
             merchant_order_reference_id,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: payment_data.payment_attempt.get_effective_capture_method(),
             shipping_cost: payment_data.payment_intent.shipping_cost,
             setup_future_usage: payment_data
                 .payment_attempt
@@ -6963,7 +6972,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             split_payments: payment_data.payment_intent.split_payments,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         })
     }
 }
@@ -7200,7 +7209,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             shipping_cost: payment_data.payment_intent.shipping_cost,
             webhook_url,
             complete_authorize_url,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: payment_data.payment_attempt.get_effective_capture_method(),
             connector_testing_data,
             customer_id: payment_data.payment_intent.customer_id,
             enable_partial_authorization: payment_data.payment_intent.enable_partial_authorization,
@@ -7422,7 +7431,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: payment_data.payment_attempt.get_effective_capture_method(),
             amount: amount.get_amount_as_i64(), // need to change once we move to connector module
             minor_amount: amount,
             currency: payment_data.currency,
@@ -7563,7 +7572,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             minor_amount: amount,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: payment_data.payment_attempt.get_effective_capture_method(),
             order_details,
             router_return_url,
             webhook_url,

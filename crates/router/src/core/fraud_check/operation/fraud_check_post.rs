@@ -130,7 +130,9 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     metadata: None,
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
-                    payment_capture_method: payment_data.payment_attempt.capture_method,
+                    payment_capture_method: payment_data
+                        .payment_attempt
+                        .get_effective_capture_method(),
                     created_by: None,
                     payout_id: None,
                 })

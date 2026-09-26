@@ -1452,6 +1452,8 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Values applied to this attempt in place of what was requested (e.g. capture method fallback)
+    pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
     /// Payment Account Reference (PAR) returned by the connector for the underlying card
     pub payment_account_reference: Option<String>,
     /// Sender payment instrument ID
@@ -1780,6 +1782,18 @@ impl PaymentAttempt {
 
 #[cfg(feature = "v1")]
 impl PaymentAttempt {
+    /// Capture method actually used with the connector for this attempt.
+    ///
+    /// `capture_method` keeps what the payment requested; when the profile's
+    /// `auto_fallback_capture_method` replaced it, the replacement is recorded in
+    /// `applied_overrides` and takes precedence here.
+    pub fn get_effective_capture_method(&self) -> Option<storage_enums::CaptureMethod> {
+        self.applied_overrides
+            .as_ref()
+            .and_then(|overrides| overrides.capture_method_applied)
+            .or(self.capture_method)
+    }
+
     pub fn get_total_amount(&self) -> MinorUnit {
         self.net_amount.get_total_amount()
     }
@@ -2087,6 +2101,7 @@ pub enum PaymentAttemptUpdate {
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
         applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+        applied_overrides: Option<common_types::payments::AppliedOverrides>,
         active_frm_id: Option<String>,
     },
     RejectUpdate {
@@ -2437,6 +2452,7 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                applied_overrides,
                 active_frm_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
@@ -2491,6 +2507,7 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                applied_overrides,
                 active_frm_id,
             },
             Self::VoidUpdate {

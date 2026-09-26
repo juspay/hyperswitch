@@ -1756,6 +1756,7 @@ impl PaymentCreate {
                 installment_data: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                applied_overrides: None,
                 sender_payment_instrument_id: None,
                 payment_account_reference: None,
                 active_frm_id: None,

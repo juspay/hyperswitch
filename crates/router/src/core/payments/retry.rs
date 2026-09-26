@@ -890,6 +890,8 @@ pub fn make_new_auto_retry_payment_attempt(
         external_surcharge_details: Default::default(),
         // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
         applied_offer_details: old_payment_attempt.applied_offer_details,
+        // Recomputed for the connector this retry is routed to.
+        applied_overrides: None,
         sender_payment_instrument_id: Default::default(),
         payment_account_reference: Default::default(),
         active_frm_id: old_payment_attempt.active_frm_id,

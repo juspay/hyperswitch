@@ -627,6 +627,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                     active_frm_id: payment_data
                         .frm_message
                         .as_ref()

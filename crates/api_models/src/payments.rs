@@ -7664,6 +7664,14 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
+    /// The capture method the payment was sent to the connector with. Same as `capture_method`,
+    /// except when the profile's `auto_fallback_capture_method` is enabled and the connector did
+    /// not support the requested `capture_method`, in which case it is `automatic`. `null` until
+    /// the payment has been confirmed with a connector.
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
+    pub capture_method_applied: Option<api_enums::CaptureMethod>,
+
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     #[smithy(value_type = "Option<PaymentMethod>")]

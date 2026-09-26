@@ -2956,6 +2956,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                         active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,

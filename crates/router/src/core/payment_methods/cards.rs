@@ -4308,6 +4308,9 @@ pub async fn build_merchant_enabled_pms_context(
 ) -> errors::RouterResult<MerchantEnabledPmsContext> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
+    let auto_fallback_capture_method = business_profile
+        .auto_fallback_capture_method
+        .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled);
 
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
@@ -4363,6 +4366,7 @@ pub async fn build_merchant_enabled_pms_context(
                 billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
+                auto_fallback_capture_method,
             )
             .await?;
         }
@@ -4416,6 +4420,7 @@ pub async fn build_merchant_enabled_pms_context(
                 billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
+                auto_fallback_capture_method,
             )
             .await?;
         }
@@ -5680,6 +5685,7 @@ pub async fn filter_payment_methods(
     address: Option<&domain::Address>,
     connector: String,
     configs: &settings::Settings<RawSecret>,
+    auto_fallback_capture_method: bool,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -5839,8 +5845,11 @@ pub async fn filter_payment_methods(
                             }
                         });
 
+                    // With auto_fallback_capture_method enabled an unsupported capture method is
+                    // replaced by automatic at confirm, so it must not hide payment methods here.
                     payment_attempt
                         .and_then(|inner| inner.capture_method)
+                        .filter(|_| !auto_fallback_capture_method)
                         .map(|capture_method| {
                             context_values.push(dir::DirValue::CaptureMethod(capture_method));
                         });
