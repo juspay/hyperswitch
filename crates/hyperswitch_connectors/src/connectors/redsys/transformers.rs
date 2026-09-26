@@ -1152,6 +1152,30 @@ fn get_redsys_attempt_status(
     }
 }
 
+// Reads the 3DS data for the Authorize leg; the flat connector metadata is the legacy shape.
+fn get_threeds_exempt_data(
+    authentication_data: Option<&router_request_types::UcsAuthenticationData>,
+    connector_meta: Option<serde_json::Value>,
+) -> Result<ThreeDsInvokeExempt, Error> {
+    if let Some(authentication_data) = authentication_data {
+        return Ok(ThreeDsInvokeExempt {
+            message_version: authentication_data
+                .message_version
+                .as_ref()
+                .ok_or_else(missing_field_err("ucs_authentication_data.message_version"))?
+                .to_string(),
+            three_d_s_server_trans_i_d: authentication_data
+                .threeds_server_transaction_id
+                .clone()
+                .ok_or_else(missing_field_err(
+                "ucs_authentication_data.threeds_server_transaction_id",
+            ))?,
+        });
+    }
+
+    connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta)
+}
+
 impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransaction {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1179,8 +1203,10 @@ impl TryFrom<&RedsysRouterData<&PaymentsAuthorizeRouterData>> for RedsysTransact
             }) => (connector_metadata.clone(), order_id.clone()),
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let threeds_meta_data =
-            connector_utils::to_connector_meta::<ThreeDsInvokeExempt>(connector_meta_data.clone())?;
+        let threeds_meta_data = get_threeds_exempt_data(
+            item.router_data.request.ucs_authentication_data.as_ref(),
+            connector_meta_data,
+        )?;
         let emv3ds_data = EmvThreedsData::new(RedsysThreeDsInfo::AuthenticationData)
             .set_three_d_s_server_trans_i_d(threeds_meta_data.three_d_s_server_trans_i_d)
             .set_protocol_version(threeds_meta_data.message_version)
@@ -1368,14 +1394,27 @@ impl<F>
                 )?;
 
                 router_env::logger::info!(connector_authorize_response=?response_data);
-                get_payments_response(
+                let (response, status) = get_payments_response(
                     response_data,
                     item.data.request.capture_method,
                     connector_metadata,
                     item.data.request.authentication_data.clone().map(Box::new),
                     item.http_code,
                     prev_status,
-                )?
+                )?;
+                // A pending Ds_Response without a challenge has no next action, so let PSync resolve it.
+                let has_challenge = matches!(
+                    &response,
+                    Ok(PaymentsResponseData::TransactionResponse { redirection_data, .. })
+                        if redirection_data.is_some()
+                );
+                let status =
+                    if status == enums::AttemptStatus::AuthenticationPending && !has_challenge {
+                        enums::AttemptStatus::Pending
+                    } else {
+                        status
+                    };
+                (response, status)
             }
             RedsysResponse::RedsysErrorResponse(response) => {
                 let response = Err(ErrorResponse {
