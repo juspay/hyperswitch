@@ -822,6 +822,9 @@ where
         mandate_type,
         &dimensions,
         call_connector_action.clone(),
+        customer
+            .as_ref()
+            .and_then(|customer| customer.preferred_connector.clone()),
     )
     .await?;
 
@@ -1124,6 +1127,8 @@ where
                         .update_tracker(
                             state,
                             platform.get_processor(),
+                            platform.get_provider(),
+                            customer.as_ref(),
                             payment_data,
                             router_data,
                             &locale,
@@ -1351,6 +1356,8 @@ where
                         .update_tracker(
                             state,
                             platform.get_processor(),
+                            platform.get_provider(),
+                            customer.as_ref(),
                             payment_data,
                             router_data,
                             &locale,
@@ -1729,7 +1736,7 @@ where
         None
     };
 
-    let (operation, _customer) = operation
+    let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
@@ -1781,6 +1788,8 @@ where
         .update_tracker(
             state,
             platform.get_processor(),
+            platform.get_provider(),
+            customer.as_ref(),
             payment_data,
             router_data,
             &locale,
@@ -3093,6 +3102,8 @@ where
         mandate_type,
         &dimensions,
         call_connector_action.clone(),
+        // The customer is fetched after connector selection in this flow.
+        None,
     )
     .await?;
 
@@ -3312,6 +3323,8 @@ where
                 .update_tracker(
                     state,
                     platform.get_processor(),
+                    platform.get_provider(),
+                    customer.as_ref(),
                     payment_data,
                     router_data,
                     &locale,
@@ -11530,6 +11543,7 @@ pub async fn choose_connector<F, Req, D>(
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     call_connector_action: CallConnectorAction,
+    customer_preferred_connector: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone + 'static,
@@ -11604,6 +11618,7 @@ where
                             dimensions,
                             fallback_config,
                             backend_input,
+                            customer_preferred_connector,
                         )
                         .await?
                     }
@@ -11621,6 +11636,7 @@ where
                             dimensions,
                             fallback_config,
                             backend_input,
+                            customer_preferred_connector,
                         )
                         .await?
                     }
@@ -11885,6 +11901,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
+    customer_preferred_connector: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone + 'static,
@@ -11941,6 +11958,7 @@ where
         fallback_config,
         backend_input,
         should_use_modular_pm_path,
+        customer_preferred_connector,
     )
     .await?;
 
@@ -12122,6 +12140,42 @@ pub async fn decide_connector(
     }
 }
 
+// Global config listing the payment method types eligible for preferred-connector
+// routing (comma-separated, e.g. "interac,ideal"); the write and read gates both
+// consult it, so widening the feature is a config change, not a code change.
+#[cfg(feature = "v1")]
+pub async fn preferred_connector_enabled_payment_method_types(state: &SessionState) -> Vec<String> {
+    let dimensions: crate::core::configs::dimension_state::DimensionsGlobal = Dimensions::new();
+    dimensions
+        .get_preferred_connector_enabled_payment_method_types(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
+        .split(',')
+        .map(|pmt| pmt.trim().to_string())
+        .filter(|pmt| !pmt.is_empty())
+        .collect()
+}
+
+// The stored preference is keyed by payment method type, then holds
+// {"<profile_id>": "connector:mca_id"} entries; routing consumes
+// the paying profile's own entry for the payment's own method type, so
+// neither profiles nor payment method types inherit each other's accounts.
+#[cfg(feature = "v1")]
+fn preferred_connector_for_profile(
+    value: &serde_json::Value,
+    payment_method_type: &str,
+    profile_id: &str,
+) -> Option<String> {
+    value
+        .get(payment_method_type)?
+        .as_array()?
+        .iter()
+        .find_map(|entry| entry.get(profile_id)?.as_str().map(str::to_string))
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub async fn decide_connector<F, D>(
@@ -12137,6 +12191,7 @@ pub async fn decide_connector<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
+    customer_preferred_connector: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone + 'static,
@@ -12184,6 +12239,22 @@ where
     if let Some(connector) = pre_decided_connector {
         return Ok(connector);
     }
+
+    // Preferred-connector routing uses the same configured payment method types as
+    // the write side, and reads preferences exclusively from the customer.
+    let enabled_payment_method_types =
+        preferred_connector_enabled_payment_method_types(&state).await;
+    let preferred_connector = payment_data
+        .get_payment_attempt()
+        .payment_method_type
+        .map(|payment_method_type| payment_method_type.to_string())
+        .filter(|payment_method_type| enabled_payment_method_types.contains(payment_method_type))
+        .and_then(|payment_method_type| {
+            let profile_id = business_profile.get_id().get_string_repr();
+            customer_preferred_connector.as_ref().and_then(|value| {
+                preferred_connector_for_profile(value.peek(), &payment_method_type, profile_id)
+            })
+        });
 
     let transaction_data = core_routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
@@ -12259,6 +12330,7 @@ where
                     txn_data,
                     backend_input,
                     fallback.clone(),
+                    preferred_connector,
                 )
                 .await
                 .inspect_err(|err| {
@@ -13254,6 +13326,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
+    preferred_connector: Option<String>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13273,6 +13346,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &fallback_config,
         &static_connectors,
         static_approach,
+        preferred_connector,
     )
     .await;
 

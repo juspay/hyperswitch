@@ -66,6 +66,7 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
+    pub preferred_connector: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -97,6 +98,7 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
+    pub preferred_connector: Option<pii::SecretSerdeValue>,
 }
 
 /// A customer view containing only fields that do not require key-manager decryption.
@@ -161,6 +163,7 @@ impl Customer {
             document_details,
             created_by,
             last_modified_by,
+            preferred_connector: None,
         }
     }
 
@@ -286,6 +289,10 @@ pub enum CustomerUpdate {
     },
     UpdateDefaultPaymentMethod {
         default_payment_method_id: Option<Option<String>>,
+        last_modified_by: Option<String>,
+    },
+    UpdatePreferredConnector {
+        preferred_connector: Option<pii::SecretSerdeValue>,
         last_modified_by: Option<String>,
     },
 }

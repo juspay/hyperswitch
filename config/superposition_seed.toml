@@ -2671,6 +2671,8 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
     "decision_engine",
     "hyperswitch_routing",
 ], type = "string" }, description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)", change_reason = "Initial setup" }
+"routing.preferred_connector_routing_enabled" = { value = false, schema = { type = "boolean" }, description = "Whether preferred-connector routing (pin returning customers to their last successful connector) is enabled for a profile", change_reason = "Initial setup" }
+"routing.preferred_connector_enabled_payment_method_types" = { value = "interac", schema = { type = "string" }, description = "Comma-separated payment method types eligible for preferred-connector routing", change_reason = "Initial setup" }
 "vaulting.save_wallet_decrypted_data" = { value = false, schema = { type = "boolean" }, description = "Whether to save wallet decrypted data", change_reason = "Initial setup" }
 "vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
 "payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }

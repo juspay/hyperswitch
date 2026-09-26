@@ -26,6 +26,8 @@ pub mod payment_recurrence;
 #[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
+#[cfg(all(test, feature = "v1"))]
+mod payment_response_tests;
 #[cfg(feature = "v1")]
 pub mod payment_session;
 #[cfg(feature = "v2")]
@@ -618,6 +620,8 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         locale: &Option<String>,

@@ -157,7 +157,11 @@ pub struct PaymentInfo {
     #[schema(value_type = String, example = "USD")]
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
-    // preferredGateway: Option<ETG::Gateway>,
+    /// Routing hint: connectors preferred for this customer, in
+    /// order, each as its eligible-gateway-list identity ("connector:mca_id");
+    /// the decision engine consumes the first entry today
+    #[schema(value_type = Option<Vec<String>>, example = json!(["adyen:mca_5678"]))]
+    pub preferred_connector: Option<Vec<String>>,
     /// Type of payment transaction being processed
     #[schema(value_type = String, example = "ORDER_PAYMENT")]
     pub payment_type: String,
@@ -641,4 +645,33 @@ pub enum AlgorithmType {
     SuccessRate,
     Elimination,
     DebitRouting,
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing)]
+mod preferred_connector_tests {
+    use serde_json::json;
+
+    use super::PaymentInfo;
+
+    #[test]
+    fn preferred_connector_uses_decision_engine_wire_contract() {
+        let payload = json!({
+            "paymentId": "pay_12345",
+            "amount": 100,
+            "currency": "CAD",
+            "preferredConnector": ["loonio:mca_one"],
+            "paymentType": "ORDER_PAYMENT",
+            "paymentMethodType": "interac",
+            "paymentMethod": "bank_redirect"
+        });
+        let payment: PaymentInfo = serde_json::from_value(payload).expect("valid DE payment info");
+        assert_eq!(
+            payment.preferred_connector,
+            Some(vec!["loonio:mca_one".to_string()])
+        );
+        let serialized = serde_json::to_value(payment).expect("serialize DE payment info");
+        assert_eq!(serialized["preferredConnector"], json!(["loonio:mca_one"]));
+        assert!(serialized.get("preferredGateways").is_none());
+    }
 }

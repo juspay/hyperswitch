@@ -419,6 +419,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             document_details: None,
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            preferred_connector: None,
         })
     }
 
