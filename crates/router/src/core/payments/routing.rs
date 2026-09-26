@@ -1086,6 +1086,7 @@ impl RoutingStage for SessionRoutingStage {
                     profile_id,
                     input.transaction_type,
                     input.active_mca_ids,
+                    should_ignore_capture_method_for_eligibility(input.business_profile),
                 )
                 .await?;
 
@@ -1099,6 +1100,7 @@ impl RoutingStage for SessionRoutingStage {
                         profile_id,
                         input.transaction_type,
                         input.active_mca_ids,
+                        should_ignore_capture_method_for_eligibility(input.business_profile),
                     )
                     .await?
                 } else {
@@ -2405,6 +2407,24 @@ pub async fn refresh_cgraph_cache(
     Ok(cgraph)
 }
 
+/// Whether routing eligibility should ignore the payment's capture method for this profile.
+///
+/// With `auto_fallback_capture_method` enabled, a connector that does not support the requested
+/// capture method is still eligible: the payment falls back to automatic capture on it.
+pub fn should_ignore_capture_method_for_eligibility(business_profile: &domain::Profile) -> bool {
+    #[cfg(feature = "v1")]
+    {
+        business_profile
+            .auto_fallback_capture_method
+            .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled)
+    }
+    #[cfg(feature = "v2")]
+    {
+        let _ = business_profile;
+        false
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_cgraph_filtering(
     state: &SessionState,
@@ -2415,7 +2435,15 @@ pub async fn perform_cgraph_filtering(
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    ignore_capture_method: bool,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let mut backend_input = backend_input;
+    if ignore_capture_method {
+        // The profile falls back to automatic capture for connectors that cannot do the
+        // requested capture method, so `pm_filters` capture-method restrictions must not remove
+        // those connectors here; `apply_auto_fallback_capture_method` decides per connector.
+        backend_input.payment.capture_method = None;
+    }
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
             .into_context()
@@ -2563,6 +2591,7 @@ pub async fn perform_eligibility_analysis(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     profile_id: &common_utils::id_type::ProfileId,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    ignore_capture_method: bool,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -2579,6 +2608,7 @@ pub async fn perform_eligibility_analysis(
         profile_id,
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
+        ignore_capture_method,
     )
     .await
 }
@@ -2648,6 +2678,7 @@ pub async fn perform_fallback_routing(
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
+        should_ignore_capture_method_for_eligibility(business_profile),
     )
     .await
 }
@@ -2703,6 +2734,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         eligible_connectors.as_ref(),
         business_profile.get_id(),
         &active_mca_ids,
+        should_ignore_capture_method_for_eligibility(business_profile),
     )
     .await?;
 
@@ -3201,6 +3233,7 @@ async fn perform_session_routing_for_pm_type(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
+        should_ignore_capture_method_for_eligibility(business_profile),
     )
     .await?;
 
@@ -3222,6 +3255,7 @@ async fn perform_session_routing_for_pm_type(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
+            should_ignore_capture_method_for_eligibility(business_profile),
         )
         .await?;
     }
@@ -3301,6 +3335,7 @@ async fn perform_session_routing_for_pm_type<'a>(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
+        false,
     )
     .await?;
 
@@ -3318,6 +3353,7 @@ async fn perform_session_routing_for_pm_type<'a>(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
+            false,
         )
         .await?;
     }

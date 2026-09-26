@@ -281,6 +281,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_country_code: item.merchant_country_code,
             dispute_polling_interval: item.dispute_polling_interval,
             is_manual_retry_enabled: item.is_manual_retry_enabled,
+            auto_fallback_capture_method: item.auto_fallback_capture_method,
             always_enable_overcapture: item.always_enable_overcapture,
             is_external_vault_enabled,
             external_vault_connector_details: external_vault_connector_details
@@ -557,6 +558,7 @@ pub async fn create_profile_from_merchant_account(
         merchant_country_code: request.merchant_country_code,
         dispute_polling_interval: request.dispute_polling_interval,
         is_manual_retry_enabled: request.is_manual_retry_enabled,
+        auto_fallback_capture_method: request.auto_fallback_capture_method,
         always_enable_overcapture: request.always_enable_overcapture,
         external_vault_details: domain::ExternalVaultDetails::try_from((
             request.is_external_vault_enabled,

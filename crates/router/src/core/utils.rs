@@ -633,7 +633,7 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
-    let capture_method = payment_attempt.capture_method;
+    let capture_method = payment_attempt.get_effective_capture_method();
 
     let braintree_metadata = payment_intent
         .connector_metadata

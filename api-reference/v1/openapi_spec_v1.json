@@ -13671,6 +13671,14 @@
           "unresolved"
         ]
       },
+      "AutoFallbackCaptureMethod": {
+        "type": "string",
+        "description": "Whether a payment whose requested capture method is not supported by the connector chosen\nfor it falls back to automatic capture instead of being rejected.",
+        "enum": [
+          "enabled",
+          "disabled"
+        ]
+      },
       "BHNGiftCardDetails": {
         "type": "object",
         "required": [
@@ -36369,6 +36377,14 @@
             ],
             "nullable": true
           },
+          "capture_method_applied": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
@@ -38231,6 +38247,14 @@
             "nullable": true
           },
           "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method_applied": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CaptureMethod"
@@ -43049,6 +43073,14 @@
             "description": "Indicates if manual retry for payment is enabled or not",
             "nullable": true
           },
+          "auto_fallback_capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AutoFallbackCaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
@@ -43446,6 +43478,14 @@
           "is_manual_retry_enabled": {
             "type": "boolean",
             "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "auto_fallback_capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AutoFallbackCaptureMethod"
+              }
+            ],
             "nullable": true
           },
           "always_enable_overcapture": {

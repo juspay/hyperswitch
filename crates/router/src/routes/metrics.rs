@@ -136,6 +136,7 @@ counter_metric!(PAYMENT_CANCEL_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 
 counter_metric!(PAYMENT_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
+counter_metric!(AUTO_FALLBACK_CAPTURE_METHOD_APPLIED, GLOBAL_METER); // No. of attempts sent to the connector with automatic capture because the requested capture method was unsupported
 counter_metric!(SUCCESSFUL_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
 
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);

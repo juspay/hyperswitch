@@ -485,6 +485,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::customers::DocumentKind,
         api_models::enums::IntentStatus,
         api_models::enums::CaptureMethod,
+        api_models::enums::AutoFallbackCaptureMethod,
         api_models::enums::FutureUsage,
         api_models::enums::AuthenticationType,
         api_models::enums::Connector,
