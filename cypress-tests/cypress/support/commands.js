@@ -5432,10 +5432,18 @@ Cypress.Commands.add(
           const isWalletRequiresAction =
             response.body.status === "requires_customer_action" &&
             response.body.payment_method === "wallet";
+          const isBankRedirect =
+            response.body.payment_method === "bank_redirect";
+          const isTerminalSuccessForDeferredPm = [
+            "succeeded",
+            "requires_capture",
+            "partially_captured",
+          ].includes(response.body.status);
           if (
             response.body.status !== "failed" &&
             !isWalletRequiresAction &&
-            response.body.setup_future_usage === "off_session"
+            response.body.setup_future_usage === "off_session" &&
+            (!isBankRedirect || isTerminalSuccessForDeferredPm)
           ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
               .be.null;
