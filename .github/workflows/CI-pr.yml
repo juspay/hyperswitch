@@ -212,7 +212,7 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh test
+        run: .github/scripts/sccache-restore-s3.sh test "${{ github.event.pull_request.number }}"
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -255,6 +255,14 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # TEMPORARY: exercises the new zstd sccache save/restore path on this
+      # PR's own runner before it merges. Revert before merging.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh test "${{ github.event.pull_request.number }}"
 
   typos:
     name: Spell check
@@ -334,7 +342,7 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh check-v2
+        run: .github/scripts/sccache-restore-s3.sh check-v2 "${{ github.event.pull_request.number }}"
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -372,3 +380,11 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # TEMPORARY: exercises the new zstd sccache save/restore path on this
+      # PR's own runner before it merges. Revert before merging.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh check-v2 "${{ github.event.pull_request.number }}"
