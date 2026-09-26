@@ -18,6 +18,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     consts as interfaces_consts,
+    errors::not_supported_message,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use hyperswitch_masking::ExposeInterface;
@@ -879,9 +880,7 @@ async fn execute_refund_execute_via_direct(
                 errors::ConnectorError::NotSupported { message, connector } => {
                     Some(diesel_refund::RefundUpdate::ErrorUpdate {
                         refund_status: Some(enums::RefundStatus::Failure),
-                        refund_error_message: Some(format!(
-                            "{message} is not supported by {connector}"
-                        )),
+                        refund_error_message: Some(not_supported_message(message, connector)),
                         refund_error_code: Some("NOT_SUPPORTED".to_string()),
                         updated_by: storage_scheme.to_string(),
                         connector_refund_id: None,
