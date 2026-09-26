@@ -251,6 +251,10 @@ jobs:
           CARGO_BUILD_JOBS: 9
         run: cargo check --features "release"
 
+      - name: Check mandate config parity
+        shell: bash
+        run: cargo test --package config_importer --test mandate_config_parity
+
       - name: Show sccache stats
         if: always()
         shell: bash
