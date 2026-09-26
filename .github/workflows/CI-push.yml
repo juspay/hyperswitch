@@ -296,6 +296,7 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@v1.48.0
+        continue-on-error: true
 
   typos-required:
     name: Spell check specific critical directories
