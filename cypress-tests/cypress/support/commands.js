@@ -3548,7 +3548,10 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -3652,7 +3655,10 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4412,7 +4418,10 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4486,7 +4495,10 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4765,7 +4777,10 @@ Cypress.Commands.add(
                 response.body[key]?.card?.auth_code,
                 "payment_method_data.card.auth_code"
               ).to.be.a("string").and.not.be.empty;
-            } else if (key === "payment_account_reference") {
+            } else if (
+              key === "payment_account_reference" ||
+              key === "network_transaction_link_id"
+            ) {
               if (resData.body[key] === null) {
                 expect(response.body[key], [key]).to.be.null;
               } else {
@@ -4956,6 +4971,26 @@ Cypress.Commands.add(
               expect(
                 response.body.payment_account_reference,
                 "payment_account_reference"
+              ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(
+              resData.body,
+              "network_transaction_link_id"
+            )
+          ) {
+            if (resData.body.network_transaction_link_id === null) {
+              expect(
+                response.body.network_transaction_link_id,
+                "network_transaction_link_id"
+              ).to.be.null;
+            } else {
+              expect(
+                response.body.network_transaction_link_id,
+                "network_transaction_link_id"
               ).to.be.a("string").and.to.not.be.empty;
             }
           }
