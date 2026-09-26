@@ -132,6 +132,41 @@ impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
     }
 }
 
+impl ForeignFrom<common_enums::CardType> for payments_grpc::CardType {
+    fn foreign_from(card_type: common_enums::CardType) -> Self {
+        match card_type {
+            common_enums::CardType::Credit => Self::Credit,
+            common_enums::CardType::Debit => Self::Debit,
+            common_enums::CardType::Prepaid => Self::Prepaid,
+            common_enums::CardType::Store => Self::Store,
+            common_enums::CardType::ChargeCard => Self::ChargeCard,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardSegmentType> for payments_grpc::CardSegmentType {
+    fn foreign_from(card_segment_type: common_enums::CardSegmentType) -> Self {
+        match card_segment_type {
+            common_enums::CardSegmentType::Business => Self::Business,
+            common_enums::CardSegmentType::Commercial => Self::Commercial,
+            common_enums::CardSegmentType::Consumer => Self::Consumer,
+            common_enums::CardSegmentType::Government => Self::Government,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::FundingSource> for payments_grpc::FundingSource {
+    fn foreign_from(funding_source: common_enums::FundingSource) -> Self {
+        match funding_source {
+            common_enums::FundingSource::Credit => Self::Credit,
+            common_enums::FundingSource::Debit => Self::Debit,
+            common_enums::FundingSource::Prepaid => Self::Prepaid,
+            common_enums::FundingSource::ChargeCard => Self::ChargeCard,
+            common_enums::FundingSource::DeferredDebit => Self::DeferredDebit,
+        }
+    }
+}
+
 /// Map a UCS FRM verdict onto Hyperswitch's fraud-check status.
 ///
 /// Only reached on a 2xx with no `error` payload, so the status code is not an
@@ -4620,6 +4655,11 @@ impl
     fn foreign_try_from(
         wallet_token_data: hyperswitch_domain_models::payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId,
     ) -> Result<Self, Self::Error> {
+        let card_network = wallet_token_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
         let decrypted_wallet_token_details = Self {
             decrypted_token: Some(
                 NetworkToken::from_str(&wallet_token_data.decrypted_token.get_card_no())
@@ -4638,6 +4678,7 @@ impl
             token_source: wallet_token_data
                 .token_source
                 .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
+            card_network: card_network.map(|card_network| card_network.into()),
         };
 
         Ok(decrypted_wallet_token_details)
@@ -9934,22 +9975,24 @@ impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
 impl ForeignFrom<ApplepayPaymentMethod> for payments_grpc::AdditionalApplePayInfo {
     fn foreign_from(apple_pay: ApplepayPaymentMethod) -> Self {
         Self {
-            display_name: Some(apple_pay.display_name),
-            network: Some(apple_pay.network),
-            pm_type: Some(apple_pay.pm_type),
+            display_name: apple_pay.display_name,
+            network: apple_pay.network,
+            pm_type: apple_pay.pm_type,
             card_exp_month: apple_pay.card_exp_month,
             card_exp_year: apple_pay.card_exp_year,
             device_pan_bin: apple_pay.device_pan_bin,
             card_bin: apple_pay.card_bin,
-            card_type: apple_pay.card_type.map(|card_type| card_type.to_string()),
+            card_type: apple_pay
+                .card_type
+                .map(|card_type| payments_grpc::CardType::foreign_from(card_type).into()),
             auth_code: apple_pay.auth_code,
             card_subtype: apple_pay.card_subtype,
             card_segment_type: apple_pay
                 .card_segment_type
-                .map(|card_segment_type| card_segment_type.to_string()),
+                .map(|cst| payments_grpc::CardSegmentType::foreign_from(cst).into()),
             funding_source: apple_pay
                 .funding_source
-                .map(|funding_source| funding_source.to_string()),
+                .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
             issuer_name: apple_pay.issuer_name,
             issuer_country: apple_pay
                 .issuer_country
@@ -9966,14 +10009,16 @@ impl ForeignFrom<WalletAdditionalDataForCard> for payments_grpc::AdditionalWalle
         Self {
             payment_method_data_type: wallet_card.payment_method_data_type,
             card_network: wallet_card.card_network,
-            card_type: wallet_card.card_type.map(|card_type| card_type.to_string()),
+            card_type: wallet_card
+                .card_type
+                .map(|card_type| payments_grpc::CardType::foreign_from(card_type).into()),
             card_subtype: wallet_card.card_subtype,
             card_segment_type: wallet_card
                 .card_segment_type
-                .map(|card_segment_type| card_segment_type.to_string()),
+                .map(|cst| payments_grpc::CardSegmentType::foreign_from(cst).into()),
             funding_source: wallet_card
                 .funding_source
-                .map(|funding_source| funding_source.to_string()),
+                .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
             last4: wallet_card.last4,
             card_bin: wallet_card.card_bin,
             device_pan_bin: wallet_card.device_pan_bin,
