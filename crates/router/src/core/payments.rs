@@ -1126,7 +1126,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
-                            platform,
+                            platform.get_processor(),
+                            platform.get_provider(),
+                            customer.as_ref(),
                             payment_data,
                             router_data,
                             &locale,
@@ -1353,7 +1355,9 @@ where
                         .to_post_update_tracker()?
                         .update_tracker(
                             state,
-                            platform,
+                            platform.get_processor(),
+                            platform.get_provider(),
+                            customer.as_ref(),
                             payment_data,
                             router_data,
                             &locale,
@@ -1732,7 +1736,7 @@ where
         None
     };
 
-    let (operation, _customer) = operation
+    let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
@@ -1783,7 +1787,9 @@ where
         .to_post_update_tracker()?
         .update_tracker(
             state,
-            &platform,
+            platform.get_processor(),
+            platform.get_provider(),
+            customer.as_ref(),
             payment_data,
             router_data,
             &locale,
@@ -3316,7 +3322,9 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    &platform,
+                    platform.get_processor(),
+                    platform.get_provider(),
+                    customer.as_ref(),
                     payment_data,
                     router_data,
                     &locale,
@@ -12236,19 +12244,17 @@ where
     // the write side, and reads preferences exclusively from the customer.
     let enabled_payment_method_types =
         preferred_connector_enabled_payment_method_types(&state).await;
-    let payment_method_type = payment_data
+    let preferred_connector = payment_data
         .get_payment_attempt()
         .payment_method_type
-        .map(|pmt| pmt.to_string())
-        .unwrap_or_default();
-    let preferred_connector = if enabled_payment_method_types.contains(&payment_method_type) {
-        let profile_id = business_profile.get_id().get_string_repr();
-        customer_preferred_connector.as_ref().and_then(|value| {
-            preferred_connector_for_profile(value.peek(), &payment_method_type, profile_id)
-        })
-    } else {
-        None
-    };
+        .map(|payment_method_type| payment_method_type.to_string())
+        .filter(|payment_method_type| enabled_payment_method_types.contains(payment_method_type))
+        .and_then(|payment_method_type| {
+            let profile_id = business_profile.get_id().get_string_repr();
+            customer_preferred_connector.as_ref().and_then(|value| {
+                preferred_connector_for_profile(value.peek(), &payment_method_type, profile_id)
+            })
+        });
 
     let transaction_data = core_routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
