@@ -3847,7 +3847,7 @@ impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
             common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "nuvei",
+                connector: "nuvei".into(),
             }
             .into()),
         }
@@ -3865,7 +3865,7 @@ impl TryFrom<&utils::CardIssuer> for NuveiCardType {
             utils::CardIssuer::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "nuvei",
+                connector: "nuvei".into(),
             }
             .into()),
         }

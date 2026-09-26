@@ -163,7 +163,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 if item.router_data.is_three_ds() {
                     return Err(errors::ConnectorError::NotSupported {
                         message: "3DS payments".to_string(),
-                        connector: "Jpmorgan",
+                        connector: "Jpmorgan".into(),
                     }
                     .into());
                 }

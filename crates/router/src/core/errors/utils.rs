@@ -1,4 +1,5 @@
 use common_utils::errors::CustomResult;
+use hyperswitch_interfaces::errors::not_supported_message;
 
 use crate::{core::errors, logger};
 
@@ -137,7 +138,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             }
             errors::ConnectorError::NotSupported { message, connector } => {
                 errors::ApiErrorResponse::NotSupported {
-                    message: format!("{message} is not supported by {connector}"),
+                    message: not_supported_message(message, connector),
                 }
                 .into()
             }
@@ -248,7 +249,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     }
                 },
                 errors::ConnectorError::NotSupported { message, connector } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
+                    errors::ApiErrorResponse::NotSupported { message: not_supported_message(message, connector) }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -518,7 +519,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -560,7 +561,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -599,7 +600,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {

@@ -2330,7 +2330,7 @@ pub fn get_card_details(
         domain::PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: connector_name,
+            connector: connector_name.into(),
         })?,
     }
 }
