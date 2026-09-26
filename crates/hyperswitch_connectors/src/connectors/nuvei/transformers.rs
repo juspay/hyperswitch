@@ -60,15 +60,14 @@ use url::Url;
 use crate::{types::PayoutsResponseRouterData, utils::PayoutsData as _};
 use crate::{
     types::{
-        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
         BrowserInformationData, CardData, ForeignTryFrom, NetworkTokenData as _,
         PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, RouterData as _,
+        PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -179,74 +178,6 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
     }
 }
 
-impl TryFrom<(&types::PaymentsPreProcessingRouterData, String)> for NuveiThreeDSInitPaymentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (item, session_token): (&types::PaymentsPreProcessingRouterData, String),
-    ) -> Result<Self, Self::Error> {
-        let currency = item.request.get_currency()?;
-        let connector_auth: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let amount = item.request.get_minor_amount().to_nuvei_amount(currency)?;
-        let payment_method_data = item.request.get_payment_method_data()?.clone();
-        let card = match payment_method_data {
-            PaymentMethodData::Card(card) => card,
-            _ => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("nuvei"),
-            ))?,
-        };
-
-        let browser_info = item
-            .request
-            .browser_info
-            .clone()
-            .ok_or_else(missing_field_err("browser_info"))?;
-
-        let return_url = match env::which() {
-            Env::Development => "https://example.com".to_string(),
-            _ => item
-                .request
-                .router_return_url
-                .clone()
-                .ok_or_else(missing_field_err("return_url"))?,
-        };
-
-        let billing_address = item.get_billing().ok().map(|billing| billing.into());
-        let client_unique_id = get_valid_client_unique_id(
-            item.connector_request_reference_id.clone(),
-            "client_unique_id",
-        )?;
-
-        Ok(Self {
-            session_token: session_token.into(),
-            merchant_id: connector_auth.merchant_id,
-            merchant_site_id: connector_auth.merchant_site_id,
-            client_request_id: item.connector_request_reference_id.clone().into(),
-            client_unique_id,
-            amount,
-            currency,
-            payment_option: CardPaymentOption {
-                card: Card {
-                    card_number: Some(card.card_number),
-                    card_holder_name: item.get_optional_billing_full_name(),
-                    expiration_month: Some(card.card_exp_month),
-                    expiration_year: Some(card.card_exp_year),
-                    cvv: Some(card.card_cvc),
-                    ..Default::default()
-                },
-            },
-            device_details: DeviceDetails {
-                ip_address: browser_info.get_ip_address()?,
-            },
-            user_token_id: item.customer_id.clone(),
-            billing_address,
-            url_details: UrlDetails {
-                success_url: return_url.clone(),
-                failure_url: return_url.clone(),
-                pending_url: return_url,
-            },
-        })
-    }
-}
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiSessionRequest {
@@ -2902,38 +2833,6 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>>
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: PaymentsPreAuthenticateResponseRouterData<NuveiPaymentsResponse>,
-    ) -> Result<Self, Self::Error> {
-        let response = item.response;
-        let is_enrolled_for_3ds = response
-            .clone()
-            .payment_option
-            .and_then(|po| po.card)
-            .and_then(|c| c.three_d)
-            .and_then(|t| t.v2supported)
-            .map(to_boolean)
-            .unwrap_or_default();
-        Ok(Self {
-            status: get_payment_status(
-                Some(item.data.request.amount),
-                response.transaction_type,
-                response.transaction_status,
-                response.status,
-            ),
-            response: Ok(PaymentsResponseData::ThreeDSEnrollmentResponse {
-                enrolled_v2: is_enrolled_for_3ds,
-                related_transaction_id: response.transaction_id,
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>>
-    for types::PaymentsPreProcessingRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<NuveiPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let is_enrolled_for_3ds = response

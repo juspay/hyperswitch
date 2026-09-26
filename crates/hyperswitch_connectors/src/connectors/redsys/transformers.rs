@@ -22,8 +22,8 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -33,14 +33,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
-        PaymentsPreAuthenticateResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self as connector_utils, missing_field_err, AddressDetailsData, BrowserInformationData,
         CardData, ForeignTryFrom, PaymentsAuthenticateRequestData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
-        PaymentsPreProcessingRequestData, RouterData as _,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData, RouterData as _,
     },
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -574,32 +572,6 @@ fn build_3ds_transaction(params: Transaction3dsParams<'_>) -> Result<RedsysTrans
     }
 }
 
-impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTransaction {
-    type Error = Error;
-    fn try_from(
-        item: &RedsysRouterData<&PaymentsPreProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let auth = RedsysAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let card_data = RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
-        let is_auto_capture = item.router_data.request.is_auto_capture()?;
-
-        let transaction = build_3ds_transaction(Transaction3dsParams {
-            auth: &auth,
-            is_three_ds: item.router_data.is_three_ds(),
-            auth_type: item.router_data.auth_type,
-            card_data,
-            amount: item.amount.clone(),
-            currency: item.currency,
-            connector_request_reference_id: &item.router_data.connector_request_reference_id,
-            is_auto_capture,
-            flow_name: "PreProcessing",
-        })?;
-
-        router_env::logger::info!(connector_preprocessing_request=?transaction);
-        Ok(transaction)
-    }
-}
-
 impl TryFrom<&RedsysRouterData<&PaymentsPreAuthenticateRouterData>> for RedsysTransaction {
     type Error = Error;
     fn try_from(
@@ -733,26 +705,6 @@ where
     Ok(response_data)
 }
 // TryFrom implementations - just extract data and call common handler
-impl TryFrom<PaymentsPreprocessingResponseRouterData<RedsysResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<RedsysResponse>,
-    ) -> Result<Self, Self::Error> {
-        let webhook_url = item.data.request.get_webhook_url()?;
-        let (status, response) =
-            handle_redsys_response(&item.response, item.http_code, &webhook_url)?;
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
-}
-
 impl TryFrom<PaymentsPreAuthenticateResponseRouterData<RedsysResponse>>
     for PaymentsPreAuthenticateRouterData
 {

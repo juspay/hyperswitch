@@ -29,8 +29,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
@@ -43,15 +42,14 @@ use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsPostAuthenticateResponseRouterData, PaymentsPreAuthenticateResponseRouterData,
-        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, to_connector_meta,
         to_connector_meta_from_secret, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPostAuthenticateRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
-        RouterData as _,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -684,33 +682,6 @@ pub struct RedirectPayload {
     payment_id: Option<String>,
 }
 
-impl TryFrom<&PaymentsPreProcessingRouterData> for NexixpayRedirectRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let redirect_response = item.request.redirect_response.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response".into(),
-            },
-        )?;
-        let redirect_payload = redirect_response
-            .payload
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload".into(),
-            })?
-            .expose();
-        let customer_details_encrypted: RedirectPayload =
-            serde_json::from_value::<RedirectPayload>(redirect_payload.clone()).change_context(
-                errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "redirection_payload".into(),
-                },
-            )?;
-        Ok(Self {
-            operation_id: customer_details_encrypted.payment_id,
-            three_d_s_auth_response: customer_details_encrypted.pa_res,
-        })
-    }
-}
-
 impl TryFrom<&PaymentsPostAuthenticateRouterData> for NexixpayRedirectRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsPostAuthenticateRouterData) -> Result<Self, Self::Error> {
@@ -801,32 +772,6 @@ fn process_nexixpay_preprocessing_response(
     };
 
     Ok((status, result))
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<NexixpayRedirectionResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<NexixpayRedirectionResponse>,
-    ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
-        let prev_status = item.data.status;
-        let (status, response) = process_nexixpay_preprocessing_response(
-            item.response,
-            item.data.request.redirect_response.as_ref(),
-            item.data.request.metadata.clone(),
-            is_auto_capture,
-            item.http_code,
-            prev_status,
-        )?;
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
 }
 
 impl TryFrom<PaymentsPostAuthenticateResponseRouterData<NexixpayRedirectionResponse>>
