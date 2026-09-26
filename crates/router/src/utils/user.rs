@@ -8,7 +8,10 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, type_name,
-    types::{keymanager::Identifier, user::LineageContext},
+    types::{
+        keymanager::{Identifier, KeyManagerState},
+        user::LineageContext,
+    },
 };
 use diesel_models::organization::{self, OrganizationBridge};
 use error_stack::ResultExt;
@@ -166,6 +169,18 @@ pub async fn construct_public_and_private_db_configs(
     encryption_key: &[u8],
     id: String,
 ) -> UserResult<(Option<Encryption>, Option<serde_json::Value>)> {
+    encrypt_auth_config(&state.into(), auth_config, encryption_key, id).await
+}
+
+/// The body of [`construct_public_and_private_db_configs`], taking the key
+/// manager state rather than a `SessionState` so the encryption path can be
+/// exercised without standing up a session (see the `tests` module below).
+async fn encrypt_auth_config(
+    key_manager_state: &KeyManagerState,
+    auth_config: &user_api::AuthConfig,
+    encryption_key: &[u8],
+    id: String,
+) -> UserResult<(Option<Encryption>, Option<serde_json::Value>)> {
     match auth_config {
         user_api::AuthConfig::OpenIdConnect {
             private_config,
@@ -175,13 +190,17 @@ pub async fn construct_public_and_private_db_configs(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to convert auth config to json")?;
 
+            // Encrypt locally: no key is ever registered with the key manager for a `UserAuth`
+            // identifier, so the key manager call would fail and fall back to exactly this,
+            // while incrementing ENCRYPTION_API_FAILURES on the way. The identifier is still
+            // required by `crypto_operation`, which ignores it for the local variants.
             let encrypted_config = domain::types::crypto_operation::<
                 serde_json::Value,
                 hyperswitch_masking::WithType,
             >(
-                &state.into(),
+                key_manager_state,
                 type_name!(diesel_models::user::User),
-                domain::types::CryptoOperation::Encrypt(private_config_value.into()),
+                domain::types::CryptoOperation::EncryptLocally(private_config_value.into()),
                 Identifier::UserAuth(id),
                 encryption_key,
             )
@@ -229,20 +248,35 @@ pub async fn decrypt_oidc_private_config(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
+    decrypt_auth_config(&state.into(), encrypted_config, id, &user_auth_key).await
+}
+
+/// The body of [`decrypt_oidc_private_config`], taking the key manager state and
+/// the already-decoded user-auth key so the decryption path can be exercised
+/// without standing up a session (see the `tests` module below).
+async fn decrypt_auth_config(
+    key_manager_state: &KeyManagerState,
+    encrypted_config: Option<Encryption>,
+    id: String,
+    user_auth_key: &[u8],
+) -> UserResult<user_api::OpenIdConnectPrivateConfig> {
+    // See `construct_public_and_private_db_configs` for why this decrypts locally.
+    let encrypted_config = encrypted_config
+        .ok_or(UserErrors::InternalServerError)
+        .attach_printable("Private config not found")?;
+
     let private_config =
         domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
-            &state.into(),
+            key_manager_state,
             type_name!(diesel_models::user::User),
-            domain::types::CryptoOperation::DecryptOptional(encrypted_config),
+            domain::types::CryptoOperation::DecryptLocally(encrypted_config),
             Identifier::UserAuth(id),
-            &user_auth_key,
+            user_auth_key,
         )
         .await
-        .and_then(|val| val.try_into_optionaloperation())
+        .and_then(|val| val.try_into_operation())
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to decrypt private config")?
-        .ok_or(UserErrors::InternalServerError)
-        .attach_printable("Private config not found")?
         .into_inner()
         .expose();
 
@@ -461,4 +495,341 @@ pub async fn build_cloned_connector_create_request(
         status: Some(source_mca.status),
         additional_merchant_data: source_mca.additional_merchant_data,
     })
+}
+
+#[cfg(test)]
+// Test setup and assertions panic on purpose; these lints are denied by the
+// clippy profiles this crate is built with.
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_used,
+    reason = "test setup and assertions panic on purpose"
+)]
+/// Covers the local-only OIDC private-config path, collectively:
+///
+/// * it round-trips, and the key manager is never contacted,
+/// * rows written before the switch to `EncryptLocally`/`DecryptLocally` still
+///   decrypt, so no re-encryption is needed for existing data,
+/// * a row with no private config errors rather than yielding a usable config,
+/// * `Password` / `MagicLink` store no config at all.
+///
+/// Hermetic by construction: nothing here builds a `SessionState`, reads config,
+/// or opens anything but its own loopback listener.
+mod tests {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+    };
+
+    use common_utils::types::keymanager::KeyManagerState;
+    use hyperswitch_masking::{PeekInterface, WithType};
+    use serde_json::json;
+
+    use super::*;
+
+    /// 32 bytes of AES-256 key, hex encoded: `decrypt_oidc_private_config`
+    /// hex-decodes `user_auth_methods.encryption_key`, and `GcmAes256` rejects
+    /// any other length (`UnboundKey::new(&aead::AES_256_GCM, ..)` in
+    /// `EncodeMessage::encode_message`) as an `Err`, not a panic.
+    ///
+    /// The test owns this value rather than reading it out of
+    /// `config/development.toml`, so an unrelated edit to that file cannot
+    /// change what this test verifies.
+    const TEST_DEK_HEX: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    const AUTH_METHOD_ID: &str = "auth_method_id_under_test";
+
+    /// An address nothing listens on, for the cases that must not reach a key
+    /// manager and so have no use for the spy.
+    const CLOSED_KEY_MANAGER_URL: &str = "http://127.0.0.1:1";
+
+    fn test_dek() -> Vec<u8> {
+        hex::decode(TEST_DEK_HEX).expect("test DEK is valid hex")
+    }
+
+    fn test_private_config() -> user_api::OpenIdConnectPrivateConfig {
+        user_api::OpenIdConnectPrivateConfig {
+            base_url: "https://idp.example.com".to_string(),
+            client_id: Secret::new("test-client-id".to_string()),
+            client_secret: Secret::new("test-client-secret".to_string()),
+            private_key: Some(Secret::new("test-private-key".to_string())),
+        }
+    }
+
+    fn test_auth_config() -> user_api::AuthConfig {
+        user_api::AuthConfig::OpenIdConnect {
+            private_config: test_private_config(),
+            public_config: user_api::OpenIdConnectPublicConfig {
+                name: user_api::OpenIdProvider::Okta,
+            },
+        }
+    }
+
+    /// A key manager state that is *enabled* and pointed at `key_manager_url`,
+    /// so that a call to the key manager would be observable.
+    ///
+    /// Built by hand rather than from `Settings`/`SessionState` on purpose:
+    /// `AppState::with_storage` dials Redis, PostgreSQL and Superposition, which
+    /// would make this a test that only passes on a machine with the full stack
+    /// up -- and CI runs no test job, so it would never be exercised at all.
+    /// `KeyManagerState::mock` is `enabled: false`, which is the one setting
+    /// that would make the "no key-manager call" assertions vacuous.
+    fn key_manager_state_pointing_at(key_manager_url: &str) -> KeyManagerState {
+        KeyManagerState {
+            enabled: true,
+            url: key_manager_url.to_string(),
+            ..KeyManagerState::mock()
+        }
+    }
+
+    /// A throwaway loopback listener that counts connections and answers every
+    /// one with a 500.
+    ///
+    /// This is the only way the "no key-manager call" assertion is observable: a
+    /// key-manager call fails and `crypto_operation` falls back to the very same
+    /// application encryption, so the round trip succeeds either way and its
+    /// result says nothing about whether a call was attempted.
+    fn key_manager_spy() -> (String, Arc<AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback listener");
+        let url = format!(
+            "http://{}",
+            listener.local_addr().expect("listener local address")
+        );
+        let connections = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&connections);
+
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = match stream {
+                    Ok(stream) => stream,
+                    Err(_) => continue,
+                };
+                counter.fetch_add(1, Ordering::SeqCst);
+                // Drain the request head so the client's write can complete, then
+                // fail the call.
+                let mut head = [0_u8; 1024];
+                let _ = stream.read(&mut head);
+                let _ = stream
+                    .write_all(b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
+                let _ = stream.flush();
+            }
+        });
+
+        (url, connections)
+    }
+
+    /// Encrypts an OIDC private config through `CryptoOperation::Encrypt`, the
+    /// operation this fix replaced, so a test can compare it against the current
+    /// local path.
+    async fn encrypt_via_key_manager_operation(
+        key_manager_state: &KeyManagerState,
+        private_config: &user_api::OpenIdConnectPrivateConfig,
+    ) -> Encryption {
+        let private_config_value =
+            serde_json::to_value(private_config).expect("private config to json");
+        let dek = test_dek();
+
+        domain::types::crypto_operation::<serde_json::Value, WithType>(
+            key_manager_state,
+            type_name!(diesel_models::user::User),
+            domain::types::CryptoOperation::Encrypt(private_config_value.into()),
+            Identifier::UserAuth(AUTH_METHOD_ID.to_string()),
+            &dek,
+        )
+        .await
+        .and_then(|output| output.try_into_operation())
+        .expect("encrypting via the key manager operation")
+        .into()
+    }
+
+    fn assert_private_config_eq(
+        decrypted: &user_api::OpenIdConnectPrivateConfig,
+        expected: &user_api::OpenIdConnectPrivateConfig,
+    ) {
+        assert_eq!(decrypted.base_url, expected.base_url, "base_url");
+        assert_eq!(
+            decrypted.client_id.peek(),
+            expected.client_id.peek(),
+            "client_id"
+        );
+        assert_eq!(
+            decrypted.client_secret.peek(),
+            expected.client_secret.peek(),
+            "client_secret"
+        );
+        assert_eq!(
+            decrypted.private_key.as_ref().map(|key| key.peek()),
+            expected.private_key.as_ref().map(|key| key.peek()),
+            "private_key"
+        );
+    }
+
+    #[tokio::test]
+    async fn oidc_private_config_round_trips_without_calling_the_key_manager() {
+        let (key_manager_url, key_manager_connections) = key_manager_spy();
+        let key_manager_state = key_manager_state_pointing_at(&key_manager_url);
+
+        let (private_config, public_config) = encrypt_auth_config(
+            &key_manager_state,
+            &test_auth_config(),
+            &test_dek(),
+            AUTH_METHOD_ID.to_string(),
+        )
+        .await
+        .expect("encrypting the OIDC private config");
+
+        assert_eq!(
+            public_config,
+            Some(json!({ "name": "okta" })),
+            "the public config is stored as-is"
+        );
+
+        let private_config = private_config.expect("the private config is encrypted");
+        assert!(
+            !String::from_utf8_lossy(private_config.get_inner().peek())
+                .contains("test-client-secret"),
+            "the stored private config must not hold the client secret in the clear"
+        );
+
+        let decrypted = decrypt_auth_config(
+            &key_manager_state,
+            Some(private_config),
+            AUTH_METHOD_ID.to_string(),
+            &test_dek(),
+        )
+        .await
+        .expect("decrypting the OIDC private config");
+
+        assert_private_config_eq(&decrypted, &test_private_config());
+        assert_eq!(
+            key_manager_connections.load(Ordering::SeqCst),
+            0,
+            "OIDC private-config encryption and decryption must not call the key \
+             manager: no key is ever registered for a `UserAuth` identifier, so \
+             every call failed and fell back to exactly this local encryption. \
+             See `the_spy_observes_the_key_manager_operation_the_fix_replaced`, \
+             which validates that this assertion is not vacuous — and to what \
+             degree, since the spy cannot observe a call under `keymanager_mtls`."
+        );
+    }
+
+    /// Drives the key-manager path this fix replaced, to show the round-trip
+    /// test's zero-connection assertion is not vacuous.
+    ///
+    /// Runs in every build rather than being compiled out under
+    /// `keymanager_mtls`, because that is the build `make test` uses and a
+    /// silently-absent control is worse than a partial one. What the spy can
+    /// prove differs by build, so both halves are asserted here:
+    ///
+    /// * Always: with the key manager *enabled*, the replaced operation still
+    ///   returns correct ciphertext via the application-encryption fallback,
+    ///   rather than failing.
+    /// * Where a call is observable: the spy sees the outbound request, which is
+    ///   what makes the round-trip test's zero count meaningful.
+    ///
+    /// A call is only observable between two configurations. Without
+    /// `encryption_service` the key manager is never consulted at all; under
+    /// `keymanager_mtls` it is built with `https_only(true)` from the configured
+    /// certificate, and the test config has none, so the call fails before a
+    /// socket is opened. In those builds the count is asserted to stay at zero,
+    /// which pins the documented limitation rather than letting it drift. No
+    /// in-process check can do better: observing it under `keymanager_mtls`
+    /// would need the key-manager HTTP client to be injectable.
+    #[tokio::test]
+    async fn the_spy_observes_the_key_manager_operation_the_fix_replaced() {
+        let (key_manager_url, key_manager_connections) = key_manager_spy();
+        let key_manager_state = key_manager_state_pointing_at(&key_manager_url);
+
+        // Succeeds via the fallback, returning the right ciphertext either way.
+        let encrypted =
+            encrypt_via_key_manager_operation(&key_manager_state, &test_private_config()).await;
+
+        assert!(
+            !encrypted.get_inner().peek().is_empty(),
+            "with the key manager enabled, the replaced operation must still return \
+             ciphertext through the application-encryption fallback"
+        );
+
+        let spy_can_observe_a_call =
+            cfg!(feature = "encryption_service") && !cfg!(feature = "keymanager_mtls");
+
+        assert_eq!(
+            key_manager_connections.load(Ordering::SeqCst) > 0,
+            spy_can_observe_a_call,
+            "the spy observes a key-manager call wherever one can be observed, so \
+             the round-trip test's zero count is meaningful; where none can be \
+             observed (no `encryption_service`, or `keymanager_mtls` building an \
+             unusable client) the count must stay at zero"
+        );
+    }
+
+    /// Rows written before the switch went through `CryptoOperation::Encrypt`
+    /// and were encrypted by the fallback, which is the same application
+    /// encryption `EncryptLocally` performs. Existing rows must keep decrypting.
+    #[tokio::test]
+    async fn decrypts_a_private_config_written_before_the_local_encryption_switch() {
+        let key_manager_state = key_manager_state_pointing_at(CLOSED_KEY_MANAGER_URL);
+
+        // A disabled key manager is what production reached after every failed
+        // call: the fallback, and no request.
+        let written_before_the_switch =
+            encrypt_via_key_manager_operation(&KeyManagerState::mock(), &test_private_config())
+                .await;
+
+        let decrypted = decrypt_auth_config(
+            &key_manager_state,
+            Some(written_before_the_switch),
+            AUTH_METHOD_ID.to_string(),
+            &test_dek(),
+        )
+        .await
+        .expect("a private config encrypted before the switch must still decrypt");
+
+        assert_private_config_eq(&decrypted, &test_private_config());
+    }
+
+    #[tokio::test]
+    async fn decrypting_a_missing_private_config_is_an_error() {
+        let key_manager_state = key_manager_state_pointing_at(CLOSED_KEY_MANAGER_URL);
+
+        let result = decrypt_auth_config(
+            &key_manager_state,
+            None,
+            AUTH_METHOD_ID.to_string(),
+            &test_dek(),
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "a row with no private config must not decrypt to a usable config"
+        );
+    }
+
+    #[tokio::test]
+    async fn non_oidc_auth_configs_store_no_config() {
+        let key_manager_state = key_manager_state_pointing_at(CLOSED_KEY_MANAGER_URL);
+
+        for auth_config in [
+            user_api::AuthConfig::Password,
+            user_api::AuthConfig::MagicLink,
+        ] {
+            assert_eq!(
+                encrypt_auth_config(
+                    &key_manager_state,
+                    &auth_config,
+                    &test_dek(),
+                    AUTH_METHOD_ID.to_string(),
+                )
+                .await
+                .expect("a non-OIDC auth config needs no encryption"),
+                (None, None),
+            );
+        }
+    }
 }
