@@ -12,13 +12,24 @@ if command -v zstd &>/dev/null; then
   exit 0
 fi
 
-apt_get() {
-  if [ "$(id -u)" -eq 0 ]; then
-    apt-get "$@"
-  else
-    sudo apt-get "$@"
-  fi
-}
+# hyperswitch-runners has no route to apt mirrors or PPAs (only github.com
+# and crates.io are reachable), and upstream zstd doesn't publish a
+# prebuilt Linux binary — so build the CLI from source instead. Only needs
+# `make` and a C compiler, both already required to build this project.
+zstd_version="v1.5.7"
 
-apt_get update -qq
-apt_get install -y -qq zstd
+work_dir="$(mktemp -d)"
+trap 'rm -rf "$work_dir"' EXIT
+
+git clone --quiet --depth 1 --branch "$zstd_version" \
+  https://github.com/facebook/zstd.git "$work_dir/zstd"
+
+make -C "$work_dir/zstd/programs" -j"$(nproc)" HAVE_LZMA=0 HAVE_LZ4=0 HAVE_ZLIB=0 zstd
+
+mkdir -p ~/.local/bin
+cp "$work_dir/zstd/programs/zstd" ~/.local/bin/zstd
+chmod +x ~/.local/bin/zstd
+
+echo "$HOME/.local/bin" >> "${GITHUB_PATH}"
+
+~/.local/bin/zstd --version
