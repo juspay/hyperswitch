@@ -24468,6 +24468,12 @@
               }
             ],
             "nullable": true
+          },
+          "fingerprint_id": {
+            "type": "string",
+            "description": "A merchant-scoped fingerprint of the card, identical for the same card saved against\ndifferent customers of the merchant. Present only when payment method fingerprinting is\nenabled.",
+            "example": "wyH7yWdtaRhxDkVE1cvs",
+            "nullable": true
           }
         }
       },

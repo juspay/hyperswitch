@@ -8,14 +8,13 @@ use diesel_models::{
     configs,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, StrongSecret};
+use hyperswitch_masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint_and_get_id, SessionState};
 use crate::{
     core::{
         configs::dimension_state,
         errors::{RouterResult, StorageErrorExt},
-        metrics,
         payments::PaymentData,
         utils as core_utils,
     },
@@ -408,34 +407,6 @@ pub async fn insert_entry_into_blocklist(
     Ok(blocklist_entry.foreign_into())
 }
 
-pub async fn get_merchant_fingerprint_secret(
-    state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-) -> RouterResult<String> {
-    match merchant_account.fingerprint_secret.as_ref() {
-        Some(secret) => Ok(secret.peek().clone()),
-        None => {
-            logger::warn!(
-                merchant_id = ?merchant_account.get_id(),
-                "fingerprint_secret missing from merchant account; falling back to Superposition"
-            );
-            metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
-            let dimensions = dimension_state::Dimensions::new()
-                .with_processor_merchant_id(merchant_account.get_id().clone().into());
-            let secret = dimensions
-                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
-                .await;
-
-            match secret.is_empty() {
-                false => Ok(secret),
-                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                    "fingerprint_secret not found in merchant account or Superposition",
-                ),
-            }
-        }
-    }
-}
-
 // The duplicate check is not atomic with the insert, so a collision still means "already blocked".
 fn map_blocklist_insert_error(
     error: error_stack::Report<errors::StorageError>,
@@ -532,7 +503,7 @@ pub async fn check_blocklist(
     let db = &state.store;
     let processor_merchant_id = processor.get_account().get_id();
     let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, processor.get_account()).await?;
+        core_utils::get_merchant_fingerprint_secret(state, processor.get_account()).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
@@ -928,7 +899,7 @@ pub async fn generate_payment_fingerprint(
 ) -> CustomResult<(Option<String>, Option<common_enums::FingerprintType>), errors::ApiErrorResponse>
 {
     let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, merchant_account).await?;
+        core_utils::get_merchant_fingerprint_secret(state, merchant_account).await?;
 
     let fingerprint_source = payment_method_data
         .as_ref()

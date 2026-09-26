@@ -2049,17 +2049,21 @@ fn resolve_based_on_duplication_status(
                 logger::info!(
                     "Payment method is duplicated with update-eligible status in legacy locker, updating existing payment method"
                 );
-                Ok(PaymentMethodResolver(PaymentMethodResolution::Update {
-                    fingerprint_id: None,
-                    payment_method_id,
-                    payment_method: Box::new(pm),
-                    source_payment_method_data: payment_method_data.clone(),
-                }))
+                Ok(PaymentMethodResolver(
+                    PaymentMethodResolution::Update {
+                        fingerprint_id: None,
+                        payment_method_id,
+                        payment_method: Box::new(pm),
+                        source_payment_method_data: payment_method_data.clone(),
+                    },
+                    None,
+                ))
             } else if pm.status == enums::PaymentMethodStatus::Active {
                 logger::info!("Payment method is duplicated, returning existing payment method");
-                Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
-                    Box::new(pm),
-                )))
+                Ok(PaymentMethodResolver(
+                    PaymentMethodResolution::Get(Box::new(pm)),
+                    None,
+                ))
             } else {
                 logger::info!(
                     "Payment method is in awaiting data or processing state, no existing payment method entry found with locker id"
@@ -2073,9 +2077,10 @@ fn resolve_based_on_duplication_status(
         }
         None => {
             logger::info!("No duplication check data available from legacy locker");
-            Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
-                Box::new(pm),
-            )))
+            Ok(PaymentMethodResolver(
+                PaymentMethodResolution::Get(Box::new(pm)),
+                None,
+            ))
         }
     }
 }
@@ -2100,6 +2105,93 @@ pub enum PaymentMethodResolution {
 pub struct FingerprintDetails {
     pub fingerprint_id: Option<String>,
     pub auxiliary_fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+async fn is_merchant_fingerprint_enabled(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_provider()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+
+    utils::get_should_generate_payment_method_fingerprint(state, &dimensions, None).await
+}
+
+/// The merchant's fingerprint secret, when the fingerprint is enabled and the data is a card.
+/// `None` means the vault is not asked for a merchant fingerprint at all.
+#[cfg(feature = "v2")]
+pub(crate) async fn resolve_merchant_fingerprint_secret(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+) -> Option<Secret<String>> {
+    let is_card = matches!(
+        payment_method_data,
+        domain::PaymentMethodVaultingData::Card(_)
+            | domain::PaymentMethodVaultingData::CardNumber(_)
+    );
+
+    match is_card && is_merchant_fingerprint_enabled(state, platform).await {
+        true => core_utils::get_merchant_fingerprint_secret(
+            state,
+            platform.get_provider().get_account(),
+        )
+        .await
+        .inspect_err(|error| logger::warn!(?error, "No merchant fingerprint secret"))
+        .ok()
+        .map(Secret::new),
+        false => None,
+    }
+}
+
+#[cfg(feature = "v2")]
+fn merchant_fingerprint_redis_key(payment_method_id: &id_type::GlobalPaymentMethodId) -> String {
+    format!(
+        "{}_{}",
+        consts::MERCHANT_FINGERPRINT_REDIS_PREFIX,
+        payment_method_id.get_string_repr()
+    )
+}
+
+/// The fingerprint is never persisted, only cached against the payment method.
+#[cfg(feature = "v2")]
+pub(crate) async fn cache_merchant_fingerprint_id(
+    state: &SessionState,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+    merchant_fingerprint_id: Option<&str>,
+) {
+    if let Some(merchant_fingerprint_id) = merchant_fingerprint_id {
+        core_utils::cache_value_with_expiry(
+            state,
+            &merchant_fingerprint_redis_key(payment_method_id),
+            "String",
+            &merchant_fingerprint_id,
+            consts::MERCHANT_FINGERPRINT_TTL,
+        )
+        .await;
+    }
+}
+
+#[cfg(feature = "v2")]
+async fn attach_merchant_fingerprint_id(
+    state: &SessionState,
+    response: api::PaymentMethodResponse,
+    merchant_fingerprint_id: Option<String>,
+) -> api::PaymentMethodResponse {
+    cache_merchant_fingerprint_id(state, &response.id, merchant_fingerprint_id.as_deref()).await;
+
+    api::PaymentMethodResponse {
+        fingerprint_id: merchant_fingerprint_id,
+        ..response
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -2283,36 +2375,23 @@ impl LockerOperations for GenericLocker {
     ) -> RouterResult<PaymentMethodResolver> {
         let db = &*state.store;
 
-        // The auxiliary fingerprint runs as its own task so it never sits in front of the
-        // primary one, and is awaited only when the primary lookup misses.
-        let auxiliary_fingerprint_task = {
-            use router_env::tracing::Instrument;
+        // Batched fingerprints: the merchant one is requested only when it is enabled.
+        let merchant_fingerprint_secret =
+            resolve_merchant_fingerprint_secret(state, platform, &payment_method_data).await;
 
-            let state = state.clone();
-            let payment_method_data = payment_method_data.clone();
-            let customer_id = customer_id.get_string_repr().to_owned();
-            tokio::spawn(
-                async move {
-                    vault::get_auxiliary_fingerprint_id_for_payment_method(
-                        &state,
-                        &payment_method_data,
-                        customer_id,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-                .in_current_span(),
-            )
-        };
-
-        let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
+        let vault::PaymentMethodFingerprints {
+            locker_fingerprint_id: fingerprint_id,
+            auxiliary_fingerprint_id,
+            merchant_fingerprint_id,
+        } = vault::get_fingerprints_for_payment_method(
             state,
             &payment_method_data,
             customer_id.get_string_repr().to_owned(),
+            merchant_fingerprint_secret,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
+        .attach_printable("Failed to get fingerprints from vault using generic strategy")?;
 
         match db
             .find_payment_method_by_fingerprint_id(
@@ -2327,20 +2406,24 @@ impl LockerOperations for GenericLocker {
                         "Payment method is duplicated with update-eligible status, updating existing payment method"
                     );
                     let payment_method_id = existing_pm.id.clone();
-                    Ok(PaymentMethodResolver(PaymentMethodResolution::Update {
-                        fingerprint_id: Some(fingerprint_id),
-                        payment_method_id,
-                        payment_method: Box::new(existing_pm),
-                        source_payment_method_data: payment_method_data,
-                    }))
+                    Ok(PaymentMethodResolver(
+                        PaymentMethodResolution::Update {
+                            fingerprint_id: Some(fingerprint_id),
+                            payment_method_id,
+                            payment_method: Box::new(existing_pm),
+                            source_payment_method_data: payment_method_data,
+                        },
+                        merchant_fingerprint_id,
+                    ))
                 }
                 enums::PaymentMethodStatus::Active => {
                     logger::info!(
                         "Payment method is duplicated, returning existing payment method"
                     );
-                    Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
-                        Box::new(existing_pm),
-                    )))
+                    Ok(PaymentMethodResolver(
+                        PaymentMethodResolution::Get(Box::new(existing_pm)),
+                        merchant_fingerprint_id,
+                    ))
                 }
                 enums::PaymentMethodStatus::AwaitingData
                 | enums::PaymentMethodStatus::Processing
@@ -2364,13 +2447,6 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
-                let auxiliary_fingerprint_id = auxiliary_fingerprint_task
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to get auxiliary fingerprint_id from vault using generic strategy",
-                    )??;
-
                 let locker_resolver = LockerTypeResolver {
                     locker_type: LockerType::Generic,
                     card_reference: None,
@@ -2378,14 +2454,17 @@ impl LockerOperations for GenericLocker {
 
                 let fingerprint_details = FingerprintDetails {
                     fingerprint_id: Some(fingerprint_id),
-                    auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id.clone()),
+                    auxiliary_fingerprint_id,
                 };
 
-                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
-                    fingerprint_details: Some(fingerprint_details),
-                    payment_method_data,
-                    locker_resolver,
-                }))
+                Ok(PaymentMethodResolver(
+                    PaymentMethodResolution::Create {
+                        fingerprint_details: Some(fingerprint_details),
+                        payment_method_data,
+                        locker_resolver,
+                    },
+                    merchant_fingerprint_id,
+                ))
             }
         }
     }
@@ -2658,11 +2737,14 @@ impl LockerOperations for LegacyLocker {
                     card_reference: Some(legacy_locker_res.card_reference),
                 };
 
-                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
-                    fingerprint_details: None,
-                    payment_method_data: payment_method_data.clone(),
-                    locker_resolver,
-                }))
+                Ok(PaymentMethodResolver(
+                    PaymentMethodResolution::Create {
+                        fingerprint_details: None,
+                        payment_method_data: payment_method_data.clone(),
+                        locker_resolver,
+                    },
+                    None,
+                ))
             }
         }
     }
@@ -2803,7 +2885,7 @@ impl LockerType {
 }
 
 #[cfg(feature = "v2")]
-pub struct PaymentMethodResolver(PaymentMethodResolution);
+pub struct PaymentMethodResolver(PaymentMethodResolution, Option<String>);
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
@@ -2941,7 +3023,9 @@ impl PaymentMethodResolver {
         billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
     ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
         let db = &*state.store;
-        match self.0 {
+        let Self(resolution, merchant_fingerprint_id) = self;
+
+        let (response, payment_method) = match resolution {
             PaymentMethodResolution::Get(existing_pm) => {
                 logger::debug!("Payment method is duplicate, found {:?}", existing_pm.id);
                 let card_cvc = req
@@ -3103,7 +3187,12 @@ impl PaymentMethodResolver {
                 ))
                 .await
             }
-        }
+        }?;
+
+        Ok((
+            attach_merchant_fingerprint_id(state, response, merchant_fingerprint_id).await,
+            payment_method,
+        ))
     }
 }
 
@@ -3304,22 +3393,23 @@ pub async fn create_generic_volatile_payment_method(
 
     // Fingerprint only for a `PayThenVault` flow with a customer present and customer acceptance:
     // the acceptance reaches this workflow from session confirm under `PayThenVault` alone.
-    let (payment_method_id, fingerprint_details) = match customer_id
+    let (payment_method_id, fingerprint_details, merchant_fingerprint_id) = match customer_id
         .as_ref()
         .filter(|_| customer_acceptance.is_some())
     {
         Some(customer_id) => {
-            let resolution = payment_method_resolver(
-                state,
-                platform,
-                customer_id,
-                &req,
-                payment_method_data.clone(),
-            )
-            .await
-            .attach_printable("Failed to resolve volatile payment method")?;
+            let PaymentMethodResolver(resolution, merchant_fingerprint_id) =
+                payment_method_resolver(
+                    state,
+                    platform,
+                    customer_id,
+                    &req,
+                    payment_method_data.clone(),
+                )
+                .await
+                .attach_printable("Failed to resolve volatile payment method")?;
 
-            match resolution.0 {
+            match resolution {
                 PaymentMethodResolution::Get(existing_payment_method) => (
                     existing_payment_method.id.clone(),
                     Some(FingerprintDetails {
@@ -3328,6 +3418,7 @@ pub async fn create_generic_volatile_payment_method(
                             .auxiliary_fingerprint_id
                             .clone(),
                     }),
+                    merchant_fingerprint_id,
                 ),
                 PaymentMethodResolution::Update {
                     fingerprint_id,
@@ -3342,14 +3433,19 @@ pub async fn create_generic_volatile_payment_method(
                             .auxiliary_fingerprint_id
                             .clone(),
                     }),
+                    merchant_fingerprint_id,
                 ),
                 PaymentMethodResolution::Create {
                     fingerprint_details,
                     ..
-                } => (payment_method_id, fingerprint_details),
+                } => (
+                    payment_method_id,
+                    fingerprint_details,
+                    merchant_fingerprint_id,
+                ),
             }
         }
-        None => (payment_method_id, None),
+        None => (payment_method_id, None, None),
     };
 
     let vaulting_result = vault_payment_method_in_volatile_storage(
@@ -3475,7 +3571,10 @@ pub async fn create_generic_volatile_payment_method(
         Err(e) => Err(e),
     }?;
 
-    Ok((response, payment_method))
+    Ok((
+        attach_merchant_fingerprint_id(state, response, merchant_fingerprint_id).await,
+        payment_method,
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -6205,6 +6304,18 @@ pub async fn retrieve_payment_method(
         .map(|billing| billing.into_inner())
         .map(From::from);
 
+    let fingerprint_id = match is_merchant_fingerprint_enabled(&state, &platform).await {
+        true => {
+            core_utils::read_cached_value::<String>(
+                &state,
+                &merchant_fingerprint_redis_key(&payment_method.id),
+                "String",
+            )
+            .await
+        }
+        false => None,
+    };
+
     transformers::generate_payment_method_response(
         &payment_method,
         &single_use_token_in_cache,
@@ -6217,6 +6328,10 @@ pub async fn retrieve_payment_method(
         billing,
         None,
     )
+    .map(|response| api::PaymentMethodResponse {
+        fingerprint_id,
+        ..response
+    })
     .map(services::ApplicationResponse::Json)
 }
 
