@@ -70,6 +70,14 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateSingleUseNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -115,6 +123,14 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateSingleUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("cit-capture-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -141,6 +157,14 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("mit-capture-call-test", () => {
@@ -187,6 +211,14 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateSingleUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("cit-capture-call-test", () => {
@@ -247,6 +279,14 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateSingleUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("cit-capture-call-test", () => {

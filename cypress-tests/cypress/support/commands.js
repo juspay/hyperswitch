@@ -6006,10 +6006,12 @@ Cypress.Commands.add(
                 allowedActiveStatuses
               );
 
-              expect(
-                response.body.payment_method_status,
-                "payment_method_status for active status"
-              ).to.equal("active");
+              if (!validatedConfigs?.skipPaymentMethodStatusAssertion) {
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status for active status"
+                ).to.equal("active");
+              }
 
               if (connector_agnostic_mit) {
                 expect(
@@ -6027,15 +6029,35 @@ Cypress.Commands.add(
                 allowedActiveStatuses
               );
 
-              expect(
-                response.body.payment_method_status,
-                "payment_method_status for inactive status"
-              ).to.equal("inactive");
+              if (!validatedConfigs?.skipPaymentMethodStatusAssertion) {
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status for inactive status"
+                ).to.equal("inactive");
+              }
 
-              expect(
-                response.body.connector_mandate_id,
-                "connector_mandate_id for inactive status"
-              ).to.be.null;
+              if (response.body.payment_method_status === "active") {
+                // The payment method is already active even though the payment
+                // is not yet in an active status (e.g. connectors that return
+                // a pending payment status on authorize and require PSync),
+                // so the connector mandate should already exist.
+                if (connector_agnostic_mit) {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id for active payment method"
+                  ).to.be.null;
+                } else {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id for active payment method"
+                  ).to.exist.and.not.be.null;
+                }
+              } else {
+                expect(
+                  response.body.connector_mandate_id,
+                  "connector_mandate_id for inactive status"
+                ).to.be.null;
+              }
             }
           }
 
