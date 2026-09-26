@@ -119,6 +119,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile]
         },
+        Alert: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
     ]
 }
 
@@ -158,6 +162,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::ReconRule, _) => Some("Recon Rules"),
         (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
         (Resource::Offers, _) => Some("Offers"),
+        (Resource::Alert, _) => None,
     }
 }
 
