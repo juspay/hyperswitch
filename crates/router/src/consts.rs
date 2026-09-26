@@ -533,6 +533,8 @@ pub mod superposition {
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
