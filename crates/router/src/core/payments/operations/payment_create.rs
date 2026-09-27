@@ -107,7 +107,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // If profile id is not passed, get it from the business_country and business_label.
         // The lookup is scoped to the merchant, so this also validates that the profile belongs to it.
-        #[cfg(feature = "v1")]
         let business_profile = core_utils::get_profile_from_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -116,40 +115,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &*state.store,
         )
         .await?;
-
-        #[cfg(feature = "v1")]
         let profile_id = business_profile.get_id().to_owned();
 
-        // Profile id will be mandatory in v2 in the request / headers
-        #[cfg(feature = "v2")]
-        let profile_id = request
-            .profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .attach_printable("Profile id is a mandatory parameter")?;
-
-        // Validate whether profile_id passed in request is valid and is linked to the merchant
-        #[cfg(feature = "v2")]
-        let business_profile = if let Some(business_profile) =
-            core_utils::validate_and_get_business_profile(
-                db,
-                platform.get_processor(),
-                Some(&profile_id),
-            )
-            .await?
-        {
-            business_profile
-        } else {
-            platform_wrapper::business_profile::find_business_profile_by_profile_id(
-                state.store.as_ref(),
-                platform.get_processor(),
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?
-        };
         let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
