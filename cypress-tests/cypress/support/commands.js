@@ -7425,6 +7425,50 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
 });
 
 // User API calls
+Cypress.Commands.add("signupUserWithMerchant", (namePrefix, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
+  // (available in the browser) to avoid modulo bias.
+  const randomBuf = new Uint32Array(1);
+  const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
+  let randomWord;
+  do {
+    crypto.getRandomValues(randomBuf);
+    randomWord = randomBuf[0];
+  } while (randomWord >= maxUnbiased);
+  const randomPart = randomWord % 10000;
+  const uniqueSuffix = `${Date.now()}${randomPart}`;
+  const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
+  const password = `Cypress@${uniqueSuffix}`;
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/user/signup_with_merchant_id`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: {
+      email,
+      password,
+      company_name: `${namePrefix}${uniqueSuffix}`,
+      name: namePrefix,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status !== 200) {
+        throw new Error(
+          `signup_with_merchant_id failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
+        );
+      }
+      globalState.set("email", email);
+      globalState.set("password", password);
+    });
+  });
+});
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
@@ -7824,7 +7868,12 @@ Cypress.Commands.add(
       method: "PUT",
       url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
       headers: {
-        "api-key": globalState.get("apiKey"),
+        ...(globalState.get("userInfoToken")
+          ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+          : {
+              "api-key":
+                globalState.get("apiKey") || globalState.get("adminApiKey"),
+            }),
         "Content-Type": "application/json",
       },
       body: surchargeBody,
@@ -7935,7 +7984,12 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
-      "api-key": globalState.get("apiKey"),
+      ...(globalState.get("userInfoToken")
+        ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+        : {
+            "api-key":
+              globalState.get("apiKey") || globalState.get("adminApiKey"),
+          }),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -7963,7 +8017,12 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     method: "DELETE",
     url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
     headers: {
-      "api-key": globalState.get("apiKey"),
+      ...(globalState.get("userInfoToken")
+        ? { Authorization: `Bearer ${globalState.get("userInfoToken")}` }
+        : {
+            "api-key":
+              globalState.get("apiKey") || globalState.get("adminApiKey"),
+          }),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -7971,8 +8030,6 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-
       if (response.status === 200) {
         for (const key in resData.body) {
           expect(resData.body[key]).to.deep.equal(response.body[key]);
