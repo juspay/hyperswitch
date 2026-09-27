@@ -145,7 +145,7 @@ fn build_payload_payment_request_data(
             if is_three_ds {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Cards 3DS".to_string(),
-                    connector: "Payload",
+                    connector: "Payload".into(),
                 })?
             }
             let card = requests::PayloadCard {
@@ -260,7 +260,7 @@ impl TryFrom<enums::BankType> for requests::PayloadAccAccountType {
             | common_enums::BankType::SubscriptionShare
             | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
                 message: format!("bank_type {b_type} is not supported"),
-                connector: "payload",
+                connector: "payload".into(),
             }),
         }
     }
@@ -942,7 +942,7 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
             responses::PayloadWebhooksTrigger::Refund => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Refund Webhook".to_string(),
-                    connector: "Payload",
+                    connector: "Payload".into(),
                 }
                 .into())
             }
@@ -1023,7 +1023,7 @@ impl TryFrom<ScopeIdentifier> for requests::PayloadEventType {
 
                     _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: "Webhook event type mapping failed".to_string(),
-                        connector: "payload",
+                        connector: "payload".into(),
                     })),
                 }
             }

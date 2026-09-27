@@ -523,7 +523,7 @@ async fn delete_card_bin_blocklist_entry(
         })
 }
 
-pub async fn should_payment_be_blocked(
+pub async fn check_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
@@ -607,12 +607,8 @@ pub async fn should_payment_be_blocked(
             .as_ref()
             .is_some_and(|pmd| pmd.is_eligible_for_profile_config_blocklist())
     {
-        block_reason = should_payment_be_blocked_by_profile_config(
-            state,
-            payment_method_data,
-            business_profile,
-        )
-        .await?;
+        block_reason =
+            check_profile_blocking_config(state, payment_method_data, business_profile).await?;
     }
 
     Ok(block_reason)
@@ -644,7 +640,7 @@ pub async fn is_blocklist_guard_enabled(
 /// blocklist entry (BIN kinds only — PAN-fingerprint entries cannot be matched from a
 /// BIN) for this merchant/profile, resolved with a single batched query. Merchant-wide
 /// entries (NULL `profile_id`) match every profile. DB errors are logged and treated as
-/// not blocked, mirroring [`should_payment_be_blocked`].
+/// not blocked, mirroring [`check_blocklist`].
 pub async fn get_blocked_bins(
     state: &SessionState,
     processor: &domain::Processor,
@@ -683,7 +679,7 @@ where
     F: Send + Clone,
 {
     let db = &state.store;
-    let block_reason = should_payment_be_blocked(
+    let block_reason = check_blocklist(
         state,
         processor,
         &payment_data
@@ -788,7 +784,7 @@ fn resolve_blocking_config_and_bin<'a>(
     }
 }
 
-pub async fn should_payment_be_blocked_by_profile_config(
+pub async fn check_profile_blocking_config(
     state: &SessionState,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
