@@ -213,6 +213,16 @@ fn capture<Q>(_query: &Q) -> (String, serde_json::Value) {
     (String::new(), serde_json::Value::Null)
 }
 
+/// A unique violation writes no row, so replay serves the recorded error
+/// instead of inserting into a store that lacks the conflicting row.
+#[cfg(feature = "deja")]
+fn is_unique_violation<R>(out: &Captured<StorageResult<R>>) -> bool {
+    matches!(
+        &out.0,
+        Err(err) if matches!(err.current_context(), errors::DatabaseError::UniqueViolation)
+    )
+}
+
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -227,6 +237,7 @@ fn capture<Q>(_query: &Q) -> (String, serde_json::Value) {
         args = deja::db::args("generic_insert", table, sql.peek(), inputs.peek()),
         state_write = deja::db::query_state_key("generic_insert", table, sql.peek(), inputs.peek()),
         result = deja::db::recorded_output_with_wire(deja::db::StateAxis::Write, table, debug_sql.peek(), &__deja_result.0, __deja_result.1.as_deref()),
+        neutral_error = is_unique_violation::<R>,
     )
 )]
 async fn execute_generic_insert<F, R>(
@@ -1306,5 +1317,29 @@ mod capture_tests {
             "the bound document is captured as a document: {}",
             left.1
         );
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod neutral_error_tests {
+    use error_stack::report;
+
+    use super::{errors, is_unique_violation, Captured, StorageResult};
+
+    fn out(result: StorageResult<()>) -> Captured<StorageResult<()>> {
+        (result, None)
+    }
+
+    // Only a unique violation left the store untouched; any other failure, and
+    // any success, must run again on replay.
+    #[test]
+    fn only_a_unique_violation_is_state_neutral() {
+        assert!(is_unique_violation(&out(Err(report!(
+            errors::DatabaseError::UniqueViolation
+        )))));
+        assert!(!is_unique_violation(&out(Err(report!(
+            errors::DatabaseError::NotFound
+        )))));
+        assert!(!is_unique_violation(&out(Ok(()))));
     }
 }
