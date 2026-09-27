@@ -41,7 +41,13 @@ restore() {
   local key="$1"
   echo "Restoring sccache cache, key: ${key}"
 
-  local t0 t1 t2 t3 rc=0 archive_bytes extracted_bytes
+  local t0 t1 t2 t3 rc=0 archive_bytes extracted_bytes sampler peers_file
+
+  # Observe the real sockets this download uses, so "does S3 go through the
+  # proxy?" is answered by evidence rather than by inference. Rerun after
+  # changing the runner's proxy config and diff the VERDICT line.
+  peers_file="$(mktemp "${RUNNER_TEMP:-/tmp}/sccache-peers.XXXXXX")"
+  sampler="$(peer_sampler_start "$peers_file")"
 
   t0=$(now_ms)
   aws s3 cp \
@@ -49,6 +55,10 @@ restore() {
     "$tmp_archive" \
     --region "${CACHE_S3_REGION}" 2>&1 | s3_progress || rc=$?
   t1=$(now_ms)
+
+  peer_verdict "$sampler" "$peers_file" \
+    "${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-http://none}}}}"
+  rm -f "$peers_file"
 
   if [ "$rc" -ne 0 ]; then
     return "$rc"

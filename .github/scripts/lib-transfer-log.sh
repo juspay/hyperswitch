@@ -60,3 +60,109 @@ s3_progress() {
   local stride="${1:-20}"
   tr '\r' '\n' | awk -v n="$stride" 'NR % n == 0 || tolower($0) ~ /error|warn/'
 }
+
+# ---------------------------------------------------------------------------
+# TCP path proof
+#
+# Direct evidence of whether S3 bytes traverse the egress proxy, by observing
+# the pod's actual sockets during a real transfer. This is stronger than
+# asking botocore what it intends: it looks at the connections themselves.
+#
+# The discriminator is the socket the pod opens, and it is unambiguous:
+#
+#   through an HTTP proxy -> TCP to <proxy>:80, carrying a CONNECT tunnel.
+#                            The pod never opens :443 itself.
+#   direct                -> TCP to an S3 address on :443.
+#
+# Classifying on port rather than on address also makes this immune to S3's
+# DNS rotation, which hands back a different IP set on every lookup.
+
+# peer_sampler_start <outfile> -- echoes the sampler's pid.
+peer_sampler_start() {
+  local out="$1"
+  : >"$out"
+  if ! command -v ss >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+    echo ""
+    return 0
+  fi
+  (
+    while :; do
+      if command -v ss >/dev/null 2>&1; then
+        ss -tn 2>/dev/null | awk 'NR > 1 { print $NF }'
+      else
+        python3 - <<'PY'
+import socket, struct
+for proto, path in (("4", "/proc/net/tcp"), ("6", "/proc/net/tcp6")):
+    try:
+        rows = open(path).read().splitlines()[1:]
+    except OSError:
+        continue
+    for row in rows:
+        f = row.split()
+        if len(f) < 4 or f[3] != "01":  # 01 = ESTABLISHED
+            continue
+        host, _, port = f[2].partition(":")
+        if proto == "4":
+            ip = socket.inet_ntoa(struct.pack("<L", int(host, 16)))
+        else:
+            b = bytes.fromhex(host)
+            ip = socket.inet_ntop(
+                socket.AF_INET6,
+                b"".join(b[i:i + 4][::-1] for i in range(0, 16, 4)),
+            )
+        print(f"{ip}:{int(port, 16)}")
+PY
+      fi
+      sleep 0.3
+    done
+  ) >>"$out" 2>/dev/null &
+  echo $!
+}
+
+# peer_verdict <sampler_pid> <outfile> <proxy_url>
+peer_verdict() {
+  local pid="$1" out="$2" proxy_url="$3"
+  local proxy_host proxy_ips proxy_n tls_n peers
+
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  fi
+
+  echo "  --- TCP path proof (sampled during the transfer above) ---"
+
+  if [ ! -s "$out" ]; then
+    echo "      no socket samples captured (no ss/python3?) — inconclusive"
+    return 0
+  fi
+
+  proxy_host="${proxy_url#*://}"
+  proxy_host="${proxy_host%%:*}"
+  proxy_ips="$(getent ahostsv4 "$proxy_host" 2>/dev/null | awk '{print $1}' | sort -u | paste -sd'|' -)"
+  [ -z "$proxy_ips" ] && proxy_ips="__none__"
+
+  # S3 is always a public address, so :443 sockets to RFC1918/link-local peers
+  # are unrelated in-cluster chatter (runner agent, kubelet, sidecars) and must
+  # not be counted as evidence of a direct path — otherwise the proxied case
+  # reports MIXED precisely when a clear verdict is needed.
+  local private='^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|\[|::)'
+
+  peers="$(sort -u "$out" | grep -v '^$' || true)"
+  proxy_n="$(printf '%s\n' "$peers" | grep -cE "^(${proxy_ips}):" || true)"
+  tls_n="$(printf '%s\n' "$peers" | grep -E ':443$' | grep -cvE "$private" || true)"
+
+  echo "      proxy ${proxy_host} -> ${proxy_ips//|/ }"
+  echo "      distinct sockets to the proxy         : ${proxy_n}"
+  echo "      distinct public TLS sockets (S3, :443): ${tls_n}"
+  echo "      peers observed (· = private, ignored):"
+  printf '%s\n' "$peers" | grep -E "$private" | sed 's/^/        · /'
+  printf '%s\n' "$peers" | grep -vE "$private" | sed 's/^/          /'
+
+  if [ "$proxy_n" -gt 0 ] && [ "$tls_n" -eq 0 ]; then
+    echo "      VERDICT: PROXIED — S3 bytes traverse ${proxy_host}"
+  elif [ "$tls_n" -gt 0 ] && [ "$proxy_n" -eq 0 ]; then
+    echo "      VERDICT: DIRECT — S3 bytes bypass the proxy"
+  else
+    echo "      VERDICT: MIXED/INCONCLUSIVE — see peers above"
+  fi
+}
