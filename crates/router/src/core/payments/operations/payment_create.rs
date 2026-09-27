@@ -113,7 +113,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform.get_processor(),
             request.profile_id.as_ref(),
             &*state.store,
-            true,
+            // Ownership is validated below by `validate_and_get_business_profile`, which also
+            // returns the profile; validating here too would fetch and decrypt it twice.
+            false,
         )
         .await?;
 
@@ -125,7 +127,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_required_value("profile_id")
             .attach_printable("Profile id is a mandatory parameter")?;
 
-        // TODO: eliminate a redundant db call to fetch the business profile
+        // TODO: the business_country / business_label path still fetches the business profile twice
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         let business_profile = if let Some(business_profile) =
             core_utils::validate_and_get_business_profile(
@@ -196,30 +198,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_type.as_ref(),
         )?;
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-            state,
-            request.shipping.as_ref(),
-            None,
-            platform.get_processor().get_account().get_id(),
-            customer_details.customer_id.as_ref(),
-            platform.get_processor().get_key_store(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await?;
-
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
-            state,
-            request.billing.as_ref(),
-            None,
-            platform.get_processor().get_account().get_id(),
-            customer_details.customer_id.as_ref(),
-            platform.get_processor().get_key_store(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await?;
-
         let payment_method_data_billing = request
             .payment_method_data
             .as_ref()
@@ -236,7 +214,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
             }));
 
-        let payment_method_billing_address =
+        // The shipping, billing and payment method billing addresses are independent of each
+        // other, so create them concurrently rather than one after another.
+        let (shipping_address, billing_address, payment_method_billing_address) = tokio::try_join!(
+            helpers::create_or_find_address_for_payment_by_request(
+                state,
+                request.shipping.as_ref(),
+                None,
+                platform.get_processor().get_account().get_id(),
+                customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
+                &payment_id,
+                platform.get_processor().get_account().storage_scheme,
+            ),
+            helpers::create_or_find_address_for_payment_by_request(
+                state,
+                request.billing.as_ref(),
+                None,
+                platform.get_processor().get_account().get_id(),
+                customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
+                &payment_id,
+                platform.get_processor().get_account().storage_scheme,
+            ),
             helpers::create_or_find_address_for_payment_by_request(
                 state,
                 payment_method_data_billing.as_ref(),
@@ -246,8 +246,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 platform.get_processor().get_key_store(),
                 &payment_id,
                 platform.get_processor().get_account().storage_scheme,
-            )
-            .await?;
+            ),
+        )?;
 
         let browser_info = request
             .browser_info
