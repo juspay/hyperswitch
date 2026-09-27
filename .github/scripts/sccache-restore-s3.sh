@@ -26,26 +26,6 @@ if [ -z "${CACHE_S3_BUCKET:-}" ]; then
   exit 0
 fi
 
-# TEMPORARY — revert with the rest of the diagnostics.
-#
-# The pod's NO_PROXY lists this bucket by its full hostname, which botocore
-# never matches (it compares parent-domain suffixes), so S3 currently goes
-# through the proxy. Appending the suffix form that *does* match should flip
-# the TCP path proof below from PROXIED to DIRECT — which is what validates
-# that the proof can detect both states rather than only ever printing one.
-#
-# Appended rather than replacing the list: dropping the IMDS and cluster-CIDR
-# entries would route credential lookups through the proxy and break auth,
-# failing for a reason unrelated to what is being tested. `.s3.<region>...`
-# does not match `sts.<region>...`, so credentials keep using the proxy here.
-#
-# Must be done here, not in the workflow's `env:` block — `${{ env.NO_PROXY }}`
-# reads the workflow env context, not the runner process environment, so it
-# would expand empty and silently truncate the pod's list.
-export NO_PROXY="${NO_PROXY:-},.s3.${CACHE_S3_REGION}.amazonaws.com"
-export no_proxy="$NO_PROXY"
-echo "  [temp] NO_PROXY widened with .s3.<region>.amazonaws.com — expecting VERDICT: DIRECT"
-
 tmp_archive="$(mktemp "${RUNNER_TEMP:-/tmp}/sccache-cache.XXXXXX.tar.zst")"
 trap 'rm -f "$tmp_archive"' EXIT
 
