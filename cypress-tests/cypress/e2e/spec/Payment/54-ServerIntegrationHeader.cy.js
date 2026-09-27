@@ -1,6 +1,9 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -21,6 +24,17 @@ describe("X-Integration-Type: server — intent enrichment (superposition gated)
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      specShouldSkip = shouldIncludeConnector(
+        globalState.get("connectorId"),
+        CONNECTOR_LISTS.INCLUDE.SERVER_INTEGRATION_HEADER
+      );
+      if (specShouldSkip) {
+        cy.task(
+          "cli_log",
+          "Connector not in SERVER_INTEGRATION_HEADER list — skipping ServerIntegrationHeader spec"
+        );
+        return;
+      }
       if (
         !globalState.get("superpositionBaseUrl") ||
         !globalState.get("superpositionSecret") ||
