@@ -632,12 +632,12 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                 .get_string_repr()
                 .to_owned();
 
-            let legacy_card_exists = match cards::get_card_from_locker(
+            let legacy_card_exists = match Box::pin(cards::get_card_from_locker(
                 state,
                 &customer_id,
                 platform.get_provider().get_account().get_id(),
                 &card_reference,
-            )
+            ))
             .await
             {
                 Ok(_) => {
@@ -859,12 +859,14 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
             "Skipping modular backward compatibility backfill because legacy PM is not forward compatible"
         );
     } else {
-        workflow
-            .prepare_db_compat()?
-            .apply_locker_compat(state, db, process_id)
-            .await?
-            .mark_complete(db)
-            .await?;
+        Box::pin(
+            workflow
+                .prepare_db_compat()?
+                .apply_locker_compat(state, db, process_id),
+        )
+        .await?
+        .mark_complete(db)
+        .await?;
     }
 
     Ok(())

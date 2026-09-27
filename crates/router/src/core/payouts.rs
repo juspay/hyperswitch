@@ -703,7 +703,7 @@ pub async fn payouts_create_core(
             .customer_id
             .clone()
             .get_required_value("customer_id when payout_method_data is provided")?;
-        payout_data.payout_method_data = helpers::make_payout_method_data(
+        payout_data.payout_method_data = Box::pin(helpers::make_payout_method_data(
             &state,
             req.payout_method_data.as_ref(),
             payout_attempt.payout_token.as_deref(),
@@ -713,7 +713,7 @@ pub async fn payouts_create_core(
             platform.get_processor().get_key_store(),
             Some(&mut payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?;
     }
 
@@ -851,7 +851,7 @@ pub async fn payouts_update_core(
             .customer_id
             .clone()
             .get_required_value("customer_id when payout_method_data is provided")?;
-        payout_data.payout_method_data = helpers::make_payout_method_data(
+        payout_data.payout_method_data = Box::pin(helpers::make_payout_method_data(
             &state,
             req.payout_method_data.as_ref(),
             payout_attempt.payout_token.as_deref(),
@@ -861,7 +861,7 @@ pub async fn payouts_update_core(
             platform.get_processor().get_key_store(),
             Some(&mut payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?;
     }
 
@@ -1097,7 +1097,13 @@ pub async fn payouts_fulfill_core(
         .attach_printable("Connector not found for payout fulfillment")?,
     };
 
-    helpers::fetch_payout_method_data(&state, &mut payout_data, &connector_data, &platform).await?;
+    Box::pin(helpers::fetch_payout_method_data(
+        &state,
+        &mut payout_data,
+        &connector_data,
+        &platform,
+    ))
+    .await?;
 
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
@@ -1579,7 +1585,13 @@ pub async fn call_connector_payout(
 
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
-        helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
+        Box::pin(helpers::fetch_payout_method_data(
+            state,
+            payout_data,
+            connector_data,
+            platform,
+        ))
+        .await?;
     }
 
     #[cfg(feature = "v1")]
@@ -3900,7 +3912,7 @@ pub async fn make_payout_data(
                         .as_ref()
                         .map(|cd| cd.get_id().to_owned())
                         .get_required_value("customer_id when payout_token is sent")?;
-                    helpers::make_payout_method_data(
+                    Box::pin(helpers::make_payout_method_data(
                         state,
                         None,
                         Some(&payout_token),
@@ -3910,7 +3922,7 @@ pub async fn make_payout_data(
                         platform.get_processor().get_key_store(),
                         None,
                         platform.get_processor().get_account().storage_scheme,
-                    )
+                    ))
                     .await?
                 }
                 None => None,
