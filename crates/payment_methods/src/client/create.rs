@@ -73,7 +73,9 @@ pub struct CardDetail {
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    ApplePayDecrypted(Box<api_models::payment_methods::ApplePayDecryptedInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    GooglePayDecrypted(Box<api_models::payment_methods::GooglePayDecryptedInfo>),
     PayPal(Box<payments::PaypalRedirection>),
 }
 

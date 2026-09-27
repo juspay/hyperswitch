@@ -10,7 +10,8 @@ use common_utils::{
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payment_methods::PaymentMethod,
+    payment_method_data::{self, PaymentMethodData},
+    payment_methods::PaymentMethod,
 };
 use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
@@ -305,6 +306,64 @@ pub async fn get_payout_method_data_generic(
                         card_network: card_details.card_network.clone(),
                     }),
                 )),
+                Some(PaymentMethodData::Wallet(payment_method_data::WalletData::ApplePay(
+                    data,
+                ))) => match data.payment_data {
+                    common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                        Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::ApplePayDecrypt(
+                                api_models::payouts::ApplePayDecrypt {
+                                    dpan: decrypted_data.application_primary_account_number,
+                                    expiry_month: decrypted_data.application_expiration_month,
+                                    expiry_year: decrypted_data.application_expiration_year,
+                                    card_holder_name: None,
+                                    card_network: data
+                                        .payment_method
+                                        .network
+                                        .parse::<common_enums::CardNetwork>()
+                                        .inspect_err(|error| {
+                                            tracing::warn!(
+                                                ?error,
+                                                unparsed_card_network = %data.payment_method.network,
+                                                "Received an unrecognized card_network value from Apple Pay (Payout); defaulting to None"
+                                            )
+                                        })
+                                        .ok(),
+                                },
+                            ),
+                        )))
+                    }
+                    common_types::payments::ApplePayPaymentData::Encrypted(_) => Ok(None),
+                },
+                Some(PaymentMethodData::Wallet(payment_method_data::WalletData::GooglePay(
+                    data,
+                ))) => match data.tokenization_data {
+                    common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+                        Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::GooglePayDecrypt(
+                                api_models::payouts::GooglePayDecrypt {
+                                    application_primary_account_number: decrypted_data
+                                        .application_primary_account_number,
+                                    expiry_month: decrypted_data.card_exp_month,
+                                    expiry_year: decrypted_data.card_exp_year,
+                                    card_network: data.info
+                                        .card_network
+                                        .parse::<common_enums::CardNetwork>()
+                                        .inspect_err(|error| {
+                                            tracing::warn!(
+                                                ?error,
+                                                unparsed_card_network = %data.info.card_network,
+                                                "Received an unrecognized card_network value from Google Pay (Payout); defaulting to None"
+                                            )
+                                        })
+                                        .ok(),
+                                    card_holder_name: None,
+                                },
+                            ),
+                        )))
+                    }
+                    common_types::payments::GpayTokenizationData::Encrypted(_) => Ok(None),
+                },
                 Some(_) | None => Ok(None),
             }
         }
@@ -346,7 +405,7 @@ pub async fn get_payout_method_data_generic(
                         ))),
                         (_, Some(wallet), _) => {
                             match wallet {
-                                hyperswitch_domain_models::payment_method_data::WalletDetail::ApplePayDecryptedData {
+                                payment_method_data::WalletDetail::ApplePayDecryptedData {
                                     application_primary_account_number,
                                     expiry_month,
                                     expiry_year,
@@ -361,7 +420,7 @@ pub async fn get_payout_method_data_generic(
                                         }
                                     )
                                 ))),
-                                hyperswitch_domain_models::payment_method_data::WalletDetail::GooglePayDecryptedData {
+                                payment_method_data::WalletDetail::GooglePayDecryptedData {
                                     application_primary_account_number,
                                     expiry_month,
                                     expiry_year,
