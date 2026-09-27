@@ -2384,6 +2384,22 @@ export const connectorDetails = {
         body: {},
       },
     },
+    // Amount-changing update (issue hyperswitch-cloud#23422 case 4): the
+    // update must rebuild the cached list for the new intent state while the
+    // pinned customer payment token and vault session stay put.
+    ServerIntegrationUpdateAmount: {
+      Request: {
+        amount: 8940,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 8940,
+        },
+      },
+    },
     // Regression on the update route, which shares the same enrichment module.
     ServerIntegrationUpdate: {
       Request: {

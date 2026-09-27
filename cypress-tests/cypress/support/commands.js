@@ -3452,6 +3452,153 @@ Cypress.Commands.add(
   }
 );
 
+// GET /payments/{payment_id}/client — the SDK's combined payment-method list
+// (publishable-key reader, same route the SDK polls).
+//
+// Per PR #14174 the response must be byte-identical across repeated calls
+// within the intent's fulfillment window (tokens are pinned in Redis; the PR
+// deliberately caches no response), and a merchant-config change must land on
+// the very next call.
+//
+// options:
+//   storeAs           — stash the body under this global-state key
+//   compareTo         — deep-equal the body against that stashed key
+//   expectEmptyEnabled — assert both lists are empty (connector disabled)
+Cypress.Commands.add(
+  "clientPaymentMethodsListCall",
+  (globalState, { storeAs, compareTo, expectEmptyEnabled } = {}) => {
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/client?client_secret=${clientSecret}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body).to.have.property("payment_methods_enabled");
+        if (expectEmptyEnabled) {
+          expect(
+            response.body.payment_methods_enabled,
+            "payment_methods_enabled"
+          ).to.be.an("array").and.to.be.empty;
+          expect(
+            response.body.customer_payment_methods,
+            "customer_payment_methods"
+          ).to.be.an("array").and.to.be.empty;
+        }
+        if (storeAs) {
+          globalState.set(storeAs, response.body);
+        }
+        if (compareTo) {
+          expect(
+            response.body,
+            `combined PML must be byte-identical to the "${compareTo}" snapshot`
+          ).to.deep.equal(globalState.get(compareTo));
+        }
+      });
+    });
+  }
+);
+
+// POST /payments/session_tokens (publishable) — asserts the vault SDK
+// authorization stays stable across calls (PR #14174: the PM vault session is
+// pinned in Redis, so repeated reads must hand out the same one).
+//
+// The first call stashes the authorization under `storeKey`; later calls must
+// reproduce it. Environments with no vault service mint no `vault_details` at
+// all — then `null` is asserted stable instead of failing the env.
+Cypress.Commands.add(
+  "sessionTokensStabilityCall",
+  (globalState, { storeKey = "sdkVaultAuthorization" } = {}) => {
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+        "x-client-platform": "web",
+      },
+      body: {
+        payment_id: paymentId,
+        client_secret: clientSecret,
+        wallets: [],
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+        const authorization =
+          response.body.vault_details?.vault_data?.sdk_authorization ?? null;
+        const stashed = globalState.get(storeKey);
+        if (stashed === undefined) {
+          globalState.set(storeKey, authorization);
+          cy.task(
+            "cli_log",
+            authorization
+              ? `vault sdk authorization captured: ${authorization}`
+              : "no vault session minted in this environment (vault_details is null)"
+          );
+        } else {
+          expect(
+            authorization,
+            "vault sdk authorization must be stable across session-token calls"
+          ).to.equal(stashed);
+        }
+      });
+    });
+  }
+);
+
+// Flips the payment connector's disabled flag for the current merchant
+// (issue hyperswitch-cloud#23422 case 7): the response cache must never hide
+// a merchant-config change, so the next combined-PML call after each toggle
+// reflects it.
+Cypress.Commands.add("connectorDisabledCallTest", (globalState, disabled) => {
+  const merchantId = globalState.get("merchantId");
+  const merchantConnectorId = globalState.get("merchantConnectorId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors/${merchantConnectorId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      connector_type: "payment_processor",
+      disabled,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.status, "status_code").to.equal(200);
+      expect(response.body.disabled, "disabled").to.equal(disabled);
+      globalState.set("connectorDisabled", disabled);
+    });
+  });
+});
+
 Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
   const resData = data?.Response || data;
   const clientSecret = globalState.get("clientSecret");
