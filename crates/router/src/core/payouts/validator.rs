@@ -386,63 +386,51 @@ pub async fn get_payout_method_data_generic(
             )
             .await?
             {
-                Some(pm) => {
-                    match (pm.card_details, pm.wallet_details, pm.bank_transfer_details) {
-                        (Some(card), _, _) => Ok(Some(payouts::PayoutMethodData::Card(
-                            api_models::payouts::CardPayout {
-                                card_number: card
-                                    .card_number
-                                    .get_required_value("card_number")?,
-                                card_holder_name: card.card_holder_name,
-                                expiry_month: card
-                                    .expiry_month
-                                    .get_required_value("expiry_month")?,
-                                expiry_year: card
-                                    .expiry_year
-                                    .get_required_value("expiry_year")?,
-                                card_network: card.card_network.clone(),
-                            },
+                Some(pm) => match (pm.card_details, pm.wallet_details, pm.bank_transfer_details) {
+                    (Some(card), _, _) => Ok(Some(payouts::PayoutMethodData::Card(
+                        api_models::payouts::CardPayout {
+                            card_number: card.card_number.get_required_value("card_number")?,
+                            card_holder_name: card.card_holder_name,
+                            expiry_month: card.expiry_month.get_required_value("expiry_month")?,
+                            expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                            card_network: card.card_network.clone(),
+                        },
+                    ))),
+                    (_, Some(wallet), _) => match wallet {
+                        payment_method_data::WalletDetail::ApplePayDecryptedData {
+                            application_primary_account_number,
+                            expiry_month,
+                            expiry_year,
+                        } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::ApplePayDecrypt(
+                                api_models::payouts::ApplePayDecrypt {
+                                    dpan: application_primary_account_number,
+                                    expiry_month,
+                                    expiry_year,
+                                    card_holder_name: None,
+                                    card_network: None,
+                                },
+                            ),
                         ))),
-                        (_, Some(wallet), _) => {
-                            match wallet {
-                                payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        payment_method_data::WalletDetail::GooglePayDecryptedData {
+                            application_primary_account_number,
+                            expiry_month,
+                            expiry_year,
+                        } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::GooglePayDecrypt(
+                                api_models::payouts::GooglePayDecrypt {
                                     application_primary_account_number,
                                     expiry_month,
                                     expiry_year,
-                                } => Ok(Some(payouts::PayoutMethodData::Wallet(
-                                    api_models::payouts::Wallet::ApplePayDecrypt(
-                                        api_models::payouts::ApplePayDecrypt {
-                                            dpan: application_primary_account_number,
-                                            expiry_month,
-                                            expiry_year,
-                                            card_holder_name: None,
-                                            card_network: None,
-                                        }
-                                    )
-                                ))),
-                                payment_method_data::WalletDetail::GooglePayDecryptedData {
-                                    application_primary_account_number,
-                                    expiry_month,
-                                    expiry_year,
-                                } => Ok(Some(payouts::PayoutMethodData::Wallet(
-                                    api_models::payouts::Wallet::GooglePayDecrypt(
-                                        api_models::payouts::GooglePayDecrypt {
-                                            application_primary_account_number,
-                                            expiry_month,
-                                            expiry_year,
-                                            card_holder_name: None,
-                                            card_network: None,
-                                        }
-                                    )
-                                ))),
-                            }
-                        }
-                        (_, _, Some(bank)) => {
-                            Ok(Some(payouts::PayoutMethodData::BankTransfer(bank)))
-                        }
-                        _ => Ok(None),
-                    }
-                }
+                                    card_holder_name: None,
+                                    card_network: None,
+                                },
+                            ),
+                        ))),
+                    },
+                    (_, _, Some(bank)) => Ok(Some(payouts::PayoutMethodData::BankTransfer(bank))),
+                    _ => Ok(None),
+                },
                 None => Ok(None),
             }
         }
