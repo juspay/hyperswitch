@@ -147,7 +147,12 @@ peer_verdict() {
   # reports MIXED precisely when a clear verdict is needed.
   local private='^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|\[|::)'
 
-  peers="$(sort -u "$out" | grep -v '^$' || true)"
+  # Normalise IPv4-mapped IPv6 (`::ffff:10.1.91.193:80`) to plain IPv4 first.
+  # /proc/net/tcp6 reports dual-stack sockets in that form, and a run can show
+  # a peer *only* that way — which otherwise escapes both the proxy match and
+  # the private-range filter, under-counting proxy connections.
+  peers="$(sed -e 's/^\[::ffff:\([0-9.]*\)\]/\1/' -e 's/^::ffff://' "$out" |
+    sort -u | grep -v '^$' || true)"
   proxy_n="$(printf '%s\n' "$peers" | grep -cE "^(${proxy_ips}):" || true)"
   tls_n="$(printf '%s\n' "$peers" | grep -E ':443$' | grep -cvE "$private" || true)"
 
@@ -158,11 +163,22 @@ peer_verdict() {
   printf '%s\n' "$peers" | grep -E "$private" | sed 's/^/        · /'
   printf '%s\n' "$peers" | grep -vE "$private" | sed 's/^/          /'
 
-  if [ "$proxy_n" -gt 0 ] && [ "$tls_n" -eq 0 ]; then
-    echo "      VERDICT: PROXIED — S3 bytes traverse ${proxy_host}"
-  elif [ "$tls_n" -gt 0 ] && [ "$proxy_n" -eq 0 ]; then
+  # Public TLS sockets decide it. Opening :443 straight to S3 during an S3
+  # transfer means the bytes went direct — botocore makes one proxy decision
+  # per host, so it cannot also be tunnelling them.
+  #
+  # A proxy socket alongside them is expected, not contradictory: credentials
+  # still resolve through the proxy, because a NO_PROXY entry of
+  # `.s3.<region>.amazonaws.com` does not match `sts.<region>.amazonaws.com`.
+  # Treating that coexistence as "mixed" would report inconclusive on a run
+  # that is in fact cleanly direct.
+  if [ "$tls_n" -gt 0 ]; then
     echo "      VERDICT: DIRECT — S3 bytes bypass the proxy"
+    [ "$proxy_n" -gt 0 ] &&
+      echo "               (${proxy_n} proxy socket(s) remain — credentials/STS, expected)"
+  elif [ "$proxy_n" -gt 0 ]; then
+    echo "      VERDICT: PROXIED — S3 bytes traverse ${proxy_host}"
   else
-    echo "      VERDICT: MIXED/INCONCLUSIVE — see peers above"
+    echo "      VERDICT: INCONCLUSIVE — no S3 or proxy peers seen; see above"
   fi
 }
