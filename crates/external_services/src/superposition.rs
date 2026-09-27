@@ -236,6 +236,7 @@ mod deja_boundary {
             run,
             reconstruct::<T>,
             capture::<T>,
+            deja::__private::round_trip!(CustomResult<T, SuperpositionError>),
         )
         .await
     }

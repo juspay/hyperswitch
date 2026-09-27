@@ -1306,6 +1306,7 @@ mod tests {
             Ok(deja::LookupTable {
                 recording_id: "empty".to_string(),
                 policy_version: 1,
+                event_schema_version: Some(deja::CURRENT_EVENT_SCHEMA_VERSION),
                 entries: Vec::new(),
             })
         }
