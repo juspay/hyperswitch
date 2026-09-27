@@ -1313,7 +1313,9 @@ mod capture_tests {
         assert_eq!(left, right);
         assert!(!left.0.contains("-- binds"), "{}", left.0);
         assert_eq!(
-            left.1["$1"]["pre_routing_results"]["ach"]["merchant_connector_id"], "mca_1",
+            left.1
+                .pointer("/$1/pre_routing_results/ach/merchant_connector_id"),
+            Some(&serde_json::json!("mca_1")),
             "the bound document is captured as a document: {}",
             left.1
         );
