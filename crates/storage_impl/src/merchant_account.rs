@@ -204,12 +204,12 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 merchant_id.get_string_repr(),
                 fetch_func,
                 &ACCOUNTS_CACHE,
-            )
+            ))
             .await?
             .convert(
                 state,
@@ -304,12 +304,12 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            merchant_account = cache::get_or_populate_in_memory(
+            merchant_account = Box::pin(cache::get_or_populate_in_memory(
                 self,
                 publishable_key,
                 fetch_by_pub_key_func,
                 &ACCOUNTS_CACHE,
-            )
+            ))
             .await?;
         }
         let key_store = self

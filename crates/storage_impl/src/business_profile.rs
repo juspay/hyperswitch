@@ -349,10 +349,10 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, StorageError> {
         let conn = pg_accounts_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             merchant_key_store,
             diesel::Profile::list_profile_by_merchant_id(&conn, merchant_id),
-        )
+        ))
         .await
     }
 }

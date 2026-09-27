@@ -6210,7 +6210,7 @@ where
         }
     }
 
-    if let Some(network_token_data) = network_tokenization::evaluate_and_fetch_altid(
+    if let Some(network_token_data) = Box::pin(network_tokenization::evaluate_and_fetch_altid(
         state,
         payment_data.get_payment_method_data(),
         payment_data.get_payment_intent().currency,
@@ -6221,7 +6221,7 @@ where
             .is_none(),
         payment_data.get_payment_intent().amount,
         business_profile,
-    )
+    ))
     .await?
     {
         payment_data.set_payment_method_data(Some(domain::PaymentMethodData::NetworkToken(
@@ -13804,16 +13804,17 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching authentication record")?;
-        let payment_method_details = helpers::get_payment_method_details_from_payment_token(
-            &state,
-            &payment_attempt,
-            &payment_intent,
-            &platform,
-            storage_scheme,
-        )
-        .await?
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("missing payment_method_details")?;
+        let payment_method_details =
+            Box::pin(helpers::get_payment_method_details_from_payment_token(
+                &state,
+                &payment_attempt,
+                &payment_intent,
+                &platform,
+                storage_scheme,
+            ))
+            .await?
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing payment_method_details")?;
         Box::pin(authentication_core::perform_authentication(
             &state,
             business_profile.merchant_id,
