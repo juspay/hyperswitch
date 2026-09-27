@@ -451,7 +451,7 @@ fn get_checkout_recipient_account_number(
     let unsupported = |identifier: &str| {
         error_stack::report!(errors::ConnectorError::NotSupported {
             message: format!("{identifier} as a recipient account identifier"),
-            connector: "checkout",
+            connector: "checkout".into(),
         })
     };
 

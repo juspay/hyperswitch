@@ -228,7 +228,7 @@ impl TryFrom<(&PaymentMethodData, bool)> for CeleroPaymentMethod {
         if is_three_ds {
             return Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "celero",
+                connector: "celero".into(),
             }
             .into());
         }

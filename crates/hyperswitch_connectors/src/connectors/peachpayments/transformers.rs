@@ -470,7 +470,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
-                connector: CONNECTOR,
+                connector: CONNECTOR.into(),
             }
             .into());
         }

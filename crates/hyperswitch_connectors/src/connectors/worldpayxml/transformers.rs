@@ -1152,7 +1152,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
                             message:
                                 "PreAuthenticate flow is not supported for this payment method"
                                     .to_string(),
-                            connector: "WorldpayWPG",
+                            connector: "WorldpayWPG".into(),
                         }
                         .into())
                     }
@@ -1162,7 +1162,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
                 return Err(errors::ConnectorError::NotSupported {
                     message: "PreAuthenticate flow is not supported for this payment method"
                         .to_string(),
-                    connector: "WorldpayWPG",
+                    connector: "WorldpayWPG".into(),
                 }
                 .into())
             }
@@ -1647,7 +1647,7 @@ fn get_worldpayxml_account_reference(
             RecipientBankAccount::TruncatedPan { .. } => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "a truncated PAN as a recipient account identifier".to_string(),
-                    connector: "worldpayxml",
+                    connector: "worldpayxml".into(),
                 })?
             }
         },
@@ -1868,7 +1868,7 @@ fn get_worldpayxml_sender_account_number(
 ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
     let unsupported_payment_method = || errors::ConnectorError::NotSupported {
         message: "account funded transactions for the given payment method".to_string(),
-        connector: "worldpayxml",
+        connector: "worldpayxml".into(),
     };
 
     let decrypted_token_pan = match payment_method_token {
@@ -2940,7 +2940,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
         if !item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "PaymentsComplete flow for no-3ds cards".to_string(),
-                connector: "worldpayxml",
+                connector: "worldpayxml".into(),
             })?
         }
 
