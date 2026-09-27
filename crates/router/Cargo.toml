@@ -165,7 +165,9 @@ deja = [
     "redis_interface/deja",
     "hyperswitch_domain_models/deja",
     "storage_impl/deja",
-    # Weak: analytics is optional, so its seam only exists where it is enabled.
+    # analytics is an optional dependency, but `release` and `v1` each enable it
+    # through several of their features, so this seam is present in every
+    # shipped build. The `?` matters only for a build that enables none of them.
     "analytics?/deja",
 ]
 # Partial Auth
