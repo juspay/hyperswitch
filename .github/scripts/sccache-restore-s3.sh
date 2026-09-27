@@ -14,6 +14,9 @@ fi
 cache_name="$1"
 pr_number="${2:-}"
 
+# shellcheck source=.github/scripts/lib-transfer-log.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib-transfer-log.sh"
+
 shared_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.zst"
 
 mkdir -p "$SCCACHE_DIR"
@@ -30,14 +33,44 @@ trap 'rm -f "$tmp_archive"' EXIT
 # stdout: that lets the AWS CLI fetch byte ranges over several connections
 # in parallel. Streaming to stdout forces one sequential GET no matter how
 # big the object is, which is far slower for multi-GB caches.
+#
+# Download and extract are timed separately because the step total conflates
+# them, and they have completely different bottlenecks (network vs. creating
+# tens of thousands of small files).
 restore() {
   local key="$1"
   echo "Restoring sccache cache, key: ${key}"
+
+  local t0 t1 t2 t3 rc=0 archive_bytes extracted_bytes
+
+  t0=$(now_ms)
   aws s3 cp \
     "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}${key}" \
     "$tmp_archive" \
-    --region "${CACHE_S3_REGION}" --no-progress --only-show-errors \
-    && zstd -d -q -c "$tmp_archive" | tar xf - -C "$SCCACHE_DIR"
+    --region "${CACHE_S3_REGION}" 2>&1 | s3_progress || rc=$?
+  t1=$(now_ms)
+
+  if [ "$rc" -ne 0 ]; then
+    return "$rc"
+  fi
+
+  archive_bytes="$(bytes_of "$tmp_archive")"
+  stage_report "download" "$archive_bytes" "$((t1 - t0))"
+
+  t2=$(now_ms)
+  zstd -d -q -c "$tmp_archive" | tar xf - -C "$SCCACHE_DIR" || rc=$?
+  t3=$(now_ms)
+
+  if [ "$rc" -ne 0 ]; then
+    echo "::warning::sccache archive failed to extract (rc=${rc})"
+    return "$rc"
+  fi
+
+  extracted_bytes="$(bytes_of "$SCCACHE_DIR")"
+  stage_report "decompress + extract" "$extracted_bytes" "$((t3 - t2))"
+  ratio_report "compression" "$extracted_bytes" "$archive_bytes"
+  stage_report "restore total" "$archive_bytes" "$((t3 - t0))"
+  return 0
 }
 
 # PR-scoped first (isolates concurrent PRs from each other), falling back to
