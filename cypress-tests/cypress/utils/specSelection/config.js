@@ -177,6 +177,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "55-DynamicFields.cy.js": ["card"],
   "56-VaultTokenizationDisable.cy.js": ["card"],
   "54-ConnectorAgnosticMandates.cy.js": ["card"],
+  "57-ServerIntegrationHeader.cy.js": ["card"],
 });
 
 /**
