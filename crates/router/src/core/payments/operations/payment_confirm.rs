@@ -396,6 +396,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        // An attempt created without setup_future_usage (create with confirm=false, then confirm
+        // with off_session) picks it up from the intent, as new retry attempts do. Connector
+        // requests already use `setup_future_usage_applied.or(intent)`; this lets decisions made
+        // before the connector call, such as connector customer creation, see the same value.
+        payment_attempt.setup_future_usage_applied = payment_attempt
+            .setup_future_usage_applied
+            .or(payment_intent.setup_future_usage);
+
         payment_intent.psd2_sca_exemption_type = request
             .psd2_sca_exemption_type
             .or(payment_intent.psd2_sca_exemption_type);
@@ -3378,7 +3386,8 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         }),
         card_bin: offer_pmd
             .as_ref()
-            .and_then(|offer_pmd| offer_pmd.get_card_iin()),
+            .and_then(|offer_pmd| offer_pmd.get_offer_card_bin())
+            .map(hyperswitch_masking::Secret::new),
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),

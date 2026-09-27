@@ -16,21 +16,6 @@ pub struct CardIssuerResponse {
     pub issuer_name: CardIssuerName,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CardIssuerListQuery {
-    /// Optional search term to filter issuers by name (case-insensitive prefix match)
-    #[schema(example = "hdfc")]
-    pub query: Option<String>,
-    /// Maximum number of results to return (default: 30, max: 255)
-    #[schema(example = 30, default = 30, maximum = 255, value_type = u8)]
-    #[serde(default = "default_card_issuer_list_limit")]
-    pub limit: u8,
-}
-
-fn default_card_issuer_list_limit() -> u8 {
-    common_utils::consts::DEFAULT_CARD_ISSUER_LIST_LIMIT
-}
-
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CardIssuerListResponse {
     pub issuers: Vec<CardIssuerResponse>,
@@ -82,11 +67,6 @@ impl ApiEventMetric for CardIssuerResponse {
     }
 }
 impl ApiEventMetric for CardIssuerListResponse {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::CardIssuers)
-    }
-}
-impl ApiEventMetric for CardIssuerListQuery {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::CardIssuers)
     }

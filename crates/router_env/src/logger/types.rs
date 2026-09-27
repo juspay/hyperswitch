@@ -275,6 +275,10 @@ pub enum Flow {
     RefundsReverse,
     /// Refunds list flow.
     RefundsList,
+    /// Aggregated refunds list flow for a platform across its connected merchants.
+    PlatformRefundsList,
+    /// Aggregated refunds filter-values flow for a platform across its connected merchants.
+    PlatformRefundsFilters,
     /// Refunds filters flow
     RefundsFilters,
     /// Refunds aggregates flow
@@ -385,6 +389,10 @@ pub enum Flow {
     DisputesList,
     /// Dispute Filters flow
     DisputesFilters,
+    /// Aggregated disputes list flow for a platform across its connected merchants.
+    PlatformDisputesList,
+    /// Aggregated disputes filter-values flow for a platform across its connected merchants.
+    PlatformDisputesFilters,
     /// Cards Info flow
     CardsInfo,
     /// Create File flow
@@ -679,8 +687,6 @@ pub enum Flow {
     VolumeSplitOnRoutingType,
     /// Routing evaluate rule flow
     RoutingEvaluateRule,
-    /// Reset the Decision Engine routing diff kill-switch counter for a profile
-    DecisionEngineDiffCounterReset,
     /// Report whether the Unified Connector Service kill switch has tripped a scope
     UnifiedConnectorServiceKillSwitchStatus,
     /// Clear a Unified Connector Service kill switch cutover

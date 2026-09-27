@@ -1063,6 +1063,24 @@ export const payment_methods_enabled = [
 ];
 
 export const connectorDetails = {
+  customer: {
+    CreateInvalidPhoneCountryCode: {
+      Request: {
+        phone_country_code: "United States",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              'Invalid value provided:phone_country_code must be a valid country calling code (e.g. "+1"), got "United States"',
+            code: "IR_07",
+          },
+        },
+      },
+    },
+  },
   bank_transfer_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({

@@ -850,7 +850,7 @@ impl
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
+                connector: "BankOfAmerica".into(),
             })?
         };
 
@@ -2404,7 +2404,7 @@ impl
         if item.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
+                connector: "BankOfAmerica".into(),
             })?
         };
 
