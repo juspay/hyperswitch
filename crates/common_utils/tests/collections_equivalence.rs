@@ -513,35 +513,43 @@ fn drive_set_ops<S: BuildHasher + Clone>(hasher: &S, size: usize, seed: u64) {
                 s.shrink_to_fit();
             }
             36..=38 => {
-                let mut fo: FSet<u64, S> = FSet::with_hasher(hasher.clone());
-                let mut so: SSet<u64, S> = SSet::with_hasher(hasher.clone());
+                let mut f_other: FSet<u64, S> = FSet::with_hasher(hasher.clone());
+                let mut s_other: SSet<u64, S> = SSet::with_hasher(hasher.clone());
                 for _ in 0..rng.below(30) {
                     let x = rng.below(space);
-                    fo.insert(x);
-                    so.insert(x);
+                    f_other.insert(x);
+                    s_other.insert(x);
                 }
                 assert_eq!(
-                    f.union(&fo).collect::<Vec<_>>(),
-                    s.union(&so).collect::<Vec<_>>(),
+                    f.union(&f_other).collect::<Vec<_>>(),
+                    s.union(&s_other).collect::<Vec<_>>(),
                     "{ctx}: union"
                 );
                 assert_eq!(
-                    f.intersection(&fo).collect::<Vec<_>>(),
-                    s.intersection(&so).collect::<Vec<_>>(),
+                    f.intersection(&f_other).collect::<Vec<_>>(),
+                    s.intersection(&s_other).collect::<Vec<_>>(),
                     "{ctx}: intersection"
                 );
                 assert_eq!(
-                    f.difference(&fo).collect::<Vec<_>>(),
-                    s.difference(&so).collect::<Vec<_>>(),
+                    f.difference(&f_other).collect::<Vec<_>>(),
+                    s.difference(&s_other).collect::<Vec<_>>(),
                     "{ctx}: difference"
                 );
                 assert_eq!(
-                    f.symmetric_difference(&fo).collect::<Vec<_>>(),
-                    s.symmetric_difference(&so).collect::<Vec<_>>(),
+                    f.symmetric_difference(&f_other).collect::<Vec<_>>(),
+                    s.symmetric_difference(&s_other).collect::<Vec<_>>(),
                     "{ctx}: symmetric_difference"
                 );
-                assert_eq!(f.is_subset(&fo), s.is_subset(&so), "{ctx}: is_subset");
-                assert_eq!(f.is_disjoint(&fo), s.is_disjoint(&so), "{ctx}: is_disjoint");
+                assert_eq!(
+                    f.is_subset(&f_other),
+                    s.is_subset(&s_other),
+                    "{ctx}: is_subset"
+                );
+                assert_eq!(
+                    f.is_disjoint(&f_other),
+                    s.is_disjoint(&s_other),
+                    "{ctx}: is_disjoint"
+                );
             }
             _ => {
                 if rng.below(4) == 0 {
