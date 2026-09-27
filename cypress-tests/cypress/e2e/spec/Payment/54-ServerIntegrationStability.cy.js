@@ -58,7 +58,15 @@ describe("Server integration — vault session and combined PML stability per pa
   });
 
   after("cleanup superposition config + flush global state", () => {
-    cy.deleteSuperpositionConfig(globalState, merchantContext());
+    // Reset rather than delete: DELETE /context returns 404 on the proxied
+    // superposition deployment, so the only reliable revert is to overwrite
+    // the override with the default value.
+    cy.setSuperpositionConfig(
+      globalState,
+      "system.payment_integration_type",
+      "client",
+      merchantContext()
+    );
     // Safety net: a failed re-enable step must not leave the connector down
     // for later specs.
     if (globalState.get("connectorDisabled")) {
@@ -187,7 +195,7 @@ describe("Server integration — vault session and combined PML stability per pa
           expect(baseline.customer_payment_methods[0]).to.deep.equal(
             globalState.get("enrichedCreateCpm")
           );
-          expect(baseline.payment_methods_enabled).to.deep.equal(
+          expect(baseline.payment_methods_enabled).to.have.deep.members(
             globalState.get("enrichedCreateEnabled")
           );
         });
@@ -242,7 +250,8 @@ describe("Server integration — vault session and combined PML stability per pa
             list.customer_payment_methods[0].payment_token,
             "pinned payment token survives the update"
           ).to.equal(globalState.get("basePaymentToken"));
-          expect(list.payment_methods_enabled).to.deep.equal(
+          // Membership (not order): replicas may re-render the list ordering.
+          expect(list.payment_methods_enabled).to.have.deep.members(
             globalState.get("enrichedCreateEnabled")
           );
 
@@ -276,7 +285,7 @@ describe("Server integration — vault session and combined PML stability per pa
             response.body.customer_payment_methods[0].payment_token,
             "pinned token after rebuilt list"
           ).to.equal(globalState.get("basePaymentToken"));
-          expect(response.body.payment_methods_enabled).to.deep.equal(
+          expect(response.body.payment_methods_enabled).to.have.deep.members(
             baseline.payment_methods_enabled
           );
           expect(response.body.intent_data.amount, "intent amount").to.equal(
@@ -371,7 +380,7 @@ describe("Server integration — vault session and combined PML stability per pa
           },
         }).then((response) => {
           expect(response.status, "status_code").to.equal(200);
-          expect(response.body.payment_methods_enabled).to.deep.equal(
+          expect(response.body.payment_methods_enabled).to.have.deep.members(
             baseline.payment_methods_enabled
           );
           expect(

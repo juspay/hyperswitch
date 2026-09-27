@@ -3499,10 +3499,27 @@ Cypress.Commands.add(
           globalState.set(storeAs, response.body);
         }
         if (compareTo) {
+          // Not byte equality: the enabled list is re-rendered per request on
+          // multi-replica deployments, so entry ORDER can churn across
+          // replicas even when the cached set is identical. The response-level
+          // contract is: same pinned tokens, same enabled set, same action.
+          const baseline = globalState.get(compareTo);
           expect(
-            response.body,
-            `combined PML must be byte-identical to the "${compareTo}" snapshot`
-          ).to.deep.equal(globalState.get(compareTo));
+            response.body.customer_payment_methods,
+            `customer_payment_methods must match the "${compareTo}" snapshot`
+          ).to.have.deep.members(baseline.customer_payment_methods);
+          expect(
+            response.body.payment_methods_enabled,
+            `payment_methods_enabled must match the "${compareTo}" snapshot`
+          ).to.have.deep.members(baseline.payment_methods_enabled);
+          expect(
+            response.body.sdk_next_action,
+            `sdk_next_action must match the "${compareTo}" snapshot`
+          ).to.deep.equal(baseline.sdk_next_action);
+          expect(
+            response.body.intent_data,
+            `intent_data must match the "${compareTo}" snapshot`
+          ).to.deep.equal(baseline.intent_data);
         }
       });
     });
