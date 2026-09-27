@@ -873,6 +873,7 @@ impl FinixWebhookBody {
                     challenge_required_by: dispute.respond_by,
                     created_at: dispute.created_at,
                     updated_at: dispute.updated_at,
+                    additional_details: None,
                 })
             }
             FinixEmbedded::Authorizations { .. }

@@ -88,6 +88,10 @@ impl PaymentAttemptExt for PaymentAttempt {
                 |surcharge_amount| api_models::payments::RequestSurchargeDetails {
                     surcharge_amount,
                     tax_amount: self.net_amount.get_tax_on_surcharge(),
+                    surcharge_percentage: self
+                        .external_surcharge_details
+                        .as_ref()
+                        .and_then(|details| details.surcharge_percentage_as_f64()),
                 },
             )
     }

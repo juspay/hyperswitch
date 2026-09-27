@@ -1047,3 +1047,27 @@ impl DatabaseBackedConfig for PayoutFrmCall {
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
+
+config! {
+    superposition_key = CARD_ISSUER_LIST_MAX_LIMIT,
+    output = i64,
+    default = 18_000,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for CardIssuerListMaxLimit {
+    const KEY: &'static str = "card_issuer_list_max_limit";
+}
+
+config! {
+    superposition_key = PAYOUT_BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutBlocklistGuard {
+    const KEY: &'static str = "payout_blocklist_guard";
+}
