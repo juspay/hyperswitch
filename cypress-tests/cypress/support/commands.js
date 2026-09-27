@@ -38,6 +38,7 @@ import getConnectorDetails, {
 } from "../e2e/configs/Payment/Utils";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
+import { jsonDiffPaths, normalizeJsonForCompare } from "../utils/jsonCompare";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import {
@@ -3500,18 +3501,33 @@ Cypress.Commands.add(
         }
         if (compareTo) {
           // Not byte equality: the enabled list is re-rendered per request on
-          // multi-replica deployments, so entry ORDER can churn across
-          // replicas even when the cached set is identical. The response-level
-          // contract is: same pinned tokens, same enabled set, same action.
+          // multi-replica deployments — both the entry array and inner lists
+          // (e.g. eligible connectors) can reorder across replicas even when
+          // the cached content is identical. Compare order-normalized copies;
+          // on a real content mismatch, log the first differing path so the
+          // volatile field is visible in the test output.
           const baseline = globalState.get(compareTo);
-          expect(
-            response.body.customer_payment_methods,
-            `customer_payment_methods must match the "${compareTo}" snapshot`
-          ).to.have.deep.members(baseline.customer_payment_methods);
-          expect(
-            response.body.payment_methods_enabled,
-            `payment_methods_enabled must match the "${compareTo}" snapshot`
-          ).to.have.deep.members(baseline.payment_methods_enabled);
+          for (const section of [
+            "customer_payment_methods",
+            "payment_methods_enabled",
+          ]) {
+            const actualNorm = normalizeJsonForCompare(response.body[section]);
+            const expectedNorm = normalizeJsonForCompare(baseline[section]);
+            if (JSON.stringify(actualNorm) !== JSON.stringify(expectedNorm)) {
+              cy.task(
+                "cli_log",
+                `PML "${compareTo}" ${section} differences:\n  ${jsonDiffPaths(
+                  actualNorm,
+                  expectedNorm,
+                  `$.${section}`
+                ).join("\n  ")}`
+              );
+            }
+            expect(
+              actualNorm,
+              `${section} must match the "${compareTo}" snapshot`
+            ).to.deep.equal(expectedNorm);
+          }
           expect(
             response.body.sdk_next_action,
             `sdk_next_action must match the "${compareTo}" snapshot`

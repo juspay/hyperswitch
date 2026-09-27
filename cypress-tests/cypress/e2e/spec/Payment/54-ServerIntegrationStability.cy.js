@@ -4,6 +4,7 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
+import { normalizeJsonForCompare } from "../../../utils/jsonCompare";
 
 let globalState;
 
@@ -195,8 +196,10 @@ describe("Server integration — vault session and combined PML stability per pa
           expect(baseline.customer_payment_methods[0]).to.deep.equal(
             globalState.get("enrichedCreateCpm")
           );
-          expect(baseline.payment_methods_enabled).to.have.deep.members(
-            globalState.get("enrichedCreateEnabled")
+          expect(
+            normalizeJsonForCompare(baseline.payment_methods_enabled)
+          ).to.deep.equal(
+            normalizeJsonForCompare(globalState.get("enrichedCreateEnabled"))
           );
         });
       });
@@ -250,9 +253,12 @@ describe("Server integration — vault session and combined PML stability per pa
             list.customer_payment_methods[0].payment_token,
             "pinned payment token survives the update"
           ).to.equal(globalState.get("basePaymentToken"));
-          // Membership (not order): replicas may re-render the list ordering.
-          expect(list.payment_methods_enabled).to.have.deep.members(
-            globalState.get("enrichedCreateEnabled")
+          // Order-normalized equality: replicas re-render the list ordering
+          // per request, content must be identical.
+          expect(
+            normalizeJsonForCompare(list.payment_methods_enabled)
+          ).to.deep.equal(
+            normalizeJsonForCompare(globalState.get("enrichedCreateEnabled"))
           );
 
           const stashed = globalState.get("sdkVaultAuthorization");
@@ -285,8 +291,10 @@ describe("Server integration — vault session and combined PML stability per pa
             response.body.customer_payment_methods[0].payment_token,
             "pinned token after rebuilt list"
           ).to.equal(globalState.get("basePaymentToken"));
-          expect(response.body.payment_methods_enabled).to.have.deep.members(
-            baseline.payment_methods_enabled
+          expect(
+            normalizeJsonForCompare(response.body.payment_methods_enabled)
+          ).to.deep.equal(
+            normalizeJsonForCompare(baseline.payment_methods_enabled)
           );
           expect(response.body.intent_data.amount, "intent amount").to.equal(
             8940
@@ -380,8 +388,10 @@ describe("Server integration — vault session and combined PML stability per pa
           },
         }).then((response) => {
           expect(response.status, "status_code").to.equal(200);
-          expect(response.body.payment_methods_enabled).to.have.deep.members(
-            baseline.payment_methods_enabled
+          expect(
+            normalizeJsonForCompare(response.body.payment_methods_enabled)
+          ).to.deep.equal(
+            normalizeJsonForCompare(baseline.payment_methods_enabled)
           );
           expect(
             response.body.customer_payment_methods[0].payment_token,
