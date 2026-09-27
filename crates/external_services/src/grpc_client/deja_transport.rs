@@ -296,6 +296,7 @@ where
                 move || run_and_capture(inner, rebuilt_request),
                 reconstruct_from_recorded,
                 extract_envelope,
+                deja::__private::round_trip!(Result<http::Response<TonicBody>, BoxError>),
             )
             .await
         }
@@ -333,6 +334,7 @@ where
                     }
                 },
                 extract_envelope,
+                deja::__private::round_trip!(Result<http::Response<TonicBody>, BoxError>),
             )
             .await
         }
