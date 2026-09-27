@@ -105,19 +105,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform.get_processor(),
         )?;
 
-        // If profile id is not passed, get it from the business_country and business_label
+        // If profile id is not passed, get it from the business_country and business_label.
+        // The lookup is scoped to the merchant, so this also validates that the profile belongs to it.
         #[cfg(feature = "v1")]
-        let profile_id = core_utils::get_profile_id_from_business_details(
+        let business_profile = core_utils::get_profile_from_business_details(
             request.business_country,
             request.business_label.as_ref(),
             platform.get_processor(),
             request.profile_id.as_ref(),
             &*state.store,
-            // Ownership is validated below by `validate_and_get_business_profile`, which also
-            // returns the profile; validating here too would fetch and decrypt it twice.
-            false,
         )
         .await?;
+
+        #[cfg(feature = "v1")]
+        let profile_id = business_profile.get_id().to_owned();
 
         // Profile id will be mandatory in v2 in the request / headers
         #[cfg(feature = "v2")]
@@ -127,8 +128,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_required_value("profile_id")
             .attach_printable("Profile id is a mandatory parameter")?;
 
-        // TODO: the business_country / business_label path still fetches the business profile twice
         // Validate whether profile_id passed in request is valid and is linked to the merchant
+        #[cfg(feature = "v2")]
         let business_profile = if let Some(business_profile) =
             core_utils::validate_and_get_business_profile(
                 db,
