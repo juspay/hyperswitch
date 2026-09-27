@@ -8374,6 +8374,21 @@ where
     }
 }
 
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            logger::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
 #[macro_export]
 macro_rules! convert_connector_response_to_domain_response {
     ($connector_type:ty, $response_type:ty, $convert_fn:expr) => {

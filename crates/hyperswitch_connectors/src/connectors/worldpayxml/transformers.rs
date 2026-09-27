@@ -312,9 +312,9 @@ pub struct Payment {
 #[derive(Debug, Deserialize, Serialize)]
 struct CardBin {
     #[serde(rename = "@cardClass")]
-    card_class: Option<WorldpayXmlCardClass>,
+    card_class: Option<String>,
     #[serde(rename = "@productType")]
-    product_type: Option<WorldpayXmlProductType>,
+    product_type: Option<String>,
     /// Numeric ISO 3166 country code. Worldpay sends `-1` when the country is unknown.
     #[serde(rename = "@issuerCountryCode")]
     issuer_country_code: Option<String>,
@@ -322,7 +322,7 @@ struct CardBin {
     issuer_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, strum::EnumString)]
 enum WorldpayXmlCardClass {
     C,
     D,
@@ -341,24 +341,13 @@ impl WorldpayXmlCardClass {
             Self::R => common_enums::FundingSource::DeferredDebit,
         }
     }
-
-    /// `CardType` has no deferred-debit variant, so a deferred debit card is reported as credit —
-    /// the funding source keeps the finer distinction.
-    fn as_card_type(self) -> common_enums::CardType {
-        match self {
-            Self::C | Self::R => common_enums::CardType::Credit,
-            Self::D => common_enums::CardType::Debit,
-            Self::H => common_enums::CardType::ChargeCard,
-            Self::P => common_enums::CardType::Prepaid,
-        }
-    }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, strum::EnumString)]
 enum WorldpayXmlProductType {
-    #[serde(rename = "CN")]
+    #[strum(serialize = "CN")]
     Consumer,
-    #[serde(rename = "CP")]
+    #[strum(serialize = "CP")]
     Commercial,
 }
 
@@ -4321,21 +4310,10 @@ fn get_connector_response_data(
             let processor_card_network = payment_data
                 .payment_method
                 .as_deref()
-                .and_then(|code| {
-                    code.parse::<WorldpayXmlPaymentMethodCode>()
-                        .inspect_err(|_| {
-                            router_env::logger::debug!(
-                                payment_method_code = code,
-                                "Unrecognised Worldpay payment method code"
-                            );
-                        })
-                        .ok()
-                })
+                .and_then(
+                    connector_utils::parse_or_log_unrecognised::<WorldpayXmlPaymentMethodCode>,
+                )
                 .and_then(WorldpayXmlPaymentMethodCode::card_network);
-            let card_class = payment_data
-                .card_bin
-                .as_ref()
-                .and_then(|card_bin| card_bin.card_class);
 
             AdditionalPaymentMethodConnectorResponse::Card {
                 authentication_data: None,
@@ -4344,18 +4322,24 @@ fn get_connector_response_data(
                 domestic_network: None,
                 auth_code: Some(auth_code),
                 processor_card_network,
-                card_type: card_class.map(WorldpayXmlCardClass::as_card_type),
-                funding_source: card_class.map(WorldpayXmlCardClass::as_funding_source),
+                card_type: payment_data
+                    .amount
+                    .as_ref()
+                    .and_then(|amount| amount.debit_credit_indicator)
+                    .map(DebitCreditIndicator::as_card_type),
+                funding_source: payment_data
+                    .card_bin
+                    .as_ref()
+                    .and_then(|card_bin| card_bin.card_class.as_deref())
+                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlCardClass>)
+                    .map(WorldpayXmlCardClass::as_funding_source),
                 card_segment_type: payment_data
                     .card_bin
                     .as_ref()
-                    .and_then(|card_bin| card_bin.product_type)
+                    .and_then(|card_bin| card_bin.product_type.as_deref())
+                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlProductType>)
                     .map(WorldpayXmlProductType::as_card_segment_type),
                 card_subtype,
-                // `<cardBin>` is the only issuer source here. The top-level `<issuerName>` and
-                // `<issuerCountryCode>` elements are placeholders when the account has no extended
-                // BIN data — a real reply carries `UNKNOWN` and `N/A` — so falling back to them
-                // would store those strings as if they were an issuer.
                 issuer_name: payment_data
                     .card_bin
                     .as_ref()
