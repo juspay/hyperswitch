@@ -14186,7 +14186,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
     #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
     #[serde(default)]
-    pub recovery_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[cfg(feature = "v2")]

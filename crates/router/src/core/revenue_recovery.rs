@@ -228,7 +228,7 @@ pub async fn upsert_calculate_pcr_task(
                             .revenue_recovery
                             .as_mut()
                             .map(|revenue_recovery_metadata| {
-                                revenue_recovery_metadata.recovery_routing =
+                                revenue_recovery_metadata.revenue_recovery_ab_routing =
                                     Some(assigned_algorithm);
                             })
                             .map(|_| feature_metadata)

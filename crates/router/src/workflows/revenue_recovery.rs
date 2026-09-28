@@ -821,7 +821,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         feature_metadata.payment_revenue_recovery_metadata.as_ref()
                     })
                     .and_then(|revenue_recovery_metadata| {
-                        revenue_recovery_metadata.recovery_routing
+                        revenue_recovery_metadata.revenue_recovery_ab_routing
                     });
 
                 logger::info!(
