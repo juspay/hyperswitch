@@ -441,7 +441,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
             }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Payout Method Not Supported".to_string(),
-                connector: "Truelayer",
+                connector: "Truelayer".into(),
             })?,
         }
     }

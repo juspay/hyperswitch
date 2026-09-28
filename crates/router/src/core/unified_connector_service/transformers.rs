@@ -1062,7 +1062,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             connector_order_id: router_data
                 .request
                 .order_id
@@ -1131,6 +1131,24 @@ impl
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: None,
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth)
+                    .transpose()?,
+            }),
+            setup_future_usage: None,
         })
     }
 }
@@ -1974,6 +1992,7 @@ impl
             // This is the live path for card 3DS; setting only the external-vault variant
             // below silently leaves the field None and the connector rejects the session.
             connector_order_id: router_data.request.order_id.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -2079,6 +2098,7 @@ impl
             // Forward the order created by the preceding CreateOrder leg. Elavon PG's
             // hosted-payment-page 3DS opens its payment session against that Order resource.
             connector_order_id: router_data.request.order_id.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -2323,7 +2343,7 @@ impl
                 .order_id
                 .clone()
                 .or_else(|| router_data.request.connector_transaction_id.clone()),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -2736,7 +2756,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             connector_order_id: None,
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -2908,7 +2928,7 @@ impl
                 .connector_testing_data
                 .as_ref()
                 .map(|data| Secret::new(data.peek().to_string())),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             setup_mandate_details: None,
             partner_merchant_identifier_details: router_data
                 .request
@@ -3181,7 +3201,7 @@ impl
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             customer_document_details: to_grpc_customer_document_details(router_data),
             customer: Some(payments_grpc::Customer {
                 first_name: None,
@@ -4412,9 +4432,9 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
-            common_enums::CardNetwork::Prop
-            | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => Self::Unspecified,
+            common_enums::CardNetwork::Prop => Self::Prop,
+            common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
+            common_enums::CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }
