@@ -1589,11 +1589,7 @@ impl HybridRoutingStage {
             .open_router
             .dynamic_routing_enabled
             .then(|| {
-                // The DE matches preferredConnectors by exact string against the eligible list.
-                // The stored preference is always "connector:mca_id": an exact entry match
-                // pins the precise account (profiles with several accounts of one
-                // connector), else the connector-name half picks this profile's own entry.
-                // Anything else, or a preference outside the eligible list, is dropped.
+                // Match an exact eligible account first, then any eligible account for the same connector.
                 let preferred_connector =
                     input.preferred_connector.as_ref().and_then(|preferred| {
                         let preferred_connector_name =
@@ -1737,7 +1733,6 @@ pub async fn perform_hybrid_routing_if_enabled(
 ) {
     let stage = HybridRoutingStage;
 
-    // The stored preference is only forwarded when the profile has preferred-connectors routing enabled.
     let preferred_connector = match preferred_connector {
         Some(connector)
             if utils::is_preferred_connectors_routing_enabled(state, dimensions).await =>
@@ -3720,7 +3715,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
         payment_attempt,
         routable_connectors.clone(),
         Some(or_types::RankingAlgorithm::SrBasedRouting),
-        // Preferred-connector routing rides only the hybrid path; this legacy decide-gateway call sends no preference.
+        // Legacy routing does not send preferred connectors.
         None,
     );
 

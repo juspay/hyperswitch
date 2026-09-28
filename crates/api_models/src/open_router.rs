@@ -157,9 +157,7 @@ pub struct PaymentInfo {
     #[schema(value_type = String, example = "USD")]
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
-    /// Routing hint: connectors preferred for this customer, in
-    /// order, each as its eligible-gateway-list identity ("connector:mca_id");
-    /// the decision engine consumes the first entry today
+    /// Ordered preferred connector account identities in `connector:mca_id` format.
     #[schema(value_type = Option<Vec<String>>, example = json!(["adyen:mca_5678"]))]
     pub preferred_connectors: Option<Vec<String>>,
     /// Type of payment transaction being processed

@@ -12140,9 +12140,7 @@ pub async fn decide_connector(
     }
 }
 
-// Global config listing the payment method types eligible for preferred-connector
-// routing (comma-separated, e.g. "interac,ideal"); the write and read gates both
-// consult it, so widening the feature is a config change, not a code change.
+/// Returns the global payment-method allowlist shared by preferred-connector reads and writes.
 #[cfg(feature = "v1")]
 pub async fn preferred_connectors_enabled_payment_method_types(
     state: &SessionState,
@@ -12161,10 +12159,7 @@ pub async fn preferred_connectors_enabled_payment_method_types(
         .collect()
 }
 
-// The stored preference is keyed by payment method type, then holds
-// {"<profile_id>": "connector:mca_id"} entries; routing consumes
-// the paying profile's own entry for the payment's own method type, so
-// neither profiles nor payment method types inherit each other's accounts.
+/// Looks up a profile's connector in the stored preferences for one payment method type.
 #[cfg(feature = "v1")]
 fn preferred_connector_for_profile(
     value: &serde_json::Value,
@@ -12242,8 +12237,6 @@ where
         return Ok(connector);
     }
 
-    // Preferred-connector routing uses the same configured payment method types as
-    // the write side, and reads preferences exclusively from the customer.
     let enabled_payment_method_types =
         preferred_connectors_enabled_payment_method_types(&state).await;
     let preferred_connector = payment_data

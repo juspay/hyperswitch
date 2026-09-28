@@ -2293,7 +2293,7 @@ pub async fn get_routing_result_source(
         .await
 }
 
-/// Whether preferred-connectors routing (pin returning customers to their last successful connector) is enabled for the profile.
+/// Checks whether preferred-connector routing is enabled for this profile.
 pub async fn is_preferred_connectors_routing_enabled(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -3189,16 +3189,15 @@ mod preferred_connectors_tests {
             );
         }
         let value = value.expect("preferences were recorded");
+        let preferences = value
+            .peek()
+            .get("interac")
+            .and_then(|entry| entry.as_array())
+            .expect("profile list");
+        assert_eq!(preferences.len(), 10);
         assert_eq!(
-            value.peek()["interac"]
-                .as_array()
-                .expect("profile list")
-                .len(),
-            10
-        );
-        assert_eq!(
-            value.peek()["interac"][0],
-            json!({"pro_10": "loonio:mca_one"})
+            preferences.first(),
+            Some(&json!({"pro_10": "loonio:mca_one"}))
         );
         assert_eq!(
             preferred_connector_for_profile(value.peek(), "interac", "pro_0"),

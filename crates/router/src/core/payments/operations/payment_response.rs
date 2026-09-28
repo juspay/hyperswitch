@@ -3349,8 +3349,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
     }
 
-    // Preferred-connector routing: remember the connector behind an eligible success so future
-    // payments can be pinned to it using the customer record.
+    // Record the successful connector so later payments can prefer it.
     #[cfg(feature = "v1")]
     {
         if payment_attempt.status.is_success() {
@@ -3361,17 +3360,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .zip(payment_attempt.merchant_connector_id.as_ref())
                     .zip(payment_attempt.payment_method_type.zip(customer))
             {
-                // Each profile keeps its own entry ({profile_id: "connector:mca_id"}),
-                // so a success on one profile never clobbers
-                // another profile's memory, and a rerouted (e.g. eliminated-pin)
-                // success updates only its own profile's entry. An attempt without
-                // a known account is not recorded.
+                // Store each profile independently so reroutes only replace that profile's preference.
                 let profile_id = payment_attempt.profile_id.get_string_repr().to_string();
                 let payment_method_type = payment_method_type.to_string();
                 let preferred_connector =
                     format!("{succeeded_connector}:{}", mca_id.get_string_repr());
-                // Customer rows are provider-owned. The already fetched customer and
-                // provider scope are passed into the tracker by the payment flow.
                 let key_store = provider.get_key_store();
                 let storage_scheme = provider.get_account().storage_scheme;
 
@@ -3726,11 +3719,7 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
     Ok(())
 }
 
-/// Upsert this profile's entry in the stored preference map
-/// (`{"<payment_method_type>": [{"<profile_id>": "connector:mca_id"}]}`),
-/// keeping every other payment method type's and profile's entry intact.
-/// Returns `None` when the entry is already current, so the caller can skip
-/// the write.
+/// Upserts one profile preference while preserving others, returning `None` when unchanged.
 #[cfg(feature = "v1")]
 pub(in crate::core::payments) fn upsert_profile_preference(
     existing: Option<&common_utils::pii::SecretSerdeValue>,
