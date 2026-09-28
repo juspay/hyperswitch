@@ -226,8 +226,7 @@ impl PermissionGroupExt for PermissionGroup {
 
     fn is_internal_permission_group(&self) -> bool {
         match self {
-            Self::CloneConnectorManage
-            | Self::AlertsView
+            Self::AlertsView
             | Self::AlertsManage
             | Self::MonitoringView
             | Self::MonitoringManage => true,
