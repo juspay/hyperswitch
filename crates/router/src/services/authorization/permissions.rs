@@ -157,7 +157,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
         (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
-        (Resource::Offers, _) => Some("Offers"),
+        (Resource::Offers, _) => None,
     }
 }
 
