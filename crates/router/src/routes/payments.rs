@@ -2284,7 +2284,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(state, auth.platform, None, req)
+            payments::list::list_payments(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -2318,7 +2318,7 @@ pub async fn payments_list_for_platform(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments_for_platform(state, auth.platform, None, req)
+            payments::list::list_payments_for_platform(state, auth.platform, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2343,7 +2343,7 @@ pub async fn payments_list_for_platform_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_platform_payment_filters(state, auth.platform, None)
+            payments::filters::get_platform_payment_filters(state, auth.platform, None)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2370,7 +2370,7 @@ pub async fn revenue_recovery_invoices_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::revenue_recovery_list_payments(state, auth.platform, req)
+            payments::list::revenue_recovery_list_payments(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2403,7 +2403,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(state, auth.platform, req)
+            payments::list::list_payments(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2437,7 +2437,7 @@ pub async fn profile_payments_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(
+            payments::list::list_payments(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -2476,7 +2476,7 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(state, auth.platform, None, req)
+            payments::list::apply_filters_on_payments(state, auth.platform, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2503,7 +2503,7 @@ pub async fn profile_payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(
+            payments::list::apply_filters_on_payments(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -2535,7 +2535,7 @@ pub async fn get_filters_for_payments(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_filters_for_payments(state, auth.platform, req)
+            payments::filters::get_filters_for_payments(state, auth.platform, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2560,7 +2560,7 @@ pub async fn get_payment_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(state, auth.platform, None)
+            payments::filters::get_payment_filters(state, auth.platform, None)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2585,7 +2585,7 @@ pub async fn get_payment_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(
+            payments::filters::get_payment_filters(
                 state,
                 auth.platform,
                 Some(vec![auth.profile.get_id().clone()]),
@@ -2614,7 +2614,7 @@ pub async fn get_payment_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(
+            payments::filters::get_payment_filters(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -2645,7 +2645,7 @@ pub async fn get_payments_aggregates(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(state, auth.platform, None, req)
+            payments::filters::get_aggregates_for_payments(state, auth.platform, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -3937,7 +3937,7 @@ pub async fn get_payments_aggregates_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(
+            payments::filters::get_aggregates_for_payments(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -3968,7 +3968,7 @@ pub async fn get_payments_aggregates_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(
+            payments::filters::get_aggregates_for_payments(
                 state,
                 auth.platform,
                 Some(vec![auth.profile.get_id().clone()]),
