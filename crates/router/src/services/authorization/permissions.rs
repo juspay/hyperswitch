@@ -157,7 +157,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
         (Resource::Theme, _) => Some("Themes"),
-        (Resource::CloneConnector, _) => None,
+        (Resource::CloneConnector, _) => Some("Clone Connectors"),
         (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
         (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
         (Resource::ReconException, _) => Some("Recon Exception Management"),
