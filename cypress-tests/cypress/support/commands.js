@@ -12343,8 +12343,13 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI and 15 s in all other envs
-    cy.wait(15000);
+    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL)
+    // and 15 s elsewhere. Wait for two full CI poll cycles plus a buffer —
+    // a single 15 s wait only has ~5 s of margin over one CI poll tick, which
+    // isn't enough if the write lands just after a tick or there's network
+    // jitter: the next test can then run against stale config (seen as
+    // flaky failures in 54-IntegrationTypeValidation.cy.js in CI).
+    cy.wait(21000);
   }
 );
 
