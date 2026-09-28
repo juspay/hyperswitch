@@ -824,7 +824,7 @@ where
         call_connector_action.clone(),
         customer
             .as_ref()
-            .and_then(|customer| customer.preferred_connector.clone()),
+            .and_then(|customer| customer.preferred_connectors.clone()),
     )
     .await?;
 
@@ -11543,7 +11543,7 @@ pub async fn choose_connector<F, Req, D>(
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     call_connector_action: CallConnectorAction,
-    customer_preferred_connector: Option<pii::SecretSerdeValue>,
+    customer_preferred_connectors: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone + 'static,
@@ -11618,7 +11618,7 @@ where
                             dimensions,
                             fallback_config,
                             backend_input,
-                            customer_preferred_connector,
+                            customer_preferred_connectors,
                         )
                         .await?
                     }
@@ -11636,7 +11636,7 @@ where
                             dimensions,
                             fallback_config,
                             backend_input,
-                            customer_preferred_connector,
+                            customer_preferred_connectors,
                         )
                         .await?
                     }
@@ -11901,7 +11901,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
-    customer_preferred_connector: Option<pii::SecretSerdeValue>,
+    customer_preferred_connectors: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone + 'static,
@@ -11958,7 +11958,7 @@ where
         fallback_config,
         backend_input,
         should_use_modular_pm_path,
-        customer_preferred_connector,
+        customer_preferred_connectors,
     )
     .await?;
 
@@ -12144,10 +12144,12 @@ pub async fn decide_connector(
 // routing (comma-separated, e.g. "interac,ideal"); the write and read gates both
 // consult it, so widening the feature is a config change, not a code change.
 #[cfg(feature = "v1")]
-pub async fn preferred_connector_enabled_payment_method_types(state: &SessionState) -> Vec<String> {
+pub async fn preferred_connectors_enabled_payment_method_types(
+    state: &SessionState,
+) -> Vec<String> {
     let dimensions: crate::core::configs::dimension_state::DimensionsGlobal = Dimensions::new();
     dimensions
-        .get_preferred_connector_enabled_payment_method_types(
+        .get_preferred_connectors_enabled_payment_method_types(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
@@ -12191,7 +12193,7 @@ pub async fn decide_connector<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
-    customer_preferred_connector: Option<pii::SecretSerdeValue>,
+    customer_preferred_connectors: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone + 'static,
@@ -12243,7 +12245,7 @@ where
     // Preferred-connector routing uses the same configured payment method types as
     // the write side, and reads preferences exclusively from the customer.
     let enabled_payment_method_types =
-        preferred_connector_enabled_payment_method_types(&state).await;
+        preferred_connectors_enabled_payment_method_types(&state).await;
     let preferred_connector = payment_data
         .get_payment_attempt()
         .payment_method_type
@@ -12251,7 +12253,7 @@ where
         .filter(|payment_method_type| enabled_payment_method_types.contains(payment_method_type))
         .and_then(|payment_method_type| {
             let profile_id = business_profile.get_id().get_string_repr();
-            customer_preferred_connector.as_ref().and_then(|value| {
+            customer_preferred_connectors.as_ref().and_then(|value| {
                 preferred_connector_for_profile(value.peek(), &payment_method_type, profile_id)
             })
         });

@@ -26,8 +26,6 @@ pub mod payment_recurrence;
 #[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
-#[cfg(all(test, feature = "v1"))]
-mod payment_response_tests;
 #[cfg(feature = "v1")]
 pub mod payment_session;
 #[cfg(feature = "v2")]

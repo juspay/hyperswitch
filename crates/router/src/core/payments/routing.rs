@@ -1589,7 +1589,7 @@ impl HybridRoutingStage {
             .open_router
             .dynamic_routing_enabled
             .then(|| {
-                // The DE matches preferredConnector by exact string against the eligible list.
+                // The DE matches preferredConnectors by exact string against the eligible list.
                 // The stored preference is always "connector:mca_id": an exact entry match
                 // pins the precise account (profiles with several accounts of one
                 // connector), else the connector-name half picks this profile's own entry.
@@ -1737,10 +1737,10 @@ pub async fn perform_hybrid_routing_if_enabled(
 ) {
     let stage = HybridRoutingStage;
 
-    // The stored preference is only forwarded when the profile has preferred-connector routing enabled.
+    // The stored preference is only forwarded when the profile has preferred-connectors routing enabled.
     let preferred_connector = match preferred_connector {
         Some(connector)
-            if utils::is_preferred_connector_routing_enabled(state, dimensions).await =>
+            if utils::is_preferred_connectors_routing_enabled(state, dimensions).await =>
         {
             Some(connector)
         }
