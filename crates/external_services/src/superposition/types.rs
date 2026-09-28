@@ -36,6 +36,48 @@ impl ToDocument for i64 {
     }
 }
 
+impl ToDocument for i32 {
+    fn to_document(&self) -> Document {
+        match *self {
+            n if n >= 0 => Document::Number(aws_smithy_types::Number::PosInt(u64::from(
+                n.unsigned_abs(),
+            ))),
+            n => Document::Number(aws_smithy_types::Number::NegInt(i64::from(n))),
+        }
+    }
+}
+
+impl ToDocument for serde_json::Value {
+    fn to_document(&self) -> Document {
+        match self {
+            Self::String(s) => Document::String(s.clone()),
+            Self::Bool(b) => Document::Bool(*b),
+            Self::Number(n) => {
+                if let Some(n) = n.as_i64() {
+                    match n {
+                        n if n >= 0 => {
+                            Document::Number(aws_smithy_types::Number::PosInt(n.unsigned_abs()))
+                        }
+                        n => Document::Number(aws_smithy_types::Number::NegInt(n)),
+                    }
+                } else if let Some(n) = n.as_u64() {
+                    Document::Number(aws_smithy_types::Number::PosInt(n))
+                } else {
+                    // For floats, serialize as string since Document Number doesn't support floats directly
+                    Document::String(n.to_string())
+                }
+            }
+            Self::Object(obj) => Document::Object(
+                obj.iter()
+                    .map(|(k, v)| (k.clone(), v.to_document()))
+                    .collect(),
+            ),
+            Self::Array(arr) => Document::Array(arr.iter().map(|v| v.to_document()).collect()),
+            Self::Null => Document::Null,
+        }
+    }
+}
+
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
 pub struct JsonValue(serde_json::Value);
@@ -52,17 +94,28 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
 
     fn try_from(sv: open_feature::StructValue) -> Result<Self, Self::Error> {
         let capacity = sv.fields.len();
-        sv.fields
-            .into_iter()
-            .try_fold(
-                serde_json::Map::with_capacity(capacity),
-                |mut map, (k, v)| {
-                    let value = super::convert_open_feature_value(v)?;
-                    map.insert(k, value);
-                    Ok(map)
-                },
-            )
-            .map(|map| Self(serde_json::Value::Object(map)))
+        let map: serde_json::Map<String, serde_json::Value> = sv.fields.into_iter().try_fold(
+            serde_json::Map::with_capacity(capacity),
+            |mut map, (k, v)| -> Result<_, String> {
+                let value = super::convert_open_feature_value(v)?;
+                map.insert(k, value);
+                Ok(map)
+            },
+        )?;
+
+        // When the CAC value is a JSON array, the OpenFeature provider encodes it as a
+        // StructValue with consecutive integer string keys ("0", "1", ...). Detect this
+        // and convert back to a proper JSON array so downstream deserialization works.
+        let is_array = !map.is_empty() && (0..map.len()).all(|i| map.contains_key(&i.to_string()));
+
+        if is_array {
+            let arr = (0..map.len())
+                .filter_map(|i| map.get(&i.to_string()).cloned())
+                .collect();
+            Ok(Self(serde_json::Value::Array(arr)))
+        } else {
+            Ok(Self(serde_json::Value::Object(map)))
+        }
     }
 }
 

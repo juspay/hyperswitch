@@ -9321,32 +9321,9 @@ where
     request.check_integrity(request, connector_transaction_id.to_owned())
 }
 
-pub async fn config_skip_saving_wallet_at_connector(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
-) -> CustomResult<Option<Vec<storage_enums::PaymentMethodType>>, errors::ApiErrorResponse> {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            "[]".to_string(),
-        )
-        .await;
-    Ok(match config {
-        Ok(conf) => Some(
-            serde_json::from_str::<Vec<storage_enums::PaymentMethodType>>(&conf.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
-        ),
-        Err(error) => {
-            logger::error!(?error);
-            None
-        }
-    })
-}
-
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -9355,23 +9332,28 @@ where
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
-        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
-            db,
-            &payment_data.get_payment_intent().merchant_id,
-        )
-        .await?;
+        if let Some(payment_method_type) =
+            payment_data.get_payment_attempt().get_payment_method_type()
+        {
+            let merchant_id = payment_data.get_payment_intent().merchant_id.clone();
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(dimension_state::ProcessorMerchantId::new(merchant_id))
+                .with_payment_method_type(payment_method_type);
 
-        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
-            if let Some(payment_method_type) =
-                payment_data.get_payment_attempt().get_payment_method_type()
-            {
-                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data
-                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
-                }
+            let skip_saving_wallet_at_connector = dimensions
+                .get_skip_saving_wallet_at_connector(
+                    state.store.as_ref(),
+                    &state.superposition_service,
+                    None,
+                )
+                .await;
+
+            if skip_saving_wallet_at_connector {
+                logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                payment_data
+                    .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
             }
-        };
+        }
     };
     Ok(())
 }
@@ -9811,24 +9793,17 @@ async fn get_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> bool {
-    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
-    let db = &*state.store;
-    let update_enabled =
-        db.find_config_by_key_optional(key.as_str())
-            .await
-            .and_then(|config_optional| {
-                config_optional.ok_or_else(|| {
-                    error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
-                })
-            });
+    let dimensions = dimension_state::Dimensions::new().with_processor_merchant_id(
+        dimension_state::ProcessorMerchantId::new(merchant_id.clone()),
+    );
 
-    match update_enabled {
-        Ok(conf) => conf.config.to_lowercase() == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    dimensions
+        .get_payment_update_enabled_for_client_auth(
+            state.store.as_ref(),
+            &state.superposition_service,
+            None,
+        )
+        .await
 }
 
 pub async fn allow_payment_update_enabled_for_client_auth(
