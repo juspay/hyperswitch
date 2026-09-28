@@ -8723,9 +8723,7 @@ Cypress.Commands.add("browseOffersCall", (requestBody, data, globalState) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include(
-          "application/json"
-        );
+        expect(response.headers["content-type"]).to.include("application/json");
         expect(response.status).to.equal(resData?.status ?? 200);
 
         if (response.status === 200) {
