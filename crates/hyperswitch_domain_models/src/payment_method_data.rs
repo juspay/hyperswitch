@@ -423,6 +423,11 @@ impl EligibilityCardBin {
         self.card_bin.get_card_isin()
     }
 
+    /// The BIN digits sent to Offer Engine, or all of them when fewer were provided
+    pub fn get_offer_card_bin(&self) -> String {
+        self.card_bin.get_offer_card_bin()
+    }
+
     /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
     /// number of digits provided)
     pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
@@ -463,6 +468,14 @@ impl EligibilityPaymentMethodData {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
             Self::CardBin(card_bin) => Some(card_bin.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    pub fn get_offer_card_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_offer_card_bin()),
+            Self::CardBin(card_bin) => Some(card_bin.get_offer_card_bin()),
             _ => None,
         }
     }
@@ -2425,6 +2438,27 @@ impl From<CardWithOptionalCVC> for EligibilityCard {
             nick_name: card.nick_name,
             card_holder_name: card.card_holder_name,
             co_badged_card_data: card.co_badged_card_data,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<&api_models::payouts::CardPayout> for EligibilityCard {
+    fn from(card: &api_models::payouts::CardPayout) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: Some(card.expiry_month.clone()),
+            card_exp_year: Some(card.expiry_year.clone()),
+            card_cvc: None,
+            card_issuer: None,
+            card_network: card.card_network.clone(),
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: card.card_holder_name.clone(),
+            co_badged_card_data: None,
         }
     }
 }
