@@ -670,7 +670,12 @@ mod preferred_connectors_tests {
         );
         let serialized = serde_json::to_value(payment).expect("serialize DE payment info");
         assert_eq!(serialized["preferredConnectors"], json!(["loonio:mca_one"]));
-        assert!(serialized.get("preferredConnector").is_none());
-        assert!(serialized.get("preferredGateways").is_none());
+        for removed_field in [
+            "preferredConnector",
+            "preferredGateways",
+            "preferredGateway",
+        ] {
+            assert!(serialized.get(removed_field).is_none());
+        }
     }
 }

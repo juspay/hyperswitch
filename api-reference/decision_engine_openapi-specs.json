@@ -4834,23 +4834,6 @@
             "items": { "type": "string" },
             "description": "Ordered connector:mca_id preferences from the customer's profile-scoped history. The first entry is considered; health and eligibility checks still apply."
           },
-          "preferredConnector": {
-            "type": ["array", "null"],
-            "items": { "type": "string" },
-            "deprecated": true,
-            "description": "Compatibility alias for preferredConnectors. Send only one of these array fields."
-          },
-          "preferredGateways": {
-            "type": ["array", "null"],
-            "items": { "type": "string" },
-            "deprecated": true,
-            "description": "Compatibility alias for preferredConnectors. Send only one of these array fields."
-          },
-          "preferredGateway": {
-            "type": ["string", "null"],
-            "deprecated": true,
-            "description": "Legacy singular fallback when no non-empty preferredConnectors array is provided."
-          },
           "paymentType": {
             "type": "string",
             "enum": [
