@@ -646,11 +646,8 @@ where
 }
 
 /// Whether a rejection reached us before the connector was called, so the payment can be put back
-/// to the state it had before the pre-update tracker committed.
-///
-/// A response-phase failure (the connector answered but the response could not be read) leaves the
-/// outcome unknown — the payment may have been taken — so it must not be rolled back. Those map to
-/// `ResponseDeserializationFailed` / `ResponseHandlingFailed` and are excluded here.
+/// to the state it had before the pre-update tracker committed. A response-phase failure must not
+/// be rolled back, since the outcome is then unknown.
 #[cfg(feature = "v1")]
 trait PreCallRejection {
     fn rejected_before_connector_call(&self) -> bool;
@@ -675,13 +672,8 @@ impl PreCallRejection for error_stack::Report<errors::ApiErrorResponse> {
     }
 }
 
-/// Put the payment back to the state it had before the pre-update tracker committed.
-///
-/// UCS builds the request on its own side, so a rejection arrives after the trackers have moved the
-/// payment to `processing` and nothing else would ever move it again. Writing the pre-call snapshot
-/// back leaves the attempt and the intent where the direct path leaves them, because that path
-/// rejects before the trackers run. A write failure is logged and swallowed; the caller returns the
-/// API error either way.
+/// Put the payment back to the state it had before the pre-update tracker committed, so a UCS
+/// rejection leaves it retryable as the direct path does. A write failure is logged and swallowed.
 #[cfg(feature = "v1")]
 async fn restore_pre_call_state<F, D>(
     state: &SessionState,
@@ -696,7 +688,7 @@ async fn restore_pre_call_state<F, D>(
     let attempt = payment_data.get_payment_attempt();
     let feature_metadata = payment_data.get_payment_intent().feature_metadata.clone();
 
-    // Every value comes from the snapshot, so the row carries nothing from the aborted attempt.
+    // Every value comes from the snapshot.
     let attempt_update = storage::PaymentAttemptUpdate::ConfirmUpdate {
         net_amount: attempt.net_amount.clone(),
         currency: payment_data.get_currency(),
@@ -915,8 +907,7 @@ where
         })
     });
 
-    // The row as it stands before this call touches anything. Connector selection and the tracker
-    // both mutate `payment_data` in memory before the tracker persists, so read it before either.
+    // Snapshot before connector selection or the tracker mutates `payment_data`.
     let pre_call_payment_data = payment_data.clone();
 
     payment_data.set_connector_customer_id(connector_customer_id);
@@ -1232,8 +1223,6 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Only a rejection that arrived before the connector was reached can be
-                            // rolled back. A response-phase failure leaves the outcome unknown.
                             if api_error.rejected_before_connector_call() {
                                 restore_pre_call_state::<F, D>(
                                     state,
@@ -1437,8 +1426,6 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Only a rejection that arrived before the connector was reached can be
-                            // rolled back. A response-phase failure leaves the outcome unknown.
                             if api_error.rejected_before_connector_call() {
                                 restore_pre_call_state::<F, D>(
                                     state,
