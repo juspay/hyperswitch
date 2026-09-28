@@ -631,42 +631,72 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse existing payment method mandate details")?;
 
-        let connector_mandate_status = common_enums::ConnectorMandateStatus::Inactive;
-        let authorized_amount = Some(
-            payment_data
-                .payment_attempt
-                .net_amount
-                .get_total_amount()
-                .get_amount_as_i64(),
-        );
-        let authorized_currency = payment_data.payment_attempt.currency;
+        let is_active_connector_mandate = existing_mandate_details
+            .payments
+            .as_ref()
+            .and_then(|payments| payments.0.get(&merchant_connector_id))
+            .and_then(|record| record.connector_mandate_status)
+            == Some(common_enums::ConnectorMandateStatus::Active);
 
-        let connector_mandate_details = tokenization::update_connector_mandate_details(
-            Some(existing_mandate_details),
-            payment_data.payment_attempt.payment_method_type,
-            authorized_amount,
-            authorized_currency,
-            Some(merchant_connector_id),
-            connector_mandate_reference_id.get_connector_mandate_id(),
-            connector_mandate_reference_id.get_mandate_metadata(),
-            connector_mandate_status,
-            connector_mandate_reference_id.get_connector_mandate_request_reference_id(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to build connector mandate details for payment method")?;
+        if is_active_connector_mandate {
+            logger::info!(
+                ?merchant_connector_id,
+                "Skipping inactive connector mandate persistence because an active mandate already exists"
+            );
+        } else {
+            let has_connector_mandate_id = connector_mandate_reference_id
+                .get_connector_mandate_id()
+                .is_some();
+            let connector_mandate_status = match (
+                has_connector_mandate_id,
+                payment_data.payment_attempt.status,
+            ) {
+                (
+                    true,
+                    enums::AttemptStatus::Charged
+                    | enums::AttemptStatus::Authorized
+                    | enums::AttemptStatus::PartiallyAuthorized,
+                    enums::AttemptStatus::PartialCharged,
+                    enums::AttemptStatus::PartialChargedAndChargeable,
+                ) => common_enums::ConnectorMandateStatus::Active,
+                _ => common_enums::ConnectorMandateStatus::Inactive,
+            };
+            let authorized_amount = Some(
+                payment_data
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            );
+            let authorized_currency = payment_data.payment_attempt.currency;
 
-        payment_methods::cards::update_payment_method_connector_mandate_details(
-            platform.get_provider().get_key_store(),
-            &*state.store,
-            payment_method_info.clone(),
-            connector_mandate_details,
-            platform.get_provider().get_account().storage_scheme,
-            platform.get_initiator(),
-            None,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment method connector mandate details")?;
+            let connector_mandate_details = tokenization::update_connector_mandate_details(
+                Some(existing_mandate_details),
+                payment_data.payment_attempt.payment_method_type,
+                authorized_amount,
+                authorized_currency,
+                Some(merchant_connector_id),
+                connector_mandate_reference_id.get_connector_mandate_id(),
+                connector_mandate_reference_id.get_mandate_metadata(),
+                connector_mandate_status,
+                connector_mandate_reference_id.get_connector_mandate_request_reference_id(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build connector mandate details for payment method")?;
+
+            payment_methods::cards::update_payment_method_connector_mandate_details(
+                platform.get_provider().get_key_store(),
+                &*state.store,
+                payment_method_info.clone(),
+                connector_mandate_details,
+                platform.get_provider().get_account().storage_scheme,
+                platform.get_initiator(),
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method connector mandate details")?;
+        }
     }
     Ok(())
 }
