@@ -8935,7 +8935,9 @@ fn convert_payout_vendor_account_details_to_grpc(
     payments_grpc::PayoutVendorAccountDetails {
         vendor_details: Some(payments_grpc::VendorDetails {
             account_type: Some(vendor_details.account_type.clone()),
-            business_profile_mcc: vendor_details.business_profile_mcc.map(|mcc| mcc.to_string()),
+            business_profile_mcc: vendor_details
+                .business_profile_mcc
+                .map(|mcc| mcc.to_string()),
             business_profile_url: vendor_details
                 .business_profile_url
                 .as_ref()
@@ -9052,18 +9054,19 @@ impl
             .and_then(|customer_details| customer_details.phone.as_ref())
             .map(|p| p.peek().to_string().into());
 
-        let vendor_account_details = router_data
-            .request
-            .vendor_details
-            .as_ref()
-            .map(|vendor_account_details| {
-                convert_payout_vendor_account_details_to_grpc(
-                    vendor_account_details,
-                    first_name,
-                    last_name,
-                    phone,
-                )
-            });
+        let vendor_account_details =
+            router_data
+                .request
+                .vendor_details
+                .as_ref()
+                .map(|vendor_account_details| {
+                    convert_payout_vendor_account_details_to_grpc(
+                        vendor_account_details,
+                        first_name,
+                        last_name,
+                        phone,
+                    )
+                });
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
@@ -9149,18 +9152,19 @@ impl
             .and_then(|customer_details| customer_details.phone.as_ref())
             .map(|p| p.peek().to_string().into());
 
-        let vendor_account_details = router_data
-            .request
-            .vendor_details
-            .as_ref()
-            .map(|vendor_account_details| {
-                convert_payout_vendor_account_details_to_grpc(
-                    vendor_account_details,
-                    first_name,
-                    last_name,
-                    phone,
-                )
-            });
+        let vendor_account_details =
+            router_data
+                .request
+                .vendor_details
+                .as_ref()
+                .map(|vendor_account_details| {
+                    convert_payout_vendor_account_details_to_grpc(
+                        vendor_account_details,
+                        first_name,
+                        last_name,
+                        phone,
+                    )
+                });
 
         let destination_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.destination_currency)?;
