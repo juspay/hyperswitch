@@ -83,13 +83,15 @@ impl RouterClient {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use super::*;
-    use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer};
-    use serde_json::{json, Value};
     use std::{
         net::TcpListener,
         sync::atomic::{AtomicBool, Ordering},
     };
+
+    use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer};
+    use serde_json::{json, Value};
+
+    use super::*;
 
     #[test]
     fn empty_router_status_is_accepted_without_relaxing_other_flows() {
