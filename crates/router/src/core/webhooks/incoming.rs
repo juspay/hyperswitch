@@ -45,7 +45,9 @@ use crate::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
         payment_methods::{self, cards},
-        payments::{self, operations::payment_response, tokenization, PaymentIntentStateMetadataExt},
+        payments::{
+            self, operations::payment_response, tokenization, PaymentIntentStateMetadataExt,
+        },
         refunds, relay,
         unified_authentication_service::{
             types::UNIFIED_AUTHENTICATION_SERVICE, utils as uas_utils,
@@ -2418,10 +2420,7 @@ async fn associated_data_incoming_webhook_flow(
                         let attempt_update =
                             storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                                 payment_method_id: Some(payment_method_id),
-                                updated_by: processor
-                                    .get_account()
-                                    .storage_scheme
-                                    .to_string(),
+                                updated_by: processor.get_account().storage_scheme.to_string(),
                             };
 
                         match state
@@ -2497,7 +2496,7 @@ fn associated_data_from_ucs_event_content(
             "Failed to read the payments response from unified connector service event content",
         )?;
 
-        let payment_method = payments_response
+    let payment_method = payments_response
         .connector_returned_payment_method_details
         .map(domain::PaymentMethodData::foreign_try_from)
         .transpose()
@@ -2530,8 +2529,7 @@ async fn resolve_payment_method_for_associated_data(
     billing_address_id: Option<&str>,
     connector_disclosed_details: &domain::PaymentMethodData,
 ) -> CustomResult<Option<domain::PaymentMethod>, errors::ApiErrorResponse> {
-    let Some(vaulting_data) = connector_disclosed_details.get_payment_method_vaulting_data()
-    else {
+    let Some(vaulting_data) = connector_disclosed_details.get_payment_method_vaulting_data() else {
         return Ok(None);
     };
 

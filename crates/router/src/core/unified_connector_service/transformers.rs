@@ -5966,14 +5966,18 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Skandiabanken => Ok(Self::Skandiabanken),
             common_enums::BankNames::SkjernBank => Ok(Self::SkjernBank),
             common_enums::BankNames::SkudenesOgAakraSparebank => Ok(Self::SkudenesOgAakraSparebank),
-            common_enums::BankNames::SogneOgGreipstadSparebank => Ok(Self::SogneOgGreipstadSparebank),
+            common_enums::BankNames::SogneOgGreipstadSparebank => {
+                Ok(Self::SogneOgGreipstadSparebank)
+            }
             common_enums::BankNames::SparNordBank => Ok(Self::SparNordBank),
             common_enums::BankNames::SparbankenSyd => Ok(Self::SparbankenSyd),
             common_enums::BankNames::SpardaBank => Ok(Self::SpardaBank),
             common_enums::BankNames::SpareBank1 => Ok(Self::SpareBank1),
             common_enums::BankNames::SparebankenMore => Ok(Self::SparebankenMore),
             common_enums::BankNames::SparebankenOst => Ok(Self::SparebankenOst),
-            common_enums::BankNames::SparebankenSognOgFjordane => Ok(Self::SparebankenSognOgFjordane),
+            common_enums::BankNames::SparebankenSognOgFjordane => {
+                Ok(Self::SparebankenSognOgFjordane)
+            }
             common_enums::BankNames::SparebankenSor => Ok(Self::SparebankenSor),
             common_enums::BankNames::SparebankenVest => Ok(Self::SparebankenVest),
             common_enums::BankNames::SparekassenDanmark => Ok(Self::SparekassenDanmark),

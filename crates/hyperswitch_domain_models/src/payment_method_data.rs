@@ -228,13 +228,15 @@ impl PaymentMethodData {
             Self::BankRedirect(BankRedirectData::Trustly {
                 connector_instrument_id,
                 ..
-            }) => connector_instrument_id.clone().map(|connector_instrument_id| {
-                crate::vault::PaymentMethodVaultingData::BankRedirect(
-                    BankRedirectDetail::Trustly {
-                        connector_instrument_id,
-                    },
-                )
-            }),
+            }) => connector_instrument_id
+                .clone()
+                .map(|connector_instrument_id| {
+                    crate::vault::PaymentMethodVaultingData::BankRedirect(
+                        BankRedirectDetail::Trustly {
+                            connector_instrument_id,
+                        },
+                    )
+                }),
             _ => None,
         }
     }

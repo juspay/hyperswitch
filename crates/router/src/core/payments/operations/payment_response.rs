@@ -3650,19 +3650,19 @@ async fn create_deferred_payment_method<F: Clone>(
         payment_data.payment_attempt.payment_method_type,
         Some(enums::PaymentMethodType::Trustly)
     );
-    
+
     let deferred_save_details =
         (is_payment_method_creation_deferred(payment_data.payment_attempt.payment_method)
             && attempt_status.is_authorization_success()
             && !discloses_instrument_out_of_band)
-        .then(|| {
-            payment_data
-                .payment_attempt
-                .customer_acceptance
-                .clone()
-                .zip(payment_data.payment_intent.customer_id.clone())
-        })
-        .flatten();
+            .then(|| {
+                payment_data
+                    .payment_attempt
+                    .customer_acceptance
+                    .clone()
+                    .zip(payment_data.payment_intent.customer_id.clone())
+            })
+            .flatten();
 
     let Some((customer_acceptance, customer_id)) = deferred_save_details else {
         return Ok(());
