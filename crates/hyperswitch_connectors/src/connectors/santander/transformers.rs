@@ -74,6 +74,7 @@ use crate::{
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
+            SantanderPixAutomaticoCobrWebhookEntry, SantanderPixAutomaticoCobrWebhookStatus,
             SantanderPixAutomaticoRecWebhookBody, SantanderPixAutomaticoRecWebhookEntry,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
@@ -1260,6 +1261,31 @@ fn cobr_sync_status_to_attempt_status(
     }
 }
 
+fn cobr_webhook_status_to_attempt_status(
+    entry: &SantanderPixAutomaticoCobrWebhookEntry,
+) -> AttemptStatus {
+    match entry.status {
+        SantanderPixAutomaticoCobrWebhookStatus::Criada
+        | SantanderPixAutomaticoCobrWebhookStatus::Ativa => AttemptStatus::Pending,
+        SantanderPixAutomaticoCobrWebhookStatus::Concluida => {
+            let has_end_to_end_id = entry
+                .pix
+                .as_ref()
+                .and_then(|pix_list| pix_list.first())
+                .is_some_and(|pix| !pix.end_to_end_id.clone().expose().is_empty());
+            if has_end_to_end_id {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Failure
+            }
+        }
+        SantanderPixAutomaticoCobrWebhookStatus::Expirada
+        | SantanderPixAutomaticoCobrWebhookStatus::Rejeitada
+        | SantanderPixAutomaticoCobrWebhookStatus::Cancelada
+        | SantanderPixAutomaticoCobrWebhookStatus::Unknown => AttemptStatus::Failure,
+    }
+}
+
 impl From<SantanderBoletoStatus> for AttemptStatus {
     fn from(item: SantanderBoletoStatus) -> Self {
         match item {
@@ -1481,6 +1507,48 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 Ok(Self {
                     status: attempt_status,
                     response,
+                    ..item.data
+                })
+            }
+            SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(cobr_data) => {
+                let entry = cobr_data.cobsr.first().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "cobsr".into(),
+                    },
+                )?;
+
+                let attempt_status = cobr_webhook_status_to_attempt_status(entry);
+                let connector_metadata = entry
+                    .pix
+                    .as_ref()
+                    .and_then(|pix_list| pix_list.first())
+                    .map(|pix| {
+                        let data = SantanderData {
+                            end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            journey_name: None,
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+
+                Ok(Self {
+                    status: attempt_status,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(entry.txid.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: Some(entry.id_rec.clone().expose()),
+                        incremental_authorization_allowed: None,
+                        authentication_data: None,
+                        charges: None,
+                        payment_account_reference: None,
+                    }),
                     ..item.data
                 })
             }

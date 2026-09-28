@@ -1511,7 +1511,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                 data.request.currency,
             )?,
             // No amount is sent back in Boleto response
-            SantanderPaymentsSyncResponse::Boleto(_)
+            SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(_)
+            | SantanderPaymentsSyncResponse::Boleto(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(_) => {
                 convert_amount(
@@ -2141,6 +2142,20 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Err(errors::ConnectorError::WebhookReferenceIdNotFound.into()),
                 }
             }
+            SantanderWebhookBody::RecurringCharge(cobr_data) => {
+                let entry = cobr_data
+                    .cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+                if transformers::is_dummy_webhook(entry.id_rec.peek()) {
+                    return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
+                }
+
+                Ok(ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(entry.txid.clone()),
+                ))
+            }
         }
     }
 
@@ -2206,6 +2221,44 @@ impl webhooks::IncomingWebhook for Santander {
                         Ok(IncomingWebhookEvent::MandateRevoked)
                     }
                     _ => Ok(IncomingWebhookEvent::EventNotSupported),
+                }
+            }
+            SantanderWebhookBody::RecurringCharge(cobr_data) => {
+                let entry = cobr_data
+                    .cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+                if transformers::is_dummy_webhook(entry.id_rec.peek()) {
+                    return Ok(IncomingWebhookEvent::EventNotSupported);
+                }
+
+                match entry.status {
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Concluida => {
+                        let is_payment_successful = entry
+                            .pix
+                            .as_ref()
+                            .and_then(|pix_list| pix_list.first())
+                            .is_some_and(|pix| !pix.end_to_end_id.peek().is_empty());
+
+                        if is_payment_successful {
+                            Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                        } else {
+                            Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                        }
+                    }
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Criada
+                    | responses::SantanderPixAutomaticoCobrWebhookStatus::Ativa => {
+                        Ok(IncomingWebhookEvent::PaymentIntentProcessing)
+                    }
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Rejeitada
+                    | responses::SantanderPixAutomaticoCobrWebhookStatus::Expirada
+                    | responses::SantanderPixAutomaticoCobrWebhookStatus::Cancelada => {
+                        Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                    responses::SantanderPixAutomaticoCobrWebhookStatus::Unknown => {
+                        Ok(IncomingWebhookEvent::EventNotSupported)
+                    }
                 }
             }
         }
@@ -2296,6 +2349,7 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Ok(None),
                 }
             }
+            SantanderWebhookBody::RecurringCharge(_) => Ok(None),
         }
     }
 
@@ -2385,6 +2439,10 @@ impl ConnectorSpecifications for Santander {
             setup_future_usage == Some(common_enums::FutureUsage::OffSession)
                 && matches!(current_flow, Some(CurrentFlowInfo::Authorize { .. }) | None),
         )
+    }
+
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        Some(false)
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
