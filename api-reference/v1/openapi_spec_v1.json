@@ -46463,10 +46463,10 @@
       "SantanderJourneyName": {
         "type": "string",
         "enum": [
-          "journey1",
-          "journey2",
-          "journey3",
-          "journey4",
+          "journey_1",
+          "journey_2",
+          "journey_3",
+          "journey_4",
           "awaiting_definition"
         ]
       },
