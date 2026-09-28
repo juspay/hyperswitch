@@ -697,7 +697,7 @@ pub async fn perform_calculate_workflow(
             "Failed to get max retry count from billing merchant connector account",
         )?;
 
-    let (payment_processor_token_response, next_static_ladder_progress) =
+    let (payment_processor_token_response, next_static_ladder_progress, resolved_ab_arm) =
         if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
             logger::info!(
                 process_id = %process.id,
@@ -707,6 +707,7 @@ pub async fn perform_calculate_workflow(
             );
             (
                 revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted,
+                None,
                 None,
             )
         } else {
@@ -734,6 +735,7 @@ pub async fn perform_calculate_workflow(
                     (
                         revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
                         None,
+                        None,
                     )
                 }
             }
@@ -754,7 +756,8 @@ pub async fn perform_calculate_workflow(
             state,
             payment_intent,
             revenue_recovery_payment_data,
-            active_payment_attempt_id
+            active_payment_attempt_id,
+            resolved_ab_arm,
         )).await?;
 
             // 3. If token found: create EXECUTE_WORKFLOW task and finish CALCULATE_WORKFLOW
@@ -1517,6 +1520,11 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
     payment_intent: &PaymentIntent,
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     active_payment_attempt_id: Option<&id_type::GlobalAttemptId>,
+    // #14284: `Some` only on the retry that first resolved the invoice's A/B arm. Persisted
+    // here because this function already builds its update request from the same metadata
+    // object, so the assignment rides along with the transmission reset rather than needing
+    // a second write.
+    resolved_ab_arm: Option<common_enums::RevenueRecoveryAbArm>,
 ) -> Result<Option<()>, sch_errors::ProcessTrackerError> {
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
@@ -1534,6 +1542,12 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
             revenue_recovery_metadata.set_payment_transmission_field_for_api_request(
                 enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
             );
+
+            // Written once, on the retry that resolved it. Later retries replay the stored
+            // value and pass `None`, so this never overwrites an existing assignment.
+            if let Some(arm) = resolved_ab_arm {
+                revenue_recovery_metadata.recovery_routing = Some(arm.to_string());
+            }
 
             let payment_update_req =
             api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(

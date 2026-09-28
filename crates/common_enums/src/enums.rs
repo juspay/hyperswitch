@@ -373,6 +373,41 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// Which retry implementation an invoice is assigned to inside the `Smart` arm while the
+/// revenue-recovery A/B experiment is running (#14284).
+///
+/// Resolved once per invoice from Superposition and then replayed from the intent, never
+/// re-read — a ramp change mid-recovery would otherwise move an invoice between arms and
+/// contaminate both. Stored as a plain string so an unrecognised value degrades to "resolve
+/// again" rather than failing deserialization of the whole intent.
+///
+/// `Decider` is the default because it is what runs today when adaptive retry is off: a
+/// misconfigured experiment therefore collapses the split onto the existing path rather than
+/// silently enrolling every invoice in the newer one.
+#[derive(
+    Default,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryAbArm {
+    /// The adaptive/static hybrid ladder — today's `adaptive_retry_enabled = true` path.
+    Hybrid,
+    /// The PSP-token decider — today's `adaptive_retry_enabled = false` path.
+    #[default]
+    Decider,
+}
+
 #[derive(
     Default,
     Clone,

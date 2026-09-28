@@ -745,10 +745,17 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     (
         PaymentProcessorTokenResponse,
         Option<pcr::schedule::StaticLadderProgress>,
+        // #14284: `Some` only on the retry that first resolves the invoice's A/B arm, so the
+        // caller persists it once. Returning it beats threading `&mut PaymentIntent` through
+        // this call: the caller already reads `active_payment_attempt_id` either side of the
+        // persistence step, and a `&mut` spanning that would need the later read re-derived
+        // to avoid E0502.
+        Option<common_enums::RevenueRecoveryAbArm>,
     ),
     errors::ProcessTrackerError,
 > {
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
+    let mut resolved_ab_arm: Option<common_enums::RevenueRecoveryAbArm> = None;
     // Updated scheduling state, set only when a retry is actually scheduled by the adaptive
     // path. The other responses reschedule the CALCULATE job without making an attempt, so
     // persisting there would consume a ladder position for a retry that never happened.
@@ -774,7 +781,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             // keeps the calculate job alive.
             let Some(time) = schedule_time else {
                 logger::info!(retry_count, "Retry ladder exhausted for this invoice");
-                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None));
+                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None, None));
             };
 
             payment_processor_token_response = get_token_availability_for_schedule_time(
@@ -799,7 +806,75 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await;
 
-            if adaptive_retry_enabled {
+            // #14284: while the A/B experiment is on, which implementation an invoice uses is
+            // resolved from Superposition *once* and then replayed from the intent. Re-reading
+            // it per retry lets a ramp change move an invoice between arms mid-recovery, which
+            // contaminates both arms — and because the gate is read independently in EXECUTE,
+            // a single retry could otherwise be scheduled by one arm and tokenised by the other.
+            //
+            // Gate off is byte-identical to the previous behaviour, so it doubles as the kill
+            // switch: `use_hybrid` falls back to `adaptive_retry_enabled` untouched.
+            let ab_enabled = dimensions
+                .get_revenue_recovery_ab_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            let (use_hybrid, newly_resolved_arm) = if ab_enabled {
+                let stored = payment_intent
+                    .get_revenue_recovery_metadata()
+                    .and_then(|metadata| metadata.recovery_routing.clone());
+
+                // A stored value that is absent *or* unrecognised both fall through to the
+                // resolve; `parse().ok()` covers both. The unrecognised case is logged,
+                // because that is the only way a silent stickiness violation — schema drift,
+                // a hand-edited row — ever becomes observable.
+                let replayed = match stored.as_deref() {
+                    None => None,
+                    Some(raw) => match raw.parse::<common_enums::RevenueRecoveryAbArm>() {
+                        Ok(arm) => Some(arm),
+                        Err(_) => {
+                            logger::warn!(
+                                stored_recovery_routing = %raw,
+                                payment_intent_id = %payment_intent.id.get_string_repr(),
+                                "Stored revenue-recovery A/B arm is not a known implementation; \
+                                 resolving again, which breaks stickiness for this invoice"
+                            );
+                            None
+                        }
+                    },
+                };
+
+                match replayed {
+                    Some(arm) => (arm == common_enums::RevenueRecoveryAbArm::Hybrid, None),
+                    None => {
+                        let resolved = dimensions
+                            .get_revenue_recovery_ab_algorithm(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&payment_intent.id),
+                            )
+                            .await;
+                        logger::info!(
+                            resolved_arm = %resolved,
+                            payment_intent_id = %payment_intent.id.get_string_repr(),
+                            "Resolved revenue-recovery A/B arm for this invoice"
+                        );
+                        (
+                            resolved == common_enums::RevenueRecoveryAbArm::Hybrid,
+                            Some(resolved),
+                        )
+                    }
+                }
+            } else {
+                (adaptive_retry_enabled, None)
+            };
+
+            resolved_ab_arm = newly_resolved_arm;
+
+            if use_hybrid {
                 // Same shape as the cascading arm — compute the schedule time, then gate on
                 // the token. The only additions are the adaptive candidate and the choice
                 // between the two.
@@ -951,6 +1026,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     Ok((
         payment_processor_token_response,
         next_static_ladder_progress,
+        resolved_ab_arm,
     ))
 }
 

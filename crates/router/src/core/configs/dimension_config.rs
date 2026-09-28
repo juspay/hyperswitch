@@ -724,6 +724,57 @@ impl DatabaseBackedConfig for AdaptiveRetryEnabled {
     }
 }
 
+// #14284: the A/B gate is a separate key from the algorithm below, on purpose. A bool cannot
+// encode three states — `false` already means "not in the experiment", so it cannot also mean
+// "control arm" — and a gate living inside the experiment-driven value could not be forced off
+// for one merchant, because variant overrides are themselves contexts keyed on `variantIds`
+// and `get_overrides` merges matching contexts in server-delivered order.
+//
+// Gate-off is byte-identical to the pre-experiment behaviour, so this doubles as the kill switch.
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_AB_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for RevenueRecoveryAbEnabled {
+    const KEY: &'static str = "revenue_recovery_ab_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+// Targeted on the invoice rather than the merchant or the customer: the invoice is the entity
+// whose experience must stay stable, because the measurement compares recovery outcomes per
+// invoice. See the targeting-key guidance on `config!`.
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_AB_ALGORITHM,
+    output = common_enums::RevenueRecoveryAbArm,
+    default = common_enums::RevenueRecoveryAbArm::Decider,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::GlobalPaymentId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for RevenueRecoveryAbAlgorithm {
+    const KEY: &'static str = "revenue_recovery_ab_algorithm";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
 config! {
     superposition_key = RECOVERY_GRACE_PERIOD_DAYS,
     output = i64,
