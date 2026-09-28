@@ -101,10 +101,13 @@ mod merchant_connector_account_cache_tests {
     use error_stack::ResultExt;
     use hyperswitch_domain_models::master_key::MasterKeyInterface;
     use hyperswitch_masking::PeekInterface;
-    use storage_impl::redis::{
-        cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
-        kv_store::RedisConnInterface,
-        pub_sub::PubSubInterface,
+    use storage_impl::{
+        behaviour::Conversion,
+        redis::{
+            cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
+            kv_store::RedisConnInterface,
+            pub_sub::PubSubInterface,
+        },
     };
     use time::macros::datetime;
     use tokio::sync::oneshot;
@@ -121,7 +124,7 @@ mod merchant_connector_account_cache_tests {
         },
         services,
         types::{
-            domain::{self, behaviour::Conversion},
+            domain::{self},
             storage,
         },
     };

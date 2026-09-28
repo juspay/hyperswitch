@@ -35,6 +35,8 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::configs::Connectors;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
 use hyperswitch_masking::Secret;
@@ -415,10 +417,11 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
+            .find_config_by_key_optional(&format!("connector_api_version_{connector_enum}"))
             .await
-            .map(|value| value.config)
             .ok()
+            .flatten()
+            .map(|value| value.config)
     } else {
         None
     };
@@ -611,10 +614,11 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
+            .find_config_by_key_optional(&format!("connector_api_version_{connector_id}"))
             .await
-            .map(|value| value.config)
             .ok()
+            .flatten()
+            .map(|value| value.config)
     } else {
         None
     };
@@ -2139,13 +2143,13 @@ pub fn get_payout_connector_request_reference_id(
 
 #[cfg(feature = "frm")]
 pub fn get_gateway_frm_metadata(
-    conf: &Settings,
+    connectors: &Connectors,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
     match &payment_attempt.connector {
         Some(connector_name) => {
             let connector_data = api::ConnectorData::get_connector_by_name(
-                &conf.connectors,
+                connectors,
                 connector_name,
                 api::GetToken::Connector,
                 payment_attempt.merchant_connector_id.clone(),
@@ -2155,7 +2159,33 @@ pub fn get_gateway_frm_metadata(
 
             connector_data
                 .connector
-                .get_frm_metadata(payment_attempt)
+                .get_payment_frm_metadata(payment_attempt)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
+        }
+        None => Ok(None),
+    }
+}
+
+#[cfg(feature = "frm")]
+pub fn get_payout_gateway_frm_metadata(
+    connectors: &Connectors,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
+    match &payout_attempt.connector {
+        Some(connector_name) => {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payout_attempt.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+            connector_data
+                .connector
+                .get_payout_frm_metadata(payout_attempt)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
         }

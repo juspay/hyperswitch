@@ -125,7 +125,6 @@ pub trait OpenRouterDecideGatewayRequestExt {
         attempt: &PaymentAttempt,
         eligible_gateway_list: Vec<RoutableConnectorChoice>,
         ranking_algorithm: Option<RankingAlgorithm>,
-        is_elimination_enabled: bool,
     ) -> Self
     where
         Self: Sized;
@@ -146,7 +145,6 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
         attempt: &PaymentAttempt,
         eligible_gateway_list: Vec<RoutableConnectorChoice>,
         ranking_algorithm: Option<RankingAlgorithm>,
-        is_elimination_enabled: bool,
     ) -> Self {
         Self {
             payment_info: PaymentInfo {
@@ -167,7 +165,6 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
                     .collect(),
             ),
             ranking_algorithm,
-            elimination_enabled: Some(is_elimination_enabled),
         }
     }
 
@@ -192,7 +189,6 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
             // eligible gateway list is not used in debit routing
             eligible_gateway_list: None,
             ranking_algorithm,
-            elimination_enabled: None,
         }
     }
 }

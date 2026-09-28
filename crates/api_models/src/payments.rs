@@ -1,4 +1,4 @@
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
@@ -38,12 +38,12 @@ pub use self::recipient::{
     RecipientBankAccount, RecipientDetails,
 };
 use crate::customers::CustomerDocumentDetails;
-#[cfg(feature = "v2")]
-fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub(crate) fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
 where
-    D: serde::Deserializer<'de>,
+    D: Deserializer<'de>,
     T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+    <T as std::str::FromStr>::Err: fmt::Debug + fmt::Display + std::error::Error,
 {
     let opt_str: Option<String> = Option::deserialize(v)?;
     match opt_str {
@@ -57,7 +57,7 @@ where
                 let trimmed_item = item.trim();
                 if !trimmed_item.is_empty() {
                     let parsed_item = trimmed_item.parse::<T>().map_err(|e| {
-                        <D::Error as serde::de::Error>::custom(format!(
+                        <D::Error as de::Error>::custom(format!(
                             "Invalid value '{trimmed_item}': {e}"
                         ))
                     })?;
@@ -71,7 +71,7 @@ where
 }
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use serde::{de, Deserializer};
 use serde::{ser::Serializer, Deserialize, Serialize};
 use smithy::SmithyModel;
@@ -1997,6 +1997,12 @@ pub struct RequestSurchargeDetails {
     pub surcharge_amount: MinorUnit,
     #[smithy(value_type = "Option<i64>")]
     pub tax_amount: Option<MinorUnit>,
+    /// The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if
+    /// available. Present only on responses when an external surcharge connector supplied it;
+    /// ignored on requests.
+    #[schema(value_type = Option<f64>, example = 3.25)]
+    #[smithy(value_type = "Option<f64>")]
+    pub surcharge_percentage: Option<f64>,
 }
 
 // for v2 use the type from common_utils::types
@@ -10370,6 +10376,18 @@ pub struct ConnectorMetadata {
     pub worldpayxml: Option<WorldpayxmlData>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
+    #[smithy(value_type = "Option<StripeConnectorMetadata>")]
+    pub stripe: Option<StripeConnectorMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct StripeConnectorMetadata {
+    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
+    /// instead of returning a `requires_action` status, since there's no customer present to
+    /// complete additional authentication.
+    #[smithy(value_type = "Option<bool>")]
+    pub error_on_requires_action: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
