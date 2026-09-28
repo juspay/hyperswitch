@@ -938,12 +938,7 @@ pub mod core {
                 .set_body(RequestContent::Json(Box::new(vault_proxy_request)));
 
             let config = &request.connection_config;
-            let http_request = build_request_with_certificates(
-                request_builder,
-                None,
-                None,
-                config.ca_cert.clone(),
-            );
+            let http_request = request_builder.build();
 
             let vault_endpoint_host = vault_endpoint.host_str().unwrap_or("unknown").to_string();
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(

@@ -2878,12 +2878,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
                 vault_connector_id: Some("vgs".to_string()),
                 metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
                     external_services::grpc_client::unified_connector_service::VgsMetadata {
-                        proxy_url: external_vault_metadata_parsed.proxy_url
-                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
-                            .attach_printable("VGS requires proxy_url in MCA metadata")?,
-                        certificate: external_vault_metadata_parsed.certificate
-                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
-                            .attach_printable("VGS requires certificate in MCA metadata")?,
+                        proxy_url: external_vault_metadata_parsed.proxy_url,
+                        certificate: external_vault_metadata_parsed.certificate,
                     },
                 ),
             }
@@ -2998,12 +2994,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 vault_connector_id: Some("vgs".to_string()),
                 metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
                     external_services::grpc_client::unified_connector_service::VgsMetadata {
-                        proxy_url: external_vault_metadata_parsed.proxy_url
-                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
-                            .attach_printable("VGS requires proxy_url in MCA metadata")?,
-                        certificate: external_vault_metadata_parsed.certificate
-                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
-                            .attach_printable("VGS requires certificate in MCA metadata")?,
+                        proxy_url: external_vault_metadata_parsed.proxy_url,
+                        certificate: external_vault_metadata_parsed.certificate,
                     },
                 ),
             }
