@@ -1071,7 +1071,7 @@ where
                         .update_customer(
                             &updated_state,
                             platform.get_provider(),
-                            customer.clone(),
+                            customer,
                             updated_customer,
                         )
                         .await?;
@@ -1262,7 +1262,7 @@ where
                         .update_customer(
                             &updated_state,
                             platform.get_provider(),
-                            customer.clone(),
+                            customer,
                             updated_customer,
                         )
                         .await?;
@@ -1303,7 +1303,7 @@ where
                         .await;
 
                         if config_bool && router_data.should_call_gsm() {
-                            router_data = retry::do_gsm_actions(
+                            (router_data, customer) = retry::do_gsm_actions(
                                 state,
                                 req_state.clone(),
                                 &mut payment_data,
@@ -1312,7 +1312,7 @@ where
                                 router_data,
                                 platform,
                                 &operation,
-                                &mut customer,
+                                customer,
                                 &validate_result,
                                 schedule_time,
                                 #[cfg(feature = "frm")]
