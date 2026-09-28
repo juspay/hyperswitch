@@ -145,6 +145,7 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
@@ -169,6 +170,7 @@ impl
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -593,6 +595,21 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }) => redirection_data.is_none(),
                     _ => false,
                 },
+                // Pay.com gateway 3DS is three legs: PreAuthenticate mints the
+                // `chrg_`/`hld_` id, the Authenticate step that follows this gate turns it
+                // into a challenge session (`/v1/sessions/authentication/linked`), and
+                // CompleteAuthorize confirms after the shopper returns. PreAuthenticate
+                // never returns a redirect of its own — the challenge URL only exists
+                // after the Authenticate leg — so continue whenever leg 1 succeeded
+                // without one. `should_continue_after_authenticate` then stops the chain,
+                // because the Authenticate leg is what produces the redirect.
+                api_models::enums::Connector::Paydotcom => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) => redirection_data.is_none(),
+                    _ => false,
+                },
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
@@ -725,10 +742,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                                 | common_enums::AttemptStatus::Authorized
                         );
 
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                        // On the direct gateway the Authenticate leg already sent the authorization, so never continue.
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
+                            && !gateway_context.execution_path.is_direct_gateway()
                     }
                     _ => false,
                 },

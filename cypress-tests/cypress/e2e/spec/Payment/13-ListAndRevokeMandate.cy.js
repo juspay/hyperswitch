@@ -53,7 +53,6 @@ describe("Card - List and revoke Mandates flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           "new_mandate",
@@ -72,7 +71,6 @@ describe("Card - List and revoke Mandates flow test", () => {
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -109,7 +107,6 @@ describe("Card - List and revoke Mandates flow test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        0,
         true,
         "automatic",
         "setup_mandate",
@@ -131,7 +128,6 @@ describe("Card - List and revoke Mandates flow test", () => {
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState

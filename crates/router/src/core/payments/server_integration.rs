@@ -1,14 +1,15 @@
-//! Server-integration enrichment for payments responses.
+//! Shared plumbing for the server-integration (`X-Integration-Type: server`) response shape.
 //!
-//! A caller that sends `X-Integration-Type: server` gets the payment response it always got,
-//! plus the two artifacts its checkout would otherwise fetch in separate calls: the combined
-//! payment-method list and the wallet session tokens. Client integrations, and callers that
-//! send no header at all, are unaffected.
+//! Both the create-intent and update-intent flows hand the caller the two artifacts its checkout
+//! would otherwise fetch in separate calls: the combined payment-method list and the wallet
+//! session tokens. This module owns the header parsing and the concurrent fetch of those two
+//! sections, and attaches them to the response. The two routes decide when to run it: a create
+//! or an update that opted in with the header.
 //!
-//! This module adds no business logic. It calls the two existing cores — the same ones behind
-//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and attaches their results
-//! to the response. Both reads run after the write they depend on, and concurrently with each
-//! other, since neither reads the other's output.
+//! No business logic lives here. It calls the two existing cores — the same ones behind
+//! `POST /payments/session_tokens` and `GET /payments/{id}/client` — and reports each outcome.
+//! Both reads run after the write they depend on, and concurrently with each other, since neither
+//! reads the other's output.
 
 use api_models::{
     payment_methods as payment_methods_api,
@@ -19,7 +20,7 @@ use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
-    core::{errors, payment_methods::client as pm_client, payments},
+    core::{configs::dimension_state, errors, payment_methods::client as pm_client, payments},
     routes::{app::ReqState, SessionState},
     services::{ApplicationResponse, AuthFlow},
     types::{api as api_types, domain},
@@ -68,6 +69,47 @@ pub fn integration_type_from_headers(
     integration_type
 }
 
+/// The integration type the merchant is configured for, defaulting to `client`.
+pub async fn merchant_integration_type(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> common_enums::MerchantIntegrationType {
+    dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .get_merchant_integration_type(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
+}
+
+/// Rejects a header that does not match the merchant's integration type. An absent header reads
+/// as `client`, so a `server` merchant must send it.
+pub fn validate_integration_type(
+    header: IntegrationType,
+    merchant: common_enums::MerchantIntegrationType,
+) -> errors::RouterResult<()> {
+    let allowed = match merchant {
+        common_enums::MerchantIntegrationType::ClientAndServer => true,
+        common_enums::MerchantIntegrationType::Client => !header.is_server(),
+        common_enums::MerchantIntegrationType::Server => header.is_server(),
+    };
+
+    common_utils::fp_utils::when(!allowed, || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "`{}` header value `{}` does not match the merchant integration type `{merchant}`",
+                    consts::X_INTEGRATION_TYPE,
+                    header.as_header_value()
+                ),
+            }
+        ))
+    })
+}
+
 /// Builds the error payload a degraded section carries, from the same error the standalone
 /// endpoint would have surfaced.
 fn section_error(
@@ -87,11 +129,16 @@ fn timed_out(section: &str) -> error_stack::Report<errors::ApiErrorResponse> {
     ))
 }
 
-/// Attaches the payment-method list and wallet session tokens to a payments response.
+/// Attaches the wallet session tokens and the combined payment-method list to a payments
+/// response, fetching both concurrently.
 ///
-/// Best-effort by design: the payment write has already committed by the time this runs, so a
-/// failing section reports its own error inline and the response still succeeds. Turning a
-/// section failure into a 5xx would hide a committed state change from the caller.
+/// Shared by create intent and update intent: the payment is committed by the time either route
+/// calls this, so neither needs anything the other does not.
+///
+/// Best-effort by design: a failing section reports its own error inline rather than failing the
+/// whole response. Turning a section failure into a 5xx would hide a committed state change from
+/// the caller. That is why this is a `join` and not a `try_join`: one section's failure must not
+/// cancel the other.
 #[instrument(skip_all, fields(payment_id))]
 pub async fn attach_server_context(
     state: SessionState,
@@ -234,7 +281,9 @@ async fn session_tokens(
     .await?;
 
     // Returned whole: the caller gets `session_token` and `vault_details` (the internal vault
-    // SDK authorization) exactly as the standalone endpoint would have returned them.
+    // SDK authorization) exactly as the standalone endpoint would have returned them. The vault
+    // session is the per-payment one shared with `/session_tokens`, so a server integration sees
+    // the same SDK authorization on every call for this payment.
     json_body(response, "session_tokens")
 }
 

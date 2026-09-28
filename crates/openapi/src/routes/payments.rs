@@ -639,7 +639,14 @@
         ("X-Integration-Type" = Option<String>, Header, description = "Selects the response shape. `server` returns the payment together with \
             `payment_method_list` and `session_tokens`, so a server-to-server integration can render \
             its checkout from one call; it is honoured only with merchant API key authentication. \
-            `client`, or no header, returns the payment response unchanged.", example = "server")
+            `client`, or no header, returns the payment response unchanged.", example = "server"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+        Required when authenticating with a platform merchant's API key. \
+        Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     tag = "Payments",
     operation_id = "Create a Payment",
@@ -659,6 +666,13 @@ pub fn payments_create() {}
         ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
         ("expand_attempts" = Option<bool>, Query, description = "If enabled provides list of attempts linked to payment intent"),
         ("expand_captures" = Option<bool>, Query, description = "If enabled provides list of captures linked to latest attempt"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
@@ -681,7 +695,14 @@ pub fn payments_retrieve() {}
         ("X-Integration-Type" = Option<String>, Header, description = "Selects the response shape. `server` returns the payment together with \
             `payment_method_list` and `session_tokens`, so a server-to-server integration can render \
             its checkout from one call; it is honoured only with merchant API key authentication. \
-            `client`, or no header, returns the payment response unchanged.", example = "server")
+            `client`, or no header, returns the payment response unchanged.", example = "server"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+        Required when authenticating with a platform merchant's API key. \
+        Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
    request_body(
      content = PaymentsUpdateRequest,
@@ -823,7 +844,14 @@ pub fn payments_update() {}
     post,
     path = "/payments/{payment_id}/confirm",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body(
      content = PaymentsConfirmRequest,
@@ -879,7 +907,14 @@ pub fn payments_confirm() {}
     post,
     path = "/payments/{payment_id}/capture",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body (
         content = PaymentsCaptureRequest,
@@ -967,7 +1002,14 @@ pub fn payments_connector_session() {}
         )
     ),
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Payment canceled"),
@@ -1001,7 +1043,14 @@ pub fn payments_cancel() {}
         )
     ),
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
@@ -1020,7 +1069,14 @@ pub fn payments_cancel_post_capture() {}
     get,
     path = "/payments/{payment_id}/cancel_post_capture",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
@@ -1048,7 +1104,14 @@ pub fn payments_cancel_post_capture_retrieve() {}
         ("created_lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the payment created time"),
         ("created_gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the payment created time"),
         ("created_lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the payment created time"),
-        ("created_gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment created time")
+        ("created_gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the payment created time"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = Vec<PaymentListResponse>),
@@ -1095,7 +1158,14 @@ pub async fn profile_payments_list() {}
   path = "/payments/{payment_id}/incremental_authorization",
   request_body=PaymentsIncrementalAuthorizationRequest,
   params(
-      ("payment_id" = String, Path, description = "The identifier for payment")
+      ("payment_id" = String, Path, description = "The identifier for payment"),
+      (
+          "X-Connected-Merchant-Id" = Option<String>, Header,
+          description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+          example = "merchant_abc"
+      )
   ),
   responses(
       (status = 200, description = "Payment authorized amount incremented", body = PaymentsResponse),
@@ -1115,7 +1185,14 @@ pub fn payments_incremental_authorization() {}
     post,
     path = "/payments/{payment_id}/extend_authorization",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Extended authorization for the payment"),
@@ -1205,7 +1282,14 @@ pub fn payments_post_session_tokens() {}
     post,
     path = "/payments/{payment_id}/update_metadata",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body=PaymentsUpdateMetadataRequest,
     responses(

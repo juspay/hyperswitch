@@ -735,7 +735,31 @@ describe("Bank Redirect tests", () => {
 
       cy.step("Setup UCS rollout config", () => {
         // Trustly is UCS-only; this enables the Trustly authorize flow in primary mode.
-        cy.createRolloutConfig(globalState, "bank_redirect_trustly_Authorize");
+        if (!globalState.get("ucsEnabled")) {
+          cy.task(
+            "cli_log",
+            "Setup UCS rollout config: UCS_ENABLED env not set - auto-enabling UCS for trustly (UCS-only connector)"
+          );
+          globalState.set("ucsEnabled", true);
+        }
+
+        cy.setupConfigs(globalState, "ucs_enabled", "true");
+
+        const proxyHttp = globalState.get("proxyHttp");
+        const proxyHttps = globalState.get("proxyHttps");
+        cy.createRolloutConfig(globalState, "bank_redirect_trustly_Authorize", {
+          rollout_percent: 1.0,
+          execution_mode: "primary",
+          ...(proxyHttp && proxyHttps
+            ? { http_url: proxyHttp, https_url: proxyHttps }
+            : {}),
+        });
+
+        cy.createRolloutConfig(globalState, "Webhooks", {
+          rollout_percent: 1.0,
+          execution_mode: "primary",
+          webhook_flows: ["Payment"],
+        });
       });
 
       cy.step("Create Payment Intent", () => {
@@ -950,7 +974,6 @@ describe("Bank Redirect tests", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6540,
             true,
             "automatic",
             "new_mandate",
@@ -1001,7 +1024,6 @@ describe("Bank Redirect tests", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6540,
             true,
             "automatic",
             "new_mandate",
@@ -1052,7 +1074,6 @@ describe("Bank Redirect tests", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6540,
             true,
             "automatic",
             "new_mandate",
