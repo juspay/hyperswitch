@@ -1218,10 +1218,9 @@ impl RouterDataAuthorize for types::PaymentsAuthorizeRouterData {
                 // Step up the transaction to 3DS when either assurance_details.card_holder_authenticated is false.
                 // The step up must not override the merchant's requested authentication type:
                 // `no_three_ds` (explicit or defaulted) is respected irrespective of the
-                // assurance_details.card_holder_authenticated, unless a 3DS challenge is forced via `force_3ds_challenge`.
+                // assurance_details.card_holder_authenticated.
                 if (!assurance_details.card_holder_authenticated)
-                    && (self.auth_type != diesel_models::enums::AuthenticationType::NoThreeDs
-                        || self.request.force_3ds_challenge == Some(true))
+                    && (self.auth_type != diesel_models::enums::AuthenticationType::NoThreeDs)
                 {
                     logger::info!("Googlepay transaction stepped up to 3DS");
                     self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
