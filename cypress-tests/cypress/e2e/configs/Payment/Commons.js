@@ -1096,6 +1096,24 @@ export const payment_methods_enabled = [
 ];
 
 export const connectorDetails = {
+  customer: {
+    CreateInvalidPhoneCountryCode: {
+      Request: {
+        phone_country_code: "United States",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              'Invalid value provided:phone_country_code must be a valid country calling code (e.g. "+1"), got "United States"',
+            code: "IR_07",
+          },
+        },
+      },
+    },
+  },
   bank_transfer_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -4059,6 +4077,111 @@ export const connectorDetails = {
         status: 200,
         body: {
           attempt_status: "pending",
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCaptured: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 2500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 2500,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedExceedsAmount: getCustomExchange({
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 6001,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_captured should be less than or equal to amount",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedBoundary: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 6000,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    // Current-API-actual behaviour: zero amount_captured is accepted (200) —
+    // no zero guard exists upstream (crates/router/src/core/payments.rs:14025-14032).
+    ManualPaymentUpdateAmountCapturedZero: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 0,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 0,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedWithoutStatus: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        amount_captured: 2500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "payment_method_awaited",
+          amount_captured: 2500,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedInvalidType: getCustomExchange({
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 25.5,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            // The trailing " at line 1 column N" of the live message is
+            // omitted — the column depends on the serialized request body,
+            // and defaultErrorHandler matches deserialize errors by substring.
+            message:
+              "Json deserialize error: invalid type: floating point `25.5`, expected i64",
+            code: "IR_06",
+          },
         },
       },
     }),
