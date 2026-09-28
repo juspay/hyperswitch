@@ -841,13 +841,24 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     #[cfg(feature = "frm")]
-    fn get_frm_metadata(
+    fn get_payment_frm_metadata(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_frm_metadata(payment_attempt),
-            Self::New(connector) => connector.get_frm_metadata(payment_attempt),
+            Self::Old(connector) => connector.get_payment_frm_metadata(payment_attempt),
+            Self::New(connector) => connector.get_payment_frm_metadata(payment_attempt),
+        }
+    }
+
+    #[cfg(feature = "frm")]
+    fn get_payout_frm_metadata(
+        &self,
+        payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_payout_frm_metadata(payout_attempt),
+            Self::New(connector) => connector.get_payout_frm_metadata(payout_attempt),
         }
     }
 

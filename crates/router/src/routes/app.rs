@@ -1181,10 +1181,6 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
-                web::resource("/decision-engine/{profile_id}/diff-counter")
-                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
-            )
-            .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
                 })),
@@ -1572,6 +1568,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(
+                    web::resource("/platform/list").route(web::get().to(refunds_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(refunds_filter_list_for_platform)),
+                )
                 .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
@@ -2000,6 +2003,9 @@ impl Blocklist {
             .service(
                 web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
             )
+            .service(
+                web::resource("/clone").route(web::post().to(blocklist::clone_blocklist_entries)),
+            )
     }
 }
 
@@ -2186,6 +2192,34 @@ impl MerchantConnectorAccount {
             );
         }
         route
+    }
+}
+
+pub struct HierarchicalResources;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl HierarchicalResources {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hierarchical_resources")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(super::hierarchical_resources::generate_hierarchical_resource),
+            ))
+            .service(
+                web::resource("/list").route(
+                    web::post().to(super::hierarchical_resources::list_hierarchical_resources),
+                ),
+            )
+            .service(
+                web::resource("/apple_pay_certificate/{resource_id}").route(
+                    web::put().to(super::hierarchical_resources::upload_hierarchical_resource),
+                ),
+            )
+            .service(
+                web::resource("/{resource_id}/link").route(
+                    web::post().to(super::hierarchical_resources::link_hierarchical_resource),
+                ),
+            )
     }
 }
 
@@ -2456,6 +2490,14 @@ impl Disputes {
                     .route(web::get().to(disputes::get_disputes_filters_profile)),
             )
             .service(
+                web::resource("/platform/list")
+                    .route(web::get().to(disputes::retrieve_disputes_list_for_platform)),
+            )
+            .service(
+                web::resource("/platform/filter")
+                    .route(web::get().to(disputes::get_platform_disputes_filters)),
+            )
+            .service(
                 web::resource("/accept/{dispute_id}")
                     .route(web::post().to(disputes::accept_dispute)),
             )
@@ -2534,6 +2576,10 @@ impl PaymentLink {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::post().to(payment_link::payments_link_list)))
+            .service(
+                web::resource("/profile/list")
+                    .route(web::post().to(payment_link::profile_payment_link_list)),
+            )
             .service(
                 web::resource("/{payment_link_id}")
                     .route(web::get().to(payment_link::payment_link_retrieve)),

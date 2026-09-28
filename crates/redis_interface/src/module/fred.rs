@@ -238,6 +238,10 @@ impl RedisConnectionPool {
         let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
             .change_context(crate::errors::RedisError::RedisConnectionError)?;
 
+        // ACL / AUTH credentials apply to standalone and cluster alike.
+        config.username = conf.auth_username().map(ToOwned::to_owned);
+        config.password = conf.auth_password().map(ToOwned::to_owned);
+
         let perf = fred::types::PerformanceConfig {
             auto_pipeline: conf.auto_pipeline,
             default_command_timeout: std::time::Duration::from_secs(conf.default_command_timeout),
