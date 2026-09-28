@@ -2346,50 +2346,9 @@ pub fn get_connector_label(
 #[cfg(feature = "v1")]
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
-/// or return a `MissingRequiredField` error
-#[allow(clippy::too_many_arguments)]
-pub async fn get_profile_id_from_business_details(
-    business_country: Option<api_models::enums::CountryAlpha2>,
-    business_label: Option<&String>,
-    processor: &domain::Processor,
-    request_profile_id: Option<&common_utils::id_type::ProfileId>,
-    db: &dyn StorageInterface,
-    should_validate: bool,
-) -> RouterResult<common_utils::id_type::ProfileId> {
-    match request_profile_id.or(processor.get_account().default_profile.as_ref()) {
-        Some(profile_id) => {
-            // Check whether this business profile belongs to the merchant
-            if should_validate {
-                let _ = validate_and_get_business_profile(db, processor, Some(profile_id)).await?;
-            }
-            Ok(profile_id.clone())
-        }
-        None => match business_country.zip(business_label) {
-            Some((business_country, business_label)) => {
-                let profile_name = format!("{business_country}_{business_label}");
-                let business_profile = db
-                    .find_business_profile_by_profile_name_merchant_id(
-                        processor.get_key_store(),
-                        &profile_name,
-                        processor.get_account().get_id(),
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                        id: profile_name,
-                    })?;
-
-                Ok(business_profile.get_id().to_owned())
-            }
-            _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id or business_country, business_label".into()
-            })),
-        },
-    }
-}
-
-/// Same resolution as [`get_profile_id_from_business_details`], but returns the business profile
-/// itself. Both lookups are scoped to the merchant, so fetching the profile also validates that it
-/// belongs to the merchant; use this when the caller needs the profile, to avoid fetching it twice.
+/// or return a `MissingRequiredField` error.
+/// Both lookups are scoped to the merchant, so fetching the profile also validates that it belongs
+/// to the merchant.
 pub async fn get_profile_from_business_details(
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
