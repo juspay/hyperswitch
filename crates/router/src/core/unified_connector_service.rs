@@ -2944,7 +2944,6 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
                             profile_id,
                         },
                         proxy_url,
-                        certificate: None,
                     },
                 ),
             }
@@ -3064,7 +3063,6 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                             profile_id,
                         },
                         proxy_url,
-                        certificate: None,
                     },
                 ),
             }

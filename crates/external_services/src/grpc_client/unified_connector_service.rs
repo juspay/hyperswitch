@@ -263,13 +263,11 @@ pub struct HyperswitchVaultMetadata {
     pub vault_endpoint: Url,
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
-    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments.
+    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments. Unlike
+    /// VGS's MITM proxy, this is a plain CONNECT-tunnel proxy, so no CA certificate is
+    /// needed here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub proxy_url: Option<Url>,
-    /// Optional CA certificate for TLS verification (required for MITM proxies like VGS,
-    /// not needed for CONNECT-tunnel proxies like Squid).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub certificate: Option<Secret<String>>,
 }
 
 /// Failure to build the Unified Connector Service client from configuration.
