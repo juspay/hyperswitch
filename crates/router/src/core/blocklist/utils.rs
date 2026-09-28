@@ -30,15 +30,16 @@ pub async fn delete_entry_from_blocklist(
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
     let processor_merchant_id = processor.get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         processor,
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let blocklist_entry = match request {
         #[allow(deprecated)]
@@ -185,15 +186,16 @@ pub async fn get_blocklist_count(
     query: api_blocklist::BlocklistCountQuery,
 ) -> RouterResult<api_blocklist::BlocklistCountResponse> {
     let processor_merchant_id = processor.get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         processor,
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let (total_count, counts_by_length) = match query.data_kind {
         // Fingerprints are fixed-width hashes, so there is no breakdown worth grouping for.
@@ -261,15 +263,16 @@ pub async fn lookup_blocklist_entry(
     query: api_blocklist::BlocklistLookupQuery,
 ) -> RouterResult<api_blocklist::BlocklistLookupResponse> {
     let processor_merchant_id = processor.get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         processor,
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let result = state
         .store
@@ -303,15 +306,16 @@ pub async fn insert_entry_into_blocklist(
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let blocklist_entry = match &to_block {
         #[allow(deprecated)]
