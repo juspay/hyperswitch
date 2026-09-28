@@ -4755,6 +4755,10 @@ impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformP
                 RequestSurchargeDetails {
                     surcharge_amount,
                     tax_amount: pa.tax_amount,
+                    surcharge_percentage: pa
+                        .external_surcharge_details
+                        .as_ref()
+                        .and_then(|details| details.surcharge_percentage_as_f64()),
                 }
             }),
             installment_options: pi.installment_options.map(|options| options.0),
