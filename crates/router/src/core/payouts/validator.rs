@@ -61,7 +61,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    id_type::ProfileId,
+    domain::Profile,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -80,7 +80,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     id_type::PayoutId,
     Option<payouts::PayoutMethodData>,
-    id_type::ProfileId,
+    domain::Profile,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -146,26 +146,15 @@ pub async fn validate_create_request(
         None
     };
 
-    #[cfg(feature = "v1")]
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    // Fetch the profile once and hand it back, so payout creation doesn't fetch it again
+    let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
         &*state.store,
-        false,
     )
     .await?;
-
-    #[cfg(feature = "v2")]
-    // Profile id will be mandatory in v2 in the request / headers
-    let profile_id = req
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id".into(),
-        })
-        .attach_printable("Profile id is a mandatory parameter")?;
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -327,7 +316,7 @@ pub async fn validate_create_request(
     Ok((
         payout_id,
         payout_method_data,
-        profile_id,
+        business_profile,
         customer,
         payment_method,
     ))
