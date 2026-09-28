@@ -741,6 +741,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
     max_retry_count: u16,
+    // Needed only to resolve the A/B gate
+    provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
 ) -> CustomResult<
     (
         PaymentProcessorTokenResponse,
@@ -801,6 +803,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             let ab_enabled = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(provider_merchant_id)
+                .with_organization_id(payment_intent.organization_id.clone())
+                .with_profile_id(payment_intent.profile_id.clone())
                 .get_revenue_recovery_ab_enabled(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),

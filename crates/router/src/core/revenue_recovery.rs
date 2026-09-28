@@ -193,9 +193,16 @@ pub async fn upsert_calculate_pcr_task(
 
             // A/B routing assigns the invoice its retry implementation here, and only here
             let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(
-                    platform.get_processor().get_account().get_id().clone().into(),
-                );
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_organization_id(
+                    platform
+                        .get_processor()
+                        .get_account()
+                        .organization_id
+                        .clone(),
+                )
+                .with_profile_id(business_profile.get_id().clone());
 
             if dimensions
                 .get_revenue_recovery_ab_enabled(
@@ -205,7 +212,7 @@ pub async fn upsert_calculate_pcr_task(
                 )
                 .await
             {
-                let resolved_algorithm = dimensions
+                let assigned_algorithm = dimensions
                     .get_revenue_recovery_ab_algorithm(
                         state.store.as_ref(),
                         state.superposition_service.as_ref(),
@@ -213,88 +220,63 @@ pub async fn upsert_calculate_pcr_task(
                     )
                     .await;
 
-                let assigned_algorithm = if resolved_algorithm.is_empty() {
-                    router_env::logger::warn!(
-                        payment_id = %payment_id.get_string_repr(),
-                        "A/B routing is enabled but no algorithm is configured for this merchant"
-                    );
-                    None
-                } else {
-                    resolved_algorithm
-                        .parse::<common_enums::RevenueRecoveryABAlgorithm>()
-                        .inspect_err(|error| {
-                            router_env::logger::warn!(
-                                ?error,
-                                resolved_algorithm,
-                                payment_id = %payment_id.get_string_repr(),
-                                "A/B routing resolved an algorithm this build does not recognise"
-                            );
-                        })
-                        .ok()
-                };
+                let updated_feature_metadata = recovery_intent_from_payment_intent
+                    .feature_metadata
+                    .clone()
+                    .and_then(|mut feature_metadata| {
+                        feature_metadata
+                            .revenue_recovery
+                            .as_mut()
+                            .map(|revenue_recovery_metadata| {
+                                revenue_recovery_metadata.recovery_routing =
+                                    Some(assigned_algorithm);
+                            })
+                            .map(|_| feature_metadata)
+                    });
 
-                if let Some(assigned_algorithm) = assigned_algorithm {
-                    let updated_feature_metadata = recovery_intent_from_payment_intent
-                        .feature_metadata
-                        .clone()
-                        .and_then(|mut feature_metadata| {
-                            feature_metadata
-                                .revenue_recovery
-                                .as_mut()
-                                .map(|revenue_recovery_metadata| {
-                                    revenue_recovery_metadata.recovery_routing =
-                                        Some(assigned_algorithm);
-                                })
-                                .map(|_| feature_metadata)
-                        });
+                match updated_feature_metadata {
+                    Some(feature_metadata) => {
+                        let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
+                            merchant_account: platform.get_processor().get_account().clone(),
+                            profile: business_profile.clone(),
+                            key_store: platform.get_processor().get_key_store().clone(),
+                            billing_mca: billing_connector_account.clone(),
+                            retry_algorithm: revenue_recovery_retry,
+                            psync_data: None,
+                        };
 
-                    match updated_feature_metadata {
-                        Some(feature_metadata) => {
-                            let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
-                                merchant_account: platform
-                                    .get_processor()
-                                    .get_account()
-                                    .clone(),
-                                profile: business_profile.clone(),
-                                key_store: platform.get_processor().get_key_store().clone(),
-                                billing_mca: billing_connector_account.clone(),
-                                retry_algorithm: revenue_recovery_retry,
-                                psync_data: None,
-                            };
-
-                            let payment_update_req =
+                        let payment_update_req =
                                 api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
                                     feature_metadata,
                                     enums::UpdateActiveAttempt::Unset,
                                 );
 
-                            match Box::pin(api::update_payment_intent_api(
-                                state,
-                                payment_id.clone(),
-                                &revenue_recovery_payment_data,
-                                payment_update_req,
-                            ))
-                            .await
-                            {
-                                Ok(_) => router_env::logger::info!(
-                                    payment_id = %payment_id.get_string_repr(),
-                                    algorithm = %assigned_algorithm,
-                                    "A/B routing assigned a retry implementation to this invoice"
-                                ),
-                                Err(error) => router_env::logger::error!(
-                                    ?error,
-                                    payment_id = %payment_id.get_string_repr(),
-                                    algorithm = %assigned_algorithm,
-                                    "Failed to record the A/B routing assignment on the invoice"
-                                ),
-                            }
+                        match Box::pin(api::update_payment_intent_api(
+                            state,
+                            payment_id.clone(),
+                            &revenue_recovery_payment_data,
+                            payment_update_req,
+                        ))
+                        .await
+                        {
+                            Ok(_) => router_env::logger::info!(
+                                payment_id = %payment_id.get_string_repr(),
+                                algorithm = %assigned_algorithm,
+                                "A/B routing assigned a retry implementation to this invoice"
+                            ),
+                            Err(error) => router_env::logger::error!(
+                                ?error,
+                                payment_id = %payment_id.get_string_repr(),
+                                algorithm = %assigned_algorithm,
+                                "Failed to record the A/B routing assignment on the invoice"
+                            ),
                         }
-                        None => router_env::logger::warn!(
-                            payment_id = %payment_id.get_string_repr(),
-                            "Cannot record an A/B routing assignment: the invoice has no revenue \
-                             recovery metadata"
-                        ),
                     }
+                    None => router_env::logger::warn!(
+                        payment_id = %payment_id.get_string_repr(),
+                        "Cannot record an A/B routing assignment: the invoice has no revenue \
+                         recovery metadata"
+                    ),
                 }
             }
         }
@@ -828,6 +810,7 @@ pub async fn perform_calculate_workflow(
                 tracking_data,
                 &static_ladder_progress,
                 max_retry_count,
+                platform.get_provider().get_provider_merchant_id(),
         )
             .await
             {
