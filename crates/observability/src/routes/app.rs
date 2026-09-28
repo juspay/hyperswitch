@@ -152,7 +152,9 @@ impl Monitoring {
     /// cannot authorize anyone, so the service must not start accepting requests.
     pub fn server(state: AppState) -> Scope {
         let scope = web::scope("/monitoring");
-        if state.conf.router.is_none() {
+        // Router's authorize-token and active-user routes are v1-only. Even an embedded caller
+        // that bypasses standalone boot validation must not register a broken v2 auth route.
+        if cfg!(feature = "v2") || state.conf.router.is_none() {
             return scope;
         }
         #[allow(clippy::expect_used)]

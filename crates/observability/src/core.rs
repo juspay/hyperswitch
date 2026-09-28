@@ -12,6 +12,7 @@ pub mod cloudwatch;
 pub mod dictionary;
 pub mod lifecycle_events;
 pub mod metadata;
+pub mod monitoring;
 pub mod notifier;
 pub mod router_client;
 pub mod rule_toggles;

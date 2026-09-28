@@ -6,4 +6,5 @@
 //! to deliver. Nothing here knows that HTTP exists.
 
 pub mod cloudwatch;
+pub mod monitoring;
 pub mod notifier;

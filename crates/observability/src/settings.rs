@@ -226,28 +226,7 @@ impl EmailSettings {
 #[derive(Debug, Deserialize, Clone)]
 pub struct RouterSettings {
     /// Internal Router origin (its HTTP listener serves /user directly, without /api).
-    pub base_url: String,
-}
-
-impl RouterSettings {
-    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
-        let url = reqwest::Url::parse(&self.base_url).map_err(|_| {
-            errors::ConfigurationError::ConfigParsingError("router base_url is invalid".into())
-        })?;
-        if !matches!(url.scheme(), "http" | "https")
-            || url.host().is_none()
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-            || url.path() != "/"
-        {
-            return Err(errors::ConfigurationError::ConfigParsingError(
-                "router base_url must be an origin without credentials, path or query".into(),
-            ));
-        }
-        Ok(())
-    }
+    pub base_url: url::Url,
 }
 
 /// Credentials guarding this service's routes.
@@ -433,8 +412,11 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
-        if let Some(router) = &self.router {
-            router.validate()?;
+        #[cfg(feature = "v2")]
+        if self.router.is_some() {
+            return Err(errors::ConfigurationError::ConfigParsingError(
+                "monitoring Grafana auth requires the v1 Router routes".into(),
+            ));
         }
         self.chat.get_inner().validate()?;
         self.email.validate()?;
