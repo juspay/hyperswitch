@@ -7,6 +7,13 @@
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
          and will receive an error asking for this header."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "Blocklist entry counts", body = BlocklistCountResponse),
@@ -27,6 +34,13 @@ pub async fn get_blocklist_count() {}
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
          and will receive an error asking for this header."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "Blocklist lookup result", body = BlocklistLookupResponse),
@@ -43,6 +57,13 @@ pub async fn lookup_blocklist_entry() {}
     path = "/blocklist/toggle",
     params (
         ("status" = bool, Query, description = "Boolean value to enable/disable blocklist"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Blocklist guard enabled/disabled", body = ToggleBlocklistResponse),
@@ -63,6 +84,13 @@ pub async fn toggle_blocklist_guard() {}
          entry under. Ignored when authenticating with a JWT, which carries its own profile. If \
          omitted, the merchant's default profile is used; merchants with more than one profile have \
          no default and will receive an error asking for this header."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "Fingerprint Blocked", body = BlocklistResponse),
@@ -83,6 +111,13 @@ pub async fn add_entry_to_blocklist() {}
          this entry from. Only entries belonging to that profile, or entries with no profile, are \
          removed - an entry blocked under a different profile is not affected and the request \
          returns 404. Resolution follows the same rules as blocking."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "Fingerprint Unblocked", body = BlocklistResponse),
@@ -104,6 +139,13 @@ pub async fn remove_entry_from_blocklist() {}
          belonging to this business profile, plus entries with no profile. When no profile can be \
          resolved - as with publishable-key authentication - all of the merchant's entries are \
          returned, as before."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
@@ -132,6 +174,13 @@ pub async fn list_blocked_payment_methods() {}
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile every entry \
          in this upload is blocked under. Resolution follows the same rules as blocking a single \
          entry."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 202, description = "Batch blocklist job initiated", body = BatchBlocklistUploadResponse),
@@ -149,6 +198,13 @@ pub async fn upload_batch_blocklist() {}
     params(
         ("job_id" = String, Path, description = "The job ID returned by the batch upload endpoint, \
          or the export ID returned by `POST /blocklist/export`"),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "Batch blocklist job status. For a completed export whose file \
@@ -173,6 +229,13 @@ pub async fn get_batch_blocklist_job_status() {}
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to jobs run \
          for this business profile, plus jobs that predate profile scoping. When no profile can be \
          resolved, all of the merchant's jobs are returned, as before."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 200, description = "List of batch blocklist jobs. Rows report `downloadable`, but \
@@ -191,6 +254,13 @@ pub async fn list_batch_blocklist_jobs() {}
     params (
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile whose \
          blocklist is exported. Resolution follows the same rules as blocking a single entry."),
+         (
+             "X-Connected-Merchant-Id" = Option<String>, Header,
+             description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+             example = "merchant_abc"
+         )
     ),
     responses(
         (status = 202, description = "Blocklist export started", body = BlocklistExportResponse),

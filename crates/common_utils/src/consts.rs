@@ -277,8 +277,5 @@ pub const REQUEST_TIME_OUT: u64 = 30;
 /// API client request timeout for ai service (in seconds)
 pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
 
-/// Default number of card issuers returned in a list request
-pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
-
 /// Length of a generated card issuer ID
 pub const CARD_ISSUER_ID_LENGTH: u8 = 5;

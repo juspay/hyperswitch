@@ -12,6 +12,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{Connector as ConnectorTrait, ConnectorIntegration},
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+    errors::not_supported_message,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use router_env::{instrument, tracing};
@@ -603,9 +604,7 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
             errors::ConnectorError::NotSupported { message, connector } => {
                 Some(diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(format!(
-                        "{message} is not supported by {connector}"
-                    )),
+                    refund_error_message: Some(not_supported_message(message, connector)),
                     refund_error_code: Some("NOT_SUPPORTED".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: None,
