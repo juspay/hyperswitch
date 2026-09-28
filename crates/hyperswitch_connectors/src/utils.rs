@@ -8280,6 +8280,16 @@ pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
         .ok()
 }
 
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<enums::CountryAlpha2>().ok().or_else(|| {
+        parse_or_log_unrecognised::<u32>(code)
+            .and_then(|code| common_enums::Country::from_numeric(code).ok())
+            .map(|country| country.to_alpha2())
+    })
+}
+
 #[macro_export]
 macro_rules! convert_connector_response_to_domain_response {
     ($connector_type:ty, $response_type:ty, $convert_fn:expr) => {

@@ -315,7 +315,7 @@ struct CardBin {
     card_class: Option<String>,
     #[serde(rename = "@productType")]
     product_type: Option<String>,
-    /// Numeric ISO 3166 country code. Worldpay sends `-1` when the country is unknown.
+    /// ISO 3166 country code. Worldpay sends `-1` when the country is unknown.
     #[serde(rename = "@issuerCountryCode")]
     issuer_country_code: Option<String>,
     #[serde(rename = "@issuerName")]
@@ -4265,7 +4265,7 @@ fn get_connector_response_data(
     let issuer_country = payment_data
         .issuer_country_code
         .as_deref()
-        .and_then(|code| code.parse::<common_enums::CountryAlpha2>().ok());
+        .and_then(connector_utils::parse_country_code);
     let card_subtype = token
         .and_then(|token| token.payment_instrument.as_ref())
         .and_then(|payment_instrument| {
@@ -4349,9 +4349,7 @@ fn get_connector_response_data(
                     .as_ref()
                     .and_then(|card_bin| card_bin.issuer_country_code.as_deref())
                     // Worldpay's `-1` for an unknown country fails this parse, leaving it empty.
-                    .and_then(|code| code.parse::<u32>().ok())
-                    .and_then(|code| common_enums::Country::from_numeric(code).ok())
-                    .map(|country| country.to_alpha2()),
+                    .and_then(connector_utils::parse_country_code),
             }
         }
     };
