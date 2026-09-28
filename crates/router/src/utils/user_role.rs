@@ -59,11 +59,9 @@ pub fn validate_role_groups(
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
-    if unique_groups.contains(&PermissionGroup::CloneConnectorManage)
-        || unique_groups.contains(&PermissionGroup::AlertsView)
-        || unique_groups.contains(&PermissionGroup::AlertsManage)
-        || unique_groups.contains(&PermissionGroup::MonitoringView)
-        || unique_groups.contains(&PermissionGroup::MonitoringManage)
+    if unique_groups
+        .iter()
+        .any(PermissionGroup::is_internal_permission_group)
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Invalid groups present in the custom role");
