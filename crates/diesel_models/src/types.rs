@@ -507,7 +507,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub first_payment_attempt_network_advice_code: Option<String>,
     /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
     #[serde(default)]
-    pub recovery_routing: Option<String>,
+    pub recovery_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

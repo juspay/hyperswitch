@@ -126,7 +126,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             revenue_recovery_payment_data.key_store.clone(),
             None,
         );
-        let (mut payment_data, _, _) = payments::payments_intent_operation_core::<
+        let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
             _,
             _,
@@ -177,7 +177,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
                     platform_from_revenue_recovery_payment_data,
                     &tracking_data,
                     &revenue_recovery_payment_data,
-                    &mut payment_data.payment_intent,
+                    &payment_data.payment_intent,
                 ))
                 .await
             }
@@ -734,9 +734,7 @@ async fn get_adaptive_retry_allowances(
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
-    // Mutable so the A/B block can record its assignment on the feature metadata; the caller
-    // persists that edit on the path that pushes to EXECUTE.
-    payment_intent: &mut PaymentIntent,
+    payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
@@ -801,7 +799,11 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await;
 
-            let ab_enabled = dimensions
+            // Its own dimensions: the A/B gate is keyed on the merchant alone, so that it can be
+            // resolved identically here and where the assignment is made, which has no connector
+            // to hand.
+            let ab_enabled = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .get_revenue_recovery_ab_enabled(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
@@ -810,50 +812,25 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 .await;
 
             if ab_enabled {
-                let stored_algorithm = payment_intent
+                // Read the assignment made when this invoice entered recovery rather than
+                // resolving again, so every retry runs the implementation the invoice was
+                // enrolled on. `None` means the invoice was never assigned — it entered
+                // recovery before A/B routing was enabled, or the assignment could not be
+                // recorded — so it falls back to the flag-driven path below.
+                let algorithm = payment_intent
                     .feature_metadata
                     .as_ref()
                     .and_then(|feature_metadata| {
                         feature_metadata.payment_revenue_recovery_metadata.as_ref()
                     })
                     .and_then(|revenue_recovery_metadata| {
-                        revenue_recovery_metadata.recovery_routing.clone()
+                        revenue_recovery_metadata.recovery_routing
                     });
-
-                let algorithm = match stored_algorithm {
-                    Some(algorithm) => algorithm,
-                    None => {
-                        let resolved = dimensions
-                            .get_revenue_recovery_ab_algorithm(
-                                state.store.as_ref(),
-                                state.superposition_service.as_ref(),
-                                Some(&payment_intent.id),
-                            )
-                            .await;
-
-                        // Record the assignment so later retries replay it instead of resolving
-                        // again. This only edits the in-memory intent; it reaches the database
-                        // via `reset_connector_transmission_and_active_attempt_id_before_pushing_
-                        // to_execute_workflow`, which builds its update request from this object
-                        // — so nothing is stored on the paths that do not push to EXECUTE.
-                        if let Some(revenue_recovery_metadata) = payment_intent
-                            .feature_metadata
-                            .as_mut()
-                            .and_then(|feature_metadata| {
-                                feature_metadata.payment_revenue_recovery_metadata.as_mut()
-                            })
-                        {
-                            revenue_recovery_metadata.recovery_routing = Some(resolved.clone());
-                        }
-
-                        resolved
-                    }
-                };
 
                 logger::info!(
                     payment_id = %payment_intent.id.get_string_repr(),
-                    algorithm = %algorithm,
-                    "A/B routing resolved the retry implementation for this invoice"
+                    ?algorithm,
+                    "A/B routing read the retry implementation assigned to this invoice"
                 );
             } else if adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on

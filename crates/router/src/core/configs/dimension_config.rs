@@ -728,7 +728,7 @@ config! {
     superposition_key = REVENUE_RECOVERY_AB_ENABLED,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
     targeting_key = id_type::PaymentId
 }
 
@@ -749,7 +749,7 @@ config! {
     superposition_key = REVENUE_RECOVERY_AB_ALGORITHM,
     output = String,
     default = String::new(),
-    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
     targeting_key = id_type::GlobalPaymentId
 }
 

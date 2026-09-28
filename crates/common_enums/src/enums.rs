@@ -373,6 +373,28 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// The retry implementations available within the `Smart` arm of revenue recovery.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryABAlgorithm {
+    /// The static cascading ladder combined with the adaptive model, earlier time wins.
+    AdaptiveRetry,
+}
+
 #[derive(
     Default,
     Clone,
