@@ -4311,7 +4311,7 @@ fn get_connector_response_data(
                 .payment_method
                 .as_deref()
                 .and_then(
-                    connector_utils::parse_or_log_unrecognised::<WorldpayXmlPaymentMethodCode, _>,
+                    connector_utils::parse_or_log_unrecognised::<WorldpayXmlPaymentMethodCode>,
                 )
                 .and_then(WorldpayXmlPaymentMethodCode::card_network);
 
@@ -4331,15 +4331,13 @@ fn get_connector_response_data(
                     .card_bin
                     .as_ref()
                     .and_then(|card_bin| card_bin.card_class.as_deref())
-                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlCardClass, _>)
+                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlCardClass>)
                     .map(WorldpayXmlCardClass::as_funding_source),
                 card_segment_type: payment_data
                     .card_bin
                     .as_ref()
                     .and_then(|card_bin| card_bin.product_type.as_deref())
-                    .and_then(
-                        connector_utils::parse_or_log_unrecognised::<WorldpayXmlProductType, _>,
-                    )
+                    .and_then(connector_utils::parse_or_log_unrecognised::<WorldpayXmlProductType>)
                     .map(WorldpayXmlProductType::as_card_segment_type),
                 card_subtype,
                 issuer_name: payment_data

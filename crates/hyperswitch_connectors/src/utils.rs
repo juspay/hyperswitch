@@ -8265,41 +8265,14 @@ where
     }
 }
 
-/// A connector response value that converts to `Self`: any string through `FromStr`, or a
-/// numeric code through the type's own lookup.
-pub trait FromConnectorValue<V>: Sized {
-    type Error;
-
-    fn from_connector_value(value: V) -> Result<Self, Self::Error>;
-}
-
-impl<T: FromStr> FromConnectorValue<&str> for T {
-    type Error = T::Err;
-
-    fn from_connector_value(value: &str) -> Result<Self, Self::Error> {
-        value.parse()
-    }
-}
-
-impl FromConnectorValue<u32> for common_enums::Country {
-    type Error = common_enums::NumericCountryCodeParseError;
-
-    fn from_connector_value(value: u32) -> Result<Self, Self::Error> {
-        Self::from_numeric(value)
-    }
-}
-
 /// Parses an optional connector response value, logging and discarding one that isn't recognised
 /// so an unexpected value doesn't fail the whole response.
-pub fn parse_or_log_unrecognised<T, V>(value: V) -> Option<T>
-where
-    T: FromConnectorValue<V>,
-    V: std::fmt::Display + Copy,
-{
-    T::from_connector_value(value)
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
         .inspect_err(|_| {
             logger::debug!(
-                %value,
+                value,
                 target_type = std::any::type_name::<T>(),
                 "Unrecognised value received from connector"
             );
@@ -8310,11 +8283,22 @@ where
 /// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
 /// A value outside either table is logged and discarded.
 pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
-    code.parse::<enums::CountryAlpha2>().ok().or_else(|| {
-        parse_or_log_unrecognised::<u32, _>(code)
-            .and_then(parse_or_log_unrecognised::<common_enums::Country, _>)
-            .map(|country| country.to_alpha2())
-    })
+    code.parse::<enums::CountryAlpha2>()
+        .ok()
+        .or_else(|| {
+            code.parse::<u32>()
+                .ok()
+                .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+                .map(|country| country.to_alpha2())
+        })
+        .or_else(|| {
+            logger::debug!(
+                value = code,
+                target_type = std::any::type_name::<enums::CountryAlpha2>(),
+                "Unrecognised value received from connector"
+            );
+            None
+        })
 }
 
 #[macro_export]
