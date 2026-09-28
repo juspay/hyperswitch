@@ -155,7 +155,6 @@ pub async fn validate_create_request(
         &*state.store,
     )
     .await?;
-    let profile_id = business_profile.get_id().to_owned();
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
