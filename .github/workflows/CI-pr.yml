@@ -288,6 +288,16 @@ jobs:
             config/
             docs/
 
+  mandate-config:
+    name: Compare mandate payment method configs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Compare mandates.supported_payment_methods
+        run: python3 .github/scripts/check_mandate_supported_payment_methods.py
+
   check-v2:
     name: Check compilation for V2 features
     runs-on: hyperswitch-runners
