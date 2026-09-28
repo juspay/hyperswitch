@@ -531,6 +531,12 @@ pub mod superposition {
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
     /// Payout FRM call configuration key
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Preferred-connector routing enablement configuration key per profile
+    pub const PREFERRED_CONNECTORS_ROUTING_ENABLED: &str =
+        "routing.preferred_connectors_routing_enabled";
+    /// Payment method types eligible for preferred-connectors routing (comma-separated)
+    pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
+        "routing.preferred_connectors_enabled_payment_method_types";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
