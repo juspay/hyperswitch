@@ -29,7 +29,12 @@ pub struct WebhookAssociatedData {
 
 impl WebhookAssociatedData {
     pub fn is_empty(&self) -> bool {
-        self.payment_attempt.is_empty() && self.payment_method.is_none()
+        let Self {
+            payment_attempt,
+            payment_method,
+        } = self;
+
+        payment_attempt.is_empty() && payment_method.is_none()
     }
 }
 
@@ -41,6 +46,10 @@ pub struct PaymentAttemptAssociatedData {
 
 impl PaymentAttemptAssociatedData {
     pub fn is_empty(&self) -> bool {
-        self.sender_payment_instrument_id.is_none()
+        let Self {
+            sender_payment_instrument_id,
+        } = self;
+
+        sender_payment_instrument_id.is_none()
     }
 }
