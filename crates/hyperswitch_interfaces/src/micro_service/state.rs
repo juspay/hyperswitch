@@ -40,6 +40,16 @@ pub trait ClientOperation {
     /// The executor deserializes this from the upstream HTTP response body.
     type V2Response: DeserializeOwned;
 
+    /// Decode a successful response. Most services return JSON; a few return empty 200s.
+    fn decode_success(bytes: &[u8]) -> Result<Self::V2Response, serde_json::Error> {
+        serde_json::from_slice(bytes)
+    }
+
+    /// Prevent upstream error bodies containing credentials from entering error reports.
+    fn redact_error_body() -> bool {
+        false
+    }
+
     /// Validate inputs before building a request.
     ///
     /// Use this to reject invalid IDs or missing required fields. Failures are classified as

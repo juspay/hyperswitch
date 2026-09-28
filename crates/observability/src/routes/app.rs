@@ -16,7 +16,7 @@ use crate::{
     logger,
     routes::{
         alerts_info, blacklist, cloudwatch, dictionary, health_check, lifecycle_events, metadata,
-        notify, rule_toggles, thresholds,
+        monitoring, notify, rule_toggles, thresholds,
     },
     state::AppState,
 };
@@ -138,6 +138,32 @@ fn multipart_config(max_upload_bytes: usize) -> MultipartFormConfig {
             ))
             .into()
         })
+}
+
+/// The optional gateway-facing monitoring authorization route.
+pub struct Monitoring;
+
+impl Monitoring {
+    /// Build the optional gateway-facing route.
+    ///
+    /// # Panics
+    ///
+    /// If the internal HTTP client cannot be constructed at boot, the configured integration
+    /// cannot authorize anyone, so the service must not start accepting requests.
+    pub fn server(state: AppState) -> Scope {
+        let scope = web::scope("/monitoring");
+        if state.conf.router.is_none() {
+            return scope;
+        }
+        #[allow(clippy::expect_used)]
+        let transport = crate::core::router_client::RouterCallState::new()
+            .expect("Failed to construct internal Router HTTP client");
+        scope
+            .app_data(web::Data::new(state))
+            .app_data(web::Data::new(transport))
+            .app_data(monitoring::json_config())
+            .service(web::resource("/grafana/auth").route(web::post().to(monitoring::authenticate)))
+    }
 }
 
 /// Liveness, deliberately unauthenticated.

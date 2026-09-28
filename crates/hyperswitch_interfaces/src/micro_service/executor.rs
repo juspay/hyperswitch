@@ -133,7 +133,7 @@ impl<O: ClientOperation> TransformedRequest<O> {
             })?;
 
         match response {
-            Ok(success) => serde_json::from_slice(&success.response).map_err(|e| {
+            Ok(success) => O::decode_success(&success.response).map_err(|e| {
                 logger::error!(
                     operation,
                     error = ?e,
@@ -152,12 +152,19 @@ impl<O: ClientOperation> TransformedRequest<O> {
                     status = err_resp.status_code,
                     "microservice upstream error"
                 );
-                let body = String::from_utf8_lossy(&err_resp.response);
+                let body = if O::redact_error_body() {
+                    String::new()
+                } else {
+                    String::from_utf8_lossy(&err_resp.response)
+                        .chars()
+                        .take(500)
+                        .collect()
+                };
                 Err(MicroserviceClientError {
                     operation: operation.to_string(),
                     kind: MicroserviceClientErrorKind::Upstream {
                         status: err_resp.status_code,
-                        body: body.chars().take(500).collect(),
+                        body,
                     },
                 })
             }

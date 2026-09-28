@@ -9,8 +9,9 @@ pub mod dictionary;
 pub mod health_check;
 pub mod lifecycle_events;
 pub mod metadata;
+pub mod monitoring;
 pub mod notify;
 pub mod rule_toggles;
 pub mod thresholds;
 
-pub use self::app::{Alerts, Health};
+pub use self::app::{Alerts, Health, Monitoring};

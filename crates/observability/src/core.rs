@@ -13,5 +13,6 @@ pub mod dictionary;
 pub mod lifecycle_events;
 pub mod metadata;
 pub mod notifier;
+pub mod router_client;
 pub mod rule_toggles;
 pub mod thresholds;

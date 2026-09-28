@@ -135,6 +135,7 @@ pub async fn fetch_raw_secrets(
         server: conf.server,
         log: conf.log,
         auth,
+        router: conf.router,
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         chat,

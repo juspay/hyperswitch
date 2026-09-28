@@ -59,6 +59,8 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     /// Credentials guarding this service's routes.
     pub auth: SecretStateContainer<AuthSettings, S>,
+    /// Router dependency for the optional Grafana gateway authorization endpoint.
+    pub router: Option<RouterSettings>,
     /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
@@ -216,6 +218,34 @@ impl EmailSettings {
             )?;
         }
 
+        Ok(())
+    }
+}
+
+/// Router is optional so existing alert-only deployments do not acquire a new dependency.
+#[derive(Debug, Deserialize, Clone)]
+pub struct RouterSettings {
+    /// Internal Router origin (its HTTP listener serves /user directly, without /api).
+    pub base_url: String,
+}
+
+impl RouterSettings {
+    pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
+        let url = reqwest::Url::parse(&self.base_url).map_err(|_| {
+            errors::ConfigurationError::ConfigParsingError("router base_url is invalid".into())
+        })?;
+        if !matches!(url.scheme(), "http" | "https")
+            || url.host().is_none()
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || url.path() != "/"
+        {
+            return Err(errors::ConfigurationError::ConfigParsingError(
+                "router base_url must be an origin without credentials, path or query".into(),
+            ));
+        }
         Ok(())
     }
 }
@@ -403,6 +433,9 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
+        if let Some(router) = &self.router {
+            router.validate()?;
+        }
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         self.cloudwatch.validate()?;

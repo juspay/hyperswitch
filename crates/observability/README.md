@@ -53,10 +53,10 @@ than on the first request.
 
 ## Authentication
 
-Every route is guarded by an internal API key supplied in the `X-Internal-Api-Key` header. This is
-not optional: when embedded, the router serves a single `HttpServer` on its public port, so
-anything mounted there is publicly reachable, and an unguarded route would let anyone who can
-reach the router send alerts through this service.
+Alert routes are guarded by an internal API key supplied in the `X-Internal-Api-Key` header.
+The separate `/monitoring/grafana/auth` route has no service key: it requires a Router-validated
+Control Center token and returns only a Grafana login. It is deliberately permitted to be exposed
+publicly; its request body and Router response must never be logged or cached.
 
 Auth is chosen **per route**, as a required argument to `services::server_wrap`, mirroring the
 router's own idiom. A new route cannot silently skip authentication — omitting it is a compile
@@ -91,6 +91,7 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
+| `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body (only when `[router]` is configured) |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
@@ -222,6 +223,37 @@ destination holds one address, so reaching three people is three destinations, a
 HTML. Related: `EmailError` has no refusal vocabulary — a rejected recipient, a throttle and an
 unverified sender all arrive as one variant — so email only ever reports `delivered` or fails.
 `status: "refused"` is reachable for chat and not yet for email.
+
+## Grafana gateway authorization
+
+`POST /monitoring/grafana/auth` is registered only when `[router] base_url` (or
+`OBSERVABILITY__ROUTER__BASE_URL`) is set to the internal Router **origin** without `/api`.
+This preserves alert-only deployments and makes rollback a config removal. Deploy a build with
+this route, set the Router origin, then route gateway requests to the Observability service;
+verify cross-namespace connectivity and the exact Control Center host's `login_token` cookie
+in sandbox before enabling Grafana traffic.
+
+The gateway POSTs `{ "token": "<login_token>" }` (never a URL parameter). Observability calls
+Router `POST /user/internal/authorize` with the hard-coded `ProfileReconRuleRead` permission,
+then `GET /user` with **the same token**. Both Authorization and Cookie are populated with the
+same token for Router's `force_cookies` variants; no browser-provided identity, role or tenant
+header is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
+active user's email. The response is only `{ "grafana_login": "cc_<sha256(email)>" }`, where
+SHA-256 uses the exact bytes Router returned. This is a namespaced Grafana username, **not**
+Router's canonical `user_id`; it is deterministic, not an email privacy mechanism. Changing the
+email would create a new Grafana login. A follow-up switches the fixed permission to
+`MonitoringView` once Router supports it.
+
+Missing/malformed credentials and Router 401 return 401. Router's permission denial returns
+403; all transport failures, malformed responses, and unexpected Router statuses return 503.
+Router can currently return a 5xx for an inactive user lookup; this maps to 503 but still denies
+access. All responses carry `Cache-Control: no-store`; no credential, email or login is logged.
+The gateway must remove browser-supplied auth-proxy headers, inject only `grafana_login` as
+`X-WEBAUTH-USER`, strip the Control Center token before Grafana, and fail closed on non-200 or
+malformed response. No Grafana service-account token goes to the frontend. This route is allowed
+to be public without a separate service key by the agreed temporary integration contract; rate
+limit and monitor it at the gateway/ingress. The existing operational Grafana still needs its
+Auth Proxy whitelist and data-source access reviewed before rollout.
 
 ## Layout
 
