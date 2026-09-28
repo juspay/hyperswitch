@@ -107,6 +107,14 @@ export const connectorDetails = {
           },
         },
       },
+      // Asserted via cy.verifyPayoutFrmDetails against a follow-up GET, since
+      // frm_message carries non-deterministic ids and can't be part of the
+      // fixed deep-equal Create.Response.body above.
+      FrmDetails: {
+        frm_message: { frm_name: "sanlam_payshield", frm_status: "legit" },
+        status: "initiated",
+        connector: "gotyme_sanlam",
+      },
     },
     frm_fraud: {
       Create: {
@@ -132,6 +140,13 @@ export const connectorDetails = {
             error_code: "fraud",
           },
         },
+      },
+      FrmDetails: {
+        status: "failed",
+        error_code: "fraud",
+        connector: null,
+        frm_message: { frm_status: "fraud" },
+        greaterThan: { "frm_message.frm_score": 0 },
       },
     },
     frm_transaction_failure_fail_closed: {
@@ -159,6 +174,12 @@ export const connectorDetails = {
           },
         },
       },
+      FrmDetails: {
+        status: "failed",
+        error_code: "transaction_failure",
+        connector: null,
+        frm_message: { frm_status: "transaction_failure" },
+      },
     },
     frm_transaction_failure_fail_open: {
       Create: {
@@ -182,6 +203,12 @@ export const connectorDetails = {
             connector: "gotyme_sanlam",
           },
         },
+      },
+      FrmDetails: {
+        status: "initiated",
+        connector: "gotyme_sanlam",
+        frm_message: { frm_status: "transaction_failure" },
+        notEqual: { error_code: "transaction_failure" },
       },
     },
     payshap_proxy: {

@@ -7441,6 +7441,46 @@ Cypress.Commands.add("getPayoutDetails", (globalState) => {
     });
 });
 
+// Fetches the current payout and asserts against an `expected` shape:
+// - top-level or one-level-nested (e.g. `frm_message.frm_status`) keys are
+//   compared with `.to.equal`
+// - `expected.greaterThan` / `expected.notEqual` take dotted paths for the
+//   handful of non-deterministic/negative checks (e.g. `frm_message.frm_score`)
+//   that a plain equality can't express.
+// Centralizes the pre-FRM payout assertions used across
+// `Payout/00009-PayoutFrm.cy.js` so scenario-specific expectations live in
+// connector configs (e.g. `GotymeSanlam.js`) instead of the spec file.
+Cypress.Commands.add("verifyPayoutFrmDetails", (globalState, expected = {}) => {
+  const getByPath = (obj, path) =>
+    path.split(".").reduce((value, key) => value?.[key], obj);
+
+  cy.getPayoutDetails(globalState).then((response) => {
+    Object.entries(expected).forEach(([key, value]) => {
+      if (key === "greaterThan") {
+        Object.entries(value).forEach(([path, threshold]) => {
+          expect(getByPath(response.body, path)).to.be.greaterThan(threshold);
+        });
+        return;
+      }
+
+      if (key === "notEqual") {
+        Object.entries(value).forEach(([path, notExpected]) => {
+          expect(getByPath(response.body, path)).to.not.equal(notExpected);
+        });
+        return;
+      }
+
+      if (value !== null && typeof value === "object") {
+        Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+          expect(response.body[key]?.[nestedKey]).to.equal(nestedValue);
+        });
+      } else {
+        expect(response.body[key]).to.equal(value);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
   const payout_id = globalState.get("payoutID");
   const resBody = data?.Response?.body || {};

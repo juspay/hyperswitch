@@ -101,30 +101,29 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
     });
 
     it("payout-create-confirm-auto-fulfill-legit", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["frm_legit"]["Create"];
+      const scenario = utils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["frm_legit"];
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        data,
+        scenario["Create"],
         true,
         true,
         globalState
       );
       if (contextShouldContinue)
-        contextShouldContinue = utils.should_continue_further(data);
+        contextShouldContinue = utils.should_continue_further(
+          scenario["Create"]
+        );
     });
 
     it("verify frm_status is legit", () => {
-      cy.getPayoutDetails(globalState).then((response) => {
-        expect(response.body.frm_message.frm_name).to.equal("sanlam_payshield");
-        expect(response.body.frm_message.frm_status).to.equal("legit");
-        // Proves the payout actually reached the connector, not just that
-        // FRM flagged it as legit.
-        expect(response.body.status).to.equal("initiated");
-        expect(response.body.connector).to.equal("gotyme_sanlam");
-      });
+      const scenario = utils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["frm_legit"];
+
+      cy.verifyPayoutFrmDetails(globalState, scenario["FrmDetails"]);
     });
   });
 
@@ -142,13 +141,13 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
     });
 
     it("payout-create-confirm-auto-fulfill-fraud", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["frm_fraud"]["Create"];
+      const scenario = utils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["frm_fraud"];
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        data,
+        scenario["Create"],
         true,
         true,
         globalState
@@ -156,13 +155,11 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
     });
 
     it("verify frm_status is fraud and connector was never called", () => {
-      cy.getPayoutDetails(globalState).then((response) => {
-        expect(response.body.status).to.equal("failed");
-        expect(response.body.error_code).to.equal("fraud");
-        expect(response.body.connector).to.be.null;
-        expect(response.body.frm_message.frm_status).to.equal("fraud");
-        expect(response.body.frm_message.frm_score).to.be.greaterThan(0);
-      });
+      const scenario = utils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["frm_fraud"];
+
+      cy.verifyPayoutFrmDetails(globalState, scenario["FrmDetails"]);
     });
   });
 
@@ -191,13 +188,13 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       });
 
       it("payout-create-confirm-auto-fulfill-fail-closed", () => {
-        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["frm_transaction_failure_fail_closed"]["Create"];
+        const scenario = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["frm_transaction_failure_fail_closed"];
 
         cy.createConfirmPayoutTest(
           fixtures.createPayoutBody,
-          data,
+          scenario["Create"],
           true,
           true,
           globalState
@@ -205,14 +202,11 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       });
 
       it("verify payout blocked with transaction_failure", () => {
-        cy.getPayoutDetails(globalState).then((response) => {
-          expect(response.body.status).to.equal("failed");
-          expect(response.body.error_code).to.equal("transaction_failure");
-          expect(response.body.connector).to.be.null;
-          expect(response.body.frm_message.frm_status).to.equal(
-            "transaction_failure"
-          );
-        });
+        const scenario = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["frm_transaction_failure_fail_closed"];
+
+        cy.verifyPayoutFrmDetails(globalState, scenario["FrmDetails"]);
       });
     }
   );
@@ -240,13 +234,13 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       });
 
       it("payout-create-confirm-auto-fulfill-fail-open", () => {
-        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-          "bank_transfer_pm"
-        ]["frm_transaction_failure_fail_open"]["Create"];
+        const scenario = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["frm_transaction_failure_fail_open"];
 
         cy.createConfirmPayoutTest(
           fixtures.createPayoutBody,
-          data,
+          scenario["Create"],
           true,
           true,
           globalState
@@ -254,16 +248,11 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
       });
 
       it("verify FRM failure did not block the payout", () => {
-        cy.getPayoutDetails(globalState).then((response) => {
-          expect(response.body.error_code).to.not.equal("transaction_failure");
-          expect(response.body.frm_message.frm_status).to.equal(
-            "transaction_failure"
-          );
-          // Proves the payout actually reached the connector despite the
-          // FRM failure, not just that it avoided this one error code.
-          expect(response.body.status).to.equal("initiated");
-          expect(response.body.connector).to.equal("gotyme_sanlam");
-        });
+        const scenario = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["frm_transaction_failure_fail_open"];
+
+        cy.verifyPayoutFrmDetails(globalState, scenario["FrmDetails"]);
       });
     }
   );
