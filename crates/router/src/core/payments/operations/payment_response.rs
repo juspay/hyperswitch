@@ -655,9 +655,9 @@ where
                     true,
                     enums::AttemptStatus::Charged
                     | enums::AttemptStatus::Authorized
-                    | enums::AttemptStatus::PartiallyAuthorized,
-                    enums::AttemptStatus::PartialCharged,
-                    enums::AttemptStatus::PartialChargedAndChargeable,
+                    | enums::AttemptStatus::PartiallyAuthorized
+                    | enums::AttemptStatus::PartialCharged
+                    | enums::AttemptStatus::PartialChargedAndChargeable,
                 ) => common_enums::ConnectorMandateStatus::Active,
                 _ => common_enums::ConnectorMandateStatus::Inactive,
             };
