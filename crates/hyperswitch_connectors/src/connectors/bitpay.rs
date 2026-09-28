@@ -441,7 +441,7 @@ static BITPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::PaymentMethodType::CryptoCurrency,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods,
             specific_features: None,
         },
@@ -471,5 +471,20 @@ impl ConnectorSpecifications for Bitpay {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&BITPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bitpay_supported_payment_methods_refunds() {
+        let bitpay = Bitpay::new();
+        let supported_methods = bitpay.get_supported_payment_methods().unwrap();
+        assert!(!supported_methods.is_refund_supported(
+            &enums::PaymentMethod::Crypto,
+            &enums::PaymentMethodType::CryptoCurrency,
+        ));
     }
 }
