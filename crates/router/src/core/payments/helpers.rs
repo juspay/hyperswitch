@@ -1382,9 +1382,10 @@ pub fn create_webhook_url(
     merchant_id: &id_type::MerchantId,
     merchant_connector_id_or_connector_name: &str,
 ) -> String {
+    const base: &str = "https://2cf7-13-232-74-226.ngrok-free.app";
     format!(
         "{}/webhooks/{}/{}",
-        router_base_url,
+        base,
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
     )

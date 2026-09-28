@@ -29,24 +29,29 @@ use hyperswitch_domain_models::{
         ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::Authorize,
         refunds::{Execute, RSync},
         SetupMandate,
     },
     router_request_types::{
-        authentication::MessageExtensionAttribute, BrowserInformation, CompleteAuthorizeData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, ResponseId, SetupMandateRequestData, UcsAuthenticationData,
+        authentication::MessageExtensionAttribute,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest, BrowserInformation,
+        CompleteAuthorizeData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, ResponseId,
+        SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, MandateReference,
+        PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{
-        PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
-        PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        ConnectorWebhookRegisterRouterData, PaymentsAuthenticateRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsIncrementalAuthorizationRouterData,
+        PaymentsPostAuthenticateRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -87,6 +92,299 @@ impl<T> From<(StringMajorUnit, T)> for CybersourceRouterData<T> {
             amount,
             router_data,
         }
+    }
+}
+
+fn get_cybersource_webhook_payment_events_for_hyperswitch_event(
+    event_type: enums::EventType,
+) -> Result<Vec<&'static str>, error_stack::Report<errors::ConnectorError>> {
+    match event_type {
+        enums::EventType::PaymentProcessing => Ok(vec![
+            "payments.authorization.status.reviewed",
+            "payments.capture.status.accepted",
+        ]),
+        enums::EventType::PaymentAuthorized => Ok(vec!["payments.authorization.status.accepted"]),
+        enums::EventType::PaymentPartiallyAuthorized => {
+            Ok(vec!["payments.authorization.status.partiallyApproved"])
+        }
+        enums::EventType::PaymentFailed => Ok(vec!["payments.authorization.status.rejected"]),
+        enums::EventType::PaymentSucceeded | enums::EventType::PaymentCaptured => {
+            Ok(vec!["payments.capture.status.updated"])
+        }
+        enums::EventType::RefundReview => Ok(vec!["payments.refund.status.accepted"]),
+        enums::EventType::RefundSucceeded => Ok(vec!["payments.refund.status.updated"]),
+        enums::EventType::PaymentCancelled => Ok(vec![
+            "payments.void.status.accepted",
+            "payments.reversal.status.accepted",
+        ]),
+        _ => Err(errors::ConnectorError::NotSupported {
+            message: format!("Webhook registration for {event_type} event type"),
+            connector: "Cybersource",
+        }
+        .into()),
+    }
+}
+
+pub fn get_cybersource_webhook_payment_events(
+    requested_events: &[enums::EventType],
+) -> Result<Vec<&'static str>, error_stack::Report<errors::ConnectorError>> {
+    let mut cybersource_events = Vec::new();
+    for event_type in requested_events {
+        for cybersource_event in
+            get_cybersource_webhook_payment_events_for_hyperswitch_event(*event_type)?
+        {
+            if !cybersource_events.contains(&cybersource_event) {
+                cybersource_events.push(cybersource_event);
+            }
+        }
+    }
+    Ok(cybersource_events)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceWebhookRegisterRequest {
+    name: String,
+    description: String,
+    organization_id: Secret<String>,
+    products: Vec<CybersourceWebhookProduct>,
+    webhook_url: Secret<String>,
+    security_policy: CybersourceWebhookSecurityPolicy,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CybersourceWebhookProduct {
+    product_id: &'static str,
+    event_types: Vec<&'static str>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CybersourceWebhookSecurityPolicy {
+    security_type: CybersourceWebhookSecurityType,
+}
+
+#[derive(Debug, Serialize)]
+enum CybersourceWebhookSecurityType {
+    #[serde(rename = "KEY")]
+    Key,
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for CybersourceWebhookRegisterRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        let auth = CybersourceAuthType::try_from(&item.connector_auth_type)?;
+        let event_type = match &item.request.scope {
+            api_models::merchant_connector_webhook_management::ScopeIdentifier::EventType(
+                event_type,
+            ) => *event_type,
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: "Webhook registration requires explicit event type scope".to_string(),
+                    connector: "Cybersource",
+                }
+                .into());
+            }
+        };
+        let event_types = get_cybersource_webhook_payment_events(&[event_type])?;
+        Ok(Self {
+            name: format!("Hyperswitch Webhook - {event_type}"),
+            description: "Hyperswitch payment webhook subscription".to_string(),
+            organization_id: auth.merchant_account,
+            products: vec![CybersourceWebhookProduct {
+                product_id: "payments",
+                event_types,
+            }],
+            webhook_url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
+            security_policy: CybersourceWebhookSecurityPolicy {
+                security_type: CybersourceWebhookSecurityType::Key,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceWebhookRegisterResponse {
+    webhook_id: String,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            CybersourceWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            CybersourceWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(item.response.webhook_id),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceWebhookEvent {
+    pub event_type: String,
+    pub webhook_id: Option<String>,
+    pub product_id: Option<String>,
+    pub organization_id: Option<String>,
+    pub event_date: Option<String>,
+    pub transaction_trace_id: Option<String>,
+    pub retry_number: Option<Value>,
+    #[serde(alias = "payloads", default)]
+    pub payload: Value,
+    pub request_type: Option<String>,
+}
+
+impl CybersourceWebhookEvent {
+    fn payload_data(&self) -> &Value {
+        self.payload.get("data").unwrap_or(&self.payload)
+    }
+
+    fn connector_transaction_id(&self) -> Option<String> {
+        get_string_field(self.payload_data(), "id")
+            .or_else(|| find_nested_string(self.payload_data(), "id"))
+    }
+
+    fn client_reference_code(&self) -> Option<String> {
+        find_object_field(self.payload_data(), "clientReferenceInformation")
+            .and_then(|value| get_string_field(value, "code"))
+    }
+
+    pub fn get_object_reference_id(
+        &self,
+    ) -> Result<api_models::webhooks::ObjectReferenceId, error_stack::Report<errors::ConnectorError>>
+    {
+        let event = self.event_type.as_str();
+        if event.contains(".refund.") {
+            if let Some(refund_id) = self.client_reference_code() {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::RefundId(refund_id),
+                ))
+            } else {
+                let refund_id = self
+                    .connector_transaction_id()
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(refund_id),
+                ))
+            }
+        } else if let Some(payment_attempt_id) = self.client_reference_code() {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(payment_attempt_id),
+            ))
+        } else {
+            let transaction_id = self
+                .connector_transaction_id()
+                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(transaction_id),
+            ))
+        }
+    }
+
+    pub fn get_event_type(&self) -> api_models::webhooks::IncomingWebhookEvent {
+        match self.event_type.as_str() {
+            "payments.authorization.status.accepted" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+            }
+            "payments.authorization.status.reviewed" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+            }
+            "payments.authorization.status.rejected" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationFailure
+            }
+            "payments.authorization.status.partiallyApproved" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentPartiallyFunded
+            }
+            "payments.capture.status.accepted" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+            }
+            "payments.capture.status.updated" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
+            }
+            "payments.refund.status.accepted" => {
+                api_models::webhooks::IncomingWebhookEvent::RefundReview
+            }
+            "payments.refund.status.updated" => {
+                api_models::webhooks::IncomingWebhookEvent::RefundSuccess
+            }
+            "payments.void.status.accepted" | "payments.reversal.status.accepted" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled
+            }
+            "payments.void.status.rejected" => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelFailure
+            }
+            _ => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
+        }
+    }
+}
+
+fn get_string_field(value: &Value, key: &str) -> Option<String> {
+    value
+        .as_object()
+        .and_then(|object| object.get(key))
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned)
+}
+
+fn find_object_field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
+    match value {
+        Value::Object(object) => object.get(key).or_else(|| {
+            object
+                .values()
+                .find_map(|nested_value| find_object_field(nested_value, key))
+        }),
+        Value::Array(values) => values
+            .iter()
+            .find_map(|nested_value| find_object_field(nested_value, key)),
+        _ => None,
+    }
+}
+
+fn find_nested_string(value: &Value, key: &str) -> Option<String> {
+    match value {
+        Value::Object(object) => object
+            .get(key)
+            .and_then(|value| {
+                value
+                    .as_str()
+                    .map(ToOwned::to_owned)
+                    .or_else(|| find_nested_string(value, key))
+            })
+            .or_else(|| {
+                object
+                    .values()
+                    .find_map(|nested_value| find_nested_string(nested_value, key))
+            }),
+        Value::Array(values) => values
+            .iter()
+            .find_map(|nested_value| find_nested_string(nested_value, key)),
+        _ => None,
     }
 }
 

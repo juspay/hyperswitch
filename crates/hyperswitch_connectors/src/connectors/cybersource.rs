@@ -4,9 +4,9 @@ use std::sync::LazyLock;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
-    consts,
+    consts, crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -17,6 +17,9 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         mandate_revoke::MandateRevoke,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, Capture, CompleteAuthorize, IncrementalAuthorization, PSync,
             PaymentMethodToken, Session, SetupMandate, Void,
@@ -25,6 +28,9 @@ use hyperswitch_domain_models::{
         Authenticate, PostAuthenticate, PreAuthenticate, PreProcessing,
     },
     router_request_types::{
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
@@ -32,12 +38,16 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
         RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        MandateRevokeRouterData, PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData,
-        PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        ConnectorWebhookRegisterRouterData, MandateRevokeRouterData,
+        PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
         PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
         PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
         RefundExecuteRouterData, RefundSyncRouterData, SetupMandateRouterData,
@@ -63,11 +73,11 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthenticateType,
-        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPostAuthenticateType, PaymentsPreAuthenticateType, PaymentsPreProcessingType,
-        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        SetupMandateType,
+        ConnectorWebhookRegisterType, IncrementalAuthorizationType, MandateRevokeType,
+        PaymentsAuthenticateType, PaymentsAuthorizeType, PaymentsCaptureType,
+        PaymentsCompleteAuthorizeType, PaymentsPostAuthenticateType, PaymentsPreAuthenticateType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
+        RefundSyncType, Response, SetupMandateType,
     },
     webhooks,
 };
@@ -402,6 +412,18 @@ impl api::PaymentToken for Cybersource {}
 impl api::PaymentsPreProcessing for Cybersource {}
 impl api::PaymentsCompleteAuthorize for Cybersource {}
 impl api::ConnectorMandateRevoke for Cybersource {}
+impl api::WebhookRegister for Cybersource {}
+impl api::WebhookGenerateSecret for Cybersource {}
+impl api::GenerateConnectorWebhookSecret for Cybersource {}
+
+impl
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > for Cybersource
+{
+}
 
 impl api::Payouts for Cybersource {}
 #[cfg(feature = "payouts")]
@@ -2216,6 +2238,103 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cybersour
 
 impl
     ConnectorIntegration<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse,
+    > for Cybersource
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut webhook_headers = self.build_headers(req, connectors)?;
+        if let Some((_, accept_header)) = webhook_headers
+            .iter_mut()
+            .find(|(header_name, _)| header_name == headers::ACCEPT)
+        {
+            *accept_header = "application/json;charset=utf-8".to_string().into();
+        }
+        Ok(webhook_headers)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(req.request.base_url.to_string())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = cybersource::CybersourceWebhookRegisterRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookRegisterRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ConnectorWebhookRegisterType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(ConnectorWebhookRegisterType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ConnectorWebhookRegisterType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookRegisterRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
+        let response: cybersource::CybersourceWebhookRegisterResponse = res
+            .response
+            .parse_struct("CybersourceWebhookRegisterResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl
+    ConnectorIntegration<
         IncrementalAuthorization,
         PaymentsIncrementalAuthorizationData,
         PaymentsResponseData,
@@ -2325,29 +2444,139 @@ impl
     }
 }
 
+fn get_cybersource_webhook_signature_element<'a>(
+    request: &'a webhooks::IncomingWebhookRequestDetails<'a>,
+    element: &str,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    let signature_header = utils::get_header_key_value("v-c-signature", request.headers)?;
+    let signature_header = signature_header
+        .trim()
+        .strip_prefix("v-c-signature:")
+        .unwrap_or(signature_header)
+        .trim();
+
+    signature_header
+        .split(';')
+        .filter_map(|entry| entry.trim().split_once('='))
+        .find_map(|(key, value)| (key.trim() == element).then_some(value.trim().trim_matches('"')))
+        .ok_or(report!(errors::ConnectorError::WebhookSignatureNotFound))
+}
+
+fn parse_cybersource_webhook_event(
+    request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    error: errors::ConnectorError,
+) -> CustomResult<cybersource::CybersourceWebhookEvent, errors::ConnectorError> {
+    request
+        .body
+        .parse_struct("CybersourceWebhookEvent")
+        .change_context(error)
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Cybersource {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_name: &str,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
+        let debug_suffix =
+            format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
+        let default_secret = "default_secret".to_string();
+        let merchant_secret = match connector_webhook_details {
+            Some(merchant_connector_webhook_details) => {
+                let connector_webhook_details = merchant_connector_webhook_details
+                    .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Deserializing MerchantConnectorWebhookDetails failed {debug_suffix}",
+                        )
+                    })?;
+                let secret = connector_webhook_details.merchant_secret.expose();
+                let secret = consts::BASE64_ENGINE
+                    .decode(secret.as_bytes())
+                    .unwrap_or_else(|_| secret.into_bytes());
+                api_models::webhooks::ConnectorWebhookSecrets {
+                    secret,
+                    additional_secret: connector_webhook_details.additional_secret,
+                }
+            }
+            None => api_models::webhooks::ConnectorWebhookSecrets {
+                secret: default_secret.into_bytes(),
+                additional_secret: None,
+            },
+        };
+
+        Ok(merchant_secret)
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = get_cybersource_webhook_signature_element(request, "sig")?;
+        consts::BASE64_ENGINE
+            .decode(signature.as_bytes())
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let timestamp = get_cybersource_webhook_signature_element(request, "t")?;
+        let mut message = timestamp.as_bytes().to_vec();
+        message.push(b'.');
+        message.extend_from_slice(request.body);
+        Ok(message)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_event = parse_cybersource_webhook_event(
+            request,
+            errors::ConnectorError::WebhookReferenceIdNotFound,
+        )?;
+        webhook_event.get_object_reference_id()
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
+        let webhook_event = parse_cybersource_webhook_event(
+            request,
+            errors::ConnectorError::WebhookEventTypeNotFound,
+        )?;
+        Ok(webhook_event.get_event_type())
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_event = parse_cybersource_webhook_event(
+            request,
+            errors::ConnectorError::WebhookResourceObjectNotFound,
+        )?;
+        Ok(Box::new(webhook_event))
     }
 }
 
@@ -2466,7 +2695,8 @@ static CYBERSOURCE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Cybersource {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -2479,6 +2709,48 @@ impl ConnectorSpecifications for Cybersource {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn get_webhook_registration_plan(
+        &self,
+        scope: &api_models::merchant_connector_webhook_management::Scope,
+        connectors: &Connectors,
+    ) -> CustomResult<
+        Vec<(
+            api_models::merchant_connector_webhook_management::ScopeIdentifier,
+            String,
+        )>,
+        errors::ConnectorError,
+    > {
+        match scope {
+            api_models::merchant_connector_webhook_management::Scope::EventTypes(
+                requested_events,
+            ) => {
+                if requested_events.is_empty() {
+                    return Ok(Vec::new());
+                }
+                cybersource::get_cybersource_webhook_payment_events(requested_events)?;
+                let webhook_register_url = format!(
+                    "{}notification-subscriptions/v2/webhooks",
+                    self.base_url(connectors)
+                );
+                Ok(requested_events
+                    .iter()
+                    .map(|event_type| {
+                        (
+                            api_models::merchant_connector_webhook_management::ScopeIdentifier::EventType(
+                                *event_type,
+                            ),
+                            webhook_register_url.clone(),
+                        )
+                    })
+                    .collect())
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Scope type not supported".to_string(),
+                connector: "Cybersource",
+            })?,
+        }
     }
     fn get_preprocessing_flow_if_needed(
         &self,

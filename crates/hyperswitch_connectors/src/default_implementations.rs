@@ -12175,7 +12175,6 @@ default_imp_for_connector_webhook_register!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Custombilling,
-    connectors::Cybersource,
     connectors::Cybersourcedecisionmanager,
     connectors::D24,
     connectors::Datatrans,
