@@ -718,22 +718,15 @@ pub async fn authentication_create_core(
     let processor_merchant_account = platform.get_processor().get_account();
     let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         req.profile_id.as_ref(),
         db,
-        true,
     )
     .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    let profile_id = business_profile.get_id().to_owned();
     let organization_id = processor_merchant_account.organization_id.clone();
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
@@ -1075,22 +1068,15 @@ pub async fn authentication_eligibility_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         req.profile_id.as_ref(),
         db,
-        true,
     )
     .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
