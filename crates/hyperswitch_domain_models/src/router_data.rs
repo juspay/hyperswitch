@@ -754,6 +754,7 @@ impl ConnectorResponseData {
         let additional_payment_method_data = match pmt {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
+                    authentication_data: None,
                     auth_code: Some(auth_code),
                     device_pan_bin: None,
                     card_bin: None,
@@ -767,6 +768,7 @@ impl ConnectorResponseData {
             }
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
+                    authentication_data: None,
                     auth_code: Some(auth_code),
                     device_pan_bin: None,
                     card_bin: None,
@@ -852,6 +854,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         upi_mode: Option<payment_method_data::UpiSource>,
     },
     GooglePay {
+        /// Authentication details reported by the connector.
+        authentication_data: Option<serde_json::Value>,
         auth_code: Option<String>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
@@ -871,6 +875,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         issuer_country: Option<common_enums::CountryAlpha2>,
     },
     ApplePay {
+        /// Authentication details reported by the connector.
+        authentication_data: Option<serde_json::Value>,
         auth_code: Option<String>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,

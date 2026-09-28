@@ -497,6 +497,11 @@ pub struct WalletAdditionalDataForCard {
     /// Unique authorisation code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
     pub auth_code: Option<String>,
+    /// Connector-reported authentication outcome and ECI, including wallet authentication.
+    /// Does not imply a separate EMV 3DS flow. Must not contain authentication credentials.
+    #[schema(value_type = Option<Object>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub authentication_data: Option<Secret<serde_json::Value>>,
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<common_utils::pii::Email>,

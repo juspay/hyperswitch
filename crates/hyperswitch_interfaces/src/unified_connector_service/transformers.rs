@@ -818,6 +818,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     google_pay_data,
                 ),
             ) => Ok(Self::GooglePay {
+                authentication_data: None,
                 auth_code: google_pay_data.auth_code,
                 device_pan_bin: google_pay_data.device_pan_bin,
                 card_bin: google_pay_data.card_bin,
@@ -852,6 +853,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     apple_pay_data,
                 ),
             ) => Ok(Self::ApplePay {
+                authentication_data: None,
                 auth_code: apple_pay_data.auth_code,
                 device_pan_bin: apple_pay_data.device_pan_bin,
                 card_bin: apple_pay_data.card_bin,
