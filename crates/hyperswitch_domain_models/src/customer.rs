@@ -338,7 +338,9 @@ pub trait CustomerInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
-    #[cfg(feature = "v2")]
+    /// Looks up a customer by the `merchant_reference_id` that the merchant supplied while creating
+    /// the customer through the v2 customers API. For v1 this is used when the merchant sends that
+    /// reference id as the `customer_id` in payments requests.
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         customer_id: &id_type::CustomerId,

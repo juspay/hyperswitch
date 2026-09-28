@@ -121,6 +121,28 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
+    // Customers looked up by `merchant_reference_id` are created by the v2 customers API, which
+    // keeps them under the global id KV partition. The v1 KV layout is keyed by `customer_id`, so
+    // this lookup is always served from the database.
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_optional_by_merchant_id_merchant_reference_id(
+        &self,
+        merchant_reference_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        self.router_store
+            .find_optional_by_merchant_id_merchant_reference_id(
+                merchant_reference_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
@@ -659,7 +681,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -1019,6 +1040,18 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_optional_by_merchant_id_merchant_reference_id(
+        &self,
+        _customer_id: &id_type::CustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<domain::Customer>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
@@ -1325,6 +1358,7 @@ impl Conversion for domain::Customer {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             id: global_customer_id,
+            merchant_reference_id: None,
         })
     }
 

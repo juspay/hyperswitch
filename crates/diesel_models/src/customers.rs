@@ -68,6 +68,7 @@ impl From<CustomerNew> for Customer {
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
             id: customer_new.id,
+            merchant_reference_id: None,
         }
     }
 }
@@ -167,6 +168,10 @@ pub struct Customer {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    /// Populated only for customers created through the v2 customers API. Used to look up a
+    /// customer by the merchant supplied reference id.
+    #[serde(default)]
+    pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[cfg(feature = "v2")]
