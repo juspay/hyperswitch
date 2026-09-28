@@ -1960,7 +1960,6 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-                payment_created_enabled: None,
                 multiple_webhooks_list: Some(WebhookUrls(vec![MultipleWebhookDetail {
                     webhook_endpoint_id:
                         common_utils::generate_webhook_endpoint_id_of_default_length(),
@@ -2030,7 +2029,6 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-                payment_created_enabled: None,
                 multiple_webhooks_list: Some(WebhookUrls(vec![MultipleWebhookDetail {
                     webhook_endpoint_id:
                         common_utils::generate_webhook_endpoint_id_of_default_length(),

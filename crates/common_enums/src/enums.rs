@@ -1950,6 +1950,7 @@ impl EventClass {
 #[strum(serialize_all = "snake_case")]
 // Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
 pub enum EventType {
+    /// A new payment was created
     PaymentCreated,
     /// Authorize + Capture success
     PaymentSucceeded,

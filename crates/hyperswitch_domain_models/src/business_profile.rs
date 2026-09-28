@@ -176,7 +176,6 @@ pub struct WebhookDetails {
     pub webhook_version: Option<String>,
     pub webhook_username: Option<String>,
     pub webhook_password: Option<Secret<String>>,
-    pub payment_created_enabled: Option<bool>,
     pub multiple_webhooks_list: Option<WebhookUrls>,
 }
 
@@ -213,7 +212,6 @@ impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            payment_created_enabled: item.payment_created_enabled,
             multiple_webhooks_list: Some(webhook_urls),
         }
     }
@@ -225,9 +223,6 @@ impl WebhookDetails {
             webhook_version: other.webhook_version.or(self.webhook_version),
             webhook_username: other.webhook_username.or(self.webhook_username),
             webhook_password: other.webhook_password.or(self.webhook_password),
-            payment_created_enabled: other
-                .payment_created_enabled
-                .or(self.payment_created_enabled),
             multiple_webhooks_list: other.multiple_webhooks_list.or(self.multiple_webhooks_list),
         }
     }
@@ -285,7 +280,6 @@ impl WebhookDetails {
             webhook_version: api_webhook.webhook_version,
             webhook_username: api_webhook.webhook_username,
             webhook_password: api_webhook.webhook_password,
-            payment_created_enabled: api_webhook.payment_created_enabled,
             multiple_webhooks_list: Some(existing_webhook_urls),
         };
 

@@ -2572,7 +2572,6 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            payment_created_enabled: item.payment_created_enabled,
             multiple_webhooks_list: Some(webhook_urls),
         }
     }
