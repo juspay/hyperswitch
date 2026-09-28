@@ -260,11 +260,7 @@ impl PermissionGroupExt for PermissionGroup {
             | PermissionGroup::ReconRulesView
             | PermissionGroup::ReconRulesManage
             | PermissionGroup::OffersView
-            | PermissionGroup::OffersManage
-            | PermissionGroup::AlertsView
-            | PermissionGroup::AlertsManage
-            | PermissionGroup::MonitoringView
-            | PermissionGroup::MonitoringManage => false,
+            | PermissionGroup::OffersManage => false,
         }
     }
 }

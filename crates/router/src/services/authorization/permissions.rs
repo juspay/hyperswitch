@@ -84,7 +84,7 @@ generate_permissions! {
             entities: [Merchant]
         },
         Theme: {
-            scopes: [Read,Write],
+            scopes: [Read, Write],
             entities: [Organization]
         },
         ReconIngestion: {
