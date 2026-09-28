@@ -191,6 +191,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
             | Flow::PaymentsManualStatusUpdate
+            | Flow::PaymentsManualStatusUpdateEligibleStatuses
             | Flow::SessionUpdateTaxCalculation
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
@@ -229,6 +230,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsReverse
             | Flow::RefundsList
+            | Flow::PlatformRefundsList
+            | Flow::PlatformRefundsFilters
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
@@ -249,6 +252,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::DisputesRetrieve
             | Flow::DisputesList
             | Flow::DisputesFilters
+            | Flow::PlatformDisputesList
+            | Flow::PlatformDisputesFilters
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence

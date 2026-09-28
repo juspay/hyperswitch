@@ -364,6 +364,43 @@ mod bool_wrappers {
             bool::from_sql(value).map(Self)
         }
     }
+
+    /// Bool that represents if Rapid Dispute Resolution is applied for a dispute
+    #[derive(
+        Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
+    )]
+    #[diesel(sql_type = diesel::sql_types::Bool)]
+    pub struct RapidDisputeResolutionAppliedBool(bool);
+
+    impl RapidDisputeResolutionAppliedBool {
+        /// Creates a new instance of `RapidDisputeResolutionAppliedBool`
+        pub fn new(value: bool) -> Self {
+            Self(value)
+        }
+    }
+
+    impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for RapidDisputeResolutionAppliedBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut diesel::serialize::Output<'b, '_, DB>,
+        ) -> diesel::serialize::Result {
+            self.0.to_sql(out)
+        }
+    }
+    impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
+        for RapidDisputeResolutionAppliedBool
+    where
+        DB: diesel::backend::Backend,
+        bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+            bool::from_sql(value).map(Self)
+        }
+    }
 }
 
 mod u32_wrappers {
