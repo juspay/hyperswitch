@@ -1308,6 +1308,9 @@ impl<F>
             split_payments: None,
             webhook_url: None,
             merchant_order_reference_id: item.request.merchant_order_reference_id,
+            is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
+                common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
+            }),
         })
     }
 }
