@@ -1,0 +1,481 @@
+import { getCustomExchange } from "./Modifiers";
+
+// Citigate is a UCS-only connector (see PR #13704): the integration itself
+// lives in hyperswitch-prism, this repo only registers enum/auth/config
+// plumbing. Scope per the PR is card only, one-time payments only
+// (Authorize + PSync, non-3DS and 3DS redirect) — no mandates, no
+// recurring/MIT, and no separate Capture/Void endpoint was exercised in the
+// PR's manual E2E evidence, so those flows are skipped below rather than
+// asserted against a guessed response.
+
+// Citigate's sandbox rejects a repeat Authorize with the same card + amount
+// as "Duplicate transaction" (observed on identical back-to-back requests
+// within the same run). A Cypress retry of a failed test would resend that
+// exact same request and get flagged, so disable retries here rather than
+// chase a false negative — same approach as Helcim.
+if (Cypress.env("CONNECTOR") === "citigate") {
+  Cypress.config("retries", 0);
+}
+
+const successfulNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "12",
+  card_exp_year: "2030",
+  card_holder_name: "John Phillips",
+  card_cvc: "123",
+  card_network: "Visa",
+};
+
+const successfulThreeDSTestCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "12",
+  card_exp_year: "2030",
+  card_holder_name: "John Phillips",
+  card_cvc: "123",
+  card_network: "Visa",
+};
+
+// Citigate rejects Authorize with IR_04 "Missing required field:
+// payment_method_data.billing.phone" — the shared cypress fixture
+// (create-confirm-body.json) sets billing.address but not billing.phone, so
+// every card_pm request below needs an explicit override.
+//
+// Citigate's sandbox also flags "Duplicate transaction" whenever a request
+// looks identical to one already accepted (same card, amount, and
+// cardholder identity) within its detection window. Several spec files
+// (e.g. 04-NoThreeDSAutoCapture.cy.js) read the *same* connectorDetails
+// entry — same object reference — for more than one `it()` block, so a
+// plain precomputed billing object is byte-identical across those calls
+// and still collides. `citigateBillingAddress` is used as a getter below so
+// each read recomputes a fresh identity. `Cypress.config("retries", 0")`
+// above stops a Cypress *retry* from resending the exact same request, and
+// the DELAY configs add a cooldown between the real Authorize calls that
+// run one after another in the same spec.
+let citigateIdentitySeq = 0;
+const citigateBillingAddress = () => {
+  citigateIdentitySeq += 1;
+  const nonce = `${Date.now()}-${citigateIdentitySeq}`;
+  return {
+    address: {
+      line1: "92 West Broadway",
+      city: "New York",
+      state: "NY",
+      zip: "10007",
+      country: "US",
+      first_name: "John",
+      last_name: `Phillips-${nonce}`,
+    },
+    phone: {
+      number: "8056594427",
+      country_code: "+1",
+    },
+    email: `john.phillips.${nonce}@gmail.com`,
+  };
+};
+
+export const connectorDetails = {
+  card_pm: {
+    // Shared by every spec that confirms in two steps (04-, 05-, 16-, ...).
+    // Routing to Citigate's 3DS MID (connector_2) has to happen here, at
+    // intent creation — the confirm step can't retroactively move an
+    // already-created intent to a different profile/MCA, so
+    // CONNECTOR_CREDENTIAL on "3DSAutoCapture"/"3DSManualCapture" alone
+    // isn't enough. Gate it by spec name so the non-3DS specs (which share
+    // this same "PaymentIntent" key) keep using the default connector_1
+    // (Dummy1) MID.
+    //
+    // matchesSpecName does a plain substring check, and
+    // "04-nothreedsautocapture.cy.js" literally contains "threedsautocapture"
+    // (NoThreeDSAutoCapture ⊃ ThreeDSAutoCapture) — a bare "threedsautocapture"
+    // pattern here would incorrectly match the non-3DS specs too. The "0N-"
+    // filename prefix disambiguates them.
+    PaymentIntent: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["05-threedsautocapture", "16-threedsmanualcapture"],
+          value: "connector_2",
+        },
+      },
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 30000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        get billing() {
+          return citigateBillingAddress();
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 50,
+        },
+      },
+    },
+    // Matches the non-3DS Authorize captured in the PR's manual E2E run:
+    // gateway ResponseCode "0" ("Approved") comes back synchronously and
+    // hyperswitch maps it straight to `succeeded`.
+    No3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 30000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        get billing() {
+          return citigateBillingAddress();
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    // No separate Capture endpoint was exercised against the Citigate
+    // sandbox in the PR, so manual capture is treated as unimplemented
+    // rather than asserted against a guessed status.
+    No3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        get billing() {
+          return citigateBillingAddress();
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    // Matches the 3DS Authorize captured in the PR's manual E2E run: gateway
+    // ResponseCode "600" ("Redirect required") maps to
+    // `requires_customer_action` with a `redirect_to_url` next action.
+    //
+    // Citigate's sandbox uses a *separate* MID for 3DS (creds.json
+    // connector_2, "Dummy2") from the non-3DS one (connector_1, "Dummy1")
+    // used everywhere else in this file — confirmed by the PR's own manual
+    // E2E evidence, which created a second profile/MCA for the 3DS run.
+    // Without CONNECTOR_CREDENTIAL routing here, this falls back to
+    // connector_1 and Citigate approves outright instead of challenging.
+    "3DSAutoCapture": {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_2",
+        },
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 30000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        authentication_type: "three_ds",
+        get billing() {
+          return citigateBillingAddress();
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    "3DSManualCapture": getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        authentication_type: "three_ds",
+        get billing() {
+          return citigateBillingAddress();
+        },
+      },
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_2",
+        },
+        TRIGGER_SKIP: true,
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    PartialCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    // Cancelling a payment that's still `requires_payment_method` (never
+    // reached the connector) is handled entirely router-side — it doesn't
+    // depend on Citigate implementing a Void endpoint, so this isn't
+    // TRIGGER_SKIP'd like the post-authorize Capture/PartialCapture cases.
+    // (voidCallTest also doesn't honor TRIGGER_SKIP at all — it always
+    // fires the request regardless of this config.)
+    Void: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
+    // Refund/PSync-of-refund were not part of the PR's manual E2E evidence
+    // either; skip rather than assert a guessed shape.
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    manualPaymentRefund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    manualPaymentPartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    // PR scope explicitly excludes mandates/recurring/MIT for Citigate.
+    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    MandateSingleUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    MandateMultiUseNo3DSManualCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    MITAutoCapture: getCustomExchange({
+      Request: { amount: 6000 },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    MITManualCapture: getCustomExchange({
+      Request: { amount: 6000 },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    MITWithoutBillingAddress: getCustomExchange({
+      Request: { amount: 6000, billing: null },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    SaveCardUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+  },
+};

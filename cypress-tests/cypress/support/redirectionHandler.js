@@ -3701,6 +3701,13 @@ function threeDsRedirection(
             });
           break;
 
+        case "citigate":
+          cy.get('input[name="btnSubmit"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .should("be.visible")
+            .click();
+          break;
+
         case "deutschebank":
           cy.get('button[id="submit"]', { timeout: constants.TIMEOUT })
             .should("exist")

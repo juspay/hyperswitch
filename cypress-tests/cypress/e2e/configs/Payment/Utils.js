@@ -23,6 +23,7 @@ import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js"
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as citigateConnectorDetails } from "./Citigate.js";
 import { connectorDetails as coingateConnectorDetails } from "./Coingate.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
@@ -119,6 +120,7 @@ const connectorDetails = {
   celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
+  citigate: citigateConnectorDetails,
   commons: commonConnectorDetails,
   coingate: coingateConnectorDetails,
   cryptopay: cryptopayConnectorDetails,
@@ -615,6 +617,7 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: [
       "authorizedotnet",
+      "citigate",
       "fiservcommercehub",
       "givepayments",
       "ilixium",
