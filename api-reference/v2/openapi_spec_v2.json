@@ -14919,14 +14919,6 @@
           "is_already_refunded": {
             "type": "boolean",
             "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
-          },
-          "additional_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AdditionalDetails"
-              }
-            ],
-            "nullable": true
           }
         }
       },
