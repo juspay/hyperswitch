@@ -494,6 +494,129 @@ describe("Config Tests", () => {
     });
   });
 
+  context("Outgoing Webhook Event Gating — Status List Replacement", () => {
+    beforeEach(function () {
+      const connectorId = globalState.get("connectorId");
+      const gatingConnectors =
+        utils.CONNECTOR_LISTS.INCLUDE.OUTGOING_WEBHOOK_EVENT_CONFIG;
+
+      // These round-trips exercise only the business-profile admin API (no
+      // connector calls), so they are pinned to a single connector pipeline
+      // to avoid redundant cross-connector execution. Skip if the connector
+      // is NOT in the gating list.
+      const shouldSkip =
+        Array.isArray(gatingConnectors) &&
+        !gatingConnectors.includes(connectorId);
+
+      if (shouldSkip) {
+        this.skip();
+      }
+    });
+
+    it("Create Business Profile with full webhook event status lists", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["WebhookConfig"]["Create"];
+      const createBody = {
+        ...fixtures.businessProfile.bpCreate,
+        webhook_details: data.Request.webhook_details,
+      };
+      cy.createBusinessProfileTest(createBody, globalState, "webhookGating");
+    });
+
+    // The shrink round-trips below assert set-equality on the echoed arrays
+    // (expectWebhookStatusMembers), so a server-side merge-instead-of-replace
+    // update would fail by retaining removed statuses. This replacement
+    // semantics path is not covered by the Create/Update tests above, which
+    // only ever grow the lists.
+    it("Update payment_statuses_enabled to failed only (removes succeeded)", () => {
+      const updateBody = {
+        webhook_details: {
+          payment_statuses_enabled: ["failed"],
+        },
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookGating"
+      );
+    });
+
+    it("Re-enable payment succeeded alongside failed", () => {
+      const updateBody = {
+        webhook_details: {
+          payment_statuses_enabled: ["succeeded", "failed"],
+        },
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookGating"
+      );
+    });
+
+    it("Update refund_statuses_enabled to failure only (removes success)", () => {
+      const updateBody = {
+        webhook_details: {
+          refund_statuses_enabled: ["failure"],
+        },
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookGating"
+      );
+    });
+
+    it("Update dispute_statuses_enabled to dispute_opened only (removes dispute_won)", () => {
+      const updateBody = {
+        webhook_details: {
+          dispute_statuses_enabled: ["dispute_opened"],
+        },
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookGating"
+      );
+    });
+
+    it("Expand mandate_statuses_enabled to active and revoked", () => {
+      const updateBody = {
+        webhook_details: {
+          mandate_statuses_enabled: ["active", "revoked"],
+        },
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookGating"
+      );
+    });
+
+    it("Update mandate_statuses_enabled back to active only (removes revoked)", () => {
+      const updateBody = {
+        webhook_details: {
+          mandate_statuses_enabled: ["active"],
+        },
+      };
+      cy.updateBusinessProfileWebhookConfigTest(
+        updateBody,
+        globalState,
+        "webhookGating"
+      );
+    });
+
+    // invoice_statuses_enabled is intentionally not round-tripped: outgoing
+    // invoice webhooks have a single emission status (invoice_paid), so no
+    // shrink/exclusion shape exists. Its echo is already asserted by the
+    // WebhookConfig Create/Update tests above.
+
+    after("cleanup webhookGating profile", () => {
+      cy.deleteBusinessProfileTest(globalState, "webhookGating");
+    });
+  });
+
   context("Webhook Config Disabled Events — Negative Cases", () => {
     beforeEach(function () {
       const connectorId = globalState.get("connectorId");
