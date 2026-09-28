@@ -3380,10 +3380,7 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      confirmBody.offer_details.offer_quote_ids =
-        confirmBody.offer_details.offer_quote_ids.map((id) =>
-          id === OFFER_QUOTE_ID_PLACEHOLDER ? offerQuoteId : id
-        );
+      confirmBody.offer_details.offer_quote_ids = [offerQuoteId];
     }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
@@ -4578,10 +4575,7 @@ Cypress.Commands.add(
       const offerQuoteId = globalState.get("offerQuoteId");
       expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
 
-      saveCardConfirmBody.offer_details.offer_quote_ids =
-        saveCardConfirmBody.offer_details.offer_quote_ids.map((id) =>
-          id === OFFER_QUOTE_ID_PLACEHOLDER ? offerQuoteId : id
-        );
+      saveCardConfirmBody.offer_details.offer_quote_ids = [offerQuoteId];
     }
 
     cy.request({
