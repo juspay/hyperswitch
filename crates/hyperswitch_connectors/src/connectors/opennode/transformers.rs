@@ -142,6 +142,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, OpennodePaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionUnresolvedResponse {

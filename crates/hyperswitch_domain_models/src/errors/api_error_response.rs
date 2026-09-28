@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
@@ -83,6 +85,8 @@ pub enum ApiErrorResponse {
     DuplicatePayout {
         payout_id: common_utils::id_type::PayoutId,
     },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The fraud check with the specified frm_id '{frm_id}' already exists in our records")]
+    DuplicateFraudCheck { frm_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
     DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
@@ -95,6 +99,8 @@ pub enum ApiErrorResponse {
     ConfigNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment does not exist in our records")]
     PaymentNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Fraud check does not exist in our records")]
+    FraudCheckNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method does not exist in our records")]
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
@@ -179,7 +185,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_03", message = "The HTTP method is not applicable for this API")]
     InvalidHttpMethod,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_04", message = "Missing required param: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
+    MissingRequiredField { field_name: Cow<'static, str> },
     #[error(
         error_type = ErrorType::InvalidRequestError, code = "IR_05",
         message = "{field_name} contains invalid data. Expected format is {expected_format}"
@@ -192,7 +198,7 @@ pub enum ApiErrorResponse {
     InvalidRequestData { message: String },
     /// Typically used when a field has invalid value, or deserialization of the value contained in a field fails.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_07", message = "Invalid value provided: {field_name}")]
-    InvalidDataValue { field_name: &'static str },
+    InvalidDataValue { field_name: Cow<'static, str> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret was not provided")]
     ClientSecretNotGiven,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret has expired")]
@@ -236,7 +242,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
-    MissingRequiredFields { field_names: Vec<&'static str> },
+    MissingRequiredFields { field_names: Vec<Cow<'static, str>> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource {resource}")]
     AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
@@ -431,6 +437,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id:?}' already exists in our records"), None))
             }
+            Self::DuplicateFraudCheck { frm_id } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The fraud check with the specified frm_id '{frm_id}' already exists in our records"), None))
+            }
             Self::DuplicateConfig => {
                 AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
             }
@@ -448,6 +457,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::PaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))
+            }
+            Self::FraudCheckNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Fraud check does not exist in our records", None))
             }
             Self::PaymentMethodNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment method does not exist in our records", None))

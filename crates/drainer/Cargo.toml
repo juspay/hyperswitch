@@ -9,12 +9,13 @@ license.workspace = true
 
 [features]
 default = ["redis-rs"]
-release = ["vergen", "external_services/aws_kms"]
+release = ["vergen", "external_services/aws_kms", "gcp_kms"]
 vergen = ["router_env/vergen"]
-v1 = ["diesel_models/v1", "external_services/v1", "hyperswitch_interfaces/v1", "common_utils/v1"]
-v2 = ["diesel_models/v2", "external_services/v2", "hyperswitch_interfaces/v2", "common_utils/v2"]
-fred     = ["redis_interface/fred",     "redis_interface/metrics"]
-redis-rs = ["redis_interface/redis-rs", "redis_interface/metrics"]
+gcp_kms = ["external_services/gcp_kms", "dep:rustls"]
+v1 = ["diesel_models/v1", "external_services/v1", "hyperswitch_interfaces/v1", "common_utils/v1", "storage_impl/v1", "storage_impl/olap"]
+v2 = ["diesel_models/v2", "external_services/v2", "hyperswitch_interfaces/v2", "common_utils/v2", "storage_impl/v2"]
+fred     = ["redis_interface/fred",     "redis_interface/metrics", "storage_impl/fred"]
+redis-rs = ["redis_interface/redis-rs", "redis_interface/metrics", "storage_impl/redis-rs"]
 
 [dependencies]
 actix-web = "4.11.0"
@@ -27,6 +28,11 @@ diesel = { version = "2.2.10", features = ["postgres"] }
 error-stack = "0.4.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.27" }
+rustls = { version = "0.23", default-features = false, features = [
+    "aws-lc-rs",
+    "std",
+    "tls12",
+], optional = true }
 serde = "1.0.219"
 serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"
@@ -41,6 +47,7 @@ hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces"
 hyperswitch_masking = "0.0.1"
 redis_interface = { version = "0.1.0", path = "../redis_interface", default-features = false }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+storage_impl = { version = "0.1.0", path = "../storage_impl", features = ["payouts"], default-features = false }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

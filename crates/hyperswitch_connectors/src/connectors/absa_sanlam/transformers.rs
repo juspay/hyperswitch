@@ -12,6 +12,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{types::ResponseRouterData, utils};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AbsaSanlamFrmMetadata {
+    pub profile_id: String,
+    pub connector_id: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+}
+
 pub struct AbsaSanlamAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_id: Secret<String>,
@@ -118,6 +125,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AbsaSanlamWebhookEvent, T, PaymentsResp
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 

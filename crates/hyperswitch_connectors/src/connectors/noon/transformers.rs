@@ -333,7 +333,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                                 api_version: GOOGLEPAY_API_VERSION,
                                 payment_method_data: GooglePayWalletData::try_from(google_pay_data)
                                     .change_context(errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "google_pay_data",
+                                        field_name: "google_pay_data".into(),
                                     })?,
                             }))
                         }
@@ -370,6 +370,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::Neteller(_)
                         | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
@@ -427,7 +428,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                 Some(item.request.currency),
                 Some(item.request.order_category.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_category",
+                        field_name: "order_category".into(),
                     },
                 )?),
             ),
@@ -681,6 +682,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 }
             },

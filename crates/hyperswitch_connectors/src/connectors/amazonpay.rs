@@ -3,7 +3,6 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use chrono::Utc;
 use common_enums::enums;
 use common_utils::{
     crypto::{RsaPssSha256, SignMessage},
@@ -229,9 +228,11 @@ where
             ),
             (
                 HEADER_DATE.to_string(),
-                Utc::now()
-                    .format("%Y-%m-%dT%H:%M:%SZ")
-                    .to_string()
+                common_utils::date_time::now()
+                    .format(&time::macros::format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+                    ))
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
                     .into_masked(),
             ),
             (
@@ -392,6 +393,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::RevolutPay(_)
                 | WalletDataPaymentMethod::Paysera(_)
                 | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("amazonpay"),

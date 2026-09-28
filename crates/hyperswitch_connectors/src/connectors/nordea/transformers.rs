@@ -15,7 +15,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
-use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
@@ -115,7 +114,7 @@ impl TryFrom<&AccessTokenAuthenticationRouterData> for NordeaOAuthRequest {
             AccessScope::PaymentsMultiple,
         ]
         .to_vec();
-        let state = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 15);
+        let state = common_utils::generate_random_alphanumeric_string(15);
 
         Ok(Self {
             country,
@@ -136,7 +135,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for NordeaOAuthExchangeRequest {
             .authentication_token
             .as_ref()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "authorization_code",
+                field_name: "authorization_code".into(),
             })?
             .code
             .clone();
@@ -163,7 +162,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, AccessT
             item.response
                 .access_token
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 })?;
 
         let expires_in = item.response.expires_in.unwrap_or(3600); // Default to 1 hour if not provided
@@ -398,7 +397,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
                         amount: item.amount.clone(),
                         currency: item.router_data.request.currency.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "amount",
+                                field_name: "amount".into(),
                             },
                         )?,
                     };
@@ -530,6 +529,7 @@ fn convert_nordea_payment_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
 
     let status = common_enums::AttemptStatus::from(payment_response.payment_status.clone());
@@ -664,6 +664,7 @@ impl
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 let status = common_enums::AttemptStatus::from(payment.payment_status.clone());
@@ -684,6 +685,7 @@ impl
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     });
                     (response, common_enums::AttemptStatus::AuthenticationPending)
                 } else {

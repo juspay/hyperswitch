@@ -19,7 +19,6 @@ use router_env::{
 };
 use time::PrimitiveDateTime;
 use tokio::sync::mpsc;
-use uuid::Uuid;
 
 use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
@@ -46,17 +45,10 @@ where
 {
     use std::time::Duration;
 
-    use rand::distributions::{Distribution, Uniform};
+    let jitter_ceiling = i64::try_from(settings.loop_interval).unwrap_or(i64::MAX);
+    let timeout = common_utils::generate_random_number_in_range(0, jitter_ceiling);
 
-    let mut rng = rand::thread_rng();
-
-    // TODO: this can be removed once rand-0.9 is released
-    // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
-    #[allow(clippy::unnecessary_fallible_conversions)]
-    let timeout = Uniform::try_from(0..=settings.loop_interval)
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?;
-
-    tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
+    tokio::time::sleep(Duration::from_millis(u64::try_from(timeout).unwrap_or(0))).await;
 
     let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
 
@@ -144,7 +136,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
         enums::ApplicationSource::Cug => settings.cug_stream.clone(),
     };
     let group_name = settings.consumer.consumer_group.clone();
-    let consumer_name = format!("consumer_{}", Uuid::new_v4());
+    let consumer_name = format!("consumer_{}", common_utils::generate_uuid_v4());
 
     let _group_created = &mut state
         .get_db()
@@ -238,7 +230,7 @@ pub async fn start_workflow<T>(
 where
     T: SchedulerSessionState,
 {
-    let workflow_id = Uuid::now_v7();
+    let workflow_id = common_utils::generate_uuid_v7();
     tracing::Span::current().record("workflow_id", workflow_id.to_string());
     logger::info!(pt.name=?process.name, pt.id=%process.id);
 

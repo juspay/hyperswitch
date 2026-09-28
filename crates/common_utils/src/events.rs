@@ -107,7 +107,9 @@ pub enum ApiEventsType {
     ApplePayCertificatesMigration,
     FraudCheck,
     Recon,
-    ExternalServiceAuth,
+    ExternalServiceAuth {
+        service: String,
+    },
     Dispute {
         dispute_id: String,
     },
@@ -141,7 +143,6 @@ pub enum ApiEventsType {
         profile_acquirer_id: id_type::ProfileAcquirerId,
     },
     ThreeDsDecisionRule,
-    Chat,
     Oidc,
     CardIssuers,
 }

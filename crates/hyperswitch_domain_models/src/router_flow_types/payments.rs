@@ -118,3 +118,36 @@ pub struct SettlementSplitCreate;
 
 #[derive(Debug, Clone)]
 pub struct UpdatePostConfirm;
+
+/// Flows that a `PreDetermined` connector may fail over to the next acquirer for, on a
+/// post-authentication external-3DS decline. Only `Authorize` and `SetupMandate` re-enter
+/// confirm after external authentication, so every other flow stays ineligible by default.
+pub trait ExternalThreeDsRetryEligible {
+    fn supports_external_three_ds_retry() -> bool {
+        false
+    }
+}
+
+impl ExternalThreeDsRetryEligible for Authorize {
+    fn supports_external_three_ds_retry() -> bool {
+        true
+    }
+}
+
+impl ExternalThreeDsRetryEligible for SetupMandate {
+    fn supports_external_three_ds_retry() -> bool {
+        true
+    }
+}
+
+/// Resolves eligibility for an otherwise-unconstrained generic `F` by matching its `TypeId`
+/// against the flows above, so callers don't need to carry `F: ExternalThreeDsRetryEligible`
+/// through their whole generic call chain.
+pub fn is_external_three_ds_retry_eligible_flow<F: 'static>() -> bool {
+    use std::any::TypeId;
+
+    (TypeId::of::<F>() == TypeId::of::<Authorize>()
+        && Authorize::supports_external_three_ds_retry())
+        || (TypeId::of::<F>() == TypeId::of::<SetupMandate>()
+            && SetupMandate::supports_external_three_ds_retry())
+}

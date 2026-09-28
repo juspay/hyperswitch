@@ -55,6 +55,13 @@ pub trait ProcessTrackerInterface: Send + Sync + 'static {
         business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError>;
 
+    /// Finish a process while updating any other columns in the same write.
+    async fn finish_process_with_update(
+        &self,
+        this: storage::ProcessTracker,
+        update: storage::ProcessTrackerUpdate,
+    ) -> CustomResult<(), errors::StorageError>;
+
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,
@@ -182,6 +189,18 @@ impl ProcessTrackerInterface for Store {
         Ok(())
     }
 
+    async fn finish_process_with_update(
+        &self,
+        this: storage::ProcessTracker,
+        update: storage::ProcessTrackerUpdate,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.update_process(this, update)
+            .await
+            .attach_printable("Failed to finish process with update")?;
+        metrics::TASK_FINISHED.add(1, &[]);
+        Ok(())
+    }
+
     async fn process_tracker_update_process_status_by_ids(
         &self,
         task_ids: Vec<String>,
@@ -287,6 +306,15 @@ impl ProcessTrackerInterface for MockDb {
         &self,
         _this: storage::ProcessTracker,
         _business_status: &'static str,
+    ) -> CustomResult<(), errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn finish_process_with_update(
+        &self,
+        _this: storage::ProcessTracker,
+        _update: storage::ProcessTrackerUpdate,
     ) -> CustomResult<(), errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

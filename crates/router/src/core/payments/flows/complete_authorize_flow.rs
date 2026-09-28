@@ -50,6 +50,7 @@ impl
         state: &SessionState,
         connector_id: &str,
         processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -70,6 +71,7 @@ impl
             self.clone(),
             connector_id,
             processor,
+            business_profile,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -509,6 +511,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 );
             // check if redirection is not present in the response and attempt status is not AuthenticationFailed
             // if condition does not satisfy, then we don't need to proceed further
+            // Also treat Charged/Authorized as terminal: PostAuthenticate may itself complete
+            // the payment (e.g. APM confirmation), so CompleteAuthorize must not be re-fired.
             let should_continue = matches!(
                 complete_authorize_router_data.response,
                 Ok(types::PaymentsResponseData::TransactionResponse {
@@ -519,6 +523,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                 complete_authorize_router_data.status,
                 common_enums::AttemptStatus::AuthenticationFailed
                     | common_enums::AttemptStatus::Failure
+                    | common_enums::AttemptStatus::Charged
             );
             Ok((complete_authorize_router_data, should_continue))
         } else {
@@ -671,7 +676,7 @@ fn transform_redirection_response_for_authenticate_flow(
         ) => {
             let access_token = form_fields.get("access_token").cloned().ok_or(
                 ucs_transformers::UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 },
             )?;
             let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
@@ -712,6 +717,7 @@ fn transform_response_for_authenticate_flow(
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
+                payment_account_reference,
                 incremental_authorization_allowed,
                 authentication_data,
                 charges,
@@ -737,6 +743,7 @@ fn transform_response_for_authenticate_flow(
                     network_txn_id,
                     network_txn_link_id,
                     connector_response_reference_id,
+                    payment_account_reference,
                     incremental_authorization_allowed,
                     authentication_data,
                     charges,

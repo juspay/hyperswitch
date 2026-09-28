@@ -82,7 +82,8 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                                 nome,
                             },
                             _ => Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "cpf and cnpj both missing in payment_method_data",
+                                field_name: "cpf and cnpj both missing in payment_method_data"
+                                    .into(),
                             })?,
                         };
                         Ok(Self {
@@ -90,7 +91,7 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                                 original: item.amount.to_owned(),
                             },
                             chave: pix_key.ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "pix_key",
+                                field_name: "pix_key".into(),
                             })?,
                             devedor,
                         })
@@ -305,6 +306,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -365,7 +367,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, Paymen
             .pix
             .first()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "pix_id",
+                field_name: "pix_id".into(),
             })?
             .to_owned();
 
@@ -386,6 +388,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ItaubankPaymentsSyncResponse, T, Paymen
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })

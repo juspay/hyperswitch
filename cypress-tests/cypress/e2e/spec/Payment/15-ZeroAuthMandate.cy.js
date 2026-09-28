@@ -3,6 +3,7 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - SingleUse Mandates flow test", () => {
   before("seed global state", function () {
@@ -11,6 +12,7 @@ describe("Card - SingleUse Mandates flow test", () => {
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
+        originalCustomerId = globalState.get("customerId");
 
         // Skip running test against a connector that is added in the exclude list
         if (
@@ -30,6 +32,12 @@ describe("Card - SingleUse Mandates flow test", () => {
   });
 
   after("flush global state", () => {
+    // This spec's contexts create their own customers for local mandate/PMID
+    // testing, overwriting globalState.customerId along the way. Restore the
+    // original customer before flushing so later specs (which just read
+    // globalState.customerId) don't inherit a customer scoped to this spec's
+    // own mandate tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -40,6 +48,10 @@ describe("Card - SingleUse Mandates flow test", () => {
       if (!shouldContinue) {
         this.skip();
       }
+    });
+
+    it("Create Customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
     it("Create No 3DS Payment Intent", () => {
@@ -117,6 +129,10 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       cy.retrievePaymentCallTest({ globalState, data });
     });
+
+    it("Customer delete call", () => {
+      cy.customerDeleteCall(globalState);
+    });
   });
 
   context(
@@ -178,7 +194,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -201,7 +216,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -214,6 +228,10 @@ describe("Card - SingleUse Mandates flow test", () => {
         ]["MITAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      it("Customer delete call", () => {
+        cy.customerDeleteCall(globalState);
       });
     }
   );
@@ -239,7 +257,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        0,
         true,
         "automatic",
         "setup_mandate",
@@ -265,7 +282,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState
@@ -279,5 +295,147 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       cy.retrievePaymentCallTest({ globalState, data });
     });
+
+    // No "Customer delete call" here: the CIT above uses payment_type
+    // "setup_mandate", which creates a Mandate record that stays Active.
+    // delete_customer refuses to delete a customer with an active mandate
+    // (crates/router/src/core/customers.rs), so this customer can't be
+    // cleaned up this way.
   });
+
+  context(
+    "Card - Zero auth Mandate flow with Manual Capture Using NTID and Card Details (create + confirm)",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Create Customer", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("Confirm No 3DS CIT", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthConfirmPaymentManual"];
+
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          true,
+          "manual",
+          "setup_mandate",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      it("Confirm No 3DS MIT", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+
+        cy.mitUsingNTID(
+          fixtures.ntidConfirmBody,
+          data,
+          true,
+          "manual",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("mit-capture-call-test", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
+      });
+
+      it("retrieve-payment-call-test", function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ZERO_AUTH_MANDATE
+          )
+        ) {
+          this.skip();
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      // No "Customer delete call" here: the CIT above uses payment_type
+      // "setup_mandate", which creates a Mandate record that stays Active.
+      // delete_customer refuses to delete a customer with an active mandate
+      // (crates/router/src/core/customers.rs), so this customer can't be
+      // cleaned up this way.
+    }
+  );
 });

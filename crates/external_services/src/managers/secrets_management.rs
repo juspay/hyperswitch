@@ -1,7 +1,7 @@
 //! Secrets management util module
 
 use common_utils::errors::CustomResult;
-#[cfg(feature = "hashicorp-vault")]
+#[cfg(any(feature = "hashicorp-vault", feature = "gcp_kms"))]
 use error_stack::ResultExt;
 use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
@@ -9,6 +9,8 @@ use hyperswitch_interfaces::secrets_interface::{
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;
+#[cfg(feature = "gcp_kms")]
+use crate::gcp_kms;
 #[cfg(feature = "hashicorp-vault")]
 use crate::hashicorp_vault;
 use crate::no_encryption::core::NoEncryption;
@@ -23,6 +25,13 @@ pub enum SecretsManagementConfig {
     AwsKms {
         /// AWS KMS config
         aws_kms: aws_kms::core::AwsKmsConfig,
+    },
+
+    /// GCP Cloud KMS configuration
+    #[cfg(feature = "gcp_kms")]
+    GcpKms {
+        /// GCP KMS config
+        gcp_kms: gcp_kms::core::GcpKmsConfig,
     },
 
     /// HashiCorp-Vault configuration
@@ -43,6 +52,8 @@ impl SecretsManagementConfig {
         match self {
             #[cfg(feature = "aws_kms")]
             Self::AwsKms { aws_kms } => aws_kms.validate(),
+            #[cfg(feature = "gcp_kms")]
+            Self::GcpKms { gcp_kms } => gcp_kms.validate(),
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => hc_vault.validate(),
             Self::NoEncryption => Ok(()),
@@ -58,6 +69,11 @@ impl SecretsManagementConfig {
             Self::AwsKms { aws_kms } => {
                 Ok(Box::new(aws_kms::core::AwsKmsClient::new(aws_kms).await))
             }
+            #[cfg(feature = "gcp_kms")]
+            Self::GcpKms { gcp_kms } => gcp_kms::core::GcpKmsClient::new(gcp_kms)
+                .await
+                .change_context(SecretsManagementError::ClientCreationFailed)
+                .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) }),
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => {
                 hashicorp_vault::core::HashiCorpVault::new(hc_vault)

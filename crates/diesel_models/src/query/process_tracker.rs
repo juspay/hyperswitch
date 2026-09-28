@@ -9,12 +9,15 @@ use crate::{
         ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate, ProcessTrackerUpdateInternal,
     },
     schema::process_tracker::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl ProcessTrackerNew {
     #[instrument(skip(conn))]
-    pub async fn insert_process(self, conn: &PgPooledConn) -> StorageResult<ProcessTracker> {
+    pub async fn insert_process(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<ProcessTracker> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -23,7 +26,7 @@ impl ProcessTracker {
     #[instrument(skip(conn))]
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         process: ProcessTrackerUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -43,7 +46,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn update_process_status_by_ids(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         task_ids: Vec<String>,
         task_update: ProcessTrackerUpdate,
     ) -> StorageResult<usize> {
@@ -56,7 +59,10 @@ impl ProcessTracker {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_process_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Option<Self>> {
+    pub async fn find_process_by_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        id: &str,
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             id.to_owned(),
@@ -66,7 +72,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn find_processes_by_time_status(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         status: enums::ProcessTrackerStatus,
@@ -93,7 +99,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn find_processes_to_clean(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
         runner: &str,
@@ -123,7 +129,7 @@ impl ProcessTracker {
 
     #[instrument(skip(conn))]
     pub async fn reinitialize_limbo_processes(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         ids: Vec<String>,
         schedule_time: PrimitiveDateTime,
     ) -> StorageResult<usize> {

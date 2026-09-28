@@ -870,6 +870,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                 "v1/setup_intents",
                 x,
             )),
+            Ok(x) if x.starts_with("ch_") => Ok(format!(
+                "{}{}/{}",
+                self.base_url(connectors),
+                "v1/charges",
+                x,
+            )),
             Ok(x) => Ok(format!(
                 "{}{}/{}{}",
                 self.base_url(connectors),
@@ -911,6 +917,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                 let response: stripe::SetupIntentResponse = res
                     .response
                     .parse_struct("SetupIntentSyncResponse")
+                    .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            Ok(x) if x.starts_with("ch_") => {
+                let response: stripe::ChargeSyncResponse = res
+                    .response
+                    .parse_struct("ChargeSyncResponse")
                     .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
                 event_builder.map(|i| i.set_response_body(&response));
@@ -3006,7 +3027,7 @@ impl IncomingWebhook for Stripe {
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
         let amt = details.event_data.event_object.amount.ok_or_else(|| {
             ConnectorError::MissingRequiredField {
-                field_name: "amount",
+                field_name: "amount".into(),
             }
         })?;
 
@@ -3034,6 +3055,11 @@ impl IncomingWebhook for Stripe {
                 .to_string(),
             created_at: Some(details.event_data.event_object.created),
             updated_at: None,
+            additional_details: details
+                .event_data
+                .event_object
+                .network_details
+                .and_then(Into::into),
         })
     }
 }

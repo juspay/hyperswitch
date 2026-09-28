@@ -31,7 +31,7 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
             client_name: item.request.client_name.clone(),
             country_codes: item.request.country_codes.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "country_codes",
+                    field_name: "country_codes".into(),
                 },
             )?,
             language: item.request.language.clone().unwrap_or("en".to_string()),
@@ -39,7 +39,7 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
             user: User {
                 client_user_id: item.request.user_info.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "country_codes",
+                        field_name: "country_codes".into(),
                     },
                 )?,
             },

@@ -309,6 +309,7 @@ impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -488,6 +489,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -629,6 +631,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -909,6 +912,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })

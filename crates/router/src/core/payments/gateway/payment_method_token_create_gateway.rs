@@ -163,7 +163,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .map_err(super::convert_ucs_error_to_connector_error)
+        .map_err(payment_gateway::convert_ucs_error_to_connector_error)
     }
 }
 

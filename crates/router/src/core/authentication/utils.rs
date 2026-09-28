@@ -128,7 +128,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .map(common_utils::ext_traits::Encode::encode_to_value)
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "browser_information",
+                        field_name: "browser_information".into(),
                     })?;
 
                 let encrypted_data =
@@ -429,7 +429,7 @@ pub async fn create_new_authentication(
         .map(common_utils::ext_traits::Encode::encode_to_value)
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "browser_information",
+            field_name: "browser_information".into(),
         })?;
     let billing_country = billing_address.and_then(|billing| {
         billing

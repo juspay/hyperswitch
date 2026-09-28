@@ -1,3 +1,5 @@
+#[cfg(feature = "olap")]
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use base64::Engine;
@@ -14,10 +16,14 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhook;
+#[cfg(feature = "olap")]
+use hyperswitch_masking::Secret;
 use redis_interface as redis;
 use router_env::tracing;
 
 use super::{types as webhook_types, MERCHANT_ID};
+#[cfg(feature = "olap")]
+use crate::consts::REDACTED_HEADER_VALUE;
 use crate::{
     core::{
         configs::dimension_state,
@@ -144,6 +150,7 @@ pub async fn construct_webhook_router_data(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -464,7 +471,7 @@ pub(super) async fn perform_redis_lock<A>(
 where
     A: SessionStateInfo,
 {
-    let lock_value: String = uuid::Uuid::new_v4().to_string();
+    let lock_value: String = common_utils::generate_uuid_v4().to_string();
     let redis_conn = state
         .store()
         .get_redis_conn()
@@ -554,5 +561,27 @@ where
         Err(error) => Err(error)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while deleting redis key"),
+    }
+}
+
+/// `Secret` does not mask values under ordinary serde serialization, and header sensitivity
+/// depends on the header *name*, which the value wrapper cannot observe. Values are therefore
+/// replaced before the webhook content is returned in an API response.
+///
+/// Header names are compared case-insensitively.
+/// `None` means the sensitive header names could not be determined, in which case every value is
+/// redacted rather than risking exposure.
+#[cfg(feature = "olap")]
+pub fn redact_header_values(
+    headers: &mut [(String, Secret<String>)],
+    sensitive_header_names: Option<&HashSet<String>>,
+) {
+    for (header_name, header_value) in headers {
+        let is_sensitive = sensitive_header_names
+            .is_none_or(|names| names.contains(header_name.to_ascii_lowercase().as_str()));
+
+        if is_sensitive {
+            *header_value = Secret::new(REDACTED_HEADER_VALUE.to_string());
+        }
     }
 }

@@ -121,7 +121,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                                         .get_encrypted_google_pay_token()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "gpay wallet_token",
+                                                field_name: "gpay wallet_token".into(),
                                             },
                                         )?,
                                 ),
@@ -134,7 +134,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                         .payment_data
                         .get_encrypted_apple_pay_payment_data_mandatory()
                         .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data",
+                            field_name: "Apple pay encrypted data".into(),
                         })?;
                     Ok(PayuPaymentMethod {
                         pay_method: PayuPaymentMethodData::Wallet({
@@ -158,7 +158,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
         }?;
         let browser_info = item.router_data.request.browser_info.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             },
         )?;
         Ok(Self {
@@ -166,7 +166,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
                 browser_info
                     .ip_address
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info.ip_address",
+                        field_name: "browser_info.ip_address".into(),
                     })?
                     .to_string(),
             ),
@@ -176,7 +176,7 @@ impl TryFrom<&PayuRouterData<&types::PaymentsAuthorizeRouterData>> for PayuPayme
             currency_code: item.router_data.request.currency,
             description: item.router_data.description.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "item.description",
+                    field_name: "item.description".into(),
                 },
             )?,
             pay_methods: payment_method,
@@ -261,6 +261,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: None,
             ..item.data
@@ -310,6 +311,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCaptureResponse, T, Payment
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: None,
             ..item.data
@@ -390,6 +392,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCancelResponse, T, Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: None,
             ..item.data
@@ -521,6 +524,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             amount_captured: Some(
                 order
@@ -551,7 +555,7 @@ impl<F> TryFrom<&PayuRouterData<&types::RefundsRouterData<F>>> for PayuRefundReq
             refund: PayuRefundRequestData {
                 description: item.router_data.request.reason.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "item.request.reason",
+                        field_name: "item.request.reason".into(),
                     },
                 )?,
                 amount: None,

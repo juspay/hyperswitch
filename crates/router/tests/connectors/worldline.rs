@@ -80,6 +80,9 @@ impl WorldlineTest {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 bank_code: None,
@@ -191,7 +194,7 @@ async fn should_throw_missing_required_field_for_country() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::MissingRequiredField {
-            field_name: "billing.address.country"
+            field_name: "billing.address.country".into()
         }
     )
 }

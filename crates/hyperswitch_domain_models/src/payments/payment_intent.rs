@@ -159,6 +159,7 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerData {
@@ -174,6 +175,10 @@ impl CustomerData {
             .tax_registration_id
             .clone()
             .or_else(|| other.tax_registration_id.clone());
+        self.date_of_birth = self
+            .date_of_birth
+            .clone()
+            .or_else(|| other.date_of_birth.clone());
     }
 }
 
@@ -272,6 +277,8 @@ pub struct PaymentIntentUpdateFields {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -505,6 +512,8 @@ pub struct PaymentIntentUpdateInternal {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1340,6 +1349,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1397,6 +1408,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 profile_acquirer_id: None,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
         }
     }
@@ -1506,6 +1519,8 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     profile_acquirer_id: value.profile_acquirer_id,
                     external_surcharge_strategy: None,
                     external_surcharge_applicable: None,
+                    is_account_funded_transaction: value.is_account_funded_transaction,
+                    recipient_details: value.recipient_details.map(Encryption::from),
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1699,6 +1714,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = value;
         Self {
             amount,
@@ -1758,6 +1775,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         }
     }
 }
@@ -2155,6 +2174,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2269,6 +2290,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id,
             external_surcharge_strategy,
             external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         })
     }
     async fn convert_back(
@@ -2289,6 +2312,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_address: storage_model.billing_address,
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2425,6 +2449,8 @@ impl behaviour::Conversion for PaymentIntent {
                 profile_acquirer_id: storage_model.profile_acquirer_id,
                 external_surcharge_strategy: storage_model.external_surcharge_strategy,
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2539,6 +2565,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id: self.profile_acquirer_id,
             external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }
@@ -2633,6 +2661,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id: self.profile_acquirer_id,
             external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 
@@ -2654,6 +2684,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_details: storage_model.billing_details,
                         shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2752,6 +2783,8 @@ impl behaviour::Conversion for PaymentIntent {
                 profile_acquirer_id: storage_model.profile_acquirer_id,
                 external_surcharge_strategy: storage_model.external_surcharge_strategy,
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2844,6 +2877,8 @@ impl behaviour::Conversion for PaymentIntent {
             profile_acquirer_id: self.profile_acquirer_id,
             external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }

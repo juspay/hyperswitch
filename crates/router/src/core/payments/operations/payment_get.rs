@@ -54,7 +54,7 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::RequiresPaymentMethod => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: [
                         common_enums::IntentStatus::RequiresCapture,
@@ -180,7 +180,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
 
         let active_attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: ("active_attempt_id"),
+                field_name: "active_attempt_id".into(),
             }
         })?;
 

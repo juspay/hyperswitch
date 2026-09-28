@@ -427,7 +427,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::MandatePayment => {
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     },
                 )?;
                 Ok(Self::Mandate(MandatePaymentRequest::try_from((
@@ -450,7 +450,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                             input: WalletPaymentInput {
                                 payment_method_id: payment_method_id.clone().ok_or(
                                     errors::ConnectorError::MissingRequiredField {
-                                        field_name: "google_pay token",
+                                        field_name: "google_pay token".into(),
                                     },
                                 )?,
 
@@ -507,7 +507,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                             input: WalletPaymentInput {
                                 payment_method_id: payment_method_id.clone().ok_or(
                                     errors::ConnectorError::MissingRequiredField {
-                                        field_name: "apple_pay token",
+                                        field_name: "apple_pay token".into(),
                                     },
                                 )?,
                                 transaction: WalletTransactionBody {
@@ -794,6 +794,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -820,6 +821,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -853,6 +855,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreeAuthResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1015,6 +1018,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1041,6 +1045,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -1084,6 +1089,7 @@ impl TryFrom<PaymentsResponseRouterData<BraintreePaymentsResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
 
@@ -1158,6 +1164,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1231,6 +1238,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -1862,7 +1870,7 @@ impl
                                     api_models::payments::ApplePayPaymentRequest {
                                         country_code: data.request.country.ok_or(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "country",
+                                                field_name: "country".into(),
                                             },
                                         )?,
                                         currency_code: data.request.currency,
@@ -1942,7 +1950,7 @@ impl
                                     transaction_info: payment_types::GpayTransactionInfo {
                                         country_code: data.request.country.ok_or(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "country",
+                                                field_name: "country".into(),
                                             },
                                         )?,
                                         currency_code: data.request.currency,
@@ -2129,6 +2137,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2336,6 +2345,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreeCancelResponse, T, PaymentsRes
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2466,6 +2476,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BraintreePSyncResponse, T, PaymentsResp
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 };
                 Ok(Self {
@@ -2645,13 +2656,13 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
             payload_data,
         )
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "redirection_response",
+            field_name: "redirection_response".into(),
         })?;
         let three_ds_data = serde_json::from_str::<BraintreeThreeDsResponse>(
             &redirection_response.authentication_response,
         )
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "three_ds_data",
+            field_name: "three_ds_data".into(),
         })?;
 
         let (query, transaction_body) = if item.router_data.request.is_mandate_payment() {
@@ -2927,7 +2938,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for BraintreeTokenReq
                                 expiration_month: decrypt_data
                                     .get_two_digit_expiry_month()
                                     .change_context(errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "application_expiration_month",
+                                        field_name: "application_expiration_month".into(),
                                     })?,
                                 expiration_year: decrypt_data.get_four_digit_expiry_year(),
                                 number: decrypt_data.application_primary_account_number.clone(),
