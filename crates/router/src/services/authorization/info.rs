@@ -63,7 +63,10 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
         PermissionGroup::OffersView => Some("View Offers"),
         PermissionGroup::OffersManage => Some("Create, modify and delete Offers"),
-        PermissionGroup::AlertsView | PermissionGroup::AlertsManage => None,
+        PermissionGroup::AlertsView
+        | PermissionGroup::AlertsManage
+        | PermissionGroup::MonitoringView
+        | PermissionGroup::MonitoringManage => None,
     }
 }
 
@@ -87,5 +90,6 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::ReconRules => Some("Reconciliation rules"),
         ParentGroup::Offers => Some("Manage and view offers"),
         ParentGroup::Alerts => None,
+        ParentGroup::Monitoring => None,
     }
 }

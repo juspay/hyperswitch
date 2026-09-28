@@ -123,6 +123,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Merchant]
         },
+        Monitoring: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
     ]
 }
 
@@ -163,6 +167,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
         (Resource::Offers, _) => Some("Offers"),
         (Resource::Alert, _) => None,
+        (Resource::Monitoring, _) => None,
     }
 }
 

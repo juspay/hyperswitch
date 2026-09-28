@@ -9687,6 +9687,8 @@ pub enum PermissionGroup {
     OffersManage,
     AlertsView,
     AlertsManage,
+    MonitoringView,
+    MonitoringManage,
 }
 
 #[derive(
@@ -9710,6 +9712,7 @@ pub enum ParentGroup {
     ReconRules,
     Offers,
     Alerts,
+    Monitoring,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9745,6 +9748,7 @@ pub enum Resource {
     SuperpositionConfig,
     Offers,
     Alert,
+    Monitoring,
 }
 
 #[derive(

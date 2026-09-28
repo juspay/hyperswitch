@@ -32,6 +32,8 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
                 PermissionGroup::ReconTransactionsManage,
                 PermissionGroup::ReconRulesView,
                 PermissionGroup::ReconRulesManage,
+                PermissionGroup::AlertsView,
+                PermissionGroup::MonitoringView,
             ],
             role_id: common_utils::consts::ROLE_ID_INTERNAL_ADMIN.to_string(),
             role_name: "internal_admin".to_string(),
@@ -58,6 +60,8 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
                 PermissionGroup::ReconExceptionsView,
                 PermissionGroup::ReconTransactionsView,
                 PermissionGroup::ReconRulesView,
+                PermissionGroup::AlertsView,
+                PermissionGroup::MonitoringView,
             ],
             role_id: common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             role_name: "internal_view_only".to_string(),
@@ -71,7 +75,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         },
     );
     roles.insert(
-        common_utils::consts::ROLE_ID_INTERNAL_ALERTS_OPERATOR,
+        common_utils::consts::ROLE_ID_INTERNAL_OPERATOR,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -86,9 +90,11 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
                 PermissionGroup::ReconRulesView,
                 PermissionGroup::AlertsView,
                 PermissionGroup::AlertsManage,
+                PermissionGroup::MonitoringView,
+                PermissionGroup::MonitoringManage,
             ],
-            role_id: common_utils::consts::ROLE_ID_INTERNAL_ALERTS_OPERATOR.to_string(),
-            role_name: "internal_alerts_operator".to_string(),
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_OPERATOR.to_string(),
+            role_name: "internal_operator".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Merchant,
             is_invitable: false,

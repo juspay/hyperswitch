@@ -32,7 +32,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconExceptionsView
             | Self::ReconRulesView
             | Self::OffersView
-            | Self::AlertsView => PermissionScope::Read,
+            | Self::AlertsView
+            | Self::MonitoringView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -49,7 +50,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconTransactionsManage
             | Self::ReconRulesManage
             | Self::OffersManage
-            | Self::AlertsManage => PermissionScope::Write,
+            | Self::AlertsManage
+            | Self::MonitoringManage => PermissionScope::Write,
         }
     }
 
@@ -75,6 +77,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
             Self::OffersView | Self::OffersManage => ParentGroup::Offers,
             Self::AlertsView | Self::AlertsManage => ParentGroup::Alerts,
+            Self::MonitoringView | Self::MonitoringManage => ParentGroup::Monitoring,
         }
     }
 
@@ -168,6 +171,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::OffersManage => vec![Self::OffersView, Self::OffersManage],
             Self::AlertsView => vec![Self::AlertsView],
             Self::AlertsManage => vec![Self::AlertsView, Self::AlertsManage],
+            Self::MonitoringView => vec![Self::MonitoringView],
+            Self::MonitoringManage => vec![Self::MonitoringView, Self::MonitoringManage],
         }
     }
 
@@ -198,7 +203,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::OffersView
             | Self::OffersManage
             | Self::AlertsView
-            | Self::AlertsManage => RoleProductCategory::Orchestration,
+            | Self::AlertsManage
+            | Self::MonitoringView
+            | Self::MonitoringManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -242,6 +249,7 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconRules => RECON_RULES.to_vec(),
             Self::Offers => OFFERS.to_vec(),
             Self::Alerts => ALERTS.to_vec(),
+            Self::Monitoring => MONITORING.to_vec(),
         }
     }
 
@@ -338,3 +346,5 @@ pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account]
 pub static OFFERS: [Resource; 1] = [Resource::Offers];
 
 pub static ALERTS: [Resource; 1] = [Resource::Alert];
+
+pub static MONITORING: [Resource; 1] = [Resource::Monitoring];

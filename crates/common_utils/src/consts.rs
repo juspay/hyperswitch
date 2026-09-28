@@ -171,8 +171,8 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
-/// Role ID for Internal Alerts Operator
-pub const ROLE_ID_INTERNAL_ALERTS_OPERATOR: &str = "internal_alerts_operator";
+/// Role ID for Internal Operator
+pub const ROLE_ID_INTERNAL_OPERATOR: &str = "internal_operator";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
