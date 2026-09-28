@@ -645,102 +645,136 @@ where
     ))
 }
 
-/// Whether the request was rejected before the connector was reached, so the payment can be put
-/// back to the state it had before the pre-update tracker committed.
+/// Whether a rejection reached us before the connector was called, so the payment can be put back
+/// to the state it had before the pre-update tracker committed.
 ///
-/// A response-phase failure (the connector answered but the response could not be read) leaves
-/// the outcome unknown — the payment may have been taken — so it must not be rolled back. Those
-/// map to `ResponseDeserializationFailed` / `ResponseHandlingFailed` and are excluded here.
+/// A response-phase failure (the connector answered but the response could not be read) leaves the
+/// outcome unknown — the payment may have been taken — so it must not be rolled back. Those map to
+/// `ResponseDeserializationFailed` / `ResponseHandlingFailed` and are excluded here.
 #[cfg(feature = "v1")]
-fn rejected_before_connector_call(
-    api_error: &error_stack::Report<errors::ApiErrorResponse>,
-) -> bool {
-    api_error
-        .downcast_ref::<errors::ConnectorError>()
-        .is_some_and(|connector_error| {
-            matches!(
-                connector_error,
-                errors::ConnectorError::NotSupported { .. }
-                    | errors::ConnectorError::NotImplemented(_)
-                    | errors::ConnectorError::MissingRequiredField { .. }
-                    | errors::ConnectorError::MissingRequiredFields { .. }
-                    | errors::ConnectorError::RequestEncodingFailed
-                    | errors::ConnectorError::FailedToObtainAuthType
-                    | errors::ConnectorError::InvalidConnectorName
-            )
-        })
+trait PreCallRejection {
+    fn rejected_before_connector_call(&self) -> bool;
 }
 
-/// Roll a payment back to the state it had before the pre-update tracker committed, then let the
-/// caller return the error.
-///
-/// UCS builds its request across the wire, so a rejection arrives after the trackers have already
-/// moved the payment to `processing`. Nothing else would ever move it again: no connector call was
-/// made, so there is no transaction for a sync to read. Replaying the post-update tracker with the
-/// pre-call snapshot puts the attempt and the intent back where they were, which is what the direct
-/// path does by rejecting before the trackers run.
-///
-/// The status is taken from the snapshot rather than set to a fixed value, so it is right for any
-/// flow: a fresh confirm returns to `payment_method_awaited` / `requires_payment_method`, a PSync on
-/// an authorized payment returns to `authorized` / `requires_capture`.
-///
-/// A tracker write failure is logged and swallowed: the caller returns the API error either way.
 #[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-async fn restore_pre_call_state<F, FData, D>(
+impl PreCallRejection for error_stack::Report<errors::ApiErrorResponse> {
+    fn rejected_before_connector_call(&self) -> bool {
+        self.downcast_ref::<errors::ConnectorError>()
+            .is_some_and(|connector_error| {
+                matches!(
+                    connector_error,
+                    errors::ConnectorError::NotSupported { .. }
+                        | errors::ConnectorError::NotImplemented(_)
+                        | errors::ConnectorError::MissingRequiredField { .. }
+                        | errors::ConnectorError::MissingRequiredFields { .. }
+                        | errors::ConnectorError::RequestEncodingFailed
+                        | errors::ConnectorError::FailedToObtainAuthType
+                        | errors::ConnectorError::InvalidConnectorName
+                )
+            })
+    }
+}
+
+/// Put the payment back to the state it had before the pre-update tracker committed.
+///
+/// UCS builds the request on its own side, so a rejection arrives after the trackers have moved the
+/// payment to `processing` and nothing else would ever move it again. Writing the pre-call snapshot
+/// back leaves the attempt and the intent where the direct path leaves them, because that path
+/// rejects before the trackers run. A write failure is logged and swallowed; the caller returns the
+/// API error either way.
+#[cfg(feature = "v1")]
+async fn restore_pre_call_state<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
     payment_data: D,
-    mut router_data: RouterData<F, FData, router_types::PaymentsResponseData>,
-    api_error: &error_stack::Report<errors::ApiErrorResponse>,
-    locale: &Option<String>,
-    #[cfg(feature = "dynamic_routing")] routable_connectors: Vec<
-        api_models::routing::RoutableConnectorChoice,
-    >,
-    #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
-) -> RouterResult<()>
-where
+) where
     F: Send + Clone + Sync + Debug + 'static,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
+    D: OperationSessionGetters<F> + Send + Sync,
 {
-    let mut error_response: hyperswitch_domain_models::router_data::ErrorResponse =
-        api_error.current_context().clone().into();
-    // `From<ApiErrorResponse>` hardcodes 500; carry the status this rejection actually
-    // returns to the merchant instead.
-    error_response.status_code = {
-        use actix_web::ResponseError;
-        api_error.current_context().status_code().as_u16()
-    };
-    // The attempt status the payment had before the pre-update tracker committed, carried on the
-    // error response so the tracker writes it back. The intent status follows from it.
-    error_response.attempt_status = Some(payment_data.get_payment_attempt().status);
-    router_data.response = Err(error_response);
-    // `connector_http_status_code` stays unset: no connector was called, so there is no
-    // connector status to report and the connector metrics must not count this.
+    let storage_scheme = processor.get_account().storage_scheme;
+    let key_store = processor.get_key_store();
+    let attempt = payment_data.get_payment_attempt();
+    let feature_metadata = payment_data.get_payment_intent().feature_metadata.clone();
 
-    let operation = Box::new(PaymentResponse);
-    if let Err(tracker_error) = operation
-        .to_post_update_tracker()?
-        .update_tracker(
-            state,
-            processor,
-            payment_data,
-            router_data,
-            locale,
-            #[cfg(feature = "dynamic_routing")]
-            routable_connectors,
-            #[cfg(feature = "dynamic_routing")]
-            business_profile,
-            dimensions,
+    // Every value comes from the snapshot, so the row carries nothing from the aborted attempt.
+    let attempt_update = storage::PaymentAttemptUpdate::ConfirmUpdate {
+        net_amount: attempt.net_amount.clone(),
+        currency: payment_data.get_currency(),
+        status: attempt.status,
+        authentication_type: attempt.authentication_type,
+        capture_method: attempt.capture_method,
+        payment_method: attempt.payment_method,
+        browser_info: attempt.browser_info.clone(),
+        connector: attempt.connector.clone(),
+        payment_token: attempt.payment_token.clone(),
+        payment_method_data: attempt.payment_method_data.clone(),
+        payment_method_type: attempt.payment_method_type,
+        payment_experience: attempt.payment_experience,
+        business_sub_label: attempt.business_sub_label.clone(),
+        straight_through_algorithm: attempt.straight_through_algorithm.clone(),
+        error_code: Some(None),
+        error_message: Some(None),
+        updated_by: storage_scheme.to_string(),
+        merchant_connector_id: attempt.merchant_connector_id.clone(),
+        external_three_ds_authentication_attempted: attempt
+            .external_three_ds_authentication_attempted,
+        external_threeds_authentication_type: attempt.external_threeds_authentication_type,
+        authentication_connector: attempt.authentication_connector.clone(),
+        authentication_id: attempt.authentication_id.clone(),
+        payment_method_billing_address_id: attempt.payment_method_billing_address_id.clone(),
+        fingerprint_id: attempt.fingerprint_id.clone(),
+        fingerprint_type: attempt.fingerprint_type,
+        payment_method_id: attempt.payment_method_id.clone(),
+        client_source: attempt.client_source.clone(),
+        client_version: attempt.client_version.clone(),
+        customer_acceptance: attempt.customer_acceptance.clone(),
+        installment_data: attempt.installment_data.clone(),
+        connector_mandate_detail: attempt.connector_mandate_detail.clone(),
+        tokenization: attempt.tokenization,
+        card_discovery: attempt.card_discovery,
+        routing_approach: attempt.routing_approach.clone(),
+        connector_request_reference_id: attempt.connector_request_reference_id.clone(),
+        network_transaction_id: attempt.network_transaction_id.clone(),
+        network_transaction_link_id: attempt.network_transaction_link_id.clone(),
+        is_stored_credential: attempt.is_stored_credential,
+        request_extended_authorization: attempt.request_extended_authorization.clone(),
+        external_surcharge_details: attempt.external_surcharge_details.clone(),
+        applied_offer_details: attempt.applied_offer_details.clone(),
+        active_frm_id: attempt.active_frm_id.clone(),
+    };
+
+    if let Err(restore_error) = state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            attempt.to_owned(),
+            attempt_update,
+            storage_scheme,
+            key_store,
         )
         .await
     {
-        logger::error!(?tracker_error, "failed to record the rejected attempt");
+        logger::error!(?restore_error, "failed to restore the payment attempt");
     }
-    Ok(())
+
+    let intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+        status: enums::IntentStatus::from(attempt.status),
+        updated_by: storage_scheme.to_string(),
+        incremental_authorization_allowed: Some(false),
+        feature_metadata,
+    };
+
+    if let Err(restore_error) = state
+        .store
+        .update_payment_intent(
+            payment_data.get_payment_intent().to_owned(),
+            intent_update,
+            key_store,
+            storage_scheme,
+        )
+        .await
+    {
+        logger::error!(?restore_error, "failed to restore the payment intent");
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -880,6 +914,10 @@ where
                 .and_then(|val| val.as_str().map(String::from))
         })
     });
+
+    // The row as it stands before this call touches anything. Connector selection and the tracker
+    // both mutate `payment_data` in memory before the tracker persists, so read it before either.
+    let pre_call_payment_data = payment_data.clone();
 
     payment_data.set_connector_customer_id(connector_customer_id);
 
@@ -1171,13 +1209,6 @@ where
                         )
                         .await?;
 
-                    // Snapshot the state the payment is in before the pre-update tracker commits,
-                    // so a request rejected after the commit can be rolled back to it.
-                    let pre_call_payment_data = payment_data.clone();
-                    // Snapshot before `complete_connector_service` consumes it; carries the
-                    // error response if the request is rejected after the trackers commit.
-                    let pre_call_router_data = call_connector_service_response.router_data.clone();
-
                     let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
@@ -1201,24 +1232,15 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Roll back only a rejection that arrived before the connector was
-                            // reached; a response-phase failure leaves the outcome unknown, so
-                            // keep the existing behavior.
-                            if rejected_before_connector_call(&api_error) {
-                                restore_pre_call_state(
+                            // Only a rejection that arrived before the connector was reached can be
+                            // rolled back. A response-phase failure leaves the outcome unknown.
+                            if api_error.rejected_before_connector_call() {
+                                restore_pre_call_state::<F, D>(
                                     state,
                                     platform.get_processor(),
                                     pre_call_payment_data,
-                                    pre_call_router_data,
-                                    &api_error,
-                                    &locale,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    routable_connectors,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    &business_profile,
-                                    &dimensions.without_profile_id(),
                                 )
-                                .await?;
+                                .await;
                             }
                             return Err(api_error);
                         }
@@ -1392,13 +1414,6 @@ where
                         )
                         .await?;
 
-                    // Snapshot the state the payment is in before the pre-update tracker commits,
-                    // so a request rejected after the commit can be rolled back to it.
-                    let pre_call_payment_data = payment_data.clone();
-                    // Snapshot before `complete_connector_service` consumes it; carries the
-                    // error response if the request is rejected after the trackers commit.
-                    let pre_call_router_data = call_connector_service_response.router_data.clone();
-
                     let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
@@ -1422,24 +1437,15 @@ where
                     {
                         Ok(result) => result,
                         Err(api_error) => {
-                            // Roll back only a rejection that arrived before the connector was
-                            // reached; a response-phase failure leaves the outcome unknown, so
-                            // keep the existing behavior.
-                            if rejected_before_connector_call(&api_error) {
-                                restore_pre_call_state(
+                            // Only a rejection that arrived before the connector was reached can be
+                            // rolled back. A response-phase failure leaves the outcome unknown.
+                            if api_error.rejected_before_connector_call() {
+                                restore_pre_call_state::<F, D>(
                                     state,
                                     platform.get_processor(),
                                     pre_call_payment_data,
-                                    pre_call_router_data,
-                                    &api_error,
-                                    &locale,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    routable_connectors,
-                                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                                    &business_profile,
-                                    &dimensions.without_profile_id(),
                                 )
-                                .await?;
+                                .await;
                             }
                             return Err(api_error);
                         }
