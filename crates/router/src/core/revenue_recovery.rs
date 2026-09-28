@@ -248,7 +248,7 @@ pub async fn upsert_calculate_pcr_task(
                         let payment_update_req =
                                 api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
                                     feature_metadata,
-                                    enums::UpdateActiveAttempt::Unset,
+                                    enums::UpdateActiveAttempt::NoAction,
                                 );
 
                         match Box::pin(api::update_payment_intent_api(

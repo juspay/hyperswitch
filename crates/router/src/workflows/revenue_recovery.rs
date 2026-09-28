@@ -829,6 +829,69 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     ?algorithm,
                     "A/B routing read the retry implementation assigned to this invoice"
                 );
+
+                // Each arm yields only a schedule time; the token lookup below is shared, so a
+                // new algorithm needs to supply a time and nothing else.
+                let schedule_time = match algorithm {
+                    Some(common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry) => {
+                        let now = common_utils::date_time::now();
+
+                        let (remaining_grace_days, remaining_budget) =
+                            get_adaptive_retry_allowances(
+                                state,
+                                &dimensions,
+                                payment_intent,
+                                max_retry_count,
+                                retry_count,
+                                now,
+                            )
+                            .await?;
+
+                        let adaptive_time = match tracking_data.prev_attempt_error_code {
+                            Some(error_code) => compute_adaptive_retry_time(
+                                state,
+                                error_code,
+                                remaining_grace_days,
+                                remaining_budget,
+                            )
+                            .await
+                            .map(common_utils::date_time::convert_to_pdt),
+                            None => None,
+                        };
+
+                        logger::info!(
+                            error_code = ?tracking_data.prev_attempt_error_code,
+                            remaining_grace_days = remaining_grace_days,
+                            remaining_budget = remaining_budget,
+                            schedule_time = ?adaptive_time,
+                            "Adaptive retry decision"
+                        );
+
+                        adaptive_time
+                    }
+                    None => None,
+                };
+
+                // Shared across every arm: an arm decides *when*, this decides whether a token is
+                // available then.
+                let schedule_time = schedule_time.ok_or_else(|| {
+                    logger::error!(
+                        payment_id = %payment_intent.id.get_string_repr(),
+                        ?algorithm,
+                        error_code = ?tracking_data.prev_attempt_error_code,
+                        "No retry time available — the assigned algorithm produced none and this \
+                         path has no ladder to fall back on"
+                    );
+                    errors::ProcessTrackerError::EApiErrorResponse
+                })?;
+
+                payment_processor_token_response = get_token_availability_for_schedule_time(
+                    state,
+                    connector_customer_id,
+                    payment_intent,
+                    schedule_time,
+                )
+                .await?;
             } else if adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on
                 // the token. The only additions are the adaptive candidate and the choice
