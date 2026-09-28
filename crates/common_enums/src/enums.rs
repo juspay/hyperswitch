@@ -391,7 +391,7 @@ pub enum RevenueRecoveryAlgorithmType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryABAlgorithm {
-    /// The static cascading ladder combined with the adaptive model, earlier time wins.
+    /// Adaptive Retry algorithm.
     AdaptiveRetry,
 }
 
