@@ -481,7 +481,6 @@ pub fn mk_add_bank_response_hs(
     domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
-        payment_method_id: bank_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
         bank_transfer: Some(bank),
@@ -494,6 +493,7 @@ pub fn mk_add_bank_response_hs(
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
         locker_fingerprint_id: None,
+        locker_id: Some(bank_reference),
     }
 }
 
@@ -507,7 +507,6 @@ pub fn mk_add_bank_debit_response_hs(
     domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id.to_owned(),
-        payment_method_id: bank_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
         bank_transfer: None,
@@ -520,6 +519,7 @@ pub fn mk_add_bank_debit_response_hs(
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
         locker_fingerprint_id: Some(locker_fingerprint_id),
+        locker_id: Some(bank_reference),
     }
 }
 
@@ -533,7 +533,6 @@ pub fn mk_add_wallet_response_hs(
     domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id.to_owned(),
-        payment_method_id: wallet_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
         bank_transfer: None,
@@ -546,6 +545,7 @@ pub fn mk_add_wallet_response_hs(
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
         locker_fingerprint_id: Some(locker_fingerprint_id),
+        locker_id: Some(wallet_reference),
     }
 }
 
@@ -597,7 +597,6 @@ pub fn mk_add_card_response_hs(
     domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
-        payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
         #[cfg(feature = "payouts")]
@@ -611,6 +610,7 @@ pub fn mk_add_card_response_hs(
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
         locker_fingerprint_id: None,
+        locker_id: Some(card_reference),
     }
 }
 
