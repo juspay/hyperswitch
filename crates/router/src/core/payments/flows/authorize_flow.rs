@@ -742,10 +742,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                                 | common_enums::AttemptStatus::Authorized
                         );
 
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                        // On the direct gateway the Authenticate leg already sent the authorization, so never continue.
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
+                            && !gateway_context.execution_path.is_direct_gateway()
                     }
                     _ => false,
                 },
