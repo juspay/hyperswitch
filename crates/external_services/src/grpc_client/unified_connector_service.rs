@@ -238,11 +238,10 @@ pub struct VaultConnectorAuth {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum ExternalVaultProxyMetadata {
-    /// HyperswitchVault data variant — must be first so serde matches vault_endpoint+vault_auth_data
-    /// before falling through to VgsMetadata (which only needs proxy_url+certificate)
-    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
+    /// HyperswitchVault data variant
+    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
 }
 
 /// Complete external vault proxy configuration to be serialized and sent to UCS
