@@ -398,13 +398,9 @@ where
                     .await?;
                     ((res, dc, None), None)
                 } else {
-                    let payment_method_status = if connector_mandate_id.is_some() {
-                        common_enums::PaymentMethodStatus::Active
-                    } else {
-                        common_enums::PaymentMethodStatus::from(
-                            save_payment_method_data.attempt_status,
-                        )
-                    };
+                    let payment_method_status = common_enums::PaymentMethodStatus::from(
+                        save_payment_method_data.attempt_status,
+                    );
                     pm_status = Some(payment_method_status);
                     Box::pin(save_card_and_network_token_in_locker(
                         state,
