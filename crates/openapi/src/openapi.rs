@@ -577,7 +577,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::card_issuer::CardIssuerResponse,
         api_models::card_issuer::CardIssuerUpdateRequest,
         api_models::card_issuer::CardIssuerDeleteResponse,
-        api_models::card_issuer::CardIssuerListQuery,
         api_models::card_issuer::CardIssuerListResponse,
         api_models::gsm::GsmCreateRequest,
         api_models::gsm::GsmRetrieveRequest,

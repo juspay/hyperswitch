@@ -10631,32 +10631,8 @@
           "Card Issuer"
         ],
         "summary": "Card Issuer - List",
-        "description": "Lists card issuers with optional search filter",
+        "description": "Lists all card issuers",
         "operationId": "List Card Issuers",
-        "parameters": [
-          {
-            "name": "query",
-            "in": "query",
-            "description": "Optional search term to filter issuers by name",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "nullable": true
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum number of results to return",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true,
-              "minimum": 0
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Card issuers listed",
@@ -18422,26 +18398,6 @@
           "deleted": {
             "type": "boolean",
             "example": true
-          }
-        }
-      },
-      "CardIssuerListQuery": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "description": "Optional search term to filter issuers by name (case-insensitive prefix match)",
-            "example": "hdfc",
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Maximum number of results to return (default: 30, max: 255)",
-            "default": 30,
-            "example": 30,
-            "maximum": 255,
-            "minimum": 0
           }
         }
       },

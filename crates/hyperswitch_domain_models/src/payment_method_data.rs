@@ -2419,6 +2419,27 @@ impl From<CardWithOptionalCVC> for EligibilityCard {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl From<&api_models::payouts::CardPayout> for EligibilityCard {
+    fn from(card: &api_models::payouts::CardPayout) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: Some(card.expiry_month.clone()),
+            card_exp_year: Some(card.expiry_year.clone()),
+            card_cvc: None,
+            card_issuer: None,
+            card_network: card.card_network.clone(),
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: card.card_holder_name.clone(),
+            co_badged_card_data: None,
+        }
+    }
+}
+
 impl From<Box<CardWithNetworkTokenDetails>> for EligibilityCard {
     fn from(card: Box<CardWithNetworkTokenDetails>) -> Self {
         Self::from(card.card_details)
