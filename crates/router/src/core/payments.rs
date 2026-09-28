@@ -878,6 +878,7 @@ where
                 &operation,
                 platform,
                 &mut payment_data,
+                &business_profile,
                 state,
                 &mut frm_info,
                 &mut should_continue_transaction,
@@ -2355,6 +2356,10 @@ where
                 .map(|cached| common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: cached.external_surcharge_id,
                     external_surcharge_amount: cached.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            cached.surcharge_percentage,
+                        ),
                     sale_notified: false,
                 })
         };
@@ -8054,7 +8059,7 @@ where
     let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
         .await;
 
     let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
@@ -10799,20 +10804,42 @@ pub async fn add_process_sync_task(
         payment_attempt.get_id(),
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry = storage::ProcessTrackerNew::new(
-        process_tracker_id,
-        task,
-        runner,
-        tag,
-        tracking_data,
-        None,
-        schedule_time,
-        common_types::consts::API_VERSION,
-        application_source,
-    )
-    .map_err(errors::StorageError::from)?;
+    let tracking_data = tracking_data
+        .encode_to_value()
+        .change_context(errors::StorageError::SerializationFailed)?;
 
-    db.insert_process(process_tracker_entry).await?;
+    if let Some(existing_process) = db.find_process_by_id(&process_tracker_id).await? {
+        db.as_scheduler()
+            .update_process(
+                existing_process,
+                storage::ProcessTrackerUpdate::Update {
+                    name: Some(task.to_string()),
+                    retry_count: Some(0),
+                    schedule_time: Some(schedule_time),
+                    tracking_data: Some(tracking_data),
+                    business_status: Some(storage::business_status::PENDING.to_string()),
+                    status: Some(storage_enums::ProcessTrackerStatus::New),
+                    updated_at: Some(common_utils::date_time::now()),
+                },
+            )
+            .await?;
+    } else {
+        let process_tracker_entry = storage::ProcessTrackerNew::new(
+            process_tracker_id,
+            task,
+            runner,
+            tag,
+            tracking_data,
+            None,
+            schedule_time,
+            common_types::consts::API_VERSION,
+            application_source,
+        )
+        .map_err(errors::StorageError::from)?;
+
+        db.insert_process(process_tracker_entry).await?;
+    }
+
     Ok(())
 }
 
@@ -12705,15 +12732,14 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let (static_connectors, static_approach, static_is_volume_split) =
-        routing::perform_static_routing_locally(
-            state,
-            business_profile,
-            &payment_dsl_input,
-            &backend_input,
-            &fallback_config,
-        )
-        .await?;
+    let (static_connectors, static_approach) = routing::perform_static_routing_locally(
+        state,
+        business_profile,
+        &payment_dsl_input,
+        &backend_input,
+        &fallback_config,
+    )
+    .await?;
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
@@ -12724,7 +12750,6 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &fallback_config,
         &static_connectors,
         static_approach,
-        static_is_volume_split,
     )
     .await;
 
@@ -13870,7 +13895,7 @@ impl EligibilityCheck for BlockListCheck {
         let payment_method_data = decrypted_payment_method_data
             .or_else(|| payment_elgibility_data.payment_method_data.clone());
 
-        let block_reason = blocklist_utils::should_payment_be_blocked(
+        let block_reason = blocklist_utils::check_blocklist(
             state,
             platform.get_processor(),
             &payment_method_data,
@@ -14151,6 +14176,7 @@ async fn previous_connector_surcharge_id(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
 async fn store_external_surcharge_in_redis(
     state: &SessionState,
     payment_id: &id_type::PaymentId,
@@ -14159,6 +14185,7 @@ async fn store_external_surcharge_in_redis(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     external_surcharge_id: String,
+    surcharge_percentage: Option<f64>,
 ) -> RouterResult<()> {
     let redis_conn = state
         .store
@@ -14173,6 +14200,7 @@ async fn store_external_surcharge_in_redis(
             payment_method,
             payment_method_type,
             external_surcharge_id,
+            surcharge_percentage,
         };
     redis_conn
         .serialize_and_set_key_with_expiry(
@@ -14248,6 +14276,10 @@ async fn calculate_external_surcharge(
             {
                 Some(resp) => {
                     let surcharge_amount = resp.surcharge_amount;
+                    let surcharge_percentage = resp
+                        .surcharge_fee_percent
+                        .as_ref()
+                        .map(|percent| percent.get_percentage());
                     let external_surcharge_id = resp.connector_surcharge_id.clone();
                     let merchant_id = processor.get_account().get_id().clone();
                     let storage_scheme = processor.get_account().storage_scheme;
@@ -14262,6 +14294,7 @@ async fn calculate_external_surcharge(
                         inputs.payment_method,
                         inputs.payment_method_type,
                         external_surcharge_id,
+                        surcharge_percentage,
                     )
                     .await
                     .attach_printable("eligibility: failed to write surcharge to Redis")?;
@@ -14487,6 +14520,12 @@ async fn calculate_mit_external_surcharge(
                 Ok(Some(resp)) => Some(common_types::payments::ExternalSurchargeDetails {
                     external_surcharge_id: resp.connector_surcharge_id,
                     external_surcharge_amount: resp.surcharge_amount,
+                    surcharge_percentage:
+                        common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
+                            resp.surcharge_fee_percent
+                                .as_ref()
+                                .map(|percent| percent.get_percentage()),
+                        ),
                     sale_notified: false,
                 }),
                 Ok(None) => None,
@@ -14552,7 +14591,8 @@ pub async fn payments_submit_eligibility(
     let offer_card_bin = payment_eligibility_data
         .payment_method_data
         .as_ref()
-        .and_then(|pmd| pmd.get_card_iin());
+        .and_then(|pmd| pmd.get_offer_card_bin())
+        .map(Secret::new);
     // Forward whatever card attributes the request carried; Offer Engine uses
     // them when present and ignores the rest.
     let offer_card = payment_eligibility_data
@@ -14644,7 +14684,7 @@ async fn resolve_offer_eligibility_details(
     currency: Option<common_enums::Currency>,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_type: String,
-    card_bin: Option<String>,
+    card_bin: Option<Secret<String>>,
     card_network: Option<String>,
     card_type: Option<String>,
     bank_code: Option<String>,

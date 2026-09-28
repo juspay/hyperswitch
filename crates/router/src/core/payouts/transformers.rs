@@ -88,6 +88,7 @@ impl
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
             error_code: payout_attempt.error_code,
+            frm_message: None,
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
             connector_transaction_id: attempt.connector_transaction_id.clone(),
