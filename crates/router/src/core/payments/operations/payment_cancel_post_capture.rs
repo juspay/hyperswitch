@@ -150,6 +150,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: None,
             payment_intent,
             payment_attempt,
             currency,

@@ -672,23 +672,24 @@ impl PreCallRejection for error_stack::Report<errors::ApiErrorResponse> {
     }
 }
 
-/// Put the payment back to the state it had before the pre-update tracker committed, so a UCS
-/// rejection leaves it retryable as the direct path does. A write failure is logged and swallowed.
+/// Put the payment back to the state it had when it was fetched from the DB, so a UCS rejection
+/// leaves it retryable as the direct path does. A write failure is logged and swallowed.
 #[cfg(feature = "v1")]
 async fn restore_pre_call_state<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
-    payment_data: D,
+    payment_data: &D,
 ) where
     F: Send + Clone + Sync + Debug + 'static,
     D: OperationSessionGetters<F> + Send + Sync,
 {
+    let Some((attempt, intent)) = payment_data.get_previous_db_records() else {
+        return;
+    };
+
     let storage_scheme = processor.get_account().storage_scheme;
     let key_store = processor.get_key_store();
-    let attempt = payment_data.get_payment_attempt();
-    let feature_metadata = payment_data.get_payment_intent().feature_metadata.clone();
 
-    // Every value comes from the snapshot.
     let attempt_update = storage::PaymentAttemptUpdate::ConfirmUpdate {
         net_amount: attempt.net_amount.clone(),
         currency: payment_data.get_currency(),
@@ -704,8 +705,8 @@ async fn restore_pre_call_state<F, D>(
         payment_experience: attempt.payment_experience,
         business_sub_label: attempt.business_sub_label.clone(),
         straight_through_algorithm: attempt.straight_through_algorithm.clone(),
-        error_code: Some(None),
-        error_message: Some(None),
+        error_code: Some(attempt.error_code.clone()),
+        error_message: Some(attempt.error_message.clone()),
         updated_by: storage_scheme.to_string(),
         merchant_connector_id: attempt.merchant_connector_id.clone(),
         external_three_ds_authentication_attempted: attempt
@@ -738,7 +739,7 @@ async fn restore_pre_call_state<F, D>(
     if let Err(restore_error) = state
         .store
         .update_payment_attempt_with_attempt_id(
-            attempt.to_owned(),
+            attempt.clone(),
             attempt_update,
             storage_scheme,
             key_store,
@@ -751,18 +752,13 @@ async fn restore_pre_call_state<F, D>(
     let intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
         status: enums::IntentStatus::from(attempt.status),
         updated_by: storage_scheme.to_string(),
-        incremental_authorization_allowed: Some(false),
-        feature_metadata,
+        incremental_authorization_allowed: intent.incremental_authorization_allowed,
+        feature_metadata: intent.feature_metadata.clone(),
     };
 
     if let Err(restore_error) = state
         .store
-        .update_payment_intent(
-            payment_data.get_payment_intent().to_owned(),
-            intent_update,
-            key_store,
-            storage_scheme,
-        )
+        .update_payment_intent(intent.clone(), intent_update, key_store, storage_scheme)
         .await
     {
         logger::error!(?restore_error, "failed to restore the payment intent");
@@ -848,6 +844,12 @@ where
             payment_pre_fetched_info,
         )
         .await?;
+
+    // The attempt and intent as fetched from the DB, before this flow mutates them.
+    let previous_attempt = payment_data.get_payment_attempt().clone();
+    let previous_intent = payment_data.get_payment_intent().clone();
+    payment_data.set_previous_db_records(previous_attempt, previous_intent);
+
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     operation
@@ -906,9 +908,6 @@ where
                 .and_then(|val| val.as_str().map(String::from))
         })
     });
-
-    // Snapshot before connector selection or the tracker mutates `payment_data`.
-    let pre_call_payment_data = payment_data.clone();
 
     payment_data.set_connector_customer_id(connector_customer_id);
 
@@ -1224,10 +1223,10 @@ where
                         Ok(result) => result,
                         Err(api_error) => {
                             if api_error.rejected_before_connector_call() {
-                                restore_pre_call_state::<F, D>(
+                                restore_pre_call_state(
                                     state,
                                     platform.get_processor(),
-                                    pre_call_payment_data,
+                                    &payment_data,
                                 )
                                 .await;
                             }
@@ -1427,10 +1426,10 @@ where
                         Ok(result) => result,
                         Err(api_error) => {
                             if api_error.rejected_before_connector_call() {
-                                restore_pre_call_state::<F, D>(
+                                restore_pre_call_state(
                                     state,
                                     platform.get_processor(),
-                                    pre_call_payment_data,
+                                    &payment_data,
                                 )
                                 .await;
                             }
@@ -10202,6 +10201,9 @@ where
     /// Fields from the update request payload used to compare against
     /// the stored payment intent. Populated only for the payment-update flow.
     pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
+    /// The attempt and intent as they were fetched from the DB, before this flow mutated them.
+    /// A UCS pre-call rejection restores the rows from these records.
+    pub previous_db_records: Option<(storage::PaymentAttempt, storage::PaymentIntent)>,
 }
 
 /// Decrypts an Apple Pay wallet token for the pre-confirm eligibility check, using the specific
@@ -15588,6 +15590,10 @@ pub trait OperationSessionGetters<F> {
     // TODO: this should be a mandatory field, should we throw an error instead of returning an Option?
     fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId>;
     fn get_currency(&self) -> storage_enums::Currency;
+    /// The attempt and intent as they were fetched from the DB, before this flow mutated them.
+    fn get_previous_db_records(&self) -> Option<(storage::PaymentAttempt, storage::PaymentIntent)> {
+        None
+    }
     fn get_amount(&self) -> api::Amount;
     fn get_payment_attempt_connector(&self) -> Option<&str>;
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address>;
@@ -15646,6 +15652,13 @@ pub trait OperationSessionSetters<F> {
     #[cfg(feature = "v2")]
     fn set_client_secret(&mut self, client_secret: Option<Secret<String>>);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
+    /// Store the attempt and intent as they were fetched from the DB.
+    fn set_previous_db_records(
+        &mut self,
+        _attempt: storage::PaymentAttempt,
+        _intent: storage::PaymentIntent,
+    ) {
+    }
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>);
     fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>);
@@ -15733,6 +15746,10 @@ pub trait OperationSessionSetters<F> {
 
 #[cfg(feature = "v1")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
+    fn get_previous_db_records(&self) -> Option<(storage::PaymentAttempt, storage::PaymentIntent)> {
+        self.previous_db_records.clone()
+    }
+
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
     }
@@ -15922,6 +15939,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = payment_attempt;
+    }
+
+    fn set_previous_db_records(
+        &mut self,
+        attempt: storage::PaymentAttempt,
+        intent: storage::PaymentIntent,
+    ) {
+        self.previous_db_records = Some((attempt, intent));
     }
 
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {

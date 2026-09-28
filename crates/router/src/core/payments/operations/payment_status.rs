@@ -524,6 +524,7 @@ async fn get_tracker_for_sync<
 
     let payment_data = PaymentData {
         flow: PhantomData,
+        previous_db_records: None,
         payment_intent,
         currency,
         amount,

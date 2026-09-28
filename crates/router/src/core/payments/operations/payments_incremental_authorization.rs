@@ -135,6 +135,7 @@ impl<F: Send + Clone + Sync>
 
         let payment_data = payments::PaymentData {
             flow: PhantomData,
+            previous_db_records: None,
             payment_intent,
             payment_attempt,
             currency,
