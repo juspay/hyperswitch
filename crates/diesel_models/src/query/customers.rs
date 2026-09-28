@@ -312,7 +312,6 @@ impl Customer {
         }
     }
 
-    #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
         conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &id_type::CustomerId,
