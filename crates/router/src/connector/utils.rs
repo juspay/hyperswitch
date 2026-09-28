@@ -232,6 +232,7 @@ where
                             .payment_attempt
                             .connector_transaction_id
                             .clone(),
+                        payment_id: Some(payment_data.payment_intent.payment_id.clone()),
                     })?
                 } else if capturable_amount.is_some_and(|capturable_amount| {
                     MinorUnit::new(capturable_amount) > total_capturable_amount
@@ -245,6 +246,7 @@ where
                             .payment_attempt
                             .connector_transaction_id
                             .clone(),
+                        payment_id: Some(payment_data.payment_intent.payment_id.clone()),
                     })?
                 } else {
                     Ok(self.status)
