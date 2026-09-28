@@ -70,6 +70,7 @@ impl From<CustomerNew> for Customer {
             last_modified_by: customer_new.last_modified_by,
             id: customer_new.id,
             preferred_connectors: customer_new.preferred_connectors,
+            merchant_reference_id: None,
         }
     }
 }
@@ -172,6 +173,10 @@ pub struct Customer {
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
     pub preferred_connectors: Option<pii::SecretSerdeValue>,
+    /// Populated only for customers created through the v2 customers API. Used to look up a
+    /// customer by the merchant supplied reference id.
+    #[serde(default)]
+    pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[cfg(feature = "v2")]

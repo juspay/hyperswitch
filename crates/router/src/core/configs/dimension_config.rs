@@ -202,6 +202,24 @@ impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
     }
 }
 
+config! {
+    superposition_key = USE_MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for UseMerchantReferenceIdAsCustomerId {
+    const KEY: &'static str = "use_merchant_reference_id_as_customer_id";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 // Retained temporarily so merchants without a database value can fall back to
 // their existing Superposition fingerprint secret during migration.
 config! {

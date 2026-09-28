@@ -2014,6 +2014,70 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     todo!()
 }
 
+/// Decides whether the customer of a payments request has to be looked up through the
+/// `merchant_reference_id` of the customer.
+///
+/// Merchants creating customers via the v2 customers API get a global id as the `customer_id`, but
+/// keep sending their own `merchant_reference_id` as the `customer_id` in payments requests. When
+/// the config is enabled for the organization, an id that is not a global customer id is treated as
+/// a `merchant_reference_id`. Ids in the global format (for example the one stored in the payment
+/// intent after the customer has been resolved once) keep using the `customer_id` lookup.
+#[cfg(feature = "v1")]
+pub async fn should_lookup_customer_by_merchant_reference_id(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: &id_type::CustomerId,
+) -> bool {
+    if customers::is_customer_id_in_global_format(customer_id) {
+        return false;
+    }
+
+    dimensions
+        .get_use_merchant_reference_id_as_customer_id(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(customer_id),
+        )
+        .await
+}
+
+/// Resolves the customer id received in a payments request to the id of the customer record, so
+/// that it can be compared with ids that are stored against the customer (like the customer id of
+/// a payment method). When the customer cannot be resolved, the id is returned as it is.
+#[cfg(feature = "v1")]
+pub async fn resolve_request_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+) -> id_type::CustomerId {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(provider.get_provider_merchant_id())
+        .with_organization_id(provider.get_account().organization_id.clone());
+
+    if !should_lookup_customer_by_merchant_reference_id(state, &dimensions, customer_id).await {
+        return customer_id.clone();
+    }
+
+    state
+        .store
+        .find_optional_by_merchant_id_merchant_reference_id(
+            customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                ?error,
+                "Failed to resolve the customer using the merchant reference id"
+            )
+        })
+        .ok()
+        .flatten()
+        .map_or_else(|| customer_id.clone(), |customer| customer.get_id().clone())
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
@@ -2041,14 +2105,32 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
-            let customer_data = db
-                .find_customer_optional_by_customer_id_merchant_id(
+            let use_merchant_reference_id = should_lookup_customer_by_merchant_reference_id(
+                state,
+                &dimensions
+                    .without_profile_id()
+                    .without_processor_merchant_id()
+                    .with_organization_id(provider.get_account().organization_id.clone()),
+                &customer_id,
+            )
+            .await;
+            let customer_data = if use_merchant_reference_id {
+                db.find_optional_by_merchant_id_merchant_reference_id(
                     &customer_id,
                     merchant_id,
                     key_store,
                     storage_scheme,
                 )
-                .await?;
+                .await?
+            } else {
+                db.find_customer_optional_by_customer_id_merchant_id(
+                    &customer_id,
+                    merchant_id,
+                    key_store,
+                    storage_scheme,
+                )
+                .await?
+            };
             let key = key_store.key.get_inner().peek();
             let encrypted_data = types::crypto_operation(
                 key_manager_state,
@@ -2162,8 +2244,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
+                        // The id of the fetched record is used for the update, because the id
+                        // received in the request can be the `merchant_reference_id`.
                         db.update_customer_by_customer_id_merchant_id(
-                            customer_id,
+                            c.get_id().clone(),
                             merchant_id.to_owned(),
                             c,
                             customer_update,
@@ -2190,7 +2274,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             )
                             .await;
 
-                    if should_block_implicit_customer_creation {
+                    // A customer looked up through the `merchant_reference_id` has to exist already,
+                    // because it can only be created via the v2 customers API. Creating a v1 customer
+                    // with the reference id as the `customer_id` would leave it unreachable by the
+                    // same lookup.
+                    if should_block_implicit_customer_creation || use_merchant_reference_id {
                         Err(report!(errors::StorageError::ValueNotFound(
                             "customer".to_owned()
                         )))?
