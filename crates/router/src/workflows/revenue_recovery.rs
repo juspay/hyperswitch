@@ -799,9 +799,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await;
 
-            // Its own dimensions: the A/B gate is keyed on the merchant alone, so that it can be
-            // resolved identically here and where the assignment is made, which has no connector
-            // to hand.
             let ab_enabled = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .get_revenue_recovery_ab_enabled(
@@ -812,11 +809,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 .await;
 
             if ab_enabled {
-                // Read the assignment made when this invoice entered recovery rather than
-                // resolving again, so every retry runs the implementation the invoice was
-                // enrolled on. `None` means the invoice was never assigned — it entered
-                // recovery before A/B routing was enabled, or the assignment could not be
-                // recorded — so it falls back to the flag-driven path below.
                 let algorithm = payment_intent
                     .feature_metadata
                     .as_ref()
