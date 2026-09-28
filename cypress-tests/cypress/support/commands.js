@@ -3552,6 +3552,9 @@ Cypress.Commands.add(
                   key === "payment_account_reference" ||
                   key === "network_transaction_link_id"
                 ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -3659,6 +3662,9 @@ Cypress.Commands.add(
                   key === "payment_account_reference" ||
                   key === "network_transaction_link_id"
                 ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4422,6 +4428,9 @@ Cypress.Commands.add(
                   key === "payment_account_reference" ||
                   key === "network_transaction_link_id"
                 ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4499,6 +4508,9 @@ Cypress.Commands.add(
                   key === "payment_account_reference" ||
                   key === "network_transaction_link_id"
                 ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4781,6 +4793,9 @@ Cypress.Commands.add(
               key === "payment_account_reference" ||
               key === "network_transaction_link_id"
             ) {
+              // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+              // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+              // "dynamic_par") to assert the field is populated, and null to assert it is absent.
               if (resData.body[key] === null) {
                 expect(response.body[key], [key]).to.be.null;
               } else {
