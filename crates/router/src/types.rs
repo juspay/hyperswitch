@@ -43,8 +43,8 @@ use hyperswitch_domain_models::router_flow_types::{
         Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
-        PostProcessing, PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+        PostProcessing, PostSessionTokens, PreAuthorizeVoid, PushNotification, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -87,13 +87,13 @@ pub use hyperswitch_domain_models::{
         PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData, ResponseId,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -128,11 +128,11 @@ pub use hyperswitch_interfaces::{
         IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
         PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
-        PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsPushNotificationType,
-        PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
-        RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
-        SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
-        UploadFileType, VerifyWebhookSourceType,
+        PaymentsPreAuthorizeType, PaymentsPushNotificationType, PaymentsSessionType,
+        PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType,
+        SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        VerifyWebhookSourceType,
     },
 };
 
@@ -150,8 +150,6 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
-pub type PaymentsPreProcessingRouterData =
-    RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPushNotificationRouterData =
     RouterData<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
 pub type PaymentsGenerateQrRouterData =
@@ -258,8 +256,6 @@ pub type SdkSessionUpdateResponseRouterData<R> =
     ResponseRouterData<SdkSessionUpdate, R, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<Capture, R, PaymentsCaptureData, PaymentsResponseData>;
-pub type PaymentsPreprocessingResponseRouterData<R> =
-    ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type TokenizationResponseRouterData<R> =
     ResponseRouterData<PaymentMethodToken, R, PaymentMethodTokenizationData, PaymentsResponseData>;
 pub type ConnectorCustomerResponseRouterData<R> =

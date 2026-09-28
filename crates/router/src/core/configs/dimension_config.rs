@@ -1061,6 +1061,18 @@ impl DatabaseBackedConfig for CardIssuerListMaxLimit {
 }
 
 config! {
+    superposition_key = PAYOUT_BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutBlocklistGuard {
+    const KEY: &'static str = "payout_blocklist_guard";
+}
+
+config! {
     superposition_key = ACCEPT_PAYMENT_AMOUNT_MISMATCH,
     output = bool,
     default = false,

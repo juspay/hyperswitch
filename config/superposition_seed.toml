@@ -2559,6 +2559,7 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "webhooks.incoming_webhook_disabled_events" = { value = false, schema = { type = "boolean" }, description = "Whether a specific incoming webhook event is disabled for a given connector", change_reason = "Initial setup" }
 "payouts.max_auto_payout_retries" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)", change_reason = "Initial setup" }
 "payouts.payout_frm_call" = { value = false, schema = { type = "boolean" }, description = "Whether to call FRM for payouts", change_reason = "Initial setup" }
+"payouts.payout_blocklist_guard" = { value = false, schema = { type = "boolean" }, description = "Whether to check card payouts against the blocklist and the profile's card blocking rules", change_reason = "Initial setup" }
 "payouts.payout_tracker_mapping" = { value = { frequencies = [
     [
         300,

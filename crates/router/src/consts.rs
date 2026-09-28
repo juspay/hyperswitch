@@ -533,6 +533,8 @@ pub mod superposition {
     pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
     /// Maximum number of card issuers a list request reads
     pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
     /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
     /// and payment method type). When enabled, a connector-reported payment amount that differs
     /// from the requested amount does not fail the integrity check. Refunds are not affected.

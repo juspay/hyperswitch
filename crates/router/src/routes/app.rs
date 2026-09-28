@@ -1572,6 +1572,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(
+                    web::resource("/platform/list").route(web::get().to(refunds_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(refunds_filter_list_for_platform)),
+                )
                 .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
@@ -2485,6 +2492,14 @@ impl Disputes {
             .service(
                 web::resource("/profile/filter")
                     .route(web::get().to(disputes::get_disputes_filters_profile)),
+            )
+            .service(
+                web::resource("/platform/list")
+                    .route(web::get().to(disputes::retrieve_disputes_list_for_platform)),
+            )
+            .service(
+                web::resource("/platform/filter")
+                    .route(web::get().to(disputes::get_platform_disputes_filters)),
             )
             .service(
                 web::resource("/accept/{dispute_id}")
