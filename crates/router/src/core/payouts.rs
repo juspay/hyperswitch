@@ -600,20 +600,23 @@ pub async fn payouts_create_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // Validate create request
-    let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_profile_id(profile_id.clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    // Validate create request
+    let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
+        validator::validate_create_request(&state, &platform, &req),
+    )
+    .await?;
+
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     // Create DB entries
     let mut payout_data = Box::pin(payout_create_db_entries(
         &state,
         &platform,
         &req,
         &payout_id,
-        &profile_id,
+        business_profile,
         payout_method_data.as_ref(),
         &state.locale,
         customer.as_ref(),
@@ -3349,7 +3352,7 @@ pub async fn payout_create_db_entries(
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
     _payout_id: &str,
-    _profile_id: &id_type::ProfileId,
+    _business_profile: domain::Profile,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     _locale: &str,
     _customer: Option<&domain::Customer>,
@@ -3367,7 +3370,7 @@ pub async fn payout_create_db_entries(
     platform: &domain::Platform,
     req: &payouts::PayoutCreateRequest,
     payout_id: &id_type::PayoutId,
-    profile_id: &id_type::ProfileId,
+    business_profile: domain::Profile,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     locale: &str,
     customer: Option<&domain::Customer>,
@@ -3377,10 +3380,7 @@ pub async fn payout_create_db_entries(
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
     let customer_id = customer.map(|cust| cust.get_id().clone());
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile =
-        validate_and_get_business_profile(state, platform.get_processor(), profile_id).await?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let payout_link = match req.payout_link {
         Some(true) => Some(
