@@ -702,7 +702,6 @@ pub enum BankDebitDetail {
     },
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -735,7 +734,6 @@ pub enum WalletDetail {
     },
 }
 
-#[cfg(feature = "v1")]
 impl From<ApplePayPredecryptData> for WalletDetail {
     fn from(data: ApplePayPredecryptData) -> Self {
         Self::ApplePayDecryptedData {
@@ -746,7 +744,6 @@ impl From<ApplePayPredecryptData> for WalletDetail {
     }
 }
 
-#[cfg(feature = "v1")]
 impl From<GPayPredecryptData> for WalletDetail {
     fn from(data: GPayPredecryptData) -> Self {
         Self::GooglePayDecryptedData {
@@ -1317,6 +1314,7 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
+    Wallet(WalletDetail),
     ProxyCard(RawProxyCardDataResponse),
 }
 

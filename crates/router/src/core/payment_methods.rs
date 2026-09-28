@@ -1897,6 +1897,22 @@ pub async fn create_persistent_payment_method_core(
             )
             .await
         }
+        api::PaymentMethodCreateData::Wallet(
+            api::WalletPaymentMethodData::ApplePayDecrypted(_)
+            | api::WalletPaymentMethodData::GooglePayDecrypted(_),
+        ) => {
+            Box::pin(create_or_fetch_payment_method_core(
+                state,
+                req,
+                platform,
+                profile,
+                merchant_id,
+                &customer_id,
+                payment_method_id,
+                payment_method_billing_address,
+            ))
+            .await
+        }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
             let additional_data = payment_methods::PaymentMethodsData::from(wallet_data.clone());
             create_payment_method_wallet_core(
@@ -2549,6 +2565,28 @@ impl LockerOperations for LegacyLocker {
             (Some(enums::PaymentMethod::NetworkToken), Some(card)) => {
                 domain::PaymentMethodVaultingData::NetworkToken(card.into())
             }
+            (Some(enums::PaymentMethod::Wallet), _) => {
+                let enc_card_data = resp_payload
+                    .enc_card_data
+                    .ok_or(errors::VaultError::FetchCardFailed)
+                    .attach_printable("Empty enc_card_data in retrieve card response for wallet")?;
+
+                let decrypted_data = cards::decode_and_decrypt_locker_data(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    enc_card_data.peek().to_owned(),
+                )
+                .await
+                .attach_printable("Failed to decrypt wallet data from legacy locker")?;
+
+                let vaulting_data: domain::PaymentMethodVaultingData = decrypted_data
+                    .peek()
+                    .parse_struct("PaymentMethodVaultingData")
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to parse wallet data from legacy locker")?;
+
+                vaulting_data
+            }
             (_, _) => {
                 logger::warn!("Payment method not supported for retrieve from legacy locker");
                 return Err(error_stack::report!(errors::VaultError::FetchCardFailed)
@@ -3171,7 +3209,10 @@ async fn execute_payment_method_create(
             external_vault_source,
         )) => {
             let pm_update = create_pm_additional_data_update(
-                Some(&payment_method_data),
+                Some(build_payment_methods_additional_data_for_create(
+                    req,
+                    &payment_method_data,
+                )),
                 state,
                 platform.get_provider().get_key_store(),
                 Some(vault_id.get_string_repr().clone()),
@@ -5086,9 +5127,50 @@ fn create_connector_token_details_update(
 }
 
 #[cfg(feature = "v2")]
+fn build_payment_methods_additional_data_for_create(
+    req: &api::PaymentMethodCreate,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+) -> domain::PaymentMethodsData {
+    let vaulted_payment_methods_data = payment_method_data.get_payment_methods_data();
+
+    let wallet_info_from_request = match &req.payment_method_data {
+        api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::ApplePayDecrypted(
+            apple_pay_decrypted,
+        )) => Some(apple_pay_decrypted.wallet_info.clone()),
+        api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::GooglePayDecrypted(
+            google_pay_decrypted,
+        )) => Some(google_pay_decrypted.wallet_info.clone()),
+        _ => None,
+    };
+
+    match (vaulted_payment_methods_data, wallet_info_from_request) {
+        (domain::PaymentMethodsData::WalletDetails(vaulted_wallet_info), Some(wallet_info)) => {
+            domain::PaymentMethodsData::WalletDetails(
+                payment_methods::PaymentMethodDataWalletInfo {
+                    last4: wallet_info.last4.or(vaulted_wallet_info.last4),
+                    card_network: wallet_info
+                        .card_network
+                        .or(vaulted_wallet_info.card_network),
+                    card_type: wallet_info.card_type.or(vaulted_wallet_info.card_type),
+                    card_exp_month: wallet_info
+                        .card_exp_month
+                        .or(vaulted_wallet_info.card_exp_month),
+                    card_exp_year: wallet_info
+                        .card_exp_year
+                        .or(vaulted_wallet_info.card_exp_year),
+                    auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
+                    email: wallet_info.email.or(vaulted_wallet_info.email),
+                },
+            )
+        }
+        (vaulted_payment_methods_data, _) => vaulted_payment_methods_data,
+    }
+}
+
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_pm_additional_data_update(
-    pmd: Option<&domain::PaymentMethodVaultingData>,
+    payment_methods_data: Option<domain::PaymentMethodsData>,
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     vault_id: Option<String>,
@@ -5103,8 +5185,7 @@ pub async fn create_pm_additional_data_update(
     status: Option<storage_enums::PaymentMethodStatus>,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
-    let encrypted_payment_method_data = pmd
-        .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
+    let encrypted_payment_method_data = payment_methods_data
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
@@ -6175,6 +6256,7 @@ pub async fn retrieve_payment_method(
                 }
                 Some(
                     payment_methods::RawPaymentMethodData::BankDebit(_)
+                    | payment_methods::RawPaymentMethodData::Wallet(_)
                     | payment_methods::RawPaymentMethodData::ProxyCard(_),
                 )
                 | None => None,
@@ -6512,13 +6594,16 @@ impl RawPaymentMethodFetchAccess {
                     )));
                 }
 
-                let should_skip_vault_fetch = matches!(
-                    payment_method.payment_method_type,
-                    Some(enums::PaymentMethod::Wallet) | Some(enums::PaymentMethod::BankRedirect)
-                );
+                // Bank redirects are never vaulted. Wallets are vaulted only when they were saved
+                // from decrypted wallet data (device PAN and expiry); the rest carry no locker id.
+                let should_skip_vault_fetch = match payment_method.payment_method_type {
+                    Some(enums::PaymentMethod::BankRedirect) => true,
+                    Some(enums::PaymentMethod::Wallet) => payment_method.locker_id.is_none(),
+                    _ => false,
+                };
 
                 if should_skip_vault_fetch {
-                    logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
+                    logger::debug!("Skipping raw payment method fetch for bank redirect or non-vaulted wallet payment method");
                     Ok(None)
                 } else {
                     // A pure unvault: the CVC is attached by the caller, under the caller's own
@@ -8487,7 +8572,9 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             }
             false => {
                 let pm_update = create_pm_additional_data_update(
-                    vault_request_data.as_ref(),
+                    vault_request_data
+                        .as_ref()
+                        .map(|vault_request_data| vault_request_data.get_payment_methods_data()),
                     self.state,
                     self.platform.get_provider().get_key_store(),
                     vault_resp

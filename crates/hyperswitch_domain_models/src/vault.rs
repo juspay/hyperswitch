@@ -119,7 +119,9 @@ impl PaymentMethodVaultingData {
             Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
                 bank_debit.clone().into(),
             )),
-            Self::Wallet(_) => None,
+            Self::Wallet(wallet) => Some(payment_methods::RawPaymentMethodData::Wallet(
+                wallet.clone().into(),
+            )),
             Self::BankRedirect(_) => None,
         }
     }

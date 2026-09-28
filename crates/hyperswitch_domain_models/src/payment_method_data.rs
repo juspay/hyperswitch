@@ -1919,7 +1919,6 @@ impl From<common_types::payments::GPayPredecryptData> for WalletDetail {
     }
 }
 
-#[cfg(feature = "v1")]
 impl From<payment_methods::WalletDetail> for WalletDetail {
     fn from(wallet: payment_methods::WalletDetail) -> Self {
         match wallet {
@@ -1933,6 +1932,31 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_year,
             },
             payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+        }
+    }
+}
+
+impl From<WalletDetail> for payment_methods::WalletDetail {
+    fn from(wallet: WalletDetail) -> Self {
+        match wallet {
+            WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            WalletDetail::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,

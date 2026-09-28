@@ -1243,7 +1243,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                             )?,
                                     };
 
-                                // let pmd_new = if apple pay + pmt some -> payment_method_data -> wallet -> apple pay decrypted
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
                                 let global_customer_id =
