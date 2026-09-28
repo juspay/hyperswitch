@@ -1,4 +1,6 @@
 use hyperswitch_domain_models::mandates;
+#[cfg(all(test, feature = "v1"))]
+mod tests;
 mod transformers;
 pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1578,6 +1580,26 @@ pub struct HybridRoutingStage;
 
 #[cfg(feature = "v1")]
 impl HybridRoutingStage {
+    #[cfg(any(feature = "dynamic_routing", test))]
+    fn resolve_preferred_connector(
+        preferred: &str,
+        static_connectors: &[routing_types::RoutableConnectorChoice],
+    ) -> Option<String> {
+        let preferred_connector_name = preferred.split_once(':').map(|(name, _)| name)?;
+        static_connectors
+            .iter()
+            .find(|choice| choice.to_string() == preferred)
+            .or_else(|| {
+                static_connectors.iter().find(|choice| {
+                    choice
+                        .connector
+                        .to_string()
+                        .eq_ignore_ascii_case(preferred_connector_name)
+                })
+            })
+            .map(ToString::to_string)
+    }
+
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     fn build_dynamic_routing_request(
         &self,
@@ -1589,25 +1611,10 @@ impl HybridRoutingStage {
             .open_router
             .dynamic_routing_enabled
             .then(|| {
-                // Match an exact eligible account first, then any eligible account for the same connector.
-                let preferred_connector =
-                    input.preferred_connector.as_ref().and_then(|preferred| {
-                        let preferred_connector_name =
-                            preferred.split_once(':').map(|(name, _)| name)?;
-                        input
-                            .static_connectors
-                            .iter()
-                            .find(|choice| choice.to_string().eq_ignore_ascii_case(preferred))
-                            .or_else(|| {
-                                input.static_connectors.iter().find(|choice| {
-                                    choice
-                                        .connector
-                                        .to_string()
-                                        .eq_ignore_ascii_case(preferred_connector_name)
-                                })
-                            })
-                            .map(|choice| choice.to_string())
-                    });
+                // Match an exact account first, then any eligible account for the same connector.
+                let preferred_connector = input.preferred_connector.as_deref().and_then(|value| {
+                    Self::resolve_preferred_connector(value, input.static_connectors)
+                });
 
                 OpenRouterDecideGatewayRequest::construct_sr_request(
                     input.payment_dsl_input.payment_attempt,

@@ -333,10 +333,10 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _db: &'a SessionState,
         _provider: &domain::Provider,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         _updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<Option<domain::Customer>> {
+        Ok(customer)
     }
 
     #[cfg(feature = "v2")]

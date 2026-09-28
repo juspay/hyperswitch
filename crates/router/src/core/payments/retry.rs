@@ -53,7 +53,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     platform: &domain::Platform,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
-    customer: &Option<domain::Customer>,
+    customer: &mut Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
@@ -394,7 +394,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     req_state: ReqState,
     connector: &'a api::ConnectorData,
     operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
-    customer: &'a Option<domain::Customer>,
+    customer: &mut Option<domain::Customer>,
     platform: &domain::Platform,
     payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -480,7 +480,7 @@ where
         )
         .await?;
     // Update customer at provider level after connector operations complete
-    operation
+    *customer = operation
         .to_domain()?
         .update_customer(
             &updated_state,

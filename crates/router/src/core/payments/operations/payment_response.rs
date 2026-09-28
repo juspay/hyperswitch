@@ -3729,41 +3729,53 @@ pub(in crate::core::payments) fn upsert_profile_preference(
 ) -> Option<common_utils::pii::SecretSerdeValue> {
     const MAX_PROFILE_PREFERENCES: usize = 10;
 
-    let mut preferences = existing
-        .map(PeekInterface::peek)
+    let original = existing.map(PeekInterface::peek);
+    let mut preferences = original
         .and_then(|value| value.as_object())
         .cloned()
         .unwrap_or_default();
 
-    let mut entries: Vec<serde_json::Value> = preferences
+    let mut entries = Vec::with_capacity(MAX_PROFILE_PREFERENCES);
+    let existing_entries = preferences
         .get(payment_method_type)
         .and_then(|value| value.as_array())
-        .cloned()
-        .unwrap_or_default();
+        .into_iter()
+        .flatten();
 
-    if entries.iter().any(|entry| {
-        entry.get(profile_id).and_then(|value| value.as_str()) == Some(preferred_connector)
-    }) {
-        return None;
+    for entry in existing_entries {
+        let Some(object) = entry.as_object() else {
+            continue;
+        };
+        for (stored_profile_id, connector) in object {
+            let Some(connector) = connector.as_str() else {
+                continue;
+            };
+            if stored_profile_id == profile_id
+                || entries
+                    .iter()
+                    .any(|entry: &serde_json::Value| entry.get(stored_profile_id).is_some())
+            {
+                continue;
+            }
+            entries.push(serde_json::json!({ stored_profile_id: connector }));
+            if entries.len() == MAX_PROFILE_PREFERENCES - 1 {
+                break;
+            }
+        }
+        if entries.len() == MAX_PROFILE_PREFERENCES - 1 {
+            break;
+        }
     }
-    entries.retain(|entry| {
-        !entry
-            .as_object()
-            .is_some_and(|object| object.contains_key(profile_id))
-    });
 
     entries.insert(0, serde_json::json!({ profile_id: preferred_connector }));
-
-    entries.truncate(MAX_PROFILE_PREFERENCES);
 
     preferences.insert(
         payment_method_type.to_string(),
         serde_json::Value::Array(entries),
     );
 
-    Some(common_utils::pii::SecretSerdeValue::new(
-        serde_json::Value::Object(preferences),
-    ))
+    let updated = serde_json::Value::Object(preferences);
+    (original != Some(&updated)).then(|| common_utils::pii::SecretSerdeValue::new(updated))
 }
 
 /// Persist the connector behind a successful eligible payment on the customer row.

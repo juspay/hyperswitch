@@ -308,7 +308,7 @@ where
                 .await?;
 
             // Update customer at provider level before update_trackers
-            operation
+            let _updated_customer = operation
                 .to_domain()?
                 .update_customer(
                     &updated_state,
@@ -419,7 +419,7 @@ where
                 .await?;
 
             // Update customer at provider level before update_trackers
-            operation
+            let _updated_customer = operation
                 .to_domain()?
                 .update_customer(
                     &updated_state,
@@ -736,7 +736,7 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    let (operation, customer) = operation
+    let (operation, mut customer) = operation
         .to_domain()?
         // get_customer_details
         .get_or_create_customer_details(
@@ -1066,7 +1066,7 @@ where
                         .await?;
 
                     // Update customer at provider level before update_trackers
-                    operation
+                    customer = operation
                         .to_domain()?
                         .update_customer(
                             &updated_state,
@@ -1257,7 +1257,7 @@ where
                         .await?;
 
                     // Update customer at provider level before update_trackers
-                    operation
+                    customer = operation
                         .to_domain()?
                         .update_customer(
                             &updated_state,
@@ -1312,7 +1312,7 @@ where
                                 router_data,
                                 platform,
                                 &operation,
-                                &customer,
+                                &mut customer,
                                 &validate_result,
                                 schedule_time,
                                 #[cfg(feature = "frm")]
