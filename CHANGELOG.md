@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.17.2-hotfix3
+
+### Refactors
+
+- **payments:** Optimize get_trackers in create flow ([#14466](https://github.com/juspay/hyperswitch/pull/14466)) ([`f747a30`](https://github.com/juspay/hyperswitch/commit/f747a3033303324806eea52fb7410f6a1c10cf6f))
+
+**Full Changelog:** [`2026.09.17.2-hotfix2...2026.09.17.2-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.09.17.2-hotfix2...2026.09.17.2-hotfix3)
+
+- - -
+
 ## 2026.09.17.2-hotfix2
 
 ### Features
