@@ -15,6 +15,19 @@ describe("Offer Engine", () => {
         return cy.offerEngineConnectivityCheck(globalState);
       })
       .then((reachable) => {
+        // /offer_engine/connectivity always reports unreachable when
+        // offer_engine.credential_source is "merchant", since that check has
+        // no merchant context to resolve credentials against. Fall back to a
+        // merchant-scoped signal: does this run's merchant have its own
+        // offer_engine_config set (e.g. via setMerchantOfferEngineConfig in
+        // 01-AccountCreate.cy.js)?
+        if (reachable) {
+          return cy.wrap(true);
+        }
+
+        return cy.offerEngineMerchantConfiguredCheck(globalState);
+      })
+      .then((reachable) => {
         if (!reachable) {
           cy.task(
             "cli_log",
@@ -91,4 +104,128 @@ describe("Offer Engine", () => {
       );
     });
   });
+
+  // PR #13766 secondary change: when offers are enabled, the payment-method-
+  // list response should signal the SDK to run eligibility before confirm
+  // (sdk_next_action.next_action: eligibility_check,
+  // should_block_confirm: true) rather than going straight to confirm. This
+  // is the actual gating mechanism the SDK relies on — 54-OfferEngine.cy.js's
+  // other contexts call /eligibility directly and never exercise this signal.
+  context(
+    "Payment method list signals eligibility check when offers are enabled",
+    () => {
+      it("payment intent create call", () => {
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          connectorDetails.offer_engine.PaymentIntentForOffer,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      it("payment method list signals an eligibility check is required", () => {
+        cy.paymentMethodListSdkNextActionCheck(globalState, {
+          next_action: "eligibility_check",
+          should_block_confirm: true,
+        });
+      });
+    }
+  );
+
+  // PR #13850: confirm-time /apply reads the card straight off
+  // payment_data.payment_method_data. For a saved-card confirm that's still
+  // the CardToken variant at that point (the real card is only dereferenced
+  // later, in the connector-call phase), so /apply used to see null
+  // card_bin/card_network/card_alias. This exercises exactly that path: a
+  // second payment confirmed via payment_token (not raw PAN) with an offer
+  // applied.
+  context("Offer applies correctly on a saved-card confirm", () => {
+    it("create customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
+    it("save a card via a plain create+confirm payment", () => {
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        connectorDetails.offer_engine.SaveCardSetup,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("list customer payment methods", () => {
+      cy.listCustomerPMCallTest(globalState);
+    });
+
+    it("payment intent create call", () => {
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        connectorDetails.offer_engine.PaymentIntentForOffer,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("payment eligibility check surfaces an eligible offer", () => {
+      cy.paymentsOfferEligibilityCheck(
+        fixtures.eligibilityCheckBody,
+        connectorDetails.offer_engine.SaveCardEligibilityCheck,
+        globalState
+      );
+    });
+
+    it("saved-card confirm call applies the selected offer", () => {
+      const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+      cy.saveCardConfirmCallTest(
+        saveCardBody,
+        connectorDetails.offer_engine.ConfirmSavedCardWithOfferApplied,
+        globalState
+      );
+    });
+
+    it("applied_offer is reflected on payment retrieve", () => {
+      cy.retrievePaymentCallTest({
+        globalState,
+        data: connectorDetails.offer_engine.AppliedOfferOnSavedCardRetrieve,
+        expectedIntentStatus: "succeeded",
+      });
+    });
+  });
+
+  // PR #13766: once a card has availed an offer, Offer Engine blocks that
+  // exact card (via a PAN-free card_alias fingerprint) from availing it
+  // again, independent of which customer/payment uses it.
+  //
+  // Commented out for now: this needs a dedicated once-per-card offer
+  // (the PR's own testing used offer code HSVELO1, counter
+  // CARD_IDENTIFIER = MAX 1) rather than TESTHS, since TESTHS has no
+  // redemption cap and reusing it here would collide with the "saved-card"
+  // context above (which also uses this same card and needs the offer to
+  // still be applicable). HSVELO1 already exists on qaoffers but is
+  // currently Paused, and neither of us has access to Offer Engine's
+  // "Custom Rule Configuration" to build an equivalent counter from
+  // scratch. Re-enable once HSVELO1 is activated.
+  //
+  // context("Once-per-card offer velocity blocks reuse of the same card", () => {
+  //   it("payment intent create call", () => {
+  //     cy.createPaymentIntentTest(
+  //       fixtures.createPaymentBody,
+  //       connectorDetails.offer_engine.PaymentIntentForOffer,
+  //       "no_three_ds",
+  //       "automatic",
+  //       globalState
+  //     );
+  //   });
+  //
+  //   it("eligibility check no longer surfaces an offer for the already-used card", () => {
+  //     cy.paymentsOfferEligibilityCheck(
+  //       fixtures.eligibilityCheckBody,
+  //       connectorDetails.offer_engine.VelocityEligibilityCheckSecondUse,
+  //       globalState
+  //     );
+  //   });
+  // });
 });

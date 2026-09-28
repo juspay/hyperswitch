@@ -4570,6 +4570,20 @@ Cypress.Commands.add(
       Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
     }
 
+    if (
+      saveCardConfirmBody.offer_details?.offer_quote_ids?.includes(
+        OFFER_QUOTE_ID_PLACEHOLDER
+      )
+    ) {
+      const offerQuoteId = globalState.get("offerQuoteId");
+      expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
+
+      saveCardConfirmBody.offer_details.offer_quote_ids =
+        saveCardConfirmBody.offer_details.offer_quote_ids.map((id) =>
+          id === OFFER_QUOTE_ID_PLACEHOLDER ? offerQuoteId : id
+        );
+    }
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
@@ -8595,6 +8609,54 @@ Cypress.Commands.add(
   }
 );
 
+// With offer_engine.credential_source set to "merchant" (a Superposition
+// override), the router only reads Offer Engine credentials from this
+// merchant account's own offer_engine_config field, not from any static
+// application config.
+Cypress.Commands.add("setMerchantOfferEngineConfig", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+  const merchantId = globalState.get("merchantId");
+  const offerEngineApiKey = Cypress.env("OFFER_ENGINE_API_KEY");
+
+  if (!offerEngineApiKey) {
+    cy.task(
+      "cli_log",
+      "OFFER_ENGINE_API_KEY is not set; skipping merchant-level Offer Engine config"
+    );
+    return cy.wrap(null);
+  }
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/accounts/${merchantId}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      body: {
+        merchant_id: merchantId,
+        offer_engine_config: {
+          api_key: offerEngineApiKey,
+          // Offer Engine's own merchant id (distinct from the Hyperswitch
+          // merchant id above) — a pre-provisioned Offer Engine account, not
+          // something a fresh Cypress-created merchant has a counterpart for.
+          merchant_id: "qaoffers",
+        },
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      // offer_engine_config is a write-only Secret field: GET /account/{id}
+      // never echoes it back, so there is no way to re-derive "is this
+      // merchant configured" from a later read. Record success here instead.
+      globalState.set("offerEngineMerchantConfigured", true);
+    });
+});
+
 Cypress.Commands.add("offerEngineConnectivityCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const adminApiKey = globalState.get("adminApiKey");
@@ -8617,6 +8679,118 @@ Cypress.Commands.add("offerEngineConnectivityCheck", (globalState) => {
       );
     });
 });
+
+// /offer_engine/connectivity has no merchant context, so when
+// offer_engine.credential_source is "merchant" it always resolves to
+// enabled: false/reachable: null regardless of whether any merchant has
+// valid Offer Engine credentials configured. offer_engine_config is also a
+// write-only Secret field (GET /account/{id} never echoes it back), so
+// there's no way to re-derive "is this merchant configured" from a read.
+// Fall back to whatever setMerchantOfferEngineConfig recorded in
+// globalState when it ran during account setup.
+Cypress.Commands.add("offerEngineMerchantConfiguredCheck", (globalState) => {
+  return cy.wrap(Boolean(globalState.get("offerEngineMerchantConfigured")));
+});
+
+// PR #13999: POST /offer_engine/offers/list — the merchant-dashboard browse
+// endpoint. Uses the secret api-key (ApiKeyAuth), not the publishable key
+// used by the payment-flow eligibility endpoint.
+Cypress.Commands.add("browseOffersCall", (requestBody, data, globalState) => {
+  const { Request: reqData, Response: resData } = data || {};
+
+  const baseUrl = globalState.get("baseUrl");
+  // This route uses ApiKeyAuth (the merchant's own secret key from
+  // apiKeyCreateTest), not adminApiKey (platform-level, admin-only routes).
+  const apiKey = globalState.get("apiKey");
+
+  const body = {
+    ...requestBody,
+    ...reqData,
+  };
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/offer_engine/offers/list`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body,
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include(
+          "application/json"
+        );
+        expect(response.status).to.equal(resData?.status ?? 200);
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("offers");
+          expect(response.body.offers).to.be.an("array");
+
+          if (resData?.body?.offers) {
+            for (const key in resData.body.offers) {
+              const expectedOffer = resData.body.offers[key];
+              const actualOffer = response.body.offers[key];
+              expect(actualOffer, `offers[${key}]`).to.exist;
+              for (const field in expectedOffer) {
+                expect(actualOffer[field], `offers[${key}].${field}`).to.equal(
+                  expectedOffer[field]
+                );
+              }
+            }
+          }
+        }
+      });
+    });
+});
+
+// PR #13766 secondary change: when offers are enabled for the merchant/
+// profile (and payments.should_perform_eligibility is on), the PML response
+// should signal the SDK to run eligibility and block confirm until it
+// resolves, via sdk_next_action.
+Cypress.Commands.add(
+  "paymentMethodListSdkNextActionCheck",
+  (globalState, expectedNextAction) => {
+    const baseUrl = globalState.get("baseUrl");
+    const publishableKey = globalState.get("publishableKey");
+    const clientSecret = globalState.get("clientSecret");
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/account/payment_methods?client_secret=${clientSecret}`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": publishableKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
+          );
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("sdk_next_action");
+          expect(
+            response.body.sdk_next_action.next_action,
+            "sdk_next_action.next_action"
+          ).to.equal(expectedNextAction.next_action);
+          expect(
+            response.body.sdk_next_action.should_block_confirm,
+            "sdk_next_action.should_block_confirm"
+          ).to.equal(expectedNextAction.should_block_confirm);
+        });
+      });
+  }
+);
 
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
