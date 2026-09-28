@@ -96,37 +96,6 @@ where
 }
 
 #[cfg(feature = "v1")]
-async fn prepare_pm_update_from_psync(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_method: &domain::PaymentMethod,
-    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    update: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    business_profile: &domain::Profile,
-) -> CustomResult<storage::PaymentMethodUpdate, errors::ApiErrorResponse> {
-    match update {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-            bank_redirect_update,
-        ) => {
-            payment_methods::cards::prepare_bank_redirect_payment_method_update(
-                state,
-                platform,
-                payment_method,
-                merchant_connector_id,
-                bank_redirect_update.clone(),
-                business_profile,
-            )
-            .await
-        }
-        _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
-            message: errors::NotImplementedMessage::Reason(
-                "Payment Method Update is not implemented".to_string(),
-            )
-        })),
-    }
-}
-
-#[cfg(feature = "v1")]
 fn combine_payment_method_updates(
     status_and_ntid_update: storage::PaymentMethodUpdate,
     additional_data_update: Option<storage::PaymentMethodUpdate>,
@@ -3549,6 +3518,22 @@ async fn vault_deferred_payment_method<F: Clone>(
 }
 
 #[cfg(feature = "v1")]
+pub(crate) async fn find_payment_method_by_fingerprint(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    locker_fingerprint_id: &str,
+) -> Option<domain::PaymentMethod> {
+    state
+        .store
+        .find_payment_method_by_fingerprint_id(key_store, locker_fingerprint_id)
+        .await
+        .map_err(|error| {
+            logger::info!(?error, "No payment method matched the fingerprint");
+        })
+        .ok()
+}
+
+#[cfg(feature = "v1")]
 async fn find_deduplicated_payment_method(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3561,35 +3546,27 @@ async fn find_deduplicated_payment_method(
         _ => return None,
     };
 
-    state
-        .store
-        .find_payment_method_by_fingerprint_id(key_store, locker_fingerprint_id)
-        .await
-        .map_err(|error| {
-            logger::info!(
-                ?error,
-                "Vault reported a duplicate but no payment method matched the fingerprint"
-            );
-        })
-        .ok()
+    find_payment_method_by_fingerprint(state, key_store, locker_fingerprint_id).await
 }
 
 #[cfg(feature = "v1")]
-async fn insert_deferred_payment_method<F: Clone>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn insert_deferred_payment_method(
     state: &SessionState,
-    payment_data: &PaymentData<F>,
     platform: &domain::Platform,
     customer_id: &common_utils::id_type::CustomerId,
     customer_acceptance: common_utils::pii::SecretSerdeValue,
-    vault_response: Option<DeferredVaultResponse>,
+    payment_method: Option<enums::PaymentMethod>,
+    payment_method_type: Option<enums::PaymentMethodType>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    // Absent for instruments that are recognised by fingerprint alone and never vaulted.
+    locker_id: Option<String>,
+    locker_fingerprint_id: Option<String>,
 ) -> RouterResult<domain::PaymentMethod> {
     let provider = platform.get_provider();
     let key_manager_state: KeyManagerState = state.into();
 
-    let encrypted_payment_method_billing_address = payment_data
-        .address
-        .get_payment_method_billing()
-        .cloned()
+    let encrypted_payment_method_billing_address = billing_address
         .async_map(|address| {
             core_utils::create_encrypted_data(
                 &key_manager_state,
@@ -3604,8 +3581,8 @@ async fn insert_deferred_payment_method<F: Clone>(
         .attach_printable("Unable to encrypt payment method billing address")?;
 
     let payment_method_create_request = api_models::payment_methods::PaymentMethodCreate {
-        payment_method: payment_data.payment_attempt.payment_method,
-        payment_method_type: payment_data.payment_attempt.payment_method_type,
+        payment_method,
+        payment_method_type,
         payment_method_issuer: None,
         payment_method_issuer_code: None,
         #[cfg(feature = "payouts")]
@@ -3624,15 +3601,6 @@ async fn insert_deferred_payment_method<F: Clone>(
         connector_mandate_details: None,
         network_transaction_id: None,
     };
-
-    let (locker_id, locker_fingerprint_id) = vault_response
-        .map(|(vault_response, _)| {
-            (
-                Some(vault_response.payment_method_id),
-                vault_response.locker_fingerprint_id,
-            )
-        })
-        .unwrap_or((None, None));
 
     let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
     let payment_method = payment_methods::cards::PmCards { state, provider }
@@ -3678,9 +3646,15 @@ async fn create_deferred_payment_method<F: Clone>(
     business_profile: &domain::Profile,
     additional_payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> RouterResult<()> {
+    let discloses_instrument_out_of_band = matches!(
+        payment_data.payment_attempt.payment_method_type,
+        Some(enums::PaymentMethodType::Trustly)
+    );
+    
     let deferred_save_details =
         (is_payment_method_creation_deferred(payment_data.payment_attempt.payment_method)
-            && attempt_status.is_authorization_success())
+            && attempt_status.is_authorization_success()
+            && !discloses_instrument_out_of_band)
         .then(|| {
             payment_data
                 .payment_attempt
@@ -3730,13 +3704,25 @@ async fn create_deferred_payment_method<F: Clone>(
                 deduplicated_payment_method
             }
             None => {
+                let (locker_id, locker_fingerprint_id) = vault_response
+                    .map(|(vault_response, _)| {
+                        (
+                            Some(vault_response.payment_method_id),
+                            vault_response.locker_fingerprint_id,
+                        )
+                    })
+                    .unwrap_or((None, None));
+
                 insert_deferred_payment_method(
                     state,
-                    payment_data,
                     platform,
                     &customer_id,
                     customer_acceptance,
-                    vault_response,
+                    payment_data.payment_attempt.payment_method,
+                    payment_data.payment_attempt.payment_method_type,
+                    payment_data.address.get_payment_method_billing().cloned(),
+                    locker_id,
+                    locker_fingerprint_id,
                 )
                 .await?
             }
@@ -3874,7 +3860,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
 
         let additional_data_update =
             if let Some(payment_method_data_update) = additional_payment_method_data {
-                prepare_pm_update_from_psync(
+                payment_methods::cards::prepare_payment_method_update_from_connector_details(
                     state,
                     platform,
                     &payment_method,

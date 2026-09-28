@@ -21,15 +21,26 @@ impl ConnectorNetworkTxnId {
 }
 
 /// Associated data about a payment shared by a connector over a webhook.
-/// Fields are grouped by the record they are written to, so that support for further records
-/// (payment methods, for instance) can be added without changing the flow's signature.
 #[derive(Debug, Clone, Serialize)]
 pub struct WebhookAssociatedData {
     pub payment_attempt: PaymentAttemptAssociatedData,
+    pub payment_method: Option<crate::payment_method_data::PaymentMethodData>,
+}
+
+impl WebhookAssociatedData {
+    pub fn is_empty(&self) -> bool {
+        self.payment_attempt.is_empty() && self.payment_method.is_none()
+    }
 }
 
 /// Associated data written to the payment attempt.
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentAttemptAssociatedData {
     pub sender_payment_instrument_id: Option<hyperswitch_masking::Secret<String>>,
+}
+
+impl PaymentAttemptAssociatedData {
+    pub fn is_empty(&self) -> bool {
+        self.sender_payment_instrument_id.is_none()
+    }
 }

@@ -1220,56 +1220,17 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::BankRedirect(bank_redirect) => {
-            let customer_id = payment_intent.customer_id.as_ref().ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer".into(),
-                },
-            )?;
-
-            let locker_id = bank_redirect.locker_id.as_ref().ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "locker_id".into(),
-                },
-            )?;
-
-            let bank_redirect_detail = cards::get_bank_redirect_from_hs_locker(
-                state,
-                platform.get_provider(),
-                customer_id,
-                locker_id,
-            )
-            .await?;
-
-            let (vault_account_number, vault_iban, vault_sort_code) = match bank_redirect_detail {
-                domain::BankRedirectDetail::OpenBanking {
-                    account_number,
-                    iban,
-                    sort_code,
-                } => (account_number, iban, sort_code),
-            };
-
             let payment_method = payment_method_info
                 .get_required_value("PaymentMethod")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("PaymentMethod not found")?;
 
-            let (db_account_holder_name, db_bank_name) =
-                if let Some(domain::PaymentMethodsData::BankRedirect(bank_redirect_data)) =
-                    payment_method.get_payment_methods_data()
-                {
-                    match bank_redirect_data {
-                        domain::BankRedirectDetailsPaymentMethod::OpenBanking {
-                            masked_account_number: _,
-                            masked_iban: _,
-                            masked_sort_code: _,
-                            account_holder_name,
-                            bank_name,
-                        } => (account_holder_name.clone(), bank_name),
-                    }
-                } else {
-                    return Err(report!(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Payment method data is not bank redirect"));
-                };
+            let Some(domain::PaymentMethodsData::BankRedirect(stored_bank_redirect)) =
+                payment_method.get_payment_methods_data()
+            else {
+                return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method data is not bank redirect"));
+            };
 
             let connector_payment_method_details = payment_attempt
                 .merchant_connector_id
@@ -1282,17 +1243,74 @@ pub async fn retrieve_payment_method_with_token(
                         .cloned()
                 });
 
+            let bank_redirect_data = match stored_bank_redirect {
+                domain::BankRedirectDetailsPaymentMethod::OpenBanking {
+                    masked_account_number: _,
+                    masked_iban: _,
+                    masked_sort_code: _,
+                    account_holder_name,
+                    bank_name,
+                } => {
+                    let customer_id = payment_intent.customer_id.as_ref().ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "customer".into(),
+                        },
+                    )?;
+
+                    let locker_id = bank_redirect.locker_id.as_ref().ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "locker_id".into(),
+                        },
+                    )?;
+
+                    let vaulted = cards::get_bank_redirect_from_hs_locker(
+                        state,
+                        platform.get_provider(),
+                        customer_id,
+                        locker_id,
+                    )
+                    .await?;
+
+                    let domain::BankRedirectDetail::OpenBanking {
+                        account_number,
+                        iban,
+                        sort_code,
+                    } = vaulted
+                    else {
+                        return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Vaulted bank redirect details do not match the open banking \
+                                 payment method they are stored against",
+                            ));
+                    };
+
+                    BankRedirectData::OpenBanking {
+                        account_number,
+                        iban,
+                        sort_code,
+                        account_holder_name,
+                        additional_details: connector_payment_method_details.map(Secret::new),
+                        bank_name,
+                    }
+                }
+                domain::BankRedirectDetailsPaymentMethod::Trustly {
+                    bank_last_digits,
+                    account_holder_name,
+                    bank_name,
+                } => BankRedirectData::Trustly {
+                    country: None,
+                    account_holder_name,
+                    bank_name,
+                    additional_details: connector_payment_method_details.map(Secret::new),
+                    bank_last_digits: bank_last_digits.map(Secret::new),
+                    connector_instrument_id: None,
+                },
+            };
+
             storage::PaymentMethodDataWithId {
                 payment_method: Some(enums::PaymentMethod::BankRedirect),
                 payment_method_data: Some(domain::PaymentMethodData::BankRedirect(
-                    BankRedirectData::OpenBanking {
-                        account_number: vault_account_number,
-                        iban: vault_iban,
-                        sort_code: vault_sort_code,
-                        account_holder_name: db_account_holder_name,
-                        additional_details: connector_payment_method_details.map(Secret::new),
-                        bank_name: db_bank_name,
-                    },
+                    bank_redirect_data,
                 )),
                 payment_method_id: Some(bank_redirect.payment_method_id.clone()),
             }

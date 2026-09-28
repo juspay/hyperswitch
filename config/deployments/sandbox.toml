@@ -5,6 +5,7 @@
 card.credit = "supported"
 card.debit = "supported"
 bank_redirect.open_banking = "partially_supported"
+bank_redirect.trustly = "partially_supported"
 
 # Bank redirect configs for allowed banks
 [bank_config]
