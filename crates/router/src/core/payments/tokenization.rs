@@ -387,35 +387,33 @@ where
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
-                let (
-                    (resp, duplication_check, network_token_requestor_ref_id),
-                    network_token_resp,
-                ) = if !state.conf.locker.locker_enabled {
-                    let (res, dc) = skip_saving_card_in_locker(
-                        platform.get_provider(),
-                        payment_method_create_request.to_owned(),
-                    )
-                    .await?;
-                    ((res, dc, None), None)
-                } else {
-                    let payment_method_status = common_enums::PaymentMethodStatus::from(
-                        save_payment_method_data.attempt_status,
-                    );
-                    pm_status = Some(payment_method_status);
-                    Box::pin(save_card_and_network_token_in_locker(
-                        state,
-                        customer_id.clone(),
-                        payment_method_status,
-                        payment_method_data.clone(),
-                        vault_operation,
-                        payment_method_info,
-                        platform,
-                        payment_method_create_request.clone(),
-                        is_network_tokenization_enabled,
-                        business_profile,
-                    ))
-                    .await?
-                };
+                let ((resp, duplication_check, network_token_requestor_ref_id), network_token_resp) =
+                    if !state.conf.locker.locker_enabled {
+                        let (res, dc) = skip_saving_card_in_locker(
+                            platform.get_provider(),
+                            payment_method_create_request.to_owned(),
+                        )
+                        .await?;
+                        ((res, dc, None), None)
+                    } else {
+                        let payment_method_status = common_enums::PaymentMethodStatus::from(
+                            save_payment_method_data.attempt_status,
+                        );
+                        pm_status = Some(payment_method_status);
+                        Box::pin(save_card_and_network_token_in_locker(
+                            state,
+                            customer_id.clone(),
+                            payment_method_status,
+                            payment_method_data.clone(),
+                            vault_operation,
+                            payment_method_info,
+                            platform,
+                            payment_method_create_request.clone(),
+                            is_network_tokenization_enabled,
+                            business_profile,
+                        ))
+                        .await?
+                    };
                 let network_token_locker_id = match network_token_resp {
                     Some(ref token_resp) => {
                         if network_token_requestor_ref_id.is_some() {
@@ -565,14 +563,17 @@ where
                                 .as_deref()
                                 .get_required_value("locker_id")
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Vaulted payment method is missing its vault reference")?;
-                            let payment_method = payment_methods::cards::find_payment_method_by_vault_reference(
-                                state,
-                                platform.get_provider().get_key_store(),
-                                vault_reference,
-                                platform.get_provider().get_account().storage_scheme,
-                            )
-                            .await;
+                                .attach_printable(
+                                    "Vaulted payment method is missing its vault reference",
+                                )?;
+                            let payment_method =
+                                payment_methods::cards::find_payment_method_by_vault_reference(
+                                    state,
+                                    platform.get_provider().get_key_store(),
+                                    vault_reference,
+                                    platform.get_provider().get_account().storage_scheme,
+                                )
+                                .await;
                             payment_method_id = match &payment_method {
                                 Ok(pm) => pm.payment_method_id.clone(),
                                 Err(_) => generate_id(consts::ID_LENGTH, "pm"),
@@ -665,14 +666,17 @@ where
                                 .as_deref()
                                 .get_required_value("locker_id")
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Vaulted payment method is missing its vault reference")?;
-                            let payment_method = payment_methods::cards::find_payment_method_by_vault_reference(
-                                state,
-                                platform.get_provider().get_key_store(),
-                                vault_reference,
-                                platform.get_provider().get_account().storage_scheme,
-                            )
-                            .await;
+                                .attach_printable(
+                                    "Vaulted payment method is missing its vault reference",
+                                )?;
+                            let payment_method =
+                                payment_methods::cards::find_payment_method_by_vault_reference(
+                                    state,
+                                    platform.get_provider().get_key_store(),
+                                    vault_reference,
+                                    platform.get_provider().get_account().storage_scheme,
+                                )
+                                .await;
                             payment_method_id = match &payment_method {
                                 Ok(pm) => pm.payment_method_id.clone(),
                                 Err(_) => generate_id(consts::ID_LENGTH, "pm"),

@@ -1918,7 +1918,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     resp.client_secret = existing_pm.client_secret.clone();
 
                     if let Some(card) = req.card.clone() {
-
                         self.delete_card_from_locker(
                             &customer_id,
                             merchant_id,

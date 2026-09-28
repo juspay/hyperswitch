@@ -122,7 +122,9 @@ impl
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<(domain::PaymentMethodResponse, String)> for payment_methods::PaymentMethodResponse {
+impl ForeignFrom<(domain::PaymentMethodResponse, String)>
+    for payment_methods::PaymentMethodResponse
+{
     fn foreign_from(
         (domain_payment_method_response, payment_method_id): (
             domain::PaymentMethodResponse,
