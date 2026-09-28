@@ -2,6 +2,8 @@
 use strum::IntoEnumIterator;
 pub mod access_token;
 pub mod gateway;
+#[cfg(feature = "v1")]
+pub mod guards;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -600,13 +602,16 @@ pub async fn payouts_create_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // Validate create request
-    let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_profile_id(profile_id.clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    // Validate create request
+    let (payout_id, payout_method_data, profile_id, customer, payment_method) = Box::pin(
+        validator::validate_create_request(&state, &platform, &req, &dimensions),
+    )
+    .await?;
+
+    let dimensions = dimensions.with_profile_id(profile_id.clone());
     // Create DB entries
     let mut payout_data = Box::pin(payout_create_db_entries(
         &state,
@@ -1506,6 +1511,37 @@ pub async fn call_connector_payout(
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
         helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
     }
+
+    #[cfg(feature = "v1")]
+    let is_blocked = guards::is_payout_blocked(state, platform, payout_data, dimensions).await?;
+    #[cfg(feature = "v2")]
+    let is_blocked = false;
+
+    if !is_blocked {
+        Box::pin(run_payout_connector_flows(
+            state,
+            platform,
+            header_payload,
+            connector_data,
+            payout_data,
+            dimensions,
+        ))
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn run_payout_connector_flows(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    let payouts = &payout_data.payouts.to_owned();
+
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
         payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
