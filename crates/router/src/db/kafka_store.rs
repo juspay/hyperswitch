@@ -395,7 +395,6 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         customer_id: &id_type::CustomerId,
