@@ -1501,6 +1501,9 @@ admin_secret = ""                       # Shared secret sent as x-admin-secret o
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
+keep_alive_interval = 30                # HTTP/2 PING keepalive interval in Seconds on the shared channel
+keep_alive_timeout = 20                 # Time in Seconds to wait for a keepalive PING acknowledgement before the connection is treated as dead
+tcp_keepalive = 60                      # TCP keepalive idle time in Seconds on the shared channel
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
