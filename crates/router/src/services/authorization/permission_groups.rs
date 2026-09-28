@@ -230,36 +230,36 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AlertsManage
             | Self::MonitoringView
             | Self::MonitoringManage => true,
-            PermissionGroup::OperationsView
-            | PermissionGroup::OperationsManage
-            | PermissionGroup::ConnectorsView
-            | PermissionGroup::ConnectorsManage
-            | PermissionGroup::WorkflowsView
-            | PermissionGroup::WorkflowsManage
-            | PermissionGroup::AnalyticsView
-            | PermissionGroup::UsersView
-            | PermissionGroup::UsersManage
-            | PermissionGroup::AccountView
-            | PermissionGroup::AccountManage
-            | PermissionGroup::WebhooksView
-            | PermissionGroup::WebhooksManage
-            | PermissionGroup::ApiKeysView
-            | PermissionGroup::ApiKeysManage
-            | PermissionGroup::CloneConnectorManage
-            | PermissionGroup::ThemeView
-            | PermissionGroup::ThemeManage
-            | PermissionGroup::ConfigurationsView
-            | PermissionGroup::ConfigurationsManage
-            | PermissionGroup::ReconSourcesView
-            | PermissionGroup::ReconSourcesManage
-            | PermissionGroup::ReconExceptionsView
-            | PermissionGroup::ReconExceptionsManage
-            | PermissionGroup::ReconTransactionsView
-            | PermissionGroup::ReconTransactionsManage
-            | PermissionGroup::ReconRulesView
-            | PermissionGroup::ReconRulesManage
-            | PermissionGroup::OffersView
-            | PermissionGroup::OffersManage => false,
+            Self::OperationsView
+            | Self::OperationsManage
+            | Self::ConnectorsView
+            | Self::ConnectorsManage
+            | Self::WorkflowsView
+            | Self::WorkflowsManage
+            | Self::AnalyticsView
+            | Self::UsersView
+            | Self::UsersManage
+            | Self::AccountView
+            | Self::AccountManage
+            | Self::WebhooksView
+            | Self::WebhooksManage
+            | Self::ApiKeysView
+            | Self::ApiKeysManage
+            | Self::CloneConnectorManage
+            | Self::ThemeView
+            | Self::ThemeManage
+            | Self::ConfigurationsView
+            | Self::ConfigurationsManage
+            | Self::ReconSourcesView
+            | Self::ReconSourcesManage
+            | Self::ReconExceptionsView
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionsView
+            | Self::ReconTransactionsManage
+            | Self::ReconRulesView
+            | Self::ReconRulesManage
+            | Self::OffersView
+            | Self::OffersManage => false,
         }
     }
 }
