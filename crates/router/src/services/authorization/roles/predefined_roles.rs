@@ -124,6 +124,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
                 PermissionGroup::AccountManage,
                 PermissionGroup::ReconSourcesView,
                 PermissionGroup::ReconSourcesManage,
+                PermissionGroup::CloneConnectorManage,
                 PermissionGroup::ReconExceptionsView,
                 PermissionGroup::ReconExceptionsManage,
                 PermissionGroup::ReconTransactionsView,

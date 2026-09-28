@@ -12,6 +12,7 @@ pub trait PermissionGroupExt {
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
     fn get_role_product_category(&self) -> RoleProductCategory;
+    fn is_internal_permission_group(&self) -> bool;
 }
 
 impl PermissionGroupExt for PermissionGroup {
@@ -122,7 +123,11 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ApiKeysView => vec![Self::ApiKeysView, Self::AccountView],
             Self::ApiKeysManage => vec![Self::ApiKeysView, Self::ApiKeysManage, Self::AccountView],
 
-            Self::CloneConnectorManage => vec![Self::CloneConnectorManage],
+            Self::CloneConnectorManage => vec![
+                Self::CloneConnectorManage,
+                Self::ConnectorsManage,
+                Self::ConnectorsView,
+            ],
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
 
@@ -216,6 +221,50 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconTransactionsManage
             | Self::ReconRulesView
             | Self::ReconRulesManage => RoleProductCategory::Recon,
+        }
+    }
+
+    fn is_internal_permission_group(&self) -> bool {
+        match self {
+            Self::CloneConnectorManage
+            | Self::AlertsView
+            | Self::AlertsManage
+            | Self::MonitoringView
+            | Self::MonitoringManage => true,
+            PermissionGroup::OperationsView
+            | PermissionGroup::OperationsManage
+            | PermissionGroup::ConnectorsView
+            | PermissionGroup::ConnectorsManage
+            | PermissionGroup::WorkflowsView
+            | PermissionGroup::WorkflowsManage
+            | PermissionGroup::AnalyticsView
+            | PermissionGroup::UsersView
+            | PermissionGroup::UsersManage
+            | PermissionGroup::AccountView
+            | PermissionGroup::AccountManage
+            | PermissionGroup::WebhooksView
+            | PermissionGroup::WebhooksManage
+            | PermissionGroup::ApiKeysView
+            | PermissionGroup::ApiKeysManage
+            | PermissionGroup::CloneConnectorManage
+            | PermissionGroup::ThemeView
+            | PermissionGroup::ThemeManage
+            | PermissionGroup::ConfigurationsView
+            | PermissionGroup::ConfigurationsManage
+            | PermissionGroup::ReconSourcesView
+            | PermissionGroup::ReconSourcesManage
+            | PermissionGroup::ReconExceptionsView
+            | PermissionGroup::ReconExceptionsManage
+            | PermissionGroup::ReconTransactionsView
+            | PermissionGroup::ReconTransactionsManage
+            | PermissionGroup::ReconRulesView
+            | PermissionGroup::ReconRulesManage
+            | PermissionGroup::OffersView
+            | PermissionGroup::OffersManage
+            | PermissionGroup::AlertsView
+            | PermissionGroup::AlertsManage
+            | PermissionGroup::MonitoringView
+            | PermissionGroup::MonitoringManage => false,
         }
     }
 }

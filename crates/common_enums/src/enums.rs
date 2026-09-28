@@ -9691,19 +9691,6 @@ pub enum PermissionGroup {
     MonitoringManage,
 }
 
-impl PermissionGroup {
-    pub fn is_internal_permission_group(&self) -> bool {
-        matches!(
-            self,
-            Self::CloneConnectorManage
-                | Self::AlertsView
-                | Self::AlertsManage
-                | Self::MonitoringView
-                | Self::MonitoringManage
-        )
-    }
-}
-
 #[derive(
     Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, strum::EnumIter,
 )]
