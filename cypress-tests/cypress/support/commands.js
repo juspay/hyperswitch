@@ -3248,6 +3248,18 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
         expect(reqData.customer_id ?? null, "customer_id").to.equal(
           response.body.customer_id
         );
+        // Assert the configured stable card fields when a response body is
+        // provided (e.g. card_isin/last4_digits for saved-card setups)
+        if (resData?.body?.card?.card_isin) {
+          expect(response.body.card, "card.card_isin")
+            .to.have.property("card_isin")
+            .to.equal(resData.body.card.card_isin);
+        }
+        if (resData?.body?.card?.last4_digits) {
+          expect(response.body.card, "card.last4_digits")
+            .to.have.property("last4_digits")
+            .to.equal(resData.body.card.last4_digits);
+        }
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
         defaultErrorHandler(response, resData);
@@ -8390,9 +8402,7 @@ Cypress.Commands.add(
 
         if (resData?.status === 400) {
           // Expected-error cases (e.g. malformed card_bin deserialization
-          // failures surface as HTTP 400 IR_06). Only the stable error
-          // fields are asserted — the message embeds a JSON column number
-          // that shifts with the dynamic client_secret.
+          // failures surface as HTTP 400 IR_06).
           expect(response.status, "status").to.equal(resData.status);
           expect(response.body, "error").to.have.property("error");
           expect(response.body.error, "error.code")
@@ -8402,6 +8412,14 @@ Cypress.Commands.add(
             expect(response.body.error, "error.error_type")
               .to.have.property("error_type")
               .to.equal(resData.body.error.error_type);
+          }
+          if (resData.body.error.message) {
+            // The deserialize message embeds a JSON column number that
+            // shifts with the dynamic client_secret, so the configured
+            // message is matched as a stable prefix of the actual message.
+            expect(response.body.error, "error.message")
+              .to.have.property("message")
+              .to.include(resData.body.error.message);
           }
         } else if (response.status === 200) {
           expect(response.body)

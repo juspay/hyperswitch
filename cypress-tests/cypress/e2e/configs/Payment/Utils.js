@@ -585,12 +585,6 @@ export const CONNECTOR_LISTS = {
     // tests in 40-ExternalVault.cy.js until the connector-service side
     // adds a fallback.
     EXTERNAL_VAULT: ["fiservcommercehub", "ilixium", "finix", "payu"],
-    // The mock fiuu environment never surfaces saved `card` payment methods
-    // in the payments client list (customer_payment_methods is [] regardless
-    // of blocklist-guard state), so the hardcoded expected_card_isins in
-    // Commons eligibility_api cannot be satisfied; skip only the client-list
-    // assertions, the guard/eligibility tests are unaffected.
-    SAVED_CARD_FILTERING: ["fiuu"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
@@ -617,6 +611,15 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    // Spec 54's saved-card filtering client-list assertions run only on
+    // bankofamerica — the one connector environment verified to surface
+    // saved `card` payment methods in the payments client list. The mock
+    // fiuu environment never surfaces them (customer_payment_methods is []
+    // regardless of blocklist-guard state) and other connectors'
+    // environments are unverified; extend the list as connector runs prove
+    // support. The guard toggles, eligibility checks, malformed-BIN tests,
+    // and cleanup in spec 54 keep running for every connector.
+    SAVED_CARD_FILTERING: ["bankofamerica"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: [

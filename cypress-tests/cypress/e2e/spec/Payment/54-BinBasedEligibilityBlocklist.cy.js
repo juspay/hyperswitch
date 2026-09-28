@@ -12,9 +12,9 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       originalCustomerId = globalState.get("customerId");
-      savedCardFilteringSkip = utils.shouldExcludeConnector(
+      savedCardFilteringSkip = utils.shouldIncludeConnector(
         globalState.get("connectorId"),
-        utils.CONNECTOR_LISTS.EXCLUDE.SAVED_CARD_FILTERING
+        utils.CONNECTOR_LISTS.INCLUDE.SAVED_CARD_FILTERING
       );
     });
   });

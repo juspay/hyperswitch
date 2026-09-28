@@ -4570,7 +4570,12 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          card: {
+            card_isin: "411111",
+            last4_digits: "1111",
+          },
+        },
       },
     }),
     SavedCard400005: getCustomExchange({
@@ -4581,7 +4586,12 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          card: {
+            card_isin: "400005",
+            last4_digits: "5556",
+          },
+        },
       },
     }),
     SavedCard424242: getCustomExchange({
@@ -4592,7 +4602,12 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          card: {
+            card_isin: "424242",
+            last4_digits: "4242",
+          },
+        },
       },
     }),
     SavedCard555555: getCustomExchange({
@@ -4603,7 +4618,12 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          card: {
+            card_isin: "555555",
+            last4_digits: "4444",
+          },
+        },
       },
     }),
     // Test 3: 8-digit BIN-only input matched by the 6-digit card_bin entry
@@ -4810,8 +4830,9 @@ export const connectorDetails = {
       },
     }),
     // Test 11: 5-digit card_bin fails request deserialization (IR_06).
-    // The error message embeds a JSON column number that shifts with the
-    // dynamic client_secret, so only the stable fields are asserted.
+    // The server message embeds a JSON column number that shifts with the
+    // dynamic client_secret, so the configured message is the stable prefix
+    // (asserted with a substring match).
     MalformedBinError5Digit: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4826,6 +4847,8 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
+            message:
+              "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number",
             code: "IR_06",
           },
         },
@@ -4846,6 +4869,8 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
+            message:
+              "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number",
             code: "IR_06",
           },
         },
@@ -4866,6 +4891,8 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
+            message:
+              "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number",
             code: "IR_06",
           },
         },
