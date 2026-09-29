@@ -741,7 +741,7 @@ async fn restore_pre_call_state<F, D>(
         network_transaction_id: attempt.network_transaction_id.clone(),
         network_transaction_link_id: attempt.network_transaction_link_id.clone(),
         is_stored_credential: attempt.is_stored_credential,
-        request_extended_authorization: attempt.request_extended_authorization.clone(),
+        request_extended_authorization: attempt.request_extended_authorization,
         external_surcharge_details: attempt.external_surcharge_details.clone(),
         applied_offer_details: attempt.applied_offer_details.clone(),
         active_frm_id: attempt.active_frm_id.clone(),
