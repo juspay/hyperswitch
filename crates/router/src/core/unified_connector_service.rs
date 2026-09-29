@@ -2845,6 +2845,7 @@ pub fn parse_merchant_payout_reference_id(id: &str) -> Option<id_type::PayoutRef
 pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
     external_vault_merchant_connector_account: MerchantConnectorAccountType,
     connectors: &hyperswitch_domain_models::connector_endpoints::Connectors,
+    proxy: &hyperswitch_interfaces::types::Proxy,
 ) -> CustomResult<String, UnifiedConnectorServiceError> {
     let connector_name = external_vault_merchant_connector_account
         .get_connector_name()
@@ -2911,6 +2912,22 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
                 }
             };
 
+            // HyperswitchVault's egress proxy is a deployment-wide concern (reaching the
+            // SaaS vault from a network with no direct internet access), not a per-merchant
+            // one like VGS's MITM proxy — so it's sourced from the router's own [proxy]
+            // config rather than per-MCA metadata.
+            let proxy_url = proxy
+                .https_url
+                .as_ref()
+                .or(proxy.http_url.as_ref())
+                .map(|url| {
+                    url.parse::<url::Url>()
+                        .map(common_utils::types::Url::wrap)
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable("Failed to parse configured proxy URL")
+                })
+                .transpose()?;
+
             external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
                 vault_connector_type:
                     external_services::grpc_client::unified_connector_service::VaultConnectorType::Transformation,
@@ -2922,6 +2939,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
                             api_key,
                             profile_id,
                         },
+                        proxy_url,
                     },
                 ),
             }
@@ -2946,6 +2964,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
     connectors: &hyperswitch_domain_models::connector_endpoints::Connectors,
+    proxy: &hyperswitch_interfaces::types::Proxy,
 ) -> CustomResult<String, UnifiedConnectorServiceError> {
     let connector = external_vault_merchant_connector_account.get_connector_name();
 
@@ -3008,6 +3027,22 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             };
 
+            // HyperswitchVault's egress proxy is a deployment-wide concern (reaching the
+            // SaaS vault from a network with no direct internet access), not a per-merchant
+            // one like VGS's MITM proxy — so it's sourced from the router's own [proxy]
+            // config rather than per-MCA metadata.
+            let proxy_url = proxy
+                .https_url
+                .as_ref()
+                .or(proxy.http_url.as_ref())
+                .map(|url| {
+                    url.parse::<url::Url>()
+                        .map(common_utils::types::Url::wrap)
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable("Failed to parse configured proxy URL")
+                })
+                .transpose()?;
+
             external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
                 vault_connector_type:
                     external_services::grpc_client::unified_connector_service::VaultConnectorType::Transformation,
@@ -3019,6 +3054,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                             api_key,
                             profile_id,
                         },
+                        proxy_url,
                     },
                 ),
             }
