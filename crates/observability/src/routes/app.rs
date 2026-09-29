@@ -13,7 +13,6 @@ use actix_web::{web, Scope};
 
 #[cfg(feature = "v1")]
 use super::monitoring;
-
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
