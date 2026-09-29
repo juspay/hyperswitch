@@ -75,6 +75,13 @@ pub enum ObservabilityError {
     #[error("Authentication failed")]
     Unauthorized,
 
+    #[error("Invalid session credential")]
+    InvalidSession,
+    #[error("Monitoring permission denied")]
+    MonitoringForbidden,
+    #[error("Router unavailable")]
+    RouterUnavailable,
+
     /// The request body was structurally valid but contained unusable values.
     #[error("The request body is invalid")]
     InvalidRequest,
@@ -121,6 +128,15 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 1,
                 "API key not provided or invalid",
             )),
+            Self::InvalidSession => {
+                ApiErrorResponse::Unauthorized(ApiError::new("IR", 6, "Invalid session credential"))
+            }
+            Self::MonitoringForbidden => {
+                ApiErrorResponse::Forbidden(ApiError::new("IR", 7, "Monitoring permission denied"))
+            }
+            Self::RouterUnavailable => {
+                ApiErrorResponse::ServiceUnavailable(ApiError::new("HE", 4, "Router unavailable"))
+            }
             Self::InvalidRequest => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 4,

@@ -33,9 +33,10 @@ metrics_enabled = false
 [auth]
 internal_api_key = "observability_dev_key"
 
-# Required Router listener origin (no /api ingress prefix). Replace for each deployment.
-[router]
-base_url = "http://localhost:8080"
+# Optional Router listener origin (no /api ingress prefix).
+# Without it, monitoring auth/session return 503; alert-only deployments need not set it.
+# [router]
+# base_url = "http://localhost:8080"
 
 # How the secrets above are resolved at boot. `no_encryption` takes them literally; the KMS
 # variants are compiled in under the `release` feature and treat them as handles to resolve.

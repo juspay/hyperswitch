@@ -227,19 +227,17 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 
 ## Grafana gateway authorization
 
-`POST /monitoring/grafana/auth` requires `[router] base_url` (or
-`OBSERVABILITY__ROUTER__BASE_URL`) at startup, set to the internal Router **origin** without
-`/api`. Alert-only deployments must also supply this configuration when upgrading. A v2 build
-rejects this integration at startup and does not register the route. For rollback, remove the
-public gateway routing or deploy the previous application version; do not remove the required
-Router configuration while this version is running. Deploy a build with
-this route, set the Router origin, then route gateway requests to the Observability service;
-verify cross-namespace connectivity and the exact Control Center host's `login_token` cookie
+Configure `[router] base_url` (or `OBSERVABILITY__ROUTER__BASE_URL`) with the internal Router
+**origin** without `/api` to enable monitoring authorization. Router configuration is optional:
+alert-only deployments can omit it; valid monitoring requests then fail closed with 503.
+A v2 build rejects a configured Router integration and does not register monitoring routes.
+For rollback, remove public gateway routing or remove Router configuration and restart.
+Verify cross-namespace connectivity and the exact Control Center host's `grafana_token` cookie
 in sandbox before enabling Grafana traffic.
 
 The gateway POSTs `{ "token": "<login_token>" }` (never a URL parameter). Observability calls
 Router `POST /user/internal/authorize` with the hard-coded `ProfileReconRuleRead` permission,
-then `GET /user` with **the same token**. Both Authorization and Cookie are populated with the
+then `GET /user` with **the same token**. For the user lookup, both Authorization and Cookie are populated with the
 same token for Router's `force_cookies` variants; no browser-provided identity, role or tenant
 header is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
 active user's email. The response is only `{ "grafana_login": "cc_<sha256(email)>" }`, where
@@ -251,7 +249,11 @@ email would create a new Grafana login. A follow-up switches the fixed permissio
 Missing/malformed credentials and Router 401 return 401. Router's permission denial returns
 403; all transport failures, malformed responses, and unexpected Router statuses return 503.
 Router can currently return a 5xx for an inactive user lookup; this maps to 503 but still denies
-access. All responses carry `Cache-Control: no-store`; no credential, email or login is logged.
+access. Both monitoring handlers use the shared `server_wrap` request/auth/error pipeline (an explicit
+success renderer adds the session cookie). Header extraction lives in `auth`, following Router's
+Bearer helper pattern. Authorization remains in core because it requires asynchronous Router
+calls; `NoAuth` explicitly means there is no additional internal API-key gate.
+All responses carry `Cache-Control: no-store`; no credential, email or login is logged.
 The gateway must remove browser-supplied auth-proxy headers, inject only `grafana_login` as
 `X-WEBAUTH-USER`, strip the Control Center token before Grafana, and fail closed on non-200 or
 malformed response. No Grafana service-account token goes to the frontend. This route is allowed

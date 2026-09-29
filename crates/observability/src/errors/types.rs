@@ -72,6 +72,10 @@ pub enum ApiErrorResponse {
     BadRequest(ApiError),
     /// 401 — authentication failed.
     Unauthorized(ApiError),
+    /// 403 — monitoring entitlement denied.
+    Forbidden(ApiError),
+    /// 503 — Router dependency unavailable.
+    ServiceUnavailable(ApiError),
     /// 404 — the destination named in the path is not configured.
     NotFound(ApiError),
     /// 429 — a configured mutable-state cap would be exceeded.
@@ -92,6 +96,8 @@ impl ApiErrorResponse {
         match self {
             Self::BadRequest(error)
             | Self::Unauthorized(error)
+            | Self::Forbidden(error)
+            | Self::ServiceUnavailable(error)
             | Self::NotFound(error)
             | Self::TooManyRequests(error)
             | Self::InternalServerError(error)
@@ -106,9 +112,10 @@ impl ApiErrorResponse {
         match self {
             Self::BadRequest(_)
             | Self::Unauthorized(_)
+            | Self::Forbidden(_)
             | Self::NotFound(_)
             | Self::TooManyRequests(_) => ErrorType::InvalidRequestError.as_str(),
-            Self::InternalServerError(_) | Self::BadGateway(_) => {
+            Self::InternalServerError(_) | Self::BadGateway(_) | Self::ServiceUnavailable(_) => {
                 ErrorType::ObservabilityError.as_str()
             }
         }

@@ -9,11 +9,80 @@ use std::{
     },
 };
 
-use actix_web::{test, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{http::StatusCode, test, web, App, HttpRequest, HttpResponse, HttpServer};
 use serde_json::{json, Value};
 
 use super::*;
 use crate::core::router_client::RouterClient;
+
+async fn test_state(client: Option<&RouterClient>) -> AppState {
+    use crate::{db::Store, domain::notifier::Registry, settings::Database};
+    AppState {
+        conf: Arc::new(Default::default()),
+        router_transport: client.cloned().map(Arc::new),
+        chat: Arc::new(Registry::default()),
+        email: Arc::new(Registry::default()),
+        metrics: None,
+        // No idle connections: monitoring never touches the database.
+        store: Arc::new(
+            Store::new(&Database {
+                username: "unused".into(),
+                host: "localhost".into(),
+                dbname: "unused".into(),
+                min_idle_pool_size: 0,
+                ..Default::default()
+            })
+            .await
+            .unwrap(),
+        ),
+    }
+}
+
+async fn session_with_client(client: Option<&RouterClient>, request: &HttpRequest) -> HttpResponse {
+    let app = test::init_service(
+        App::new().service(crate::routes::Monitoring::server(test_state(client).await)),
+    )
+    .await;
+    let mut incoming = test::TestRequest::post().uri("/monitoring/grafana/session");
+    for (name, value) in request.headers() {
+        incoming = incoming.append_header((name.clone(), value.clone()));
+    }
+    test::call_service(&app, incoming.to_request())
+        .await
+        .into_parts()
+        .1
+        .map_into_boxed_body()
+}
+
+#[actix_web::test]
+async fn auth_route_without_router_and_bad_json_fail_closed() {
+    let app = test::init_service(
+        App::new().service(crate::routes::Monitoring::server(test_state(None).await)),
+    )
+    .await;
+    for (body, status) in [
+        (r#"{"token":"signed.token.value"}"#, 503),
+        (r#"{"token":""}"#, 401),
+        ("not json", 401),
+    ] {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/monitoring/grafana/auth")
+                .insert_header((header::CONTENT_TYPE, "application/json"))
+                .set_payload(body)
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status().as_u16(), status);
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL).unwrap(),
+            "no-store"
+        );
+        let body: Value = test::read_body_json(response).await;
+        assert!(body.get("error").is_some());
+    }
+}
 
 #[actix_web::test]
 async fn session_cookie_and_fail_closed_contract() {

@@ -17,6 +17,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
         match self {
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::Forbidden(_) => StatusCode::FORBIDDEN,
+            Self::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,

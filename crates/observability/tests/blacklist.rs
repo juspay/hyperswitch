@@ -214,6 +214,7 @@ fn state(max_active_rules: i64) -> AppState {
     }))
     .unwrap();
     AppState {
+        router_transport: None,
         conf: Arc::new(conf),
         chat: Arc::new(Registry::default()),
         email: Arc::new(Registry::default()),

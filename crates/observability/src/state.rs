@@ -40,7 +40,7 @@ use crate::{
 pub struct AppState {
     /// The resolved configuration.
     pub conf: Arc<Settings<RawSecret>>,
-    /// Internal Router HTTP transport; absent only when its construction failed (fail closed).
+    /// Router transport; absent when unconfigured or construction failed (auth fails closed).
     pub router_transport: Option<Arc<RouterClient>>,
     /// Chat destinations, by the id a request names.
     pub chat: Arc<Registry<dyn ChatNotifier>>,
@@ -113,13 +113,18 @@ impl AppState {
                 .expect("Failed to connect to the observability database"),
         );
 
-        let router_transport = match RouterClient::new(raw_conf.router.base_url.clone()) {
-            Ok(client) => Some(Arc::new(client)),
-            Err(_) => {
-                logger::error!("Internal Router client unavailable; Grafana auth will fail closed");
-                None
-            }
-        };
+        let router_transport = raw_conf
+            .router
+            .as_ref()
+            .and_then(|config| match RouterClient::new(config.base_url.clone()) {
+                Ok(client) => Some(Arc::new(client)),
+                Err(_) => {
+                    logger::error!(
+                        "Internal Router client unavailable; Grafana auth will fail closed"
+                    );
+                    None
+                }
+            });
 
         Self {
             conf: Arc::new(raw_conf),

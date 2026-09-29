@@ -40,6 +40,28 @@ where
     Q: Serialize + Debug,
     T: Debug,
 {
+    server_wrap_with_response(state, request, payload, handler, auth, |response| {
+        HttpResponse::Ok().json(response)
+    })
+    .await
+}
+
+/// The same request/auth/error pipeline, with an explicit success renderer for non-JSON APIs.
+#[instrument(skip_all)]
+pub async fn server_wrap_with_response<T, Q, F, Fut, R>(
+    state: AppState,
+    request: &HttpRequest,
+    payload: T,
+    handler: F,
+    auth: &dyn Authenticate,
+    render: R,
+) -> HttpResponse
+where
+    F: FnOnce(AppState, T) -> Fut,
+    Fut: Future<Output = error_stack::Result<Q, ObservabilityError>>,
+    T: Debug,
+    R: FnOnce(Q) -> HttpResponse,
+{
     let request_id = RequestId::extract(request)
         .await
         .map(|id| id.as_str().to_owned())
@@ -60,7 +82,7 @@ where
     }
 
     match handler(state, payload).await {
-        Ok(response) => HttpResponse::Ok().json(response),
+        Ok(response) => render(response),
         Err(error) => {
             // The full report — every `attach_printable` on the way up — goes to the log. The
             // client gets only what `ErrorSwitch` produces.
