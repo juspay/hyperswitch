@@ -21,7 +21,7 @@ use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
     api::{IncomingWebhookEventMetadata, WebhookResponse},
     mandates::CommonMandateReference,
-    payments::{payment_attempt::PaymentAttempt, HeaderPayload},
+    payments::{payment_attempt::PaymentAttempt, HeaderPayload, PaymentIntent},
     router_flow_types::{PaymentAttemptAssociatedData, WebhookAssociatedData},
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
@@ -2641,7 +2641,7 @@ async fn update_payment_method_associated_data(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_attempt: &PaymentAttempt,
-    payment_intent: &domain::PaymentIntent,
+    payment_intent: &PaymentIntent,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     connector_disclosed_details: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {

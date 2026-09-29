@@ -1954,6 +1954,34 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::YorkshireBuildingSociety => {
                 Ok(Self::YorkshireBuildingSociety)
             }
+            payments_grpc::BankNames::SpareBank1Gudbrandsdal => Ok(Self::SpareBank1Gudbrandsdal),
+            payments_grpc::BankNames::SpareBank1HallingdalValdres => {
+                Ok(Self::SpareBank1HallingdalValdres)
+            }
+            payments_grpc::BankNames::SpareBank1LomOgSkjak => Ok(Self::SpareBank1LomOgSkjak),
+            payments_grpc::BankNames::SpareBank1Modum => Ok(Self::SpareBank1Modum),
+            payments_grpc::BankNames::SpareBank1Nordmore => Ok(Self::SpareBank1Nordmore),
+            payments_grpc::BankNames::SpareBank1RingerikeHadeland => {
+                Ok(Self::SpareBank1RingerikeHadeland)
+            }
+            payments_grpc::BankNames::SpareBank1Smn => Ok(Self::SpareBank1Smn),
+            payments_grpc::BankNames::SpareBank1SrBank => Ok(Self::SpareBank1SrBank),
+            payments_grpc::BankNames::SpareBank1SoreSunnmore => Ok(Self::SpareBank1SoreSunnmore),
+            payments_grpc::BankNames::SpareBank1SorostNorgeBv => Ok(Self::SpareBank1SorostNorgeBv),
+            payments_grpc::BankNames::SpareBank1SorostNorgeTelemark => {
+                Ok(Self::SpareBank1SorostNorgeTelemark)
+            }
+            payments_grpc::BankNames::SpareBank1OstfoldAkershus => {
+                Ok(Self::SpareBank1OstfoldAkershus)
+            }
+            payments_grpc::BankNames::SpareBank1Ostlandet => Ok(Self::SpareBank1Ostlandet),
+            payments_grpc::BankNames::CitiHandlowy => Ok(Self::CitiHandlowy),
+            payments_grpc::BankNames::DeutscheBankPolska => Ok(Self::DeutscheBankPolska),
+            payments_grpc::BankNames::IngBankSlaski => Ok(Self::IngBankSlaski),
+            payments_grpc::BankNames::IngDiba => Ok(Self::IngDiba),
+            payments_grpc::BankNames::NordeaDirect => Ok(Self::NordeaDirect),
+            payments_grpc::BankNames::SantanderUk => Ok(Self::SantanderUk),
+            payments_grpc::BankNames::SwedbankSparbankerna => Ok(Self::SwedbankSparbankerna),
             payments_grpc::BankNames::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )

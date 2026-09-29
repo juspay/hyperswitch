@@ -6013,6 +6013,34 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::VestjyskBank => Ok(Self::VestjyskBank),
             common_enums::BankNames::VossSparebank => Ok(Self::VossSparebank),
             common_enums::BankNames::YorkshireBuildingSociety => Ok(Self::YorkshireBuildingSociety),
+            common_enums::BankNames::SpareBank1Gudbrandsdal => Ok(Self::SpareBank1Gudbrandsdal),
+            common_enums::BankNames::SpareBank1HallingdalValdres => {
+                Ok(Self::SpareBank1HallingdalValdres)
+            }
+            common_enums::BankNames::SpareBank1LomOgSkjak => Ok(Self::SpareBank1LomOgSkjak),
+            common_enums::BankNames::SpareBank1Modum => Ok(Self::SpareBank1Modum),
+            common_enums::BankNames::SpareBank1Nordmore => Ok(Self::SpareBank1Nordmore),
+            common_enums::BankNames::SpareBank1RingerikeHadeland => {
+                Ok(Self::SpareBank1RingerikeHadeland)
+            }
+            common_enums::BankNames::SpareBank1Smn => Ok(Self::SpareBank1Smn),
+            common_enums::BankNames::SpareBank1SrBank => Ok(Self::SpareBank1SrBank),
+            common_enums::BankNames::SpareBank1SoreSunnmore => Ok(Self::SpareBank1SoreSunnmore),
+            common_enums::BankNames::SpareBank1SorostNorgeBv => Ok(Self::SpareBank1SorostNorgeBv),
+            common_enums::BankNames::SpareBank1SorostNorgeTelemark => {
+                Ok(Self::SpareBank1SorostNorgeTelemark)
+            }
+            common_enums::BankNames::SpareBank1OstfoldAkershus => {
+                Ok(Self::SpareBank1OstfoldAkershus)
+            }
+            common_enums::BankNames::SpareBank1Ostlandet => Ok(Self::SpareBank1Ostlandet),
+            common_enums::BankNames::CitiHandlowy => Ok(Self::CitiHandlowy),
+            common_enums::BankNames::DeutscheBankPolska => Ok(Self::DeutscheBankPolska),
+            common_enums::BankNames::IngBankSlaski => Ok(Self::IngBankSlaski),
+            common_enums::BankNames::IngDiba => Ok(Self::IngDiba),
+            common_enums::BankNames::NordeaDirect => Ok(Self::NordeaDirect),
+            common_enums::BankNames::SantanderUk => Ok(Self::SantanderUk),
+            common_enums::BankNames::SwedbankSparbankerna => Ok(Self::SwedbankSparbankerna),
         }
     }
 }
@@ -9148,6 +9176,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            payout_method_type: None,
         })
     }
 }
