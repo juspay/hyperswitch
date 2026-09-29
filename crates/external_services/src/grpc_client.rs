@@ -10,6 +10,10 @@ pub mod revenue_recovery;
 
 /// gRPC based Unified Connector Service Client interface implementation
 pub mod unified_connector_service;
+/// Selects between UCS-as-a-gRPC-service and UCS-as-an-in-process-library —
+/// see [`unified_connector_service_transport::UcsTransport`].
+#[cfg(feature = "ucs-library-mode")]
+pub mod unified_connector_service_transport;
 
 /// Deja gRPC egress boundary: the transport-layer tower Service wrapper.
 /// Installed at transport construction
