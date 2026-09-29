@@ -28,9 +28,7 @@ use hyperswitch_domain_models::{
     mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
-use hyperswitch_masking::ExposeInterface;
-#[cfg(feature = "v2")]
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use storage_impl::behaviour::Conversion;
@@ -608,6 +606,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -637,6 +637,8 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1045,6 +1047,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _provider: &domain::Provider,
+        _customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1214,6 +1218,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -1231,6 +1237,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1376,6 +1384,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -1393,6 +1403,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1416,6 +1428,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        _provider: &domain::Provider,
+        _customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1541,6 +1555,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        _provider: &domain::Provider,
+        _customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1603,6 +1619,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        _provider: &domain::Provider,
+        _customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1692,6 +1710,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -1709,6 +1729,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1732,6 +1754,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPreAuthorizeC
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1753,6 +1777,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPreAuthorizeC
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1774,6 +1800,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -1791,6 +1819,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1814,6 +1844,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1835,6 +1867,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1858,6 +1892,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1879,6 +1915,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1902,6 +1940,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthori
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1923,6 +1963,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsExtendAuthori
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1946,6 +1988,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -1963,6 +2007,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -1984,6 +2030,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -2001,6 +2049,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -2023,6 +2073,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -2049,6 +2101,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -2254,6 +2308,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: PaymentData<F>,
         response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         locale: &Option<String>,
@@ -2271,6 +2327,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
             response,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -2418,6 +2476,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     mut payment_data: PaymentData<F>,
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     processor: &domain::Processor,
+    provider: &domain::Provider,
+    customer: Option<&domain::Customer>,
     locale: &Option<String>,
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] _routable_connectors: Vec<
         RoutableConnectorChoice,
@@ -3308,6 +3368,43 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
     }
 
+    // Record the successful connector so later payments can prefer it.
+    #[cfg(feature = "v1")]
+    {
+        if payment_attempt.status.is_success() {
+            if let Some(((succeeded_connector, mca_id), (payment_method_type, customer))) =
+                payment_attempt
+                    .connector
+                    .clone()
+                    .zip(payment_attempt.merchant_connector_id.as_ref())
+                    .zip(payment_attempt.payment_method_type.zip(customer))
+            {
+                // Store each profile independently so reroutes only replace that profile's preference.
+                let profile_id = payment_attempt.profile_id.get_string_repr().to_string();
+                let payment_method_type = payment_method_type.to_string();
+                let preferred_connector =
+                    format!("{succeeded_connector}:{}", mca_id.get_string_repr());
+                let key_store = provider.get_key_store();
+                let storage_scheme = provider.get_account().storage_scheme;
+
+                if let Err(error) = update_preferred_connectors(
+                    state,
+                    key_store,
+                    storage_scheme,
+                    customer,
+                    payment_method_type,
+                    profile_id,
+                    preferred_connector,
+                )
+                .await
+                {
+                    metrics::PREFERRED_CONNECTORS_UPDATE_FAILURES.add(1, &[]);
+                    logger::error!(preferred_connectors_update_err = ?error);
+                }
+            }
+        }
+    }
+
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
     payment_method_status.and_then(|status| {
@@ -3911,6 +4008,113 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     Ok(())
 }
 
+/// Upserts one profile preference while preserving others, returning `None` when unchanged.
+#[cfg(feature = "v1")]
+pub(in crate::core::payments) fn upsert_profile_preference(
+    existing: Option<&common_utils::pii::SecretSerdeValue>,
+    payment_method_type: &str,
+    profile_id: &str,
+    preferred_connector: &str,
+) -> Option<common_utils::pii::SecretSerdeValue> {
+    const MAX_PROFILE_PREFERENCES: usize = 10;
+
+    let original = existing.map(PeekInterface::peek);
+    let mut preferences = original
+        .and_then(|value| value.as_object())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut entries = Vec::with_capacity(MAX_PROFILE_PREFERENCES);
+    let existing_entries = preferences
+        .get(payment_method_type)
+        .and_then(|value| value.as_array())
+        .into_iter()
+        .flatten();
+
+    for entry in existing_entries {
+        let Some(object) = entry.as_object() else {
+            continue;
+        };
+        for (stored_profile_id, connector) in object {
+            let Some(connector) = connector.as_str() else {
+                continue;
+            };
+            if stored_profile_id == profile_id
+                || entries
+                    .iter()
+                    .any(|entry: &serde_json::Value| entry.get(stored_profile_id).is_some())
+            {
+                continue;
+            }
+            entries.push(serde_json::json!({ stored_profile_id: connector }));
+            if entries.len() == MAX_PROFILE_PREFERENCES - 1 {
+                break;
+            }
+        }
+        if entries.len() == MAX_PROFILE_PREFERENCES - 1 {
+            break;
+        }
+    }
+
+    entries.insert(0, serde_json::json!({ profile_id: preferred_connector }));
+
+    preferences.insert(
+        payment_method_type.to_string(),
+        serde_json::Value::Array(entries),
+    );
+
+    let updated = serde_json::Value::Object(preferences);
+    (original != Some(&updated)).then(|| common_utils::pii::SecretSerdeValue::new(updated))
+}
+
+/// Persist the connector behind a successful eligible payment on the customer row.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn update_preferred_connectors(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    customer: &domain::Customer,
+    payment_method_type: String,
+    profile_id: String,
+    preferred_connector: String,
+) -> RouterResult<()> {
+    let is_payment_method_type_enabled =
+        crate::core::payments::preferred_connectors_enabled_payment_method_types(state)
+            .await
+            .contains(&payment_method_type);
+
+    if is_payment_method_type_enabled {
+        let merchant_id = &customer.merchant_id;
+        let customer_id = customer.get_id();
+        if let Some(updated) = upsert_profile_preference(
+            customer.preferred_connectors.as_ref(),
+            &payment_method_type,
+            &profile_id,
+            &preferred_connector,
+        ) {
+            state
+                .store
+                .update_customer_by_customer_id_merchant_id(
+                    customer_id.to_owned(),
+                    merchant_id.to_owned(),
+                    customer.clone(),
+                    storage::CustomerUpdate::UpdatePreferredConnectors {
+                        preferred_connectors: Some(updated),
+                        last_modified_by: None,
+                    },
+                    key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update the customer's preferred connector")?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 impl<F: Send + Clone> Operation<F, types::PaymentsAuthorizeData> for &PaymentResponse {
     type Data = PaymentConfirmData<F>;
@@ -4337,6 +4541,8 @@ impl
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
         router_data: types::RouterData<
             hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
@@ -4358,6 +4564,8 @@ impl
             payment_data,
             router_data,
             processor,
+            provider,
+            customer,
             locale,
             #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
             routable_connector,
@@ -4932,6 +5140,8 @@ impl<F: Clone + Send + Sync>
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        _provider: &domain::Provider,
+        _customer: Option<&domain::Customer>,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
