@@ -14472,6 +14472,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
+    #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
+    #[serde(default)]
+    pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[cfg(feature = "v2")]
