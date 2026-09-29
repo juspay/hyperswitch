@@ -268,13 +268,6 @@ jobs:
           CARGO_BUILD_JOBS: 9
         run: just ci_hack
 
-      - name: Cargo build release
-        if: ${{ github.event_name == 'merge_group' }}
-        shell: bash
-        env:
-          CARGO_BUILD_JOBS: 9
-        run: cargo check --features "release"
-
       - name: Show sccache stats
         if: always()
         shell: bash
@@ -351,6 +344,16 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
       - name: Mask S3 cache location in job logs
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
@@ -366,17 +369,17 @@ jobs:
         shell: bash
         run: .github/scripts/sccache-restore-s3.sh check-v2
 
-      - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
+      - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
           CARGO_BUILD_JOBS: 9
-        run: cargo check --no-default-features --features "release,v2,redis-rs"
+        run: just clippy_v2
 
-      - name: Run cargo check enabling only the release and v2 features (fred backend)
+      - name: Run cargo clippy with v2 features enabled (fred backend)
         shell: bash
         env:
           CARGO_BUILD_JOBS: 9
-        run: cargo check --no-default-features --features "release,v2,fred"
+        run: just clippy_v2 fred
 
       - name: Show sccache stats
         if: always()
