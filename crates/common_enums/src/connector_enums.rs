@@ -122,6 +122,7 @@ pub enum Connector {
     Givepayments,
     Globalpay,
     GlobalpaymentsHeartland,
+    GlobalpaymentsRealex,
     Globepay,
     Gocardless,
     GotymeSanlam,
@@ -394,6 +395,7 @@ impl Connector {
             | Self::Getnet
             | Self::Gigadat
             | Self::Globalpay
+            | Self::GlobalpaymentsRealex
             | Self::Globepay
             | Self::Gocardless
             | Self::GotymeSanlam
