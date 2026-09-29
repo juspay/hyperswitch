@@ -4120,8 +4120,29 @@ pub enum AutoFallbackCaptureMethod {
 }
 
 impl AutoFallbackCaptureMethod {
+    /// Capture method a payment falls back to when the requested one is not supported.
+    pub const FALLBACK: CaptureMethod = CaptureMethod::Automatic;
+
     pub fn is_enabled(self) -> bool {
         matches!(self, Self::Enabled)
+    }
+
+    /// Whether a payment requesting `requested` may fall back to [`Self::FALLBACK`].
+    ///
+    /// The fallback is one-directional: a payment that already requests automatic capture has
+    /// nothing to fall back to, and moving it to manual capture would leave it uncaptured.
+    pub fn can_fall_back_from(self, requested: CaptureMethod) -> bool {
+        self.is_enabled() && requested != Self::FALLBACK
+    }
+}
+
+impl From<bool> for AutoFallbackCaptureMethod {
+    fn from(enabled: bool) -> Self {
+        if enabled {
+            Self::Enabled
+        } else {
+            Self::Disabled
+        }
     }
 }
 

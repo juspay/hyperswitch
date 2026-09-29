@@ -2438,10 +2438,17 @@ pub async fn perform_cgraph_filtering(
     ignore_capture_method: bool,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut backend_input = backend_input;
-    if ignore_capture_method {
+    let can_fall_back = backend_input
+        .payment
+        .capture_method
+        .is_some_and(|capture_method| {
+            common_enums::AutoFallbackCaptureMethod::Enabled.can_fall_back_from(capture_method)
+        });
+    if ignore_capture_method && can_fall_back {
         // The profile falls back to automatic capture for connectors that cannot do the
         // requested capture method, so `pm_filters` capture-method restrictions must not remove
         // those connectors here; `apply_auto_fallback_capture_method` decides per connector.
+        // A payment already requesting automatic capture has no fallback and is still filtered.
         backend_input.payment.capture_method = None;
     }
     let context = euclid_graph::AnalysisContext::from_dir_values(

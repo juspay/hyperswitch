@@ -4308,9 +4308,7 @@ pub async fn build_merchant_enabled_pms_context(
 ) -> errors::RouterResult<MerchantEnabledPmsContext> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-    let auto_fallback_capture_method = business_profile
-        .auto_fallback_capture_method
-        .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled);
+    let auto_fallback_capture_method = business_profile.auto_fallback_capture_method;
 
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
@@ -5685,7 +5683,7 @@ pub async fn filter_payment_methods(
     address: Option<&domain::Address>,
     connector: String,
     configs: &settings::Settings<RawSecret>,
-    auto_fallback_capture_method: bool,
+    auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -5847,9 +5845,14 @@ pub async fn filter_payment_methods(
 
                     // With auto_fallback_capture_method enabled an unsupported capture method is
                     // replaced by automatic at confirm, so it must not hide payment methods here.
+                    // A payment already requesting automatic capture has no fallback and is
+                    // still filtered.
                     payment_attempt
                         .and_then(|inner| inner.capture_method)
-                        .filter(|_| !auto_fallback_capture_method)
+                        .filter(|&capture_method| {
+                            !auto_fallback_capture_method
+                                .is_some_and(|setting| setting.can_fall_back_from(capture_method))
+                        })
                         .map(|capture_method| {
                             context_values.push(dir::DirValue::CaptureMethod(capture_method));
                         });

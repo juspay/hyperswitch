@@ -6155,7 +6155,7 @@ fn apply_auto_fallback_capture_method<F, D>(
         .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled);
     let attempt = payment_data.get_payment_attempt();
     let requested = attempt.capture_method.unwrap_or_default();
-    let fallback = storage_enums::CaptureMethod::Automatic;
+    let fallback = common_enums::AutoFallbackCaptureMethod::FALLBACK;
 
     let should_fall_back = is_enabled
         && !post_frm_capture_hold
