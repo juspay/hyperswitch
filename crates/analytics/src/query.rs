@@ -521,7 +521,8 @@ impl_to_sql_for_to_string!(
     &u64,
     u64,
     Order,
-    RoutingApproach
+    RoutingApproach,
+    storage_enums::FutureUsage
 );
 
 impl_to_sql_for_to_string!(
@@ -552,13 +553,11 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
-/// Strips whitespace and escapes SQL string metacharacters so the value is
-/// safe inside a single-quoted SQL literal: `'<sanitized>'`.
+/// Escapes SQL string metacharacters so the value is safe inside a single-quoted SQL
+/// literal: `'<sanitized>'`. Spaces are kept: values such as error messages, refund
+/// reasons and issuer names contain them and must match as stored.
 pub fn sanitize_sql_string_literal(raw: &str) -> String {
-    let sanitized = raw
-        .replace(' ', "")
-        .replace('\\', "\\\\")
-        .replace('\'', "''");
+    let sanitized = raw.replace('\\', "\\\\").replace('\'', "''");
     format!("'{sanitized}'")
 }
 

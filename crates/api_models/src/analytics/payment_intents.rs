@@ -7,7 +7,8 @@ use common_utils::id_type;
 
 use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
-    AuthenticationType, Connector, Currency, IntentStatus, PaymentMethod, PaymentMethodType,
+    AuthenticationType, Connector, Currency, FutureUsage, IntentStatus, PaymentMethod,
+    PaymentMethodType,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -38,6 +39,10 @@ pub struct PaymentIntentFilters {
     pub error_reason: Vec<String>,
     #[serde(default)]
     pub customer_id: Vec<id_type::CustomerId>,
+    #[serde(default)]
+    pub off_session: Vec<bool>,
+    #[serde(default)]
+    pub setup_future_usage: Vec<FutureUsage>,
 }
 
 #[derive(
@@ -75,6 +80,35 @@ pub enum PaymentIntentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    OffSession,
+    SetupFutureUsage,
+}
+
+impl PaymentIntentDimensions {
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::PaymentIntentStatus => "Status of the payment, such as succeeded or failed.",
+            Self::Currency => "Currency of the payment.",
+            Self::ProfileId => "Business profile.",
+            Self::Connector => "Connector of the payment's attempt. Sessionized metrics only.",
+            Self::AuthType => "three_ds or no_three_ds. Sessionized metrics only.",
+            Self::PaymentMethod => "Payment method, such as card. Sessionized metrics only.",
+            Self::PaymentMethodType => {
+                "Payment method type, such as credit. Sessionized metrics only."
+            }
+            Self::CardNetwork => "Card network, such as Visa. Sessionized metrics only.",
+            Self::MerchantId => "Merchant account.",
+            Self::CardLast4 => "Last four card digits. Sessionized metrics only.",
+            Self::CardIssuer => "Bank that issued the card. Sessionized metrics only.",
+            Self::ErrorReason => "Error reason from the connector. Sessionized metrics only.",
+            Self::OffSession => {
+                "true when the merchant initiated the payment (MIT). Empty for customer payments."
+            }
+            Self::SetupFutureUsage => {
+                "Whether the payment saves the card: off_session for future MITs, on_session for checkouts."
+            }
+        }
+    }
 }
 
 #[derive(
@@ -106,6 +140,35 @@ pub enum PaymentIntentMetrics {
     SessionizedPaymentProcessedAmount,
     SessionizedPaymentsDistribution,
 }
+
+impl PaymentIntentMetrics {
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::SuccessfulSmartRetries => "Succeeded payments that needed more than one attempt.",
+            Self::TotalSmartRetries => "Payments that needed more than one attempt.",
+            Self::SmartRetriedAmount => "Amount of succeeded payments that needed a retry.",
+            Self::PaymentIntentCount => "Payments created, all statuses.",
+            Self::PaymentsSuccessRate => {
+                "Succeeded payments ÷ payments, excluding those still awaiting the customer or merchant."
+            }
+            Self::PaymentProcessedAmount => "Amount of succeeded payments, per currency.",
+            Self::SessionizedSuccessfulSmartRetries => {
+                "successful_smart_retries, from the sessionizer."
+            }
+            Self::SessionizedTotalSmartRetries => "total_smart_retries, from the sessionizer.",
+            Self::SessionizedSmartRetriedAmount => "smart_retried_amount, from the sessionizer.",
+            Self::SessionizedPaymentIntentCount => "payment_intent_count, from the sessionizer.",
+            Self::SessionizedPaymentsSuccessRate => "payments_success_rate, from the sessionizer.",
+            Self::SessionizedPaymentProcessedAmount => {
+                "payment_processed_amount, from the sessionizer."
+            }
+            Self::SessionizedPaymentsDistribution => {
+                "Success and failure rates with and without smart retries, from the sessionizer."
+            }
+        }
+    }
+}
+
 impl ForexMetric for PaymentIntentMetrics {
     fn is_forex_metric(&self) -> bool {
         matches!(
@@ -137,7 +200,7 @@ impl From<PaymentIntentMetrics> for NameDescription {
     fn from(value: PaymentIntentMetrics) -> Self {
         Self {
             name: value.to_string(),
-            desc: String::new(),
+            desc: value.description().to_string(),
         }
     }
 }
@@ -146,7 +209,7 @@ impl From<PaymentIntentDimensions> for NameDescription {
     fn from(value: PaymentIntentDimensions) -> Self {
         Self {
             name: value.to_string(),
-            desc: String::new(),
+            desc: value.description().to_string(),
         }
     }
 }
@@ -165,6 +228,8 @@ pub struct PaymentIntentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub off_session: Option<bool>,
+    pub setup_future_usage: Option<FutureUsage>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -187,6 +252,8 @@ impl PaymentIntentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        off_session: Option<bool>,
+        setup_future_usage: Option<FutureUsage>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -202,6 +269,8 @@ impl PaymentIntentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            off_session,
+            setup_future_usage,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -222,6 +291,8 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.off_session.hash(state);
+        self.setup_future_usage.map(|i| i.to_string()).hash(state);
         self.time_bucket.hash(state);
     }
 }
