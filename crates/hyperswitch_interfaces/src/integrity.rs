@@ -159,6 +159,7 @@ where
                     res_integrity_object,
                     connector_transaction_id,
                     amount_tolerance,
+                    amount_tolerance,
                 )
             }
             None => Ok(()),
@@ -194,6 +195,7 @@ where
                     req_integrity_object,
                     res_integrity_object,
                     connector_transaction_id,
+                    amount_tolerance,
                     amount_tolerance,
                 )
             }
