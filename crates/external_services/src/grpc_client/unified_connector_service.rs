@@ -72,7 +72,21 @@ pub struct UnifiedConnectorServiceClient {
 /// Contains the Unified Connector Service Client config
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UnifiedConnectorServiceClientConfig {
-    /// Base URL of the gRPC Server
+    /// Which transport to build — `grpc` (the default, a separately-deployed
+    /// UCS service) or `library` (UCS running in-process; see
+    /// `unified_connector_service_library`'s crate docs and the
+    /// `ucs-library-mode` feature). Ignored fields below are noted per-field.
+    #[cfg(feature = "ucs-library-mode")]
+    #[serde(default)]
+    pub mode: UcsTransportMode,
+
+    /// Config for `mode = "library"`. Required (and only meaningful) in that
+    /// mode; absent or ignored otherwise.
+    #[cfg(feature = "ucs-library-mode")]
+    #[serde(default)]
+    pub library: Option<UcsLibraryModeConfig>,
+
+    /// Base URL of the gRPC Server. Ignored when `mode = "library"`.
     pub base_url: Url,
 
     /// Contains the connection timeout duration in seconds
@@ -102,6 +116,34 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+}
+
+/// Which UCS transport to build. See [`UnifiedConnectorServiceClientConfig::mode`].
+#[cfg(feature = "ucs-library-mode")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UcsTransportMode {
+    /// UCS as a separately-deployed gRPC service. The default: unless a toml
+    /// explicitly sets `mode = "library"`, behavior is unchanged from before
+    /// this field existed.
+    #[default]
+    Grpc,
+    /// UCS running in-process — see `unified_connector_service_library`.
+    Library,
+}
+
+/// Config for [`UcsTransportMode::Library`]. See
+/// `unified_connector_service_library::config_from_hs_proxy_settings`, which
+/// this is built to feed.
+#[cfg(feature = "ucs-library-mode")]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+pub struct UcsLibraryModeConfig {
+    /// Path to the UCS toml (e.g. UCS's own `config/production.toml`) this
+    /// process's embedded UCS should load its connector base URLs and other
+    /// UCS-side settings from. Proxy/egress settings in *that* file are
+    /// overridden by this process's own `[proxy]` table at startup — see
+    /// `unified_connector_service_library::config_from_hs_proxy_settings`.
+    pub ucs_config_path: std::path::PathBuf,
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.

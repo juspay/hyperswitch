@@ -59,3 +59,19 @@ inherits = "release"
 lto = false
 codegen-units = 16
 strip = "none"
+
+# PROOF-OF-CONCEPT ONLY — remove once
+# https://github.com/juspay/hyperswitch-prism/pull/2388 merges and every
+# `unified-connector-service-*` dependency below is bumped to the tag that
+# contains it, at which point this patch becomes redundant (and, if left in,
+# actively wrong — it would silently keep pulling an unreviewed branch).
+#
+# Redirects the tagged `rust-grpc-client`/`ucs_cards` dependencies (in
+# external_services, hyperswitch_interfaces, router) onto the same branch
+# `unified_connector_service_library` depends on directly, so both resolve to
+# the identical `grpc-api-types` commit. Without this, `UcsTransport`'s gRPC
+# and library match arms would reference two different (if structurally
+# identical) compilations of the same proto types and fail to unify.
+[patch."https://github.com/juspay/connector-service"]
+rust-grpc-client = { git = "https://github.com/juspay/connector-service", branch = "feat/rust-sdk-injectable-transport" }
+ucs_cards = { git = "https://github.com/juspay/connector-service", branch = "feat/rust-sdk-injectable-transport" }

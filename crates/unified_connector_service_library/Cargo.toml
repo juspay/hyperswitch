@@ -1,0 +1,34 @@
+[package]
+name = "unified_connector_service_library"
+description = "In-process ('library mode') transport for the Unified Connector Service, for self-hosted deployments that don't want to run UCS as a separate service. Isolated from external_services so a gRPC-only build never pulls these dependencies in."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+external_services = { path = "../external_services", default-features = false }
+hyperswitch_interfaces = { path = "../hyperswitch_interfaces" }
+router_env = { version = "0.1.0", path = "../router_env" }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = [
+    "alloc",
+    "serde",
+] }
+error-stack = "0.4.1"
+tonic = "0.14"
+tokio = { version = "1.48.0", features = ["sync"] }
+serde_json = "1.0.100"
+
+# Pinned to the same UCS branch/tag `external_services` uses for its gRPC-mode
+# client, so both transports always speak the same proto version. Until
+# https://github.com/juspay/hyperswitch-prism/pull/2388 merges and a tag picks
+# it up, this points at that PR's branch directly — MUST be moved to the same
+# tag `external_services`'s `unified-connector-service-client` dependency uses
+# before this crate leaves proof-of-concept status.
+hyperswitch-payments-client = { git = "https://github.com/juspay/connector-service", branch = "feat/rust-sdk-injectable-transport", package = "hyperswitch-payments-client" }
+ucs_env = { git = "https://github.com/juspay/connector-service", branch = "feat/rust-sdk-injectable-transport", package = "ucs_env" }
+grpc-api-types = { git = "https://github.com/juspay/connector-service", branch = "feat/rust-sdk-injectable-transport", package = "grpc-api-types" }
+domain_types = { git = "https://github.com/juspay/connector-service", branch = "feat/rust-sdk-injectable-transport", package = "domain_types" }
+
+[lints]
+workspace = true
