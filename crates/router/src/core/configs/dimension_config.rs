@@ -1047,3 +1047,33 @@ impl DatabaseBackedConfig for PayoutFrmCall {
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
+
+config! {
+    superposition_key = PREFERRED_CONNECTORS_ROUTING_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+config! {
+    superposition_key = PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES,
+    output = String,
+    default = String::from("interac"),
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for PreferredConnectorsEnabledPaymentMethodTypes {
+    const KEY: &'static str = "preferred_connectors_enabled_payment_method_types";
+}
+
+impl DatabaseBackedConfig for PreferredConnectorsRoutingEnabled {
+    const KEY: &'static str = "preferred_connectors_routing_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
