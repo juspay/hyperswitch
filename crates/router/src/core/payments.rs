@@ -645,6 +645,136 @@ where
     ))
 }
 
+/// Whether a rejection reached us before the connector was called, so the payment can be put back
+/// to the state it had before the pre-update tracker committed. A response-phase failure must not
+/// be rolled back, since the outcome is then unknown.
+#[cfg(feature = "v1")]
+trait PreCallRejection {
+    fn rejected_before_connector_call(&self) -> bool;
+}
+
+#[cfg(feature = "v1")]
+impl PreCallRejection for error_stack::Report<errors::ApiErrorResponse> {
+    fn rejected_before_connector_call(&self) -> bool {
+        self.downcast_ref::<errors::ConnectorError>()
+            .is_some_and(|connector_error| {
+                matches!(
+                    connector_error,
+                    errors::ConnectorError::NotSupported { .. }
+                        | errors::ConnectorError::NotImplemented(_)
+                        | errors::ConnectorError::MissingRequiredField { .. }
+                        | errors::ConnectorError::MissingRequiredFields { .. }
+                        | errors::ConnectorError::RequestEncodingFailed
+                        | errors::ConnectorError::FailedToObtainAuthType
+                        | errors::ConnectorError::InvalidConnectorName
+                )
+            })
+    }
+}
+
+/// The attempt and intent as they were fetched from the DB, before this flow mutated them.
+#[cfg(feature = "v1")]
+pub trait PreviousDbRecords {
+    fn get_previous_db_records(&self) -> &(storage::PaymentAttempt, storage::PaymentIntent);
+}
+
+#[cfg(feature = "v1")]
+impl<F: Clone> PreviousDbRecords for PaymentData<F> {
+    fn get_previous_db_records(&self) -> &(storage::PaymentAttempt, storage::PaymentIntent) {
+        &self.previous_db_records
+    }
+}
+
+/// Put the payment back to the state it had when it was fetched from the DB, so a UCS rejection
+/// leaves it retryable as the direct path does. A write failure is logged and swallowed.
+#[cfg(feature = "v1")]
+async fn restore_pre_call_state<F, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_data: &D,
+) where
+    F: Send + Clone + Sync + Debug + 'static,
+    D: OperationSessionGetters<F> + PreviousDbRecords + Send + Sync,
+{
+    let (attempt, intent) = payment_data.get_previous_db_records();
+
+    let storage_scheme = processor.get_account().storage_scheme;
+    let key_store = processor.get_key_store();
+
+    let attempt_update = storage::PaymentAttemptUpdate::ConfirmUpdate {
+        net_amount: attempt.net_amount.clone(),
+        currency: payment_data.get_currency(),
+        status: attempt.status,
+        authentication_type: attempt.authentication_type,
+        capture_method: attempt.capture_method,
+        payment_method: attempt.payment_method,
+        browser_info: attempt.browser_info.clone(),
+        connector: attempt.connector.clone(),
+        payment_token: attempt.payment_token.clone(),
+        payment_method_data: attempt.payment_method_data.clone(),
+        payment_method_type: attempt.payment_method_type,
+        payment_experience: attempt.payment_experience,
+        business_sub_label: attempt.business_sub_label.clone(),
+        straight_through_algorithm: attempt.straight_through_algorithm.clone(),
+        error_code: Some(attempt.error_code.clone()),
+        error_message: Some(attempt.error_message.clone()),
+        updated_by: storage_scheme.to_string(),
+        merchant_connector_id: attempt.merchant_connector_id.clone(),
+        external_three_ds_authentication_attempted: attempt
+            .external_three_ds_authentication_attempted,
+        external_threeds_authentication_type: attempt.external_threeds_authentication_type,
+        authentication_connector: attempt.authentication_connector.clone(),
+        authentication_id: attempt.authentication_id.clone(),
+        payment_method_billing_address_id: attempt.payment_method_billing_address_id.clone(),
+        fingerprint_id: attempt.fingerprint_id.clone(),
+        fingerprint_type: attempt.fingerprint_type,
+        payment_method_id: attempt.payment_method_id.clone(),
+        client_source: attempt.client_source.clone(),
+        client_version: attempt.client_version.clone(),
+        customer_acceptance: attempt.customer_acceptance.clone(),
+        installment_data: attempt.installment_data.clone(),
+        connector_mandate_detail: attempt.connector_mandate_detail.clone(),
+        tokenization: attempt.tokenization,
+        card_discovery: attempt.card_discovery,
+        routing_approach: attempt.routing_approach.clone(),
+        connector_request_reference_id: attempt.connector_request_reference_id.clone(),
+        network_transaction_id: attempt.network_transaction_id.clone(),
+        network_transaction_link_id: attempt.network_transaction_link_id.clone(),
+        is_stored_credential: attempt.is_stored_credential,
+        request_extended_authorization: attempt.request_extended_authorization,
+        external_surcharge_details: attempt.external_surcharge_details.clone(),
+        applied_offer_details: attempt.applied_offer_details.clone(),
+        active_frm_id: attempt.active_frm_id.clone(),
+    };
+
+    let intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+        status: enums::IntentStatus::from(attempt.status),
+        updated_by: storage_scheme.to_string(),
+        incremental_authorization_allowed: intent.incremental_authorization_allowed,
+        feature_metadata: intent.feature_metadata.clone(),
+    };
+
+    let (attempt_result, intent_result) = tokio::join!(
+        state.store.update_payment_attempt_with_attempt_id(
+            attempt.clone(),
+            attempt_update,
+            storage_scheme,
+            key_store,
+        ),
+        state
+            .store
+            .update_payment_intent(intent.clone(), intent_update, key_store, storage_scheme),
+    );
+
+    if let Err(restore_error) = attempt_result {
+        logger::error!(?restore_error, "failed to restore the payment attempt");
+    }
+
+    if let Err(restore_error) = intent_result {
+        logger::error!(?restore_error, "failed to restore the payment intent");
+    }
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -667,7 +797,12 @@ where
     F: Send + Clone + Sync + Debug + 'static,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + PreviousDbRecords
+        + Send
+        + Sync
+        + Clone,
 
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -724,6 +859,12 @@ where
             payment_pre_fetched_info,
         )
         .await?;
+
+    // The attempt and intent as fetched from the DB, before this flow mutates them.
+    let previous_attempt = payment_data.get_payment_attempt().clone();
+    let previous_intent = payment_data.get_payment_intent().clone();
+    payment_data.set_previous_db_records(previous_attempt, previous_intent);
+
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     operation
@@ -1076,7 +1217,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = Box::pin(complete_connector_service(
+                    let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1095,7 +1236,21 @@ where
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
                     ))
-                    .await?;
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(api_error) => {
+                            if api_error.rejected_before_connector_call() {
+                                restore_pre_call_state(
+                                    state,
+                                    platform.get_processor(),
+                                    &payment_data,
+                                )
+                                .await;
+                            }
+                            return Err(api_error);
+                        }
+                    };
 
                     let op_ref = &operation;
                     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -1267,7 +1422,7 @@ where
                         )
                         .await?;
 
-                    let (router_data, mca) = Box::pin(complete_connector_service(
+                    let (router_data, mca) = match Box::pin(complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
                         &operation,
@@ -1286,7 +1441,21 @@ where
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
                     ))
-                    .await?;
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(api_error) => {
+                            if api_error.rejected_before_connector_call() {
+                                restore_pre_call_state(
+                                    state,
+                                    platform.get_processor(),
+                                    &payment_data,
+                                )
+                                .await;
+                            }
+                            return Err(api_error);
+                        }
+                    };
 
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     let mut router_data = router_data;
@@ -2887,7 +3056,12 @@ where
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F>
+        + OperationSessionSetters<F>
+        + PreviousDbRecords
+        + Send
+        + Sync
+        + Clone,
     Res: transformers::ToResponse<F, D, Op>,
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -10098,6 +10272,9 @@ where
     /// Fields from the update request payload used to compare against
     /// the stored payment intent. Populated only for the payment-update flow.
     pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
+    /// The attempt and intent as they were fetched from the DB, before this flow mutated them.
+    /// A UCS pre-call rejection restores the rows from these records.
+    pub previous_db_records: (storage::PaymentAttempt, storage::PaymentIntent),
 }
 
 /// Decrypts an Apple Pay wallet token for the pre-confirm eligibility check, using the specific
@@ -15758,6 +15935,13 @@ pub trait OperationSessionSetters<F> {
     #[cfg(feature = "v2")]
     fn set_client_secret(&mut self, client_secret: Option<Secret<String>>);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
+    /// Store the attempt and intent as they were fetched from the DB.
+    fn set_previous_db_records(
+        &mut self,
+        _attempt: storage::PaymentAttempt,
+        _intent: storage::PaymentIntent,
+    ) {
+    }
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_payment_method_token(&mut self, payment_method_token: Option<PaymentMethodToken>);
     fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>);
@@ -16034,6 +16218,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
         self.payment_attempt = payment_attempt;
+    }
+
+    fn set_previous_db_records(
+        &mut self,
+        attempt: storage::PaymentAttempt,
+        intent: storage::PaymentIntent,
+    ) {
+        self.previous_db_records = (attempt, intent);
     }
 
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
