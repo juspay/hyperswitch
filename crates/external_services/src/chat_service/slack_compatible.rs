@@ -194,11 +194,11 @@ impl Endpoint {
         let prepare_body = self
             .send(
                 &prepare_url,
-                RequestContent::Json(Box::new(GetUploadUrlPayload {
+                RequestContent::FormUrlEncoded(Box::new(GetUploadUrlPayload {
                     filename: file.filename().to_owned(),
                     length: file.bytes().len(),
                 })),
-                &mime::APPLICATION_JSON,
+                &mime::APPLICATION_WWW_FORM_URLENCODED,
                 &self.headers.api,
             )
             .await?;
