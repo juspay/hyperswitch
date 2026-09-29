@@ -118,7 +118,7 @@ impl ChatClient for SlackClient {
 mod tests {
     use serde_json::json;
     use wiremock::{
-        matchers::{body_json, header, method, path},
+        matchers::{body_json, body_string, header, method, path},
         Mock, MockServer, ResponseTemplate,
     };
 
@@ -167,6 +167,8 @@ mod tests {
         let storage = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/files.getUploadURLExternal"))
+            .and(header("content-type", "application/x-www-form-urlencoded"))
+            .and(body_string("filename=report.pdf&length=1"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "ok": true,
                 "upload_url": format!("{}/raw", storage.uri()),

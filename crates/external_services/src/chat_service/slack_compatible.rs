@@ -190,15 +190,17 @@ impl Endpoint {
             })
             .transpose()?;
 
+        // Form-encoded, not JSON: Slack ignores a JSON body on this method and reports the fields
+        // as missing. Xyne accepts either.
         let prepare_url = self.method_url(FILES_GET_UPLOAD_URL);
         let prepare_body = self
             .send(
                 &prepare_url,
-                RequestContent::Json(Box::new(GetUploadUrlPayload {
+                RequestContent::FormUrlEncoded(Box::new(GetUploadUrlPayload {
                     filename: file.filename().to_owned(),
                     length: file.bytes().len(),
                 })),
-                &mime::APPLICATION_JSON,
+                &mime::APPLICATION_WWW_FORM_URLENCODED,
                 &self.headers.api,
             )
             .await?;
