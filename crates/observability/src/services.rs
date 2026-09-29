@@ -111,7 +111,6 @@ impl<T: Serialize> IntoApplicationResponse for ApplicationResponse<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use actix_web::{
         body::to_bytes,
         http::{
@@ -120,6 +119,8 @@ mod tests {
         },
     };
     use serde_json::json;
+
+    use super::*;
 
     #[actix_web::test]
     async fn json_with_headers_preserves_body_and_repeated_headers() {

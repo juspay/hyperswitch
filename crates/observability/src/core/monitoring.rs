@@ -1,6 +1,5 @@
 //! Monitoring policy shared by the identity and session endpoints.
 
-use super::response::ApplicationResponse;
 use actix_web::{
     cookie::{Cookie, SameSite},
     http::header::{HeaderMap, HeaderValue, SET_COOKIE},
@@ -9,6 +8,7 @@ use api_models::observability::monitoring::{GrafanaAuthRequest, GrafanaAuthRespo
 use error_stack::report;
 use hyperswitch_masking::{PeekInterface, Secret};
 
+use super::response::ApplicationResponse;
 use crate::{
     core::router_client::{RouterClient, RouterError},
     domain::monitoring::GrafanaLogin,
