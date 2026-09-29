@@ -1,9 +1,10 @@
 //! Decide whether a Control Center credential may become a Grafana login.
 
-use crate::{core::router_client::RouterClient, domain::monitoring::GrafanaLogin, state::AppState};
 use api_models::observability::monitoring::GrafanaAuthResponse;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::{PeekInterface, Secret};
+
+use crate::{core::router_client::RouterClient, domain::monitoring::GrafanaLogin, state::AppState};
 
 /// Temporary entitlement until Router introduces MonitoringView.
 const GRAFANA_PERMISSION: &str = "ProfileReconRuleRead";
