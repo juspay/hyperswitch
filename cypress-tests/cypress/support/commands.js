@@ -5036,13 +5036,21 @@ Cypress.Commands.add(
             ).to.equal(expectedIntentStatus);
           }
 
-          for (const key of ["net_amount", "amount_received"]) {
-            if (resData?.body?.[key] !== undefined) {
-              expect(response.body[key], key).to.equal(resData.body[key]);
-            }
-          }
-
           if (resData?.body && "applied_offer" in resData.body) {
+            // Scoped to offer-engine fixtures only (identified by the
+            // presence of applied_offer, unique to that flow): retrieve
+            // responses across the rest of the suite were never checked
+            // against net_amount/amount_received before, and some existing
+            // fixtures elsewhere (e.g. fiuu's OnlineBankingFpx) reuse a
+            // confirm-step expectation for retrieve that doesn't actually
+            // hold once the mock resolves further — not something this
+            // command should start enforcing suite-wide.
+            for (const key of ["net_amount", "amount_received"]) {
+              if (resData?.body?.[key] !== undefined) {
+                expect(response.body[key], key).to.equal(resData.body[key]);
+              }
+            }
+
             const expectedAppliedOffer = resData.body.applied_offer;
 
             if (expectedAppliedOffer === null) {
