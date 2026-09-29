@@ -2368,6 +2368,17 @@ async fn associated_data_incoming_webhook_flow(
                 .await?
                 .payment_id;
 
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        &merchant_id,
+                        processor.get_key_store(),
+                        processor.get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
                 let lock_action = api_locking::LockAction::Hold {
                     input: api_locking::LockingInput {
                         unique_locking_key: payment_id.get_string_repr().to_owned(),
@@ -2388,17 +2399,6 @@ async fn associated_data_incoming_webhook_flow(
                 .await?;
 
                 let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
-
-                let payment_intent = state
-                    .store
-                    .find_payment_intent_by_payment_id_processor_merchant_id(
-                        &payment_id,
-                        &merchant_id,
-                        processor.get_key_store(),
-                        processor.get_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
                 let payment_method_update_result = Box::pin(update_payment_method_associated_data(
                     &state,
@@ -2462,8 +2462,8 @@ async fn associated_data_incoming_webhook_flow(
                     .free_lock_action(&state, merchant_id.clone())
                     .await?;
 
-                attempt_update_result?;
                 payment_method_update_result?;
+                attempt_update_result?;
 
                 Ok(WebhookResponseTracker::Payment {
                     payment_id,
