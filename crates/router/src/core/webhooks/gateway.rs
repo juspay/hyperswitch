@@ -884,6 +884,8 @@ fn build_ucs_headers_builder(
         .unwrap_or_else(|| consts::PROFILE_ID_UNAVAILABLE.clone());
     ctx.state
         .get_grpc_headers_ucs(mode)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(LineageIds::new(merchant_id, profile_id))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
