@@ -65,6 +65,8 @@ impl Default for super::settings::Locker {
             create_entity_on_merchant_create: false,
             #[cfg(feature = "v2")]
             plain_fingerprint_response: true,
+            #[cfg(feature = "v2")]
+            use_batched_fingerprint: true,
         }
     }
 }
