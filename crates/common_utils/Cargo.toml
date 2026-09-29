@@ -26,6 +26,7 @@ tokenization_v2 = []
 deja = ["dep:deja"]
 
 [dependencies]
+tracing = { workspace = true }
 async-trait = { version = "0.1.88", optional = true }
 base64 = "0.22.1"
 base64-serde = "0.8.0"

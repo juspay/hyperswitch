@@ -24,7 +24,7 @@ pub trait ReverseLookupInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::report;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -68,7 +68,7 @@ mod storage {
 mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::SetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };

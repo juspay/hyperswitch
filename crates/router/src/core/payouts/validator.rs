@@ -12,7 +12,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payment_methods::PaymentMethod,
 };
-use router_env::{instrument, tracing, which as router_env_which, Env};
+use router_env::{instrument, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;

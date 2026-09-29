@@ -2,7 +2,7 @@ use api_models::{conditional_configs::DecisionManagerRecord, routing};
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
 
 use super::routing::make_dsl_input;

@@ -4,7 +4,7 @@ pub use diesel_models::card_issuer::{
 };
 use error_stack::report;
 use hyperswitch_domain_models::card_issuer::CardIssuersInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     errors::StorageError,

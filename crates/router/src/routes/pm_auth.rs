@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models as api_types;
-use router_env::{instrument, tracing, types::Flow};
+use router_env::{instrument, types::Flow};
 
 use crate::{
     core::api_locking,

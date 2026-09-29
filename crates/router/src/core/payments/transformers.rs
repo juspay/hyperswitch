@@ -56,7 +56,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{

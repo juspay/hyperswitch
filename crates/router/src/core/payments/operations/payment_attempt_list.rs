@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentAttemptListRequest};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

@@ -16,7 +16,7 @@ use api_models::payment_methods::{
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use crate::{
     core::{

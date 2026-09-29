@@ -13,7 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     utils as scheduler_utils,

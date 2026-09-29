@@ -4,7 +4,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::sdk_auth::SdkAuthorization;
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 #[cfg(feature = "v1")]

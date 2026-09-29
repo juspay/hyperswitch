@@ -18,7 +18,7 @@ use hyperswitch_interfaces::{
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
 use hyperswitch_masking::ExposeInterface;
-use router_env::{env::Env, instrument, tracing};
+use router_env::{env::Env, instrument};
 
 use crate::{
     core::{

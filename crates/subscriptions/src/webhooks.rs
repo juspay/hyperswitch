@@ -12,7 +12,7 @@ use hyperswitch_interfaces::{
     api::ConnectorCommon, connector_integration_interface, errors::ConnectorError,
     webhooks::IncomingWebhook,
 };
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::state::SubscriptionState as SessionState;
 #[cfg(feature = "v1")]

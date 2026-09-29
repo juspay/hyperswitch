@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     hierarchical_resource::HierarchicalResourceInterface,
 };
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     kv_router_store,

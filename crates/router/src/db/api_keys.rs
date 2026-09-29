@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 

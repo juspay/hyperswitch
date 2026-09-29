@@ -40,7 +40,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use hyperswitch_masking::Secret;
 use redis_interface::{errors::RedisError, RedisEntryId};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,

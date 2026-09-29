@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use api_models::blocklist as api_blocklist;
 use common_utils::{date_time, ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},

@@ -66,7 +66,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "v2")]
 use storage_impl::behaviour::Conversion;
 use time::Duration;

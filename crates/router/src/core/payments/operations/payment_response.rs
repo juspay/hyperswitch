@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use storage_impl::behaviour::Conversion;
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;

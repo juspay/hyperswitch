@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method_by_record;

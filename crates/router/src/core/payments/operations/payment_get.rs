@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentStatusData;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

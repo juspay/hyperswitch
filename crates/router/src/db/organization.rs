@@ -1,7 +1,7 @@
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{organization as storage, organization::OrganizationBridge};
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 

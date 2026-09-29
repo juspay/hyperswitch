@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStoreInterface,
 };
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{

@@ -55,7 +55,7 @@ use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
 
