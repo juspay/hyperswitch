@@ -192,6 +192,9 @@ pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 /// Vault Get Fingerprint request url
 pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
+/// Label for the vault fingerprint in a batched vault fingerprint request
+pub const VAULT_FINGERPRINT_LABEL: &str = "vault";
+
 /// Label for the auxiliary fingerprint in a batched vault fingerprint request
 pub const AUXILIARY_FINGERPRINT_LABEL: &str = "auxiliary";
 

@@ -2380,7 +2380,7 @@ impl LockerOperations for GenericLocker {
             resolve_merchant_fingerprint_secret(state, platform, &payment_method_data).await;
 
         let vault::PaymentMethodFingerprints {
-            locker_fingerprint_id: fingerprint_id,
+            vault_fingerprint_id: fingerprint_id,
             auxiliary_fingerprint_id,
             merchant_fingerprint_id,
         } = vault::get_fingerprints_for_payment_method(

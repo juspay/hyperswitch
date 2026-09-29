@@ -48,23 +48,33 @@ pub struct GenericVaultRetrieveRequest {
 pub struct VaultFingerprintRequestNew {
     pub data: String,
     pub key: String,
-    /// Labels are opaque to the vault and echoed back on the response.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional: Option<Vec<AdditionalVaultFingerprint>>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AdditionalVaultFingerprint {
-    pub label: String,
-    pub data: Secret<String>,
-    pub key: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
-    #[serde(default)]
-    pub additional: std::collections::HashMap<String, String>,
+}
+
+/// A batched request to the fingerprint API: `fingerprints` in place of `data` and `key`.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultBatchFingerprintRequest {
+    pub fingerprints: Vec<VaultBatchFingerprintEntry>,
+}
+
+/// `label` is opaque to the vault and keys the entry's fingerprint in the response.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultBatchFingerprintEntry {
+    pub label: String,
+    pub data: Secret<String>,
+    pub key: Secret<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultBatchFingerprintResponse {
+    pub fingerprints: std::collections::HashMap<String, String>,
 }
 
 #[cfg(feature = "v1")]
