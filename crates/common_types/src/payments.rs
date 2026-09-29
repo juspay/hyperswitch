@@ -1803,13 +1803,7 @@ impl_to_sql_from_sql_json!(AppliedOfferDetails);
 
 /// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
 #[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    diesel::AsExpression,
+    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
 )]
 #[diesel(sql_type = Jsonb)]
 pub struct AppliedOverrides {
