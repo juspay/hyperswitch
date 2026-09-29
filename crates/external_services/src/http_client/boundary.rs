@@ -143,8 +143,13 @@ pub(super) fn response_result(
                 "response_headers": response_headers_json(response).expose(),
                 "response_body": captured_body_json(response).expose(),
             }),
+            // The typed error, not its report text: callers branch on the
+            // variant (a timeout becomes a 504), and the report's location
+            // attachments differ per build, so only the variant can be rebuilt.
             Err(error) => json!({
-                "error": format!("{error:?}"),
+                "version": 1,
+                "result": "Err",
+                "kind": error.current_context(),
                 "response_body": {
                     "captured": false,
                 },
@@ -170,8 +175,25 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
     }
 
     fn reconstruct(recorded: serde_json::Value) -> Option<Self::Value> {
+        if recorded.get("result").and_then(serde_json::Value::as_str) == Some("Err") {
+            return replay_error(&recorded).map(Err);
+        }
         replay_response(&recorded).map(Ok)
     }
+}
+
+/// Rebuilds a recorded `send_request` error from its typed variant.
+///
+/// A recording made before errors were typed holds only report text under
+/// `error`; it has no `result` tag, so it reaches `replay_response`, which
+/// refuses it, and the call fail-stops as it did before.
+pub(super) fn replay_error(
+    recorded: &serde_json::Value,
+) -> Option<error_stack::Report<HttpClientError>> {
+    let kind = recorded.get("kind")?.clone();
+    serde_json::from_value::<HttpClientError>(kind)
+        .ok()
+        .map(|error| error_stack::report!(error))
 }
 
 /// Rebuilds a `reqwest::Response` from a recorded `response_result` payload, so
@@ -347,5 +369,60 @@ mod tests {
         let recaptured = response_result(&second).0.expose();
 
         assert_eq!(recaptured, captured, "capture(reconstruct(v)) must equal v");
+    }
+
+    /// A recorded error rebuilds as the same variant, and capturing the rebuilt
+    /// error reproduces the recording. Covers the payload variant and the
+    /// timeout variant callers turn into a 504.
+    #[test]
+    fn a_recorded_error_rebuilds_its_variant() {
+        for error in [
+            HttpClientError::RequestNotSent("error sending request".to_string()),
+            HttpClientError::RequestTimeoutReceived,
+        ] {
+            let first: CustomResult<reqwest::Response, HttpClientError> =
+                Err(error_stack::report!(error.clone()));
+            let (captured, is_error) = response_result(&first);
+            let captured = captured.expose();
+            assert!(is_error);
+
+            let rebuilt =
+                <HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(captured.clone())
+                    .expect("a typed error must reconstruct");
+            let Err(report) = &rebuilt else {
+                panic!("a recorded error must rebuild as an error");
+            };
+            assert_eq!(report.current_context(), &error);
+            assert_eq!(response_result(&rebuilt).0.expose(), captured);
+        }
+    }
+
+    /// The error a real aps2 recording holds for the unreachable `decision`
+    /// service, in the typed form this codec now writes.
+    #[test]
+    fn the_recorded_dns_failure_rebuilds() {
+        let recorded = serde_json::json!({
+            "version": 1,
+            "result": "Err",
+            "kind": {"RequestNotSent": "error sending request for url (http://decision-svc.decision-sbx.svc.cluster.local/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known"},
+            "response_body": {"captured": false},
+        });
+        let rebuilt = <HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(recorded)
+            .expect("the recorded dns failure must reconstruct");
+        assert!(matches!(
+            rebuilt.as_ref().map_err(|report| report.current_context()),
+            Err(HttpClientError::RequestNotSent(message)) if message.contains("dns error")
+        ));
+    }
+
+    /// An error recorded before errors were typed holds only report text. It
+    /// has no variant to rebuild, so it still refuses, which fail-stops the call.
+    #[test]
+    fn a_text_only_error_recording_is_refused() {
+        let recorded = serde_json::json!({
+            "error": "Failed to send request to connector error sending request for url (http://decision-svc.decision-sbx.svc.cluster.local/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known",
+            "response_body": {"captured": false},
+        });
+        assert!(<HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(recorded).is_none());
     }
 }

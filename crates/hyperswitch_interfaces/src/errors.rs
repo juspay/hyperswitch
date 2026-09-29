@@ -171,7 +171,7 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
 
 // http client errors
 #[allow(missing_docs, missing_debug_implementations)]
-#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HttpClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
