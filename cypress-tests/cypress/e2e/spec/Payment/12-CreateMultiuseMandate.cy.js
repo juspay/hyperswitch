@@ -455,6 +455,14 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
       });
 
+       it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -467,6 +475,14 @@ describe("Card - MultiUse Mandates flow test", () => {
           "automatic",
           globalState
         );
+      });
+
+       it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     }
   );
