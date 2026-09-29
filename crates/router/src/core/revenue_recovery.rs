@@ -715,7 +715,7 @@ async fn get_recovery_grace_window_end(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
-) -> Option<time::PrimitiveDateTime> {
+) -> CustomResult<time::PrimitiveDateTime, errors::RecoveryError> {
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
         .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
         .with_connector(billing_connector);
@@ -728,14 +728,20 @@ async fn get_recovery_grace_window_end(
         )
         .await;
 
-    payment_intent
+    let grace_window_start = payment_intent
         .get_revenue_recovery_metadata()
         .and_then(|revenue_recovery_metadata| {
             revenue_recovery_metadata.invoice_billing_started_at_time
         })
-        .and_then(|grace_window_start| {
-            grace_window_start.checked_add(time::Duration::days(grace_period_days))
-        })
+        .ok_or(errors::RecoveryError::ValueNotFound)
+        .attach_printable(
+            "Cannot bound the invoice by its grace window: the intent has no billing start time",
+        )?;
+
+    grace_window_start
+        .checked_add(time::Duration::days(grace_period_days))
+        .ok_or(errors::RecoveryError::ValueNotFound)
+        .attach_printable("The end of the grace window does not fit a timestamp")
 }
 
 /// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
@@ -839,19 +845,27 @@ pub async fn perform_calculate_workflow(
             "Failed to get max retry count from billing merchant connector account",
         )?;
 
+    let retry_budget_exhausted = is_retry_budget_exhausted(process.retry_count, max_retry_count);
+
     // 2b. Bound the invoice by its grace window as well as its retry count.
-    let grace_window_end = get_recovery_grace_window_end(
-        state,
-        payment_intent,
-        revenue_recovery_payment_data.billing_mca.connector_name,
-    )
-    .await;
+    let grace_window_end = if retry_budget_exhausted {
+        None
+    } else {
+        Some(
+            get_recovery_grace_window_end(
+                state,
+                payment_intent,
+                revenue_recovery_payment_data.billing_mca.connector_name,
+            )
+            .await?,
+        )
+    };
 
     let grace_window_elapsed = grace_window_end
         .is_some_and(|grace_window_end| grace_window_end <= common_utils::date_time::now());
 
     let (payment_processor_token_response, next_static_ladder_progress) =
-        if is_retry_budget_exhausted(process.retry_count, max_retry_count) {
+        if retry_budget_exhausted {
             logger::info!(
                 process_id = %process.id,
                 retry_count = process.retry_count,
@@ -875,12 +889,11 @@ pub async fn perform_calculate_workflow(
             )
         } else {
             // The allowances the adaptive model needs, derived once here from the window
-            // established above rather than inside an arm.
+            // established above rather than inside an arm. Unreachable as `None`: this arm is
+            // only taken when retries remain, and the window is computed — or errored — above.
             let grace_window_end = grace_window_end
                 .ok_or(errors::RecoveryError::ValueNotFound)
-                .attach_printable(
-                    "Cannot derive the recovery allowances: the invoice has no billing start time",
-                )?;
+                .attach_printable("Cannot derive the recovery allowances: the grace window is unset")?;
 
             let remaining_grace_days = u32::try_from(
                 (grace_window_end - common_utils::date_time::now())
