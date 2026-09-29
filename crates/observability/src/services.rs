@@ -17,6 +17,7 @@ use serde::Serialize;
 
 use crate::{
     auth::Authenticate,
+    core::response::ApplicationResponse,
     errors::{types::ApiErrorResponse, ObservabilityError},
     logger,
     state::AppState,
@@ -37,30 +38,8 @@ pub async fn server_wrap<T, Q, F, Fut>(
 where
     F: FnOnce(AppState, T) -> Fut,
     Fut: Future<Output = error_stack::Result<Q, ObservabilityError>>,
-    Q: Serialize + Debug,
+    Q: IntoApplicationResponse,
     T: Debug,
-{
-    server_wrap_with_response(state, request, payload, handler, auth, |response| {
-        HttpResponse::Ok().json(response)
-    })
-    .await
-}
-
-/// The same request/auth/error pipeline, with an explicit success renderer for non-JSON APIs.
-#[instrument(skip_all)]
-pub async fn server_wrap_with_response<T, Q, F, Fut, R>(
-    state: AppState,
-    request: &HttpRequest,
-    payload: T,
-    handler: F,
-    auth: &dyn Authenticate,
-    render: R,
-) -> HttpResponse
-where
-    F: FnOnce(AppState, T) -> Fut,
-    Fut: Future<Output = error_stack::Result<Q, ObservabilityError>>,
-    T: Debug,
-    R: FnOnce(Q) -> HttpResponse,
 {
     let request_id = RequestId::extract(request)
         .await
@@ -82,7 +61,7 @@ where
     }
 
     match handler(state, payload).await {
-        Ok(response) => render(response),
+        Ok(response) => response.into_http_response(),
         Err(error) => {
             // The full report — every `attach_printable` on the way up — goes to the log. The
             // client gets only what `ErrorSwitch` produces.
@@ -94,5 +73,78 @@ where
             );
             ErrorSwitch::<ApiErrorResponse>::switch(error.current_context()).error_response()
         }
+    }
+}
+
+/// Existing JSON core handlers retain their return types; explicit response variants opt into
+/// status/header control without a route-local renderer.
+pub trait IntoApplicationResponse {
+    fn into_http_response(self) -> HttpResponse;
+}
+
+impl<T: Serialize> IntoApplicationResponse for T {
+    fn into_http_response(self) -> HttpResponse {
+        HttpResponse::Ok().json(self)
+    }
+}
+
+impl<T: Serialize> IntoApplicationResponse for ApplicationResponse<T> {
+    fn into_http_response(self) -> HttpResponse {
+        match self {
+            Self::JsonWithHeaders { body, headers } => {
+                let mut response = HttpResponse::Ok();
+                for (name, value) in headers {
+                    response.append_header((name, value));
+                }
+                response.json(body)
+            }
+            Self::NoContentWithHeaders { headers } => {
+                let mut response = HttpResponse::NoContent();
+                for (name, value) in headers {
+                    response.append_header((name, value));
+                }
+                response.finish()
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{
+        body::to_bytes,
+        http::{
+            header::{HeaderMap, HeaderValue, SET_COOKIE},
+            StatusCode,
+        },
+    };
+    use serde_json::json;
+
+    #[actix_web::test]
+    async fn json_with_headers_preserves_body_and_repeated_headers() {
+        let mut headers = HeaderMap::new();
+        headers.append(SET_COOKIE, HeaderValue::from_static("first=one; HttpOnly"));
+        headers.append(SET_COOKIE, HeaderValue::from_static("second=two; HttpOnly"));
+        let response = ApplicationResponse::JsonWithHeaders {
+            body: json!({"ok": true}),
+            headers,
+        }
+        .into_http_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers().get_all(SET_COOKIE).count(), 2);
+        let body = to_bytes(response.into_body()).await;
+        assert!(matches!(body, Ok(ref bytes) if bytes.as_ref() == br#"{"ok":true}"#));
+    }
+
+    #[actix_web::test]
+    async fn no_content_with_headers_has_no_json_body() {
+        let response = ApplicationResponse::<()>::NoContentWithHeaders {
+            headers: HeaderMap::new(),
+        }
+        .into_http_response();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let body = to_bytes(response.into_body()).await;
+        assert!(matches!(body, Ok(ref bytes) if bytes.is_empty()));
     }
 }

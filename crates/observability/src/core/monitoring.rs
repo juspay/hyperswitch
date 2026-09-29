@@ -1,5 +1,10 @@
 //! Monitoring policy shared by the identity and session endpoints.
 
+use super::response::ApplicationResponse;
+use actix_web::{
+    cookie::{Cookie, SameSite},
+    http::header::{HeaderMap, HeaderValue, SET_COOKIE},
+};
 use api_models::observability::monitoring::{GrafanaAuthRequest, GrafanaAuthResponse};
 use error_stack::report;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -31,14 +36,25 @@ pub async fn authorize(
     authorize_with_client(state.router_transport.as_deref(), &request.token).await
 }
 
-/// Successful bootstrap returns the validated credential, never an unvalidated header value.
+/// Successful bootstrap sets a cookie only after Router validation; cache policy belongs to the gateway.
 pub async fn session(
     state: AppState,
     token: error_stack::Result<Secret<String>, ObservabilityError>,
-) -> error_stack::Result<Secret<String>, ObservabilityError> {
+) -> error_stack::Result<ApplicationResponse, ObservabilityError> {
     let token = token?;
     authorize_with_client(state.router_transport.as_deref(), &token).await?;
-    Ok(token)
+    let cookie = Cookie::build("grafana_token", token.peek().clone())
+        .path("/api/observability-plane/grafana")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::Strict)
+        .finish();
+    let mut value = HeaderValue::from_str(&cookie.to_string())
+        .map_err(|_| report!(ObservabilityError::InternalServerError))?;
+    value.set_sensitive(true);
+    let mut headers = HeaderMap::new();
+    headers.insert(SET_COOKIE, value);
+    Ok(ApplicationResponse::NoContentWithHeaders { headers })
 }
 
 pub(crate) async fn authorize_with_client(

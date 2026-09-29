@@ -9,7 +9,12 @@ use std::{
     },
 };
 
-use actix_web::{http::StatusCode, test, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{
+    cookie::SameSite,
+    http::{header, StatusCode},
+    test, web, App, HttpRequest, HttpResponse, HttpServer,
+};
+use hyperswitch_masking::Secret;
 use serde_json::{json, Value};
 
 use super::*;
@@ -75,10 +80,7 @@ async fn auth_route_without_router_and_bad_json_fail_closed() {
         )
         .await;
         assert_eq!(response.status().as_u16(), status);
-        assert_eq!(
-            response.headers().get(header::CACHE_CONTROL).unwrap(),
-            "no-store"
-        );
+        assert!(response.headers().get(header::CACHE_CONTROL).is_none());
         let body: Value = test::read_body_json(response).await;
         assert!(body.get("error").is_some());
     }
@@ -147,10 +149,7 @@ async fn session_cookie_and_fail_closed_contract() {
             .to_http_request();
         let response = session_with_client(Some(&client), &request).await;
         assert_eq!(response.status().as_u16(), expected);
-        assert_eq!(
-            response.headers().get(header::CACHE_CONTROL).unwrap(),
-            "no-store"
-        );
+        assert!(response.headers().get(header::CACHE_CONTROL).is_none());
         if expected == 204 {
             let cookie = response.cookies().next().unwrap();
             assert_eq!(cookie.name(), "grafana_token");

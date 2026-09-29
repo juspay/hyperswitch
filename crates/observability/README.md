@@ -249,11 +249,16 @@ email would create a new Grafana login. A follow-up switches the fixed permissio
 Missing/malformed credentials and Router 401 return 401. Router's permission denial returns
 403; all transport failures, malformed responses, and unexpected Router statuses return 503.
 Router can currently return a 5xx for an inactive user lookup; this maps to 503 but still denies
-access. Both monitoring handlers use the shared `server_wrap` request/auth/error pipeline (an explicit
-success renderer adds the session cookie). Header extraction lives in `auth`, following Router's
+access. Both monitoring handlers use the shared `server_wrap` request/auth/error pipeline. Core returns
+`ApplicationResponse::NoContentWithHeaders` for the session; the wrapper renders its status and
+cookie centrally. Header extraction lives in `auth`, following Router's
 Bearer helper pattern. Authorization remains in core because it requires asynchronous Router
 calls; `NoAuth` explicitly means there is no additional internal API-key gate.
-All responses carry `Cache-Control: no-store`; no credential, email or login is logged.
+The **gateway must add `Cache-Control: no-store` to every response** from both monitoring
+endpoints, including 4xx/5xx, malformed-body rejections, and gateway-generated errors. Disable
+any authorization-response caching at the gateway as well. The application does not set cache
+headers; direct service callers do not receive this policy. This gateway configuration is a
+rollout requirement, not implemented by this application PR. No credential, email or login is logged.
 The gateway must remove browser-supplied auth-proxy headers, inject only `grafana_login` as
 `X-WEBAUTH-USER`, strip the Control Center token before Grafana, and fail closed on non-200 or
 malformed response. No Grafana service-account token goes to the frontend. This route is allowed
@@ -266,7 +271,7 @@ Auth Proxy whitelist and data-source access reviewed before rollout.
 The frontend calls `POST {cc_url}/api/observability-plane/monitoring/grafana/session` with
 `Authorization: Bearer <JWT>`. Ingress strips `/api/observability-plane`; the application route
 is `/monitoring/grafana/session`. It uses the same permission and active-user validation as the
-identity endpoint, then returns 204, `Cache-Control: no-store`, and:
+identity endpoint, then returns 204 and the following cookie (the gateway adds `Cache-Control: no-store`):
 
 ```http
 Set-Cookie: grafana_token=<JWT>; Path=/api/observability-plane/grafana; Secure; HttpOnly; SameSite=Strict
