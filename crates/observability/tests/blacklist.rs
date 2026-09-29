@@ -153,11 +153,12 @@ impl BlacklistInterface for MemoryStore {
         let max_active_rules = self.max_active_rules.unwrap_or(max_active_rules);
         let mut rows = self.rows.lock().unwrap();
         let existing = rows.iter().position(|row| {
-            (&row.rule_id, &row.merchant_id, &row.profile_id)
-                == (&new.rule_id, &new.merchant_id, &new.profile_id)
+            (&row.rule_id, &row.merchant_id, &row.profile_id, &row.scope)
+                == (&new.rule_id, &new.merchant_id, &new.profile_id, &new.scope)
         });
         let already_active = existing.is_some_and(|index| !rows[index].is_deleted);
-        let active_count = rows.iter().filter(|row| !row.is_deleted).count() as i64;
+        let active_count = i64::try_from(rows.iter().filter(|row| !row.is_deleted).count())
+            .expect("blacklist row count fits in i64");
         if !already_active && active_count >= max_active_rules {
             return Ok(blacklist::BlacklistUpsertOutcome::ActiveRuleLimitReached);
         }
@@ -165,6 +166,7 @@ impl BlacklistInterface for MemoryStore {
             rule_id: new.rule_id,
             merchant_id: new.merchant_id,
             profile_id: new.profile_id,
+            scope: new.scope,
             reason: new.reason,
             created_by: new.created_by,
             last_updated_at: now(),
@@ -175,7 +177,7 @@ impl BlacklistInterface for MemoryStore {
         } else {
             rows.push(stored.clone());
         }
-        Ok(blacklist::BlacklistUpsertOutcome::Stored(stored))
+        Ok(blacklist::BlacklistUpsertOutcome::Stored(Box::new(stored)))
     }
 
     async fn delete_blacklist_entry(
@@ -187,17 +189,19 @@ impl BlacklistInterface for MemoryStore {
             rule_id: new.rule_id,
             merchant_id: new.merchant_id,
             profile_id: new.profile_id,
+            scope: new.scope,
             reason: new.reason,
             created_by: new.created_by,
             last_updated_at: now(),
             is_deleted: true,
         };
         if let Some(row) = rows.iter_mut().find(|row| {
-            (&row.rule_id, &row.merchant_id, &row.profile_id)
+            (&row.rule_id, &row.merchant_id, &row.profile_id, &row.scope)
                 == (
                     &tombstone.rule_id,
                     &tombstone.merchant_id,
                     &tombstone.profile_id,
+                    &tombstone.scope,
                 )
         }) {
             *row = tombstone.clone();
@@ -492,6 +496,7 @@ fn repository_entry(merchant_id: &str, reason: &str) -> blacklist::BlacklistEntr
         rule_id: "all".to_owned(),
         merchant_id: merchant_id.to_owned(),
         profile_id: String::new(),
+        scope: serde_json::json!({}),
         reason: reason.to_owned(),
         created_by: "database-test".to_owned(),
         is_deleted: false,

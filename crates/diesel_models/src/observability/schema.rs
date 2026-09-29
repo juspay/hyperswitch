@@ -1,10 +1,11 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    alert_blacklist (rule_id, merchant_id, profile_id) {
+    alert_blacklist (rule_id, merchant_id, profile_id, scope) {
         rule_id -> Text,
         merchant_id -> Text,
         profile_id -> Text,
+        scope -> Jsonb,
         reason -> Text,
         created_by -> Text,
         last_updated_at -> Timestamp,

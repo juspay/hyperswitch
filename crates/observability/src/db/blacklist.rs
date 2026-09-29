@@ -39,7 +39,7 @@ impl BlacklistInterface for Store {
             .await?
         {
             storage::BlacklistUpsertOutcome::Stored(row) => Ok(
-                domain::BlacklistUpsertOutcome::Stored(domain::BlacklistEntry::from(row)),
+                domain::BlacklistUpsertOutcome::Stored(Box::new(domain::BlacklistEntry::from(row))),
             ),
             storage::BlacklistUpsertOutcome::ActiveRuleLimitReached => {
                 Ok(domain::BlacklistUpsertOutcome::ActiveRuleLimitReached)

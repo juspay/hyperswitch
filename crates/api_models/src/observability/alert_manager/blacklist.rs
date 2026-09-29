@@ -11,6 +11,8 @@ pub struct BlacklistUpsertRequest {
     pub merchant_id: String,
     #[serde(default)]
     pub profile_id: String,
+    #[serde(default = "default_scope")]
+    pub scope: serde_json::Value,
     #[serde(default)]
     pub reason: String,
     pub created_by: String,
@@ -24,7 +26,13 @@ pub struct BlacklistDeleteRequest {
     pub merchant_id: String,
     #[serde(default)]
     pub profile_id: String,
+    #[serde(default = "default_scope")]
+    pub scope: serde_json::Value,
     pub created_by: String,
+}
+
+fn default_scope() -> serde_json::Value {
+    serde_json::json!({})
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -32,6 +40,7 @@ pub struct BlacklistEntry {
     pub rule_id: String,
     pub merchant_id: String,
     pub profile_id: String,
+    pub scope: serde_json::Value,
     pub reason: String,
     pub created_by: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]
