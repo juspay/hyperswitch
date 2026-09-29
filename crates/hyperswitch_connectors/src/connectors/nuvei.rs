@@ -1798,30 +1798,48 @@ impl ConnectorSpecifications for Nuvei {
         Some(&NUVEI_CONNECTOR_INFO)
     }
 
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_pre_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            // On UCS a 3DS SetupMandate is not supported and a 3DS CIT is routed through
+            // Authorize instead, so an initPayment here would produce a result that
+            // SetupRecurring cannot consume. The leg is therefore direct-path only.
             api::CurrentFlowInfo::SetupMandate {
                 auth_type,
                 request_data,
-            } => auth_type.is_three_ds() && request_data.is_card(),
+            } => {
+                execution_path.is_direct_gateway()
+                    && auth_type.is_three_ds()
+                    && request_data.is_card()
+            }
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
             api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
+            // The direct integration only has a no-op Authenticate; the 3DS authentication leg
+            // is implemented on the Unified Connector Service path only.
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
             } => {
-                auth_type.is_three_ds()
+                !execution_path.is_direct_gateway()
+                    && auth_type.is_three_ds()
                     && request_data.is_card()
                     && request_data.authentication_data.is_none()
             }

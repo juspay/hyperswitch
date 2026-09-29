@@ -35,8 +35,8 @@ use std::fmt::Debug;
 use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
 use common_enums::{
     enums::{
-        self, CallConnectorAction, CaptureMethod, EventClass, IntentStatus, PaymentAction,
-        PaymentMethodType,
+        self, CallConnectorAction, CaptureMethod, EventClass, ExecutionPath, IntentStatus,
+        PaymentAction, PaymentMethodType,
     },
     PaymentMethod,
 };
@@ -460,15 +460,35 @@ pub trait ConnectorSpecifications {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+    ///
+    /// `execution_path` tells the connector whether this payment is executing through the direct
+    /// integration or through the Unified Connector Service, so that a connector whose leg only
+    /// exists on one of the two paths can decide that for itself instead of the core doing it.
+    fn is_pre_authentication_flow_required(
+        &self,
+        _current_flow: CurrentFlowInfo,
+        _execution_path: ExecutionPath,
+    ) -> bool {
         false
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+    ///
+    /// See [`ConnectorSpecifications::is_pre_authentication_flow_required`] for `execution_path`.
+    fn is_authentication_flow_required(
+        &self,
+        _current_flow: CurrentFlowInfo,
+        _execution_path: ExecutionPath,
+    ) -> bool {
         false
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+    ///
+    /// See [`ConnectorSpecifications::is_pre_authentication_flow_required`] for `execution_path`.
+    fn is_post_authentication_flow_required(
+        &self,
+        _current_flow: CurrentFlowInfo,
+        _execution_path: ExecutionPath,
+    ) -> bool {
         false
     }
     /// Check if pre-authenticate cancel flow is supported

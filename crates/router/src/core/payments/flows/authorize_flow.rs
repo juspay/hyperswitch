@@ -483,6 +483,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
             },
+            gateway_context.execution_path,
         ) {
             logger::info!(
                 "Pre-authentication flow is required for connector: {}",
@@ -614,16 +615,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         Self: Sized,
     {
         let is_nuvei = connector.connector_name == api_models::enums::Connector::Nuvei;
-        // Direct Nuvei has only a no-op Authenticate integration; the Authenticate leg runs on UCS only
-        let skip_authentication = is_nuvei && gateway_context.execution_path.is_direct_gateway();
-        if !skip_authentication
-            && connector.connector.is_authentication_flow_required(
-                api_interface::CurrentFlowInfo::Authorize {
-                    auth_type: self.auth_type,
-                    request_data: Box::new(self.request.clone()),
-                },
-            )
-        {
+        if connector.connector.is_authentication_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+            },
+            gateway_context.execution_path,
+        ) {
             logger::info!(
                 "Authentication flow is required for connector: {}",
                 connector.connector_name

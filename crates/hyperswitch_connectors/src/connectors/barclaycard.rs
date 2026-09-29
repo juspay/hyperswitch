@@ -1637,7 +1637,11 @@ static BARCLAYCARD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static BARCLAYCARD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Barclaycard {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_pre_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
@@ -1652,7 +1656,11 @@ impl ConnectorSpecifications for Barclaycard {
         }
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed
@@ -1676,7 +1684,11 @@ impl ConnectorSpecifications for Barclaycard {
         }
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_post_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed

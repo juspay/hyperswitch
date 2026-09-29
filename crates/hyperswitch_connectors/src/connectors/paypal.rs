@@ -2814,7 +2814,11 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Paypal {
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_post_authentication_flow_required(
+        &self,
+        current_flow: api::CurrentFlowInfo,
+        _execution_path: common_enums::ExecutionPath,
+    ) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
             api::CurrentFlowInfo::CompleteAuthorize {
