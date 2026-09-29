@@ -1605,14 +1605,18 @@ pub fn add_random_delay_to_schedule_time(
 // MathModel retry-time prediction — the data-driven half of the Cascading (MathModel) strategy.
 //
 // Given a cluster's day-of-week / day-of-month / hour-of-day success stats (`StatsDocument`), the
-// remaining retry budget, and the grace window, it returns the datetime to retry on — via per-tick
-// probabilistic firing (real randomness, no seed) with a runway guard. The caller `min()`s this
-// with the Superposition static-schedule time (MathModel can only make a retry happen SOONER).
+// remaining retry budget, and the grace window, it returns the datetime to retry on (real
+// randomness, no seed). The caller `min()`s this with the Superposition static-schedule time
+// (MathModel can only make a retry happen SOONER).
+//
+// The DAY is produced by two independently selectable stages — see `MathModelVariant`: a COMBINE
+// folding the weekday and month-day signals into one weight per candidate day, and a SELECTION
+// drawing one day from those weights. The HOUR always uses the per-tick walk.
 //
 // Returns `Some(datetime)` whenever the grace window has at least one retriable day, and `None` only
 // when the window is empty (`grace_days <= 1` — no future day to retry on). WITHIN a non-empty window
-// the pick never fails: Laplace smoothing gives every slot a defined estimate and the runway guard
-// guarantees a pick even for sparse/empty stats.
+// the pick never fails: Laplace smoothing gives every slot a defined estimate, and both samplers are
+// guaranteed to return a day (the runway guard for one, the exploration floor for the other).
 //
 // INDEXING (must match `retry_stats_document::EventSlots::from_utc`, which is how the stats are
 // recorded):
@@ -1630,6 +1634,28 @@ const CLIP: f64 = 1e-4;
 /// is a behavior change (a grace > 31 can never propose days 32+), so it's logged where it triggers.
 #[cfg(feature = "v2")]
 const MAX_GRACE_DAYS: u32 = 31;
+
+/// Exploration floor ε — the minimum inclusion probability every candidate day is guaranteed, so no
+/// day can be ruled out on the strength of a model that has never tried it. 0.10 is the recommended
+/// operating point: it captures 15% of the production→oracle gap, against 23% at ε = 0 (cheapest,
+/// but nothing is checkable afterwards) and 5% at ε = 0.20 (too flat — the model is barely used).
+/// A business dial, not a mathematical constant.
+#[cfg(feature = "v2")]
+const EXPLORATION_FLOOR: f64 = 0.10;
+
+/// Day values within this distance of each other are treated as tied, so they split their share of
+/// the budget equally instead of the sort deciding between them.
+///
+/// **Raising this is not safe by inspection.** Merging only changes the result where a group spans
+/// the rank at which the pour ran out of budget; there it averages a near-certain day with a floored
+/// one, moving each by up to `1 − ε`. Measured over the production stats (24 clusters, 2026-09-28)
+/// across the whole budget ladder, the smallest nonzero gap at that rank was 4.2e-05 — so a value
+/// below that only ever merges days already equal to within float noise, and a value above it starts
+/// reallocating probability between days the model does rank differently. Note also that grouping
+/// compares each value to its neighbour rather than to a fixed anchor, so a densely spaced run can
+/// chain into one group wider than the tolerance itself.
+#[cfg(feature = "v2")]
+const TIE_TOLERANCE: f64 = 1e-9;
 
 /// Laplace-smoothed success rate: p̂ = (k+1)/(n+2). Callers must pass a well-formed counter (k ≤ n);
 /// `slot_scores` DROPS corrupt `k > n` slots before this runs, so p̂ ∈ (0,1) strictly and `se` never
@@ -1727,8 +1753,57 @@ fn slot_scores(slots: &[SlotCounter]) -> BTreeMap<u8, f64> {
     out
 }
 
-/// Which signal won the softmax `max` for a candidate day. Carried through the pick so the log can
-/// name it without re-deriving. `Tie` = both axes equal (e.g. a cold cluster: both uniform).
+/// How the day-of-week and day-of-month signals are folded into one weight per candidate day.
+/// Both take a `max` of the two axes; they differ in whether the axes are rescaled first.
+///
+/// Softmaxing each axis before the max makes each one sum to 1 across the candidate days, so the
+/// two are comparable whatever their raw spread. Taking the max first skips that, so the axis
+/// carrying larger raw scores wins on scale alone.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DayCombine {
+    /// Softmax each axis over the candidate days, then take the elementwise max.
+    MaxAtProbability,
+    /// Take the elementwise max of the raw scores, then softmax once.
+    MaxAtScore,
+}
+
+/// How one day is drawn from the per-day weights.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DaySelection {
+    /// Per-day Bernoulli walk with the runway guard. Consumes the weights' MAGNITUDES.
+    PerTick,
+    /// Systematic πps: draw a whole schedule, act on its soonest day. Rank-only — magnitudes are
+    /// discarded, so any monotone transform of the weights yields an identical draw.
+    SystematicK,
+}
+
+/// Which combine and which sampler this call runs. Independent axes on purpose: a combine change
+/// and a sampler change are separately attributable only if they can be varied separately.
+///
+/// Public because the arm an invoice gets is an experiment-assignment decision, which belongs above
+/// this layer — this module only executes the variant it is handed. `Default` is what production
+/// runs today, so it is the control arm of any comparison.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MathModelVariant {
+    pub combine: DayCombine,
+    pub selection: DaySelection,
+}
+
+#[cfg(feature = "v2")]
+impl Default for MathModelVariant {
+    fn default() -> Self {
+        Self {
+            combine: DayCombine::MaxAtProbability,
+            selection: DaySelection::PerTick,
+        }
+    }
+}
+
+/// Which signal won the `max` for a candidate day. Carried through the pick so the log can name it
+/// without re-deriving. `Tie` = both axes equal (e.g. a cold cluster: both uniform).
 #[cfg(feature = "v2")]
 #[derive(Clone, Copy, Debug)]
 enum DayAxis {
@@ -1750,8 +1825,7 @@ impl DayAxis {
 
 /// Why `pick_index` landed on the index it returned — so the caller can attribute the pick honestly
 /// (a forced or exhausted pick must NOT be logged as if the weights drove it). `Weights` carries the
-/// chosen item's tag (for the day pick, its `DayAxis`), resolved AT pick time so the caller never
-/// re-indexes to find it.
+/// chosen item's tag, resolved AT pick time so the caller never re-indexes to find it.
 #[cfg(feature = "v2")]
 #[derive(Clone, Copy, Debug)]
 enum PickDriver<T> {
@@ -1771,6 +1845,7 @@ impl PickDriver<DayAxis> {
 }
 
 /// Per-tick probabilistic pick over an ordered list of non-negative WEIGHTS, with the runway guard.
+/// Serves the HOUR axis; the day axis draws its whole schedule at once via `select_systematic_k_day`.
 /// Fires index k with probability `min(budget · weight_k / remaining_weight, 1)` (remaining_weight
 /// via a suffix-sum); `budget >= remaining` forces a fire. Weights need not be normalized — only
 /// their ratios matter. `tags` runs parallel to `weights`; the chosen index's tag rides back inside
@@ -1883,19 +1958,24 @@ fn softmax(xs: &[f64]) -> Vec<f64> {
 
 /// THE COMBINE SEAM. Fold the day-of-week and day-of-month signals into one weight per candidate day.
 ///
-/// v1: softmax each axis over the CANDIDATE DAYS, then take the max — "this day is good if either its
-/// weekday OR its month-day is historically good." Simplest defensible combine; since the result is
-/// `min()`d with the static schedule downstream, the downside is bounded. Known trade-offs accepted
-/// for v1: `max` optimism (a day strong on one axis but weak on the other is picked on its strong
-/// side) and a mild grace-dependent tilt toward day-of-month. To try a better combine later
-/// (max-at-score / sum-of-logits / posterior sampling), change ONLY this function.
+/// Both variants say "this day is good if either its weekday OR its month-day is historically good";
+/// they differ in whether the two axes are put on a common footing before the `max` (see
+/// [`DayCombine`]). Shared trade-off: `max` optimism — a day strong on one axis but weak on the other
+/// is picked on its strong side. Bounded downstream, since the result is `min()`d with the static
+/// schedule. A better combine (sum-of-logits, posterior sampling) changes ONLY this function.
+///
+/// The softmax is kept in both arms even though `SystematicK` discards magnitudes, because
+/// `PerTick` does not: the weights must be well-formed for whichever sampler runs.
 ///
 /// Returns per-day `(weight, winning_axis)`; the winner lets the caller log which signal drove a pick.
+/// Note the winner is decided on whatever the `max` compared, so it is NOT comparable across
+/// variants — the same day can report a different axis under each.
 #[cfg(feature = "v2")]
 fn combine_day_weight(
     dates: &[time::Date],
     dow: &BTreeMap<u8, f64>,
     dom: &BTreeMap<u8, f64>,
+    combine: DayCombine,
 ) -> (Vec<f64>, Vec<DayAxis>) {
     let dow_sc: Vec<f64> = dates
         .iter()
@@ -1909,22 +1989,224 @@ fn combine_day_weight(
         .iter()
         .map(|d| dom.get(&d.day().saturating_sub(1)).copied().unwrap_or(0.0))
         .collect();
-    let p_dow = softmax(&dow_sc);
-    let p_dom = softmax(&dom_sc);
-    p_dow
+
+    // Whichever pair the `max` compares — normalized per axis, or raw — decides both the weight and
+    // the attributed axis.
+    let (left, right) = match combine {
+        DayCombine::MaxAtProbability => (softmax(&dow_sc), softmax(&dom_sc)),
+        DayCombine::MaxAtScore => (dow_sc, dom_sc),
+    };
+
+    let (maxed, winners): (Vec<f64>, Vec<DayAxis>) = left
         .iter()
-        .zip(p_dom.iter())
-        .map(|(&pw, &pm)| {
-            let winner = if pm > pw {
+        .zip(right.iter())
+        .map(|(&w, &m)| {
+            let winner = if m > w {
                 DayAxis::Dom
-            } else if pw > pm {
+            } else if w > m {
                 DayAxis::Dow
             } else {
                 DayAxis::Tie // both axes equal (e.g. a cold cluster: both uniform) — neither "won"
             };
-            (pw.max(pm), winner)
+            (w.max(m), winner)
         })
-        .unzip()
+        .unzip();
+
+    let weights = match combine {
+        DayCombine::MaxAtProbability => maxed, // already per-axis probabilities
+        DayCombine::MaxAtScore => softmax(&maxed),
+    };
+    (weights, winners)
+}
+
+/// Per-day values → inclusion probabilities. Exact optimum of
+///
+/// ```text
+///   maximise   Σ πᵢ·vᵢ      (spend the budget on the best days)
+///   subject to Σ πᵢ = k     (spend it exactly)
+///              πᵢ ≤ 1       (a day cannot be retried twice)
+///              πᵢ ≥ ε       (every day stays reachable)
+/// ```
+///
+/// No solver needed: the optimum is a greedy pour — floor every day at ε, then walk from the best
+/// day down raising each to 1.0 until the budget runs out.
+///
+/// Two guards below are load-bearing, and removing either fails SILENTLY — the vector still sums to
+/// k and still yields k days, so nothing downstream notices:
+///  * **ε is capped at k/n.** Above that the constraint set is infeasible and the pour emits
+///    NEGATIVE probabilities, which destroys the monotone cumulative sum that `systematic_sample`
+///    binary-searches (undefined results, not an error).
+///  * **Days tied to within `TIE_TOLERANCE` split their share equally.** Ranking alone settles ties
+///    by array position, which handed days of identical value wildly different probabilities.
+///    Splitting leaves the group's total untouched, so nothing else in the vector moves.
+// `usize -> f64` is exact here: `n` is a candidate-day count, capped at `MAX_GRACE_DAYS` (31).
+#[cfg(feature = "v2")]
+#[allow(clippy::as_conversions)]
+fn inclusion_probabilities(values: &[f64], budget: u32, epsilon: f64) -> Vec<f64> {
+    let n = values.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let n_f = n as f64;
+    // πᵢ ≤ 1 caps the attainable total at n, so a budget wider than the window can only spend n.
+    // That state — every day pinned at 1.0 — is the old runway guard, except here it is the
+    // arithmetic reaching its only feasible point rather than a rule anyone wrote.
+    let k = f64::from(budget).min(n_f);
+    let eps = epsilon.clamp(0.0, k / n_f);
+
+    let mut pi = vec![eps; n];
+    let mut remaining = k - eps * n_f;
+
+    // (day index, that day's value), ordered best first. Pairing the value with the index means
+    // neither the sort nor the tie grouping below has to look anything up in `values` again.
+    // `total_cmp` orders floats outright, where `partial_cmp` has no answer for NaN; `.reverse()`
+    // turns the ascending comparison into a descending one.
+    let mut ranked: Vec<(usize, f64)> = values.iter().copied().enumerate().collect();
+    ranked.sort_by(|(_, value), (_, other_value)| value.total_cmp(other_value).reverse());
+
+    for &(day, _) in &ranked {
+        if remaining <= 1e-12 {
+            break;
+        }
+        if let Some(slot) = pi.get_mut(day) {
+            let take = (1.0 - eps).min(remaining);
+            *slot += take;
+            remaining -= take;
+        }
+    }
+
+    // Split each tied group's share equally over its members (see the doc comment above). `ranked`
+    // is sorted by value, so tied days are adjacent and `chunk_by` hands each run over as a slice.
+    for tied_days in ranked.chunk_by(|(_, value), (_, other_value)| {
+        (value - other_value).abs() <= TIE_TOLERANCE
+    }) {
+        if tied_days.len() > 1 {
+            let total: f64 = tied_days.iter().filter_map(|&(day, _)| pi.get(day)).sum();
+            let share = total / tied_days.len() as f64;
+            for &(day, _) in tied_days {
+                if let Some(slot) = pi.get_mut(day) {
+                    *slot = share;
+                }
+            }
+        }
+    }
+    pi
+}
+
+/// Pick exactly k distinct days, each with probability exactly `pi[i]` — one uniform draw, one pass.
+///
+/// Lay the probabilities end to end on a line. They sum to k, so the line is exactly k units long;
+/// take probes at `u, u+1, … u+(k−1)` and keep whichever day's segment each probe lands in.
+///
+/// Both guarantees are geometric, not statistical — they hold on every single draw, not on average:
+///  * **exactly k distinct days** — the last probe sits at `u+k−1 < k`, so all k land on the line;
+///    probes are exactly 1 apart and no segment exceeds length 1 (πᵢ ≤ 1), so no two share a day.
+///  * **each day at exactly πᵢ** — wrap the line onto a circle of circumference 1 and all k probes
+///    map to the same point, namely `u`, which is uniform; a segment of length πᵢ therefore catches
+///    a probe with probability exactly πᵢ.
+///
+/// `order` lays the segments down shuffled, REDRAWN PER CALL. Order is not load-bearing for either
+/// guarantee (both come from segment lengths), but calendar order leaves the joint distribution
+/// nearly degenerate: a day at π = 1.00 fills a whole unit of the line and is caught wherever `u`
+/// starts, so with ~12 days pinned only 10 distinct schedules were reachable and 126 of 435
+/// day-pairs could never co-occur — and there is no unbiased variance estimator when a pair
+/// probability is zero. Shuffling took that to 816 schedules and 435/435 pairs at zero cost. A
+/// shuffle computed once and reused is just a different fixed order and fixes nothing.
+///
+/// Numerical limit, measured: the accumulated edges drift from their exact values by up to ~1e-14,
+/// so for `u` within that drift of 1.0 the last probe can land past the final edge and collapse onto
+/// an already-taken segment, yielding k−1 days. It needs `u > 1 − 1e-14` (about 1 draw in 1e14) and
+/// the caller only uses the soonest day, so it is documented rather than patched — the fixes that
+/// would close it (rescaling probes, normalising π) are the ones that silently break G1/G2.
+// `usize -> f64` and `f64 -> usize` are exact here: both are day counts bounded by the window.
+#[cfg(feature = "v2")]
+#[allow(clippy::as_conversions)]
+fn systematic_sample(pi: &[f64], u: f64, order: &[usize]) -> Vec<usize> {
+    // Right edge of each segment, accumulated along the shuffled line.
+    let mut acc = 0.0;
+    let edges: Vec<f64> = order
+        .iter()
+        .map(|&idx| {
+            acc += pi.get(idx).copied().unwrap_or(0.0);
+            acc
+        })
+        .collect();
+    let Some(&line_length) = edges.last() else {
+        return Vec::new();
+    };
+    let probe_count = line_length.round().max(0.0) as usize;
+
+    let mut selected: Vec<usize> = (0..probe_count)
+        .filter_map(|step| {
+            let probe = u + step as f64;
+            // First segment whose right edge is strictly past the probe.
+            let position = edges
+                .partition_point(|&edge| edge <= probe)
+                .min(edges.len().saturating_sub(1));
+            order.get(position).copied()
+        })
+        .collect();
+    // Calendar order, so the caller's "soonest" is just the first. G1 already makes the days
+    // distinct; the dedup covers the clamp above firing on a probe pushed past the last edge by
+    // floating-point drift.
+    selected.sort_unstable();
+    selected.dedup();
+    selected
+}
+
+/// Choose which candidate day to schedule: draw a whole systematic-k schedule over the window, then
+/// take the NEAREST day it selected.
+///
+/// This replaces the per-day Bernoulli walk (`pick_index`) on the day axis. The walk decided one day
+/// at a time without being able to see the end of the window, so it skipped good days early, ran out
+/// of slack, and hit the runway guard on ~49–55% of placements — and once that guard fires every
+/// remaining day fires with it and the value model stops mattering. The guard is not a patchable
+/// bug: when `days_remaining == budget_remaining`, `Σπ = b` over `m = b` days with `π ≤ 1` has
+/// exactly one feasible point. Deciding how MANY days to use before deciding WHICH days makes that
+/// state unreachable — `Σπ = k` is enforced by the geometry of the line, not by a countdown.
+///
+/// Values enter only through the ranking in `inclusion_probabilities`; magnitudes are discarded.
+/// That is deliberate — the upstream softmax turns a 1.3× difference in day quality into weight
+/// ratios of hundreds of thousands to one, and `πᵢ ≤ 1` caps any day at certainty regardless.
+///
+/// NOTE — this is the ON-DEMAND form: the schedule is redrawn at every decision and only its
+/// earliest day is used. Drawing ONCE at first failure and persisting all k dates is the
+/// recommended design; on-demand drifts up to 0.035 from its promised marginals, re-admits the
+/// guard on ~37.8% of placements, and starves the end of the window — which is where the model
+/// rates days highest. Recovery quality is statistically indistinguishable between the two; what
+/// on-demand costs is measurability. Moving to upfront needs somewhere to persist the k dates and
+/// their πᵢ.
+///
+/// Returns the chosen index into `weights` together with its inclusion probability.
+#[cfg(feature = "v2")]
+fn select_systematic_k_day(weights: &[f64], budget: u32, epsilon: f64) -> Option<(usize, f64)> {
+    if weights.is_empty() || budget == 0 {
+        return None;
+    }
+    let pi = inclusion_probabilities(weights, budget, epsilon);
+
+    // Redrawn per invoice — see `systematic_sample` on why a cached order fixes nothing.
+    use rand::seq::SliceRandom;
+    let mut order: Vec<usize> = (0..weights.len()).collect();
+    order.shuffle(&mut rand::thread_rng());
+
+    let u = rand::random::<f64>();
+    let selected = systematic_sample(&pi, u, &order);
+    let chosen = selected.first().copied()?;
+    let chosen_inclusion_probability = pi.get(chosen).copied().unwrap_or(0.0);
+
+    logger::debug!(
+        budget = budget,
+        epsilon = epsilon,
+        window_len = weights.len(),
+        uniform_draw = u,
+        scheduled_days = ?selected,
+        chosen_index = chosen,
+        chosen_inclusion_probability = chosen_inclusion_probability,
+        "mathmodel: systematic-k selection"
+    );
+
+    Some((chosen, chosen_inclusion_probability))
 }
 
 /// Predict the retry datetime from cluster stats.
@@ -1952,6 +2234,7 @@ pub fn compute_mathmodel_retry_time(
     budget: u32,
     grace_days: u32,
     default_hour: u8,
+    variant: MathModelVariant,
 ) -> Option<time::OffsetDateTime> {
     // `grace_days` COUNTS the failure day (today), which we never retry on — so the retriable window
     // is the `grace_days - 1` future days [failure_day + 1 .. failure_day + grace_days - 1]. When that
@@ -2010,10 +2293,13 @@ pub fn compute_mathmodel_retry_time(
         window_len = window_len,
         window_start = %start,
         default_hour = default_hour,
+        combine = ?variant.combine,
+        selection = ?variant.selection,
         "mathmodel: decision start"
     );
 
-    let (day_weights, winners) = combine_day_weight(&dates, &dow_scores, &dom_scores);
+    let (day_weights, winners) =
+        combine_day_weight(&dates, &dow_scores, &dom_scores, variant.combine);
 
     // Per-candidate-day scores: the day-of-week and day-of-month signals plus the combined weight the
     // pick is about to run on. Zipped (not indexed) over the parallel vectors.
@@ -2038,24 +2324,39 @@ pub fn compute_mathmodel_retry_time(
         );
     }
 
-    // winners ride along so the winning axis returns inside pick_driver — no re-indexing afterwards.
-    // `None` means no candidate fired (no budget / empty window) -> nothing to schedule -> return None.
-    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget, "day")?;
+    // `None` means there was nothing to schedule (no budget / empty window) -> return None.
+    // `driver` names what settled the pick; `inclusion_probability` is only defined for the sampler
+    // that computes one.
+    let (day_idx, driver, day_inclusion_probability) = match variant.selection {
+        DaySelection::PerTick => {
+            let (idx, pick_driver) = pick_index(&day_weights, &winners, budget, "day")?;
+            (idx, pick_driver.label(), None)
+        }
+        DaySelection::SystematicK => {
+            let (idx, pi) = select_systematic_k_day(&day_weights, budget, EXPLORATION_FLOOR)?;
+            let axis = winners.get(idx).map_or("unknown", |axis| axis.as_str());
+            (idx, axis, Some(pi))
+        }
+    };
     let hour = pick_hour(&stats.hod, default_hour);
     let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
 
-    // day_idx is always in range (from pick_index over these vecs); `.get` keeps it panic-free.
+    // day_idx is always in range (both samplers index these vecs); `.get` keeps it panic-free.
     let chosen_date = *dates.get(day_idx)?;
     let chosen_weight = day_weights.get(day_idx).copied().unwrap_or(0.0);
     let retry_at = chosen_date.with_time(time).assume_offset(now.offset());
 
-    // Final decision. A forced (runway-guard) pick labels itself (not the softmax winner) for honest
-    // back-test attribution.
+    // Final decision. The inclusion probability is logged because it is the propensity this draw was
+    // made under: without it the schedule cannot be evaluated off-policy afterwards, and it cannot be
+    // reconstructed at analysis time because the value surface drifts between draw and analysis.
     logger::debug!(
         chosen_day = %chosen_date,
         chosen_hour = hour,
         retry_at = %retry_at,
-        driver = pick_driver.label(),
+        combine = ?variant.combine,
+        selection = ?variant.selection,
+        driver = driver,
+        inclusion_probability = ?day_inclusion_probability,
         weight = chosen_weight,
         "mathmodel: decision final"
     );
@@ -2112,11 +2413,14 @@ pub async fn compute_adaptive_retry_time(
         );
         12
     };
+    // Control arm. Experiment assignment (which invoices get which variant, and how the bucket is
+    // held stable across an invoice's retries) is not decided here.
     compute_mathmodel_retry_time(
         &record.stats,
         remaining_budget,
         remaining_grace_days,
         default_hour,
+        MathModelVariant::default(),
     )
 }
 
@@ -2168,6 +2472,30 @@ mod mathmodel_retry_time_tests {
         (a - b).abs() <= tol
     }
 
+    // Every combine x selection pairing. The contract tests below run over all four, because the
+    // guarantees they assert (in-window, never panics, declines only when it should) must not depend
+    // on which variant an invoice was bucketed into.
+    fn all_variants() -> [MathModelVariant; 4] {
+        [
+            MathModelVariant {
+                combine: DayCombine::MaxAtProbability,
+                selection: DaySelection::PerTick,
+            },
+            MathModelVariant {
+                combine: DayCombine::MaxAtProbability,
+                selection: DaySelection::SystematicK,
+            },
+            MathModelVariant {
+                combine: DayCombine::MaxAtScore,
+                selection: DaySelection::PerTick,
+            },
+            MathModelVariant {
+                combine: DayCombine::MaxAtScore,
+                selection: DaySelection::SystematicK,
+            },
+        ]
+    }
+
     #[test]
     fn scores_match_hand_math() {
         let doc = sample();
@@ -2195,19 +2523,108 @@ mod mathmodel_retry_time_tests {
         }
         let dow = BTreeMap::from([(0u8, 5.0)]); // Monday dominant
         let dom = BTreeMap::<u8, f64>::new(); // no month-day signal
-        let (weights, _) = combine_day_weight(&dates, &dow, &dom);
-        let argmax = weights
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        let winning_date = dates.get(argmax).copied().expect("argmax within window");
+        for combine in [DayCombine::MaxAtProbability, DayCombine::MaxAtScore] {
+            let (weights, _) = combine_day_weight(&dates, &dow, &dom, combine);
+            let argmax = weights
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            let winning_date = dates.get(argmax).copied().expect("argmax within window");
+            assert_eq!(
+                winning_date, start,
+                "{combine:?}: Monday's dominant score must make the Monday date win"
+            );
+            assert_eq!(winning_date.weekday().number_days_from_monday(), 0);
+        }
+    }
+
+    fn window_from(year: i32, month: time::Month, day: u8, len: usize) -> Vec<time::Date> {
+        let start =
+            time::Date::from_calendar_date(year, month, day).expect("valid calendar date");
+        let mut dates = vec![start];
+        while dates.len() < len {
+            let next = dates
+                .last()
+                .and_then(|d| d.next_day())
+                .expect("next calendar day exists");
+            dates.push(next);
+        }
+        dates
+    }
+
+    #[test]
+    fn combines_disagree_because_recurrence_dilutes_the_weekday_axis() {
+        // The two combines differ only by a per-axis offset, and under MaxAtProbability that offset
+        // carries a structural term: softmaxing the weekday axis OVER THE CANDIDATE DAYS splits a
+        // weekday's mass across its recurrences, while a day-of-month occurs once in any window of
+        // <= 31 days and keeps all of its. So the same evidence ranks differently, and the gap grows
+        // with the window. 2026-08-25 + 14 days holds two Fridays and one 1st.
+        let dates = window_from(2026, time::Month::August, 25, 14);
+        let dow = BTreeMap::from([(4u8, 9.21)]); // Friday, decisive within its axis
+        let dom = BTreeMap::from([(0u8, 5.09)]); // the 1st, a narrower lead within its axis
+        let top = |w: &[f64]| {
+            w.iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i)
+                .unwrap_or(0)
+        };
+
+        let (a_weights, _) = combine_day_weight(&dates, &dow, &dom, DayCombine::MaxAtProbability);
+        let (b_weights, _) = combine_day_weight(&dates, &dow, &dom, DayCombine::MaxAtScore);
+        let a_top = dates.get(top(&a_weights)).copied().expect("top in window");
+        let b_top = dates.get(top(&b_weights)).copied().expect("top in window");
+
+        assert_eq!(a_top.day(), 1, "MaxAtProbability should favour the unique 1st");
         assert_eq!(
-            winning_date, start,
-            "Monday's dominant score must make the Monday date win"
+            b_top.weekday().number_days_from_monday(),
+            4,
+            "MaxAtScore compares raw scores, so the higher-scoring Friday should win"
         );
-        assert_eq!(winning_date.weekday().number_days_from_monday(), 0);
+        assert_ne!(a_top, b_top, "the two combines must be distinguishable here");
+    }
+
+    #[test]
+    fn empty_axis_floors_the_ranking_under_max_at_probability() {
+        // COLD START. An axis with no recorded history scores 0.0 everywhere, and under
+        // MaxAtProbability that softmaxes to a UNIFORM 1/n — which the `max` then applies as a floor.
+        // Any preference the live axis expresses below 1/n is erased: here the Thursdays (score 2.0)
+        // collapse onto days with no signal at all, leaving two distinct weights where the raw scores
+        // have three. Under systematic-k those flattened days form one tie group and split their
+        // probability equally, so the live axis's ordering among them is gone, not merely compressed.
+        // MaxAtScore floors at a raw 0.0 instead and keeps the ordering.
+        let dates = window_from(2026, time::Month::August, 25, 14);
+        let dow_only = BTreeMap::from([(0u8, 5.0), (3u8, 2.0)]); // Monday strong, Thursday mild
+        let empty = BTreeMap::<u8, f64>::new();
+        let (a_weights, _) =
+            combine_day_weight(&dates, &dow_only, &empty, DayCombine::MaxAtProbability);
+        let (b_weights, _) = combine_day_weight(&dates, &dow_only, &empty, DayCombine::MaxAtScore);
+
+        // index 2 = Thursday 27 Aug (score 2.0), index 0 = Tuesday 25 Aug (no signal).
+        let a_thursday = a_weights.get(2).copied().expect("index in window");
+        let a_unscored = a_weights.get(0).copied().expect("index in window");
+        let b_thursday = b_weights.get(2).copied().expect("index in window");
+        let b_unscored = b_weights.get(0).copied().expect("index in window");
+
+        assert!(
+            approx(a_thursday, a_unscored, 1e-12),
+            "MaxAtProbability should floor both at the uniform 1/n: {a_thursday} vs {a_unscored}"
+        );
+        assert!(
+            b_thursday > b_unscored,
+            "MaxAtScore should keep the Thursday above an unscored day: {b_thursday} vs {b_unscored}"
+        );
+
+        let distinct = |w: &[f64]| {
+            let mut v: Vec<u64> = w.iter().map(|x| x.to_bits()).collect();
+            v.sort_unstable();
+            v.dedup();
+            v.len()
+        };
+        assert_eq!(distinct(&a_weights), 2, "A flattens to two levels");
+        assert_eq!(distinct(&b_weights), 3, "B keeps all three levels");
     }
 
     #[test]
@@ -2229,18 +2646,21 @@ mod mathmodel_retry_time_tests {
         // never panics — for both rich and empty stats. (Window starts on the NEXT day; the bounds
         // carry a 1-day slack so a midnight tick between captures can't flake it.)
         let grace: u32 = 14;
-        for stats in [sample(), StatsDocument::default()] {
-            for _ in 0..200 {
-                let before = common_utils::date_time::now().assume_utc();
-                let dt = compute_mathmodel_retry_time(&stats, 3, grace, DEFAULT_RETRY_HOUR)
-                    .expect("grace > 1 => Some");
-                let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
-                assert!(
-                    dt.date() > before.date() && dt.date() <= last,
-                    "date {} out of window",
-                    dt.date()
-                );
-                assert!(dt.hour() < 24);
+        for variant in all_variants() {
+            for stats in [sample(), StatsDocument::default()] {
+                for _ in 0..200 {
+                    let before = common_utils::date_time::now().assume_utc();
+                    let dt =
+                        compute_mathmodel_retry_time(&stats, 3, grace, DEFAULT_RETRY_HOUR, variant)
+                            .expect("grace > 1 => Some");
+                    let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
+                    assert!(
+                        dt.date() > before.date() && dt.date() <= last,
+                        "{variant:?}: date {} out of window",
+                        dt.date()
+                    );
+                    assert!(dt.hour() < 24);
+                }
             }
         }
     }
@@ -2249,34 +2669,47 @@ mod mathmodel_retry_time_tests {
     fn window_starts_next_day() {
         // Failure day is excluded: the earliest candidate is tomorrow. grace COUNTS today, so grace 2
         // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
-        let before = common_utils::date_time::now().assume_utc();
-        let dt = compute_mathmodel_retry_time(&sample(), 3, 2, DEFAULT_RETRY_HOUR)
-            .expect("grace 2 => Some");
-        assert!(
-            dt.date() > before.date(),
-            "expected next day, got {} (today {})",
-            dt.date(),
-            before.date()
-        );
-        assert!(dt.date() <= (before + time::Duration::days(2)).date());
+        for variant in all_variants() {
+            let before = common_utils::date_time::now().assume_utc();
+            let dt = compute_mathmodel_retry_time(&sample(), 3, 2, DEFAULT_RETRY_HOUR, variant)
+                .expect("grace 2 => Some");
+            assert!(
+                dt.date() > before.date(),
+                "{variant:?}: expected next day, got {} (today {})",
+                dt.date(),
+                before.date()
+            );
+            assert!(dt.date() <= (before + time::Duration::days(2)).date());
+        }
     }
 
     #[test]
     fn grace_zero_and_one_return_none() {
         // grace COUNTS today; grace 0 = no grace, grace 1 = today only -> no future day -> None (v1).
-        assert!(compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR).is_none());
-        assert!(compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR).is_none());
+        for variant in all_variants() {
+            assert!(compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR, variant)
+                .is_none());
+            assert!(compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR, variant)
+                .is_none());
+        }
     }
 
     #[test]
     fn zero_budget_returns_none() {
         // No retries left: the model must NOT hand back a date (pick_index with budget 0 would
         // otherwise fall through to the last grace day). Guard holds for any grace / stats shape.
-        assert!(compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR).is_none());
-        assert!(
-            compute_mathmodel_retry_time(&StatsDocument::default(), 0, 30, DEFAULT_RETRY_HOUR)
-                .is_none()
-        );
+        for variant in all_variants() {
+            assert!(compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR, variant)
+                .is_none());
+            assert!(compute_mathmodel_retry_time(
+                &StatsDocument::default(),
+                0,
+                30,
+                DEFAULT_RETRY_HOUR,
+                variant
+            )
+            .is_none());
+        }
     }
 
     #[test]
@@ -2317,8 +2750,14 @@ mod mathmodel_retry_time_tests {
         let corrupt = doc_with(&[(0, 1, 100), (3, 2, 50)], &[(5, 1, 80)], &[(9, 1, 30)]);
         let before = common_utils::date_time::now().assume_utc();
         for _ in 0..50 {
-            let dt = compute_mathmodel_retry_time(&corrupt, 3, 14, DEFAULT_RETRY_HOUR)
-                .expect("grace > 1 => Some");
+            let dt = compute_mathmodel_retry_time(
+                &corrupt,
+                3,
+                14,
+                DEFAULT_RETRY_HOUR,
+                MathModelVariant::default(),
+            )
+            .expect("grace > 1 => Some");
             assert!(dt.date() > before.date() && dt.hour() < 24);
         }
     }
@@ -2334,8 +2773,14 @@ mod mathmodel_retry_time_tests {
     #[test]
     fn grace_is_capped_at_max() {
         let before = common_utils::date_time::now().assume_utc();
-        let dt = compute_mathmodel_retry_time(&sample(), 3, 365, DEFAULT_RETRY_HOUR)
-            .expect("grace > 1 => Some");
+        let dt = compute_mathmodel_retry_time(
+            &sample(),
+            3,
+            365,
+            DEFAULT_RETRY_HOUR,
+            MathModelVariant::default(),
+        )
+        .expect("grace > 1 => Some");
         let last = (before + time::Duration::days(i64::from(MAX_GRACE_DAYS) + 1)).date();
         assert!(
             dt.date() <= last,
@@ -2351,5 +2796,214 @@ mod mathmodel_retry_time_tests {
             .expect("guard forces a fire");
         assert_eq!(idx, 0);
         assert!(matches!(driver, PickDriver::RunwayGuard));
+    }
+
+    // A window of distinct descending values, so the greedy pour has an unambiguous ranking.
+    fn descending_values(n: usize) -> Vec<f64> {
+        let mut value = 1.0;
+        (0..n)
+            .map(|_| {
+                let current = value;
+                value -= 0.01;
+                current
+            })
+            .collect()
+    }
+
+    #[test]
+    fn inclusion_probabilities_spend_the_budget_exactly() {
+        // The core invariant the sampler's geometry rests on: the line is exactly k units long, and
+        // every segment is a usable probability. Σπ − k was 5.7e-14 across the reference sweep.
+        // `expected` is written out rather than recomputed, so the cap is asserted, not mirrored.
+        for (n, budget, eps, expected) in [
+            (30, 15, 0.10, 15.0),
+            (30, 15, 0.00, 15.0),
+            (7, 3, 0.25, 3.0),
+            (31, 1, 0.10, 1.0),
+            (5, 5, 0.10, 5.0),
+            (5, 9, 0.10, 5.0), // budget wider than the window: capped at n
+        ] {
+            let pi = inclusion_probabilities(&descending_values(n), budget, eps);
+            let total: f64 = pi.iter().sum();
+            assert!(
+                approx(total, expected, 1e-9),
+                "n={n} budget={budget} eps={eps}: Σπ={total}, expected {expected}"
+            );
+            assert!(
+                pi.iter().all(|&p| (0.0..=1.0).contains(&p)),
+                "n={n} budget={budget} eps={eps}: π outside [0,1]: {pi:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn epsilon_above_k_over_n_is_capped_not_trusted() {
+        // Regression for the silent failure: ε > k/n makes R = k − εn negative, and the pour then
+        // emits negative probabilities while STILL summing to k and still returning k days — so
+        // nothing downstream notices, but the cumulative sum stops being monotonic.
+        let n = 30;
+        let budget = 15; // k/n = 0.5
+        for eps in [0.55, 0.60, 0.95] {
+            let pi = inclusion_probabilities(&descending_values(n), budget, eps);
+            let min = pi.iter().copied().fold(f64::MAX, f64::min);
+            assert!(min >= 0.0, "eps={eps} produced a negative probability: {min}");
+            assert!(approx(pi.iter().sum::<f64>(), f64::from(budget), 1e-9));
+        }
+    }
+
+    #[test]
+    fn tied_values_receive_equal_probability() {
+        // Ranking alone settles ties by array position, which gave four identically-valued days
+        // 0.10 / 0.40 / 1.00 / 0.10 on identical evidence. Equal evidence must mean equal odds.
+        let values = vec![0.9, 0.1809, 0.1809, 0.1809, 0.1809, 0.05];
+        let pi = inclusion_probabilities(&values, 3, 0.10);
+        let tied = pi.get(1..5).expect("tied group within range");
+        let first = tied.first().copied().expect("non-empty tied group");
+        assert!(
+            tied.iter().all(|&p| approx(p, first, 1e-12)),
+            "tied days drew unequal probabilities: {tied:?}"
+        );
+        assert!(approx(pi.iter().sum::<f64>(), 3.0, 1e-9));
+    }
+
+    #[test]
+    fn tie_tolerance_merges_only_within_its_own_width() {
+        // Two days straddling the rank where the pour runs out — the only place merging changes
+        // anything. Inside the tolerance they split; outside it the ranking stands. Both directions
+        // are asserted because a tolerance that silently swallowed the second case would reallocate
+        // probability between days the model does rank differently.
+        let inside = vec![0.5 + TIE_TOLERANCE / 10.0, 0.5, 0.2, 0.1];
+        let pi = inclusion_probabilities(&inside, 2, 0.10);
+        let first = pi.first().copied().expect("index in range");
+        let second = pi.get(1).copied().expect("index in range");
+        assert!(
+            approx(first, second, 1e-12),
+            "values within the tolerance must split: {first} vs {second}"
+        );
+
+        let outside = vec![0.5 + TIE_TOLERANCE * 1000.0, 0.5, 0.2, 0.1];
+        let pi = inclusion_probabilities(&outside, 2, 0.10);
+        let first = pi.first().copied().expect("index in range");
+        let second = pi.get(1).copied().expect("index in range");
+        assert!(
+            first > second,
+            "values outside the tolerance must keep their order: {first} vs {second}"
+        );
+
+        // Splitting redistributes inside the group, so the budget is spent exactly either way.
+        for values in [inside, outside] {
+            let total: f64 = inclusion_probabilities(&values, 2, 0.10).iter().sum();
+            assert!(approx(total, 2.0, 1e-9), "budget not spent exactly: {total}");
+        }
+    }
+
+    #[test]
+    fn systematic_sample_always_returns_exactly_k_distinct_days() {
+        // G1 is geometric, so it holds on EVERY draw, not on average — including the endpoints
+        // u = 0 and u → 1⁻ where probes sit exactly on segment boundaries.
+        let n = 30;
+        let budget: u32 = 15;
+        let pi = inclusion_probabilities(&descending_values(n), budget, 0.10);
+        let order: Vec<usize> = (0..n).collect();
+        let expected_days = usize::try_from(budget).unwrap_or(0);
+        for step in 0..1000 {
+            let u = f64::from(step) / 1000.0;
+            let selected = systematic_sample(&pi, u, &order);
+            assert_eq!(
+                selected.len(),
+                expected_days,
+                "u={u} selected {} days, expected {budget}",
+                selected.len()
+            );
+            let mut distinct = selected.clone();
+            distinct.dedup();
+            assert_eq!(distinct.len(), selected.len(), "u={u} repeated a day");
+        }
+    }
+
+    #[test]
+    fn realised_selection_rate_matches_the_promised_probability() {
+        // G2: day i is selected with probability exactly πᵢ. Checked as a frequency over draws, so
+        // the tolerance is sampling noise on 20k draws, not the guarantee's own error.
+        let n = 12;
+        let values = descending_values(n);
+        let pi = inclusion_probabilities(&values, 4, 0.10);
+        let order: Vec<usize> = (0..n).collect();
+        let draws: u32 = 20_000;
+        let mut hits = vec![0u32; n];
+        for step in 0..draws {
+            let u = (f64::from(step) + 0.5) / f64::from(draws);
+            for day in systematic_sample(&pi, u, &order) {
+                if let Some(count) = hits.get_mut(day) {
+                    *count += 1;
+                }
+            }
+        }
+        for (day, (&count, &promised)) in hits.iter().zip(pi.iter()).enumerate() {
+            let realised = f64::from(count) / f64::from(draws);
+            assert!(
+                approx(realised, promised, 0.01),
+                "day {day}: realised {realised}, promised {promised}"
+            );
+        }
+    }
+
+    #[test]
+    fn exploration_floor_keeps_every_day_reachable_in_the_schedule() {
+        // What ε actually buys: every candidate day lands in SOME schedule, including the ones the
+        // value model rates worst. Asserted on the draw itself, because which day the caller then
+        // acts on is a different question — see `returned_day_is_the_nearest_one_drawn`.
+        let n = 10;
+        let pi = inclusion_probabilities(&descending_values(n), 3, 0.10);
+        let order: Vec<usize> = (0..n).collect();
+        let mut seen = vec![false; n];
+        for step in 0..2_000 {
+            let u = (f64::from(step) + 0.5) / 2000.0;
+            for day in systematic_sample(&pi, u, &order) {
+                if let Some(hit) = seen.get_mut(day) {
+                    *hit = true;
+                }
+            }
+        }
+        assert!(
+            seen.iter().all(|&hit| hit),
+            "a day was never reachable despite the exploration floor: {seen:?}"
+        );
+    }
+
+    #[test]
+    fn returned_day_is_the_nearest_one_drawn() {
+        // The on-demand form returns the SOONEST day of the schedule, so a day pinned at π = 1.0
+        // near the front is returned every single time: the floor spreads the schedule, not the day
+        // that gets acted on. Front-loaded values therefore make the pick deterministic, and only
+        // back-loaded values let it move. This is the mechanism behind on-demand starving the end
+        // of the window, and it is why ε cannot be read as exploration over the retry date.
+        let front_best = descending_values(10);
+        for _ in 0..200 {
+            let (idx, pi) = select_systematic_k_day(&front_best, 3, 0.10).expect("budget > 0");
+            assert_eq!(idx, 0, "a pinned soonest day must always be the one returned");
+            assert!(approx(pi, 1.0, 1e-9), "day 0 should be pinned, got π={pi}");
+        }
+
+        let back_best: Vec<f64> = descending_values(10).into_iter().rev().collect();
+        let mut distinct = std::collections::BTreeSet::new();
+        for _ in 0..400 {
+            let (idx, _) = select_systematic_k_day(&back_best, 3, 0.10).expect("budget > 0");
+            distinct.insert(idx);
+        }
+        assert!(
+            distinct.len() > 1,
+            "back-loaded values should not pin the returned day: {distinct:?}"
+        );
+    }
+
+    #[test]
+    fn systematic_k_day_declines_only_when_there_is_nothing_to_schedule() {
+        assert!(select_systematic_k_day(&[], 5, 0.10).is_none());
+        assert!(select_systematic_k_day(&[1.0, 1.0], 0, 0.10).is_none());
+        // Budget wider than the window pins every day at 1.0, so the soonest day is always day 0.
+        let (idx, pi) = select_systematic_k_day(&[0.1, 0.2, 0.3], 9, 0.10).expect("budget > 0");
+        assert_eq!(idx, 0);
+        assert!(approx(pi, 1.0, 1e-9), "every day should be certain, got {pi}");
     }
 }
