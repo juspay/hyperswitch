@@ -151,6 +151,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         message: not_supported_message(message, connector),
                     }
                 }
+                errors::ConnectorError::CaptureMethodNotSupported => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: "Capture Method Not Supported".to_owned(),
+                    }
+                }
                 errors::ConnectorError::FlowNotSupported { flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported {
                         flow: flow.to_owned(),
@@ -230,7 +235,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::ProcessingStepFailed(None)
                 | errors::ConnectorError::MismatchedPaymentData
                 | errors::ConnectorError::MandatePaymentDataMismatch { .. }
-                | errors::ConnectorError::CaptureMethodNotSupported
                 | errors::ConnectorError::CurrencyNotSupported { .. }
                 | errors::ConnectorError::GenericError { .. }
                 | errors::ConnectorError::AmountConversionFailed => {
