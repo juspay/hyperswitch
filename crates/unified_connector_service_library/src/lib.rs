@@ -48,11 +48,14 @@ use hyperswitch_payments_client::{ConnectorClient, SdkError};
 /// Returns `Err` if called more than once (a logic error in the caller, not a
 /// runtime condition to recover from) — see
 /// `connector_service_ffi::handlers::payments::set_runtime_config`.
-pub fn init(config: Arc<ucs_env::configs::Config>) -> Result<(), Report<UnifiedConnectorServiceError>> {
-    hyperswitch_payments_client::set_runtime_config(config)
-        .map_err(|_| Report::new(UnifiedConnectorServiceError::ConnectionError(
+pub fn init(
+    config: Arc<ucs_env::configs::Config>,
+) -> Result<(), Report<UnifiedConnectorServiceError>> {
+    hyperswitch_payments_client::set_runtime_config(config).map_err(|_| {
+        Report::new(UnifiedConnectorServiceError::ConnectionError(
             "unified_connector_service_library::init called more than once".to_string(),
-        )))
+        ))
+    })
 }
 
 /// Builds a `ucs_env::configs::Config` for [`init`] from HS's own settings.
@@ -72,10 +75,11 @@ pub fn config_from_hs_proxy_settings(
     ucs_toml_path: &std::path::Path,
     hs_proxy: &hyperswitch_interfaces::types::Proxy,
 ) -> Result<ucs_env::configs::Config, Report<UnifiedConnectorServiceError>> {
-    let mut config = ucs_env::configs::Config::new_with_config_path(Some(ucs_toml_path.to_path_buf()))
-        .change_context(UnifiedConnectorServiceError::ConnectionError(
-            "failed to load UCS config for library mode".to_string(),
-        ))?;
+    let mut config =
+        ucs_env::configs::Config::new_with_config_path(Some(ucs_toml_path.to_path_buf()))
+            .change_context(UnifiedConnectorServiceError::ConnectionError(
+                "failed to load UCS config for library mode".to_string(),
+            ))?;
 
     let mut proxies = HashMap::new();
     if hs_proxy.http_url.is_some() || hs_proxy.https_url.is_some() {
@@ -146,11 +150,13 @@ impl LibraryConnectorService {
         }
 
         let connector_config = connector_config_from_auth_metadata(connector_auth_metadata)?;
-        let client = Arc::new(ConnectorClient::new(connector_config, None).map_err(|error| {
-            Report::new(UnifiedConnectorServiceError::ConnectionError(format!(
-                "failed to construct library-mode ConnectorClient: {error:?}"
-            )))
-        })?);
+        let client = Arc::new(
+            ConnectorClient::new(connector_config, None).map_err(|error| {
+                Report::new(UnifiedConnectorServiceError::ConnectionError(format!(
+                    "failed to construct library-mode ConnectorClient: {error:?}"
+                )))
+            })?,
+        );
 
         if let Ok(mut cache) = self.clients.write() {
             cache.insert(cache_key, client.clone());
@@ -209,9 +215,10 @@ fn grpc_metadata_to_string_map(
     Ok(metadata_map
         .iter()
         .filter_map(|entry| match entry {
-            tonic::metadata::KeyAndValueRef::Ascii(key, value) => {
-                value.to_str().ok().map(|v| (key.to_string(), v.to_string()))
-            }
+            tonic::metadata::KeyAndValueRef::Ascii(key, value) => value
+                .to_str()
+                .ok()
+                .map(|v| (key.to_string(), v.to_string())),
             tonic::metadata::KeyAndValueRef::Binary(_, _) => None,
         })
         .collect())
@@ -257,11 +264,9 @@ fn sdk_error_to_ucs_error(
         "UCS library-mode call failed"
     );
     match error {
-        SdkError::IntegrationError { error_message, .. } => {
-            Report::new(UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                error_message,
-            ))
-        }
+        SdkError::IntegrationError { error_message, .. } => Report::new(
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(error_message),
+        ),
         SdkError::NetworkError { .. } => {
             Report::new(UnifiedConnectorServiceError::ConnectionError(debug_repr))
         }

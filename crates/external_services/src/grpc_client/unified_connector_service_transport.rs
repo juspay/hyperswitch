@@ -13,16 +13,17 @@
 //! and one match arm here. That's the only place a flow's wiring needs to
 //! exist twice; the flow's actual logic never does.
 
-use super::unified_connector_service::{
-    ConnectorAuthMetadata, GrpcHeadersUcs, UnifiedConnectorServiceClient,
-    UnifiedConnectorServiceResult,
-};
 // Not `grpc_api_types` directly: `external_services` only has
 // `unified-connector-service-client` (a pure re-export of `grpc_api_types`,
 // see that crate's one-line lib.rs) as a direct dependency. Same type either
 // way — `unified_connector_service_library` depends on `grpc-api-types`
 // directly instead, since that's a direct dependency there.
 use unified_connector_service_client::payments as payments_grpc;
+
+use super::unified_connector_service::{
+    ConnectorAuthMetadata, GrpcHeadersUcs, UnifiedConnectorServiceClient,
+    UnifiedConnectorServiceResult,
+};
 
 /// Either transport to the Unified Connector Service. Constructed once at
 /// startup from `[grpc_client.unified_connector_service]`'s `mode` — see that
