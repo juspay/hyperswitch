@@ -2400,16 +2400,15 @@ async fn associated_data_incoming_webhook_flow(
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-                let payment_method_update_result = update_payment_method_associated_data(
+                let payment_method_update_result = Box::pin(update_payment_method_associated_data(
                     &state,
                     &platform,
                     &business_profile,
                     &payment_attempt,
-                    payment_intent.customer_id.as_ref(),
-                    payment_intent.billing_address_id.as_deref(),
+                    &payment_intent,
                     merchant_connector_id,
                     associated_data.payment_method,
-                )
+                ))
                 .await;
 
                 let attempt_update_result = match payment_method_update_result
@@ -2642,8 +2641,7 @@ async fn update_payment_method_associated_data(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_attempt: &PaymentAttempt,
-    customer_id: Option<&common_utils::id_type::CustomerId>,
-    billing_address_id: Option<&str>,
+    payment_intent: &domain::PaymentIntent,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     connector_disclosed_details: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
@@ -2670,8 +2668,8 @@ async fn update_payment_method_associated_data(
                 state,
                 platform,
                 payment_attempt,
-                customer_id,
-                billing_address_id,
+                payment_intent.customer_id.as_ref(),
+                payment_intent.billing_address_id.as_deref(),
                 &connector_disclosed_details,
             )
             .await?
