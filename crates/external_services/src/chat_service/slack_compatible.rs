@@ -190,8 +190,6 @@ impl Endpoint {
             })
             .transpose()?;
 
-        // Form-encoded, not JSON: Slack ignores a JSON body on this method and reports the fields
-        // as missing. Xyne accepts either.
         let prepare_url = self.method_url(FILES_GET_UPLOAD_URL);
         let prepare_body = self
             .send(
