@@ -1,8 +1,9 @@
 //! Router active-user lookup operation.
-use super::{read_bounded, RouterClient, RouterError};
 use hyperswitch_masking::{PeekInterface, Secret};
 use reqwest::{header, StatusCode};
 use serde::Deserialize;
+
+use super::{read_bounded, RouterClient, RouterError};
 
 #[derive(Deserialize)]
 struct UserDetailsResponse {

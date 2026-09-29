@@ -1,8 +1,9 @@
 //! Router token authorization operation.
-use super::{read_bounded, RouterClient, RouterError};
 use hyperswitch_masking::Secret;
 use reqwest::StatusCode;
 use serde::Serialize;
+
+use super::{read_bounded, RouterClient, RouterError};
 
 #[derive(Serialize)]
 struct AuthorizeTokenRequest<'a> {
