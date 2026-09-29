@@ -1,9 +1,6 @@
 #[cfg(feature = "v2")]
 use std::str::FromStr;
-use std::{
-    collections::{HashMap, HashSet},
-    num::NonZeroU8,
-};
+use std::{collections::BTreeSet, num::NonZeroU8};
 
 use cards::CardNumber;
 use common_types::payments::{
@@ -12,6 +9,7 @@ use common_types::payments::{
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
+    collections::HashMap,
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
     errors,
     ext_traits::OptionExt,
@@ -4029,11 +4027,11 @@ pub struct ListCountriesCurrenciesRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListCountriesCurrenciesResponse {
-    pub currencies: HashSet<api_enums::Currency>,
-    pub countries: HashSet<CountryCodeWithName>,
+    pub currencies: BTreeSet<api_enums::Currency>,
+    pub countries: BTreeSet<CountryCodeWithName>,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, Hash, PartialEq)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct CountryCodeWithName {
     pub code: api_enums::CountryAlpha2,
     pub name: api_enums::Country,

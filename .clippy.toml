@@ -10,6 +10,13 @@ allow-unwrap-in-tests = true
 # with a reason. "It is only telemetry" and "it is only a test" are not exceptions:
 # a raw read in either place is the one the next person copies onto a request path.
 disallowed-methods = [
+  { path = "tokio::spawn", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; use router_env::spawn, which takes only an instrumented future" },
+  { path = "tokio::task::JoinSet::spawn", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; use router_env::spawn_in_set, which takes only an instrumented future" },
+  { path = "tokio::task::spawn_local", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; instrument the future and allow with a reason, or add a router_env helper" },
+  { path = "tokio::task::JoinSet::spawn_on", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; instrument the future and allow with a reason, or add a router_env helper" },
+  { path = "tokio::task::JoinSet::spawn_local", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; instrument the future and allow with a reason, or add a router_env helper" },
+  { path = "tokio::runtime::Handle::spawn", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; instrument the future and allow with a reason, or add a router_env helper" },
+  { path = "tokio::runtime::Runtime::spawn", reason = "a spawned future carries no span unless given one, so its logs lose the request and, under deja, its boundaries record uncorrelated; instrument the future and allow with a reason, or add a router_env helper" },
   { path = "diesel::query_dsl::QueryDsl::into_boxed", reason = "dynamic list queries must be built via diesel_models::list::boxed_list_query! or diesel_models::list::into_boxed_list" },
   { path = "time::OffsetDateTime::now_utc", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time (now, now_unix_timestamp, now_unix_timestamp_millis, now_rfc7231_http_date, date_as_yyyymmddthhmmssmmmz)" },
   { path = "chrono::Utc::now", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time" },
@@ -20,8 +27,20 @@ disallowed-methods = [
   { path = "std::process::id", reason = "a process id differs between the recording process and the replay process; use common_utils::process_id" },
   { path = "gethostname::gethostname", reason = "a hostname differs between the recording host and the replay host; use common_utils::hostname, which reads HOSTNAME from the environment (the pod name under Kubernetes)" },
   { path = "rand::random", reason = "a random draw outside a seam cannot be reproduced on replay; use common_utils" },
+  { path = "std::collections::HashMap::new", reason = "the facade's constructor builds a map whose order replays; disallowed-types sees a type position and not a constructor path, so this covers a fully-qualified call; use common_utils::collections" },
+  { path = "std::collections::HashMap::with_capacity", reason = "the facade's constructor builds a map whose order replays; disallowed-types sees a type position and not a constructor path, so this covers a fully-qualified call; use common_utils::collections" },
+  { path = "std::collections::HashSet::new", reason = "the facade's constructor builds a map whose order replays; disallowed-types sees a type position and not a constructor path, so this covers a fully-qualified call; use common_utils::collections" },
+  { path = "std::collections::HashSet::with_capacity", reason = "the facade's constructor builds a map whose order replays; disallowed-types sees a type position and not a constructor path, so this covers a fully-qualified call; use common_utils::collections" },
 ]
 
 disallowed-macros = [
   { path = "nanoid::nanoid", reason = "a nanoid is drawn from entropy and cannot be reproduced on replay; use common_utils::generate_nanoid_with_default_alphabet, or generate_id / generate_id_with_len for the consts::ALPHABETS variants" },
+]
+
+# A std HashMap iterates in an order drawn from per-process entropy, so a replay
+# renders it differently than the recording did. The facade's aliases are the
+# same types with a hasher that follows the request under the `deja` feature.
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "iteration order cannot be reproduced on replay; use common_utils::collections::HashMap", replacement = "common_utils::collections::HashMap" },
+  { path = "std::collections::HashSet", reason = "iteration order cannot be reproduced on replay; use common_utils::collections::HashSet", replacement = "common_utils::collections::HashSet" },
 ]

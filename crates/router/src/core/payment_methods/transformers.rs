@@ -248,7 +248,7 @@ pub struct DeleteCardResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct PaymentMethodMetadata {
-    pub payment_method_tokenization: std::collections::HashMap<String, String>,
+    pub payment_method_tokenization: common_utils::collections::HashMap<String, String>,
 }
 
 pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
@@ -1491,7 +1491,7 @@ impl DomainPaymentMethodWrapper {
             .connector_tokens
             .as_ref()
             .map(|connector_tokens| {
-                let payments_map: std::collections::HashMap<
+                let payments_map: common_utils::collections::HashMap<
                     id_type::MerchantConnectorAccountId,
                     mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
@@ -1615,7 +1615,7 @@ impl DomainPaymentMethodWrapper {
             .connector_tokens
             .as_ref()
             .map(|connector_tokens| {
-                let payments_map: std::collections::HashMap<
+                let payments_map: common_utils::collections::HashMap<
                     id_type::MerchantConnectorAccountId,
                     mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens

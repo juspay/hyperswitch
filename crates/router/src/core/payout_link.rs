@@ -1,11 +1,9 @@
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-};
+use std::cmp::Ordering;
 
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
+    collections::{HashMap, HashSet},
     ext_traits::{AsyncExt, Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},
@@ -175,16 +173,7 @@ pub async fn initiate_payout_link(
             let enabled_payout_methods =
                 filter_payout_methods(&state, &platform, &payout, address.as_ref()).await?;
             // Fetch default enabled_payout_methods
-            let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
-            for (payment_method, payment_method_types) in
-                default_config.enabled_payment_methods.clone().into_iter()
-            {
-                let enabled_payment_method = link_utils::EnabledPaymentMethod {
-                    payment_method,
-                    payment_method_types,
-                };
-                default_enabled_payout_methods.push(enabled_payment_method);
-            }
+            let default_enabled_payout_methods = default_config.default_enabled_payment_methods();
             let fallback_enabled_payout_methods = if enabled_payout_methods.is_empty() {
                 &default_enabled_payout_methods
             } else {
@@ -431,7 +420,7 @@ pub async fn filter_payout_methods(
         if !payment_method_types.is_empty() {
             let enabled_payment_method = link_utils::EnabledPaymentMethod {
                 payment_method,
-                payment_method_types,
+                payment_method_types: payment_method_types.into_iter().collect(),
             };
             response.push(enabled_payment_method);
         }

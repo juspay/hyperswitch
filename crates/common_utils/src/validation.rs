@@ -2,7 +2,7 @@
 
 #![deny(clippy::invalid_regex)]
 
-use std::{collections::HashSet, sync::LazyLock};
+use std::sync::LazyLock;
 
 use error_stack::report;
 use globset::Glob;
@@ -11,6 +11,7 @@ use regex::Regex;
 use router_env::logger;
 
 use crate::{
+    collections::HashSet,
     consts,
     errors::{CustomResult, ValidationError},
 };
@@ -222,7 +223,7 @@ impl<T: ValidateXSSOrSQLi> ValidateXSSOrSQLi for HashSet<T> {
 }
 
 impl<K: ValidateXSSOrSQLi, V: ValidateXSSOrSQLi> ValidateXSSOrSQLi
-    for std::collections::HashMap<K, V>
+    for crate::collections::HashMap<K, V>
 {
     fn validate_xss_or_sqli(&self) -> Result<(), String> {
         self.iter().try_for_each(|(k, v)| {

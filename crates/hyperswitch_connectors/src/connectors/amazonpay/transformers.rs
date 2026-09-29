@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use common_enums::{enums, CaptureMethod};
-use common_utils::{errors::CustomResult, pii, types::StringMajorUnit};
+use common_utils::{collections::HashMap, errors::CustomResult, pii, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},

@@ -1,8 +1,6 @@
-use std::collections::HashSet;
-
 use api_models::blocklist as api_blocklist;
 use common_enums::{BlockReason, MerchantDecision};
-use common_utils::errors::CustomResult;
+use common_utils::{collections::HashSet, errors::CustomResult};
 use diesel_models::{
     business_profile::{CardBlockingConfig, PaymentMethodBlockingConfig},
     configs,

@@ -1,7 +1,8 @@
-use std::{collections::HashMap, num::TryFromIntError};
+use std::num::TryFromIntError;
 
 use api_models::payment_methods::SurchargeDetailsResponse;
 use common_utils::{
+    collections::HashMap,
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
     types::{self as common_types, ConnectorTransactionIdTrait},

@@ -314,10 +314,13 @@ impl<T> SetGetReply<T> {
 // ─── Stream types ────────────────────────────────────────────────────────────
 
 /// Entries within a single stream, as `(entry_id, fields)`.
-pub type StreamEntries = Vec<(String, std::collections::HashMap<String, RedisValue>)>;
+pub type StreamEntries = Vec<(
+    String,
+    common_utils::collections::HashMap<String, RedisValue>,
+)>;
 
 /// Grouped result of a stream read: stream key → list of `(entry_id, fields)`.
-pub type StreamReadResult = std::collections::HashMap<String, StreamEntries>;
+pub type StreamReadResult = common_utils::collections::HashMap<String, StreamEntries>;
 
 #[derive(Debug, Clone)]
 pub enum StreamCapKind {

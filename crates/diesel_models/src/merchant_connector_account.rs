@@ -1,7 +1,7 @@
-#[cfg(feature = "v2")]
-use std::collections::HashMap;
 use std::fmt::Debug;
 
+#[cfg(feature = "v2")]
+use common_utils::collections::HashMap;
 use common_utils::{encryption::Encryption, id_type, pii};
 #[cfg(feature = "v2")]
 use diesel::{sql_types::Jsonb, AsExpression};

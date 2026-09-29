@@ -1,5 +1,7 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
+// A proc-macro: its maps exist only while compiling.
+#![allow(clippy::disallowed_types, clippy::disallowed_methods)]
 use syn::parse_macro_input;
 
 use crate::macros::diesel::DieselEnumMeta;
@@ -651,9 +653,9 @@ pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 
     let expanded = quote::quote! {
         impl #name {
-            pub fn flat_struct(&self) -> std::collections::HashMap<String, String> {
+            pub fn flat_struct(&self) -> common_utils::collections::HashMap<String, String> {
                 use serde_json::Value;
-                use std::collections::HashMap;
+                use common_utils::collections::HashMap;
 
                 fn flatten_value(
                     value: &Value,

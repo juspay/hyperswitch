@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use base64::Engine;
+use common_utils::collections::HashMap;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 use url::Url;
@@ -294,9 +293,8 @@ impl VaultMetadataExtractorExt for ConnectionConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use base64::Engine;
+    use common_utils::collections::HashMap;
 
     use super::*;
     use crate::types::HttpMethod;

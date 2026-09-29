@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use common_utils::{errors::CustomResult, ext_traits::OptionExt};
+use common_utils::{collections::HashMap, errors::CustomResult, ext_traits::OptionExt};
 use diesel_models::process_tracker::ProcessTracker;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;

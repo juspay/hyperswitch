@@ -2285,7 +2285,7 @@ impl TryFrom<domain::EventWithDeliverySuccessSource>
 impl
     ForeignTryFrom<(
         domain::EventWithDeliverySuccessSource,
-        Option<&std::collections::HashSet<String>>,
+        Option<&common_utils::collections::HashSet<String>>,
     )> for api_models::webhook_events::EventRetrieveResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -2293,7 +2293,7 @@ impl
     fn foreign_try_from(
         (value, sensitive_header_names): (
             domain::EventWithDeliverySuccessSource,
-            Option<&std::collections::HashSet<String>>,
+            Option<&common_utils::collections::HashSet<String>>,
         ),
     ) -> Result<Self, Self::Error> {
         use crate::utils::OptionExt;

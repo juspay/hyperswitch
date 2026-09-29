@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt, ops::Deref, str::FromStr, sync::LazyLock};
+use std::{fmt, ops::Deref, str::FromStr, sync::LazyLock};
 
-use common_utils::errors::ValidationError;
+use common_utils::{collections::HashMap, errors::ValidationError};
 use error_stack::report;
 use hyperswitch_masking::{PeekInterface, Strategy, StrongSecret, WithType};
 use regex::Regex;

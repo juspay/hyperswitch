@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::analytics::{
     disputes::{
         DisputeDimensions, DisputeMetrics, DisputeMetricsBucketIdentifier,
@@ -8,6 +6,7 @@ use api_models::analytics::{
     DisputeFilterValue, DisputeFiltersResponse, DisputesAnalyticsMetadata, DisputesMetricsResponse,
     GetDisputeFilterRequest, GetDisputeMetricRequest,
 };
+use common_utils::collections::HashMap;
 use error_stack::ResultExt;
 use router_env::{
     logger,
@@ -45,7 +44,8 @@ pub async fn get_metrics(
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
         let auth_scoped = auth.to_owned();
-        set.spawn(
+        router_env::spawn_in_set(
+            &mut set,
             async move {
                 let data = pool
                     .get_dispute_metrics(

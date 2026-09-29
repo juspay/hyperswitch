@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::marker::PhantomData;
 
 use ::payment_methods::controller::PaymentMethodsController;
 use actix_multipart::form::{bytes::Bytes as MultipartBytes, MultipartForm};
@@ -8,7 +8,7 @@ use api_models::payment_methods::{
     ModularPaymentMethodMigrationRowResult, PaymentMethodId,
 };
 use common_enums::{enums, ApiVersion};
-use common_utils::id_type;
+use common_utils::{collections::HashMap, id_type};
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::platform;

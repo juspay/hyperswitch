@@ -400,7 +400,7 @@ impl SecretsHandler for settings::OidcSettings {
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let oidc_settings = value.get_inner();
 
-        let mut decrypted_keys = std::collections::HashMap::new();
+        let mut decrypted_keys = common_utils::collections::HashMap::new();
         for (key_id, oidc_key) in &oidc_settings.key {
             let private_key = secret_management_client
                 .get_secret(oidc_key.private_key.clone())
@@ -414,7 +414,7 @@ impl SecretsHandler for settings::OidcSettings {
             );
         }
 
-        let mut decrypted_clients = std::collections::HashMap::new();
+        let mut decrypted_clients = common_utils::collections::HashMap::new();
         for (client_key, oidc_client) in &oidc_settings.client {
             let client_secret = secret_management_client
                 .get_secret(oidc_client.client_secret.clone())

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -9,6 +9,7 @@ use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::{
+    collections::HashMap,
     id_type,
     types::{keymanager::KeyManagerState, TenantConfig},
 };

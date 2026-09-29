@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_utils::collections::HashSet;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     NullableExpressionMethods, QueryDsl,
