@@ -192,6 +192,8 @@ pub enum HttpClientError {
     UrlParsingFailed,
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
+    #[error("Request destination is not allowed")]
+    DestinationNotAllowed,
     #[error("Failed to send request to connector {0}")]
     RequestNotSent(String),
     #[error("Failed to decode response")]
@@ -226,6 +228,7 @@ impl ErrorSwitch<ApiClientError> for HttpClientError {
             Self::UnexpectedState => ApiClientError::UnexpectedState,
             Self::UrlParsingFailed => ApiClientError::UrlParsingFailed,
             Self::UrlEncodingFailed => ApiClientError::UrlEncodingFailed,
+            Self::DestinationNotAllowed => ApiClientError::DestinationNotAllowed,
             Self::RequestNotSent(reason) => ApiClientError::RequestNotSent(reason.clone()),
             Self::ResponseDecodingFailed => ApiClientError::ResponseDecodingFailed,
             Self::RequestTimeoutReceived => ApiClientError::RequestTimeoutReceived,

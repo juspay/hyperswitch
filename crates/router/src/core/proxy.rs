@@ -90,6 +90,7 @@ async fn execute_proxy_request(
         .headers(req_wrapper.get_headers())
         .url(req_wrapper.get_destination_url())
         .set_body(request::RequestContent::Json(Box::new(processed_body)))
+        .restrict_to_public()
         .build();
 
     let response = services::call_connector_api(state, request, "proxy", None)

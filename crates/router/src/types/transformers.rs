@@ -2585,6 +2585,14 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     }
 }
 
+impl ForeignFrom<api_models::admin::WebhookDetailsRequest>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetailsRequest) -> Self {
+        Self::foreign_from(api_models::admin::WebhookDetails::from(item))
+    }
+}
+
 impl ForeignFrom<api_models::admin::WebhookDetails>
     for diesel_models::business_profile::WebhookDetails
 {

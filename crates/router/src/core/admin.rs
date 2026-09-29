@@ -4107,8 +4107,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
 
                 match existing_webhook_details {
-                    Some(existing_details) => existing_details.merge(webhook_details),
-                    None => webhook_details,
+                    Some(existing_details) => existing_details.merge(webhook_details.into()),
+                    None => webhook_details.into(),
                 }
             })
             .map(ForeignInto::foreign_into);

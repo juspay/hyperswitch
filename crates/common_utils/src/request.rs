@@ -80,6 +80,9 @@ pub struct Request {
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
     pub query_params: Option<serde_json::Value>,
+    /// Set for requests whose destination was chosen by a merchant: the request may only connect
+    /// to publicly routable addresses.
+    pub restrict_to_public: bool,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -133,6 +136,7 @@ impl Request {
             body: None,
             ca_certificate: None,
             query_params: None,
+            restrict_to_public: false,
         }
     }
 
@@ -167,6 +171,7 @@ pub struct RequestBuilder {
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
     pub query_params: Option<serde_json::Value>,
+    pub restrict_to_public: bool,
 }
 
 impl RequestBuilder {
@@ -180,6 +185,7 @@ impl RequestBuilder {
             body: None,
             ca_certificate: None,
             query_params: None,
+            restrict_to_public: false,
         }
     }
 
@@ -238,6 +244,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn restrict_to_public(mut self) -> Self {
+        self.restrict_to_public = true;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -248,6 +259,7 @@ impl RequestBuilder {
             body: self.body,
             ca_certificate: self.ca_certificate,
             query_params: self.query_params,
+            restrict_to_public: self.restrict_to_public,
         }
     }
 }

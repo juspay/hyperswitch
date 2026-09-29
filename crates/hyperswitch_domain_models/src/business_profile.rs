@@ -1005,12 +1005,26 @@ impl Profile {
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)
     }
 
-    pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
+    pub fn get_webhook_url_from_profile(
+        &self,
+    ) -> CustomResult<common_utils::outbound_url::SafeOutboundUrl, ValidationError> {
         self.webhook_details
             .clone()
             .and_then(|details| details.webhook_url)
             .get_required_value("webhook_details.webhook_url")
             .map(ExposeInterface::expose)
+            .and_then(|webhook_url| match webhook_url.trim().is_empty() {
+                true => Err(error_stack::report!(
+                    ValidationError::MissingRequiredField {
+                        field_name: "webhook_details.webhook_url".to_string(),
+                    }
+                )),
+                false => common_utils::outbound_url::SafeOutboundUrl::try_from(webhook_url)
+                    .change_context(ValidationError::InvalidValue {
+                        message: "webhook_details.webhook_url is not a valid destination"
+                            .to_string(),
+                    }),
+            })
     }
 
     #[cfg(feature = "v2")]

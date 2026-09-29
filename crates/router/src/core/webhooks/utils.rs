@@ -299,14 +299,14 @@ pub(crate) fn increment_webhook_outgoing_not_received_count(
 
 pub fn is_outgoing_webhook_disabled(
     state: &SessionState,
-    webhook_url_result: &Result<String, Report<errors::WebhooksFlowError>>,
+    webhook_url_result: &Result<
+        common_utils::outbound_url::SafeOutboundUrl,
+        Report<errors::WebhooksFlowError>,
+    >,
     business_profile: &domain::Profile,
     idempotent_event_id: &str,
 ) -> bool {
-    if !state.conf.webhooks.outgoing_enabled
-        || webhook_url_result.is_err()
-        || webhook_url_result.as_ref().is_ok_and(String::is_empty)
-    {
+    if !state.conf.webhooks.outgoing_enabled || webhook_url_result.is_err() {
         logger::debug!(
             business_profile_id=?business_profile.get_id(),
             %idempotent_event_id,

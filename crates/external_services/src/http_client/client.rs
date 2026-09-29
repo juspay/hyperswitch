@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::RwLock, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use base64::Engine;
 use common_utils::consts::BASE64_ENGINE;
@@ -10,14 +14,43 @@ use once_cell::sync::OnceCell;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
-static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
+static CLIENT_CACHE: OnceCell<RwLock<HashMap<ClientCacheKey, reqwest::Client>>> = OnceCell::new();
 
 use router_env::logger;
 
-use super::metrics;
+use super::{destination::PublicOnlyResolver, metrics};
 
 trait ProxyClientCacheKey {
     fn cache_key(&self) -> Option<Proxy>;
+}
+
+/// Clients are pooled per proxy configuration and per destination restriction, so a request that
+/// must go through the public-only resolver never picks up an unrestricted client, or the reverse.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct ClientCacheKey {
+    proxy: Option<Proxy>,
+    restrict_to_public: bool,
+}
+
+impl ClientCacheKey {
+    fn new(proxy_config: &Proxy, restrict_to_public: bool) -> Self {
+        Self {
+            proxy: proxy_config.cache_key(),
+            restrict_to_public,
+        }
+    }
+
+    fn is_default(&self) -> bool {
+        self.proxy.is_none() && !self.restrict_to_public
+    }
+
+    fn client_type(&self) -> &'static str {
+        match (self.proxy.is_some(), self.restrict_to_public) {
+            (true, _) => "proxy",
+            (false, true) => "public_only",
+            (false, false) => "default",
+        }
+    }
 }
 
 // We may need to use outbound proxy to connect to external world.
@@ -25,6 +58,7 @@ trait ProxyClientCacheKey {
 #[allow(missing_docs)]
 pub fn create_client(
     proxy_config: &Proxy,
+    restrict_to_public: bool,
     client_certificate: Option<hyperswitch_masking::Secret<String>>,
     client_certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ca_certificate: Option<hyperswitch_masking::Secret<String>>,
@@ -38,8 +72,10 @@ pub fn create_client(
         }
 
         logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
-        let client_builder =
-            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config);
+        let client_builder = apply_destination_restriction(
+            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config),
+            restrict_to_public,
+        );
 
         let identity = create_identity_from_certificate_and_key(
             encoded_certificate.clone(),
@@ -66,9 +102,11 @@ pub fn create_client(
         let cert = reqwest::Certificate::from_pem(pem.as_bytes())
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to parse CA certificate PEM block")?;
-        let client_builder =
-            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                .add_root_certificate(cert);
+        let client_builder = apply_destination_restriction(
+            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config),
+            restrict_to_public,
+        )
+        .add_root_certificate(cert);
         return client_builder
             .use_rustls_tls()
             .build()
@@ -78,7 +116,17 @@ pub fn create_client(
 
     // Case 3: Default client (no certs)
     logger::debug!("Creating default HTTP client (no client or CA certificates)");
-    get_base_client(proxy_config)
+    get_base_client(proxy_config, restrict_to_public)
+}
+
+fn apply_destination_restriction(
+    client_builder: reqwest::ClientBuilder,
+    restrict_to_public: bool,
+) -> reqwest::ClientBuilder {
+    match restrict_to_public {
+        true => client_builder.dns_resolver(Arc::new(PublicOnlyResolver)),
+        false => client_builder,
+    }
 }
 
 #[allow(missing_docs)]
@@ -206,9 +254,9 @@ impl ProxyClientCacheKey for Proxy {
     }
 }
 
-fn get_or_create_proxy_client(
-    cache: &RwLock<HashMap<Proxy, reqwest::Client>>,
-    cache_key: Proxy,
+fn get_or_create_cached_client(
+    cache: &RwLock<HashMap<ClientCacheKey, reqwest::Client>>,
+    cache_key: ClientCacheKey,
     proxy_config: &Proxy,
     metrics_tag: &[router_env::opentelemetry::KeyValue],
 ) -> CustomResult<reqwest::Client, HttpClientError> {
@@ -219,38 +267,40 @@ fn get_or_create_proxy_client(
 
     let client = match read_result {
         Some(cached_client) => {
-            logger::debug!("Retrieved cached proxy client for config: {:?}", cache_key);
+            logger::debug!("Retrieved cached client for key: {:?}", cache_key);
             metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
             cached_client
         }
         None => {
             let mut write_lock = cache.try_write().map_err(|_| {
                 error_stack::Report::new(HttpClientError::ClientConstructionFailed)
-                    .attach_printable("Failed to acquire proxy client cache write lock")
+                    .attach_printable("Failed to acquire client cache write lock")
             })?;
 
             match write_lock.get(&cache_key) {
                 Some(cached_client) => {
                     logger::debug!(
-                        "Retrieved cached proxy client after write lock for config: {:?}",
+                        "Retrieved cached client after write lock for key: {:?}",
                         cache_key
                     );
                     metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
                     cached_client.clone()
                 }
                 None => {
-                    logger::info!("Creating new proxy client for config: {:?}", cache_key);
+                    logger::info!("Creating new client for key: {:?}", cache_key);
                     metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
-                    let new_client =
-                        apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                            .build()
-                            .change_context(HttpClientError::ClientConstructionFailed)
-                            .attach_printable("Failed to construct proxy client")?;
+                    let new_client = apply_destination_restriction(
+                        apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config),
+                        cache_key.restrict_to_public,
+                    )
+                    .build()
+                    .change_context(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to construct client")?;
 
                     metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
                     write_lock.insert(cache_key.clone(), new_client.clone());
-                    logger::debug!("Cached new proxy client for config: {:?}", cache_key);
+                    logger::debug!("Cached new client for key: {:?}", cache_key);
                     new_client
                 }
             }
@@ -260,19 +310,19 @@ fn get_or_create_proxy_client(
     Ok(client)
 }
 
-fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
-    // Check if proxy configuration is provided using trait method
-    if let Some(cache_key) = proxy_config.cache_key() {
-        logger::debug!(
-            "Using proxy-specific client cache with key: {:?}",
-            cache_key
-        );
+fn get_base_client(
+    proxy_config: &Proxy,
+    restrict_to_public: bool,
+) -> CustomResult<reqwest::Client, HttpClientError> {
+    let cache_key = ClientCacheKey::new(proxy_config, restrict_to_public);
+    if !cache_key.is_default() {
+        logger::debug!("Using client cache with key: {:?}", cache_key);
 
-        let metrics_tag = router_env::metric_attributes!(("client_type", "proxy"));
+        let metrics_tag = router_env::metric_attributes!(("client_type", cache_key.client_type()));
 
-        let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+        let cache = CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
 
-        let client = get_or_create_proxy_client(cache, cache_key, proxy_config, metrics_tag)?;
+        let client = get_or_create_cached_client(cache, cache_key, proxy_config, metrics_tag)?;
 
         Ok(client)
     } else {

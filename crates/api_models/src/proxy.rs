@@ -33,7 +33,7 @@ pub struct ProxyRequest {
     pub request_body: Value,
     /// The destination URL where the request needs to be forwarded
     #[schema(value_type = String, example = "https://api.example.com/endpoint")]
-    pub destination_url: url::Url,
+    pub destination_url: common_utils::outbound_url::SafeOutboundUrl,
     /// The headers that need to be forwarded
     #[schema(value_type = Object, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub headers: Headers,
