@@ -751,9 +751,15 @@ async fn get_adaptive_retry_time_for_error_code(
         return None;
     };
 
-    compute_adaptive_retry_time(state, error_code, remaining_grace_days, remaining_budget)
-        .await
-        .map(common_utils::date_time::convert_to_pdt)
+    compute_adaptive_retry_time(
+        state,
+        error_code,
+        remaining_grace_days,
+        remaining_budget,
+        MathModelVariant::from(algorithm),
+    )
+    .await
+    .map(common_utils::date_time::convert_to_pdt)
 }
 
 /// Picks the retry time for an invoice enrolled in A/B routing, then finds a token for it.
@@ -784,31 +790,15 @@ async fn get_token_with_schedule_time_for_ab_routing(
         "A/B routing read the retry implementation assigned to this invoice"
     );
 
-    let schedule_time = match algorithm {
-        Some(assigned_algorithm @ common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry) => {
-            let adaptive_time = get_adaptive_retry_time_for_error_code(
-                state,
-                assigned_algorithm,
-                tracking_data.prev_attempt_error_code,
-                remaining_grace_days,
-                remaining_budget,
-            )
-            .await;
-
-            logger::info!(
-                error_code = ?tracking_data.prev_attempt_error_code,
-                remaining_grace_days = remaining_grace_days,
-                remaining_budget = remaining_budget,
-                schedule_time = ?adaptive_time,
-                "Adaptive retry decision"
-            );
-
-            adaptive_time
-        }
+    // Resolve the arm first, then run it once. Dispatching inside the arms would leave the
+    // just-assigned invoice on a second path, and an arm added to only one of them would run the
+    // wrong algorithm on an invoice's FIRST retry and the right one thereafter.
+    let assigned_algorithm = match algorithm {
+        Some(assigned_algorithm) => assigned_algorithm,
         None => {
             crate::routes::metrics::REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM.add(1, &[]);
 
-            let assigned_algorithm = pcr::assign_and_record_ab_routing(
+            pcr::assign_and_record_ab_routing(
                 state,
                 &payment_intent.id,
                 payment_intent
@@ -818,23 +808,32 @@ async fn get_token_with_schedule_time_for_ab_routing(
                 revenue_recovery_payment_data,
                 ab_dimensions,
             )
-            .await;
-
-            get_adaptive_retry_time_for_error_code(
-                state,
-                assigned_algorithm,
-                tracking_data.prev_attempt_error_code,
-                remaining_grace_days,
-                remaining_budget,
-            )
             .await
         }
     };
 
+    let schedule_time = get_adaptive_retry_time_for_error_code(
+        state,
+        assigned_algorithm,
+        tracking_data.prev_attempt_error_code,
+        remaining_grace_days,
+        remaining_budget,
+    )
+    .await;
+
+    logger::info!(
+        ?assigned_algorithm,
+        error_code = ?tracking_data.prev_attempt_error_code,
+        remaining_grace_days = remaining_grace_days,
+        remaining_budget = remaining_budget,
+        schedule_time = ?schedule_time,
+        "Adaptive retry decision"
+    );
+
     let schedule_time = schedule_time.ok_or_else(|| {
         logger::error!(
             payment_id = %payment_intent.id.get_string_repr(),
-            ?algorithm,
+            ?assigned_algorithm,
             error_code = ?tracking_data.prev_attempt_error_code,
             "No retry time available — the assigned algorithm produced none and this path has no \
              ladder to fall back on"
@@ -979,11 +978,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 .await?;
 
                 let adaptive_time = match tracking_data.prev_attempt_error_code {
+                    // Not enrolled in A/B routing, so this runs the baseline pairing.
                     Some(error_code) => compute_adaptive_retry_time(
                         state,
                         error_code,
                         remaining_grace_days,
                         remaining_budget,
+                        MathModelVariant::default(),
                     )
                     .await
                     .map(common_utils::date_time::convert_to_pdt),
@@ -1643,17 +1644,13 @@ const MAX_GRACE_DAYS: u32 = 31;
 #[cfg(feature = "v2")]
 const EXPLORATION_FLOOR: f64 = 0.10;
 
-/// Day values within this distance of each other are treated as tied, so they split their share of
-/// the budget equally instead of the sort deciding between them.
+/// Day values within this distance are treated as tied and split their share equally.
 ///
-/// **Raising this is not safe by inspection.** Merging only changes the result where a group spans
-/// the rank at which the pour ran out of budget; there it averages a near-certain day with a floored
-/// one, moving each by up to `1 − ε`. Measured over the production stats (24 clusters, 2026-09-28)
-/// across the whole budget ladder, the smallest nonzero gap at that rank was 4.2e-05 — so a value
-/// below that only ever merges days already equal to within float noise, and a value above it starts
-/// reallocating probability between days the model does rank differently. Note also that grouping
-/// compares each value to its neighbour rather than to a fixed anchor, so a densely spaced run can
-/// chain into one group wider than the tolerance itself.
+/// Raising it is not safe by inspection. A merge only changes anything where the group spans the
+/// rank the pour ran out of budget at, and there it averages a near-certain day with a floored one
+/// — a swing of up to `1 − ε`. On production stats the smallest gap at that rank was 4.2e-05, so
+/// below that this only merges float noise. Grouping also compares neighbours, not a fixed anchor,
+/// so a dense run can chain into a group wider than the tolerance.
 #[cfg(feature = "v2")]
 const TIE_TOLERANCE: f64 = 1e-9;
 
@@ -1763,7 +1760,7 @@ fn slot_scores(slots: &[SlotCounter]) -> BTreeMap<u8, f64> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DayCombine {
     /// Softmax each axis over the candidate days, then take the elementwise max.
-    MaxAtProbability,
+    MaxAtSoftmax,
     /// Take the elementwise max of the raw scores, then softmax once.
     MaxAtScore,
 }
@@ -1783,8 +1780,9 @@ pub enum DaySelection {
 /// and a sampler change are separately attributable only if they can be varied separately.
 ///
 /// Public because the arm an invoice gets is an experiment-assignment decision, which belongs above
-/// this layer — this module only executes the variant it is handed. `Default` is what production
-/// runs today, so it is the control arm of any comparison.
+/// this layer — this module only executes the variant it is handed. `Default` is the baseline an
+/// invoice runs when nothing selects otherwise; it is NOT the same as the control arm, which is
+/// pinned separately in the `From` impl below.
 #[cfg(feature = "v2")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MathModelVariant {
@@ -1796,8 +1794,37 @@ pub struct MathModelVariant {
 impl Default for MathModelVariant {
     fn default() -> Self {
         Self {
-            combine: DayCombine::MaxAtProbability,
-            selection: DaySelection::PerTick,
+            combine: DayCombine::MaxAtScore,
+            selection: DaySelection::SystematicK,
+        }
+    }
+}
+
+/// The experiment arm an invoice was assigned, resolved to the pair of choices that actually run.
+///
+/// This is the only place the experiment taxonomy meets the math model, which is why the match is
+/// exhaustive with no `_` arm: a new arm added upstream must fail to compile here rather than fall
+/// through to some other pairing and quietly produce an experiment that measures nothing.
+///
+/// Every arm spells its pairing out rather than deferring to `Default`. An arm is persisted on the
+/// invoice and replayed across its retries, so one that tracked the default would switch algorithm
+/// mid-recovery the moment the default moved.
+#[cfg(feature = "v2")]
+impl From<common_enums::RevenueRecoveryABAlgorithm> for MathModelVariant {
+    fn from(algorithm: common_enums::RevenueRecoveryABAlgorithm) -> Self {
+        match algorithm {
+            common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry => Self {
+                combine: DayCombine::MaxAtSoftmax,
+                selection: DaySelection::PerTick,
+            },
+            common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtSoftmax => Self {
+                combine: DayCombine::MaxAtSoftmax,
+                selection: DaySelection::SystematicK,
+            },
+            common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore => Self {
+                combine: DayCombine::MaxAtScore,
+                selection: DaySelection::SystematicK,
+            },
         }
     }
 }
@@ -1993,7 +2020,7 @@ fn combine_day_weight(
     // Whichever pair the `max` compares — normalized per axis, or raw — decides both the weight and
     // the attributed axis.
     let (left, right) = match combine {
-        DayCombine::MaxAtProbability => (softmax(&dow_sc), softmax(&dom_sc)),
+        DayCombine::MaxAtSoftmax => (softmax(&dow_sc), softmax(&dom_sc)),
         DayCombine::MaxAtScore => (dow_sc, dom_sc),
     };
 
@@ -2013,7 +2040,7 @@ fn combine_day_weight(
         .unzip();
 
     let weights = match combine {
-        DayCombine::MaxAtProbability => maxed, // already per-axis probabilities
+        DayCombine::MaxAtSoftmax => maxed, // already per-axis probabilities
         DayCombine::MaxAtScore => softmax(&maxed),
     };
     (weights, winners)
@@ -2028,17 +2055,14 @@ fn combine_day_weight(
 ///              πᵢ ≥ ε       (every day stays reachable)
 /// ```
 ///
-/// No solver needed: the optimum is a greedy pour — floor every day at ε, then walk from the best
-/// day down raising each to 1.0 until the budget runs out.
+/// The optimum is a greedy pour, no solver: floor every day at ε, then raise days to 1.0 in
+/// descending value order until the budget runs out.
 ///
-/// Two guards below are load-bearing, and removing either fails SILENTLY — the vector still sums to
-/// k and still yields k days, so nothing downstream notices:
-///  * **ε is capped at k/n.** Above that the constraint set is infeasible and the pour emits
-///    NEGATIVE probabilities, which destroys the monotone cumulative sum that `systematic_sample`
-///    binary-searches (undefined results, not an error).
-///  * **Days tied to within `TIE_TOLERANCE` split their share equally.** Ranking alone settles ties
-///    by array position, which handed days of identical value wildly different probabilities.
-///    Splitting leaves the group's total untouched, so nothing else in the vector moves.
+/// Two guards below fail SILENTLY if removed — the vector still sums to k and still yields k days:
+///  * **ε capped at k/n.** Above it the problem is infeasible and the pour emits NEGATIVE
+///    probabilities, breaking the monotone cumulative sum `systematic_sample` binary-searches.
+///  * **Tied days split their share.** Ranking alone breaks ties by array position, giving days of
+///    equal value wildly different probabilities. Splitting leaves the group total untouched.
 // `usize -> f64` is exact here: `n` is a candidate-day count, capped at `MAX_GRACE_DAYS` (31).
 #[cfg(feature = "v2")]
 #[allow(clippy::as_conversions)]
@@ -2048,19 +2072,17 @@ fn inclusion_probabilities(values: &[f64], budget: u32, epsilon: f64) -> Vec<f64
         return Vec::new();
     }
     let n_f = n as f64;
-    // πᵢ ≤ 1 caps the attainable total at n, so a budget wider than the window can only spend n.
-    // That state — every day pinned at 1.0 — is the old runway guard, except here it is the
-    // arithmetic reaching its only feasible point rather than a rule anyone wrote.
+    // πᵢ ≤ 1 caps the total at n, so a budget wider than the window can only spend n — every day
+    // pinned at 1.0, which is the old runway guard arrived at by arithmetic rather than by a rule.
     let k = f64::from(budget).min(n_f);
     let eps = epsilon.clamp(0.0, k / n_f);
 
     let mut pi = vec![eps; n];
     let mut remaining = k - eps * n_f;
 
-    // (day index, that day's value), ordered best first. Pairing the value with the index means
-    // neither the sort nor the tie grouping below has to look anything up in `values` again.
-    // `total_cmp` orders floats outright, where `partial_cmp` has no answer for NaN; `.reverse()`
-    // turns the ascending comparison into a descending one.
+    // (day index, value), best first. Carrying the value means neither the sort nor the grouping
+    // below looks anything up again. `total_cmp` orders floats outright where `partial_cmp` has no
+    // answer for NaN; `.reverse()` makes it descending.
     let mut ranked: Vec<(usize, f64)> = values.iter().copied().enumerate().collect();
     ranked.sort_by(|(_, value), (_, other_value)| value.total_cmp(other_value).reverse());
 
@@ -2077,9 +2099,9 @@ fn inclusion_probabilities(values: &[f64], budget: u32, epsilon: f64) -> Vec<f64
 
     // Split each tied group's share equally over its members (see the doc comment above). `ranked`
     // is sorted by value, so tied days are adjacent and `chunk_by` hands each run over as a slice.
-    for tied_days in ranked.chunk_by(|(_, value), (_, other_value)| {
-        (value - other_value).abs() <= TIE_TOLERANCE
-    }) {
+    for tied_days in
+        ranked.chunk_by(|(_, value), (_, other_value)| (value - other_value).abs() <= TIE_TOLERANCE)
+    {
         if tied_days.len() > 1 {
             let total: f64 = tied_days.iter().filter_map(|&(day, _)| pi.get(day)).sum();
             let share = total / tied_days.len() as f64;
@@ -2105,19 +2127,16 @@ fn inclusion_probabilities(values: &[f64], budget: u32, epsilon: f64) -> Vec<f64
 ///    map to the same point, namely `u`, which is uniform; a segment of length πᵢ therefore catches
 ///    a probe with probability exactly πᵢ.
 ///
-/// `order` lays the segments down shuffled, REDRAWN PER CALL. Order is not load-bearing for either
-/// guarantee (both come from segment lengths), but calendar order leaves the joint distribution
-/// nearly degenerate: a day at π = 1.00 fills a whole unit of the line and is caught wherever `u`
-/// starts, so with ~12 days pinned only 10 distinct schedules were reachable and 126 of 435
-/// day-pairs could never co-occur — and there is no unbiased variance estimator when a pair
-/// probability is zero. Shuffling took that to 816 schedules and 435/435 pairs at zero cost. A
-/// shuffle computed once and reused is just a different fixed order and fixes nothing.
+/// `order` lays the segments down shuffled, REDRAWN PER CALL. It changes neither guarantee (both
+/// come from segment lengths) but it decides which day COMBINATIONS are reachable: in calendar
+/// order a day at π = 1.00 fills a whole unit and is caught wherever `u` starts, collapsing the
+/// joint distribution to a handful of schedules with many day-pairs at probability zero. A shuffle
+/// computed once and reused is just a different fixed order and fixes nothing.
 ///
-/// Numerical limit, measured: the accumulated edges drift from their exact values by up to ~1e-14,
-/// so for `u` within that drift of 1.0 the last probe can land past the final edge and collapse onto
-/// an already-taken segment, yielding k−1 days. It needs `u > 1 − 1e-14` (about 1 draw in 1e14) and
-/// the caller only uses the soonest day, so it is documented rather than patched — the fixes that
-/// would close it (rescaling probes, normalising π) are the ones that silently break G1/G2.
+/// Numerical limit: accumulated edges drift ~1e-14, so for `u` within that of 1.0 the last probe
+/// can fall past the final edge and collapse onto a taken segment, yielding k−1 days. Needs
+/// `u > 1 − 1e-14` and the caller uses only the soonest day, so it is documented rather than
+/// patched — the fixes for it (rescaling probes, normalising π) are what silently break G1/G2.
 // `usize -> f64` and `f64 -> usize` are exact here: both are day counts bounded by the window.
 #[cfg(feature = "v2")]
 #[allow(clippy::as_conversions)]
@@ -2146,9 +2165,8 @@ fn systematic_sample(pi: &[f64], u: f64, order: &[usize]) -> Vec<usize> {
             order.get(position).copied()
         })
         .collect();
-    // Calendar order, so the caller's "soonest" is just the first. G1 already makes the days
-    // distinct; the dedup covers the clamp above firing on a probe pushed past the last edge by
-    // floating-point drift.
+    // Calendar order, so the caller's "soonest" is the first. G1 already makes the days distinct;
+    // the dedup covers the clamp above firing on a probe pushed past the last edge by drift.
     selected.sort_unstable();
     selected.dedup();
     selected
@@ -2157,25 +2175,19 @@ fn systematic_sample(pi: &[f64], u: f64, order: &[usize]) -> Vec<usize> {
 /// Choose which candidate day to schedule: draw a whole systematic-k schedule over the window, then
 /// take the NEAREST day it selected.
 ///
-/// This replaces the per-day Bernoulli walk (`pick_index`) on the day axis. The walk decided one day
-/// at a time without being able to see the end of the window, so it skipped good days early, ran out
-/// of slack, and hit the runway guard on ~49–55% of placements — and once that guard fires every
-/// remaining day fires with it and the value model stops mattering. The guard is not a patchable
-/// bug: when `days_remaining == budget_remaining`, `Σπ = b` over `m = b` days with `π ≤ 1` has
-/// exactly one feasible point. Deciding how MANY days to use before deciding WHICH days makes that
-/// state unreachable — `Σπ = k` is enforced by the geometry of the line, not by a countdown.
+/// The alternative to the per-day walk (`pick_index`), which decides a day at a time without seeing
+/// the end of the window and so skips good days early, runs out of slack and hits the runway guard.
+/// That guard is not patchable: at `days_remaining == budget_remaining` the constraints have one
+/// feasible point. Deciding how MANY days before WHICH days makes the state unreachable, since
+/// `Σπ = k` comes from the geometry of the line rather than a countdown.
 ///
-/// Values enter only through the ranking in `inclusion_probabilities`; magnitudes are discarded.
-/// That is deliberate — the upstream softmax turns a 1.3× difference in day quality into weight
-/// ratios of hundreds of thousands to one, and `πᵢ ≤ 1` caps any day at certainty regardless.
+/// Values enter only through the ranking, so magnitudes are discarded — deliberate, given the
+/// upstream softmax turns small quality differences into enormous weight ratios.
 ///
-/// NOTE — this is the ON-DEMAND form: the schedule is redrawn at every decision and only its
-/// earliest day is used. Drawing ONCE at first failure and persisting all k dates is the
-/// recommended design; on-demand drifts up to 0.035 from its promised marginals, re-admits the
-/// guard on ~37.8% of placements, and starves the end of the window — which is where the model
-/// rates days highest. Recovery quality is statistically indistinguishable between the two; what
-/// on-demand costs is measurability. Moving to upfront needs somewhere to persist the k dates and
-/// their πᵢ.
+/// NOTE — the ON-DEMAND form: the schedule is redrawn each decision and only its earliest day used.
+/// Drawing once at first failure and persisting all k dates is the recommended design; on-demand
+/// drifts from its promised marginals and starves the end of the window. What it costs is
+/// measurability, not recovery. Upfront needs somewhere to persist the k dates and their πᵢ.
 ///
 /// Returns the chosen index into `weights` together with its inclusion probability.
 #[cfg(feature = "v2")]
@@ -2186,11 +2198,9 @@ fn select_systematic_k_day(weights: &[f64], budget: u32, epsilon: f64) -> Option
     let pi = inclusion_probabilities(weights, budget, epsilon);
 
     // Redrawn per invoice — see `systematic_sample` on why a cached order fixes nothing.
-    use rand::seq::SliceRandom;
-    let mut order: Vec<usize> = (0..weights.len()).collect();
-    order.shuffle(&mut rand::thread_rng());
+    let order = common_utils::generate_random_permutation(weights.len());
 
-    let u = rand::random::<f64>();
+    let u = common_utils::generate_random_f64_unit();
     let selected = systematic_sample(&pi, u, &order);
     let chosen = selected.first().copied()?;
     let chosen_inclusion_probability = pi.get(chosen).copied().unwrap_or(0.0);
@@ -2381,6 +2391,7 @@ pub async fn compute_adaptive_retry_time(
     error_code: common_enums::StandardisedCode,
     remaining_grace_days: u32,
     remaining_budget: u32,
+    variant: MathModelVariant,
 ) -> Option<time::OffsetDateTime> {
     // Fetch the stats recorded against this error code. The store builds the cluster key and
     // parses the stored document internally; `None` when the cluster has no recorded history yet.
@@ -2413,14 +2424,12 @@ pub async fn compute_adaptive_retry_time(
         );
         12
     };
-    // Control arm. Experiment assignment (which invoices get which variant, and how the bucket is
-    // held stable across an invoice's retries) is not decided here.
     compute_mathmodel_retry_time(
         &record.stats,
         remaining_budget,
         remaining_grace_days,
         default_hour,
-        MathModelVariant::default(),
+        variant,
     )
 }
 
@@ -2478,11 +2487,11 @@ mod mathmodel_retry_time_tests {
     fn all_variants() -> [MathModelVariant; 4] {
         [
             MathModelVariant {
-                combine: DayCombine::MaxAtProbability,
+                combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
             },
             MathModelVariant {
-                combine: DayCombine::MaxAtProbability,
+                combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::SystematicK,
             },
             MathModelVariant {
@@ -2523,7 +2532,7 @@ mod mathmodel_retry_time_tests {
         }
         let dow = BTreeMap::from([(0u8, 5.0)]); // Monday dominant
         let dom = BTreeMap::<u8, f64>::new(); // no month-day signal
-        for combine in [DayCombine::MaxAtProbability, DayCombine::MaxAtScore] {
+        for combine in [DayCombine::MaxAtSoftmax, DayCombine::MaxAtScore] {
             let (weights, _) = combine_day_weight(&dates, &dow, &dom, combine);
             let argmax = weights
                 .iter()
@@ -2541,8 +2550,7 @@ mod mathmodel_retry_time_tests {
     }
 
     fn window_from(year: i32, month: time::Month, day: u8, len: usize) -> Vec<time::Date> {
-        let start =
-            time::Date::from_calendar_date(year, month, day).expect("valid calendar date");
+        let start = time::Date::from_calendar_date(year, month, day).expect("valid calendar date");
         let mut dates = vec![start];
         while dates.len() < len {
             let next = dates
@@ -2556,7 +2564,7 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn combines_disagree_because_recurrence_dilutes_the_weekday_axis() {
-        // The two combines differ only by a per-axis offset, and under MaxAtProbability that offset
+        // The two combines differ only by a per-axis offset, and under MaxAtSoftmax that offset
         // carries a structural term: softmaxing the weekday axis OVER THE CANDIDATE DAYS splits a
         // weekday's mass across its recurrences, while a day-of-month occurs once in any window of
         // <= 31 days and keeps all of its. So the same evidence ranks differently, and the gap grows
@@ -2572,24 +2580,27 @@ mod mathmodel_retry_time_tests {
                 .unwrap_or(0)
         };
 
-        let (a_weights, _) = combine_day_weight(&dates, &dow, &dom, DayCombine::MaxAtProbability);
+        let (a_weights, _) = combine_day_weight(&dates, &dow, &dom, DayCombine::MaxAtSoftmax);
         let (b_weights, _) = combine_day_weight(&dates, &dow, &dom, DayCombine::MaxAtScore);
         let a_top = dates.get(top(&a_weights)).copied().expect("top in window");
         let b_top = dates.get(top(&b_weights)).copied().expect("top in window");
 
-        assert_eq!(a_top.day(), 1, "MaxAtProbability should favour the unique 1st");
+        assert_eq!(a_top.day(), 1, "MaxAtSoftmax should favour the unique 1st");
         assert_eq!(
             b_top.weekday().number_days_from_monday(),
             4,
             "MaxAtScore compares raw scores, so the higher-scoring Friday should win"
         );
-        assert_ne!(a_top, b_top, "the two combines must be distinguishable here");
+        assert_ne!(
+            a_top, b_top,
+            "the two combines must be distinguishable here"
+        );
     }
 
     #[test]
-    fn empty_axis_floors_the_ranking_under_max_at_probability() {
+    fn empty_axis_floors_the_ranking_under_max_at_softmax() {
         // COLD START. An axis with no recorded history scores 0.0 everywhere, and under
-        // MaxAtProbability that softmaxes to a UNIFORM 1/n — which the `max` then applies as a floor.
+        // MaxAtSoftmax that softmaxes to a UNIFORM 1/n — which the `max` then applies as a floor.
         // Any preference the live axis expresses below 1/n is erased: here the Thursdays (score 2.0)
         // collapse onto days with no signal at all, leaving two distinct weights where the raw scores
         // have three. Under systematic-k those flattened days form one tie group and split their
@@ -2599,7 +2610,7 @@ mod mathmodel_retry_time_tests {
         let dow_only = BTreeMap::from([(0u8, 5.0), (3u8, 2.0)]); // Monday strong, Thursday mild
         let empty = BTreeMap::<u8, f64>::new();
         let (a_weights, _) =
-            combine_day_weight(&dates, &dow_only, &empty, DayCombine::MaxAtProbability);
+            combine_day_weight(&dates, &dow_only, &empty, DayCombine::MaxAtSoftmax);
         let (b_weights, _) = combine_day_weight(&dates, &dow_only, &empty, DayCombine::MaxAtScore);
 
         // index 2 = Thursday 27 Aug (score 2.0), index 0 = Tuesday 25 Aug (no signal).
@@ -2610,7 +2621,7 @@ mod mathmodel_retry_time_tests {
 
         assert!(
             approx(a_thursday, a_unscored, 1e-12),
-            "MaxAtProbability should floor both at the uniform 1/n: {a_thursday} vs {a_unscored}"
+            "MaxAtSoftmax should floor both at the uniform 1/n: {a_thursday} vs {a_unscored}"
         );
         assert!(
             b_thursday > b_unscored,
@@ -2687,10 +2698,14 @@ mod mathmodel_retry_time_tests {
     fn grace_zero_and_one_return_none() {
         // grace COUNTS today; grace 0 = no grace, grace 1 = today only -> no future day -> None (v1).
         for variant in all_variants() {
-            assert!(compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR, variant)
-                .is_none());
-            assert!(compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR, variant)
-                .is_none());
+            assert!(
+                compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR, variant)
+                    .is_none()
+            );
+            assert!(
+                compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR, variant)
+                    .is_none()
+            );
         }
     }
 
@@ -2699,8 +2714,10 @@ mod mathmodel_retry_time_tests {
         // No retries left: the model must NOT hand back a date (pick_index with budget 0 would
         // otherwise fall through to the last grace day). Guard holds for any grace / stats shape.
         for variant in all_variants() {
-            assert!(compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR, variant)
-                .is_none());
+            assert!(
+                compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR, variant)
+                    .is_none()
+            );
             assert!(compute_mathmodel_retry_time(
                 &StatsDocument::default(),
                 0,
@@ -2812,9 +2829,8 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn inclusion_probabilities_spend_the_budget_exactly() {
-        // The core invariant the sampler's geometry rests on: the line is exactly k units long, and
-        // every segment is a usable probability. Σπ − k was 5.7e-14 across the reference sweep.
-        // `expected` is written out rather than recomputed, so the cap is asserted, not mirrored.
+        // The line must be exactly k units long and every segment a usable probability.
+        // `expected` is written out, not recomputed, so the cap is asserted rather than mirrored.
         for (n, budget, eps, expected) in [
             (30, 15, 0.10, 15.0),
             (30, 15, 0.00, 15.0),
@@ -2838,23 +2854,24 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn epsilon_above_k_over_n_is_capped_not_trusted() {
-        // Regression for the silent failure: ε > k/n makes R = k − εn negative, and the pour then
-        // emits negative probabilities while STILL summing to k and still returning k days — so
-        // nothing downstream notices, but the cumulative sum stops being monotonic.
+        // ε > k/n makes the remainder negative, so the pour emits negative probabilities while
+        // still summing to k and returning k days — nothing notices, but the cumsum stops rising.
         let n = 30;
         let budget = 15; // k/n = 0.5
         for eps in [0.55, 0.60, 0.95] {
             let pi = inclusion_probabilities(&descending_values(n), budget, eps);
             let min = pi.iter().copied().fold(f64::MAX, f64::min);
-            assert!(min >= 0.0, "eps={eps} produced a negative probability: {min}");
+            assert!(
+                min >= 0.0,
+                "eps={eps} produced a negative probability: {min}"
+            );
             assert!(approx(pi.iter().sum::<f64>(), f64::from(budget), 1e-9));
         }
     }
 
     #[test]
     fn tied_values_receive_equal_probability() {
-        // Ranking alone settles ties by array position, which gave four identically-valued days
-        // 0.10 / 0.40 / 1.00 / 0.10 on identical evidence. Equal evidence must mean equal odds.
+        // Ranking alone breaks ties by array position. Equal evidence must mean equal odds.
         let values = vec![0.9, 0.1809, 0.1809, 0.1809, 0.1809, 0.05];
         let pi = inclusion_probabilities(&values, 3, 0.10);
         let tied = pi.get(1..5).expect("tied group within range");
@@ -2868,10 +2885,9 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn tie_tolerance_merges_only_within_its_own_width() {
-        // Two days straddling the rank where the pour runs out — the only place merging changes
-        // anything. Inside the tolerance they split; outside it the ranking stands. Both directions
-        // are asserted because a tolerance that silently swallowed the second case would reallocate
-        // probability between days the model does rank differently.
+        // Two days straddling the rank the pour runs out at — the only place merging changes
+        // anything. Both directions asserted: swallowing the second would reallocate probability
+        // between days the model does rank apart.
         let inside = vec![0.5 + TIE_TOLERANCE / 10.0, 0.5, 0.2, 0.1];
         let pi = inclusion_probabilities(&inside, 2, 0.10);
         let first = pi.first().copied().expect("index in range");
@@ -2893,7 +2909,108 @@ mod mathmodel_retry_time_tests {
         // Splitting redistributes inside the group, so the budget is spent exactly either way.
         for values in [inside, outside] {
             let total: f64 = inclusion_probabilities(&values, 2, 0.10).iter().sum();
-            assert!(approx(total, 2.0, 1e-9), "budget not spent exactly: {total}");
+            assert!(
+                approx(total, 2.0, 1e-9),
+                "budget not spent exactly: {total}"
+            );
+        }
+    }
+
+    #[test]
+    fn control_arm_is_pinned_and_does_not_track_the_default() {
+        // AdaptiveRetry is persisted on live invoices, so it must keep its pairing whatever the
+        // default becomes — otherwise an in-flight invoice switches algorithm mid-recovery.
+        assert_eq!(
+            MathModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry),
+            MathModelVariant {
+                combine: DayCombine::MaxAtSoftmax,
+                selection: DaySelection::PerTick,
+            }
+        );
+    }
+
+    #[test]
+    fn each_arm_varies_at_most_one_axis_from_its_reference() {
+        // Attributability: SystematicKMaxAtSoftmax moves only the sampler from control, and
+        // SystematicKMaxAtScore only the combine from it. An arm moving both against both
+        // references leaves nothing able to say which change caused a result.
+        use common_enums::RevenueRecoveryABAlgorithm as Arm;
+        let control = MathModelVariant::from(Arm::AdaptiveRetry);
+        let softmax_k = MathModelVariant::from(Arm::SystematicKMaxAtSoftmax);
+        let score_k = MathModelVariant::from(Arm::SystematicKMaxAtScore);
+
+        let axes_differing = |a: MathModelVariant, b: MathModelVariant| {
+            usize::from(a.combine != b.combine) + usize::from(a.selection != b.selection)
+        };
+        assert_eq!(
+            axes_differing(control, softmax_k),
+            1,
+            "sampler comparison must hold the combine fixed"
+        );
+        assert_eq!(
+            axes_differing(softmax_k, score_k),
+            1,
+            "combine comparison must hold the sampler fixed"
+        );
+    }
+
+    #[test]
+    fn arms_map_to_distinct_variants() {
+        // Two arms on the same pairing compare an arm against itself, which reads as a null.
+        use strum::IntoEnumIterator;
+        let mut seen: Vec<MathModelVariant> = Vec::new();
+        for arm in common_enums::RevenueRecoveryABAlgorithm::iter() {
+            let variant = MathModelVariant::from(arm);
+            assert!(
+                !seen.contains(&variant),
+                "{arm:?} duplicates an earlier arm's variant: {variant:?}"
+            );
+            seen.push(variant);
+        }
+    }
+
+    #[test]
+    fn arm_config_strings_are_pinned() {
+        // These are the values configured in the Superposition workspace, derived by strum rather
+        // than written out — the trailing K is the kind of thing a derive can render either way.
+        use common_enums::RevenueRecoveryABAlgorithm as Arm;
+        for (arm, expected) in [
+            (Arm::AdaptiveRetry, "adaptive_retry"),
+            (Arm::SystematicKMaxAtSoftmax, "systematic_k_max_at_softmax"),
+            (Arm::SystematicKMaxAtScore, "systematic_k_max_at_score"),
+        ] {
+            assert_eq!(arm.to_string(), expected);
+            assert_eq!(
+                expected.parse::<Arm>().expect("config string must parse"),
+                arm,
+                "a config value that does not round-trip silently falls back to the control arm"
+            );
+        }
+    }
+
+    #[test]
+    fn entropy_seams_match_what_the_sampler_assumes() {
+        // Two `common_utils` contracts the exactly-k guarantee rests on and the type system does
+        // not enforce, pinned here so a seam change fails in this module.
+
+        // u ∈ [0, 1): at 1.0 the last probe sits at k, off the end of a k-unit line. Probed
+        // statistically, so this catches a widened range, not the exact endpoint.
+        for _ in 0..10_000 {
+            let u = common_utils::generate_random_f64_unit();
+            assert!((0.0..1.0).contains(&u), "u outside [0, 1): {u}");
+        }
+
+        // `order` addresses the line, so a duplicate would lay one day down twice and drop
+        // another, breaking both the marginals and the distinct-days guarantee.
+        for length in [1usize, 2, 7, 29, 31] {
+            let order = common_utils::generate_random_permutation(length);
+            assert_eq!(order.len(), length, "wrong length for {length}");
+            let mut sorted = order.clone();
+            sorted.sort_unstable();
+            assert!(
+                sorted.iter().copied().eq(0..length),
+                "not a permutation of 0..{length}: {order:?}"
+            );
         }
     }
 
@@ -2950,9 +3067,8 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn exploration_floor_keeps_every_day_reachable_in_the_schedule() {
-        // What ε actually buys: every candidate day lands in SOME schedule, including the ones the
-        // value model rates worst. Asserted on the draw itself, because which day the caller then
-        // acts on is a different question — see `returned_day_is_the_nearest_one_drawn`.
+        // What ε buys: every day lands in SOME schedule, including the worst-rated. Asserted on
+        // the draw, since which day the caller acts on is a different question — see below.
         let n = 10;
         let pi = inclusion_probabilities(&descending_values(n), 3, 0.10);
         let order: Vec<usize> = (0..n).collect();
@@ -2973,15 +3089,16 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn returned_day_is_the_nearest_one_drawn() {
-        // The on-demand form returns the SOONEST day of the schedule, so a day pinned at π = 1.0
-        // near the front is returned every single time: the floor spreads the schedule, not the day
-        // that gets acted on. Front-loaded values therefore make the pick deterministic, and only
-        // back-loaded values let it move. This is the mechanism behind on-demand starving the end
-        // of the window, and it is why ε cannot be read as exploration over the retry date.
+        // On-demand returns the SOONEST day, so a day pinned at π = 1.0 near the front comes back
+        // every time: ε spreads the schedule, not the day acted on. Front-loaded values make the
+        // pick deterministic; only back-loaded ones let it move.
         let front_best = descending_values(10);
         for _ in 0..200 {
             let (idx, pi) = select_systematic_k_day(&front_best, 3, 0.10).expect("budget > 0");
-            assert_eq!(idx, 0, "a pinned soonest day must always be the one returned");
+            assert_eq!(
+                idx, 0,
+                "a pinned soonest day must always be the one returned"
+            );
             assert!(approx(pi, 1.0, 1e-9), "day 0 should be pinned, got π={pi}");
         }
 
@@ -3004,6 +3121,9 @@ mod mathmodel_retry_time_tests {
         // Budget wider than the window pins every day at 1.0, so the soonest day is always day 0.
         let (idx, pi) = select_systematic_k_day(&[0.1, 0.2, 0.3], 9, 0.10).expect("budget > 0");
         assert_eq!(idx, 0);
-        assert!(approx(pi, 1.0, 1e-9), "every day should be certain, got {pi}");
+        assert!(
+            approx(pi, 1.0, 1e-9),
+            "every day should be certain, got {pi}"
+        );
     }
 }

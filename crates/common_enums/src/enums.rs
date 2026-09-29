@@ -391,8 +391,16 @@ pub enum RevenueRecoveryAlgorithmType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryABAlgorithm {
-    /// Adaptive Retry algorithm.
+    /// Adaptive Retry algorithm. The pairing production ran before systematic sampling existed:
+    /// the weekday and month-day signals are softmaxed before the max, and the day is drawn by the
+    /// per-day walk. Kept as the control arm, and kept stable because invoices already carry it.
     AdaptiveRetry,
+    /// Control's combine, drawn instead by systematic sampling. Differs from `AdaptiveRetry` in the
+    /// sampler alone, so a difference between the two is attributable to the draw.
+    SystematicKMaxAtSoftmax,
+    /// Systematic sampling over the max of the raw scores. Differs from `SystematicKMaxAtSoftmax`
+    /// in the combine alone, so a difference between those two is attributable to the combine.
+    SystematicKMaxAtScore,
 }
 
 #[derive(
