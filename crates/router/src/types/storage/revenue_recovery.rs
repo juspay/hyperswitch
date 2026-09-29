@@ -109,6 +109,14 @@ pub struct RevenueRecoverySettings {
     /// when omitted it defaults to noon UTC (see [`DefaultRetryHour`]).
     #[serde(default)]
     pub default_retry_hour_utc: DefaultRetryHour,
+    /// Minimum probability the systematic-k sampler gives every candidate day, so no day is ruled
+    /// out on a model that has never tried it. `ROUTER__REVENUE_RECOVERY__EXPLORATION_FLOOR`.
+    #[serde(default)]
+    pub exploration_floor: ExplorationFloor,
+    /// Distance within which two day values count as tied and split their share of the budget
+    /// equally. `ROUTER__REVENUE_RECOVERY__TIE_TOLERANCE`. See [`TieTolerance`] before raising it.
+    #[serde(default)]
+    pub tie_tolerance: TieTolerance,
 }
 
 /// Redis distributed-lock settings for revenue-recovery retry-stats recording
@@ -148,6 +156,33 @@ pub struct DefaultRetryHour(pub u8);
 impl Default for DefaultRetryHour {
     fn default() -> Self {
         Self(12)
+    }
+}
+
+/// Exploration floor for the systematic-k sampler: the minimum inclusion probability every
+/// candidate day is guaranteed. A business dial — higher explores more and uses the model less.
+/// Values above `budget / window_length` are infeasible and get clamped at the point of use.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct ExplorationFloor(pub f64);
+
+impl Default for ExplorationFloor {
+    fn default() -> Self {
+        Self(0.10)
+    }
+}
+
+/// Distance within which two candidate-day values are treated as tied.
+///
+/// Raising this is not safe by inspection. A merge only changes anything where the group spans the
+/// rank the budget ran out at, and there it averages a near-certain day with a floored one — a
+/// swing of up to `1 − exploration_floor`. On production stats the smallest gap at that rank was
+/// 4.2e-05, so above that this starts reallocating probability between days the model ranks apart.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct TieTolerance(pub f64);
+
+impl Default for TieTolerance {
+    fn default() -> Self {
+        Self(1e-4)
     }
 }
 
