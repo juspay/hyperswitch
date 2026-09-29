@@ -35,12 +35,13 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "payouts")]
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
-use hyperswitch_masking::Secret;
-#[cfg(feature = "payouts")]
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
+use redis_interface::errors::RedisError;
 use regex::Regex;
 use router_env::{instrument, tracing};
 use storage_impl::StorageError;
@@ -70,6 +71,34 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+pub async fn get_merchant_fingerprint_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<String> {
+    match merchant_account.fingerprint_secret.as_ref() {
+        Some(secret) => Ok(secret.peek().clone()),
+        None => {
+            router_env::logger::warn!(
+                merchant_id = ?merchant_account.get_id(),
+                "fingerprint_secret missing from merchant account; falling back to Superposition"
+            );
+            super::metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_account.get_id().clone().into());
+            let secret = dimensions
+                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
+                .await;
+
+            match secret.is_empty() {
+                false => Ok(secret),
+                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "fingerprint_secret not found in merchant account or Superposition",
+                ),
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
@@ -3144,4 +3173,74 @@ where
     .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_name))?;
 
     Ok(encrypted_data)
+}
+
+/// Reads a value cached in Redis under `redis_key`.
+///
+/// Never fatal: a miss, an unreachable Redis, or an entry that no longer deserializes all read as
+/// "not cached", and the caller rebuilds what it would have built without the cache. Only the
+/// failures are logged; a miss is the normal first-call case.
+pub async fn read_cached_value<T>(
+    state: &SessionState,
+    redis_key: &str,
+    type_name: &'static str,
+) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let lookup: CustomResult<T, RedisError> = async {
+        state
+            .store
+            .get_redis_conn()?
+            .get_and_deserialize_key::<T>(&redis_key.into(), type_name)
+            .await
+    }
+    .await;
+
+    match lookup {
+        Ok(cached) => Some(cached),
+        Err(err) if matches!(err.current_context(), RedisError::NotFound) => None,
+        Err(err) => {
+            router_env::logger::warn!(
+                ?err,
+                redis_key,
+                type_name,
+                "Failed to read the cached value; rebuilding it"
+            );
+            None
+        }
+    }
+}
+
+/// Caches `value` in Redis under `redis_key` for `ttl_seconds`.
+///
+/// Never fatal: a write failure only means later calls rebuild the value, so it is logged and
+/// otherwise ignored.
+pub async fn cache_value_with_expiry<T>(
+    state: &SessionState,
+    redis_key: &str,
+    type_name: &'static str,
+    value: &T,
+    ttl_seconds: i64,
+) where
+    T: serde::Serialize + std::fmt::Debug,
+{
+    let stored: CustomResult<(), RedisError> = async {
+        state
+            .store
+            .get_redis_conn()?
+            .serialize_and_set_key_with_expiry(&redis_key.into(), value, ttl_seconds)
+            .await
+    }
+    .await;
+
+    match stored {
+        Ok(()) => router_env::logger::info!(redis_key, type_name, ttl_seconds, "Cached the value"),
+        Err(err) => router_env::logger::warn!(
+            ?err,
+            redis_key,
+            type_name,
+            "Failed to cache the value; later calls will rebuild it"
+        ),
+    }
 }
