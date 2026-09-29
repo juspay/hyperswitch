@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{self, PaymentMethodData},
     payment_methods::PaymentMethod,
 };
-use router_env::{instrument, tracing, which as router_env_which, Env};
+use router_env::{instrument, logger, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
@@ -322,7 +322,7 @@ pub async fn get_payout_method_data_generic(
                                         .network
                                         .parse::<common_enums::CardNetwork>()
                                         .inspect_err(|error| {
-                                            tracing::warn!(
+                                            logger::warn!(
                                                 ?error,
                                                 unparsed_card_network = %data.payment_method.network,
                                                 "Received an unrecognized card_network value from Apple Pay (Payout); defaulting to None"
@@ -350,7 +350,7 @@ pub async fn get_payout_method_data_generic(
                                         .card_network
                                         .parse::<common_enums::CardNetwork>()
                                         .inspect_err(|error| {
-                                            tracing::warn!(
+                                            logger::warn!(
                                                 ?error,
                                                 unparsed_card_network = %data.info.card_network,
                                                 "Received an unrecognized card_network value from Google Pay (Payout); defaulting to None"

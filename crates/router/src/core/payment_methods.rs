@@ -1871,7 +1871,12 @@ pub async fn create_persistent_payment_method_core(
         id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
-        api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
+        api::PaymentMethodCreateData::Card(_)
+        | api::PaymentMethodCreateData::BankDebit(_)
+        | api::PaymentMethodCreateData::Wallet(
+            api::WalletPaymentMethodData::ApplePayDecrypted(_)
+            | api::WalletPaymentMethodData::GooglePayDecrypted(_),
+        ) => {
             Box::pin(create_or_fetch_payment_method_core(
                 state,
                 req,
@@ -1895,22 +1900,6 @@ pub async fn create_persistent_payment_method_core(
                 payment_method_id,
                 payment_method_billing_address,
             )
-            .await
-        }
-        api::PaymentMethodCreateData::Wallet(
-            api::WalletPaymentMethodData::ApplePayDecrypted(_)
-            | api::WalletPaymentMethodData::GooglePayDecrypted(_),
-        ) => {
-            Box::pin(create_or_fetch_payment_method_core(
-                state,
-                req,
-                platform,
-                profile,
-                merchant_id,
-                &customer_id,
-                payment_method_id,
-                payment_method_billing_address,
-            ))
             .await
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
@@ -2564,28 +2553,6 @@ impl LockerOperations for LegacyLocker {
             (Some(enums::PaymentMethod::Card), Some(card)) => card.into(),
             (Some(enums::PaymentMethod::NetworkToken), Some(card)) => {
                 domain::PaymentMethodVaultingData::NetworkToken(card.into())
-            }
-            (Some(enums::PaymentMethod::Wallet), _) => {
-                let enc_card_data = resp_payload
-                    .enc_card_data
-                    .ok_or(errors::VaultError::FetchCardFailed)
-                    .attach_printable("Empty enc_card_data in retrieve card response for wallet")?;
-
-                let decrypted_data = cards::decode_and_decrypt_locker_data(
-                    state,
-                    platform.get_provider().get_key_store(),
-                    enc_card_data.peek().to_owned(),
-                )
-                .await
-                .attach_printable("Failed to decrypt wallet data from legacy locker")?;
-
-                let vaulting_data: domain::PaymentMethodVaultingData = decrypted_data
-                    .peek()
-                    .parse_struct("PaymentMethodVaultingData")
-                    .change_context(errors::VaultError::ResponseDeserializationFailed)
-                    .attach_printable("Failed to parse wallet data from legacy locker")?;
-
-                vaulting_data
             }
             (_, _) => {
                 logger::warn!("Payment method not supported for retrieve from legacy locker");
