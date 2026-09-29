@@ -2685,67 +2685,78 @@ fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
     )
 }
 
-/// Which side of the rollout a sampled request landed on.
+/// Where a single request is routed by a rollout config.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RolloutBand {
-    /// Inside the primary share: UCS serves the request.
+enum RolloutRoute {
+    /// UCS serves the request.
     Primary,
-    /// Inside the shadow share: served from direct, mirrored through UCS.
+    /// Direct serves the request and UCS is mirrored for comparison.
     Shadow,
-    /// Outside both: not executed.
-    None,
+    /// Direct serves the request, with no UCS involvement.
+    Direct,
+}
+
+/// Fractions of total traffic sent to each route; the remainder goes direct.
+///
+/// Both fractions are in `[0, 1]` and sum to at most `1`, which is what makes the two
+/// slices of the sampling range disjoint.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct TrafficSplit {
+    primary: f64,
+    shadow: f64,
+}
+
+impl TrafficSplit {
+    /// Maps a uniform sample in `[0, 1)` to a route: `[0, primary)` is primary,
+    /// `[primary, primary + shadow)` is shadow, and the rest is direct.
+    fn route(self, sample: f64) -> RolloutRoute {
+        if sample < self.primary {
+            RolloutRoute::Primary
+        } else if sample < self.primary + self.shadow {
+            RolloutRoute::Shadow
+        } else {
+            RolloutRoute::Direct
+        }
+    }
 }
 
 impl RolloutConfig {
-    /// Share of total traffic sent to UCS primary. `rollout_percent` counts only for
-    /// `execution_mode: primary`, so a shadow-mode config can never route to primary.
-    fn primary_share(&self) -> f64 {
-        match self.execution_mode {
+    /// Resolves the traffic split this config asks for.
+    ///
+    /// - `rollout_percent` counts only for `ExecutionMode::Primary`, so a shadow-mode config
+    ///   can never route to primary.
+    /// - `shadow_rollout_percent` applies to `Primary` and `Shadow` modes. An unset or invalid
+    ///   value means no shadow, and a value larger than the traffic left after primary is
+    ///   capped to it.
+    fn traffic_split(&self) -> TrafficSplit {
+        let primary = match self.execution_mode {
             ExecutionMode::Primary => self.rollout_percent,
             ExecutionMode::Shadow | ExecutionMode::NotApplicable => 0.0,
-        }
-    }
-
-    /// Share of total traffic mirrored through UCS. Zero when `shadow_rollout_percent` is unset
-    /// or invalid, or the mode is `not_applicable`; never more than what the primary share
-    /// leaves over.
-    fn shadow_share(&self) -> f64 {
-        let Some(shadow_percent) = self.shadow_rollout_percent else {
-            return 0.0;
         };
-        if self.execution_mode == ExecutionMode::NotApplicable {
-            return 0.0;
-        }
-        if !(0.0..=1.0).contains(&shadow_percent) {
-            logger::warn!(
-                shadow_rollout_percent = shadow_percent,
-                "Invalid shadow_rollout_percent in rollout config, ignoring"
-            );
-            return 0.0;
-        }
-        let headroom = 1.0 - self.primary_share();
-        if shadow_percent > headroom {
-            logger::warn!(
-                shadow_rollout_percent = shadow_percent,
-                primary_share = self.primary_share(),
-                "shadow_rollout_percent exceeds traffic left after primary, capping"
-            );
-        }
-        shadow_percent.min(headroom)
-    }
 
-    /// One draw, laid out as `[0, primary)` primary, `[primary, primary + shadow)` shadow, rest
-    /// none, so the bands are disjoint and a primary config without `shadow_rollout_percent`
-    /// selects exactly the traffic it always did.
-    fn band_for(&self, sampled_value: f64) -> RolloutBand {
-        let primary_share = self.primary_share();
-        if sampled_value < primary_share {
-            RolloutBand::Primary
-        } else if sampled_value < primary_share + self.shadow_share() {
-            RolloutBand::Shadow
-        } else {
-            RolloutBand::None
-        }
+        let shadow = match (self.execution_mode, self.shadow_rollout_percent) {
+            (ExecutionMode::NotApplicable, _) | (_, None) => 0.0,
+            (_, Some(shadow_rollout_percent)) if !(0.0..=1.0).contains(&shadow_rollout_percent) => {
+                logger::warn!(
+                    shadow_rollout_percent,
+                    "Invalid shadow_rollout_percent in rollout config, ignoring"
+                );
+                0.0
+            }
+            (_, Some(shadow_rollout_percent)) => {
+                let remaining = 1.0 - primary;
+                if shadow_rollout_percent > remaining {
+                    logger::warn!(
+                        shadow_rollout_percent,
+                        primary,
+                        "shadow_rollout_percent exceeds the traffic left after primary, capping"
+                    );
+                }
+                shadow_rollout_percent.min(remaining)
+            }
+        };
+
+        TrafficSplit { primary, shadow }
     }
 }
 
@@ -2766,21 +2777,21 @@ impl From<RolloutConfig> for RolloutExecutionResult {
             }
             true => {
                 let sampled_value: f64 = common_utils::generate_random_f64_unit();
-                let band = config.band_for(sampled_value);
+                let route = config.traffic_split().route(sampled_value);
 
                 logger::debug!(
                     rollout_percent = config.rollout_percent,
                     shadow_rollout_percent = ?config.shadow_rollout_percent,
                     sampled_value = sampled_value,
-                    rollout_band = ?band,
+                    rollout_route = ?route,
                     execution_mode = ?config.execution_mode,
                     "Rollout execution decision made"
                 );
 
-                let execution_mode = match band {
-                    RolloutBand::Primary => ExecutionMode::Primary,
-                    RolloutBand::Shadow => ExecutionMode::Shadow,
-                    RolloutBand::None => {
+                let execution_mode = match route {
+                    RolloutRoute::Primary => ExecutionMode::Primary,
+                    RolloutRoute::Shadow => ExecutionMode::Shadow,
+                    RolloutRoute::Direct => {
                         logger::info!(
                             execution_mode = ?config.execution_mode,
                             "Rollout will not be executed"
@@ -10127,7 +10138,7 @@ pub fn update_request_data_with_mandate_id(
 }
 
 #[cfg(test)]
-mod rollout_band_tests {
+mod rollout_route_tests {
     use super::*;
 
     fn config(mode: ExecutionMode, rollout: f64, shadow: Option<f64>) -> RolloutConfig {
@@ -10146,10 +10157,10 @@ mod rollout_band_tests {
         )
         .expect("legacy config must parse");
         assert_eq!(parsed.shadow_rollout_percent, None);
-        assert_eq!(parsed.band_for(0.0), RolloutBand::Primary);
-        assert_eq!(parsed.band_for(0.099), RolloutBand::Primary);
-        assert_eq!(parsed.band_for(0.1), RolloutBand::None);
-        assert_eq!(parsed.band_for(0.999), RolloutBand::None);
+        assert_eq!(parsed.traffic_split().route(0.0), RolloutRoute::Primary);
+        assert_eq!(parsed.traffic_split().route(0.099), RolloutRoute::Primary);
+        assert_eq!(parsed.traffic_split().route(0.1), RolloutRoute::Direct);
+        assert_eq!(parsed.traffic_split().route(0.999), RolloutRoute::Direct);
     }
 
     #[test]
@@ -10158,38 +10169,40 @@ mod rollout_band_tests {
             serde_json::from_str(r#"{"rollout_percent":1.0,"execution_mode":"shadow"}"#)
                 .expect("legacy config must parse");
         for u in [0.0, 0.3, 0.999] {
-            assert_eq!(parsed.band_for(u), RolloutBand::None);
+            assert_eq!(parsed.traffic_split().route(u), RolloutRoute::Direct);
         }
     }
 
     #[test]
-    fn primary_with_shadow_bands_are_disjoint() {
+    fn primary_and_shadow_routes_are_disjoint() {
         let c = config(ExecutionMode::Primary, 0.1, Some(0.4));
-        assert_eq!(c.band_for(0.0), RolloutBand::Primary);
-        assert_eq!(c.band_for(0.099), RolloutBand::Primary);
-        assert_eq!(c.band_for(0.1), RolloutBand::Shadow);
-        assert_eq!(c.band_for(0.499), RolloutBand::Shadow);
-        assert_eq!(c.band_for(0.5), RolloutBand::None);
-        assert_eq!(c.band_for(0.999), RolloutBand::None);
+        assert_eq!(c.traffic_split().route(0.0), RolloutRoute::Primary);
+        assert_eq!(c.traffic_split().route(0.099), RolloutRoute::Primary);
+        assert_eq!(c.traffic_split().route(0.1), RolloutRoute::Shadow);
+        assert_eq!(c.traffic_split().route(0.499), RolloutRoute::Shadow);
+        assert_eq!(c.traffic_split().route(0.5), RolloutRoute::Direct);
+        assert_eq!(c.traffic_split().route(0.999), RolloutRoute::Direct);
     }
 
     #[test]
     fn shadow_is_capped_at_traffic_left_after_primary() {
         let c = config(ExecutionMode::Primary, 0.1, Some(0.95));
-        assert!((c.shadow_share() - 0.9).abs() < 1e-9);
-        assert_eq!(c.band_for(0.1), RolloutBand::Shadow);
-        assert_eq!(c.band_for(0.999), RolloutBand::Shadow);
+        assert!((c.traffic_split().shadow - 0.9).abs() < 1e-9);
+        assert_eq!(c.traffic_split().route(0.1), RolloutRoute::Shadow);
+        assert_eq!(c.traffic_split().route(0.999), RolloutRoute::Shadow);
     }
 
     #[test]
     fn shadow_mode_uses_shadow_percent_only() {
         let c = config(ExecutionMode::Shadow, 1.0, Some(0.3));
-        assert_eq!(c.band_for(0.0), RolloutBand::Shadow);
-        assert_eq!(c.band_for(0.299), RolloutBand::Shadow);
-        assert_eq!(c.band_for(0.3), RolloutBand::None);
+        assert_eq!(c.traffic_split().route(0.0), RolloutRoute::Shadow);
+        assert_eq!(c.traffic_split().route(0.299), RolloutRoute::Shadow);
+        assert_eq!(c.traffic_split().route(0.3), RolloutRoute::Direct);
         assert_eq!(
-            config(ExecutionMode::Shadow, 0.0, Some(1.0)).band_for(0.999),
-            RolloutBand::Shadow
+            config(ExecutionMode::Shadow, 0.0, Some(1.0))
+                .traffic_split()
+                .route(0.999),
+            RolloutRoute::Shadow
         );
     }
 
@@ -10197,33 +10210,41 @@ mod rollout_band_tests {
     fn shadow_percent_ignored_when_not_applicable_or_invalid() {
         for u in [0.0, 0.5, 0.999] {
             assert_eq!(
-                config(ExecutionMode::NotApplicable, 1.0, Some(0.5)).band_for(u),
-                RolloutBand::None
+                config(ExecutionMode::NotApplicable, 1.0, Some(0.5))
+                    .traffic_split()
+                    .route(u),
+                RolloutRoute::Direct
             );
         }
         assert_eq!(
-            config(ExecutionMode::Primary, 0.1, Some(-0.2)).band_for(0.5),
-            RolloutBand::None
+            config(ExecutionMode::Primary, 0.1, Some(-0.2))
+                .traffic_split()
+                .route(0.5),
+            RolloutRoute::Direct
         );
         assert_eq!(
-            config(ExecutionMode::Primary, 0.1, Some(f64::NAN)).band_for(0.5),
-            RolloutBand::None
+            config(ExecutionMode::Primary, 0.1, Some(f64::NAN))
+                .traffic_split()
+                .route(0.5),
+            RolloutRoute::Direct
         );
         assert_eq!(
-            config(ExecutionMode::Shadow, 0.0, Some(1.5)).band_for(0.5),
-            RolloutBand::None
+            config(ExecutionMode::Shadow, 0.0, Some(1.5))
+                .traffic_split()
+                .route(0.5),
+            RolloutRoute::Direct
         );
     }
 
     #[test]
     fn full_primary_leaves_no_room_for_shadow() {
         let c = config(ExecutionMode::Primary, 1.0, Some(0.5));
-        assert_eq!(c.shadow_share(), 0.0);
-        assert_eq!(c.band_for(0.999), RolloutBand::Primary);
+        assert_eq!(c.traffic_split().shadow, 0.0);
+        assert_eq!(c.traffic_split().route(0.999), RolloutRoute::Primary);
     }
 
     #[test]
-    fn execution_result_modes_follow_bands() {
+    fn execution_result_mode_follows_route() {
         let shadow: RolloutExecutionResult = config(ExecutionMode::Shadow, 0.0, Some(1.0)).into();
         assert!(shadow.should_execute);
         assert_eq!(shadow.execution_mode, ExecutionMode::Shadow);
