@@ -14,10 +14,6 @@ fi
 cache_name="$1"
 pr_number="${2:-}"
 
-shared_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz"
-
-human() { numfmt --to=iec --suffix=B -- "$1" 2>/dev/null || printf '%s bytes' "$1"; }
-
 mkdir -p "$SCCACHE_DIR"
 
 if [ -z "${CACHE_S3_BUCKET:-}" ]; then
@@ -25,75 +21,54 @@ if [ -z "${CACHE_S3_BUCKET:-}" ]; then
   exit 0
 fi
 
-# Streamed, not written to disk first — avoids doubling disk usage.
-#
-# NOTE: this runs from `if` and `||` contexts below, which suspend `set -e` for
-# the whole function body — so every failure has to `return` explicitly rather
-# than relying on the shell to abort.
+# Downloaded in full, then unpacked — not piped — so a download that dies
+# partway can't leave a half-populated SCCACHE_DIR for the fallback key to
+# unpack on top of, and each phase stays separately timed.
+archive="$(dirname "${SCCACHE_DIR}")/.sccache-restore-$$.tar"
+trap 'rm -f "${archive}"' EXIT
+
+key_for() { printf 'sccache-cache/%s-%s-%s%s.tar' "${cache_name}" "${RUNNER_OS}" "${RUNNER_ARCH}" "${1:+-pr$1}"; }
+human() { numfmt --to=iec --suffix=B -- "$1"; }
+rate() { awk -v b="$1" -v ns="$2" 'BEGIN { s = ns / 1e9; printf "%5.1fs", s; if (s > 0) printf " %7.0f MiB/s", b / 1048576 / s }'; }
+
+# `set -e` is suspended in the `if`/`||` contexts below, so failures here must
+# return explicitly, and the trailing `return 0` keeps the exit status of a
+# reporting command from being read as a cache miss.
 restore() {
-  local key="$1"
-  local s3_key="${CACHE_S3_KEY_PREFIX}${key}"
-  local compressed_bytes start_ns elapsed_ns uncompressed_bytes
+  local key="$1" t0 download_ns unpack_ns archive_bytes tree_bytes
 
   echo "Restoring sccache cache, key: ${key}"
 
-  start_ns="$(date +%s%N)"
+  # `--no-progress`: aws writes carriage-return updates that a non-TTY CI log
+  # renders as thousands of lines.
+  t0="$(date +%s%N)"
+  aws s3 cp "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}${key}" "${archive}" \
+    --region "${CACHE_S3_REGION}" --no-progress --only-show-errors || return 1
+  download_ns=$(( $(date +%s%N) - t0 ))
+  archive_bytes="$(stat -c%s "${archive}")"
 
-  # aws's own `--progress` is unusable here: it writes carriage-return updates
-  # that a non-TTY CI log renders as thousands of lines. Size, duration and
-  # throughput answer the question it would have — is a slow step slow, or just
-  # large?
-  aws s3 cp \
-    "s3://${CACHE_S3_BUCKET}/${s3_key}" \
-    - \
-    --region "${CACHE_S3_REGION}" --no-progress --only-show-errors \
-    | tar xzf - -C "$SCCACHE_DIR" || return 1
+  # Uncompressed: sccache already zstd-compresses its entries, so gzip measured
+  # 1.02x here while costing more wall time than the download it was shrinking.
+  t0="$(date +%s%N)"
+  tar xf "${archive}" -C "${SCCACHE_DIR}" || return 1
+  unpack_ns=$(( $(date +%s%N) - t0 ))
 
-  elapsed_ns=$(( $(date +%s%N) - start_ns ))
-  uncompressed_bytes="$(du -sb "${SCCACHE_DIR}" | cut -f1)"
+  rm -f "${archive}"
+  tree_bytes="$(du -sb "${SCCACHE_DIR}" | cut -f1)"
 
-  # Deliberately after the download, and non-fatal: `cp` stays the single
-  # arbiter of hit-vs-miss. Making HEAD the existence check would mean an
-  # endpoint that answers it differently turns every restore into a silent cold
-  # start — the transfer size is not worth that failure mode.
-  compressed_bytes="$(
-    aws s3api head-object \
-      --bucket "${CACHE_S3_BUCKET}" --key "${s3_key}" \
-      --region "${CACHE_S3_REGION}" \
-      --query 'ContentLength' --output text 2>/dev/null
-  )" || compressed_bytes=''
-  if [[ "${compressed_bytes}" == 'None' ]]; then
-    compressed_bytes=''
-  fi
-
-  if [ -n "${compressed_bytes}" ]; then
-    echo "  downloaded:  $(human "${compressed_bytes}")"
-  fi
-  echo "  on disk:     $(human "${uncompressed_bytes}")"
-  # An unset `c` reads as 0 in awk, which the guards below already skip.
-  awk -v u="${uncompressed_bytes}" -v c="${compressed_bytes}" -v ns="${elapsed_ns}" 'BEGIN {
-    s = ns / 1e9
-    if (c > 0 && u > 0) {
-      printf "  compressed:  %.2fx (%.1f%% smaller)\n", u / c, (1 - c / u) * 100
-    }
-    printf "  download:    %.1fs", s
-    if (s > 0 && c > 0) { printf " at %.1f MiB/s", c / 1048576 / s }
-    printf "\n"
-  }'
-
-  # Explicit: the caller reads a non-zero return as a cache miss, so the
-  # function must not leak the status of whatever reporting ran last.
+  echo "  archive $(human "${archive_bytes}") -> tree $(human "${tree_bytes}")"
+  echo "  download $(rate "${archive_bytes}" "${download_ns}")"
+  echo "  unpack   $(rate "${tree_bytes}" "${unpack_ns}")"
   return 0
 }
 
-# PR-scoped first (isolates concurrent PRs from each other), falling back to
-# the shared merge_group/main cache — mainly so a PR's first push isn't cold.
-if [ -n "$pr_number" ]; then
-  pr_key="sccache-cache/${cache_name}-${RUNNER_OS}-${RUNNER_ARCH}-pr${pr_number}.tar.gz"
-  if restore "$pr_key"; then
+# PR-scoped first (isolates concurrent PRs from each other), falling back to the
+# shared merge_group/main cache — mainly so a PR's first push isn't cold.
+if [ -n "${pr_number}" ]; then
+  if restore "$(key_for "${pr_number}")"; then
     exit 0
   fi
   echo "No PR-scoped cache found, falling back to shared cache"
 fi
 
-restore "$shared_key" || echo "::warning::No sccache cache found; starting cold"
+restore "$(key_for)" || echo "::warning::No sccache cache found; starting cold"
