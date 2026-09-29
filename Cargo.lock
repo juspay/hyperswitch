@@ -6533,7 +6533,6 @@ dependencies = [
  "async-trait",
  "bb8",
  "clap 4.5.38",
- "common_enums",
  "common_utils",
  "config",
  "diesel",

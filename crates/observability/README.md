@@ -91,7 +91,8 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
-| `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body (only when `[router]` is configured) |
+| `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
+| `POST` | `/monitoring/grafana/session` | Router-validated Bearer token in Authorization header |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
@@ -257,6 +258,32 @@ malformed response. No Grafana service-account token goes to the frontend. This 
 to be public without a separate service key by the agreed temporary integration contract; rate
 limit and monitor it at the gateway/ingress. The existing operational Grafana still needs its
 Auth Proxy whitelist and data-source access reviewed before rollout.
+
+### Browser session bootstrap
+
+The frontend calls `POST {cc_url}/api/observability-plane/monitoring/grafana/session` with
+`Authorization: Bearer <JWT>`. Ingress strips `/api/observability-plane`; the application route
+is `/monitoring/grafana/session`. It uses the same permission and active-user validation as the
+identity endpoint, then returns 204, `Cache-Control: no-store`, and:
+
+```http
+Set-Cookie: grafana_token=<JWT>; Path=/api/observability-plane/grafana; Secure; HttpOnly; SameSite=Strict
+```
+
+This is a distinct, host-only session cookie (no Domain, Expires or Max-Age), not a replacement
+for Control Center's `login_token`. The browser sends it to
+`{cc_url}/api/observability-plane/grafana/...`, including the bare Grafana path. Router still
+enforces token expiry/logout. Cookie Path is delivery scoping, not an access-control boundary.
+The gateway must read `grafana_token`, submit it to the auth endpoint **on every protected request**,
+and strip it before proxying to Grafana. An existing cookie is not cleared or replaced on failed
+bootstrap; it cannot grant access without fresh Router authorization. Request-body tokens and
+cookies are not accepted by the session endpoint, only a single Authorization Bearer header.
+No permissive CORS configuration is added. The cookie is usable only on the same CC host over HTTPS.
+
+Router calls use a dedicated reusable HTTP client, not the generic microservice executor. Only
+HTTP 200 is accepted, redirects are disabled, each call has a three-second timeout, and success
+bodies are bounded to 64 KiB. No upstream error body is retained or logged. The client does not
+independently decode or validate the JWT.
 
 ## Layout
 

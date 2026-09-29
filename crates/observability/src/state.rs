@@ -16,7 +16,7 @@ use hyperswitch_interfaces::{
 };
 
 use crate::{
-    core::router_client::RouterCallState,
+    core::router_client::RouterClient,
     db::{StorageInterface, Store},
     domain::notifier::{
         chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
@@ -41,7 +41,7 @@ pub struct AppState {
     /// The resolved configuration.
     pub conf: Arc<Settings<RawSecret>>,
     /// Internal Router HTTP transport; absent only when its construction failed (fail closed).
-    pub router_transport: Option<Arc<RouterCallState>>,
+    pub router_transport: Option<Arc<RouterClient>>,
     /// Chat destinations, by the id a request names.
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
@@ -113,7 +113,7 @@ impl AppState {
                 .expect("Failed to connect to the observability database"),
         );
 
-        let router_transport = match RouterCallState::new() {
+        let router_transport = match RouterClient::new(raw_conf.router.base_url.clone()) {
             Ok(client) => Some(Arc::new(client)),
             Err(_) => {
                 logger::error!("Internal Router client unavailable; Grafana auth will fail closed");

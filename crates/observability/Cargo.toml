@@ -44,7 +44,6 @@ url = "2.5.4"
 
 # First Party Crates
 api_models = { version = "0.1.0", path = "../api_models" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 external_services = { version = "0.1.0", path = "../external_services", features = ["email"] }

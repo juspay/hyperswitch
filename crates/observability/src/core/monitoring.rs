@@ -1,12 +1,14 @@
-//! Decide whether a Control Center credential may become a Grafana login.
+//! Monitoring policy shared by the identity and session endpoints.
 
 use api_models::observability::monitoring::GrafanaAuthResponse;
-use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::{PeekInterface, Secret};
 
-use crate::{core::router_client::RouterClient, domain::monitoring::GrafanaLogin, state::AppState};
+use crate::{
+    core::router_client::{RouterClient, RouterError},
+    domain::monitoring::GrafanaLogin,
+    state::AppState,
+};
 
-/// Temporary entitlement until Router introduces MonitoringView.
 const GRAFANA_PERMISSION: &str = "ProfileReconRuleRead";
 const MAX_TOKEN_BYTES: usize = 8192;
 
@@ -17,27 +19,33 @@ pub enum AuthFailure {
     RouterUnavailable,
 }
 
+impl From<RouterError> for AuthFailure {
+    fn from(error: RouterError) -> Self {
+        match error {
+            RouterError::InvalidCredential => Self::InvalidCredential,
+            RouterError::PermissionDenied => Self::PermissionDenied,
+            RouterError::Unavailable => Self::RouterUnavailable,
+        }
+    }
+}
+
 pub async fn authorize(
     state: &AppState,
     token: Secret<String>,
 ) -> Result<GrafanaAuthResponse, AuthFailure> {
+    authorize_with_client(state.router_transport.as_deref(), &token).await
+}
+
+pub(crate) async fn authorize_with_client(
+    client: Option<&RouterClient>,
+    token: &Secret<String>,
+) -> Result<GrafanaAuthResponse, AuthFailure> {
     if !valid_token_shape(token.peek()) {
         return Err(AuthFailure::InvalidCredential);
     }
-    let transport = state
-        .router_transport
-        .as_deref()
-        .ok_or(AuthFailure::RouterUnavailable)?;
-    let client = RouterClient::new(state.conf.router.base_url.as_str(), &token)
-        .map_err(|_| AuthFailure::RouterUnavailable)?;
-    client
-        .authorize_token(transport, token, GRAFANA_PERMISSION)
-        .await
-        .map_err(|error| map_router_error(&error))?;
-    let email = client
-        .get_user_email(transport)
-        .await
-        .map_err(|error| map_router_error(&error))?;
+    let client = client.ok_or(AuthFailure::RouterUnavailable)?;
+    client.authorize_token(token, GRAFANA_PERMISSION).await?;
+    let email = client.get_user_email(token).await?;
     let login = GrafanaLogin::from_router_email(&email).ok_or(AuthFailure::RouterUnavailable)?;
     Ok(GrafanaAuthResponse {
         grafana_login: login.into_string(),
@@ -52,18 +60,6 @@ fn valid_token_shape(token: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
 }
 
-fn map_router_error(error: &MicroserviceClientError) -> AuthFailure {
-    match &error.kind {
-        MicroserviceClientErrorKind::Upstream { status: 401, .. } => AuthFailure::InvalidCredential,
-        MicroserviceClientErrorKind::Upstream { status: 403, .. }
-            if error.operation.contains("AuthorizeFlow") =>
-        {
-            AuthFailure::PermissionDenied
-        }
-        _ => AuthFailure::RouterUnavailable,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,25 +70,5 @@ mod tests {
         assert!(!valid_token_shape("token\r\nAuthorization: evil"));
         assert!(!valid_token_shape("cookie; extra=value"));
         assert!(valid_token_shape("a.b_c-123.sig"));
-    }
-
-    #[test]
-    fn router_statuses_fail_closed() {
-        let error = |status| MicroserviceClientError {
-            operation: "observability::AuthorizeFlow".to_string(),
-            kind: MicroserviceClientErrorKind::Upstream {
-                status,
-                body: String::new(),
-            },
-        };
-        assert_eq!(
-            map_router_error(&error(401)),
-            AuthFailure::InvalidCredential
-        );
-        assert_eq!(map_router_error(&error(403)), AuthFailure::PermissionDenied);
-        assert_eq!(
-            map_router_error(&error(500)),
-            AuthFailure::RouterUnavailable
-        );
     }
 }

@@ -154,6 +154,7 @@ impl Monitoring {
             .app_data(web::Data::new(state))
             .app_data(monitoring::json_config())
             .service(web::resource("/grafana/auth").route(web::post().to(monitoring::authenticate)))
+            .service(web::resource("/grafana/session").route(web::post().to(monitoring::session)))
     }
 }
 
