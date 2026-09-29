@@ -13671,14 +13671,6 @@
           "unresolved"
         ]
       },
-      "AutoFallbackCaptureMethod": {
-        "type": "string",
-        "description": "Whether a payment whose requested capture method is not supported by the connector chosen\nfor it falls back to automatic capture instead of being rejected.",
-        "enum": [
-          "enabled",
-          "disabled"
-        ]
-      },
       "BHNGiftCardDetails": {
         "type": "object",
         "required": [
@@ -43086,11 +43078,9 @@
             "nullable": true
           },
           "auto_fallback_capture_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AutoFallbackCaptureMethod"
-              }
-            ],
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
             "nullable": true
           },
           "always_enable_overcapture": {
@@ -43493,11 +43483,9 @@
             "nullable": true
           },
           "auto_fallback_capture_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AutoFallbackCaptureMethod"
-              }
-            ],
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
             "nullable": true
           },
           "always_enable_overcapture": {
