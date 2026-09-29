@@ -1803,6 +1803,17 @@ pub async fn get_or_update_dispute_object(
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let incoming_dispute_stage = dispute_details.dispute_stage;
+    let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
+        dispute_stage: dispute_details.dispute_stage,
+        dispute_status,
+        connector_status: dispute_details.connector_status.clone(),
+        connector_reason: dispute_details.connector_reason.clone(),
+        connector_reason_code: dispute_details.connector_reason_code.clone(),
+        challenge_required_by: dispute_details.challenge_required_by,
+        connector_updated_at: dispute_details.updated_at,
+    };
     match option_dispute {
         None => {
             metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
@@ -1853,44 +1864,85 @@ pub async fn get_or_update_dispute_object(
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
             };
-            state
+            let connector_dispute_id = new_dispute.connector_dispute_id.clone();
+            match state
                 .store
-                .insert_dispute(
-                    new_dispute.clone(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
+                .insert_dispute(new_dispute.clone(), storage_scheme)
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+            {
+                Ok(dispute) => Ok(dispute),
+                Err(error) if error.current_context().is_db_unique_violation() => {
+                    logger::info!(
+                        "Dispute insert hit a duplicate, updating the concurrently created dispute"
+                    );
+                    metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
+                    let existing_dispute = db
+                        .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                            platform.get_processor().get_account().get_id(),
+                            &payment_attempt.payment_id,
+                            &connector_dispute_id,
+                            storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+                    match existing_dispute {
+                        Some(dispute) => {
+                            validate_and_update_dispute_object(
+                                db,
+                                dispute,
+                                incoming_dispute_stage,
+                                dispute_status,
+                                update_dispute,
+                                storage_scheme,
+                            )
+                            .await
+                        }
+                        None => Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "dispute insert reported a duplicate but no dispute exists for the connector dispute id",
+                            ),
+                    }
+                }
+                Err(error) => Err(error)
+                    .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
+            }
         }
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
-            core_utils::validate_dispute_stage_and_dispute_status(
-                dispute.dispute_stage,
-                dispute.dispute_status,
-                dispute_details.dispute_stage,
-                dispute_status,
-            )
-            .change_context(errors::ApiErrorResponse::WebhookBadRequest)
-            .attach_printable("dispute stage and status validation failed")?;
-            let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
-                dispute_stage: dispute_details.dispute_stage,
-                dispute_status,
-                connector_status: dispute_details.connector_status,
-                connector_reason: dispute_details.connector_reason,
-                connector_reason_code: dispute_details.connector_reason_code,
-                challenge_required_by: dispute_details.challenge_required_by,
-                connector_updated_at: dispute_details.updated_at,
-            };
-            db.update_dispute(
+            validate_and_update_dispute_object(
+                db,
                 dispute,
+                incoming_dispute_stage,
+                dispute_status,
                 update_dispute,
-                platform.get_processor().get_account().storage_scheme,
+                storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
     }
+}
+
+async fn validate_and_update_dispute_object(
+    db: &dyn crate::db::StorageInterface,
+    dispute: diesel_models::dispute::Dispute,
+    incoming_dispute_stage: common_enums::DisputeStage,
+    incoming_dispute_status: common_enums::enums::DisputeStatus,
+    update_dispute: diesel_models::dispute::DisputeUpdate,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
+    core_utils::validate_dispute_stage_and_dispute_status(
+        dispute.dispute_stage,
+        dispute.dispute_status,
+        incoming_dispute_stage,
+        incoming_dispute_status,
+    )
+    .change_context(errors::ApiErrorResponse::WebhookBadRequest)
+    .attach_printable("dispute stage and status validation failed")?;
+    db.update_dispute(dispute, update_dispute, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
 }
 
 #[allow(clippy::too_many_arguments)]
