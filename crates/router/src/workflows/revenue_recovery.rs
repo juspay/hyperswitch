@@ -838,7 +838,9 @@ async fn get_token_with_schedule_time_for_ab_routing(
             "No retry time available — the assigned algorithm produced none and this path has no \
              ladder to fall back on"
         );
-        errors::ProcessTrackerError::EApiErrorResponse
+        errors::ProcessTrackerError::FlowExecutionError {
+            flow: "revenue_recovery_no_schedule_time",
+        }
     })?;
 
     get_token_availability_for_schedule_time(
@@ -953,19 +955,11 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await?;
             } else if adaptive_retry_enabled {
-                // Same shape as the cascading arm — compute the schedule time, then gate on
-                // the token. The only additions are the adaptive candidate and the choice
-                // between the two.
+                // Same shape as the cascading arm — compute the schedule time, then gate on the
+                // token. The addition is the adaptive candidate, which decides outright whenever
+                // it has one; the ladder covers only the decisions it declines.
                 let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
-
-                let static_time = get_schedule_time_to_retry_adaptive_payments(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    &dimensions,
-                    queried_rung,
-                )
-                .await;
 
                 let (remaining_grace_days, remaining_budget) = get_adaptive_retry_allowances(
                     state,
@@ -991,20 +985,20 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     None => None,
                 };
 
-                // Neither algorithm has a time to offer: the adaptive ladder is spent and the
-                // model declined. Only then is the MIT cascading ladder consulted, so the
-                // lookup costs nothing on the paths that never reach it.
-                let fallback_time = match (static_time, adaptive_time) {
-                    (None, None) => {
-                        get_schedule_time_to_retry_mit_payments(
+                // The ladder covers only what the model declines, so it is resolved only then —
+                // the lookup is a Superposition read and costs nothing on the paths that never
+                // reach it. `None` here therefore means "not consulted", not "nothing to offer".
+                let static_time = match adaptive_time {
+                    Some(_) => None,
+                    None => {
+                        get_schedule_time_to_retry_adaptive_payments(
                             state.store.as_ref(),
                             state.superposition_service.as_ref(),
                             &dimensions,
-                            retry_count,
+                            queried_rung,
                         )
                         .await
                     }
-                    _ => None,
                 };
 
                 let decision = pcr::schedule::decide_next_retry(
@@ -1012,7 +1006,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     queried_rung,
                     static_time,
                     adaptive_time,
-                    fallback_time,
                 )
                 .ok_or_else(|| {
                     logger::error!(
@@ -1020,10 +1013,14 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         error_code = ?tracking_data.prev_attempt_error_code,
                         remaining_grace_days = remaining_grace_days,
                         remaining_budget = remaining_budget,
-                        "No retry time available — the static ladder is exhausted, the adaptive \
-                         algorithm declined and the MIT ladder had nothing left"
+                        "No retry time available — the adaptive model declined and the static \
+                         ladder is exhausted"
                     );
-                    errors::ProcessTrackerError::EApiErrorResponse
+                    // Same failure as the A/B path's: nothing had a time to offer. The logs say
+                    // which sources were consulted.
+                    errors::ProcessTrackerError::FlowExecutionError {
+                        flow: "revenue_recovery_no_schedule_time",
+                    }
                 })?;
 
                 logger::info!(
@@ -1031,7 +1028,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     queried_rung = queried_rung,
                     static_time = ?static_time,
                     adaptive_time = ?adaptive_time,
-                    fallback_time = ?fallback_time,
                     error_code = ?tracking_data.prev_attempt_error_code,
                     remaining_grace_days = remaining_grace_days,
                     remaining_budget = remaining_budget,
@@ -1606,9 +1602,9 @@ pub fn add_random_delay_to_schedule_time(
 // MathModel retry-time prediction — the data-driven half of the Cascading (MathModel) strategy.
 //
 // Given a cluster's day-of-week / day-of-month / hour-of-day success stats (`StatsDocument`), the
-// remaining retry budget, and the grace window, it returns the datetime to retry on (real
-// randomness, no seed). The caller `min()`s this with the Superposition static-schedule time
-// (MathModel can only make a retry happen SOONER).
+// remaining retry budget, and the grace window, it returns the datetime to retry on. The caller
+// takes this time as it stands; the Superposition static schedule covers only the decisions this
+// declines.
 //
 // The DAY is produced by two independently selectable stages — see `MathModelVariant`: a COMBINE
 // folding the weekday and month-day signals into one weight per candidate day, and a SELECTION
@@ -1616,8 +1612,9 @@ pub fn add_random_delay_to_schedule_time(
 //
 // Returns `Some(datetime)` whenever the grace window has at least one retriable day, and `None` only
 // when the window is empty (`grace_days <= 1` — no future day to retry on). WITHIN a non-empty window
-// the pick never fails: Laplace smoothing gives every slot a defined estimate, and both samplers are
-// guaranteed to return a day (the runway guard for one, the exploration floor for the other).
+// the pick never fails: Laplace smoothing gives every slot a defined estimate, and both samplers
+// always land on a day — the runway guard forces one for per-tick, and `Σπ = budget ≥ 1` puts at
+// least one probe on the line for systematic-k.
 //
 // INDEXING (must match `retry_stats_document::EventSlots::from_utc`, which is how the stats are
 // recorded):
@@ -1635,24 +1632,6 @@ const CLIP: f64 = 1e-4;
 /// is a behavior change (a grace > 31 can never propose days 32+), so it's logged where it triggers.
 #[cfg(feature = "v2")]
 const MAX_GRACE_DAYS: u32 = 31;
-
-/// Exploration floor ε — the minimum inclusion probability every candidate day is guaranteed, so no
-/// day can be ruled out on the strength of a model that has never tried it. 0.10 is the recommended
-/// operating point: it captures 15% of the production→oracle gap, against 23% at ε = 0 (cheapest,
-/// but nothing is checkable afterwards) and 5% at ε = 0.20 (too flat — the model is barely used).
-/// A business dial, not a mathematical constant.
-#[cfg(feature = "v2")]
-const EXPLORATION_FLOOR: f64 = 0.10;
-
-/// Day values within this distance are treated as tied and split their share equally.
-///
-/// Raising it is not safe by inspection. A merge only changes anything where the group spans the
-/// rank the pour ran out of budget at, and there it averages a near-certain day with a floored one
-/// — a swing of up to `1 − ε`. On production stats the smallest gap at that rank was 4.2e-05, so
-/// below that this only merges float noise. Grouping also compares neighbours, not a fixed anchor,
-/// so a dense run can chain into a group wider than the tolerance.
-#[cfg(feature = "v2")]
-const TIE_TOLERANCE: f64 = 1e-9;
 
 /// Laplace-smoothed success rate: p̂ = (k+1)/(n+2). Callers must pass a well-formed counter (k ≤ n);
 /// `slot_scores` DROPS corrupt `k > n` slots before this runs, so p̂ ∈ (0,1) strictly and `se` never
@@ -1919,7 +1898,7 @@ fn pick_index<T: Copy + std::fmt::Debug>(
         } else {
             (f64::from(budget) * w / s).min(1.0)
         };
-        // Draw the (unseeded) random value into a variable so the per-step decision is fully logged.
+        // Draw into a variable so the per-step decision is fully logged.
         let draw = common_utils::generate_random_f64_unit();
         let fired = draw < p;
         logger::debug!(
@@ -1960,6 +1939,12 @@ fn pick_index<T: Copy + std::fmt::Debug>(
 fn pick_hour(hod: &[SlotCounter], default_hour: u8) -> u8 {
     let scores = slot_scores(hod);
     if scores.is_empty() {
+        // Without this the chosen hour is indistinguishable from one the model actually picked,
+        // since a real pick can land on the default hour too.
+        logger::debug!(
+            default_hour = default_hour,
+            "mathmodel: no usable hour-of-day history — falling back to the configured hour"
+        );
         return default_hour;
     }
     let hours: Vec<u8> = (0u8..24).collect();
@@ -1988,8 +1973,8 @@ fn softmax(xs: &[f64]) -> Vec<f64> {
 /// Both variants say "this day is good if either its weekday OR its month-day is historically good";
 /// they differ in whether the two axes are put on a common footing before the `max` (see
 /// [`DayCombine`]). Shared trade-off: `max` optimism — a day strong on one axis but weak on the other
-/// is picked on its strong side. Bounded downstream, since the result is `min()`d with the static
-/// schedule. A better combine (sum-of-logits, posterior sampling) changes ONLY this function.
+/// is picked on its strong side. A better combine (sum-of-logits, posterior sampling) changes ONLY
+/// this function.
 ///
 /// The softmax is kept in both arms even though `SystematicK` discards magnitudes, because
 /// `PerTick` does not: the weights must be well-formed for whichever sampler runs.
@@ -2061,12 +2046,18 @@ fn combine_day_weight(
 /// Two guards below fail SILENTLY if removed — the vector still sums to k and still yields k days:
 ///  * **ε capped at k/n.** Above it the problem is infeasible and the pour emits NEGATIVE
 ///    probabilities, breaking the monotone cumulative sum `systematic_sample` binary-searches.
-///  * **Tied days split their share.** Ranking alone breaks ties by array position, giving days of
-///    equal value wildly different probabilities. Splitting leaves the group total untouched.
+///  * **Days within `tie_tolerance` split their share.** Ranking alone breaks ties by array
+///    position, giving days of equal value wildly different probabilities. Splitting leaves the
+///    group total untouched.
 // `usize -> f64` is exact here: `n` is a candidate-day count, capped at `MAX_GRACE_DAYS` (31).
 #[cfg(feature = "v2")]
 #[allow(clippy::as_conversions)]
-fn inclusion_probabilities(values: &[f64], budget: u32, epsilon: f64) -> Vec<f64> {
+fn inclusion_probabilities(
+    values: &[f64],
+    budget: u32,
+    epsilon: f64,
+    tie_tolerance: f64,
+) -> Vec<f64> {
     let n = values.len();
     if n == 0 {
         return Vec::new();
@@ -2100,7 +2091,7 @@ fn inclusion_probabilities(values: &[f64], budget: u32, epsilon: f64) -> Vec<f64
     // Split each tied group's share equally over its members (see the doc comment above). `ranked`
     // is sorted by value, so tied days are adjacent and `chunk_by` hands each run over as a slice.
     for tied_days in
-        ranked.chunk_by(|(_, value), (_, other_value)| (value - other_value).abs() <= TIE_TOLERANCE)
+        ranked.chunk_by(|(_, value), (_, other_value)| (value - other_value).abs() <= tie_tolerance)
     {
         if tied_days.len() > 1 {
             let total: f64 = tied_days.iter().filter_map(|&(day, _)| pi.get(day)).sum();
@@ -2191,11 +2182,16 @@ fn systematic_sample(pi: &[f64], u: f64, order: &[usize]) -> Vec<usize> {
 ///
 /// Returns the chosen index into `weights` together with its inclusion probability.
 #[cfg(feature = "v2")]
-fn select_systematic_k_day(weights: &[f64], budget: u32, epsilon: f64) -> Option<(usize, f64)> {
+fn select_systematic_k_day(
+    weights: &[f64],
+    budget: u32,
+    epsilon: f64,
+    tie_tolerance: f64,
+) -> Option<(usize, f64)> {
     if weights.is_empty() || budget == 0 {
         return None;
     }
-    let pi = inclusion_probabilities(weights, budget, epsilon);
+    let pi = inclusion_probabilities(weights, budget, epsilon, tie_tolerance);
 
     // Redrawn per invoice — see `systematic_sample` on why a cached order fixes nothing.
     let order = common_utils::generate_random_permutation(weights.len());
@@ -2222,21 +2218,22 @@ fn select_systematic_k_day(weights: &[f64], budget: u32, epsilon: f64) -> Option
 /// Predict the retry datetime from cluster stats.
 ///
 /// * `stats`      the cluster's parsed success stats (dow/dom/hod `{n,k}` counters)
-/// * `budget`     retries remaining (drives the runway guard)
+/// * `budget`     retries remaining (the per-tick runway guard, and the k of systematic-k)
 /// * `grace_days` grace period, in days, COUNTING the failure day (today). Retriable window = the
 ///                `grace_days - 1` future days, capped at 31.
 /// * `default_hour` fallback hour-of-day (UTC) used when the cluster has no usable hour history
 ///                (from `revenue_recovery.default_retry_hour_utc` config).
 ///
 /// The window starts on the **NEXT day** (failure day + 1), never on the failure day itself — the
-/// charge just failed today, so a same-day retry is low value. The min-gap / past-time guard rails
-/// are applied by the CALLER on the returned time (per the MathModel design).
+/// charge just failed today, so a same-day retry is low value. That is also what keeps the result
+/// in the future: nothing downstream re-checks it, and the only post-processing is a few seconds of
+/// random jitter.
 ///
 /// Returns `None` when `budget == 0` (no retries left to schedule) or `grace_days <= 1` (no future
 /// day inside the grace period); otherwise `Some`.
 /// V1 LIMITATION: a grace of 1 (today only) with retries still available is treated as "no retry"; a
-/// later version will handle that edge (e.g. a same-day retry after a delay). Uses real randomness
-/// (no seed). The caller `min()`s the result with the static schedule time.
+/// later version will handle that edge (e.g. a same-day retry after a delay). The caller takes the
+/// result as it stands, rather than bounding it by the static schedule.
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn compute_mathmodel_retry_time(
@@ -2245,6 +2242,8 @@ pub fn compute_mathmodel_retry_time(
     grace_days: u32,
     default_hour: u8,
     variant: MathModelVariant,
+    exploration_floor: f64,
+    tie_tolerance: f64,
 ) -> Option<time::OffsetDateTime> {
     // `grace_days` COUNTS the failure day (today), which we never retry on — so the retriable window
     // is the `grace_days - 1` future days [failure_day + 1 .. failure_day + grace_days - 1]. When that
@@ -2303,6 +2302,8 @@ pub fn compute_mathmodel_retry_time(
         window_len = window_len,
         window_start = %start,
         default_hour = default_hour,
+        exploration_floor = exploration_floor,
+        tie_tolerance = tie_tolerance,
         combine = ?variant.combine,
         selection = ?variant.selection,
         "mathmodel: decision start"
@@ -2343,7 +2344,8 @@ pub fn compute_mathmodel_retry_time(
             (idx, pick_driver.label(), None)
         }
         DaySelection::SystematicK => {
-            let (idx, pi) = select_systematic_k_day(&day_weights, budget, EXPLORATION_FLOOR)?;
+            let (idx, pi) =
+                select_systematic_k_day(&day_weights, budget, exploration_floor, tie_tolerance)?;
             let axis = winners.get(idx).map_or("unknown", |axis| axis.as_str());
             (idx, axis, Some(pi))
         }
@@ -2393,17 +2395,30 @@ pub async fn compute_adaptive_retry_time(
     remaining_budget: u32,
     variant: MathModelVariant,
 ) -> Option<time::OffsetDateTime> {
-    // Fetch the stats recorded against this error code. The store builds the cluster key and
-    // parses the stored document internally; `None` when the cluster has no recorded history yet.
-    let record = state
+    // The store builds the cluster key and parses the stored document internally. A missing cluster
+    // and a failed lookup both decline, but they are different problems, so they are logged apart —
+    // a cluster with no history yet is the ordinary reason this path produces no time.
+    let record = match state
         .store
         .get_revenue_recovery_retry_stats_store()
         .find_revenue_recovery_retry_stats_by_error_code(error_code)
         .await
-        .map_err(|error| {
+    {
+        Ok(Some(record)) => record,
+        Ok(None) => {
+            logger::info!(
+                ?error_code,
+                remaining_grace_days,
+                remaining_budget,
+                "adaptive retry: no stats recorded for this cluster yet — declining"
+            );
+            return None;
+        }
+        Err(error) => {
             logger::error!(?error, ?error_code, "adaptive retry: failed to fetch stats");
-        })
-        .ok()??;
+            return None;
+        }
+    };
 
     logger::debug!(
         ?error_code,
@@ -2424,12 +2439,43 @@ pub async fn compute_adaptive_retry_time(
         );
         12
     };
+    // A floor outside [0, 1) is not a probability; the sampler would clamp it downstream and the
+    // misconfiguration would never surface. Same shape as the retry-hour check above.
+    let configured_floor = state.conf.revenue_recovery.exploration_floor.0;
+    let exploration_floor = if (0.0..1.0).contains(&configured_floor) {
+        configured_floor
+    } else {
+        let fallback = storage::revenue_recovery::ExplorationFloor::default().0;
+        logger::warn!(
+            configured_floor,
+            fallback,
+            "adaptive retry: revenue_recovery.exploration_floor is not in [0, 1); using the default"
+        );
+        fallback
+    };
+
+    let configured_tolerance = state.conf.revenue_recovery.tie_tolerance.0;
+    let tie_tolerance = if configured_tolerance >= 0.0 && configured_tolerance.is_finite() {
+        configured_tolerance
+    } else {
+        let fallback = storage::revenue_recovery::TieTolerance::default().0;
+        logger::warn!(
+            configured_tolerance,
+            fallback,
+            "adaptive retry: revenue_recovery.tie_tolerance is negative or not finite; using the \
+             default"
+        );
+        fallback
+    };
+
     compute_mathmodel_retry_time(
         &record.stats,
         remaining_budget,
         remaining_grace_days,
         default_hour,
         variant,
+        exploration_floor,
+        tie_tolerance,
     )
 }
 
@@ -2437,9 +2483,11 @@ pub async fn compute_adaptive_retry_time(
 mod mathmodel_retry_time_tests {
     use super::*;
 
-    // The default retry hour the production config supplies (see `default_retry_hour_utc`); passed
-    // explicitly here so the tests don't depend on config plumbing.
+    // The values the production config supplies, passed explicitly so the tests do not depend on
+    // config plumbing. Kept in step with the defaults on `RevenueRecoverySettings`.
     const DEFAULT_RETRY_HOUR: u8 = 12;
+    const EXPLORATION_FLOOR: f64 = 0.10;
+    const TIE_TOLERANCE: f64 = 1e-4;
 
     fn ctr(n: u64, k: u64) -> SlotCounter {
         SlotCounter { n, k }
@@ -2661,9 +2709,16 @@ mod mathmodel_retry_time_tests {
             for stats in [sample(), StatsDocument::default()] {
                 for _ in 0..200 {
                     let before = common_utils::date_time::now().assume_utc();
-                    let dt =
-                        compute_mathmodel_retry_time(&stats, 3, grace, DEFAULT_RETRY_HOUR, variant)
-                            .expect("grace > 1 => Some");
+                    let dt = compute_mathmodel_retry_time(
+                        &stats,
+                        3,
+                        grace,
+                        DEFAULT_RETRY_HOUR,
+                        variant,
+                        EXPLORATION_FLOOR,
+                        TIE_TOLERANCE,
+                    )
+                    .expect("grace > 1 => Some");
                     let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
                     assert!(
                         dt.date() > before.date() && dt.date() <= last,
@@ -2682,8 +2737,16 @@ mod mathmodel_retry_time_tests {
         // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
         for variant in all_variants() {
             let before = common_utils::date_time::now().assume_utc();
-            let dt = compute_mathmodel_retry_time(&sample(), 3, 2, DEFAULT_RETRY_HOUR, variant)
-                .expect("grace 2 => Some");
+            let dt = compute_mathmodel_retry_time(
+                &sample(),
+                3,
+                2,
+                DEFAULT_RETRY_HOUR,
+                variant,
+                EXPLORATION_FLOOR,
+                TIE_TOLERANCE,
+            )
+            .expect("grace 2 => Some");
             assert!(
                 dt.date() > before.date(),
                 "{variant:?}: expected next day, got {} (today {})",
@@ -2698,14 +2761,26 @@ mod mathmodel_retry_time_tests {
     fn grace_zero_and_one_return_none() {
         // grace COUNTS today; grace 0 = no grace, grace 1 = today only -> no future day -> None (v1).
         for variant in all_variants() {
-            assert!(
-                compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR, variant)
-                    .is_none()
-            );
-            assert!(
-                compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR, variant)
-                    .is_none()
-            );
+            assert!(compute_mathmodel_retry_time(
+                &sample(),
+                3,
+                0,
+                DEFAULT_RETRY_HOUR,
+                variant,
+                EXPLORATION_FLOOR,
+                TIE_TOLERANCE
+            )
+            .is_none());
+            assert!(compute_mathmodel_retry_time(
+                &sample(),
+                3,
+                1,
+                DEFAULT_RETRY_HOUR,
+                variant,
+                EXPLORATION_FLOOR,
+                TIE_TOLERANCE
+            )
+            .is_none());
         }
     }
 
@@ -2714,16 +2789,24 @@ mod mathmodel_retry_time_tests {
         // No retries left: the model must NOT hand back a date (pick_index with budget 0 would
         // otherwise fall through to the last grace day). Guard holds for any grace / stats shape.
         for variant in all_variants() {
-            assert!(
-                compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR, variant)
-                    .is_none()
-            );
+            assert!(compute_mathmodel_retry_time(
+                &sample(),
+                0,
+                14,
+                DEFAULT_RETRY_HOUR,
+                variant,
+                EXPLORATION_FLOOR,
+                TIE_TOLERANCE
+            )
+            .is_none());
             assert!(compute_mathmodel_retry_time(
                 &StatsDocument::default(),
                 0,
                 30,
                 DEFAULT_RETRY_HOUR,
-                variant
+                variant,
+                EXPLORATION_FLOOR,
+                TIE_TOLERANCE,
             )
             .is_none());
         }
@@ -2773,6 +2856,8 @@ mod mathmodel_retry_time_tests {
                 14,
                 DEFAULT_RETRY_HOUR,
                 MathModelVariant::default(),
+                EXPLORATION_FLOOR,
+                TIE_TOLERANCE,
             )
             .expect("grace > 1 => Some");
             assert!(dt.date() > before.date() && dt.hour() < 24);
@@ -2796,6 +2881,8 @@ mod mathmodel_retry_time_tests {
             365,
             DEFAULT_RETRY_HOUR,
             MathModelVariant::default(),
+            EXPLORATION_FLOOR,
+            TIE_TOLERANCE,
         )
         .expect("grace > 1 => Some");
         let last = (before + time::Duration::days(i64::from(MAX_GRACE_DAYS) + 1)).date();
@@ -2839,7 +2926,7 @@ mod mathmodel_retry_time_tests {
             (5, 5, 0.10, 5.0),
             (5, 9, 0.10, 5.0), // budget wider than the window: capped at n
         ] {
-            let pi = inclusion_probabilities(&descending_values(n), budget, eps);
+            let pi = inclusion_probabilities(&descending_values(n), budget, eps, TIE_TOLERANCE);
             let total: f64 = pi.iter().sum();
             assert!(
                 approx(total, expected, 1e-9),
@@ -2859,7 +2946,7 @@ mod mathmodel_retry_time_tests {
         let n = 30;
         let budget = 15; // k/n = 0.5
         for eps in [0.55, 0.60, 0.95] {
-            let pi = inclusion_probabilities(&descending_values(n), budget, eps);
+            let pi = inclusion_probabilities(&descending_values(n), budget, eps, TIE_TOLERANCE);
             let min = pi.iter().copied().fold(f64::MAX, f64::min);
             assert!(
                 min >= 0.0,
@@ -2873,7 +2960,7 @@ mod mathmodel_retry_time_tests {
     fn tied_values_receive_equal_probability() {
         // Ranking alone breaks ties by array position. Equal evidence must mean equal odds.
         let values = vec![0.9, 0.1809, 0.1809, 0.1809, 0.1809, 0.05];
-        let pi = inclusion_probabilities(&values, 3, 0.10);
+        let pi = inclusion_probabilities(&values, 3, 0.10, TIE_TOLERANCE);
         let tied = pi.get(1..5).expect("tied group within range");
         let first = tied.first().copied().expect("non-empty tied group");
         assert!(
@@ -2889,7 +2976,7 @@ mod mathmodel_retry_time_tests {
         // anything. Both directions asserted: swallowing the second would reallocate probability
         // between days the model does rank apart.
         let inside = vec![0.5 + TIE_TOLERANCE / 10.0, 0.5, 0.2, 0.1];
-        let pi = inclusion_probabilities(&inside, 2, 0.10);
+        let pi = inclusion_probabilities(&inside, 2, 0.10, TIE_TOLERANCE);
         let first = pi.first().copied().expect("index in range");
         let second = pi.get(1).copied().expect("index in range");
         assert!(
@@ -2898,7 +2985,7 @@ mod mathmodel_retry_time_tests {
         );
 
         let outside = vec![0.5 + TIE_TOLERANCE * 1000.0, 0.5, 0.2, 0.1];
-        let pi = inclusion_probabilities(&outside, 2, 0.10);
+        let pi = inclusion_probabilities(&outside, 2, 0.10, TIE_TOLERANCE);
         let first = pi.first().copied().expect("index in range");
         let second = pi.get(1).copied().expect("index in range");
         assert!(
@@ -2908,7 +2995,9 @@ mod mathmodel_retry_time_tests {
 
         // Splitting redistributes inside the group, so the budget is spent exactly either way.
         for values in [inside, outside] {
-            let total: f64 = inclusion_probabilities(&values, 2, 0.10).iter().sum();
+            let total: f64 = inclusion_probabilities(&values, 2, 0.10, TIE_TOLERANCE)
+                .iter()
+                .sum();
             assert!(
                 approx(total, 2.0, 1e-9),
                 "budget not spent exactly: {total}"
@@ -2983,7 +3072,8 @@ mod mathmodel_retry_time_tests {
             assert_eq!(
                 expected.parse::<Arm>().expect("config string must parse"),
                 arm,
-                "a config value that does not round-trip silently falls back to the control arm"
+                "a config value that does not round-trip falls back to the configured default, \
+                 silently enrolling the invoice in an arm nobody chose"
             );
         }
     }
@@ -3020,7 +3110,7 @@ mod mathmodel_retry_time_tests {
         // u = 0 and u → 1⁻ where probes sit exactly on segment boundaries.
         let n = 30;
         let budget: u32 = 15;
-        let pi = inclusion_probabilities(&descending_values(n), budget, 0.10);
+        let pi = inclusion_probabilities(&descending_values(n), budget, 0.10, TIE_TOLERANCE);
         let order: Vec<usize> = (0..n).collect();
         let expected_days = usize::try_from(budget).unwrap_or(0);
         for step in 0..1000 {
@@ -3044,7 +3134,7 @@ mod mathmodel_retry_time_tests {
         // the tolerance is sampling noise on 20k draws, not the guarantee's own error.
         let n = 12;
         let values = descending_values(n);
-        let pi = inclusion_probabilities(&values, 4, 0.10);
+        let pi = inclusion_probabilities(&values, 4, 0.10, TIE_TOLERANCE);
         let order: Vec<usize> = (0..n).collect();
         let draws: u32 = 20_000;
         let mut hits = vec![0u32; n];
@@ -3070,7 +3160,7 @@ mod mathmodel_retry_time_tests {
         // What ε buys: every day lands in SOME schedule, including the worst-rated. Asserted on
         // the draw, since which day the caller acts on is a different question — see below.
         let n = 10;
-        let pi = inclusion_probabilities(&descending_values(n), 3, 0.10);
+        let pi = inclusion_probabilities(&descending_values(n), 3, 0.10, TIE_TOLERANCE);
         let order: Vec<usize> = (0..n).collect();
         let mut seen = vec![false; n];
         for step in 0..2_000 {
@@ -3094,7 +3184,8 @@ mod mathmodel_retry_time_tests {
         // pick deterministic; only back-loaded ones let it move.
         let front_best = descending_values(10);
         for _ in 0..200 {
-            let (idx, pi) = select_systematic_k_day(&front_best, 3, 0.10).expect("budget > 0");
+            let (idx, pi) =
+                select_systematic_k_day(&front_best, 3, 0.10, TIE_TOLERANCE).expect("budget > 0");
             assert_eq!(
                 idx, 0,
                 "a pinned soonest day must always be the one returned"
@@ -3105,7 +3196,8 @@ mod mathmodel_retry_time_tests {
         let back_best: Vec<f64> = descending_values(10).into_iter().rev().collect();
         let mut distinct = std::collections::BTreeSet::new();
         for _ in 0..400 {
-            let (idx, _) = select_systematic_k_day(&back_best, 3, 0.10).expect("budget > 0");
+            let (idx, _) =
+                select_systematic_k_day(&back_best, 3, 0.10, TIE_TOLERANCE).expect("budget > 0");
             distinct.insert(idx);
         }
         assert!(
@@ -3116,10 +3208,11 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn systematic_k_day_declines_only_when_there_is_nothing_to_schedule() {
-        assert!(select_systematic_k_day(&[], 5, 0.10).is_none());
-        assert!(select_systematic_k_day(&[1.0, 1.0], 0, 0.10).is_none());
+        assert!(select_systematic_k_day(&[], 5, 0.10, TIE_TOLERANCE).is_none());
+        assert!(select_systematic_k_day(&[1.0, 1.0], 0, 0.10, TIE_TOLERANCE).is_none());
         // Budget wider than the window pins every day at 1.0, so the soonest day is always day 0.
-        let (idx, pi) = select_systematic_k_day(&[0.1, 0.2, 0.3], 9, 0.10).expect("budget > 0");
+        let (idx, pi) =
+            select_systematic_k_day(&[0.1, 0.2, 0.3], 9, 0.10, TIE_TOLERANCE).expect("budget > 0");
         assert_eq!(idx, 0);
         assert!(
             approx(pi, 1.0, 1e-9),
