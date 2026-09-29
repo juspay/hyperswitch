@@ -1,8 +1,8 @@
-//! The two Router calls behind Grafana gateway authentication.
+//! Router microservice client: token authorization and active-user lookup.
 //!
-//! Both calls use exactly the credential presented to this endpoint. Router alone decides whether
-//! the token is valid and has the fixed permission; its user endpoint supplies the active user's
-//! email. This module never inspects JWT claims or forwards caller-controlled identity headers.
+//! This adapter supplies only explicitly constructed credentials. The caller owns the permission
+//! policy and combines the two flows; the client never interprets JWT claims or forwards browser
+//! headers.
 
 use std::time::Duration;
 
@@ -27,8 +27,6 @@ use router_env::{RequestId, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-/// Only this permission is accepted; the incoming body cannot select one.
-pub const GRAFANA_PERMISSION: &str = "ProfileReconRuleRead";
 const ROUTER_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub struct RouterClient {
@@ -58,24 +56,28 @@ impl RouterClient {
         })
     }
 
-    pub async fn authorize_and_get_email(
+    pub async fn authorize_token(
         &self,
         transport: &RouterCallState,
         token: Secret<String>,
-    ) -> Result<String, MicroserviceClientError> {
+        permission: &str,
+    ) -> Result<(), MicroserviceClientError> {
         execute_microservice_operation::<AuthorizeFlow>(
             transport,
             self,
             AuthorizeRequest {
                 token,
-                permission: GRAFANA_PERMISSION,
+                permission: permission.to_owned(),
             },
         )
-        .await?;
+        .await
+    }
+
+    pub async fn get_user_email(
+        &self,
+        transport: &RouterCallState,
+    ) -> Result<String, MicroserviceClientError> {
         let details = execute_microservice_operation::<UserFlow>(transport, self, ()).await?;
-        if details.email.is_empty() || details.email.len() > 320 {
-            return Err(client_error("Router returned unusable user details"));
-        }
         Ok(details.email)
     }
 }
@@ -113,7 +115,7 @@ mod tests {
                 .route("/user/internal/authorize", web::post().to(
                     |req: HttpRequest, body: web::Json<Value>, checked: web::Data<std::sync::Arc<AtomicBool>>| async move {
                         assert_eq!(body["token"], "signed.token.value");
-                        assert_eq!(body["permission"], GRAFANA_PERMISSION);
+                        assert_eq!(body["permission"], "ProfileReconRuleRead");
                         assert_eq!(req.headers().get("authorization").unwrap(), "Bearer signed.token.value");
                         checked.store(true, Ordering::SeqCst);
                         HttpResponse::Ok().finish()
@@ -131,11 +133,12 @@ mod tests {
         let token = Secret::new("signed.token.value".to_owned());
         let client = RouterClient::new(&url, &token).unwrap();
         let transport = RouterCallState::new().unwrap();
+        client
+            .authorize_token(&transport, token, "ProfileReconRuleRead")
+            .await
+            .unwrap();
         assert_eq!(
-            client
-                .authorize_and_get_email(&transport, token)
-                .await
-                .unwrap(),
+            client.get_user_email(&transport).await.unwrap(),
             "user@example.com"
         );
         assert!(checked.load(Ordering::SeqCst));
@@ -165,10 +168,12 @@ mod tests {
         actix_web::rt::spawn(server);
         let token = Secret::new("signed.token.value".to_owned());
         let client = RouterClient::new(&url, &token).unwrap();
-        let error = client
-            .authorize_and_get_email(&RouterCallState::new().unwrap(), token)
+        let transport = RouterCallState::new().unwrap();
+        client
+            .authorize_token(&transport, token, "ProfileReconRuleRead")
             .await
-            .unwrap_err();
+            .unwrap();
+        let error = client.get_user_email(&transport).await.unwrap_err();
         assert!(matches!(
             error.kind,
             MicroserviceClientErrorKind::Deserialize(_)
@@ -200,10 +205,12 @@ mod tests {
         actix_web::rt::spawn(server);
         let token = Secret::new("signed.token.value".to_owned());
         let client = RouterClient::new(&url, &token).unwrap();
-        let error = client
-            .authorize_and_get_email(&RouterCallState::new().unwrap(), token)
+        let transport = RouterCallState::new().unwrap();
+        client
+            .authorize_token(&transport, token, "ProfileReconRuleRead")
             .await
-            .unwrap_err();
+            .unwrap();
+        let error = client.get_user_email(&transport).await.unwrap_err();
         assert!(
             matches!(error.kind, MicroserviceClientErrorKind::Upstream { status: 500, ref body } if body.is_empty())
         );
@@ -233,7 +240,11 @@ mod tests {
         let token = Secret::new("signed.token.value".to_owned());
         let client = RouterClient::new(&url, &token).unwrap();
         let error = client
-            .authorize_and_get_email(&RouterCallState::new().unwrap(), token)
+            .authorize_token(
+                &RouterCallState::new().unwrap(),
+                token,
+                "ProfileReconRuleRead",
+            )
             .await
             .unwrap_err();
         assert!(matches!(
@@ -263,7 +274,7 @@ impl MicroserviceClient for RouterClient {
 
 fn client_error(message: &str) -> MicroserviceClientError {
     MicroserviceClientError {
-        operation: "grafana_router_auth".to_owned(),
+        operation: "router_client".to_owned(),
         kind: MicroserviceClientErrorKind::Transport(message.to_owned()),
     }
 }
@@ -271,7 +282,7 @@ fn client_error(message: &str) -> MicroserviceClientError {
 #[derive(Clone, Serialize)]
 struct AuthorizeRequest {
     token: Secret<String>,
-    permission: &'static str,
+    permission: String,
 }
 
 struct AuthorizeFlow;

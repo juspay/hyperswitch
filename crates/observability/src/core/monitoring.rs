@@ -1,14 +1,12 @@
 //! Decide whether a Control Center credential may become a Grafana login.
 
+use crate::{core::router_client::RouterClient, domain::monitoring::GrafanaLogin, state::AppState};
+use api_models::observability::monitoring::GrafanaAuthResponse;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::{PeekInterface, Secret};
-use url::Url;
 
-use crate::{
-    core::router_client::{RouterCallState, RouterClient},
-    domain::monitoring::GrafanaLogin,
-};
-
+/// Temporary entitlement until Router introduces MonitoringView.
+const GRAFANA_PERMISSION: &str = "ProfileReconRuleRead";
 const MAX_TOKEN_BYTES: usize = 8192;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -19,20 +17,30 @@ pub enum AuthFailure {
 }
 
 pub async fn authorize(
-    base_url: &Url,
-    transport: &RouterCallState,
+    state: &AppState,
     token: Secret<String>,
-) -> Result<GrafanaLogin, AuthFailure> {
+) -> Result<GrafanaAuthResponse, AuthFailure> {
     if !valid_token_shape(token.peek()) {
         return Err(AuthFailure::InvalidCredential);
     }
-    let client =
-        RouterClient::new(base_url.as_str(), &token).map_err(|_| AuthFailure::RouterUnavailable)?;
-    let email = client
-        .authorize_and_get_email(transport, token)
+    let transport = state
+        .router_transport
+        .as_deref()
+        .ok_or(AuthFailure::RouterUnavailable)?;
+    let client = RouterClient::new(state.conf.router.base_url.as_str(), &token)
+        .map_err(|_| AuthFailure::RouterUnavailable)?;
+    client
+        .authorize_token(transport, token, GRAFANA_PERMISSION)
         .await
         .map_err(|error| map_router_error(&error))?;
-    GrafanaLogin::from_router_email(&email).ok_or(AuthFailure::RouterUnavailable)
+    let email = client
+        .get_user_email(transport)
+        .await
+        .map_err(|error| map_router_error(&error))?;
+    let login = GrafanaLogin::from_router_email(&email).ok_or(AuthFailure::RouterUnavailable)?;
+    Ok(GrafanaAuthResponse {
+        grafana_login: login.into_string(),
+    })
 }
 
 fn valid_token_shape(token: &str) -> bool {

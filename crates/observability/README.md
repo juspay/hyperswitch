@@ -226,11 +226,12 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 
 ## Grafana gateway authorization
 
-`POST /monitoring/grafana/auth` is registered only when `[router] base_url` (or
-`OBSERVABILITY__ROUTER__BASE_URL`) is set to the internal Router **origin** without `/api`.
-This preserves alert-only deployments and makes rollback a config removal. The integration is
-v1-only: a v2 build rejects Router configuration at startup and does not register the route.
-Deploy a build with
+`POST /monitoring/grafana/auth` requires `[router] base_url` (or
+`OBSERVABILITY__ROUTER__BASE_URL`) at startup, set to the internal Router **origin** without
+`/api`. Alert-only deployments must also supply this configuration when upgrading. A v2 build
+rejects this integration at startup and does not register the route. For rollback, remove the
+public gateway routing or deploy the previous application version; do not remove the required
+Router configuration while this version is running. Deploy a build with
 this route, set the Router origin, then route gateway requests to the Observability service;
 verify cross-namespace connectivity and the exact Control Center host's `login_token` cookie
 in sandbox before enabling Grafana traffic.

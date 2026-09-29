@@ -49,30 +49,38 @@ pub struct CmdLineConf {
 }
 
 /// The whole configuration of the service.
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Settings<S: SecretState> {
     /// Listener configuration. Meaningful only in standalone mode — when the crate is mounted in
     /// the router, the router owns the listener and this section is ignored.
+    #[serde(default)]
     pub server: Server,
     /// Logging and telemetry.
+    #[serde(default)]
     pub log: Log,
     /// Credentials guarding this service's routes.
+    #[serde(default)]
     pub auth: SecretStateContainer<AuthSettings, S>,
-    /// Router dependency for the optional Grafana gateway authorization endpoint.
-    pub router: Option<RouterSettings>,
+    /// Router dependency for the Grafana gateway authorization endpoint.
+    pub router: RouterSettings,
     /// How secret values in this file are resolved at boot.
+    #[serde(default)]
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
     /// why it sits here and is handed to every chat client rather than repeated per destination.
+    #[serde(default)]
     pub proxy: Proxy,
     /// Chat destinations this service can deliver to.
+    #[serde(default)]
     pub chat: SecretStateContainer<ChatSettings, S>,
     /// Email destinations this service can deliver to.
+    #[serde(default)]
     pub email: EmailSettings,
     /// The infrastructure alarm catalogue this service evaluates.
+    #[serde(default)]
     pub cloudwatch: CloudWatchSettings,
     /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
+    #[serde(default)]
     pub database: SecretStateContainer<Database, S>,
 }
 
@@ -222,7 +230,7 @@ impl EmailSettings {
     }
 }
 
-/// Router is optional so existing alert-only deployments do not acquire a new dependency.
+/// Internal Router origin, required at startup so auth cannot silently be unavailable.
 #[derive(Debug, Deserialize, Clone)]
 pub struct RouterSettings {
     /// Internal Router origin (its HTTP listener serves /user directly, without /api).
@@ -412,12 +420,6 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::ConfigurationError> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
-        #[cfg(feature = "v2")]
-        if self.router.is_some() {
-            return Err(errors::ConfigurationError::ConfigParsingError(
-                "monitoring Grafana auth requires the v1 Router routes".into(),
-            ));
-        }
         self.chat.get_inner().validate()?;
         self.email.validate()?;
         self.cloudwatch.validate()?;
@@ -425,6 +427,11 @@ impl Settings<SecuredSecret> {
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
+        #[cfg(feature = "v2")]
+        return Err(errors::ConfigurationError::ConfigParsingError(
+            "monitoring Grafana auth requires the v1 Router routes".into(),
+        ));
+        #[cfg(not(feature = "v2"))]
         Ok(())
     }
 }
@@ -442,6 +449,19 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn router_origin_is_required_and_typed() {
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>("{}").is_err());
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"not a URL"}}"#,
+        )
+        .is_err());
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"http://localhost:8080"}}"#,
+        )
+        .is_ok());
     }
 
     #[test]

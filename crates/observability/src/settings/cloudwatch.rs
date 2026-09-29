@@ -358,7 +358,11 @@ mod tests {
     /// Reads through the production path — same prefix, separator and parsing as
     /// [`Settings::with_config_path`] — but from a supplied map rather than the process
     /// environment.
-    fn settings_from(environment: HashMap<String, String>) -> Settings<SecuredSecret> {
+    fn settings_from(mut environment: HashMap<String, String>) -> Settings<SecuredSecret> {
+        environment.insert(
+            "OBSERVABILITY__ROUTER__BASE_URL".to_owned(),
+            "http://localhost:8080".to_owned(),
+        );
         config::Config::builder()
             .add_source(
                 config::Environment::with_prefix("OBSERVABILITY")

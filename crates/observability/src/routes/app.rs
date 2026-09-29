@@ -140,29 +140,18 @@ fn multipart_config(max_upload_bytes: usize) -> MultipartFormConfig {
         })
 }
 
-/// The optional gateway-facing monitoring authorization route.
+/// The gateway-facing monitoring authorization route.
 pub struct Monitoring;
 
 impl Monitoring {
-    /// Build the optional gateway-facing route.
-    ///
-    /// # Panics
-    ///
-    /// If the internal HTTP client cannot be constructed at boot, the configured integration
-    /// cannot authorize anyone, so the service must not start accepting requests.
+    /// Build the v1 gateway-facing route. The v2 Router does not expose these operations.
     pub fn server(state: AppState) -> Scope {
         let scope = web::scope("/monitoring");
-        // Router's authorize-token and active-user routes are v1-only. Even an embedded caller
-        // that bypasses standalone boot validation must not register a broken v2 auth route.
-        if cfg!(feature = "v2") || state.conf.router.is_none() {
+        if cfg!(feature = "v2") {
             return scope;
         }
-        #[allow(clippy::expect_used)]
-        let transport = crate::core::router_client::RouterCallState::new()
-            .expect("Failed to construct internal Router HTTP client");
         scope
             .app_data(web::Data::new(state))
-            .app_data(web::Data::new(transport))
             .app_data(monitoring::json_config())
             .service(web::resource("/grafana/auth").route(web::post().to(monitoring::authenticate)))
     }
