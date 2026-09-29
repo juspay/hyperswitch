@@ -534,6 +534,13 @@ impl
             .map(payments_grpc::SetupMandateDetails::foreign_try_from)
             .transpose()?;
 
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             split_payments: router_data
                 .request
@@ -581,6 +588,7 @@ impl
                 .access_token
                 .as_ref()
                 .map(ConnectorState::foreign_from),
+            browser_info,
         })
     }
 }
