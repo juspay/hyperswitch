@@ -32293,6 +32293,17 @@
             "description": "Currency code for the payment",
             "example": "USD"
           },
+          "preferredConnectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ordered preferred connector account identities in `connector:mca_id` format.",
+            "example": [
+              "adyen:mca_5678"
+            ],
+            "nullable": true
+          },
           "paymentType": {
             "type": "string",
             "description": "Type of payment transaction being processed",

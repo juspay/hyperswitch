@@ -29,6 +29,8 @@ use hyperswitch_domain_models::payment_methods::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
+use hyperswitch_interfaces::consts::USER_AGENT;
+#[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use josekit::jwe;
@@ -2248,6 +2250,9 @@ struct VaultTokenDetailsResponse {
 /// targets `connectors.hyperswitch_vault.base_url` (which already includes the `/v2` prefix) and is
 /// authenticated as the merchant using the external vault connector account's credentials
 /// (`api-key` + profile id) — not the pay server's internal API key.
+///
+/// Traffic to the vault is routed through the router-wide `[proxy]` config (e.g. a Squid
+/// egress proxy required by self-hosted / non-PCI deployments), if configured.
 #[cfg(feature = "v1")]
 pub async fn get_permanent_pm_id_from_temporary_token(
     state: &routes::SessionState,
@@ -2274,6 +2279,10 @@ pub async fn get_permanent_pm_id_from_temporary_token(
             (
                 headers::X_PROFILE_ID.to_string(),
                 vault_profile_id.expose().into_masked(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                USER_AGENT.to_string().into(),
             ),
         ])
         .build();
