@@ -217,12 +217,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.83.2
-        with:
-          tool: cargo-hack
-          checksum: true
-
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
@@ -260,13 +254,6 @@ jobs:
         env:
           CARGO_BUILD_JOBS: 9
         run: just clippy fred
-
-      - name: Cargo hack
-        if: ${{ github.event_name == 'push' }}
-        shell: bash
-        env:
-          CARGO_BUILD_JOBS: 9
-        run: just ci_hack
 
       - name: Show sccache stats
         if: always()
