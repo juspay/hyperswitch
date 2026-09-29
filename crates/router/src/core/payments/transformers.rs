@@ -1122,6 +1122,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         split_payments: None,
         webhook_url: None,
         merchant_order_reference_id: None,
+        is_overcapture_enabled: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -3933,6 +3934,10 @@ where
             .map(|surcharge_amount| RequestSurchargeDetails {
                 surcharge_amount,
                 tax_amount: payment_attempt.net_amount.get_tax_on_surcharge(),
+                surcharge_percentage: payment_attempt
+                    .external_surcharge_details
+                    .as_ref()
+                    .and_then(|details| details.surcharge_percentage_as_f64()),
             });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
@@ -4866,6 +4871,10 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                 RequestSurchargeDetails {
                     surcharge_amount,
                     tax_amount: pa.net_amount.get_tax_on_surcharge(),
+                    surcharge_percentage: pa
+                        .external_surcharge_details
+                        .as_ref()
+                        .and_then(|details| details.surcharge_percentage_as_f64()),
                 }
             }),
             merchant_decision: None,
@@ -5830,6 +5839,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             split_payments: None,
             webhook_url: None,
             merchant_order_reference_id: None,
+            is_overcapture_enabled: None,
         })
     }
 }
@@ -5915,6 +5925,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             split_payments: payment_data.payment_intent.split_payments,
             webhook_url,
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
+            is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
         })
     }
 }
@@ -7461,6 +7472,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .force_3ds_challenge_trigger
                 .filter(|trigger| *trigger)
                 .or(payment_data.payment_intent.force_3ds_challenge),
+            enable_overcapture: payment_data.payment_intent.enable_overcapture,
         })
     }
 }
@@ -7471,120 +7483,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         todo!()
-    }
-}
-
-#[cfg(feature = "v2")]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
-#[cfg(feature = "v1")]
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data;
-        let payment_method_data = payment_data.payment_method_data;
-        let router_base_url = &additional_data.router_base_url;
-        let attempt = &payment_data.payment_attempt;
-        let connector_name = &additional_data.connector_name;
-
-        let order_details = payment_data
-            .payment_intent
-            .order_details
-            .map(|order_details| {
-                order_details
-                    .iter()
-                    .map(|data| {
-                        data.to_owned()
-                            .parse_value("OrderDetailsWithAmount")
-                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "OrderDetailsWithAmount".into(),
-                            })
-                            .attach_printable("Unable to parse OrderDetailsWithAmount")
-                    })
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()?;
-        let merchant_connector_account_id_or_connector_name = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .as_ref()
-            .map(|mca_id| mca_id.get_string_repr())
-            .unwrap_or(connector_name);
-        let webhook_url = Some(helpers::create_webhook_url(
-            router_base_url,
-            &attempt.processor_merchant_id,
-            merchant_connector_account_id_or_connector_name,
-        ));
-        let router_return_url = Some(helpers::create_redirect_url(
-            router_base_url,
-            attempt,
-            connector_name,
-            payment_data.creds_identifier.as_deref(),
-        ));
-        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-            router_base_url,
-            attempt,
-            connector_name,
-            payment_data.creds_identifier.as_deref(),
-        ));
-        let browser_info: Option<types::BrowserInformation> = payment_data
-            .payment_attempt
-            .browser_info
-            .clone()
-            .map(|b| b.parse_value("BrowserInformation"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info".into(),
-            })?;
-        let device_channel = Some(types::BrowserInformation::resolve_device_channel(
-            browser_info.as_ref(),
-        ));
-        let amount = payment_data.payment_attempt.get_total_amount();
-        Ok(Self {
-            payment_method_data,
-            email: additional_data.customer_data.and_then(|cust| cust.email),
-            currency: Some(payment_data.currency),
-            amount: amount.get_amount_as_i64(), // need to change this once we move to connector module
-            minor_amount: amount,
-            payment_method_type: payment_data.payment_attempt.payment_method_type,
-            setup_mandate_details: payment_data.setup_mandate,
-            capture_method: payment_data.payment_attempt.capture_method,
-            order_details,
-            router_return_url,
-            webhook_url,
-            complete_authorize_url,
-            browser_info,
-            device_channel,
-            surcharge_details: payment_data.surcharge_details,
-            connector_transaction_id: payment_data
-                .payment_attempt
-                .get_connector_payment_id()
-                .map(ToString::to_string),
-            redirect_response: None,
-            mandate_id: payment_data.mandate_id,
-            related_transaction_id: None,
-            enrolled_for_3ds: true,
-            split_payments: payment_data.payment_intent.split_payments,
-            metadata: payment_data.payment_intent.metadata.map(Secret::new),
-            customer_acceptance: payment_data.customer_acceptance,
-            setup_future_usage: payment_data
-                .payment_attempt
-                .setup_future_usage_applied
-                .or(payment_data.payment_intent.setup_future_usage),
-            is_stored_credential: payment_data.payment_attempt.is_stored_credential,
-            force_3ds_challenge: payment_data
-                .payment_intent
-                .force_3ds_challenge_trigger
-                .filter(|trigger| *trigger)
-                .or(payment_data.payment_intent.force_3ds_challenge),
-        })
     }
 }
 

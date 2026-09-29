@@ -108,6 +108,7 @@ pub enum Connector {
     Envoy,
     Elavon,
     Etisalat,
+    ElavonPg,
     Facilitapay,
     Finix,
     Fiserv,
@@ -217,6 +218,7 @@ pub enum Connector {
     Worldpayxml,
     Worldpaymodular,
     Signifyd,
+    Nsure,
     Plaid,
     Riskified,
     SanlamPayshield,
@@ -381,6 +383,7 @@ impl Connector {
             | Self::Ebanx
             | Self::Elavon
             | Self::Etisalat
+            | Self::ElavonPg
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
@@ -467,6 +470,7 @@ impl Connector {
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
+            | Self::Nsure
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified

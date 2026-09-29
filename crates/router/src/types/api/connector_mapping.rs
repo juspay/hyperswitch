@@ -257,6 +257,9 @@ impl ConnectorData {
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
+                enums::Connector::ElavonPg => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::ElavonPg::new())))
+                }
                 enums::Connector::Envoy => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Envoy::new())))
                 }
@@ -538,7 +541,8 @@ impl ConnectorData {
                 enums::Connector::Plaid => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
-                enums::Connector::Signifyd
+                enums::Connector::Nsure
+                | enums::Connector::Signifyd
                 | enums::Connector::Riskified
                 | enums::Connector::SanlamPayshield
                 | enums::Connector::Cybersourcedecisionmanager
