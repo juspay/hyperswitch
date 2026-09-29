@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0-hotfix2
+
+### Bug Fixes
+
+- **payment_methods:** Skip vault delete for PMs never stored in vault ([#14505](https://github.com/juspay/hyperswitch/pull/14505)) ([`41e8569`](https://github.com/juspay/hyperswitch/commit/41e856911549321db103f51b9c661132be23710c))
+
+**Full Changelog:** [`2026.09.23.0-hotfix1...2026.09.23.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0-hotfix1...2026.09.23.0-hotfix2)
+
+- - -
+
 ## 2026.09.23.0-hotfix1
 
 ### Features
