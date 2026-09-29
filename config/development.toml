@@ -135,6 +135,31 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 unresponsive_check_interval = 2
 max_feed_count = 200
+
+# In-memory (moka) cache tuning, with per-cache granularity.
+#
+# Every key below is optional, and each default is the value the corresponding cache is built
+# with when this section is absent — so uncomment only what you want to change.
+#
+# [cache]
+# invalidation_channel = "hyperswitch_invalidate" # Redis pub/sub channel used to invalidate in-memory cache entries across instances; must be identical on every instance of a deployment
+#
+# Each of the caches below accepts the same three keys:
+#   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
+#   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
+#   max_capacity_in_mb # Size limit of the cache, 0 meaning unbounded (default: 30, and unbounded for `cache.config`)
+#
+# [cache.config]                              # CONFIG_CACHE, unbounded by default
+# [cache.accounts]                            # ACCOUNTS_CACHE
+# [cache.mca_list]                            # MCA_LIST_CACHE
+# [cache.routing]                             # ROUTING_CACHE
+# [cache.decision_manager]                    # DECISION_MANAGER_CACHE
+# [cache.surcharge]                           # SURCHARGE_CACHE
+# [cache.cgraph]                              # CGRAPH_CACHE
+# [cache.pm_filters_cgraph]                   # PM_FILTERS_CGRAPH_CACHE
+# [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.contract_based_dynamic_algorithm]    # CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
 max_failure_threshold_seconds = 5
 
 [trace_header]
