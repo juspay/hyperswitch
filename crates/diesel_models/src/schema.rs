@@ -514,6 +514,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        preferred_connectors -> Nullable<Jsonb>,
     }
 }
 

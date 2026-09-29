@@ -434,6 +434,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata(
                 external_vault_merchant_connector_account,
                 &state.conf.connectors,
+                &state.conf.proxy,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
@@ -547,6 +548,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata_v1(
                 external_vault_merchant_connector_account.clone(),
                 &state.conf.connectors,
+                &state.conf.proxy,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
