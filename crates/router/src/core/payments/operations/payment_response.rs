@@ -448,7 +448,6 @@ async fn update_pm_connector_mandate_details<F, Req>(
     initiator: Option<&domain::Initiator>,
     payment_data: &PaymentData<F>,
     router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
-    connector_mandate_status_override: Option<common_enums::ConnectorMandateStatus>,
 ) -> RouterResult<()>
 where
     F: Clone + Send + Sync,
@@ -556,15 +555,12 @@ where
                         )
                     })
                     .unwrap_or((None, None, None));
-            let connector_mandate_status =
-                connector_mandate_status_override.unwrap_or_else(|| match MandateActivation::from(
-                    payment_attempt,
-                ) {
-                    MandateActivation::Pending => existing_connector_mandate_status
-                        .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
-                    MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
-                    MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
-                });
+            let connector_mandate_status = match MandateActivation::from(payment_attempt) {
+                MandateActivation::Pending => existing_connector_mandate_status
+                    .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
+                MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
+                MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
+            };
 
             let connector_mandate_details = tokenization::update_connector_mandate_details(
                 Some(mandate_details),
@@ -1112,7 +1108,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 initiator,
                 payment_data,
                 router_data,
-                None,
             )
             .await
             {
@@ -1444,7 +1439,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 initiator,
                 payment_data,
                 router_data,
-                None,
             )
             .await
             {
@@ -2336,7 +2330,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                 initiator,
                 payment_data,
                 router_data,
-                None,
             )
             .await
             {
@@ -2496,7 +2489,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 initiator,
                 payment_data,
                 router_data,
-                None,
             )
             .await
             {
