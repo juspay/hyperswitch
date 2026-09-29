@@ -3,17 +3,10 @@
 #[cfg(test)]
 mod tests;
 
-use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::observability::monitoring::GrafanaAuthRequest;
-use common_utils::errors::ErrorSwitch;
 
-use crate::{
-    auth,
-    core::monitoring,
-    errors::{types::ApiErrorResponse, ObservabilityError},
-    services,
-    state::AppState,
-};
+use crate::{auth, core::monitoring, services, state::AppState};
 
 pub async fn authenticate(
     state: web::Data<AppState>,
@@ -40,17 +33,4 @@ pub async fn session(state: web::Data<AppState>, request: HttpRequest) -> HttpRe
         &auth::NoAuth,
     )
     .await
-}
-
-pub fn json_config() -> web::JsonConfig {
-    web::JsonConfig::default()
-        .limit(8192 + 128)
-        .error_handler(|_, _| {
-            actix_web::error::InternalError::from_response(
-                "Invalid credential request",
-                ErrorSwitch::<ApiErrorResponse>::switch(&ObservabilityError::InvalidSession)
-                    .error_response(),
-            )
-            .into()
-        })
 }

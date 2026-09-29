@@ -11,12 +11,15 @@
 use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
 
+#[cfg(feature = "v1")]
+use super::monitoring;
+
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
     routes::{
         alerts_info, blacklist, cloudwatch, dictionary, health_check, lifecycle_events, metadata,
-        monitoring, notify, rule_toggles, thresholds,
+        notify, rule_toggles, thresholds,
     },
     state::AppState,
 };
@@ -141,18 +144,15 @@ fn multipart_config(max_upload_bytes: usize) -> MultipartFormConfig {
 }
 
 /// The gateway-facing monitoring authorization route.
+#[cfg(feature = "v1")]
 pub struct Monitoring;
 
+#[cfg(feature = "v1")]
 impl Monitoring {
     /// Build the v1 gateway-facing route. The v2 Router does not expose these operations.
     pub fn server(state: AppState) -> Scope {
-        let scope = web::scope("/monitoring");
-        if cfg!(feature = "v2") {
-            return scope;
-        }
-        scope
+        web::scope("/monitoring")
             .app_data(web::Data::new(state))
-            .app_data(monitoring::json_config())
             .service(web::resource("/grafana/auth").route(web::post().to(monitoring::authenticate)))
             .service(web::resource("/grafana/session").route(web::post().to(monitoring::session)))
     }

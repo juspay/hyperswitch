@@ -16,25 +16,14 @@ impl RouterClient {
             .base_url
             .join("/user")
             .map_err(|_| RouterError::Unavailable)?;
-        // Router's force_cookies mode selects the cookie; the normal mode selects Authorization.
-        // Populate both from the SAME token and mark them sensitive even for transport debugging.
-        let sensitive = |value: String| {
-            let mut header = header::HeaderValue::from_str(&value)
-                .map_err(|_| RouterError::InvalidCredential)?;
-            header.set_sensitive(true);
-            Ok::<_, RouterError>(header)
-        };
+        // The Router deployment uses force_cookies=false. Never forward browser cookies.
+        let mut authorization = header::HeaderValue::from_str(&format!("Bearer {}", token.peek()))
+            .map_err(|_| RouterError::InvalidCredential)?;
+        authorization.set_sensitive(true);
         let response = self
             .client
             .get(url)
-            .header(
-                header::AUTHORIZATION,
-                sensitive(format!("Bearer {}", token.peek()))?,
-            )
-            .header(
-                header::COOKIE,
-                sensitive(format!("login_token={}", token.peek()))?,
-            )
+            .header(header::AUTHORIZATION, authorization)
             .send()
             .await
             .map_err(|_| RouterError::Unavailable)?;

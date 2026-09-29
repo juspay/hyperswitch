@@ -237,16 +237,18 @@ in sandbox before enabling Grafana traffic.
 
 The gateway POSTs `{ "token": "<login_token>" }` (never a URL parameter). Observability calls
 Router `POST /user/internal/authorize` with the hard-coded `ProfileReconRuleRead` permission,
-then `GET /user` with **the same token**. For the user lookup, both Authorization and Cookie are populated with the
-same token for Router's `force_cookies` variants; no browser-provided identity, role or tenant
-header is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
+then `GET /user` with **the same token**. For the user lookup, only Authorization is populated with that token;
+Router must run with `force_cookies=false`. No browser cookie, identity, role or tenant header
+is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
 active user's email. The response is only `{ "grafana_login": "cc_<sha256(email)>" }`, where
 SHA-256 uses the exact bytes Router returned. This is a namespaced Grafana username, **not**
 Router's canonical `user_id`; it is deterministic, not an email privacy mechanism. Changing the
 email would create a new Grafana login. A follow-up switches the fixed permission to
 `MonitoringView` once Router supports it.
 
-Missing/malformed credentials and Router 401 return 401. Router's permission denial returns
+Missing/malformed Bearer headers and Router 401 return 401. Token validity is left to Router,
+without a local JWT shape or length check. The auth endpoint uses Actix's default JSON extractor:
+malformed JSON returns 400 and oversized bodies use its default limit/status. Router's permission denial returns
 403; all transport failures, malformed responses, and unexpected Router statuses return 503.
 Router can currently return a 5xx for an inactive user lookup; this maps to 503 but still denies
 access. Both monitoring handlers use the shared `server_wrap` request/auth/error pipeline. Core returns

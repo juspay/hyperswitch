@@ -67,8 +67,8 @@ async fn auth_route_without_router_and_bad_json_fail_closed() {
     .await;
     for (body, status) in [
         (r#"{"token":"signed.token.value"}"#, 503),
-        (r#"{"token":""}"#, 401),
-        ("not json", 401),
+        (r#"{"token":""}"#, 503),
+        ("not json", 400),
     ] {
         let response = test::call_service(
             &app,
@@ -81,8 +81,10 @@ async fn auth_route_without_router_and_bad_json_fail_closed() {
         .await;
         assert_eq!(response.status().as_u16(), status);
         assert!(response.headers().get(header::CACHE_CONTROL).is_none());
-        let body: Value = test::read_body_json(response).await;
-        assert!(body.get("error").is_some());
+        if status != 400 {
+            let body: Value = test::read_body_json(response).await;
+            assert!(body.get("error").is_some());
+        }
     }
 }
 
@@ -124,10 +126,7 @@ async fn session_cookie_and_fail_closed_contract() {
                                 request.headers().get(header::AUTHORIZATION).unwrap(),
                                 "Bearer signed.token.value"
                             );
-                            assert_eq!(
-                                request.headers().get(header::COOKIE).unwrap(),
-                                "login_token=signed.token.value"
-                            );
+                            assert!(request.headers().get(header::COOKIE).is_none());
                             assert!(request.headers().get("x-tenant-id").is_none());
                             HttpResponse::build(StatusCode::from_u16(user_status).unwrap())
                                 .body(body)
@@ -161,9 +160,11 @@ async fn session_cookie_and_fail_closed_contract() {
             assert!(cookie.domain().is_none());
             assert!(cookie.max_age().is_none());
             assert!(cookie.expires().is_none());
-            let identity = monitoring::authorize_with_client(
-                Some(&client),
-                &Secret::new("signed.token.value".into()),
+            let identity = monitoring::authorize(
+                test_state(Some(&client)).await,
+                GrafanaAuthRequest {
+                    token: Secret::new("signed.token.value".into()),
+                },
             )
             .await
             .unwrap();
@@ -209,12 +210,7 @@ async fn router_timeout_does_not_set_cookie() {
 
 #[actix_web::test]
 async fn missing_malformed_and_duplicate_headers_do_not_set_cookie() {
-    for value in [
-        None,
-        Some("Basic abc"),
-        Some("Bearer "),
-        Some("Bearer a;b=c"),
-    ] {
+    for value in [None, Some("Basic abc"), Some("Bearer ")] {
         let mut request = test::TestRequest::post();
         if let Some(value) = value {
             request = request.insert_header((header::AUTHORIZATION, value));
@@ -238,4 +234,49 @@ async fn missing_malformed_and_duplicate_headers_do_not_set_cookie() {
         session_with_client(None, &request).await.status(),
         StatusCode::SERVICE_UNAVAILABLE
     );
+}
+
+#[actix_web::test]
+async fn router_owns_token_validation() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = calls.clone();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = HttpServer::new(move || {
+        App::new().app_data(web::Data::new(calls.clone())).route(
+            "/user/internal/authorize",
+            web::post().to(
+                |payload: web::Json<Value>, calls: web::Data<Arc<AtomicUsize>>| async move {
+                    assert!(payload["token"].is_string());
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    HttpResponse::Unauthorized().finish()
+                },
+            ),
+        )
+    })
+    .workers(1)
+    .listen(listener)
+    .unwrap()
+    .run();
+    let handle = server.handle();
+    actix_web::rt::spawn(server);
+    let client = RouterClient::new(url.parse().unwrap()).unwrap();
+    let app = test::init_service(App::new().service(crate::routes::Monitoring::server(
+        test_state(Some(&client)).await,
+    )))
+    .await;
+    for token in [String::new(), "a;b=c".to_owned(), "a".repeat(8193)] {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/monitoring/grafana/auth")
+                .set_json(json!({"token":token}))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert!(response.headers().get(header::SET_COOKIE).is_none());
+    }
+    assert_eq!(observed.load(Ordering::SeqCst), 3);
+    handle.stop(false).await;
 }

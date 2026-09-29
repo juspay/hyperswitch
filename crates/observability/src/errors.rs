@@ -19,7 +19,10 @@ pub mod types;
 use common_utils::errors::ErrorSwitch;
 use thiserror::Error;
 
-use crate::errors::types::{ApiError, ApiErrorResponse};
+use crate::{
+    core::router_client::RouterError,
+    errors::types::{ApiError, ApiErrorResponse},
+};
 
 /// Errors raised while the application is starting up.
 ///
@@ -221,5 +224,15 @@ mod tests {
 
         assert!(body.contains("IR_02"));
         assert!(!body.contains("typo"));
+    }
+}
+
+impl From<RouterError> for ObservabilityError {
+    fn from(error: RouterError) -> Self {
+        match error {
+            RouterError::InvalidCredential => Self::InvalidSession,
+            RouterError::PermissionDenied => Self::MonitoringForbidden,
+            RouterError::Unavailable => Self::RouterUnavailable,
+        }
     }
 }
