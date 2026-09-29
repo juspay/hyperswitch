@@ -220,6 +220,27 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_vaulting_data(
+        &self,
+    ) -> Option<crate::vault::PaymentMethodVaultingData> {
+        match self {
+            Self::BankRedirect(BankRedirectData::Trustly {
+                connector_instrument_id,
+                ..
+            }) => connector_instrument_id
+                .clone()
+                .map(|connector_instrument_id| {
+                    crate::vault::PaymentMethodVaultingData::BankRedirect(
+                        BankRedirectDetail::Trustly {
+                            connector_instrument_id,
+                        },
+                    )
+                }),
+            _ => None,
+        }
+    }
+
     /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
@@ -1432,6 +1453,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<api_enums::CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -1472,6 +1498,18 @@ impl BankRedirectData {
                 masked_sort_code: sort_code.map(|sort_code| {
                     common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                 }),
+                account_holder_name,
+                bank_name,
+            }),
+            Self::Trustly {
+                country: _,
+                account_holder_name,
+                bank_name,
+                additional_details: _,
+                bank_last_digits,
+                connector_instrument_id: _,
+            } => Some(BankRedirectDetailsPaymentMethod::Trustly {
+                bank_last_digits: bank_last_digits.map(|digits| digits.peek().to_owned()),
                 account_holder_name,
                 bank_name,
             }),
@@ -1977,6 +2015,9 @@ pub enum BankRedirectDetail {
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
     },
+    Trustly {
+        connector_instrument_id: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1998,24 +2039,6 @@ impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
     }
 }
 
-#[cfg(feature = "v1")]
-impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
-    fn from(bank_redirect: BankRedirectDetailsPaymentMethod) -> Self {
-        match bank_redirect {
-            BankRedirectDetailsPaymentMethod::OpenBanking {
-                masked_account_number,
-                masked_sort_code,
-                account_holder_name: _,
-                masked_iban,
-                bank_name: _,
-            } => Self::OpenBanking {
-                account_number: masked_account_number.map(Secret::new),
-                iban: masked_iban.map(Secret::new),
-                sort_code: masked_sort_code.map(Secret::new),
-            },
-        }
-    }
-}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
@@ -3026,9 +3049,14 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             },
-            api_models::payments::BankRedirectData::Trustly { country } => {
-                Self::Trustly { country }
-            }
+            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
+                country,
+                account_holder_name: None,
+                bank_name: None,
+                additional_details: None,
+                bank_last_digits: None,
+                connector_instrument_id: None,
+            },
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -4176,6 +4204,11 @@ pub enum BankRedirectDetailsPaymentMethod {
         masked_sort_code: Option<String>,
         account_holder_name: Option<Secret<String>>,
         masked_iban: Option<String>,
+        bank_name: Option<common_enums::BankNames>,
+    },
+    Trustly {
+        bank_last_digits: Option<String>,
+        account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
     },
 }

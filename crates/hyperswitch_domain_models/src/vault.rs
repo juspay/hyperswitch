@@ -30,11 +30,17 @@ pub enum FingerprintData {
     BankRedirect(FingerprintBankRedirectData),
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
-pub struct FingerprintBankRedirectData {
-    account_number: Option<hyperswitch_masking::Secret<String>>,
-    sort_code: Option<hyperswitch_masking::Secret<String>>,
-    iban: Option<hyperswitch_masking::Secret<String>>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintBankRedirectData {
+    OpenBanking {
+        account_number: Option<hyperswitch_masking::Secret<String>>,
+        sort_code: Option<hyperswitch_masking::Secret<String>>,
+        iban: Option<hyperswitch_masking::Secret<String>>,
+    },
+    Trustly {
+        connector_instrument_id: hyperswitch_masking::Secret<String>,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -269,13 +275,12 @@ impl PaymentMethodVaultingData {
                 };
                 payment_method_data::PaymentMethodsData::WalletDetails(wallet_info)
             }
-            Self::BankRedirect(bank_redirect) => {
-                let payment_method_data::BankRedirectDetail::OpenBanking {
+            Self::BankRedirect(bank_redirect) => match bank_redirect.clone() {
+                payment_method_data::BankRedirectDetail::OpenBanking {
                     iban,
                     account_number,
                     sort_code,
-                } = bank_redirect.clone();
-                payment_method_data::PaymentMethodsData::BankRedirect(
+                } => payment_method_data::PaymentMethodsData::BankRedirect(
                     payment_method_data::BankRedirectDetailsPaymentMethod::OpenBanking {
                         masked_iban: iban.map(|iban| {
                             common_utils::new_type::mask_sensitive_field(iban.peek(), 4)
@@ -289,8 +294,17 @@ impl PaymentMethodVaultingData {
                         account_holder_name: None,
                         bank_name: None,
                     },
-                )
-            }
+                ),
+                payment_method_data::BankRedirectDetail::Trustly { .. } => {
+                    payment_method_data::PaymentMethodsData::BankRedirect(
+                        payment_method_data::BankRedirectDetailsPaymentMethod::Trustly {
+                            bank_last_digits: None,
+                            account_holder_name: None,
+                            bank_name: None,
+                        },
+                    )
+                }
+            },
         }
     }
 
@@ -338,10 +352,15 @@ impl PaymentMethodVaultingData {
                     iban,
                     account_number,
                     sort_code,
-                } => FingerprintData::BankRedirect(FingerprintBankRedirectData {
+                } => FingerprintData::BankRedirect(FingerprintBankRedirectData::OpenBanking {
                     iban: iban.clone(),
                     account_number: account_number.clone(),
                     sort_code: sort_code.clone(),
+                }),
+                payment_method_data::BankRedirectDetail::Trustly {
+                    connector_instrument_id,
+                } => FingerprintData::BankRedirect(FingerprintBankRedirectData::Trustly {
+                    connector_instrument_id: connector_instrument_id.clone(),
                 }),
             },
         }
@@ -382,6 +401,9 @@ impl PaymentMethodVaultingData {
                 } => AuxiliaryFingerprintData::BankRedirect(
                     account_number.clone().or_else(|| iban.clone())?,
                 ),
+                payment_method_data::BankRedirectDetail::Trustly {
+                    connector_instrument_id,
+                } => AuxiliaryFingerprintData::BankRedirect(connector_instrument_id.clone()),
             },
         })
     }

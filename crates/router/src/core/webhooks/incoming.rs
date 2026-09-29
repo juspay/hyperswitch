@@ -21,7 +21,7 @@ use hyperswitch_domain_models::payouts::payouts::PayoutsUpdate;
 use hyperswitch_domain_models::{
     api::{IncomingWebhookEventMetadata, WebhookResponse},
     mandates::CommonMandateReference,
-    payments::{payment_attempt::PaymentAttempt, HeaderPayload},
+    payments::{payment_attempt::PaymentAttempt, HeaderPayload, PaymentIntent},
     router_flow_types::{PaymentAttemptAssociatedData, WebhookAssociatedData},
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
@@ -45,7 +45,9 @@ use crate::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
         payment_methods::{self, cards},
-        payments::{self, tokenization, PaymentIntentStateMetadataExt},
+        payments::{
+            self, operations::payment_response, tokenization, PaymentIntentStateMetadataExt,
+        },
         refunds, relay,
         unified_authentication_service::{
             types::UNIFIED_AUTHENTICATION_SERVICE, utils as uas_utils,
@@ -651,6 +653,7 @@ async fn process_webhook_business_logic(
                 Box::pin(associated_data_incoming_webhook_flow(
                     state.clone(),
                     platform.clone(),
+                    business_profile.clone(),
                     webhook_details,
                     source_verified,
                     connector,
@@ -2381,9 +2384,11 @@ async fn mandates_incoming_webhook_flow(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 async fn associated_data_incoming_webhook_flow(
     state: SessionState,
     platform: domain::Platform,
+    business_profile: domain::Profile,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &ConnectorEnum,
@@ -2415,6 +2420,17 @@ async fn associated_data_incoming_webhook_flow(
                 .await?
                 .payment_id;
 
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        &merchant_id,
+                        processor.get_key_store(),
+                        processor.get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
                 let lock_action = api_locking::LockAction::Hold {
                     input: api_locking::LockingInput {
                         unique_locking_key: payment_id.get_string_repr().to_owned(),
@@ -2434,30 +2450,72 @@ async fn associated_data_incoming_webhook_flow(
                 )
                 .await?;
 
-                let update_result = update_payment_attempt_associated_data(
+                let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
+
+                let payment_method_update_result = Box::pin(update_payment_method_associated_data(
                     &state,
-                    processor,
-                    payment_attempt,
-                    associated_data.payment_attempt,
-                )
+                    &platform,
+                    &business_profile,
+                    &payment_attempt,
+                    &payment_intent,
+                    merchant_connector_id,
+                    associated_data.payment_method,
+                ))
                 .await;
+
+                let attempt_update_result = match payment_method_update_result
+                    .as_ref()
+                    .ok()
+                    .and_then(|payment_method_id| payment_method_id.clone())
+                    .filter(|_| payment_attempt.payment_method_id.is_none())
+                {
+                    Some(payment_method_id) => {
+                        let attempt_update =
+                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                                payment_method_id: Some(payment_method_id),
+                                updated_by: processor.get_account().storage_scheme.to_string(),
+                            };
+
+                        match state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                payment_attempt,
+                                attempt_update,
+                                processor.get_account().storage_scheme,
+                                processor.get_key_store(),
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                        {
+                            Ok(payment_attempt) => {
+                                update_payment_attempt_associated_data(
+                                    &state,
+                                    processor,
+                                    payment_attempt,
+                                    associated_data.payment_attempt,
+                                )
+                                .await
+                            }
+                            Err(error) => Err(error),
+                        }
+                    }
+                    None => {
+                        update_payment_attempt_associated_data(
+                            &state,
+                            processor,
+                            payment_attempt,
+                            associated_data.payment_attempt,
+                        )
+                        .await
+                    }
+                };
 
                 lock_action
                     .free_lock_action(&state, merchant_id.clone())
                     .await?;
 
-                update_result?;
-
-                let payment_intent = state
-                    .store
-                    .find_payment_intent_by_payment_id_processor_merchant_id(
-                        &payment_id,
-                        &merchant_id,
-                        processor.get_key_store(),
-                        processor.get_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                payment_method_update_result?;
+                attempt_update_result?;
 
                 Ok(WebhookResponseTracker::Payment {
                     payment_id,
@@ -2491,14 +2549,228 @@ fn associated_data_from_ucs_event_content(
             "Failed to read the payments response from unified connector service event content",
         )?;
 
-    match payments_response.sender_payment_instrument_id {
-        None => Ok(None),
-        Some(sender_payment_instrument_id) => Ok(Some(WebhookAssociatedData {
-            payment_attempt: PaymentAttemptAssociatedData {
-                sender_payment_instrument_id: Some(Secret::new(sender_payment_instrument_id)),
-            },
-        })),
+    let payment_method = payments_response
+        .connector_returned_payment_method_details
+        .map(domain::PaymentMethodData::foreign_try_from)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable(
+            "Failed to convert the connector returned payment method details in the unified connector service event content",
+        )?;
+
+    let associated_data = WebhookAssociatedData {
+        payment_attempt: PaymentAttemptAssociatedData {
+            sender_payment_instrument_id: payments_response
+                .sender_payment_instrument_id
+                .map(Secret::new),
+        },
+        payment_method,
+    };
+
+    if associated_data.is_empty() {
+        return Ok(None);
     }
+
+    Ok(Some(associated_data))
+}
+
+async fn resolve_payment_method_for_associated_data(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &PaymentAttempt,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    billing_address_id: Option<&str>,
+    connector_disclosed_details: &domain::PaymentMethodData,
+) -> CustomResult<Option<domain::PaymentMethod>, errors::ApiErrorResponse> {
+    let Some(vaulting_data) = connector_disclosed_details.get_payment_method_vaulting_data() else {
+        return Ok(None);
+    };
+
+    let (Some(customer_id), Some(customer_acceptance)) =
+        (customer_id, payment_attempt.customer_acceptance.clone())
+    else {
+        logger::info!(
+            "Connector disclosed an instrument with nothing to save it against, skipping the payment method"
+        );
+        return Ok(None);
+    };
+
+    let provider = platform.get_provider();
+
+    let (locker_id, locker_fingerprint_id): (Option<String>, String) = match &vaulting_data {
+        // Trustly discloses a reference it resolves on its own rather than the account itself, so
+        // there is nothing to keep - the fingerprint alone recognises the instrument, and the
+        // payment method has no locker entry to point at.
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(
+            hyperswitch_domain_models::payment_method_data::BankRedirectDetail::Trustly { .. },
+        ) => (
+            None,
+            cards::get_vault_fingerprint(
+                state,
+                provider.get_account().get_id(),
+                customer_id,
+                &vaulting_data,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to derive the fingerprint for the disclosed instrument")?,
+        ),
+        _ => return Ok(None),
+    };
+
+    let existing_payment_method = payment_response::find_payment_method_by_fingerprint(
+        state,
+        provider.get_key_store(),
+        &locker_fingerprint_id,
+    )
+    .await;
+
+    if let Some(existing_payment_method) = existing_payment_method {
+        cards::update_last_used_at(
+            &existing_payment_method,
+            state,
+            provider.get_account().storage_scheme,
+            provider.get_key_store(),
+        )
+        .await
+        .map_err(|error| {
+            logger::error!(?error, "Failed to update last used at");
+        })
+        .ok();
+
+        logger::info!(
+            payment_method_id = %existing_payment_method.get_id(),
+            "Reusing the payment method the customer already saved for this instrument"
+        );
+
+        return Ok(Some(existing_payment_method));
+    }
+
+    let billing_address = match payment_attempt
+        .payment_method_billing_address_id
+        .as_deref()
+        .or(billing_address_id)
+    {
+        Some(address_id) => state
+            .store
+            .find_address_by_address_id(address_id, provider.get_key_store())
+            .await
+            .map_err(|error| {
+                logger::info!(
+                    ?error,
+                    "Could not read the billing address, creating the payment method without it"
+                );
+            })
+            .ok()
+            .as_ref()
+            .map(From::from),
+        None => None,
+    };
+
+    let payment_method = payment_response::insert_deferred_payment_method(
+        state,
+        platform,
+        customer_id,
+        customer_acceptance,
+        payment_attempt.payment_method,
+        payment_attempt.payment_method_type,
+        billing_address,
+        locker_id,
+        Some(locker_fingerprint_id),
+    )
+    .await?;
+
+    logger::info!(
+        payment_method_id = %payment_method.get_id(),
+        "Created the payment method for the instrument the connector disclosed"
+    );
+
+    Ok(Some(payment_method))
+}
+
+async fn update_payment_method_associated_data(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    connector_disclosed_details: Option<domain::PaymentMethodData>,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    let Some(connector_disclosed_details) = connector_disclosed_details else {
+        return Ok(None);
+    };
+
+    let provider = platform.get_provider();
+
+    let payment_method = match payment_attempt.payment_method_id.as_deref() {
+        Some(payment_method_id) => Some(
+            state
+                .store
+                .find_payment_method(
+                    provider.get_key_store(),
+                    payment_method_id,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+        ),
+        None => {
+            resolve_payment_method_for_associated_data(
+                state,
+                platform,
+                payment_attempt,
+                payment_intent.customer_id.as_ref(),
+                payment_intent.billing_address_id.as_deref(),
+                &connector_disclosed_details,
+            )
+            .await?
+        }
+    };
+
+    let Some(payment_method) = payment_method else {
+        logger::info!(
+            "No payment method to write the connector returned instrument to, skipping the update"
+        );
+        return Ok(None);
+    };
+
+    let payment_method_id = payment_method.get_id().clone();
+
+    let payment_method_update = cards::prepare_payment_method_update_from_connector_details(
+        state,
+        platform,
+        &payment_method,
+        merchant_connector_id,
+        &connector_disclosed_details,
+        business_profile,
+    )
+    .await?;
+
+    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+        state,
+        &payment_method.merchant_id,
+        &provider.get_account().organization_id,
+        payment_method.customer_id.as_ref(),
+    )
+    .await;
+
+    state
+        .store
+        .update_payment_method(
+            provider.get_key_store(),
+            payment_method,
+            payment_method_update,
+            provider.get_account().storage_scheme,
+            compat_action,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to write the associated bank redirect details to the payment method",
+        )?;
+
+    Ok(Some(payment_method_id))
 }
 
 fn resolve_write_once_field(
