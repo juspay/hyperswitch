@@ -178,6 +178,25 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         field_name: field_name.clone(),
                     }
                 }
+                errors::ConnectorError::MismatchedPaymentData => {
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name:
+                            "payment_method_data, payment_method_type and payment_experience does not match"
+                                .into(),
+                    }
+                }
+                errors::ConnectorError::MandatePaymentDataMismatch { fields } => {
+                    errors::ApiErrorResponse::MandatePaymentDataMismatch {
+                        fields: fields.to_owned(),
+                    }
+                }
+                errors::ConnectorError::CurrencyNotSupported { message, connector } => {
+                    errors::ApiErrorResponse::CurrencyNotSupported {
+                        message: format!(
+                            "Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch"
+                        ),
+                    }
+                }
                 errors::ConnectorError::InvalidWalletToken { wallet_name } => {
                     errors::ApiErrorResponse::InvalidWalletToken {
                         wallet_name: wallet_name.to_string(),
@@ -233,9 +252,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::InSufficientBalanceInPaymentMethod
                 | errors::ConnectorError::RequestTimeoutReceived
                 | errors::ConnectorError::ProcessingStepFailed(None)
-                | errors::ConnectorError::MismatchedPaymentData
-                | errors::ConnectorError::MandatePaymentDataMismatch { .. }
-                | errors::ConnectorError::CurrencyNotSupported { .. }
                 | errors::ConnectorError::GenericError { .. }
                 | errors::ConnectorError::AmountConversionFailed => {
                     errors::ApiErrorResponse::InternalServerError
