@@ -626,6 +626,8 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
 
     let pre_authenticate_request_data = core_types::PaymentsPreAuthenticateData {
         payment_method_data: domain::PaymentMethodData::Card(domain::Card::default()),
+        // Standalone authentication has no preceding order-create leg.
+        order_id: None,
         amount: payment_data
             .payment_attempt
             .get_total_amount()
@@ -890,6 +892,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             }),
         metadata: None,
         complete_authorize_url: None,
+        order_id: None,
     };
 
     let psp_router_data: core_types::RouterData<

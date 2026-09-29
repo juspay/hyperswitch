@@ -525,8 +525,22 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// checkout sdk configuration
+    pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
+    /// Payout FRM call configuration key
+    pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Maximum number of card issuers a list request reads
+    pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
+    /// Preferred-connector routing enablement configuration key per profile
+    pub const PREFERRED_CONNECTORS_ROUTING_ENABLED: &str =
+        "routing.preferred_connectors_routing_enabled";
+    /// Payment method types eligible for preferred-connectors routing (comma-separated)
+    pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
+        "routing.preferred_connectors_enabled_payment_method_types";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

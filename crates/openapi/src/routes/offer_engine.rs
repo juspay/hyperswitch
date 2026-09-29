@@ -17,6 +17,15 @@
         (status = 200, description = "Offers available to the merchant", body = BrowseOffersResponse),
         (status = 403, description = "Offer Engine is not enabled for this merchant")
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Offers",
     operation_id = "Browse offers",
     security(("api_key" = []))
