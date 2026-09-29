@@ -187,20 +187,24 @@ where
     // for which `decide_execution_path` returns UCS unconditionally and the kill
     // switch is skipped — there is no direct integration to divert to.
     // Everything else resolves to Direct.
-    let execution_path = if is_pre_risk_evaluation {
-        crate::core::unified_connector_service::should_call_unified_connector_service(
-            state,
-            platform.get_processor(),
-            &router_data,
-            None,
-            payments::CallConnectorAction::Trigger,
-            None,
-            common_enums::TransactionType::Payment,
-        )
-        .await?
-        .0
+    let (execution_path, rollout_result) = if is_pre_risk_evaluation {
+        let (execution_path, _updated_state, rollout_result) =
+            crate::core::unified_connector_service::should_call_unified_connector_service(
+                state,
+                platform.get_processor(),
+                &router_data,
+                None,
+                payments::CallConnectorAction::Trigger,
+                None,
+                common_enums::TransactionType::Payment,
+            )
+            .await?;
+        (execution_path, rollout_result)
     } else {
-        common_enums::ExecutionPath::Direct
+        (
+            common_enums::ExecutionPath::Direct,
+            payments::helpers::RolloutExecutionResult::default(),
+        )
     };
 
     let gateway_context = payments::gateway::context::RouterGatewayContext {
@@ -213,6 +217,10 @@ where
         ),
         merchant_connector_account,
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode: match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 common_enums::ExecutionMode::Primary
