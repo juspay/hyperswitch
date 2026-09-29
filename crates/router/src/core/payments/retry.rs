@@ -44,14 +44,17 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     platform: &domain::Platform,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
-    customer: &Option<domain::Customer>,
+    mut customer: Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
     _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+) -> RouterResult<(
+    types::RouterData<F, FData, types::PaymentsResponseData>,
+    Option<domain::Customer>,
+)>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
     FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
@@ -103,7 +106,7 @@ where
     };
 
     if should_step_up {
-        router_data = Box::pin(do_retry(
+        (router_data, customer) = Box::pin(do_retry(
             &state.clone(),
             req_state.clone(),
             original_connector_data,
@@ -209,7 +212,7 @@ where
                         (connector_routing_data.connector_data, routing_decision)
                     };
 
-                    router_data = Box::pin(do_retry(
+                    (router_data, customer) = Box::pin(do_retry(
                         &state.clone(),
                         req_state.clone(),
                         &connector,
@@ -238,7 +241,7 @@ where
             initial_gsm = None;
         }
     }
-    Ok(router_data)
+    Ok((router_data, customer))
 }
 
 #[instrument(skip_all)]
@@ -369,7 +372,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     req_state: ReqState,
     connector: &'a api::ConnectorData,
     operation: &'a operations::BoxedOperation<'a, F, ApiRequest, D>,
-    customer: &'a Option<domain::Customer>,
+    customer: Option<domain::Customer>,
     platform: &domain::Platform,
     payment_data: &'a mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -382,7 +385,10 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
     feature_config: &core_utils::FeatureConfig,
-) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
+) -> RouterResult<(
+    types::RouterData<F, FData, types::PaymentsResponseData>,
+    Option<domain::Customer>,
+)>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
     FData: Send + Sync + types::Capturable + Clone + 'static + serde::Serialize,
@@ -433,7 +439,7 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
-    let (updated_customer, call_connector_service_response, updated_state) =
+    let (customer_update, call_connector_service_response, updated_state) =
         payments::decide_unified_connector_service_call(
             state,
             platform.get_processor(),
@@ -454,14 +460,13 @@ where
             tokenization_action,
         )
         .await?;
-    // Update customer at provider level after connector operations complete
-    operation
+    let customer = operation
         .to_domain()?
         .update_customer(
             &updated_state,
             platform.get_provider(),
-            customer.clone(),
-            updated_customer,
+            customer,
+            customer_update,
         )
         .await?;
 
@@ -482,7 +487,7 @@ where
         &dimensions,
     )
     .await?;
-    Ok(router_data)
+    Ok((router_data, customer))
 }
 
 #[cfg(feature = "v2")]

@@ -286,14 +286,14 @@ pub async fn make_connector_decision(
         api::ConnectorCallType::PreDetermined(routing_data) => {
             let frm_outcome = match payout_frm_applicability {
                 Some(applicability) => handle_payout_pre_frm_result!(
-                    fraud_check::pre_payouts_frm_core(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &routing_data.connector_data,
                         applicability,
                         &pre_frm_failure_mode,
-                    )
+                    ))
                     .await,
                     &pre_frm_failure_mode,
                     platform,
@@ -339,14 +339,14 @@ pub async fn make_connector_decision(
 
             let frm_outcome = match payout_frm_applicability {
                 Some(applicability) => handle_payout_pre_frm_result!(
-                    fraud_check::pre_payouts_frm_core(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &connector_data,
                         applicability,
                         &pre_frm_failure_mode,
-                    )
+                    ))
                     .await,
                     &pre_frm_failure_mode,
                     platform,
