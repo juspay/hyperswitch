@@ -953,6 +953,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         ucs_core::build_unified_connector_service_external_vault_proxy_metadata_v1(
             external_vault_merchant_connector_account,
             &state.conf.connectors,
+            &state.conf.proxy,
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external vault proxy metadata")?;
@@ -1202,6 +1203,7 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
         ucs_core::build_unified_connector_service_external_vault_proxy_metadata_v1(
             external_vault_merchant_connector_account,
             &state.conf.connectors,
+            &state.conf.proxy,
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external vault proxy metadata")?;
