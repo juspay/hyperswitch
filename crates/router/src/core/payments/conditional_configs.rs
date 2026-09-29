@@ -32,7 +32,10 @@ pub async fn perform_decision_management(
     let key = merchant_id.get_dsl_config();
 
     let find_key_from_db = || async {
-        let config = db.find_config_by_key(&algorithm_id).await?;
+        let config = db
+            .find_config_by_key_optional(&algorithm_id)
+            .await?
+            .ok_or(errors::StorageError::ValueNotFound(algorithm_id.clone()))?;
 
         let rec: DecisionManagerRecord = config
             .config

@@ -32,7 +32,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
-use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -49,7 +48,7 @@ const MAX_ID_LENGTH: usize = 20;
 const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+    common_utils::generate_random_alphanumeric_string(MAX_ID_LENGTH)
 }
 
 #[derive(Debug, Serialize)]
@@ -521,6 +520,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 | WalletData::Paysera(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1129,7 +1129,7 @@ impl
         if item.router_data.is_three_ds() {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
-                connector: "Authorizedotnet",
+                connector: "Authorizedotnet".into(),
             }
             .into());
         };
@@ -2446,6 +2446,7 @@ fn get_wallet_data(
         | WalletData::AmazonPayRedirect(_)
         | WalletData::Paysera(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::BluecodeRedirect {}
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
@@ -2549,12 +2550,12 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>>
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),
-                    connector: "authorizedotnet",
+                    connector: "authorizedotnet".into(),
                 })
             }
             Some(enums::CaptureMethod::Scheduled) => Err(errors::ConnectorError::NotSupported {
                 message: enums::CaptureMethod::Scheduled.to_string(),
-                connector: "authorizedotnet",
+                connector: "authorizedotnet".into(),
             }),
         }?;
         let transaction_request = TransactionConfirmRequest {

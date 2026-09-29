@@ -17,7 +17,6 @@ use router::{
 };
 use time::macros::datetime;
 use tokio::sync::oneshot;
-use uuid::Uuid;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid
 // do we'll test refund and payment in same tests and later implement thread_local variables.
@@ -29,7 +28,7 @@ use uuid::Uuid;
 async fn payments_create_stripe() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", Uuid::new_v4());
+    let payment_id = format!("test_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let request = serde_json::json!({
@@ -98,7 +97,7 @@ async fn payments_create_stripe() {
 async fn payments_create_adyen() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", Uuid::new_v4());
+    let payment_id = format!("test_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "321");
 
     let request = serde_json::json!({
@@ -167,7 +166,7 @@ async fn payments_create_adyen() {
 async fn payments_create_fail() {
     Box::pin(utils::setup()).await;
 
-    let payment_id = format!("test_{}", Uuid::new_v4());
+    let payment_id = format!("test_{}", common_utils::generate_uuid_v4());
     let api_key = ("API-KEY", "MySecretApiKey");
 
     let invalid_request = serde_json::json!({
@@ -538,7 +537,7 @@ async fn payments_create_core() {
 //         redis_conn: connection::redis_connection(&conf).await,
 //     };
 
-//     let customer_id = format!("cust_{}", Uuid::new_v4());
+//     let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
 //     let merchant_id = "jarnura".to_string();
 //     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 //     let customer_data = api::CreateCustomerRequest {
@@ -615,7 +614,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
-    let customer_id = format!("cust_{}", Uuid::new_v4());
+    let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
     let key_store = state
         .store

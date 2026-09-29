@@ -1057,7 +1057,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     key_store.merchant_id.clone(),
                     customer_id.to_owned(),
                 ),
-                vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+                vault_id: domain::VaultId::generate(common_utils::generate_uuid_v7().to_string()),
                 data: pmd,
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             }
@@ -2128,8 +2128,9 @@ pub fn encode_add_vault_request(
         // New fingerprint migration path uses merchant-scoped vault entity ids.
         pm_types::AddVaultRequestNew {
             entity_id: merchant_id,
-            vault_id: vault_id
-                .unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
+            vault_id: vault_id.unwrap_or_else(|| {
+                domain::VaultId::generate(common_utils::generate_uuid_v7().to_string())
+            }),
             data: pmd,
             ttl,
         }
@@ -2154,7 +2155,7 @@ pub fn encode_add_vault_request(
                 merchant_id,
                 customer_id.to_owned(),
             ),
-            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            vault_id: domain::VaultId::generate(common_utils::generate_uuid_v7().to_string()),
             data: pmd,
             ttl,
         }
@@ -2213,8 +2214,8 @@ pub fn encode_add_vault_request(
     ttl: i64,
     vault_id: Option<domain::VaultId>,
 ) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
-    let vault_id =
-        vault_id.unwrap_or_else(|| domain::VaultId::generate(uuid::Uuid::now_v7().to_string()));
+    let vault_id = vault_id
+        .unwrap_or_else(|| domain::VaultId::generate(common_utils::generate_uuid_v7().to_string()));
 
     if should_trigger_fingerprint_migration {
         pm_types::AddVaultRequestNew {
@@ -3841,9 +3842,9 @@ pub async fn mock_call_to_locker_hs(
 ) -> errors::CustomResult<payment_methods::StoreCardResp, errors::VaultError> {
     let mut locker_mock_up = storage::LockerMockUpNew {
         card_id: card_id.to_string(),
-        external_id: uuid::Uuid::new_v4().to_string(),
-        card_fingerprint: uuid::Uuid::new_v4().to_string(),
-        card_global_fingerprint: uuid::Uuid::new_v4().to_string(),
+        external_id: common_utils::generate_uuid_v4().to_string(),
+        card_fingerprint: common_utils::generate_uuid_v4().to_string(),
+        card_global_fingerprint: common_utils::generate_uuid_v4().to_string(),
         merchant_id: id_type::MerchantId::default(),
         card_number: "4111111111111111".to_string(),
         card_exp_year: "2099".to_string(),

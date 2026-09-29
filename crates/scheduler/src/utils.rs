@@ -6,7 +6,6 @@ pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionWithContext, RedisEntryId};
 use router_env::instrument;
-use uuid::Uuid;
 
 use super::{
     consumer::{self, types::process_data, workflows},
@@ -167,7 +166,7 @@ pub fn divide_into_batches(
     conf: &SchedulerSettings,
     application_source: enums::ApplicationSource,
 ) -> Vec<ProcessTrackerBatch> {
-    let batch_id = Uuid::new_v4().to_string();
+    let batch_id = common_utils::generate_uuid_v4().to_string();
 
     let stream_name = match application_source {
         enums::ApplicationSource::Main => &conf.stream,
@@ -304,12 +303,13 @@ pub async fn consumer_operation_handler<E, T>(
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    consumer_name: &str,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
     T: SchedulerSessionState + Send + Sync + 'static,
 {
-    match consumer::consumer_operations(&state, &settings, workflow_selector).await {
+    match consumer::consumer_operations(&state, &settings, workflow_selector, consumer_name).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),
     }

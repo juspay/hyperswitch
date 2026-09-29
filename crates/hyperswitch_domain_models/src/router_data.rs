@@ -585,6 +585,7 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
             application_expiration_month,
             application_expiration_year,
             payment_data: data.payment_data.into(),
+            device_manufacturer_identifier: Some(data.device_manufacturer_identifier),
         })
     }
 }
@@ -643,6 +644,9 @@ impl ApplePayPredecryptDataInternal {
 pub struct GooglePayPredecryptDataInternal {
     pub message_expiration: String,
     pub message_id: String,
+    /// Present when the card was tokenized for a gateway, carrying the `gateway_merchant_id` that
+    /// was sent to Google in the session response. Absent for `DIRECT` tokenization.
+    pub gateway_merchant_id: Option<String>,
     #[serde(rename = "paymentMethod")]
     pub payment_method_type: String,
     pub payment_method_details: GooglePayPaymentMethodDetails,

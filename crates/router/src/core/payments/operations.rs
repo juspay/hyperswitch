@@ -333,10 +333,10 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _db: &'a SessionState,
         _provider: &domain::Provider,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         _updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<Option<domain::Customer>> {
+        Ok(customer)
     }
 
     #[cfg(feature = "v2")]
@@ -618,6 +618,8 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         locale: &Option<String>,
@@ -863,6 +865,17 @@ where
         _payment_intent: &storage::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
+    }
+
+    #[instrument(skip_all)]
+    async fn add_task_to_process_tracker<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
     }
 
     #[instrument(skip_all)]

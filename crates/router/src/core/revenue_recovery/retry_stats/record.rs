@@ -231,7 +231,7 @@ async fn with_retry_stats_lock<T>(
     redis_lock_expiry_seconds: u32,
     work: impl core::future::Future<Output = CustomResult<T, StorageError>>,
 ) -> CustomResult<Option<T>, StorageError> {
-    let lock_token = uuid::Uuid::new_v4().to_string();
+    let lock_token = common_utils::generate_uuid_v4().to_string();
     let wait_duration =
         std::time::Duration::from_millis(u64::from(delay_between_retries_in_milliseconds));
     let mut acquired = false;

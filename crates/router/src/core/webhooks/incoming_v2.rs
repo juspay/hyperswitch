@@ -339,6 +339,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
                     api::WebhookFlow::Mandate => todo!(),
 
+                    api::WebhookFlow::AssociatedDataUpdate => todo!(),
+
                     api::WebhookFlow::ExternalAuthentication => todo!(),
                     api::WebhookFlow::FraudCheck => todo!(),
                     api::WebhookFlow::Setup => WebhookResponseTracker::NoEffect,

@@ -29,7 +29,7 @@ use super::app::ReqState;
 #[cfg(feature = "v2")]
 use crate::core::payment_method_balance;
 #[cfg(feature = "v1")]
-use crate::core::payments::update_context;
+use crate::core::payments::server_integration;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
 #[cfg(feature = "v1")]
@@ -134,14 +134,28 @@ pub async fn payments_create(
         ),
     };
 
+    let integration_type = server_integration::integration_type_from_headers(req.headers());
+
+    // Merchant-only auth here, so the header alone opts in. A create-and-confirm has no use for
+    // the enrichment, and the session core rejects the statuses it lands in.
+    let is_create_and_confirm = payload.confirm.is_some_and(|confirm| confirm);
+    let enrich = integration_type.is_server() && !is_create_and_confirm;
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |mut state, auth: auth::AuthenticationData, req, req_state| {
+        move |mut state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                let merchant_integration_type =
+                    server_integration::merchant_integration_type(&state, &auth.platform).await;
+                server_integration::validate_integration_type(
+                    integration_type,
+                    merchant_integration_type,
+                )?;
+
                 let metrics_start = req
                     .confirm
                     .is_some_and(|confirm| confirm)
@@ -151,12 +165,27 @@ pub async fn payments_create(
                 } else {
                     None
                 };
+
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+
+                // Only the enrichment path needs these afterwards. A client create — the vast
+                // majority — clones nothing.
+                let enrichment_inputs = enrich.then(|| {
+                    (
+                        state.clone(),
+                        req_state.clone(),
+                        auth.platform.clone(),
+                        profile_id.clone(),
+                        header_payload.clone(),
+                    )
+                });
+
                 let result = Box::pin(authorize_verify_select::<_>(
                     payments::PaymentCreate,
                     state,
                     req_state,
                     auth.platform,
-                    auth.profile.map(|profile| profile.get_id().clone()),
+                    profile_id,
                     header_payload,
                     req,
                     api::AuthFlow::Client,
@@ -167,7 +196,44 @@ pub async fn payments_create(
                     record_payment_confirm(&result, start.elapsed(), context);
                 }
 
-                result
+                let response = result?;
+
+                // Invoked directly, not through `server_wrap`: both flows map to
+                // `ApiIdentifier::Payments`, so a nested wrap would deadlock on the lock this
+                // request already holds.
+                let enrich_payment = |mut payment: payment_types::PaymentsResponse| async {
+                    if let Some((state, req_state, platform, profile_id, header_payload)) =
+                        enrichment_inputs
+                    {
+                        let id = payment.payment_id.clone();
+                        Box::pin(server_integration::attach_server_context(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            &id,
+                            header_payload,
+                            &mut payment,
+                        ))
+                        .await;
+                    }
+                    payment
+                };
+
+                // `enrich_payment` is a no-op when `enrichment_inputs` is `None`, so the opt-in
+                // decision lives in exactly one place rather than being re-tested here.
+                match response {
+                    services::ApplicationResponse::JsonWithHeaders((payment, headers)) => {
+                        Ok(services::ApplicationResponse::JsonWithHeaders((
+                            enrich_payment(payment).await,
+                            headers,
+                        )))
+                    }
+                    services::ApplicationResponse::Json(payment) => Ok(
+                        services::ApplicationResponse::Json(enrich_payment(payment).await),
+                    ),
+                    response => Ok(response),
+                }
             }
         },
         auth_type,
@@ -929,7 +995,7 @@ pub async fn payments_update(
         }
     };
 
-    let integration_type = update_context::integration_type_from_headers(req.headers());
+    let integration_type = server_integration::integration_type_from_headers(req.headers());
 
     // Gated on merchant auth too: this route also accepts publishable-key + client-secret, and
     // the enrichment runs as `AuthFlow::Merchant`, so a client caller must not opt in by header.
@@ -943,6 +1009,13 @@ pub async fn payments_update(
         move |state, auth: auth::AuthenticationData, req, req_state| {
             let header_payload = header_payload.clone();
             async move {
+                let merchant_integration_type =
+                    server_integration::merchant_integration_type(&state, &auth.platform).await;
+                server_integration::validate_integration_type(
+                    integration_type,
+                    merchant_integration_type,
+                )?;
+
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
 
                 // Only the enrichment path needs these afterwards. A client update — the vast
@@ -988,7 +1061,7 @@ pub async fn payments_update(
                         enrichment_inputs
                     {
                         let id = payment.payment_id.clone();
-                        Box::pin(update_context::attach_server_context(
+                        Box::pin(server_integration::attach_server_context(
                             state,
                             req_state,
                             platform,
@@ -3249,6 +3322,60 @@ pub async fn payments_manual_status_update(
             allow_connected: true,
             allow_platform: true,
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// List the statuses a conflicted payment is currently eligible for a manual status update to
+/// (Dashboard or API-key auth, mirroring the payment retrieve endpoint's auth).
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdateEligibleStatuses, payment_id))]
+pub async fn payments_manual_status_update_eligible_statuses(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualStatusUpdateEligibleStatuses;
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, _auth_flow) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _req, _req_state| {
+            payments::payments_manual_status_update_eligible_statuses(
+                state,
+                auth.platform,
+                payment_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
