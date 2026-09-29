@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.29.0
+
+### Features
+
+- **connector:** [ELAVON PG] enable Elavon Payment Gateway routing via UCS ([#13975](https://github.com/juspay/hyperswitch/pull/13975)) ([`204eebd`](https://github.com/juspay/hyperswitch/commit/204eebd17efa1522d82e591c100383a5dc60902d))
+- **router:** Enhance conflicted payment handling ([#14288](https://github.com/juspay/hyperswitch/pull/14288)) ([`224584b`](https://github.com/juspay/hyperswitch/commit/224584ba80f8af272ee98c0144cd90882982d555))
+- **routing:** Preferred-connector routing for interac — pin the customer's last successful connector ([#14412](https://github.com/juspay/hyperswitch/pull/14412)) ([`b1f8bf9`](https://github.com/juspay/hyperswitch/commit/b1f8bf97f4ee7832a249b08b2e6786a8a965b72d))
+
+### Bug Fixes
+
+- **core:** Defer bank redirect payment method creation until terminal status ([#14391](https://github.com/juspay/hyperswitch/pull/14391)) ([`5dd1749`](https://github.com/juspay/hyperswitch/commit/5dd17494a82b07f41744fa332c8142edc8025ac2))
+
+### Refactors
+
+- **payments:** Optimize get_trackers in create flow ([#14455](https://github.com/juspay/hyperswitch/pull/14455)) ([`ea5d1d3`](https://github.com/juspay/hyperswitch/commit/ea5d1d395cf86fb8edae310d281b32f15dce3518))
+
+### Testing
+
+- **cypress:** Add amount_captured coverage for payments manual update ([#14227](https://github.com/juspay/hyperswitch/pull/14227)) ([`b560d09`](https://github.com/juspay/hyperswitch/commit/b560d09327592d74f6c4da107ab86204e49864fc))
+
+**Full Changelog:** [`2026.09.28.0...2026.09.29.0`](https://github.com/juspay/hyperswitch/compare/2026.09.28.0...2026.09.29.0)
+
+- - -
+
 ## 2026.09.28.0
 
 ### Features
