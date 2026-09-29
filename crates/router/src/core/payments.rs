@@ -893,19 +893,6 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    operation
-        .to_domain()?
-        .create_payment_method(
-            state,
-            &req,
-            platform,
-            &mut payment_data,
-            customer.as_ref(),
-            &business_profile,
-            &feature_config,
-        )
-        .await?;
-
     let connector_customer_map = customer
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
@@ -980,6 +967,19 @@ where
     .await?;
 
     payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            customer.as_ref(),
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     let (connector, debit_routing_output) = debit_routing::perform_debit_routing(
         &operation,
