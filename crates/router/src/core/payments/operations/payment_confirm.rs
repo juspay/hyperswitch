@@ -2406,12 +2406,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         processor: &domain::Processor,
         payment_data: &mut PaymentData<F>,
     ) {
-        blocklist_utils::populate_payment_fingerprint(
-            state,
-            processor.get_account(),
-            payment_data,
-        )
-        .await
+        blocklist_utils::populate_payment_fingerprint(state, processor.get_account(), payment_data)
+            .await
     }
 
     #[instrument(skip_all)]
