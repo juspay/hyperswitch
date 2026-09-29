@@ -32,13 +32,12 @@ pub fn validate_phone_number(phone_number: &str) -> Result<(), ValidationError> 
 /// [`consts::MAX_PHONE_COUNTRY_CODE_LENGTH`], or contains characters other than digits and an
 /// optional leading `+`.
 pub fn validate_phone_country_code(phone_country_code: &str) -> Result<(), ValidationError> {
-    let is_valid = !phone_country_code.is_empty()
+    let digits = phone_country_code
+        .strip_prefix('+')
+        .unwrap_or(phone_country_code);
+    let is_valid = !digits.is_empty()
         && phone_country_code.len() <= consts::MAX_PHONE_COUNTRY_CODE_LENGTH
-        && phone_country_code
-            .strip_prefix('+')
-            .unwrap_or(phone_country_code)
-            .chars()
-            .all(|character| character.is_ascii_digit());
+        && digits.chars().all(|character| character.is_ascii_digit());
 
     if is_valid {
         Ok(())
@@ -280,6 +279,13 @@ mod tests {
     fn test_invalid_phone_number(phone_number: &str) {
         let res = validate_phone_number(phone_number);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_phone_country_code_requires_digits_after_plus() {
+        assert!(validate_phone_country_code("+").is_err());
+        assert!(validate_phone_country_code("+1").is_ok());
+        assert!(validate_phone_country_code("91").is_ok());
     }
 
     proptest::proptest! {
