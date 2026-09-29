@@ -1139,9 +1139,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         customer: Option<domain::Customer>,
         updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-            state
+    ) -> RouterResult<Option<domain::Customer>> {
+        match (customer, updated_customer) {
+            (Some(customer), Some(updated_customer)) => state
                 .store
                 .update_customer_by_customer_id_merchant_id(
                     customer.get_id().to_owned(),
@@ -1153,9 +1153,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update CustomerConnector in customer")?;
+                .attach_printable("Failed to update CustomerConnector in customer")
+                .map(Some),
+            (customer, _) => Ok(customer),
         }
-        Ok(())
     }
 
     #[instrument(skip_all)]
