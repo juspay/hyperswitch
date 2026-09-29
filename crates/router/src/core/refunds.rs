@@ -210,7 +210,7 @@ pub async fn refund_reverse_core(
     .await?;
     router_data.request.reason = req.cancellation_reason.clone();
 
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             &state,
             processor,
@@ -231,6 +231,10 @@ pub async fn refund_reverse_core(
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -262,7 +266,13 @@ pub async fn refund_reverse_core(
                 &updated_state,
                 processor,
                 router_data,
-                ExecutionMode::Primary,
+                unified_connector_service::kill_switch::RolloutSettings {
+                    execution_mode: ExecutionMode::Primary,
+                    kill_switch_enabled: rollout_result.kill_switch_enabled,
+                    kill_switch_threshold: rollout_result.kill_switch_threshold,
+                    connector_decline_threshold: rollout_result.connector_decline_threshold,
+                    rollout_scope: rollout_result.rollout_scope.clone(),
+                },
                 merchant_connector_account,
             )
             .await
@@ -534,7 +544,7 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             platform.get_processor(),
@@ -568,6 +578,10 @@ pub async fn trigger_refund_to_gateway(
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -605,7 +619,13 @@ pub async fn trigger_refund_to_gateway(
                     state,
                     platform.get_processor(),
                     router_data.clone(),
-                    ExecutionMode::Primary,
+                    unified_connector_service::kill_switch::RolloutSettings {
+                        execution_mode: ExecutionMode::Primary,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                        rollout_scope: rollout_result.rollout_scope.clone(),
+                    },
                     merchant_connector_account,
                 )
                 .await
@@ -964,7 +984,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     &ucs_state,
                     ucs_platform.get_processor(),
                     ucs_router_data,
-                    ExecutionMode::Shadow,
+                    unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
+                        ExecutionMode::Shadow,
+                    ),
                     merchant_connector_account,
                 )
                 .await;
@@ -1209,7 +1231,7 @@ pub async fn sync_refund_with_gateway(
     // Access token available or not needed - proceed with execution
 
     // Check which gateway system to use for refund sync
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             platform.get_processor(),
@@ -1243,6 +1265,10 @@ pub async fn sync_refund_with_gateway(
         lineage_ids,
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
 
@@ -1276,7 +1302,13 @@ pub async fn sync_refund_with_gateway(
                     state,
                     platform.get_processor(),
                     router_data.clone(),
-                    ExecutionMode::Primary,
+                    unified_connector_service::kill_switch::RolloutSettings {
+                        execution_mode: ExecutionMode::Primary,
+                        kill_switch_enabled: rollout_result.kill_switch_enabled,
+                        kill_switch_threshold: rollout_result.kill_switch_threshold,
+                        connector_decline_threshold: rollout_result.connector_decline_threshold,
+                        rollout_scope: rollout_result.rollout_scope.clone(),
+                    },
                     merchant_connector_account,
                 )
                 .await
@@ -1522,7 +1554,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     &state,
                     &processor,
                     router_data,
-                    ExecutionMode::Shadow,
+                    unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
+                        ExecutionMode::Shadow,
+                    ),
                     merchant_connector_account,
                 )
                 .await;
