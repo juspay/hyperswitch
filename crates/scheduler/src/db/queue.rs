@@ -22,6 +22,13 @@ pub trait QueueInterface {
         id: &RedisEntryId,
     ) -> CustomResult<(), RedisError>;
 
+    async fn consumer_group_remove_consumer(
+        &self,
+        stream: &str,
+        group: &str,
+        consumer: &str,
+    ) -> CustomResult<(), RedisError>;
+
     async fn acquire_pt_lock(
         &self,
         tag: &str,
@@ -72,6 +79,18 @@ impl QueueInterface for Store {
         self.get_redis_conn()?
             .consumer_group_create(&stream.into(), group, id)
             .await
+    }
+
+    async fn consumer_group_remove_consumer(
+        &self,
+        stream: &str,
+        group: &str,
+        consumer: &str,
+    ) -> CustomResult<(), RedisError> {
+        self.get_redis_conn()?
+            .consumer_group_delete_consumer(&stream.into(), group, consumer)
+            .await
+            .map(|_pending_messages| ())
     }
 
     async fn acquire_pt_lock(
@@ -156,6 +175,16 @@ impl QueueInterface for MockDb {
     ) -> CustomResult<(), RedisError> {
         // [#172]: Implement function for `MockDb`
         Err(RedisError::ConsumerGroupCreateFailed)?
+    }
+
+    async fn consumer_group_remove_consumer(
+        &self,
+        _stream: &str,
+        _group: &str,
+        _consumer: &str,
+    ) -> CustomResult<(), RedisError> {
+        // [#172]: Implement function for `MockDb`
+        Err(RedisError::ConsumerGroupRemoveConsumerFailed)?
     }
 
     async fn acquire_pt_lock(

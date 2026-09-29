@@ -742,10 +742,11 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                                 | common_enums::AttemptStatus::Authorized
                         );
 
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
+                        // On the direct gateway the Authenticate leg already sent the authorization, so never continue.
                         !has_ucs_redirection
                             && !has_hyperswitch_three_ds_invoke_data
                             && payment_status
+                            && !gateway_context.execution_path.is_direct_gateway()
                     }
                     _ => false,
                 },
@@ -1356,6 +1357,9 @@ impl<F>
             split_payments: item.request.split_payments,
             webhook_url: item.request.webhook_url,
             merchant_order_reference_id: item.request.merchant_order_reference_id,
+            is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
+                common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
+            }),
         })
     }
 }
@@ -1795,6 +1799,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
         unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata_v1(
             external_vault_merchant_connector_account,
             &state.conf.connectors,
+            &state.conf.proxy,
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external vault proxy metadata")?;

@@ -24,20 +24,22 @@ use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
     router_flow_types::{
+        fraud_check as frm_api,
         payments::{Authorize, Capture, PSync, PreAuthorizeVoid, SetupMandate},
         refunds::{Execute, RSync, VoidPostRefund},
         unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
         Session,
     },
     router_request_types::{
-        self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData, SyncRequestType,
+        self, fraud_check::FraudCheckCheckoutData, AuthenticationData,
+        ExternalVaultProxyPaymentsData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPreAuthorizeCancelData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        SyncRequestType,
     },
     router_response_types::{
-        NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RedirectForm,
-        RefundsResponseData,
+        fraud_check::FraudCheckResponseData, NotifyConnectorResponseData, PaymentsResponseData,
+        PayoutsResponseData, RedirectForm, RefundsResponseData,
     },
     ApiModelToDieselModelConvertor,
 };
@@ -129,7 +131,27 @@ impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
     }
 }
 
-fn build_ucs_order_details(
+/// Map a UCS FRM verdict onto Hyperswitch's fraud-check status.
+///
+/// Only reached on a 2xx with no `error` payload, so the status code is not an
+/// input. `Error`/`Unspecified` on a success response means the provider gave
+/// us nothing usable — surfaced as an error rather than silently approving or
+/// holding the payment.
+pub(super) fn frm_status_from_ucs_decision(
+    decision: payments_grpc::FrmDecision,
+) -> Result<storage_enums::FraudCheckStatus, error_stack::Report<UnifiedConnectorServiceError>> {
+    match decision {
+        payments_grpc::FrmDecision::Approve => Ok(storage_enums::FraudCheckStatus::Legit),
+        payments_grpc::FrmDecision::Reject => Ok(storage_enums::FraudCheckStatus::Fraud),
+        payments_grpc::FrmDecision::Review => Ok(storage_enums::FraudCheckStatus::ManualReview),
+        payments_grpc::FrmDecision::Error | payments_grpc::FrmDecision::Unspecified => {
+            Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                .attach_printable("UCS FRM pre risk check returned no usable decision")
+        }
+    }
+}
+
+pub(super) fn build_ucs_order_details(
     order_details: Option<&[OrderDetailsWithAmount]>,
 ) -> Vec<payments_grpc::OrderDetailsWithAmount> {
     order_details
@@ -1040,7 +1062,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             connector_order_id: router_data
                 .request
                 .order_id
@@ -1109,6 +1131,24 @@ impl
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: None,
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth)
+                    .transpose()?,
+            }),
+            setup_future_usage: None,
         })
     }
 }
@@ -1900,9 +1940,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            // New in the bumped client; the router does not populate it yet, so keep
-            // it absent — what UCS saw before the field existed.
-            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1950,6 +1987,12 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            // Forward the order created by the preceding CreateOrder leg. Elavon PG's
+            // hosted-payment-page 3DS opens its payment session against that Order resource.
+            // This is the live path for card 3DS; setting only the external-vault variant
+            // below silently leaves the field None and the connector rejects the session.
+            connector_order_id: router_data.request.order_id.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -2005,9 +2048,6 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
-            // New in the bumped client; the router does not populate it yet, so keep
-            // it absent — what UCS saw before the field existed.
-            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2055,6 +2095,10 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            // Forward the order created by the preceding CreateOrder leg. Elavon PG's
+            // hosted-payment-page 3DS opens its payment session against that Order resource.
+            connector_order_id: router_data.request.order_id.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -2299,7 +2343,7 @@ impl
                 .order_id
                 .clone()
                 .or_else(|| router_data.request.connector_transaction_id.clone()),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -2712,7 +2756,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             connector_order_id: None,
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
@@ -2884,7 +2928,7 @@ impl
                 .connector_testing_data
                 .as_ref()
                 .map(|data| Secret::new(data.peek().to_string())),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             setup_mandate_details: None,
             partner_merchant_identifier_details: router_data
                 .request
@@ -3157,7 +3201,7 @@ impl
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
-            l2_l3_data: None,
+            l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
             customer_document_details: to_grpc_customer_document_details(router_data),
             customer: Some(payments_grpc::Customer {
                 first_name: None,
@@ -4388,9 +4432,9 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
-            common_enums::CardNetwork::Prop
-            | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => Self::Unspecified,
+            common_enums::CardNetwork::Prop => Self::Prop,
+            common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
+            common_enums::CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }
@@ -4577,6 +4621,11 @@ impl
     fn foreign_try_from(
         wallet_token_data: hyperswitch_domain_models::payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId,
     ) -> Result<Self, Self::Error> {
+        let card_network = wallet_token_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
         let decrypted_wallet_token_details = Self {
             decrypted_token: Some(
                 NetworkToken::from_str(&wallet_token_data.decrypted_token.get_card_no())
@@ -4592,6 +4641,7 @@ impl
                 .card_holder_name
                 .map(|name| name.expose().into()),
             eci: wallet_token_data.eci,
+            card_network: card_network.map(|card_network| card_network.into()),
             token_source: wallet_token_data
                 .token_source
                 .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
@@ -4653,6 +4703,10 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         ),
                         eci_indicator: decrypted_data.payment_data.eci_indicator.clone(),
                     }),
+                    device_manufacturer_identifier: decrypted_data
+                        .device_manufacturer_identifier
+                        .clone()
+                        .map(|identifier| identifier.expose().into()),
                 }))
             }
         }
@@ -10101,6 +10155,146 @@ impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
                     .as_ref()
                     .and_then(|cd| cd.message.clone())
             }),
+        })
+    }
+}
+
+/// Build the pre-risk-check request from the FRM `Checkout` router data.
+///
+/// Everything the risk provider needs is already on the router data: the
+/// request carries the instrument and buyer details, and the top-level fields
+/// carry address, token, access token and `frm_metadata`.
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+    > for payments_grpc::FrmServicePreRiskCheckRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &router_data.request;
+
+        let currency = request.currency.ok_or_else(|| {
+            error_stack::report!(UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "currency".into(),
+            })
+        })?;
+        let grpc_currency = payments_grpc::Currency::foreign_try_from(currency)?;
+
+        let amount = payments_grpc::Money {
+            minor_amount: request.amount.get_amount_as_i64(),
+            currency: grpc_currency.into(),
+        };
+
+        // `customer_id` is the stable merchant-side key risk providers use to
+        // build cross-transaction history for the buyer; the contact details
+        // alongside it are what they match on when the id is new.
+        let has_customer = request.customer_id.is_some()
+            || request.customer_name.is_some()
+            || request.email.is_some()
+            || request.phone.is_some();
+        let customer_info = has_customer.then(|| payments_grpc::Customer {
+            id: request
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_owned()),
+            // Sent as the full name; providers that want the parts split it
+            // themselves, since Hyperswitch does not store them apart.
+            name: request
+                .customer_name
+                .as_ref()
+                .map(|name| name.peek().to_owned()),
+            email: request
+                .email
+                .as_ref()
+                .map(|email| Secret::new(email.peek().to_owned())),
+            phone_number: request
+                .phone
+                .as_ref()
+                .map(|phone| Secret::new(phone.peek().to_owned())),
+            phone_country_code: request.phone_country_code.clone(),
+            ..Default::default()
+        });
+
+        // Reuses the same builder the payments UCS path uses, so the instrument
+        // is encoded identically for a risk check and for the authorization that
+        // follows it.
+        //
+        // A payment method Hyperswitch cannot encode degrades to `None` rather
+        // than failing: the FRM pre-check propagates its error with `?` in
+        // `pre_payment_frm_core`, so returning `Err` here would fail the payment
+        // outright over a risk-signal encoding problem.
+        let payment_method =
+            request
+                .payment_method_data_full
+                .as_ref()
+                .and_then(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data.clone(),
+                        router_data.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        None,
+                    )
+                    .inspect_err(|error| {
+                        router_env::logger::warn!(
+                            ?error,
+                            "Failed to encode the payment method for the FRM pre risk check; \
+                         the provider will score this transaction without instrument details"
+                        )
+                    })
+                    .ok()
+                });
+
+        // Merchant identity for risk scoring. The MCC lives on the business
+        // profile, which this path does not load, so it is left unset rather
+        // than issuing an extra fetch for a field no current provider reads.
+        let merchant_details = Some(payments_grpc::MerchantDetails {
+            merchant_id: Some(router_data.merchant_id.get_string_repr().to_owned()),
+            merchant_category_code: None,
+        });
+
+        // Same converter the payments flows use, so the provider gets the full
+        // device fingerprint (screen, timezone, OS, device model, referer) rather
+        // than a user-agent/IP subset. Fail-soft for the same reason as the
+        // payment method above: a malformed browser_info must not fail the check.
+        let browser_info = request.browser_info.as_ref().and_then(|info| {
+            payments_grpc::BrowserInformation::foreign_try_from(info.clone())
+                .inspect_err(|error| {
+                    router_env::logger::warn!(
+                        ?error,
+                        "Failed to encode browser info for the FRM pre risk check; \
+                         the provider will score this transaction without device details"
+                    )
+                })
+                .ok()
+        });
+
+        let order_details = build_ucs_order_details(request.order_details.as_deref());
+
+        Ok(Self {
+            amount: Some(amount),
+            customer_info,
+            payment_method,
+            browser_info,
+            merchant_transaction_id: Some(router_data.attempt_id.clone()),
+            order_details,
+            address: Some(payments_grpc::PaymentAddress::foreign_try_from(
+                router_data.address.clone(),
+            )?),
+            merchant_details,
+            connector_feature_data: router_data
+                .frm_metadata
+                .as_ref()
+                .map(|metadata| Secret::new(metadata.clone().expose().to_string())),
+            // Bearer-authenticated providers read the token from
+            // `state.access_token`; the connector-service threads it onto FrmFlowData.
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
+            ..Default::default()
         })
     }
 }

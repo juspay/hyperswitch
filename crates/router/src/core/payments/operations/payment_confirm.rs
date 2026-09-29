@@ -1138,9 +1138,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         customer: Option<domain::Customer>,
         updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-            state
+    ) -> RouterResult<Option<domain::Customer>> {
+        match (customer, updated_customer) {
+            (Some(customer), Some(updated_customer)) => state
                 .store
                 .update_customer_by_customer_id_merchant_id(
                     customer.get_id().to_owned(),
@@ -1152,9 +1152,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update CustomerConnector in customer")?;
+                .attach_printable("Failed to update CustomerConnector in customer")
+                .map(Some),
+            (customer, _) => Ok(customer),
         }
-        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -3386,7 +3387,8 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         }),
         card_bin: offer_pmd
             .as_ref()
-            .and_then(|offer_pmd| offer_pmd.get_card_iin()),
+            .and_then(|offer_pmd| offer_pmd.get_offer_card_bin())
+            .map(hyperswitch_masking::Secret::new),
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),

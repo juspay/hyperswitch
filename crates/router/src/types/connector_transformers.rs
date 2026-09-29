@@ -63,6 +63,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Dwolla => Self::Dwolla,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
+            api_enums::Connector::ElavonPg => Self::ElavonPg,
             api_enums::Connector::Envoy => Self::Envoy,
             api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Finix => Self::Finix,
@@ -160,6 +161,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Zift => Self::Zift,
             api_enums::Connector::Silverflow => Self::Silverflow,
+            api_enums::Connector::Nsure => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "nsure is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),

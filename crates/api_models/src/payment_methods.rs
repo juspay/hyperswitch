@@ -119,7 +119,6 @@ pub struct PaymentMethodCreate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
     pub fetch_raw_detail: bool,
@@ -130,7 +129,6 @@ pub struct PaymentMethodRetrieveRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -171,7 +169,6 @@ pub struct PaymentMethodCreate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -193,7 +190,6 @@ pub struct PaymentMethodIntentCreate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -573,7 +569,6 @@ pub struct PaymentMethodUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
@@ -593,7 +588,6 @@ pub struct PaymentMethodUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
@@ -631,7 +625,6 @@ pub enum BankRedirectDetail {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
