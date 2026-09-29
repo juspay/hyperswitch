@@ -2,6 +2,7 @@ import {
   cardRequiredField,
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
+  standardBillingAddress,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -810,6 +811,7 @@ export const connectorDetails = {
     }),
     MITManualCapture: {
       Request: { amount: 6000 },
+      billing: standardBillingAddress,
       Response: {
         status: 200,
         body: {

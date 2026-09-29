@@ -3,7 +3,7 @@ import {
   customerAcceptance,
   standardBillingAddress,
 } from "./Commons";
-import { getCustomExchange, getCurrency } from "./Modifiers";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
 // Based on Global Payments test cards
@@ -110,7 +110,7 @@ const billingAddressEurope = {
     city: "Amsterdam",
     state: "North Holland",
     zip: "1011",
-    country: "NL",
+    country: "GB",
     first_name: "John",
     last_name: "Doe",
   },
@@ -126,9 +126,10 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "EUR",
+        currency: "GBP",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingAddressEurope,
       },
       Response: {
         status: 200,
@@ -226,6 +227,7 @@ export const connectorDetails = {
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billingAddressEurope,
       },
       Response: {
         status: 200,

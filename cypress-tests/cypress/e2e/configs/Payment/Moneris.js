@@ -2,6 +2,7 @@ import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
+  standardBillingAddress,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -392,6 +393,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 5000,
+        billing: standardBillingAddress,
         customer_acceptance: customerAcceptance,
       },
       Response: {

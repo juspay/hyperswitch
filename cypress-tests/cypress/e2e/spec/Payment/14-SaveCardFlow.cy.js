@@ -854,6 +854,20 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
+         cy.step("Retrieve Payment after Confirm", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
+            return;
+          }
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];
+          cy.retrievePaymentCallTest({ globalState, data: confirmData });
+          if (!utils.should_continue_further(confirmData)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("list Customer Payment Methods", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: list Customer Payment Methods");

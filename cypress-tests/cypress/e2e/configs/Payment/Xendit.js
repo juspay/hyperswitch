@@ -1131,6 +1131,20 @@ export const connectorDetails = {
         },
       },
     },
+      SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+        currency: "IDR",
+        amount: 6000000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
   },
   payment_method_blocking_pm: {
     BlockIssuingCountry: {
