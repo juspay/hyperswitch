@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0-hotfix1
+
+### Features
+
+- **routing:** Preferred-connector routing for interac — pin the customer's last successful connector ([#14501](https://github.com/juspay/hyperswitch/pull/14501)) ([`5381ddb`](https://github.com/juspay/hyperswitch/commit/5381ddb2c0d2504f03032a81fe85047d3919055c))
+
+### Bug Fixes
+
+- **disputes:** Handle concurrent duplicate dispute webhook insert ([#14507](https://github.com/juspay/hyperswitch/pull/14507)) ([`0b851c3`](https://github.com/juspay/hyperswitch/commit/0b851c3fe0fd8b411010f2a54d245e41d33a60f8))
+- **payments:** Sum connector latency across retry attempts ([#14497](https://github.com/juspay/hyperswitch/pull/14497)) ([`84b8682`](https://github.com/juspay/hyperswitch/commit/84b86825e1549c399c5e6410af7d647d66b15fba))
+
+**Full Changelog:** [`2026.09.23.0...2026.09.23.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0...2026.09.23.0-hotfix1)
+
+- - -
+
 ## 2026.09.23.0
 
 ### Features
