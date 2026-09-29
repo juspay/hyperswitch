@@ -2400,6 +2400,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     }
 
     #[instrument(skip_all)]
+    async fn populate_payment_fingerprint<'a>(
+        &'a self,
+        state: &SessionState,
+        processor: &domain::Processor,
+        payment_data: &mut PaymentData<F>,
+    ) {
+        blocklist_utils::populate_payment_fingerprint(
+            state,
+            processor.get_account(),
+            payment_data,
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         state: &SessionState,
