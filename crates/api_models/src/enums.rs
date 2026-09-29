@@ -70,7 +70,7 @@ pub enum PayoutConnectors {
 }
 
 #[cfg(feature = "v2")]
-/// Whether active attempt is to be set/unset
+/// Whether active attempt is to be set/unset/left alone
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum UpdateActiveAttempt {
     /// Request to set the active attempt id
@@ -78,6 +78,8 @@ pub enum UpdateActiveAttempt {
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
     Unset,
+    /// Leave the active attempt id as it is.
+    NoAction,
 }
 
 /// Generic enum to handle updating or clearing a field
