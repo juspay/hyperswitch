@@ -45,6 +45,7 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    pub hierarchical_resources: Arc<Mutex<Vec<store::hierarchical_resource::HierarchicalResource>>>,
     #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
     pub tokenizations: Arc<Mutex<Vec<store::tokenization::Tokenization>>>,
     pub business_profiles: Arc<Mutex<Vec<store::business_profile::Profile>>>,
@@ -65,8 +66,6 @@ pub struct MockDb {
     pub user_authentication_methods:
         Arc<Mutex<Vec<store::user_authentication_method::UserAuthenticationMethod>>>,
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
-    pub hyperswitch_ai_interactions:
-        Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
     pub card_issuers: Arc<Mutex<Vec<store::card_issuer::CardIssuer>>>,
     pub blocklists: Arc<Mutex<Vec<store::blocklist::Blocklist>>>,
     pub batch_blocklist_jobs: Arc<Mutex<Vec<store::batch_blocklist_job::BatchBlocklistJob>>>,
@@ -108,6 +107,7 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+            hierarchical_resources: Default::default(),
             #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
             tokenizations: Default::default(),
             business_profiles: Default::default(),
@@ -127,7 +127,6 @@ impl MockDb {
             user_key_store: Default::default(),
             user_authentication_methods: Default::default(),
             themes: Default::default(),
-            hyperswitch_ai_interactions: Default::default(),
             card_issuers: Default::default(),
             blocklists: Default::default(),
             batch_blocklist_jobs: Default::default(),

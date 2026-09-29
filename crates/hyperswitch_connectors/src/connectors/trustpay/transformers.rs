@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::SessionToken;
 use cards::NetworkToken;
@@ -17,13 +17,13 @@ use hyperswitch_domain_models::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
         ConnectorResponseData, ErrorResponse, RouterData,
     },
-    router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
+    router_request_types::{BrowserInformation, ResponseId},
     router_response_types::{
         PaymentsResponseData, PreprocessingResponseId, RedirectForm, RefundsResponseData,
     },
     types::{
-        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        RefreshTokenRouterData, RefundsRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, RefreshTokenRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -32,14 +32,10 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{
-        CreateOrderResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
-    },
+    types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
-        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
-        RouterData as OtherRouterData,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -586,12 +582,14 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                         redirect_url: item.router_data.request.get_router_return_url()?,
                         enrollment_status: 'Y', // Set to 'Y' as network provider not providing this value in response
                         eci: token_data.eci.clone().ok_or_else(|| {
-                            errors::ConnectorError::MissingRequiredField { field_name: "eci" }
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "eci".into(),
+                            }
                         })?,
                         authentication_status: 'Y', // Set to 'Y' since presence of token_cryptogram is already validated
                         verification_id: token_data.get_cryptogram().ok_or_else(|| {
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "verification_id",
+                                field_name: "verification_id".into(),
                             }
                         })?,
                     },
@@ -1309,40 +1307,6 @@ impl TryFrom<&TrustpayRouterData<&CreateOrderRouterData>> for TrustpayCreateInte
     }
 }
 
-impl TryFrom<&TrustpayRouterData<&PaymentsPreProcessingRouterData>>
-    for TrustpayCreateIntentRequest
-{
-    type Error = Error;
-    fn try_from(
-        item: &TrustpayRouterData<&PaymentsPreProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let is_apple_pay = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .map(|pmt| matches!(pmt, enums::PaymentMethodType::ApplePay));
-
-        let is_google_pay = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .map(|pmt| matches!(pmt, enums::PaymentMethodType::GooglePay));
-
-        let currency = item.router_data.request.get_currency()?;
-        let amount = item.amount.to_owned();
-
-        Ok(Self {
-            amount,
-            currency: currency.to_string(),
-            init_apple_pay: is_apple_pay,
-            init_google_pay: is_google_pay,
-            reference: item.router_data.connector_request_reference_id.clone(),
-        })
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
@@ -1458,34 +1422,8 @@ impl TryFrom<CreateOrderResponseRouterData<TrustpayCreateIntentResponse>>
             .payment_method_type
             .get_required_value("payment_method_type")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_type",
+                field_name: "payment_method_type".into(),
             })?;
-
-        match (pmt, create_intent_response) {
-            (
-                enums::PaymentMethodType::ApplePay,
-                InitResultData::AppleInitResultData(apple_pay_response),
-            ) => get_apple_pay_session(instance_id, &secrets, apple_pay_response, item),
-            (
-                enums::PaymentMethodType::GooglePay,
-                InitResultData::GoogleInitResultData(google_pay_response),
-            ) => get_google_pay_session(instance_id, &secrets, google_pay_response, item),
-            _ => Err(report!(errors::ConnectorError::InvalidWallet)),
-        }
-    }
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = Error;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>,
-    ) -> Result<Self, Self::Error> {
-        let create_intent_response = item.response.init_result_data.to_owned();
-        let secrets = item.response.secrets.to_owned();
-        let instance_id = item.response.instance_id.to_owned();
-        let pmt = PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
 
         match (pmt, create_intent_response) {
             (
@@ -1579,8 +1517,8 @@ pub(crate) fn get_google_pay_session<F, T>(
                         allowed_payment_methods: google_pay_init_result
                             .allowed_payment_methods
                             .into_iter()
-                            .map(Into::into)
-                            .collect(),
+                            .map(TryInto::try_into)
+                            .collect::<Result<Vec<_>, _>>()?,
                         transaction_info: google_pay_init_result.transaction_info.into(),
                         secrets: Some((*secrets).clone().into()),
                         shipping_address_required: false,
@@ -1620,13 +1558,15 @@ impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     }
 }
 
-impl From<GooglePayAllowedPaymentMethods> for api_models::payments::GpayAllowedPaymentMethods {
-    fn from(value: GooglePayAllowedPaymentMethods) -> Self {
-        Self {
+impl TryFrom<GooglePayAllowedPaymentMethods> for api_models::payments::GpayAllowedPaymentMethods {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(value: GooglePayAllowedPaymentMethods) -> Result<Self, Self::Error> {
+        Ok(Self {
             payment_method_type: value.payment_method_type,
             parameters: value.parameters.into(),
-            tokenization_specification: value.tokenization_specification.into(),
-        }
+            tokenization_specification: value.tokenization_specification.try_into()?,
+        })
     }
 }
 
@@ -1643,12 +1583,23 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
     }
 }
 
-impl From<GpayTokenizationSpecification> for api_models::payments::GpayTokenizationSpecification {
-    fn from(value: GpayTokenizationSpecification) -> Self {
-        Self {
-            token_specification_type: value.token_specification_type,
+impl TryFrom<GpayTokenizationSpecification>
+    for api_models::payments::GpayTokenizationSpecification
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(value: GpayTokenizationSpecification) -> Result<Self, Self::Error> {
+        Ok(Self {
+            token_specification_type:
+                api_models::payments::GooglePayTokenizationSpecificationType::from_str(
+                    &value.token_specification_type,
+                )
+                .change_context(errors::ConnectorError::ParsingFailed)
+                .attach_printable(
+                    "unsupported google pay tokenization type received from trustpay",
+                )?,
             parameters: value.parameters.into(),
-        }
+        })
     }
 }
 

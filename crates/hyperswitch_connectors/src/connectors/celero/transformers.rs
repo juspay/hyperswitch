@@ -140,7 +140,7 @@ impl TryFrom<&DomainAddress> for CeleroAddress {
                 email: address.email.clone(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "address_details",
+                field_name: "address_details".into(),
             }
             .into()),
         }
@@ -228,7 +228,7 @@ impl TryFrom<(&PaymentMethodData, bool)> for CeleroPaymentMethod {
         if is_three_ds {
             return Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "celero",
+                connector: "celero".into(),
             }
             .into());
         }

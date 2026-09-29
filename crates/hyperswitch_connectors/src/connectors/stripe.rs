@@ -3027,7 +3027,7 @@ impl IncomingWebhook for Stripe {
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
         let amt = details.event_data.event_object.amount.ok_or_else(|| {
             ConnectorError::MissingRequiredField {
-                field_name: "amount",
+                field_name: "amount".into(),
             }
         })?;
 
@@ -3055,6 +3055,11 @@ impl IncomingWebhook for Stripe {
                 .to_string(),
             created_at: Some(details.event_data.event_object.created),
             updated_at: None,
+            additional_details: details
+                .event_data
+                .event_object
+                .network_details
+                .and_then(Into::into),
         })
     }
 }

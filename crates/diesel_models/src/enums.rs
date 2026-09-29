@@ -175,6 +175,7 @@ pub enum FraudCheckLastStep {
     CheckoutOrSale,
     TransactionOrRecordRefund,
     Fulfillment,
+    PoFrm,
 }
 
 #[derive(

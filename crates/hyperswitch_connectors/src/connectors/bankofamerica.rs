@@ -152,7 +152,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let boa_req = self.get_request_body(req, connectors)?;
         let http_method = self.get_http_method();
         let auth = bankofamerica::BankOfAmericaAuthType::try_from(&req.connector_auth_type)?;
@@ -797,13 +797,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
             req.request
                 .minor_amount
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
+                    field_name: "Amount".into(),
                 })?;
         let currency =
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 })?;
 
         let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;

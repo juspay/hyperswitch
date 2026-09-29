@@ -162,7 +162,7 @@ impl PaymentLinks {
             .clone()
             .ok_or(
                 ConnectorError::MissingRequiredField {
-                    field_name: "href resource id",
+                    field_name: "href resource id".into(),
                 }
                 .into(),
             )
@@ -175,7 +175,7 @@ impl PaymentLinks {
             .clone()
             .ok_or(
                 ConnectorError::MissingRequiredField {
-                    field_name: "href resource id",
+                    field_name: "href resource id".into(),
                 }
                 .into(),
             )
@@ -210,7 +210,7 @@ impl PaymentLink {
     ) -> Result<ResponseIdStr, error_stack::Report<ConnectorError>> {
         let id = self.href.rsplit_once('/').map(|h| h.1.to_string()).ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "href resource id",
+                field_name: "href resource id".into(),
             },
         )?;
         Ok(ResponseIdStr { id })
@@ -219,7 +219,7 @@ impl PaymentLink {
     pub fn get_response_id(&self) -> Result<ResponseId, error_stack::Report<ConnectorError>> {
         let id = self.href.rsplit_once('/').map(|h| h.1.to_string()).ok_or(
             ConnectorError::MissingRequiredField {
-                field_name: "href resource id",
+                field_name: "href resource id".into(),
             },
         )?;
         Ok(ResponseId::ConnectorTransactionId(id))
@@ -248,7 +248,7 @@ where
         .map(transform_fn);
     reference_id.ok_or_else(|| {
         ConnectorError::MissingRequiredField {
-            field_name: "links.events",
+            field_name: "links.events".into(),
         }
         .into()
     })

@@ -37,6 +37,15 @@ pub struct BillingConnectorPaymentsSyncResponse {
 #[derive(Debug, Clone)]
 pub struct InvoiceRecordBackResponse {
     pub merchant_reference_id: common_utils::id_type::PaymentReferenceId,
+    /// Transaction id at the billing connector for the payment just recorded.
+    /// `None` for connectors that do not return one.
+    pub connector_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DisputeRecordBackResponse {
+    /// Id of the refund transaction created at the billing connector.
+    pub connector_refund_id: String,
 }
 
 #[derive(Debug, Clone)]

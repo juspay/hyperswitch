@@ -87,15 +87,9 @@ async fn decision_engine_token_request(
     // a failure here costs a name in the dashboard and nothing else.
     let email = match state.global_store.find_user_by_user_id(&user.user_id).await {
         Ok(found) => {
-            // `Email` wraps a `Secret`, so it takes both traits to reach the string.
-            use hyperswitch_masking::{ExposeInterface, PeekInterface};
-            Some(
-                domain::UserFromStorage::from(found)
-                    .get_email()
-                    .expose()
-                    .peek()
-                    .to_string(),
-            )
+            // `Email` wraps the masked secret we want, so one unwrap reaches it.
+            use hyperswitch_masking::ExposeInterface;
+            Some(domain::UserFromStorage::from(found).get_email().expose())
         }
         Err(error) => {
             router_env::logger::warn!(
@@ -702,13 +696,6 @@ async fn merge_de_routing_records(
             .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
             .cloned(),
     );
-    compare_and_log_result(
-        de_result.clone(),
-        hs_result.clone(),
-        "list_routing".to_string(),
-        false,
-    );
-
     let mut merged = build_list_routing_result(
         state,
         platform.clone(),
@@ -867,14 +854,16 @@ pub async fn create_routing_algorithm_under_profile(
     let name = request
         .name
         .get_required_value("name")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "name".into(),
+        })
         .attach_printable("Name of config not given")?;
 
     let description = request
         .description
         .get_required_value("description")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "description",
+            field_name: "description".into(),
         })
         .attach_printable("Description of config not given")?;
 
@@ -883,7 +872,7 @@ pub async fn create_routing_algorithm_under_profile(
         .clone()
         .get_required_value("algorithm")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "algorithm",
+            field_name: "algorithm".into(),
         })
         .attach_printable("Algorithm of config not given")?;
 
@@ -893,7 +882,7 @@ pub async fn create_routing_algorithm_under_profile(
         .profile_id
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile_id not provided")?;
 
@@ -1796,7 +1785,7 @@ pub async fn unlink_routing_config(
         .profile_id
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
+            field_name: "profile_id".into(),
         })
         .attach_printable("Profile_id not provided")?;
 
@@ -1893,6 +1882,12 @@ pub async fn unlink_routing_config(
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+                    let decision_engine_rule_id = record
+                        .decision_engine_routing_id
+                        .clone()
+                        .unwrap_or_else(|| algorithm_id.get_string_repr().to_string());
+
                     let response = record.foreign_into();
                     helpers::update_profile_active_algorithm_ref(
                         db,
@@ -1918,6 +1913,28 @@ pub async fn unlink_routing_config(
                         business_profile.get_id(),
                     )
                     .await?;
+
+                    if state.conf.open_router.static_routing_enabled
+                        && transaction_type != enums::TransactionType::ThreeDsAuthentication
+                    {
+                        if let Err(error) = deactivate_de_euclid_routing_algorithm(
+                            &state,
+                            DeactivateRoutingConfigRequest {
+                                created_by: profile_id.get_string_repr().to_string(),
+                                routing_algorithm_id: decision_engine_rule_id,
+                            },
+                        )
+                        .await
+                        {
+                            router_env::logger::error!(
+                                decision_engine_error = ?error,
+                                routing_flow = ?"unlink_routing_algorithm",
+                                profile_id = ?profile_id.get_string_repr(),
+                                algorithm_id = ?algorithm_id.get_string_repr(),
+                                "decision_engine_euclid: rule deactivation failed on the Decision Engine for a Hyperswitch-routed profile"
+                            );
+                        }
+                    }
 
                     metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                     Ok(service_api::ApplicationResponse::Json(response))
@@ -2266,12 +2283,6 @@ pub async fn retrieve_linked_routing_config(
                 de_prefetched,
                 &transaction_type,
                 hs_records.clone(),
-            );
-            compare_and_log_result(
-                de_records.clone(),
-                hs_records.clone(),
-                "list_active_routing".to_string(),
-                false,
             );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -3326,22 +3337,6 @@ impl RoutableConnectors {
     }
 }
 
-/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
-/// trip again after the profile is re-enabled for the Decision Engine.
-pub async fn reset_decision_engine_diff_counter(
-    state: SessionState,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResult<service_api::ApplicationResponse<()>> {
-    reset_de_diff_counter(&state, &profile_id).await?;
-
-    router_env::logger::info!(
-        profile_id=?profile_id.get_string_repr(),
-        "decision_engine_euclid: routing diff counter reset via api"
-    );
-
-    Ok(service_api::ApplicationResponse::StatusOk)
-}
-
 /// A merchant account and its key store, by id. Migration works from
 /// `routing_algorithm.merchant_id` rather than an authenticated context, so it resolves its own.
 async fn get_merchant_account(
@@ -3858,9 +3853,7 @@ pub async fn routing_migration_status(
             only_in_de.sort();
         }
 
-        // The *configured* cut-over. `get_routing_result_source` would overlay Hyperswitch
-        // routing when the diff counter is over threshold — right for a payment, wrong here: a
-        // tripped kill switch would turn a runtime condition into a migration verdict.
+        // The configured cut-over source for this profile.
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(merchant_id.clone().into())
             .with_provider_merchant_id(

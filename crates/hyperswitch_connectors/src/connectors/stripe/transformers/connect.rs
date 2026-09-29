@@ -418,7 +418,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                             .bank_country_code
                             .get_required_value("bank_country_code")
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "bank_country_code",
+                                field_name: "bank_country_code".into(),
                             })?,
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,
@@ -432,14 +432,14 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 api_models::payouts::BankTransfer::Bacs(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "BACS payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: "stripe".into(),
                     }
                     .into())
                 }
                 api_models::payouts::BankTransfer::Sepa(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "SEPA payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: "stripe".into(),
                     }
                     .into())
                 }
@@ -448,21 +448,21 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 | api_models::payouts::BankTransfer::PixEmv(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "PIX payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: "stripe".into(),
                     }
                     .into())
                 }
                 api_models::payouts::BankTransfer::OpenBanking(..) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "OpenBanking payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: "stripe".into(),
                     }
                     .into())
                 }
                 api_models::payouts::BankTransfer::Trustly(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Trustly payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: "stripe".into(),
                     }
                     .into())
                 }
@@ -470,7 +470,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 | api_models::payouts::BankTransfer::PayshapProxy(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "PayShap payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: "stripe".into(),
                     }
                     .into())
                 }
@@ -478,21 +478,21 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
             api_models::payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via wallets are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
                 }
                 .into())
             }
             api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via BankRedirect are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
                 }
                 .into())
             }
             api_models::payouts::PayoutMethodData::Passthrough(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via Passthrough are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
                 }
                 .into())
             }

@@ -245,6 +245,22 @@ pub struct NetworkTransactionIdAndCardDetails {
     #[smithy(value_type = "Option<String>")]
     pub card_type: Option<String>,
 
+    /// The product the card is issued under, e.g. `CLASSIC` or `ELECTRON`
+    #[schema(example = "CLASSIC")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_subtype: Option<String>,
+
+    /// The segment the card is issued to
+    #[schema(value_type = Option<CardSegmentType>, example = "consumer")]
+    #[smithy(value_type = "Option<CardSegmentType>")]
+    pub card_segment_type: Option<api_enums::CardSegmentType>,
+
+    /// How the card is funded. More granular than `card_type`, which collapses
+    /// deferred debit and charge cards.
+    #[schema(value_type = Option<FundingSource>, example = "CREDIT")]
+    #[smithy(value_type = "Option<FundingSource>")]
+    pub funding_source: Option<api_enums::FundingSource>,
+
     #[schema(example = "INDIA")]
     #[smithy(value_type = "Option<String>")]
     pub card_issuing_country: Option<String>,

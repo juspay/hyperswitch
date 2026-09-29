@@ -4,7 +4,6 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::PeekInterface;
 use maud::html;
-use rand::{distributions::Uniform, prelude::Distribution};
 use tokio::time as tokio;
 
 use super::{
@@ -17,13 +16,14 @@ use crate::{
 };
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
-    let mut rng = rand::thread_rng();
-    // TODO: change this to `Uniform::try_from`
-    // this would require changing the fn signature
-    // to return a Result
-    let effective_delay = Uniform::from((delay - tolerance)..(delay + tolerance));
+    // Half-open `(delay - tolerance)..(delay + tolerance)` as it was, expressed
+    // as the inclusive range the seam takes.
+    let low = i64::try_from(delay.saturating_sub(tolerance)).unwrap_or(0);
+    let high = i64::try_from(delay.saturating_add(tolerance)).unwrap_or(i64::MAX);
+    let effective_delay = common_utils::generate_random_number_in_range(low, high.max(low + 1) - 1);
+
     tokio::sleep(tokio::Duration::from_millis(
-        effective_delay.sample(&mut rng),
+        u64::try_from(effective_delay).unwrap_or(delay),
     ))
     .await
 }

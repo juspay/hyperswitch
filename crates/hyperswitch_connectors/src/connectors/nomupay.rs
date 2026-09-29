@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -117,11 +115,8 @@ fn get_signature(
 ) -> CustomResult<String, errors::ConnectorError> {
     match body {
         RequestContent::Json(masked_json) => {
-            let expiration_time = SystemTime::now() + Duration::from_secs(4 * 60);
-            let expires_in = match expiration_time.duration_since(UNIX_EPOCH) {
-                Ok(duration) => duration.as_secs(),
-                Err(_e) => 0,
-            };
+            let expires_in =
+                u64::try_from(common_utils::date_time::now_unix_timestamp() + 4 * 60).unwrap_or(0);
 
             let mut option_map = Map::new();
             option_map.insert("alg".to_string(), json!("ES256"));
@@ -158,7 +153,7 @@ fn get_signature(
                 .zip(jws_blocks.get(2))
                 .map(|(first, third)| format!("{first}..{third}"))
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "JWS blocks not sufficient for detached payload",
+                    field_name: "JWS blocks not sufficient for detached payload".into(),
                 })?;
 
             Ok(jws_detached)

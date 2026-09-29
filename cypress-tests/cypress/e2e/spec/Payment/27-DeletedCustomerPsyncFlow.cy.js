@@ -3,15 +3,23 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - Customer Deletion and Psync", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      originalCustomerId = globalState.get("customerId");
     });
   });
 
   afterEach("flush global state", () => {
+    // Every test in this spec creates its own customer and deletes it via
+    // customerDeleteCall, which doesn't clear globalState.customerId
+    // afterward. Restore the pre-spec customer before flushing so later
+    // specs (which just read globalState.customerId) don't inherit an ID
+    // that's just been deleted.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 

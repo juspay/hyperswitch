@@ -61,7 +61,7 @@ impl TryFrom<&DigitalvirgoRouterData<&PaymentsAuthorizeRouterData>>
                         .first()
                         .map(|order| order.product_name.to_owned())
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "product_name",
+                            field_name: "product_name".into(),
                         })?;
 
                     Ok(Self {
@@ -256,7 +256,7 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for DigitalvirgoConfirmReques
 
         let otp_data: DigitalvirgoRedirectResponseData = serde_json::from_value(payload_data)
             .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "otp for transaction",
+                field_name: "otp for transaction".into(),
             })?;
 
         Ok(Self {

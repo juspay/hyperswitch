@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
@@ -16,7 +16,7 @@ use hyperswitch_masking::ExposeInterface;
 use prost::Message;
 
 use crate::{
-    errors::ConnectorError,
+    errors::{not_supported_message, ConnectorError},
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
@@ -29,8 +29,92 @@ const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
 // direct connector timeout handling.
 const CONNECTOR_TIMEOUT_HTTP_STATUS_CODE: u16 = 504;
 
+/// Machine-readable error codes sent by UCS in `IntegrationError.error_code`.
+///
+/// These are SCREAMING_SNAKE_CASE variant names from UCS's
+/// `domain_types::errors::IntegrationError` enum (via `strum::AsRefStr`).
+/// Parsing from the proto string is fallible — unknown codes yield `None`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UcsIntegrationErrorCode {
+    MissingRequiredField,
+    MissingRequiredFields,
+    InvalidDataFormat,
+    MismatchedPaymentData,
+    InvalidWallet,
+    InvalidWalletToken,
+    MissingPaymentMethodType,
+    MissingApplePayTokenData,
+    MandatePaymentDataMismatch,
+    MaxFieldLengthViolated,
+    AmountConversionFailed,
+    MissingConnectorTransactionId,
+    MissingConnectorRefundId,
+    MissingConnectorMandateId,
+    MissingConnectorMandateMetadata,
+    MissingConnectorRelatedTransactionId,
+    FailedToObtainAuthType,
+    InvalidConnectorConfig,
+    NoConnectorMetaData,
+    ConfigurationError,
+    NotImplemented,
+    NotSupported,
+    FlowNotSupported,
+    CaptureMethodNotSupported,
+    CurrencyNotSupported,
+    RequestEncodingFailed,
+    HeaderMapConstructionFailed,
+    BodySerializationFailed,
+    UrlParsingFailed,
+    UrlEncodingFailed,
+    FailedToObtainIntegrationUrl,
+    SourceVerificationFailed,
+}
+
+impl UcsIntegrationErrorCode {
+    /// Parses the proto `error_code` string into a typed variant.
+    fn parse(code: &str) -> Option<Self> {
+        match code {
+            "MISSING_REQUIRED_FIELD" => Some(Self::MissingRequiredField),
+            "MISSING_REQUIRED_FIELDS" => Some(Self::MissingRequiredFields),
+            "INVALID_DATA_FORMAT" => Some(Self::InvalidDataFormat),
+            "MISMATCHED_PAYMENT_DATA" => Some(Self::MismatchedPaymentData),
+            "INVALID_WALLET" => Some(Self::InvalidWallet),
+            "INVALID_WALLET_TOKEN" => Some(Self::InvalidWalletToken),
+            "MISSING_PAYMENT_METHOD_TYPE" => Some(Self::MissingPaymentMethodType),
+            "MISSING_APPLE_PAY_TOKEN_DATA" => Some(Self::MissingApplePayTokenData),
+            "MANDATE_PAYMENT_DATA_MISMATCH" => Some(Self::MandatePaymentDataMismatch),
+            "MAX_FIELD_LENGTH_VIOLATED" => Some(Self::MaxFieldLengthViolated),
+            "AMOUNT_CONVERSION_FAILED" => Some(Self::AmountConversionFailed),
+            "MISSING_CONNECTOR_TRANSACTION_ID" => Some(Self::MissingConnectorTransactionId),
+            "MISSING_CONNECTOR_REFUND_ID" => Some(Self::MissingConnectorRefundId),
+            "MISSING_CONNECTOR_MANDATE_ID" => Some(Self::MissingConnectorMandateId),
+            "MISSING_CONNECTOR_MANDATE_METADATA" => Some(Self::MissingConnectorMandateMetadata),
+            "MISSING_CONNECTOR_RELATED_TRANSACTION_ID" => {
+                Some(Self::MissingConnectorRelatedTransactionId)
+            }
+            "FAILED_TO_OBTAIN_AUTH_TYPE" => Some(Self::FailedToObtainAuthType),
+            "INVALID_CONNECTOR_CONFIG" => Some(Self::InvalidConnectorConfig),
+            "NO_CONNECTOR_META_DATA" => Some(Self::NoConnectorMetaData),
+            "CONFIGURATION_ERROR" => Some(Self::ConfigurationError),
+            "NOT_IMPLEMENTED" => Some(Self::NotImplemented),
+            "NOT_SUPPORTED" => Some(Self::NotSupported),
+            "FLOW_NOT_SUPPORTED" => Some(Self::FlowNotSupported),
+            "CAPTURE_METHOD_NOT_SUPPORTED" => Some(Self::CaptureMethodNotSupported),
+            "CURRENCY_NOT_SUPPORTED" => Some(Self::CurrencyNotSupported),
+            "REQUEST_ENCODING_FAILED" => Some(Self::RequestEncodingFailed),
+            "HEADER_MAP_CONSTRUCTION_FAILED" => Some(Self::HeaderMapConstructionFailed),
+            "BODY_SERIALIZATION_FAILED" => Some(Self::BodySerializationFailed),
+            "URL_PARSING_FAILED" => Some(Self::UrlParsingFailed),
+            "URL_ENCODING_FAILED" => Some(Self::UrlEncodingFailed),
+            "FAILED_TO_OBTAIN_INTEGRATION_URL" => Some(Self::FailedToObtainIntegrationUrl),
+            "SOURCE_VERIFICATION_FAILED" => Some(Self::SourceVerificationFailed),
+            _ => None,
+        }
+    }
+}
+
 /// Unified Connector Service error variants
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
     /// Error occurred while communicating with the gRPC server.
     #[error("Error from gRPC Server : {0}")]
@@ -64,19 +148,28 @@ pub enum UnifiedConnectorServiceError {
     #[error("Missing required field: {field_name}")]
     MissingRequiredField {
         /// Missing Field
-        field_name: &'static str,
+        field_name: Cow<'static, str>,
     },
 
     /// Multiple required fields were missing in the request.
     #[error("Missing required fields: {field_names:?}")]
     MissingRequiredFields {
         /// Missing Fields
-        field_names: Vec<&'static str>,
+        field_names: Vec<Cow<'static, str>>,
     },
 
     /// The requested step or feature is not yet implemented.
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+
+    /// The connector does not support this operation.
+    #[error("{}", not_supported_message(.message, .connector))]
+    NotSupported {
+        /// What the connector refused.
+        message: String,
+        /// Connector that refused the request.
+        connector: String,
+    },
 
     /// Parsing of some value or input failed.
     #[error("Parsing failed")]
@@ -86,7 +179,7 @@ pub enum UnifiedConnectorServiceError {
     #[error("Invalid Data format")]
     InvalidDataFormat {
         /// Field Name for which data is invalid
-        field_name: &'static str,
+        field_name: Cow<'static, str>,
     },
 
     /// Failed to obtain authentication type
@@ -105,6 +198,9 @@ pub enum UnifiedConnectorServiceError {
         code: tonic::Code,
         /// Error message from UCS
         message: String,
+        /// Present only when the status was produced by the router's own transport layer.
+        /// `None` for statuses returned by UCS as a gRPC response.
+        transport: Option<Box<UcsTransportFailure>>,
     },
 
     /// Connector error received through UCS.
@@ -444,13 +540,10 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         let response = if let Some(error_code) =
             connector_details.and_then(|details| details.code.clone())
         {
-            let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::Unspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from((
-                    response.status(),
-                    prev_status,
-                ))?),
-            };
+            let attempt_status = Some(AttemptStatus::foreign_try_from((
+                response.status(),
+                prev_status,
+            ))?);
 
             Err(ErrorResponse {
                 code: error_code,
@@ -531,7 +624,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.connector_reference_id,
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -613,6 +706,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
             payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
+            payments_grpc::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
         }
     }
 }
@@ -722,6 +816,33 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
+                device_pan_bin: google_pay_data.device_pan_bin,
+                card_bin: google_pay_data.card_bin,
+                card_subtype: google_pay_data.card_subtype,
+                card_segment_type: google_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: google_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                card_type: google_pay_data.card_type.and_then(|raw| {
+                    payments_grpc::CardType::try_from(raw)
+                        .ok()
+                        .and_then(|ct| common_enums::CardType::foreign_try_from(ct).ok())
+                }),
+                issuer_name: google_pay_data.issuer_name,
+                issuer_country: google_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -729,6 +850,28 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
+                device_pan_bin: apple_pay_data.device_pan_bin,
+                card_bin: apple_pay_data.card_bin,
+                card_subtype: apple_pay_data.card_subtype,
+                card_segment_type: apple_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: apple_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                issuer_name: apple_pay_data.issuer_name,
+                issuer_country: apple_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {
@@ -802,14 +945,14 @@ impl ForeignTryFrom<payments_grpc::Ach>
             account_number: hyperswitch_masking::Secret::new(
                 ach.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "account_number",
+                        field_name: "account_number".into(),
                     })?
                     .expose(),
             ),
             routing_number: hyperswitch_masking::Secret::new(
                 ach.routing_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "routing_number",
+                        field_name: "routing_number".into(),
                     })?
                     .expose(),
             ),
@@ -833,7 +976,7 @@ impl ForeignTryFrom<payments_grpc::Sepa>
             iban: hyperswitch_masking::Secret::new(
                 sepa.iban
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "iban",
+                        field_name: "iban".into(),
                     })?
                     .expose(),
             ),
@@ -854,14 +997,14 @@ impl ForeignTryFrom<payments_grpc::Bacs>
             account_number: hyperswitch_masking::Secret::new(
                 bacs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "account_number",
+                        field_name: "account_number".into(),
                     })?
                     .expose(),
             ),
             sort_code: hyperswitch_masking::Secret::new(
                 bacs.sort_code
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "sort_code",
+                        field_name: "sort_code".into(),
                     })?
                     .expose(),
             ),
@@ -882,14 +1025,14 @@ impl ForeignTryFrom<payments_grpc::Becs>
             account_number: hyperswitch_masking::Secret::new(
                 becs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "account_number",
+                        field_name: "account_number".into(),
                     })?
                     .expose(),
             ),
             bsb_number: hyperswitch_masking::Secret::new(
                 becs.bsb_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "bsb_number",
+                        field_name: "bsb_number".into(),
                     })?
                     .expose(),
             ),
@@ -909,11 +1052,11 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
             payments_grpc::BankType::Savings => Ok(Self::Savings),
             payments_grpc::BankType::Salary => Ok(Self::Salary),
             payments_grpc::BankType::Payment => Ok(Self::Payment),
-            payments_grpc::BankType::Bond
-            | payments_grpc::BankType::Transmission
-            | payments_grpc::BankType::Current
-            | payments_grpc::BankType::SubscriptionShare
-            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond => Ok(Self::Bond),
+            payments_grpc::BankType::Transmission => Ok(Self::Transmission),
+            payments_grpc::BankType::Current => Ok(Self::Current),
+            payments_grpc::BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
+            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankType unsupported")),
@@ -934,6 +1077,59 @@ impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderT
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankHolderType unspecified")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardSegmentType> for common_enums::CardSegmentType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardSegmentType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardSegmentType::Consumer => Ok(Self::Consumer),
+            payments_grpc::CardSegmentType::Commercial => Ok(Self::Commercial),
+            payments_grpc::CardSegmentType::Business => Ok(Self::Business),
+            payments_grpc::CardSegmentType::Government => Ok(Self::Government),
+            payments_grpc::CardSegmentType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardSegmentType from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::FundingSource> for common_enums::FundingSource {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::FundingSource) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::FundingSource::Credit => Ok(Self::Credit),
+            payments_grpc::FundingSource::Debit => Ok(Self::Debit),
+            payments_grpc::FundingSource::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::FundingSource::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::FundingSource::DeferredDebit => Ok(Self::DeferredDebit),
+            payments_grpc::FundingSource::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified FundingSource from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardType> for common_enums::CardType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardType::Credit => Ok(Self::Credit),
+            payments_grpc::CardType::Debit => Ok(Self::Debit),
+            payments_grpc::CardType::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::CardType::Store => Ok(Self::Store),
+            payments_grpc::CardType::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::CardType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardType from gRPC")),
         }
     }
 }
@@ -1735,12 +1931,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 let amount_money =
                     nmi.amount
                         .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                            field_name: "amount",
+                            field_name: "amount".into(),
                         })?;
                 let currency = match payments_grpc::Currency::try_from(amount_money.currency) {
                     Ok(payments_grpc::Currency::Unspecified) | Err(_) => {
                         Err(UnifiedConnectorServiceError::MissingRequiredField {
-                            field_name: "currency",
+                            field_name: "currency".into(),
                         })
                     }
                     Ok(c) => common_enums::Currency::from_str(c.as_str_name())
@@ -1757,12 +1953,33 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     public_key: hyperswitch_masking::Secret::new(
                         nmi.public_key
                             .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                                field_name: "public_key",
+                                field_name: "public_key".into(),
                             })?
                             .expose(),
                     ),
                     customer_vault_id: nmi.customer_vault_id,
                     order_id: nmi.order_id,
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::WorldpayxmlDdc(ddc)) => {
+                Ok(Self::WorldpayxmlDDCForm {
+                    bin: ddc.bin,
+                    jwt: ddc
+                        .jwt
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "jwt".into(),
+                        })?
+                        .expose(),
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::WorldpayxmlChallenge(challenge)) => {
+                Ok(Self::WorldpayxmlRedirectForm {
+                    jwt: challenge
+                        .jwt
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "jwt".into(),
+                        })?
+                        .expose(),
                 })
             }
             Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
@@ -1813,7 +2030,68 @@ impl ForeignFrom<payments_grpc::UpiSource>
     }
 }
 
+/// Detail of a gRPC status that the router's own transport produced, rather than one UCS
+/// returned as a response.
+///
+/// Holds the [`std::error::Error::source`] chain verbatim. Nothing is interpreted or classified:
+/// the chain already names the layer that failed and why, whether that is an `io::ErrorKind`, an
+/// HTTP/2 reason and initiator, a DNS failure or something a future hyper or tonic version
+/// introduces. Recording it whole is what makes the next transport failure diagnosable without
+/// having shipped code that anticipated it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UcsTransportFailure {
+    /// The `source()` chain, outermost first, root cause last, joined with " -> ". Router logs
+    /// only: an inner layer may render the UCS authority or a peer address.
+    pub source_chain: String,
+    /// The root cause alone, the last element of the chain. This is the part that names what
+    /// actually failed (`connection reset by peer (os error 104)`, `stream error received:
+    /// PROTOCOL_ERROR`, ...) and, unlike the outer layers, never carries an address or authority,
+    /// so it is what goes on the merchant-visible connector event.
+    pub root_cause: String,
+}
+
+impl UcsTransportFailure {
+    /// Builds from a [`tonic::Status`].
+    ///
+    /// Returns `None` when the status carries no error source, which is every status UCS returns
+    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport.
+    /// That covers both a connection that was unusable before the request was written and a stream
+    /// that failed after UCS had already processed the request, so it does not by itself say the
+    /// request was unsent; the chain does.
+    pub fn from_status(status: &tonic::Status) -> Option<Self> {
+        let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
+        let mut parts: Vec<String> = Vec::new();
+
+        loop {
+            parts.push(source.to_string());
+            match source.source() {
+                Some(next) => source = next,
+                None => break,
+            }
+        }
+
+        let root_cause = parts.last().cloned().unwrap_or_default();
+
+        Some(Self {
+            source_chain: parts.join(" -> "),
+            root_cause,
+        })
+    }
+}
+
 impl UnifiedConnectorServiceError {
+    /// Client-side transport failure detail, present only when the status was produced by the
+    /// router's own transport rather than returned by UCS.
+    pub fn transport_failure(&self) -> Option<&UcsTransportFailure> {
+        match self {
+            Self::TonicStatus {
+                transport: Some(transport),
+                ..
+            } => Some(transport.as_ref()),
+            _ => None,
+        }
+    }
+
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
@@ -1856,30 +2134,30 @@ impl UnifiedConnectorServiceError {
             | Self::RequestEncodingFailed
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidConnectorName
-            | Self::MissingConnectorName => 400,
+            | Self::MissingConnectorName
+            | Self::NotSupported { .. }
+            | Self::FailedToObtainAuthType => 400,
             Self::NotImplemented(_) => 501,
             _ => 500,
         }
     }
 
     /// Maps tonic::Status to UnifiedConnectorServiceError.
-    /// First tries to extract a connector HTTP error from proto-encoded status details.
+    ///
+    /// Decode priority:
+    /// 1. Connector HTTP error — proto `ConnectorError` in details with `CONNECTOR_ERROR_RESPONSE` code
+    /// 2. Connector timeout — `DeadlineExceeded` gRPC code
+    /// 3. Integration error — proto `IntegrationError` in details with structured `error_code`
+    /// 4. Raw tonic status — catch-all for undecodable or server-side gRPC errors
     pub fn from_grpc_error(status: &tonic::Status, connector_name: &str) -> Self {
-        // Try to extract ConnectorError from proto-encoded status details
-        if let Some(error_from_details) =
-            Self::decode_connector_error_response(status, connector_name)
-        {
-            return error_from_details;
-        }
-
-        if let Some(timeout_error) = Self::decode_connector_timeout(status, connector_name) {
-            return timeout_error;
-        }
-
-        Self::TonicStatus {
-            code: status.code(),
-            message: status.message().to_string(),
-        }
+        Self::decode_connector_error_response(status, connector_name)
+            .or_else(|| Self::decode_connector_timeout(status, connector_name))
+            .or_else(|| Self::decode_integration_error(status, connector_name))
+            .unwrap_or_else(|| Self::TonicStatus {
+                code: status.code(),
+                message: status.message().to_string(),
+                transport: UcsTransportFailure::from_status(status).map(Box::new),
+            })
     }
 
     /// Decodes a connector HTTP error (4xx/5xx) from tonic status details, returning `None` for UCS-side errors.
@@ -1970,12 +2248,112 @@ impl UnifiedConnectorServiceError {
             network_error_message: None,
         })))
     }
+
+    /// Decodes a UCS integration error (request-phase validation failure) from tonic status
+    /// details. UCS encodes `IntegrationError` proto into `Status::with_details()` with a
+    /// structured `error_code` (e.g. `MISSING_REQUIRED_FIELD`, `INVALID_DATA_FORMAT`).
+    ///
+    /// Maps the `error_code` to the corresponding `UnifiedConnectorServiceError` variant so
+    /// that downstream `ErrorSwitch<ConnectorError>` produces the correct Hyperswitch API
+    /// error code (e.g. `IR_04` instead of `CE_01`).
+    ///
+    /// Returns `None` when details are empty, cannot be decoded as `IntegrationError`, or
+    /// the `error_code` is not recognized — the caller falls through to `TonicStatus`.
+    fn decode_integration_error(status: &tonic::Status, connector_name: &str) -> Option<Self> {
+        let details = status.details();
+        if details.is_empty() {
+            return None;
+        }
+
+        payments_grpc::IntegrationError::decode(details)
+            .inspect_err(|e| {
+                router_env::logger::debug!(
+                    error = ?e,
+                    connector_name = connector_name,
+                    "Failed to decode IntegrationError from tonic status details"
+                );
+            })
+            .ok()
+            .and_then(|ie| Self::integration_error_code_to_variant(&ie, connector_name))
+    }
+
+    /// Maps a decoded `IntegrationError` proto to the corresponding
+    /// `UnifiedConnectorServiceError` variant based on its `error_code`.
+    ///
+    /// Each arm maps to a `ConnectorError` variant that `to_payment_failed_response`
+    /// (router/src/core/errors/utils.rs) converts to the correct `ApiErrorResponse`:
+    ///
+    /// | ConnectorError          | ApiErrorResponse                | Code  |
+    /// |-------------------------|---------------------------------|-------|
+    /// | MissingRequiredField    | MissingRequiredField            | IR_04 |
+    /// | MissingRequiredFields   | MissingRequiredFields           | IR_21 |
+    /// | InvalidDataFormat       | InvalidDataFormat               | IR_05 |
+    /// | NotImplemented          | NotImplemented                  | IR_00 |
+    /// | NotSupported            | NotSupported                    | IR_19 |
+    /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
+    /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
+    fn integration_error_code_to_variant(
+        ie: &payments_grpc::IntegrationError,
+        connector_name: &str,
+    ) -> Option<Self> {
+        use UcsIntegrationErrorCode as Code;
+
+        UcsIntegrationErrorCode::parse(&ie.error_code).map(|code| match code {
+            // Missing field(s) → IR_04 / IR_21
+            Code::MissingRequiredField
+            | Code::MissingConnectorTransactionId
+            | Code::MissingConnectorRefundId
+            | Code::MissingConnectorMandateId
+            | Code::MissingConnectorMandateMetadata
+            | Code::MissingConnectorRelatedTransactionId
+            | Code::MissingApplePayTokenData
+            | Code::MissingPaymentMethodType => Self::MissingRequiredField {
+                field_name: Cow::Owned(ie.error_message.clone()),
+            },
+            Code::MissingRequiredFields => Self::MissingRequiredFields {
+                field_names: vec![Cow::Owned(ie.error_message.clone())],
+            },
+            // Invalid data / validation errors → IR_05
+            Code::InvalidDataFormat
+            | Code::MismatchedPaymentData
+            | Code::InvalidWallet
+            | Code::InvalidWalletToken
+            | Code::MandatePaymentDataMismatch
+            | Code::MaxFieldLengthViolated
+            | Code::AmountConversionFailed => Self::InvalidDataFormat {
+                field_name: Cow::Owned(ie.error_message.clone()),
+            },
+            // Auth / config errors → IR_30
+            Code::FailedToObtainAuthType
+            | Code::InvalidConnectorConfig
+            | Code::NoConnectorMetaData
+            | Code::ConfigurationError => Self::FailedToObtainAuthType,
+            // Not implemented → IR_00
+            Code::NotImplemented => Self::NotImplemented(ie.error_message.clone()),
+            // Unsupported flow / method / currency → IR_19
+            Code::NotSupported
+            | Code::FlowNotSupported
+            | Code::CaptureMethodNotSupported
+            | Code::CurrencyNotSupported => Self::NotSupported {
+                message: ie.error_message.clone(),
+                connector: connector_name.to_string(),
+            },
+            // UCS internal failures → HE_00
+            Code::RequestEncodingFailed
+            | Code::HeaderMapConstructionFailed
+            | Code::BodySerializationFailed
+            | Code::UrlParsingFailed
+            | Code::UrlEncodingFailed
+            | Code::FailedToObtainIntegrationUrl
+            | Code::SourceVerificationFailed => Self::RequestEncodingFailed,
+        })
+    }
 }
 
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
                     ApiErrorResponse::InvalidRequestData {
                         message: message.clone(),
@@ -2006,6 +2384,24 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 status_code: inner.status_code,
                 reason: inner.reason.clone(),
             },
+            Self::NotSupported { message, .. } => ApiErrorResponse::NotSupported {
+                message: message.clone(),
+            },
+            Self::NotImplemented(message) => ApiErrorResponse::NotImplemented {
+                message: NotImplementedMessage::Reason(message.clone()),
+            },
+            Self::MissingRequiredField { field_name } => ApiErrorResponse::MissingRequiredField {
+                field_name: field_name.clone(),
+            },
+            Self::MissingRequiredFields { field_names } => {
+                ApiErrorResponse::MissingRequiredFields {
+                    field_names: field_names.clone(),
+                }
+            }
+            Self::InvalidDataFormat { field_name } => ApiErrorResponse::InvalidDataFormat {
+                field_name: field_name.to_string(),
+                expected_format: "a valid value".to_string(),
+            },
             _ => ApiErrorResponse::InternalServerError,
         }
     }
@@ -2014,31 +2410,38 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
 impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
     fn switch(&self) -> ConnectorError {
         match self {
-            Self::TonicStatus { code, message } => {
-                // UCS/Prism server failures must surface as Hyperswitch 5xx errors, not as
-                // payment authorization failures with a nested 5xx payload.
-                if Self::tonic_status_is_ucs_server_error(*code) {
-                    return ConnectorError::ResponseHandlingFailed;
+            // TonicStatus only reaches here when decode_integration_error did not
+            // recognize the error_code (or details were empty/undecodable).
+            // Server errors → ResponseHandlingFailed, Unimplemented → NotImplemented,
+            // anything else → RequestEncodingFailed as a safe client-error default.
+            Self::TonicStatus { code, message, .. } => match code {
+                _ if Self::tonic_status_is_ucs_server_error(*code) => {
+                    ConnectorError::ResponseHandlingFailed
                 }
-
-                if *code == tonic::Code::Unimplemented {
-                    return ConnectorError::NotImplemented(message.clone());
-                }
-
-                // UCS validation/client-class errors keep the encoded payload for callers that
-                // already rely on structured processing-step data.
-                let status_code = Self::tonic_to_http_status(*code);
+                tonic::Code::Unimplemented => ConnectorError::NotImplemented(message.clone()),
+                tonic::Code::Unauthenticated => ConnectorError::FailedToObtainAuthType,
+                // All other codes (InvalidArgument, FailedPrecondition, NotFound,
+                // AlreadyExists, PermissionDenied, OutOfRange, etc.) land here when
+                // decode_integration_error could not extract a structured error_code.
+                // Without the proto details we cannot classify them correctly, so we
+                // surface them as an internal error rather than risk a misleading IR code.
+                _ => ConnectorError::ResponseHandlingFailed,
+            },
+            // Connector errors — serialize the details into ProcessingStepFailed so
+            // downstream handlers (to_payment_failed_response) can surface them instead
+            // of producing a bare InternalServerError.
+            Self::ConnectorError(inner) => {
                 let error_body = serde_json::json!({
-                    "code": format!("UCS_{}", status_code),
-                    "message": message,
-                    "status_code": status_code,
+                    "code": inner.code,
+                    "message": inner.message,
+                    "status_code": inner.status_code,
+                    "reason": inner.reason,
+                    "connector": inner.connector,
                 });
                 ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
                     error_body.to_string(),
                 )))
             }
-            // Connector errors with status code → ResponseHandlingFailed
-            Self::ConnectorError(_) => ConnectorError::ResponseHandlingFailed,
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
@@ -2046,9 +2449,9 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
             // Missing field errors
-            Self::MissingRequiredField { field_name } => {
-                ConnectorError::MissingRequiredField { field_name }
-            }
+            Self::MissingRequiredField { field_name } => ConnectorError::MissingRequiredField {
+                field_name: field_name.clone(),
+            },
             Self::MissingRequiredFields { field_names } => ConnectorError::MissingRequiredFields {
                 field_names: field_names.clone(),
             },
@@ -2060,6 +2463,11 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            // Not supported
+            Self::NotSupported { message, connector } => ConnectorError::NotSupported {
+                message: message.clone(),
+                connector: connector.clone().into(),
+            },
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {
                 ConnectorError::InvalidConnectorName
@@ -2128,7 +2536,11 @@ pub enum UcsKillSwitchReason {
     /// The connector rejected the request. May be a legitimate decline or a request UCS built
     /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
     /// to the battle-tested direct path is always safe.
-    ConnectorOutcome,
+    ConnectorRejected,
+    /// UCS answered gRPC OK with a connector 2xx, and the connector still refused the payment.
+    /// A business outcome rather than a failure: the issuer would say the same on the direct
+    /// path, so this is counted against its own threshold.
+    ConnectorDeclined,
 }
 
 impl UnifiedConnectorServiceError {
@@ -2161,6 +2573,9 @@ impl UnifiedConnectorServiceError {
 
             // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
+
+            // UCS rejected a request it does not support.
+            Self::NotSupported { .. } => Some(UcsKillSwitchReason::UcsRejectedRequest),
 
             // UCS-side by construction: `from_grpc_error` extracts connector errors first.
             Self::TonicStatus { code, .. } => match code {
@@ -2204,7 +2619,7 @@ impl UnifiedConnectorServiceError {
             // wrongly — indistinguishable here. We trip conservatively: a false bypass to the
             // direct path is safe (it served merchants for years), while a missed trip leaves
             // merchants on a potentially broken UCS path.
-            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorOutcome),
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorRejected),
 
             // Per-flow failure markers carrying no further detail.
             Self::WebhookProcessingFailure
@@ -2250,6 +2665,7 @@ mod ucs_kill_switch_reason_tests {
         UnifiedConnectorServiceError::TonicStatus {
             code,
             message: "from ucs".to_string(),
+            transport: None,
         }
     }
 

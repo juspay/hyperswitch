@@ -17,6 +17,7 @@ const zeroAuthConfigs = {
 
 const zeroAuthConfirmPayment = {
   Request: {
+    amount: 0,
     payment_type: "setup_mandate",
     payment_method: "card",
     payment_method_data: {
@@ -35,6 +36,9 @@ const zeroAuthConfirmPayment = {
 
 const zeroAuthMandate = {
   Configs: zeroAuthConfigs,
+  Request: {
+    amount: 0,
+  },
   Response: zeroAuthResponse,
 };
 

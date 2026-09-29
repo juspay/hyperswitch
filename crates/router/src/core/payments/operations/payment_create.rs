@@ -105,48 +105,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform.get_processor(),
         )?;
 
-        // If profile id is not passed, get it from the business_country and business_label
-        #[cfg(feature = "v1")]
-        let profile_id = core_utils::get_profile_id_from_business_details(
+        // If profile id is not passed, get it from the business_country and business_label.
+        // The lookup is scoped to the merchant, so this also validates that the profile belongs to it.
+        let business_profile = core_utils::get_profile_from_business_details(
             request.business_country,
             request.business_label.as_ref(),
             platform.get_processor(),
             request.profile_id.as_ref(),
             &*state.store,
-            true,
         )
         .await?;
+        let profile_id = business_profile.get_id().to_owned();
 
-        // Profile id will be mandatory in v2 in the request / headers
-        #[cfg(feature = "v2")]
-        let profile_id = request
-            .profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .attach_printable("Profile id is a mandatory parameter")?;
-
-        // TODO: eliminate a redundant db call to fetch the business profile
-        // Validate whether profile_id passed in request is valid and is linked to the merchant
-        let business_profile = if let Some(business_profile) =
-            core_utils::validate_and_get_business_profile(
-                db,
-                platform.get_processor(),
-                Some(&profile_id),
-            )
-            .await?
-        {
-            business_profile
-        } else {
-            platform_wrapper::business_profile::find_business_profile_by_profile_id(
-                state.store.as_ref(),
-                platform.get_processor(),
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?
-        };
         let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
@@ -196,30 +166,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_type.as_ref(),
         )?;
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-            state,
-            request.shipping.as_ref(),
-            None,
-            platform.get_processor().get_account().get_id(),
-            customer_details.customer_id.as_ref(),
-            platform.get_processor().get_key_store(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await?;
-
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
-            state,
-            request.billing.as_ref(),
-            None,
-            platform.get_processor().get_account().get_id(),
-            customer_details.customer_id.as_ref(),
-            platform.get_processor().get_key_store(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await?;
-
         let payment_method_data_billing = request
             .payment_method_data
             .as_ref()
@@ -236,7 +182,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
             }));
 
-        let payment_method_billing_address =
+        // The shipping, billing and payment method billing addresses are independent of each
+        // other, so create them concurrently rather than one after another.
+        let (shipping_address, billing_address, payment_method_billing_address) = tokio::try_join!(
+            helpers::create_or_find_address_for_payment_by_request(
+                state,
+                request.shipping.as_ref(),
+                None,
+                platform.get_processor().get_account().get_id(),
+                customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
+                &payment_id,
+                platform.get_processor().get_account().storage_scheme,
+            ),
+            helpers::create_or_find_address_for_payment_by_request(
+                state,
+                request.billing.as_ref(),
+                None,
+                platform.get_processor().get_account().get_id(),
+                customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
+                &payment_id,
+                platform.get_processor().get_account().storage_scheme,
+            ),
             helpers::create_or_find_address_for_payment_by_request(
                 state,
                 payment_method_data_billing.as_ref(),
@@ -246,8 +214,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 platform.get_processor().get_key_store(),
                 &payment_id,
                 platform.get_processor().get_account().storage_scheme,
-            )
-            .await?;
+            ),
+        )?;
 
         let browser_info = request
             .browser_info
@@ -256,7 +224,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(Encode::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
+                field_name: "browser_info".into(),
             })?;
 
         let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
@@ -704,6 +672,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -1244,7 +1213,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             request.surcharge_details,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount_to_capture".to_string(),
+            field_name: "amount_to_capture".into(),
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
@@ -1372,6 +1341,7 @@ impl PaymentCreate {
             payment_method_ref,
             None, // CVC token data is not passed in create api
             true, // fetch raw card detail from the internal vault
+            helpers::is_off_session_mit_for_payment_method(req, payment_method_ref),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -1533,6 +1503,7 @@ impl PaymentCreate {
                                     .ok(),
                                     google_pay: None,
                                     samsung_pay: None,
+                                    paypal: None,
                                 })
                             }
                             Some(enums::PaymentMethodType::GooglePay) => {
@@ -1540,6 +1511,7 @@ impl PaymentCreate {
                                     apple_pay: None,
                                     google_pay: Some(Box::new(wallet.into())),
                                     samsung_pay: None,
+                                    paypal: None,
                                 })
                             }
                             Some(enums::PaymentMethodType::SamsungPay) => {
@@ -1547,6 +1519,7 @@ impl PaymentCreate {
                                     apple_pay: None,
                                     google_pay: None,
                                     samsung_pay: Some(Box::new(wallet.into())),
+                                    paypal: None,
                                 })
                             }
                             _ => None,
@@ -1559,6 +1532,7 @@ impl PaymentCreate {
                                 apple_pay: None,
                                 google_pay: None,
                                 samsung_pay: None,
+                                paypal: None,
                             })
                         }
                         _ => None,
@@ -1753,6 +1727,7 @@ impl PaymentCreate {
                 applied_offer_details: None,
                 sender_payment_instrument_id: None,
                 payment_account_reference: None,
+                active_frm_id: None,
             },
             additional_pm_data,
 
@@ -1880,6 +1855,14 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encode shipping details to serde_json::Value")?;
 
+        let recipient_details_encoded = request
+            .recipient_details
+            .clone()
+            .map(|recipient| Encode::encode_to_value(&recipient).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode recipient details to serde_json::Value")?;
+
         let encrypted_data = domain::types::crypto_operation(
             &key_manager_state,
             type_name!(storage::PaymentIntent),
@@ -1889,6 +1872,7 @@ impl PaymentCreate {
                         shipping_details: shipping_details_encoded,
                         billing_details: billing_details_encoded,
                         customer_details: customer_details_encoded,
+                        recipient_details: recipient_details_encoded,
                     },
                 ),
             ),
@@ -2004,6 +1988,8 @@ impl PaymentCreate {
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: encrypted_data.recipient_details,
             tokenization: request.tokenization,
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
@@ -2064,7 +2050,7 @@ async fn create_payment_link(
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payment_link_config",
+            field_name: "payment_link_config".into(),
         },
     )?;
 

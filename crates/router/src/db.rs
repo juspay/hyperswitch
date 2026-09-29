@@ -22,7 +22,7 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
-pub mod hyperswitch_ai_interaction;
+pub mod hierarchical_resource;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -133,6 +133,7 @@ pub trait StorageInterface:
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
@@ -145,7 +146,6 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
-    + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
     + AuthenticationInterface<Error = StorageError>
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
@@ -216,6 +216,7 @@ pub trait AccountsStorageInterface:
     + business_profile::ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + RequestIdStore
     + 'static
@@ -233,6 +234,7 @@ pub trait AccountsStorageInterface:
     + business_profile::ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + 'static
 {
@@ -428,14 +430,14 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    async fn update_fraud_check_response_with_attempt_id(
+    async fn update_fraud_check_response_with_frm_id(
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
             .diesel_store
-            .update_fraud_check_response_with_attempt_id(this, fraud_check)
+            .update_fraud_check_response_with_frm_id(this, fraud_check)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -446,42 +448,17 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    async fn find_fraud_check_by_payment_id(
+    async fn find_fraud_check_by_frm_id(
         &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
+        frm_id: String,
     ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id(payment_id, merchant_id)
-            .await?;
+        let frm = self.diesel_store.find_fraud_check_by_frm_id(frm_id).await?;
         if let Err(er) = self
             .kafka_producer
             .log_fraud_check(&frm, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
-        }
-        Ok(frm)
-    }
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
-            .await?;
-
-        if let Some(fraud_check) = frm.clone() {
-            if let Err(er) = self
-                .kafka_producer
-                .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
-                .await
-            {
-                logger::error!(message="Failed to log analytics event for frm {frm:?}", error_message=?er);
-            }
         }
         Ok(frm)
     }

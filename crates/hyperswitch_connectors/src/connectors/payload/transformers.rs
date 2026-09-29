@@ -145,7 +145,7 @@ fn build_payload_payment_request_data(
             if is_three_ds {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Cards 3DS".to_string(),
-                    connector: "Payload",
+                    connector: "Payload".into(),
                 })?
             }
             let card = requests::PayloadCard {
@@ -173,12 +173,12 @@ fn build_payload_payment_request_data(
             });
             let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "bank_type",
+                    field_name: "bank_type".into(),
                 },
             )?)?;
             let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "bank_account_holder_name",
+                    field_name: "bank_account_holder_name".into(),
                 }
             })?;
             let bank = requests::PayloadBank {
@@ -253,12 +253,15 @@ impl TryFrom<enums::BankType> for requests::PayloadAccAccountType {
         match bank_type {
             enums::BankType::Checking => Ok(Self::Checking),
             enums::BankType::Savings => Ok(Self::Savings),
-            b_type @ (enums::BankType::Salary | enums::BankType::Payment) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("bank_type {b_type} is not supported"),
-                    connector: "payload",
-                })
-            }
+            b_type @ (common_enums::BankType::Salary
+            | common_enums::BankType::Payment
+            | common_enums::BankType::Bond
+            | common_enums::BankType::Current
+            | common_enums::BankType::SubscriptionShare
+            | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
+                message: format!("bank_type {b_type} is not supported"),
+                connector: "payload".into(),
+            }),
         }
     }
 }
@@ -278,7 +281,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for requests::CustomerRequest {
             item.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?;
         let payload_auth = PayloadAuth::try_from((&item.connector_auth_type, currency))?;
         let primary_processing_id = get_processing_account_id_from_metadata(
@@ -356,7 +359,7 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
                             .to_owned()
                             .parse_value("PayloadAuth")
                             .change_context(errors::ConnectorError::InvalidDataFormat {
-                                field_name: "auth_key_map",
+                                field_name: "auth_key_map".into(),
                             })?;
                         Ok((*currency, auth))
                     })
@@ -422,13 +425,13 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
             }) => {
                 let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "bank_type",
+                        field_name: "bank_type".into(),
                     },
                 )?)?;
 
                 let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "bank_account_holder_name",
+                        field_name: "bank_account_holder_name".into(),
                     }
                 })?;
 
@@ -939,7 +942,7 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
             responses::PayloadWebhooksTrigger::Refund => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Refund Webhook".to_string(),
-                    connector: "Payload",
+                    connector: "Payload".into(),
                 }
                 .into())
             }
@@ -1020,7 +1023,7 @@ impl TryFrom<ScopeIdentifier> for requests::PayloadEventType {
 
                     _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: "Webhook event type mapping failed".to_string(),
-                        connector: "payload",
+                        connector: "payload".into(),
                     })),
                 }
             }

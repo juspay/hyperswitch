@@ -116,7 +116,7 @@ pub struct ModularPMRetrieveResponse {
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
-    CardWithNT(RawCardWithNTDetails),
+    CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
     ProxyCard(RawProxyCardDataResponse),
 }

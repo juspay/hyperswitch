@@ -9,6 +9,7 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
+counter_metric!(PREFERRED_CONNECTORS_UPDATE_FAILURES, GLOBAL_METER);
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
@@ -234,6 +235,8 @@ counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process trac
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
+counter_metric!(OFFER_ENGINE_LIST_FAILURES, GLOBAL_METER);
+
 // Offer Engine notification (Process Tracker) metrics
 counter_metric!(OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED, GLOBAL_METER);
 counter_metric!(OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES, GLOBAL_METER);
@@ -267,9 +270,6 @@ histogram_metric_f64!(FETCH_ALTID_TIME, GLOBAL_METER);
 // A counter to indicate allowed payment method types mismatch
 counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);
 
-// AI chat metric to track number of chat request
-counter_metric!(CHAT_REQUEST_COUNT, GLOBAL_METER);
-
 // Merchant advice code config lookup metrics
 counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);
 
@@ -296,3 +296,25 @@ counter_metric!(VAULT_CALL_FAILURES, GLOBAL_METER);
 
 // Encryption/keymanager latency for payment_methods operations
 histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);
+
+// Revenue recovery A/B routing
+//
+// Both count invoices the A/B arm could not price, which it treats as an error. They matter for
+// experiment validity rather than availability: an arm that drops invoices for reasons correlated
+// with the arm itself biases the comparison, and the logs alone make that invisible in aggregate.
+counter_metric!(
+    REVENUE_RECOVERY_AB_MISSING_ERROR_CODE,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.missing_error_code",
+    description: "Invoices whose assigned algorithm needed the previous attempt's error code to \
+                  pick a retry time, but the CALCULATE task carried none",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.unassigned_algorithm",
+    description: "Invoices that reached the A/B arm with no retry implementation recorded on the \
+                  intent, so no algorithm could be replayed",
+    unit: "1",
+);

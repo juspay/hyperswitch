@@ -29,6 +29,9 @@ const payment_method_data_no3ds = {
   card: {
     last4: "1111",
     card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
     card_issuer: "Conotoxia Sp Z Oo",
     card_issuing_country: "POLAND",
@@ -332,6 +335,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -355,6 +359,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -378,6 +383,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -400,6 +406,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -605,6 +612,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -625,6 +633,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -645,6 +654,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
@@ -669,6 +679,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
@@ -693,6 +704,7 @@ export const connectorDetails = {
     },
     MITWithoutBillingAddress: {
       Request: {
+        amount: 6000,
         billing: null,
       },
       Response: {
@@ -708,6 +720,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -740,6 +753,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -764,7 +778,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -782,6 +796,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -807,7 +822,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {

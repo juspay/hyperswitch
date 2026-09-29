@@ -26,11 +26,15 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
     PaymentActionRequired,
+    /// Associated data about a payment shared by the connector out of band, typically after
+    /// the payment has reached a terminal state
+    PaymentAssociatedDataUpdate,
     EventNotSupported,
     SourceChargeable,
     SourceTransactionCreated,
     RefundFailure,
     RefundSuccess,
+    RefundReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -128,6 +132,8 @@ impl IncomingWebhookEvent {
             35 => Self::PayoutExpired,
             #[cfg(feature = "payouts")]
             36 => Self::PayoutReversed,
+            // Associated data events
+            43 => Self::PaymentAssociatedDataUpdate,
             _ => Self::EventNotSupported,
         }
     }
@@ -144,6 +150,7 @@ pub enum WebhookFlow {
     ReturnResponse,
     BankTransfer,
     Mandate,
+    AssociatedDataUpdate,
     ExternalAuthentication,
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -288,12 +295,13 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
             | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
-            IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
-                Self::Refund
-            }
+            IncomingWebhookEvent::RefundSuccess
+            | IncomingWebhookEvent::RefundFailure
+            | IncomingWebhookEvent::RefundReview => Self::Refund,
             IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
                 Self::Mandate
             }
+            IncomingWebhookEvent::PaymentAssociatedDataUpdate => Self::AssociatedDataUpdate,
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted
             | IncomingWebhookEvent::DisputeExpired
@@ -393,38 +401,38 @@ impl ObjectReferenceId {
             ) => Ok(id),
             Self::PaymentId(_)=>Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "ConnectorTransactionId variant of PaymentId is required but received otherr variant",
+                    field_name: "ConnectorTransactionId variant of PaymentId is required but received otherr variant".into(),
                 },
             ),
             Self::RefundId(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "PaymentId is required but received RefundId",
+                    field_name: "PaymentId is required but received RefundId".into(),
                 },
             ),
             Self::MandateId(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "PaymentId is required but received MandateId",
+                    field_name: "PaymentId is required but received MandateId".into(),
                 },
             ),
             Self::ExternalAuthenticationID(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "PaymentId is required but received ExternalAuthenticationID",
+                    field_name: "PaymentId is required but received ExternalAuthenticationID".into(),
                 },
             ),
             #[cfg(feature = "payouts")]
             Self::PayoutId(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "PaymentId is required but received PayoutId",
+                    field_name: "PaymentId is required but received PayoutId".into(),
                 },
             ),
             Self::InvoiceId(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "PaymentId is required but received InvoiceId",
+                    field_name: "PaymentId is required but received InvoiceId".into(),
                 },
             ),
             Self::SubscriptionId(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "PaymentId is required but received SubscriptionId",
+                    field_name: "PaymentId is required but received SubscriptionId".into(),
                 },
             ),
         }

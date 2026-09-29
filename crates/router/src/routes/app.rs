@@ -69,8 +69,9 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, offer_engine, oidc, profiles, relay, user, user_role,
+    admin, api_keys, cache::*, card_issuer, connector_onboarding, disputes,
+    external_service_auth as external_service_auth_routes, files, gsm, health::*, offer_engine,
+    oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -217,6 +218,13 @@ impl SessionState {
         GrpcRecoveryHeaders {
             request_id: self.request_id.as_ref().map(|req_id| req_id.to_string()),
         }
+    }
+    /// Gateway identifier of Hyperswitch's own Google Pay gateway registration.
+    pub fn google_pay_gateway_id(&self) -> Option<String> {
+        self.conf
+            .google_pay_decrypt_keys
+            .as_ref()
+            .and_then(|google_pay_keys| google_pay_keys.get_inner().google_pay_gateway_id.clone())
     }
 }
 
@@ -746,6 +754,8 @@ impl Health {
 
 pub struct OfferEngine;
 
+/// Offers are only supported on v1.
+#[cfg(feature = "v1")]
 impl OfferEngine {
     pub fn server(state: AppState) -> Scope {
         web::scope("/offer_engine")
@@ -753,6 +763,10 @@ impl OfferEngine {
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
+            .service(
+                web::resource("/offers/list")
+                    .route(web::post().to(offer_engine::offer_engine_browse_offers)),
             )
     }
 }
@@ -1007,7 +1021,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/manual-status-update")
-                        .route(web::post().to(payments::payments_manual_status_update)),
+                        .route(web::post().to(payments::payments_manual_status_update))
+                        .route(
+                            web::get()
+                                .to(payments::payments_manual_status_update_eligible_statuses),
+                        ),
                 )
         }
         #[cfg(feature = "oltp")]
@@ -1166,10 +1184,6 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
-            .service(
-                web::resource("/decision-engine/{profile_id}/diff-counter")
-                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
-            )
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -1558,6 +1572,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(
+                    web::resource("/platform/list").route(web::get().to(refunds_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(refunds_filter_list_for_platform)),
+                )
                 .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
@@ -1584,7 +1605,8 @@ impl Refunds {
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
                         .route(web::post().to(refunds_update)),
-                );
+                )
+                .service(web::resource("/{id}/reverse").route(web::post().to(refunds_reverse)));
         }
         route
     }
@@ -1902,6 +1924,19 @@ impl Tokenization {
     }
 }
 
+pub struct ExternalService;
+
+impl ExternalService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/external-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/validate-token")
+                    .route(web::post().to(external_service_auth_routes::validate_token)),
+            )
+    }
+}
+
 pub struct Hypersense;
 
 impl Hypersense {
@@ -1956,6 +1991,10 @@ impl Blocklist {
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
             )
+            .service(web::resource("/count").route(web::get().to(blocklist::get_blocklist_count)))
+            .service(
+                web::resource("/lookup").route(web::get().to(blocklist::lookup_blocklist_entry)),
+            )
             .service(
                 web::resource("/batch")
                     .route(web::post().to(blocklist::upload_batch_blocklist))
@@ -1964,6 +2003,12 @@ impl Blocklist {
             .service(
                 web::resource("/batch/{job_id}")
                     .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
+            )
+            .service(
+                web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
+            )
+            .service(
+                web::resource("/clone").route(web::post().to(blocklist::clone_blocklist_entries)),
             )
     }
 }
@@ -2151,6 +2196,34 @@ impl MerchantConnectorAccount {
             );
         }
         route
+    }
+}
+
+pub struct HierarchicalResources;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl HierarchicalResources {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/hierarchical_resources")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(
+                web::post().to(super::hierarchical_resources::generate_hierarchical_resource),
+            ))
+            .service(
+                web::resource("/list").route(
+                    web::post().to(super::hierarchical_resources::list_hierarchical_resources),
+                ),
+            )
+            .service(
+                web::resource("/apple_pay_certificate/{resource_id}").route(
+                    web::put().to(super::hierarchical_resources::upload_hierarchical_resource),
+                ),
+            )
+            .service(
+                web::resource("/{resource_id}/link").route(
+                    web::post().to(super::hierarchical_resources::link_hierarchical_resource),
+                ),
+            )
     }
 }
 
@@ -2421,6 +2494,14 @@ impl Disputes {
                     .route(web::get().to(disputes::get_disputes_filters_profile)),
             )
             .service(
+                web::resource("/platform/list")
+                    .route(web::get().to(disputes::retrieve_disputes_list_for_platform)),
+            )
+            .service(
+                web::resource("/platform/filter")
+                    .route(web::get().to(disputes::get_platform_disputes_filters)),
+            )
+            .service(
                 web::resource("/accept/{dispute_id}")
                     .route(web::post().to(disputes::accept_dispute)),
             )
@@ -2499,6 +2580,10 @@ impl PaymentLink {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::post().to(payment_link::payments_link_list)))
+            .service(
+                web::resource("/profile/list")
+                    .route(web::post().to(payment_link::profile_payment_link_list)),
+            )
             .service(
                 web::resource("/{payment_link_id}")
                     .route(web::get().to(payment_link::payment_link_retrieve)),
@@ -2733,27 +2818,7 @@ impl Gsm {
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
     }
 }
-pub struct Chat;
 
-#[cfg(feature = "olap")]
-impl Chat {
-    pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/chat").app_data(web::Data::new(state.clone()));
-        if state.conf.chat.get_inner().enabled {
-            route = route.service(
-                web::scope("/ai")
-                    .service(
-                        web::resource("/data")
-                            .route(web::post().to(chat::get_data_from_hyperswitch_ai_workflow)),
-                    )
-                    .service(
-                        web::resource("/list").route(web::get().to(chat::get_all_conversations)),
-                    ),
-            );
-        }
-        route
-    }
-}
 pub struct ThreeDsDecisionRule;
 
 #[cfg(feature = "oltp")]
@@ -3466,6 +3531,11 @@ impl RecoveryDataBackfill {
             .service(web::resource("/update-token").route(
                 web::put().to(
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                ),
+            ))
+            .service(web::resource("/retry-stats").route(
+                web::post().to(
+                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
                 ),
             ))
     }

@@ -67,8 +67,8 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
-        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
+        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -80,7 +80,6 @@ use quick_xml::{
     events::{BytesDecl, BytesText, Event},
     Writer,
 };
-use rand::Rng;
 use regex::Regex;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
@@ -100,7 +99,7 @@ pub(crate) fn construct_not_supported_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotSupported {
         message: capture_method.to_string(),
-        connector: connector_name,
+        connector: connector_name.into(),
     }
     .into()
 }
@@ -296,6 +295,7 @@ impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
                     common_types::payments::GpayEcryptedTokenizationData {
                         token_type: encrypted_data.token_type,
                         token: encrypted_data.token,
+                        auth_method: encrypted_data.auth_method,
                     },
                 )
             }
@@ -361,8 +361,7 @@ pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) ->
 
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
-    let mut rng = rand::thread_rng();
-    (0..length).map(|_| Rng::gen(&mut rng)).collect()
+    common_utils::generate_random_bytes(length)
 }
 
 pub(crate) fn missing_field_err(
@@ -370,7 +369,7 @@ pub(crate) fn missing_field_err(
 ) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + 'static> {
     Box::new(move || {
         errors::ConnectorError::MissingRequiredField {
-            field_name: message,
+            field_name: message.into(),
         }
         .into()
     })
@@ -462,7 +461,7 @@ pub(crate) fn validate_currency(
             message: format!(
                 "currency {request_currency} is not supported for this merchant account",
             ),
-            connector: "Braintree",
+            connector: "Braintree".into(),
         })?
     }
     Ok(())
@@ -596,6 +595,8 @@ pub trait RouterData {
     fn get_customer_document_details(
         &self,
     ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error>;
+    fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>>;
+    fn get_customer_date_of_birth(&self) -> Result<Secret<time::Date>, Error>;
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -1111,6 +1112,13 @@ impl<Flow, Request, Response> RouterData
     ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error> {
         Ok(self.customer_document_details.clone())
     }
+    fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
+        self.customer_date_of_birth.clone()
+    }
+    fn get_customer_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
+        self.get_optional_customer_date_of_birth()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
+    }
     fn get_connector_customer_id(&self) -> Result<String, Error> {
         self.connector_customer
             .to_owned()
@@ -1303,11 +1311,11 @@ impl CardData for Card {
             .to_string()
             .parse::<u8>()
             .map_err(|_| errors::ConnectorError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
+                field_name: "payment_method_data.card.card_exp_month".into(),
             })?;
         let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
+                field_name: "payment_method_data.card.card_exp_month".into(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -1410,11 +1418,11 @@ impl CardData for CardDetailsForNetworkTransactionId {
             .to_string()
             .parse::<u8>()
             .map_err(|_| errors::ConnectorError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
+                field_name: "payment_method_data.card.card_exp_month".into(),
             })?;
         let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
+                field_name: "payment_method_data.card.card_exp_month".into(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -1517,11 +1525,11 @@ impl CardData for payment_method_data::DecryptedWalletTokenDetailsForNetworkTran
             .to_string()
             .parse::<u8>()
             .map_err(|_| errors::ConnectorError::InvalidDataFormat {
-                field_name: "recurring_details.data.token_exp_month",
+                field_name: "recurring_details.data.token_exp_month".into(),
             })?;
         let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "recurring_details.data.token_exp_month",
+                field_name: "recurring_details.data.token_exp_month".into(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -1625,11 +1633,11 @@ impl CardData for api_models::payouts::ApplePayDecrypt {
             .to_string()
             .parse::<u8>()
             .map_err(|_| errors::ConnectorError::InvalidDataFormat {
-                field_name: "payout_method_data.apple_pay_decrypt.expiry_month",
+                field_name: "payout_method_data.apple_pay_decrypt.expiry_month".into(),
             })?;
         let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "payout_method_data.apple_pay_decrypt.expiry_month",
+                field_name: "payout_method_data.apple_pay_decrypt.expiry_month".into(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -1734,11 +1742,11 @@ impl CardData for api_models::payouts::GooglePayDecrypt {
             .to_string()
             .parse::<u8>()
             .map_err(|_| errors::ConnectorError::InvalidDataFormat {
-                field_name: "payout_method_data.google_pay_decrypt.expiry_month",
+                field_name: "payout_method_data.google_pay_decrypt.expiry_month".into(),
             })?;
         let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "payout_method_data.google_pay_decrypt.expiry_month",
+                field_name: "payout_method_data.google_pay_decrypt.expiry_month".into(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -1903,6 +1911,8 @@ pub trait AddressDetailsData {
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error>;
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>>;
     fn get_optional_city(&self) -> Option<String>;
     fn get_optional_line1(&self) -> Option<Secret<String>>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
@@ -2142,6 +2152,24 @@ impl AddressDetailsData for AddressDetails {
             .transpose()
     }
 
+    fn get_billing_state_code(&self) -> Result<Secret<String>, Error> {
+        let country = self.get_country()?;
+        let state = self.get_state()?;
+        match country {
+            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
+                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            _ => Ok(state.clone()),
+        }
+    }
+
+    fn get_optional_billing_state_code(&self) -> Option<Secret<String>> {
+        self.get_billing_state_code().ok()
+    }
+
     fn get_optional_city(&self) -> Option<String> {
         self.city.clone()
     }
@@ -2189,7 +2217,7 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
             self.card_exp_year
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
+                    field_name: "card_exp_year".into(),
                 })?;
         let year = binding.peek();
         Ok(Secret::new(
@@ -2203,7 +2231,7 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
             self.card_exp_year
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
+                    field_name: "card_exp_year".into(),
                 })?;
         let mut year = binding.peek().to_string();
         if year.len() == 4 {
@@ -2221,7 +2249,7 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
             self.card_exp_month
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?;
         let month = month_binding.peek();
         let month_str = format!("{:0>2}", month);
@@ -2232,7 +2260,7 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
         self.card_holder_name
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "card_holder_name",
+                field_name: "card_holder_name".into(),
             })
     }
 }
@@ -2243,7 +2271,7 @@ impl AdditionalCardInfo for WalletAdditionalDataForCard {
             self.card_exp_year
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
+                    field_name: "card_exp_year".into(),
                 })?;
         let year = binding.peek();
         Ok(Secret::new(
@@ -2258,7 +2286,7 @@ impl AdditionalCardInfo for WalletAdditionalDataForCard {
             self.card_exp_year
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
+                    field_name: "card_exp_year".into(),
                 })?;
         let mut year = binding.peek().to_string();
         if year.len() == 4 {
@@ -2277,7 +2305,7 @@ impl AdditionalCardInfo for WalletAdditionalDataForCard {
             self.card_exp_month
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?;
         let month = month_binding.peek();
         let month_str = format!("{:0>2}", month);
@@ -2286,7 +2314,7 @@ impl AdditionalCardInfo for WalletAdditionalDataForCard {
 
     fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
         Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "card_holder_name",
+            field_name: "card_holder_name".into(),
         })
     }
 }
@@ -2296,7 +2324,7 @@ impl AdditionalCardInfo for ApplepayPaymentMethod {
             self.card_exp_year
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
+                    field_name: "card_exp_year".into(),
                 })?;
         let year = binding.peek();
         Ok(Secret::new(
@@ -2311,7 +2339,7 @@ impl AdditionalCardInfo for ApplepayPaymentMethod {
             self.card_exp_year
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_year",
+                    field_name: "card_exp_year".into(),
                 })?;
         let mut year = binding.peek().to_string();
         if year.len() == 4 {
@@ -2330,7 +2358,7 @@ impl AdditionalCardInfo for ApplepayPaymentMethod {
             self.card_exp_month
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?;
         let month = month_binding.peek();
         let month_str = format!("{:0>2}", month);
@@ -2339,7 +2367,7 @@ impl AdditionalCardInfo for ApplepayPaymentMethod {
 
     fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
         Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "card_holder_name",
+            field_name: "card_holder_name".into(),
         })
     }
 }
@@ -2697,10 +2725,10 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .card_holder_name
                 .clone()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 })?),
             _ => Err(errors::ConnectorError::MissingRequiredFields {
-                field_names: vec!["card_holder_name"],
+                field_names: vec!["card_holder_name".into()],
             }
             .into()),
         }
@@ -2767,10 +2795,10 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .card_network
                 .clone()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_network",
+                    field_name: "card_network".into(),
                 })?),
             _ => Err(errors::ConnectorError::MissingRequiredFields {
-                field_names: vec!["card_network"],
+                field_names: vec!["card_network".into()],
             }
             .into()),
         }
@@ -2790,17 +2818,17 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {
                 card_exp_month: card_data.card_exp_month.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_exp_month",
+                        field_name: "card_exp_month".into(),
                     }
                 })?,
                 card_exp_year: card_data.card_exp_year.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_exp_year",
+                        field_name: "card_exp_year".into(),
                     }
                 })?,
             }),
             _ => Err(errors::ConnectorError::MissingRequiredFields {
-                field_names: vec!["card_exp_month", "card_exp_year"],
+                field_names: vec!["card_exp_month".into(), "card_exp_year".into()],
             }
             .into()),
         }
@@ -2899,7 +2927,7 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "connector_transaction_id",
+                    field_name: "connector_transaction_id".into(),
                 },
             )
             .attach_printable("Expected connector transaction ID not found")
@@ -3182,7 +3210,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             .and_then(|res| res.payload.to_owned())
             .ok_or(
                 errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "request.redirect_response.payload",
+                    field_name: "request.redirect_response.payload".into(),
                 }
                 .into(),
             )
@@ -3358,115 +3386,6 @@ impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
     }
 }
 
-pub trait PaymentsPreProcessingRequestData {
-    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> i64;
-    fn get_minor_amount(&self) -> MinorUnit;
-    fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-    fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
-    fn connector_mandate_id(&self) -> Option<String>;
-    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
-    fn is_customer_initiated_mandate_payment(&self) -> bool;
-}
-
-impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
-    fn get_email(&self) -> Result<Email, Error> {
-        self.email.clone().ok_or_else(missing_field_err("email"))
-    }
-    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
-        self.payment_method_type
-            .to_owned()
-            .ok_or_else(missing_field_err("payment_method_type"))
-    }
-    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
-        self.payment_method_data
-            .to_owned()
-            .ok_or_else(missing_field_err("payment_method_data"))
-    }
-    fn get_currency(&self) -> Result<enums::Currency, Error> {
-        self.currency.ok_or_else(missing_field_err("currency"))
-    }
-    fn get_amount(&self) -> i64 {
-        self.amount
-    }
-
-    // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> MinorUnit {
-        self.minor_amount
-    }
-    fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(enums::CaptureMethod::Automatic)
-            | None
-            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(enums::CaptureMethod::Manual) => Ok(false),
-            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
-                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
-            }
-        }
-    }
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
-        self.order_details
-            .clone()
-            .ok_or_else(missing_field_err("order_details"))
-    }
-    fn get_webhook_url(&self) -> Result<String, Error> {
-        self.webhook_url
-            .clone()
-            .ok_or_else(missing_field_err("webhook_url"))
-    }
-    fn get_router_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
-        self.browser_info
-            .clone()
-            .ok_or_else(missing_field_err("browser_info"))
-    }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
-        self.complete_authorize_url
-            .clone()
-            .ok_or_else(missing_field_err("complete_authorize_url"))
-    }
-    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
-        self.redirect_response
-            .as_ref()
-            .and_then(|res| res.payload.to_owned())
-            .ok_or(
-                errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "request.redirect_response.payload",
-                }
-                .into(),
-            )
-    }
-    fn connector_mandate_id(&self) -> Option<String> {
-        self.mandate_id
-            .as_ref()
-            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_id()
-                }
-                Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
-                | None
-                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
-            })
-    }
-    fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage == Some(FutureUsage::OffSession)
-    }
-}
-
 pub trait BrowserInformationData {
     fn get_accept_header(&self) -> Result<String, Error>;
     fn get_language(&self) -> Result<String, Error>;
@@ -3632,14 +3551,14 @@ macro_rules! capture_method_not_supported {
     ($connector:expr, $capture_method:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
-            connector: $connector,
+            connector: $connector.into(),
         }
         .into())
     };
     ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for {}", $capture_method, $payment_method_type),
-            connector: $connector,
+            connector: $connector.into(),
         }
         .into())
     };
@@ -3648,7 +3567,8 @@ macro_rules! capture_method_not_supported {
 macro_rules! get_formatted_date_time {
     ($date_format:tt) => {{
         let format = time::macros::format_description!($date_format);
-        time::OffsetDateTime::now_utc()
+        common_utils::date_time::now()
+            .assume_utc()
             .format(&format)
             .change_context(ConnectorError::InvalidDateFormat)
     }};
@@ -3742,7 +3662,7 @@ impl ForeignTryFrom<String> for UsStatesAbbreviation {
                     "wisconsin" => Ok(Self::WI),
                     "wyoming" => Ok(Self::WY),
                     _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
+                        field_name: "address.state".into(),
                     }
                     .into()),
                 }
@@ -3776,7 +3696,7 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
                     "saskatchewan" => Ok(Self::SK),
                     "yukon" => Ok(Self::YT),
                     _ => Err(errors::ConnectorError::InvalidDataFormat {
-                        field_name: "address.state",
+                        field_name: "address.state".into(),
                     }
                     .into()),
                 }
@@ -3800,7 +3720,7 @@ impl ForeignTryFrom<String> for AustraliaStatesAbbreviation {
             "australiancapitalterritory" => Ok(Self::ACT),
             "tasmania" => Ok(Self::TAS),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -3832,7 +3752,7 @@ impl ForeignTryFrom<String> for PolandStatesAbbreviation {
                 "Warmia-Masuria" => Ok(Self::WarmiaMasuria),
                 "West Pomerania" => Ok(Self::WestPomerania),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -3972,7 +3892,7 @@ impl ForeignTryFrom<String> for FranceStatesAbbreviation {
                 "Yonne" => Ok(Self::Yonne),
                 "Yvelines" => Ok(Self::Yvelines),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4005,7 +3925,7 @@ impl ForeignTryFrom<String> for GermanyStatesAbbreviation {
                 "Schleswig-Holstein" => Ok(Self::SH),
                 "Thuringia" => Ok(Self::TH),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4086,7 +4006,7 @@ impl ForeignTryFrom<String> for SpainStatesAbbreviation {
                 "Zamora Province" => Ok(Self::ZamoraProvince),
                 "Zaragoza Province" => Ok(Self::ZaragozaProvince),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4144,7 +4064,7 @@ impl ForeignTryFrom<String> for ItalyStatesAbbreviation {
                 "Metropolitan City of Turin" => Ok(Self::Turin),
                 "Metropolitan City of Venice" => Ok(Self::Venice),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4205,7 +4125,7 @@ impl ForeignTryFrom<String> for JapanStatesAbbreviation {
             "yamaguchi" => Ok(Self::Yamaguchi),
             "yamanashi" => Ok(Self::Yamanashi),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -4296,7 +4216,7 @@ impl ForeignTryFrom<String> for ThailandStatesAbbreviation {
             "yala" => Ok(Self::Yala),
             "yasothon" => Ok(Self::Yasothon),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -4333,7 +4253,7 @@ impl ForeignTryFrom<String> for NorwayStatesAbbreviation {
                 "Vestfold" => Ok(Self::Vestfold),
                 "Østfold" => Ok(Self::Ostfold),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4362,7 +4282,7 @@ impl ForeignTryFrom<String> for AlbaniaStatesAbbreviation {
                 "Tiranë" => Ok(Self::Tirane),
                 "Vlorë" => Ok(Self::Vlore),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4386,7 +4306,7 @@ impl ForeignTryFrom<String> for AndorraStatesAbbreviation {
                 "Ordino" => Ok(Self::Ordino),
                 "Sant Julià de Lòria" => Ok(Self::SantJuliaDeLoria),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4412,7 +4332,7 @@ impl ForeignTryFrom<String> for AustriaStatesAbbreviation {
                 "Vienna" => Ok(Self::Vienna),
                 "Vorarlberg" => Ok(Self::Vorarlberg),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4470,7 +4390,7 @@ impl ForeignTryFrom<String> for RomaniaStatesAbbreviation {
                 "Vrancea County" => Ok(Self::VranceaCounty),
                 "Vâlcea County" => Ok(Self::ValceaCounty),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4507,7 +4427,7 @@ impl ForeignTryFrom<String> for PortugalStatesAbbreviation {
                 "Viseu District" => Ok(Self::ViseuDistrict),
                 "Évora District" => Ok(Self::EvoraDistrict),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4549,7 +4469,7 @@ impl ForeignTryFrom<String> for SwitzerlandStatesAbbreviation {
                 "canton of Bern" => Ok(Self::CantonOfBern),
                 "canton of Zürich" => Ok(Self::CantonOfZurich),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4650,7 +4570,7 @@ impl ForeignTryFrom<String> for NorthMacedoniaStatesAbbreviation {
                 "Šuto Orizari Municipality" => Ok(Self::ShutoOrizariMunicipality),
                 "Želino Municipality" => Ok(Self::ZelinoMunicipality),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4687,7 +4607,7 @@ impl ForeignTryFrom<String> for MontenegroStatesAbbreviation {
                 "Ulcinj Municipality" => Ok(Self::UlcinjMunicipality),
                 "Žabljak Municipality" => Ok(Self::ŽabljakMunicipality),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4705,7 +4625,7 @@ impl ForeignTryFrom<String> for MonacoStatesAbbreviation {
             Err(_) => match value.as_str() {
                 "Monaco" => Ok(Self::Monaco),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4737,7 +4657,7 @@ impl ForeignTryFrom<String> for NetherlandsStatesAbbreviation {
                 "Utrecht" => Ok(Self::Utrecht),
                 "Zeeland" => Ok(Self::Zeeland),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -4769,7 +4689,7 @@ impl ForeignTryFrom<String> for NewZealandStatesAbbreviation {
             "greaterwellington" | "tepanematuataiao" => Ok(Self::GreaterWellington),
             "westcoast" | "tetaiopoutini" => Ok(Self::WestCoast),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -4788,7 +4708,7 @@ impl ForeignTryFrom<String> for SingaporeStatesAbbreviation {
             "southeast" => Ok(Self::SouthEast),
             "southwest" => Ok(Self::SouthWest),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -4907,7 +4827,7 @@ impl ForeignTryFrom<String> for PhilippinesStatesAbbreviation {
             "tawitawi" => Ok(Self::TawiTawi),
             "timogsambuwangga" | "zamboangadelsur" => Ok(Self::TimogSambuwangga),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -4956,7 +4876,7 @@ impl ForeignTryFrom<String> for IndiaStatesAbbreviation {
             "uttarakhand" => Ok(Self::Uttarakhand),
             "westbengal" => Ok(Self::WestBengal),
             _ => Err(errors::ConnectorError::InvalidDataFormat {
-                field_name: "address.state",
+                field_name: "address.state".into(),
             }
             .into()),
         }
@@ -5010,7 +4930,7 @@ impl ForeignTryFrom<String> for MoldovaStatesAbbreviation {
                 "Șoldănești District" => Ok(Self::ȘoldăneștiDistrict),
                 "Ștefan Vodă District" => Ok(Self::ȘtefanVodăDistrict),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5096,7 +5016,7 @@ impl ForeignTryFrom<String> for LithuaniaStatesAbbreviation {
                 "Širvintos District Municipality" => Ok(Self::SirvintosDistrictMunicipality),
                 "Švenčionys District Municipality" => Ok(Self::SvencionysDistrictMunicipality),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5124,7 +5044,7 @@ impl ForeignTryFrom<String> for LiechtensteinStatesAbbreviation {
                 "Triesenberg" => Ok(Self::Triesenberg),
                 "Vaduz" => Ok(Self::Vaduz),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5240,7 +5160,7 @@ impl ForeignTryFrom<String> for LatviaStatesAbbreviation {
                 "Strenči Municipality" => Ok(Self::StrenčiMunicipality),
                 "Sēja Municipality" => Ok(Self::SējaMunicipality),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5325,7 +5245,7 @@ impl ForeignTryFrom<String> for MaltaStatesAbbreviation {
                 "Żejtun" => Ok(Self::Żejtun),
                 "Żurrieq" => Ok(Self::Żurrieq),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5349,7 +5269,7 @@ impl ForeignTryFrom<String> for BelarusStatesAbbreviation {
                 "Mogilev Region" => Ok(Self::MogilevRegion),
                 "Vitebsk Region" => Ok(Self::VitebskRegion),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5395,7 +5315,7 @@ impl ForeignTryFrom<String> for IrelandStatesAbbreviation {
                 "Munster" => Ok(Self::Munster),
                 "Ulster" => Ok(Self::Ulster),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5420,7 +5340,7 @@ impl ForeignTryFrom<String> for IcelandStatesAbbreviation {
                 "Western Region" => Ok(Self::WesternRegion),
                 "Westfjords" => Ok(Self::Westfjords),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5479,7 +5399,7 @@ impl ForeignTryFrom<String> for HungaryStatesAbbreviation {
                 "Zalaegerszeg" => Ok(Self::Zalaegerszeg),
                 "Érd" => Ok(Self::Erd),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5534,7 +5454,7 @@ impl ForeignTryFrom<String> for GreeceStatesAbbreviation {
                 "West Greece Region" => Ok(Self::WestGreeceRegion),
                 "West Macedonia Region" => Ok(Self::WestMacedoniaRegion),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5572,7 +5492,7 @@ impl ForeignTryFrom<String> for FinlandStatesAbbreviation {
                 "Uusimaa" => Ok(Self::Uusimaa),
                 "Åland Islands" => Ok(Self::AlandIslands),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5594,7 +5514,7 @@ impl ForeignTryFrom<String> for DenmarkStatesAbbreviation {
                 "Region Zealand" => Ok(Self::RegionZealand),
                 "Region of Southern Denmark" => Ok(Self::RegionOfSouthernDenmark),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5718,7 +5638,7 @@ impl ForeignTryFrom<String> for CzechRepublicStatesAbbreviation {
                 "Šumperk District" => Ok(Self::SumperkDistrict),
                 "Žďár nad Sázavou District" => Ok(Self::ZdarNadSazavouDistrict),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5755,7 +5675,7 @@ impl ForeignTryFrom<String> for CroatiaStatesAbbreviation {
                 "Zagreb County" => Ok(Self::ZagrebCounty),
                 "Šibenik-Knin County" => Ok(Self::SibenikKninCounty),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5800,7 +5720,7 @@ impl ForeignTryFrom<String> for BulgariaStatesAbbreviation {
                 "Vratsa Province" => Ok(Self::VratsaProvince),
                 "Yambol Province" => Ok(Self::YambolProvince),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -5832,7 +5752,7 @@ impl ForeignTryFrom<String> for BosniaAndHerzegovinaStatesAbbreviation {
                 "West Herzegovina Canton" => Ok(Self::WestHerzegovinaCanton),
                 "Zenica-Doboj Canton" => Ok(Self::ZenicaDobojCanton),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6108,7 +6028,7 @@ impl ForeignTryFrom<String> for UnitedKingdomStatesAbbreviation {
                 "Worcestershire" => Ok(Self::Worcestershire),
                 "Wrexham County Borough" => Ok(Self::WrexhamCountyBorough),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6138,7 +6058,7 @@ impl ForeignTryFrom<String> for BelgiumStatesAbbreviation {
                 "Walloon Brabant" => Ok(Self::WalloonBrabant),
                 "West Flanders" => Ok(Self::WestFlanders),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6170,7 +6090,7 @@ impl ForeignTryFrom<String> for LuxembourgStatesAbbreviation {
                 "Grevenmacher District" => Ok(Self::GrevenmacherDistrict),
                 "Luxembourg District" => Ok(Self::LuxembourgDistrict),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6270,7 +6190,7 @@ impl ForeignTryFrom<String> for RussiaStatesAbbreviation {
                 "Yaroslavl Oblast" => Ok(Self::YaroslavlOblast),
                 "Zabaykalsky Krai" => Ok(Self::ZabaykalskyKrai),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6296,7 +6216,7 @@ impl ForeignTryFrom<String> for SanMarinoStatesAbbreviation {
                 "San Marino" => Ok(Self::SanMarino),
                 "Serravalle" => Ok(Self::Serravalle),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6339,7 +6259,7 @@ impl ForeignTryFrom<String> for SerbiaStatesAbbreviation {
                 "Zlatibor District" => Ok(Self::ZlatiborDistrict),
                 "Šumadija District" => Ok(Self::ŠumadijaDistrict),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6364,7 +6284,7 @@ impl ForeignTryFrom<String> for SlovakiaStatesAbbreviation {
                 "Trnava Region" => Ok(Self::TrnavaRegion),
                 "Žilina Region" => Ok(Self::ZilinaRegion),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6401,7 +6321,7 @@ impl ForeignTryFrom<String> for SwedenStatesAbbreviation {
                 "Örebro County" => Ok(Self::ÖrebroCounty),
                 "Östergötland County" => Ok(Self::ÖstergötlandCounty),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6631,7 +6551,7 @@ impl ForeignTryFrom<String> for SloveniaStatesAbbreviation {
                 "Žirovnica Municipality" => Ok(Self::Žirovnica),
                 "Žužemberk Municipality" => Ok(Self::Žužemberk),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6675,7 +6595,7 @@ impl ForeignTryFrom<String> for UkraineStatesAbbreviation {
                 "Zaporizhzhya Oblast" => Ok(Self::ZaporizhzhyaOblast),
                 "Zhytomyr Oblast" => Ok(Self::ZhytomyrOblast),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6721,7 +6641,7 @@ impl ForeignTryFrom<String> for BrazilStatesAbbreviation {
                 "Sergipe" => Ok(Self::Sergipe),
                 "Tocantins" => Ok(Self::Tocantins),
                 _ => Err(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "address.state",
+                    field_name: "address.state".into(),
                 }
                 .into()),
             },
@@ -6841,12 +6761,13 @@ pub fn get_mandate_details(
             | Some(mandates::MandateDataType::MultiUse(Some(mandate))) => Ok(mandate.clone()),
             Some(mandates::MandateDataType::MultiUse(None)) => {
                 Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount",
+                    field_name: "setup_future_usage.mandate_data.mandate_type.multi_use.amount"
+                        .into(),
                 }
                 .into())
             }
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "setup_future_usage.mandate_data.mandate_type",
+                field_name: "setup_future_usage.mandate_data.mandate_type".into(),
             }
             .into()),
         })
@@ -6902,6 +6823,7 @@ pub enum PaymentMethodDataType {
     AmazonPay,
     AmazonPayRedirect,
     Skrill,
+    Neteller,
     Paysera,
     MomoRedirect,
     KakaoPayRedirect,
@@ -7053,6 +6975,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
                 payment_method_data::WalletData::AmazonPayRedirect(_) => Self::AmazonPayRedirect,
                 payment_method_data::WalletData::Skrill(_) => Self::Skrill,
+                payment_method_data::WalletData::Neteller(_) => Self::Neteller,
                 payment_method_data::WalletData::Paysera(_) => Self::Paysera,
                 payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
                 payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
@@ -7282,7 +7205,7 @@ impl ApplePay for payment_method_data::ApplePayWalletData {
             .payment_data
             .get_encrypted_apple_pay_payment_data_mandatory()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay encrypted data",
+                field_name: "Apple pay encrypted data".into(),
             })?;
         let token = Secret::new(
             String::from_utf8(
@@ -7491,11 +7414,11 @@ impl CardData for api_models::payouts::CardPayout {
             .to_string()
             .parse::<u8>()
             .map_err(|_| errors::ConnectorError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
+                field_name: "payment_method_data.card.card_exp_month".into(),
             })?;
         let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
+                field_name: "payment_method_data.card.card_exp_month".into(),
             }
         })?;
         Ok(Secret::new(month.two_digits()))
@@ -7843,6 +7766,9 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .clone(),
         feature_metadata: None,
         installment_details: None,
+        is_account_funded_transaction: data.request.is_account_funded_transaction,
+        recipient_details: data.request.recipient_details.clone(),
+        business_country: data.request.business_country,
         connector_intent_metadata: data.request.connector_intent_metadata.clone(),
     }
 }
@@ -7898,6 +7824,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
+        accept_amount_mismatch: data.accept_amount_mismatch,
         additional_merchant_data: data.additional_merchant_data.clone(),
         header_payload: data.header_payload.clone(),
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
@@ -7909,6 +7836,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
+        customer_date_of_birth: data.customer_date_of_birth.clone(),
         feature_data: data.feature_data.clone(),
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
@@ -7916,27 +7844,24 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
 }
 
 pub fn generate_12_digit_number() -> u64 {
-    let mut rng = rand::thread_rng();
-    rng.gen_range(100_000_000_000..=999_999_999_999)
+    const MIN: i64 = 100_000_000_000;
+    const MAX: i64 = 999_999_999_999;
+    u64::try_from(common_utils::generate_random_number_in_range(MIN, MAX))
+        .unwrap_or(100_000_000_000)
 }
 
 pub fn generate_random_string_containing_digits(min_len: usize, max_len: usize) -> String {
-    let mut rng = rand::thread_rng();
-    let len = rng.gen_range(min_len..=max_len);
+    common_utils::generate_random_numeric_string(random_length(min_len, max_len))
+}
 
-    (0..len)
-        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
-        .collect()
+/// Pick a length in `min_len..=max_len` through the seamed index draw.
+fn random_length(min_len: usize, max_len: usize) -> usize {
+    let span = max_len.saturating_sub(min_len).saturating_add(1);
+    min_len.saturating_add(common_utils::generate_random_index(span).unwrap_or(0))
 }
 
 pub fn generate_alphanumeric_code(min_len: usize, max_len: usize) -> String {
-    let mut rng = rand::thread_rng();
-    let len = rng.gen_range(min_len..=max_len);
-
-    rng.sample_iter(&rand::distributions::Alphanumeric)
-        .take(len)
-        .map(char::from)
-        .collect()
+    common_utils::generate_random_alphanumeric_string(random_length(min_len, max_len))
 }
 
 /// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.
@@ -7953,7 +7878,7 @@ pub fn normalize_string(value: String) -> Result<String, regex::Error> {
 fn normalize_state(value: String) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     normalize_string(value).map_err(|_e| {
         error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
-            field_name: "address.state",
+            field_name: "address.state".into(),
         })
     })
 }
@@ -7970,7 +7895,9 @@ where
     match StringExt::<T>::parse_enum(value.clone(), enum_name) {
         Ok(_) => Ok(value),
         Err(_) => normalize_state(value).map_err(|_e| {
-            error_stack::Report::new(errors::ConnectorError::InvalidDataFormat { field_name })
+            error_stack::Report::new(errors::ConnectorError::InvalidDataFormat {
+                field_name: field_name.into(),
+            })
         }),
     }
 }
@@ -8080,7 +8007,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
         self.customer_id
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             })
     }
 
@@ -8090,7 +8017,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
         self.name
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_name",
+                field_name: "customer_name".into(),
             })
     }
 
@@ -8098,7 +8025,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
         self.email
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_email",
+                field_name: "customer_email".into(),
             })
     }
 
@@ -8108,7 +8035,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
         self.phone
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_phone",
+                field_name: "customer_phone".into(),
             })
     }
 
@@ -8116,7 +8043,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
         self.phone_country_code
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_phone_country_code",
+                field_name: "customer_phone_country_code".into(),
             })
     }
 }
@@ -8129,7 +8056,7 @@ pub fn get_card_details(
         PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: connector_name,
+            connector: connector_name.into(),
         })?,
     }
 }
@@ -8149,6 +8076,80 @@ pub fn get_authorise_integrity_object<T>(
         amount: amount_in_minor_unit,
         currency: currency_enum,
     })
+}
+
+/// Returns the connector-reported amount as the captured amount when the payment is charged
+/// (fully or partially), `None` otherwise.
+pub fn get_amount_captured(status: AttemptStatus, amount: Option<MinorUnit>) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
+/// Returns the connector-reported amount as the capturable amount when the payment is
+/// authorized (fully or partially), `None` otherwise.
+pub fn get_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
 }
 
 pub fn get_sync_integrity_object<T>(

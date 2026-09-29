@@ -232,7 +232,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             .attach_printable("Missing authentication id in tracker")?;
 
         let currency = currency.ok_or(ApiErrorResponse::MissingRequiredField {
-            field_name: "currency",
+            field_name: "currency".into(),
         })?;
 
         let current_time = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
@@ -430,12 +430,12 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             pre_authentication_data: PreAuthenticationData {
                 threeds_server_transaction_id: authentication.threeds_server_transaction_id.ok_or(
                     ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.threeds_server_transaction_id",
+                        field_name: "authentication.threeds_server_transaction_id".into(),
                     },
                 )?,
                 message_version: authentication.message_version.ok_or(
                     ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.message_version",
+                        field_name: "authentication.message_version".into(),
                     },
                 )?,
                 acquirer_bin: authentication.acquirer_bin,
@@ -523,7 +523,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 authentication
                     .and_then(|auth| auth.threeds_server_transaction_id)
                     .ok_or(ApiErrorResponse::MissingRequiredField {
-                        field_name: "authentication.threeds_server_transaction_id",
+                        field_name: "authentication.threeds_server_transaction_id".into(),
                     })?,
             ),
             routing_region,
@@ -718,22 +718,15 @@ pub async fn authentication_create_core(
     let processor_merchant_account = platform.get_processor().get_account();
     let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         req.profile_id.as_ref(),
         db,
-        true,
     )
     .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    let profile_id = business_profile.get_id().to_owned();
     let organization_id = processor_merchant_account.organization_id.clone();
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
@@ -932,6 +925,7 @@ impl
                 phone_country_code: details.phone_country_code,
                 tax_registration_id: details.tax_registration_id,
                 document_details: details.customer_document_details,
+                date_of_birth: details.date_of_birth,
             })
         } else {
             None
@@ -1074,22 +1068,15 @@ pub async fn authentication_eligibility_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         req.profile_id.as_ref(),
         db,
-        true,
     )
     .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
@@ -1166,7 +1153,7 @@ pub async fn authentication_eligibility_core(
             let card_network = card_network
                 .get_required_value("card_network")
                 .change_context(ApiErrorResponse::MissingRequiredField {
-                    field_name: "card_network",
+                    field_name: "card_network".into(),
                 })
                 .attach_printable("Card network is mandatory for resolving acquirer details")?;
 
@@ -2584,7 +2571,7 @@ pub async fn get_session_token_for_click_to_pay(
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(ApiErrorResponse::MissingRequiredField {
-            field_name: "authentication_product_ids",
+            field_name: "authentication_product_ids".into(),
         })?;
     let key_manager_state = &state.into();
 

@@ -1473,7 +1473,7 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_dispute_id = req.request.connector_dispute_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "dispute_id",
+                field_name: "dispute_id".into(),
             },
         )?;
         Ok(format!(
@@ -1815,7 +1815,7 @@ impl ConnectorSpecifications for Worldpayvantiv {
         } else {
             let max_payment_reference_id_length =
                 worldpayvantiv::worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH;
-            nanoid::nanoid!(max_payment_reference_id_length)
+            common_utils::generate_nanoid_with_default_alphabet(max_payment_reference_id_length)
         }
     }
     #[cfg(feature = "v2")]

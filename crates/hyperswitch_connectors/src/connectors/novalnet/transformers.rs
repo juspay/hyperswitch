@@ -326,7 +326,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                                         .get_encrypted_google_pay_token()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "gpay wallet_token",
+                                                field_name: "gpay wallet_token".into(),
                                             },
                                         )?
                                         .clone(),
@@ -435,6 +435,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::CashappQr(_)
                     | WalletDataPaymentMethod::SwishQr(_)
                     | WalletDataPaymentMethod::WeChatPayQr(_)
+                    | WalletDataPaymentMethod::Neteller(_)
                     | WalletDataPaymentMethod::Mifinity(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -516,7 +517,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let connector_mandate_id = mandate_data.get_connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     },
                 )?;
 
@@ -1186,7 +1187,9 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
             let tid = novalnet_redirection_response.tid.ok_or(
-                errors::ConnectorError::MissingConnectorRedirectionPayload { field_name: "tid" },
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "tid".into(),
+                },
             )?;
 
             NovalnetSyncTransaction { tid }
@@ -1808,7 +1811,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                                     .tokenization_data
                                     .get_encrypted_google_pay_token()
                                     .change_context(errors::ConnectorError::MissingRequiredField {
-                                        field_name: "gpay wallet_token",
+                                        field_name: "gpay wallet_token".into(),
                                     })?
                                     .clone(),
                             ),
@@ -1915,6 +1918,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::CashappQr(_)
                 | WalletDataPaymentMethod::SwishQr(_)
                 | WalletDataPaymentMethod::WeChatPayQr(_)
+                | WalletDataPaymentMethod::Neteller(_)
                 | WalletDataPaymentMethod::Mifinity(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("novalnet"),

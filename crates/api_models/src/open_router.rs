@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use common_utils::{errors, id_type, types::MinorUnit};
+use common_utils::{errors, id_type, pii::EmailStrategy, types::MinorUnit};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -8,6 +8,7 @@ pub use euclid::{
         dir::{DirKeyKind, EuclidDirFilter},
     },
 };
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -34,10 +35,6 @@ pub struct OpenRouterDecideGatewayRequest {
     /// Algorithm to use for ranking and selecting gateways
     #[schema(value_type = Option<RankingAlgorithm>, example = "SR_BASED_ROUTING")]
     pub ranking_algorithm: Option<RankingAlgorithm>,
-
-    /// Whether elimination logic is enabled for filtering gateways
-    #[schema(value_type = Option<bool>, example = true)]
-    pub elimination_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -160,7 +157,9 @@ pub struct PaymentInfo {
     #[schema(value_type = String, example = "USD")]
     pub currency: Currency,
     // customerId: Option<ETCu::CustomerId>,
-    // preferredGateway: Option<ETG::Gateway>,
+    /// Ordered preferred connector account identities in `connector:mca_id` format.
+    #[schema(value_type = Option<Vec<String>>, example = json!(["adyen:mca_5678"]))]
+    pub preferred_connectors: Option<Vec<String>>,
     /// Type of payment transaction being processed
     #[schema(value_type = String, example = "ORDER_PAYMENT")]
     pub payment_type: String,
@@ -568,7 +567,7 @@ pub struct MerchantTokenRequest {
     /// Display only, so the dashboard can name the user rather than show a profile id.
     /// Authorization comes from the grant and permissions, never from this.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<Secret<String, EmailStrategy>>,
 }
 
 /// Account hierarchy pushed to the Decision Engine. A DE scope is a Hyperswitch profile; the
@@ -644,4 +643,39 @@ pub enum AlgorithmType {
     SuccessRate,
     Elimination,
     DebitRouting,
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::indexing_slicing)]
+mod preferred_connectors_tests {
+    use serde_json::json;
+
+    use super::PaymentInfo;
+
+    #[test]
+    fn preferred_connectors_uses_decision_engine_wire_contract() {
+        let payload = json!({
+            "paymentId": "pay_12345",
+            "amount": 100,
+            "currency": "CAD",
+            "preferredConnectors": ["loonio:mca_one"],
+            "paymentType": "ORDER_PAYMENT",
+            "paymentMethodType": "interac",
+            "paymentMethod": "bank_redirect"
+        });
+        let payment: PaymentInfo = serde_json::from_value(payload).expect("valid DE payment info");
+        assert_eq!(
+            payment.preferred_connectors,
+            Some(vec!["loonio:mca_one".to_string()])
+        );
+        let serialized = serde_json::to_value(payment).expect("serialize DE payment info");
+        assert_eq!(serialized["preferredConnectors"], json!(["loonio:mca_one"]));
+        for removed_field in [
+            "preferredConnector",
+            "preferredGateways",
+            "preferredGateway",
+        ] {
+            assert!(serialized.get(removed_field).is_none());
+        }
+    }
 }

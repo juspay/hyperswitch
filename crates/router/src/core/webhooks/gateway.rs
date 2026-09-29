@@ -12,7 +12,6 @@ use hyperswitch_interfaces::webhooks::{
 };
 use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
-use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
 
 #[cfg(feature = "v1")]
@@ -768,7 +767,7 @@ pub(super) async fn verify_webhook_source_via_connector(
 
     let connector_enum = api_models::enums::Connector::from_str(&ctx.connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| {
             format!("unable to parse connector name {:?}", ctx.connector_name)
@@ -885,6 +884,8 @@ fn build_ucs_headers_builder(
         .unwrap_or_else(|| consts::PROFILE_ID_UNAVAILABLE.clone());
     ctx.state
         .get_grpc_headers_ucs(mode)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(LineageIds::new(merchant_id, profile_id))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
@@ -900,7 +901,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
             .get_id()
             .get_string_repr(),
         ctx.connector_name,
-        OffsetDateTime::now_utc().unix_timestamp()
+        common_utils::date_time::now_unix_timestamp()
     )
 }
 

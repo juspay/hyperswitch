@@ -43,8 +43,8 @@ use hyperswitch_domain_models::router_flow_types::{
         Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
-        PostProcessing, PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+        PostProcessing, PostSessionTokens, PreAuthorizeVoid, PushNotification, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -87,13 +87,13 @@ pub use hyperswitch_domain_models::{
         PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData, ResponseId,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -128,11 +128,11 @@ pub use hyperswitch_interfaces::{
         IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
         PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
-        PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsPushNotificationType,
-        PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
-        RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
-        SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
-        UploadFileType, VerifyWebhookSourceType,
+        PaymentsPreAuthorizeType, PaymentsPushNotificationType, PaymentsSessionType,
+        PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType,
+        SetupMandateType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        VerifyWebhookSourceType,
     },
 };
 
@@ -150,8 +150,6 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
-pub type PaymentsPreProcessingRouterData =
-    RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPushNotificationRouterData =
     RouterData<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
 pub type PaymentsGenerateQrRouterData =
@@ -258,8 +256,6 @@ pub type SdkSessionUpdateResponseRouterData<R> =
     ResponseRouterData<SdkSessionUpdate, R, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<Capture, R, PaymentsCaptureData, PaymentsResponseData>;
-pub type PaymentsPreprocessingResponseRouterData<R> =
-    ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type TokenizationResponseRouterData<R> =
     ResponseRouterData<PaymentMethodToken, R, PaymentMethodTokenizationData, PaymentsResponseData>;
 pub type ConnectorCustomerResponseRouterData<R> =
@@ -1441,6 +1437,9 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             is_stored_credential: data.request.is_stored_credential,
             mit_category: None,
             billing_descriptor: data.request.billing_descriptor.clone(),
+            is_account_funded_transaction: data.request.is_account_funded_transaction,
+            recipient_details: data.request.recipient_details.clone(),
+            business_country: data.request.business_country,
             tokenization: None,
             partner_merchant_identifier_details: data
                 .request
@@ -1505,6 +1504,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            accept_amount_mismatch: data.accept_amount_mismatch,
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
             connector_mandate_request_reference_id: data
@@ -1521,6 +1521,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: data.customer_date_of_birth.clone(),
         }
     }
 }
@@ -1584,6 +1585,7 @@ impl<F1, F2>
             payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             header_payload: data.header_payload.clone(),
             authentication_id: None,
             psd2_sca_exemption_type: None,
@@ -1598,6 +1600,7 @@ impl<F1, F2>
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 }
@@ -1615,6 +1618,8 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                     max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
+                    max_hybrid_cascading_retry_count: revenue_recovery_metadata
+                        .max_hybrid_cascading_retry_count,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
@@ -1644,6 +1649,8 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                     max_retry_count: revenue_recovery_metadata.max_retry_count,
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
+                    max_hybrid_cascading_retry_count: revenue_recovery_metadata
+                        .max_hybrid_cascading_retry_count,
                     mca_reference,
                 })
             })

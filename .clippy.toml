@@ -4,6 +4,24 @@ allow-panic-in-tests = true
 allow-print-in-tests = true
 allow-unwrap-in-tests = true
 
+# Every read of the clock or of entropy goes through an instrumented function in
+# `common_utils`, so that a replay can reproduce it. The only code allowed to read
+# a raw source is a seam body itself, and each of those says so in an `#[allow]`
+# with a reason. "It is only telemetry" and "it is only a test" are not exceptions:
+# a raw read in either place is the one the next person copies onto a request path.
 disallowed-methods = [
   { path = "diesel::query_dsl::QueryDsl::into_boxed", reason = "dynamic list queries must be built via diesel_models::list::boxed_list_query! or diesel_models::list::into_boxed_list" },
+  { path = "time::OffsetDateTime::now_utc", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time (now, now_unix_timestamp, now_unix_timestamp_millis, now_rfc7231_http_date, date_as_yyyymmddthhmmssmmmz)" },
+  { path = "chrono::Utc::now", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time" },
+  { path = "std::time::SystemTime::now", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time" },
+  { path = "uuid::Uuid::new_v4", reason = "a v4 UUID is drawn from entropy and cannot be reproduced on replay; use common_utils::generate_uuid_v4" },
+  { path = "uuid::Uuid::now_v7", reason = "a v7 UUID is a timestamp plus 74 random bits, so neither the raw-clock nor the new_v4 entry catches it; use common_utils::generate_uuid_v7" },
+  { path = "rand::thread_rng", reason = "a random draw outside a seam cannot be reproduced on replay; use common_utils (generate_random_alphanumeric_string, generate_random_numeric_string, generate_random_bytes, generate_random_number_in_range, generate_random_index, generate_random_permutation, generate_random_f64_unit), or common_utils::crypto for key material" },
+  { path = "std::process::id", reason = "a process id differs between the recording process and the replay process; use common_utils::process_id" },
+  { path = "gethostname::gethostname", reason = "a hostname differs between the recording host and the replay host; use common_utils::hostname, which reads HOSTNAME from the environment (the pod name under Kubernetes)" },
+  { path = "rand::random", reason = "a random draw outside a seam cannot be reproduced on replay; use common_utils" },
+]
+
+disallowed-macros = [
+  { path = "nanoid::nanoid", reason = "a nanoid is drawn from entropy and cannot be reproduced on replay; use common_utils::generate_nanoid_with_default_alphabet, or generate_id / generate_id_with_len for the consts::ALPHABETS variants" },
 ]

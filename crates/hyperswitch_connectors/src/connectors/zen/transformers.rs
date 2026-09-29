@@ -500,6 +500,7 @@ impl
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
@@ -659,14 +660,14 @@ fn get_browser_details(
         .screen_height
         .get_required_value("screen_height")
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "screen_height",
+            field_name: "screen_height".into(),
         })?;
 
     let screen_width = browser_info
         .screen_width
         .get_required_value("screen_width")
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "screen_width",
+            field_name: "screen_width".into(),
         })?;
 
     let window_size = match (screen_height, screen_width) {

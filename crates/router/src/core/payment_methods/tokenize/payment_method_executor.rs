@@ -146,6 +146,18 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             card_type: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_type.clone()),
+            card_subtype: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.card_subtype.clone()),
+            card_segment_type: optional_card_info.as_ref().and_then(|card_info| {
+                card_info
+                    .card_segment_type
+                    .as_deref()
+                    .and_then(|segment_type| segment_type.parse().ok())
+            }),
+            funding_source: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.funding_source),
             card_issuing_country: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_issuing_country.clone()),
@@ -315,7 +327,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
+                field_name: "customer".into(),
             })?;
 
         let customer_id = payment_method
@@ -323,7 +335,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "customer",
+                field_name: "customer".into(),
             })
             .attach_printable("Missing customer_id in domain payment method")?;
 
@@ -387,6 +399,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
             document_details: None,
+            date_of_birth: None,
         };
 
         Ok((locker_id, customer_details))

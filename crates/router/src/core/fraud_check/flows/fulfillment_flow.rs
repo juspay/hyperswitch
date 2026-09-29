@@ -127,6 +127,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -144,6 +145,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }

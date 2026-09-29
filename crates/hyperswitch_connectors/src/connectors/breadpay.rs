@@ -313,20 +313,20 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
     ) -> CustomResult<String, errors::ConnectorError> {
         let redirect_response = req.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
         let redirect_payload = redirect_response
             .payload
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
+                field_name: "request.redirect_response.payload".into(),
             })?
             .expose();
         let call_back_response: CallBackResponse = serde_json::from_value::<CallBackResponse>(
             redirect_payload.clone(),
         )
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
-            field_name: "redirection_payload",
+            field_name: "redirection_payload".into(),
         })?;
 
         Ok(format!(
