@@ -8402,7 +8402,10 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
     cy.setConfigs(globalState, key, "1.0", "DELETE");
   });
 
-  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
+  // `ucs_enabled` is a global, non-connector-scoped flag, not something this
+  // spec owns. Deleting it here short-circuits `check_ucs_availability` to
+  // Disabled for every spec that runs after this one in the same run, so the
+  // payments suite silently stops reaching UCS. Leave it in place.
 });
 
 Cypress.Commands.add(
@@ -12621,4 +12624,110 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
+});
+
+// ---------------------------------------------------------------------------
+// GRACE step recorder
+//
+// Mochawesome cannot tell a real execution from a `TRIGGER_SKIP` early return:
+// the `it` block passes either way. This buffers one entry per HTTP call made
+// inside a flow command and flushes the buffer, through the `grace_record`
+// task in cypress.config.js, to the file named by the GRACE_RECORD environment
+// variable — so a run can be graded honestly.
+//
+// The entry is buffered when the response arrives, before any assertion runs,
+// and the flush happens in an afterEach, which runs whether the test passed or
+// failed. So a command that goes on to fail still leaves a record. Buffering is
+// deliberate: invoking cy.task() from inside the .then() of cy.request() makes
+// Cypress reject the whole command ("returned a promise ... while also invoking
+// one or more cy commands"). It is additive — every command is wrapped rather
+// than edited — and a failure to record never fails a test.
+// ---------------------------------------------------------------------------
+
+// Command name -> the flow marker the command exercises.
+const GRACE_RECORDED_FLOWS = {
+  createPaymentIntentTest: "PaymentIntent",
+  confirmCallTest: "Authorize",
+  createConfirmPaymentTest: "Authorize",
+  captureCallTest: "Capture",
+  voidCallTest: "Void",
+  retrievePaymentCallTest: "PSync",
+  refundCallTest: "Refund",
+  syncRefundCallTest: "RSync",
+};
+
+const graceBuffer = [];
+let graceCurrentStep = null;
+
+// Each wrapped command issues exactly one request, so the step is consumed on
+// the first record. That also stops a command that threw from mislabelling the
+// next unrelated request.
+const graceRecord = (extra) => {
+  if (!graceCurrentStep) return;
+  const step = graceCurrentStep;
+  graceCurrentStep = null;
+  graceBuffer.push({
+    ts: new Date().toISOString(),
+    ...step,
+    connector: Cypress.env("CONNECTOR") ?? null,
+    // Resolved from the router log by request_id; Hyperswitch does not return
+    // the chosen execution path on the wire.
+    execution_path: null,
+    ...extra,
+  });
+};
+
+Cypress.Commands.overwrite("request", (originalFn, ...args) =>
+  originalFn(...args).then((response) => {
+    graceRecord({
+      request_id: response?.headers?.["x-request-id"] ?? null,
+      http_status: response?.status ?? null,
+    });
+    return response;
+  })
+);
+
+Object.entries(GRACE_RECORDED_FLOWS).forEach(([commandName, flow]) => {
+  Cypress.Commands.overwrite(commandName, (originalFn, ...args) => {
+    // The connector-config entry sits at a different argument position per
+    // command, and retrievePaymentCallTest takes a single options object.
+    const single =
+      args.length === 1 && args[0] && typeof args[0] === "object"
+        ? args[0].data
+        : undefined;
+    const positional = args.find(
+      (arg) =>
+        arg &&
+        typeof arg === "object" &&
+        ("Configs" in arg || "Request" in arg || "Response" in arg)
+    );
+    const data = single || positional;
+    const triggerSkip = Boolean(data?.Configs?.TRIGGER_SKIP);
+
+    graceCurrentStep = {
+      flow,
+      command: commandName,
+      trigger_skip: triggerSkip,
+      request_id: null,
+      http_status: null,
+    };
+
+    // A TRIGGER_SKIP command issues no request at all, so record it here or it
+    // would be indistinguishable from a command that never ran.
+    if (triggerSkip) {
+      graceRecord({});
+    }
+
+    return originalFn(...args);
+  });
+});
+
+afterEach(() => {
+  graceCurrentStep = null;
+  if (!graceBuffer.length) return;
+  const entries = graceBuffer.splice(0, graceBuffer.length);
+  entries.forEach((entry) => {
+    entry.test = Cypress.currentTest?.titlePath?.join(" > ") ?? null;
+  });
+  cy.task("grace_record", entries, { log: false });
 });
