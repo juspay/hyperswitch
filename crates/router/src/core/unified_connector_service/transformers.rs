@@ -1505,7 +1505,7 @@ impl
             domain_data: None,
             // 3DS fields (UCS proto 17-24). UCS reads 3DS values only from these; the
             // `metadata` / `connector_feature_data` passthroughs never carry them.
-            merchant_details: None,
+            merchant_details: ucs_merchant_details(router_data.connector_meta_data.as_ref()),
             acquirer_details: None,
             device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
             sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
@@ -1568,6 +1568,45 @@ fn ucs_challenge_indicator(force_3ds_challenge: Option<bool>) -> Option<i32> {
     force_3ds_challenge
         .filter(|force| *force)
         .map(|_| i32::from(payments_grpc::ThreeDsRequestorChallengeIndicator::ChallengeMandated))
+}
+
+/// Builds the typed 3DS `merchant_details` (UCS proto field 17) from the connector's own
+/// metadata (`ThreeDsMetaData`). This is the only place UCS reads merchant identity for
+/// EMVCo's `merchant.mcc` / `merchant.merchantCountryCode` / `merchant.merchantName` — the
+/// `metadata` / `connector_feature_data` passthroughs never carry them.
+fn ucs_merchant_details(
+    connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<payments_grpc::MerchantDetails> {
+    let three_ds_meta = connector_meta_data.and_then(|meta| {
+        serde_json::from_value::<
+            router_request_types::unified_authentication_service::ThreeDsMetaData,
+        >(meta.clone().expose())
+        .ok()
+    })?;
+
+    let merchant_category_code = three_ds_meta
+        .merchant_category_code
+        .as_ref()
+        .and_then(|mcc| mcc.get_code().ok())
+        .map(u32::from);
+    let merchant_country_code = three_ds_meta
+        .merchant_country_code
+        .as_ref()
+        .and_then(|country| country.get_country_code().parse::<u32>().ok())
+        .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+        .map(common_enums::Country::to_alpha2)
+        .and_then(|alpha2| payments_grpc::CountryAlpha2::from_str_name(&alpha2.to_string()))
+        .map(i32::from);
+
+    (merchant_category_code.is_some()
+        || merchant_country_code.is_some()
+        || three_ds_meta.merchant_name.is_some())
+    .then_some(payments_grpc::MerchantDetails {
+        merchant_id: None,
+        merchant_category_code,
+        merchant_name: three_ds_meta.merchant_name,
+        merchant_country_code,
+    })
 }
 
 // External-vault-proxy variant of the Authenticate request builder above: the proxy has no
@@ -1675,7 +1714,7 @@ impl
             domain_data: None,
             // 3DS fields (UCS proto 17-24). UCS reads 3DS values only from these; the
             // `metadata` / `connector_feature_data` passthroughs never carry them.
-            merchant_details: None,
+            merchant_details: ucs_merchant_details(router_data.connector_meta_data.as_ref()),
             acquirer_details: None,
             device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
             sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),

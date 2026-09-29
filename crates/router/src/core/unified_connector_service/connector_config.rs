@@ -769,6 +769,10 @@ pub enum ConnectorSpecificConfig {
         merchant_configuration_id: Option<String>,
         three_ds_requestor_id: Option<String>,
         three_ds_requestor_name: Option<String>,
+        // UCS's `NetceteraConfig` proto message requires this field even when unset; omitting
+        // it here fails deserialization on the UCS side and silently falls back to legacy
+        // headers, dropping merchant_configuration_id/three_ds_requestor_id/name too.
+        base_url: Option<String>,
     },
     /// Santander payout connector configuration
     Santander {
@@ -1951,6 +1955,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     three_ds_requestor_name: three_ds_meta
                         .as_ref()
                         .and_then(|m| m.three_ds_requestor_name.clone()),
+                    base_url: None,
                 })
             }
             Connector::Santander => match auth {

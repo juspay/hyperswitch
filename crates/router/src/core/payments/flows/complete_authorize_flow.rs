@@ -930,6 +930,27 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         )
     });
 
+    // UCS reads acquirer data for the typed 3DS request only from `acquirer_details` (proto
+    // field 18); the `connector_feature_data` passthrough below is a separate, legacy channel
+    // that the typed contract does not read, so this needs to be set independently.
+    payment_authenticate_request.acquirer_details = acquirer_metadata.as_ref().and_then(|value| {
+        let as_str = |key: &str| value.get(key).and_then(|v| v.as_str()).map(str::to_owned);
+        let acquirer_bin = as_str("acquirer_bin");
+        let acquirer_merchant_id = as_str("acquirer_merchant_id");
+        let acquirer_country_code = as_str("acquirer_country_code")
+            .as_deref()
+            .and_then(payments_grpc::CountryAlpha2::from_str_name)
+            .map(i32::from);
+        (acquirer_bin.is_some()
+            || acquirer_merchant_id.is_some()
+            || acquirer_country_code.is_some())
+        .then_some(payments_grpc::AcquirerDetails {
+            acquirer_bin,
+            acquirer_merchant_id,
+            acquirer_country_code,
+        })
+    });
+
     payment_authenticate_request.connector_feature_data =
         ucs_core::build_connector_feature_data_from_auth_mca(
             &merchant_connector_account,
