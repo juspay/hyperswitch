@@ -130,15 +130,15 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
+      - name: Run cargo check
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
+
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
         run: just ci_hack
-
-      - name: Cargo build release
-        if: ${{ github.event_name == 'merge_group' }}
-        shell: bash
-        run: cargo check --features "release"
 
       - name: Show sccache stats
         if: always()
