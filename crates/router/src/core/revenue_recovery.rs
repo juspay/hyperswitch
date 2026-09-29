@@ -864,85 +864,85 @@ pub async fn perform_calculate_workflow(
     let grace_window_elapsed = grace_window_end
         .is_some_and(|grace_window_end| grace_window_end <= common_utils::date_time::now());
 
-    let (payment_processor_token_response, next_static_ladder_progress) =
-        if retry_budget_exhausted {
-            logger::info!(
-                process_id = %process.id,
-                retry_count = process.retry_count,
-                ?max_retry_count,
-                "Invoice reached the retry ceiling configured on the billing MCA"
-            );
-            (
-                revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted,
-                None,
-            )
-        } else if grace_window_elapsed {
-            logger::info!(
-                process_id = %process.id,
-                retry_count = process.retry_count,
-                ?grace_window_end,
-                "Invoice is past its recovery grace window"
-            );
-            (
-                revenue_recovery_workflow::PaymentProcessorTokenResponse::GraceWindowExpired,
-                None,
-            )
-        } else {
-            // The allowances the adaptive model needs, derived once here from the window
-            // established above rather than inside an arm. Unreachable as `None`: this arm is
-            // only taken when retries remain, and the window is computed — or errored — above.
-            let grace_window_end = grace_window_end
-                .ok_or(errors::RecoveryError::ValueNotFound)
-                .attach_printable("Cannot derive the recovery allowances: the grace window is unset")?;
-
-            let remaining_grace_days = u32::try_from(
-                (grace_window_end - common_utils::date_time::now())
-                    .whole_days()
-                    .max(0),
-            )
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("The days left in the grace window do not fit a day count")?;
-
-            let retries_already_made = u32::try_from(process.retry_count)
-                .change_context(errors::RecoveryError::ValueNotFound)
-                .attach_printable("Failed to read how many retries have already been made")?;
-
-            // Saturating so an invoice already past its ceiling reads as no budget left rather
-            // than wrapping to an enormous one.
-            let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
-
-            // 3. Get best available token
-            match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
-                state,
-                &connector_customer_id,
-                payment_intent,
-                revenue_recovery_payment_data.billing_mca.connector_name,
-                retry_algorithm_type,
-                process.retry_count,
-                tracking_data,
-                &static_ladder_progress,
-                max_retry_count,
-                platform.get_provider().get_provider_merchant_id(),
-                remaining_grace_days,
-                remaining_budget,
-                revenue_recovery_payment_data,
+    let (payment_processor_token_response, next_static_ladder_progress) = if retry_budget_exhausted
+    {
+        logger::info!(
+            process_id = %process.id,
+            retry_count = process.retry_count,
+            ?max_retry_count,
+            "Invoice reached the retry ceiling configured on the billing MCA"
+        );
+        (
+            revenue_recovery_workflow::PaymentProcessorTokenResponse::RetriesExhausted,
+            None,
         )
-            .await
-            {
-                Ok(token_and_schedule) => token_and_schedule,
-                Err(e) => {
-                    logger::error!(
-                        error = ?e,
-                        connector_customer_id = %connector_customer_id,
-                        "Failed to get best PSP token"
-                    );
-                    (
-                        revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
-                        None,
-                    )
-                }
+    } else if grace_window_elapsed {
+        logger::info!(
+            process_id = %process.id,
+            retry_count = process.retry_count,
+            ?grace_window_end,
+            "Invoice is past its recovery grace window"
+        );
+        (
+            revenue_recovery_workflow::PaymentProcessorTokenResponse::GraceWindowExpired,
+            None,
+        )
+    } else {
+        // The allowances the adaptive model needs, derived once here from the window
+        // established above rather than inside an arm. Unreachable as `None`: this arm is
+        // only taken when retries remain, and the window is computed — or errored — above.
+        let grace_window_end = grace_window_end
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Cannot derive the recovery allowances: the grace window is unset")?;
+
+        let remaining_grace_days = u32::try_from(
+            (grace_window_end - common_utils::date_time::now())
+                .whole_days()
+                .max(0),
+        )
+        .change_context(errors::RecoveryError::ValueNotFound)
+        .attach_printable("The days left in the grace window do not fit a day count")?;
+
+        let retries_already_made = u32::try_from(process.retry_count)
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to read how many retries have already been made")?;
+
+        // Saturating so an invoice already past its ceiling reads as no budget left rather
+        // than wrapping to an enormous one.
+        let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
+
+        // 3. Get best available token
+        match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
+            state,
+            &connector_customer_id,
+            payment_intent,
+            revenue_recovery_payment_data.billing_mca.connector_name,
+            retry_algorithm_type,
+            process.retry_count,
+            tracking_data,
+            &static_ladder_progress,
+            max_retry_count,
+            platform.get_provider().get_provider_merchant_id(),
+            remaining_grace_days,
+            remaining_budget,
+            revenue_recovery_payment_data,
+        )
+        .await
+        {
+            Ok(token_and_schedule) => token_and_schedule,
+            Err(e) => {
+                logger::error!(
+                    error = ?e,
+                    connector_customer_id = %connector_customer_id,
+                    "Failed to get best PSP token"
+                );
+                (
+                    revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
+                    None,
+                )
             }
-        };
+        }
+    };
 
     match payment_processor_token_response {
         revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
