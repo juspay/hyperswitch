@@ -37,6 +37,14 @@ pub struct RedisSettings {
     /// Password for Redis `AUTH` / ACL authentication.
     /// When unset, the connection handshake is unauthenticated.
     pub password: Option<Secret<String>>,
+    /// When `true`, connect over TLS (the `rediss://` scheme). Required by
+    /// most managed Redis offerings, e.g. AWS ElastiCache with encryption in
+    /// transit, Azure Cache for Redis, or Redis Cloud with TLS enabled.
+    ///
+    /// The server certificate is verified against the platform's trusted CA
+    /// roots; a private CA can be supplied through the standard
+    /// `SSL_CERT_FILE` / `SSL_CERT_DIR` environment variables.
+    pub tls_enabled: bool,
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
@@ -161,6 +169,7 @@ impl Default for RedisSettings {
             port: 6379,
             username: None,
             password: None,
+            tls_enabled: false,
             cluster_enabled: false,
             cluster_urls: vec![],
             use_legacy_version: false,
@@ -507,6 +516,7 @@ mod tests {
         let settings = RedisSettings::default();
         assert_eq!(settings.host, "127.0.0.1");
         assert_eq!(settings.port, 6379);
+        assert!(!settings.tls_enabled);
         assert!(!settings.cluster_enabled);
         assert!(settings.cluster_urls.is_empty());
         assert!(!settings.use_legacy_version);

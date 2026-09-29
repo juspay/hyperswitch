@@ -621,13 +621,30 @@ impl RedisConnectionPool {
 
 // ─── RedisSettings helpers (redis-rs backend only) ────────────────────────────
 
+/// Ensure a process-level rustls crypto provider is installed before any TLS
+/// configuration is built.
+///
+/// `rustls` resolves its cryptography backend through a process-global default.
+/// When several crates in the final binary enable different provider features,
+/// that default becomes ambiguous and `rustls` panics at connection time
+/// instead of picking one. Installing a provider explicitly makes the choice
+/// deterministic; if another component has already installed one, that
+/// installation is kept.
+fn ensure_tls_crypto_provider() {
+    static INSTALL_ONCE: std::sync::Once = std::sync::Once::new();
+    INSTALL_ONCE.call_once(|| {
+        // An `Err` here means a provider is already installed, which is fine.
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    });
+}
+
 impl crate::types::RedisSettings {
     /// Normalize cluster URLs by prepending `"redis://"` if the scheme is missing.
     pub(crate) fn normalize_cluster_urls(&self) -> Vec<String> {
         self.cluster_urls
             .iter()
             .map(|url| {
-                if url.starts_with("redis://") {
+                if url.starts_with("redis://") || url.starts_with("rediss://") {
                     url.clone()
                 } else {
                     format!("redis://{url}")
@@ -651,6 +668,15 @@ impl crate::types::RedisSettings {
         })
     }
 
+    /// The URL scheme matching the configured transport security.
+    fn redis_url_scheme(&self) -> &'static str {
+        if self.tls_enabled {
+            "rediss"
+        } else {
+            "redis"
+        }
+    }
+
     /// Build standalone connection info with RESP3 protocol from host and port.
     pub(crate) fn build_standalone_connection_info(
         &self,
@@ -658,7 +684,11 @@ impl crate::types::RedisSettings {
         use error_stack::ResultExt;
         use redis::IntoConnectionInfo;
 
-        let connection_url = format!("redis://{}:{}", self.host, self.port);
+        if self.tls_enabled {
+            ensure_tls_crypto_provider();
+        }
+
+        let connection_url = format!("{}://{}:{}", self.redis_url_scheme(), self.host, self.port);
         let mut connection_info = connection_url
             .as_str()
             .into_connection_info()
@@ -721,6 +751,10 @@ impl crate::types::RedisSettings {
         if let Some(password) = self.auth_password() {
             builder = builder.password(password);
         }
+        if self.tls_enabled {
+            ensure_tls_crypto_provider();
+            builder = builder.tls(redis::TlsMode::Secure);
+        }
 
         builder
     }
@@ -745,5 +779,60 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             unresponsive_check_interval: config.unresponsive_check_interval,
             max_failure_threshold_seconds: config.max_failure_threshold_seconds,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::RedisSettings;
+
+    #[test]
+    fn test_standalone_connection_uses_plain_tcp_by_default() {
+        let settings = RedisSettings::default();
+        let connection_info = settings
+            .build_standalone_connection_info()
+            .expect("failed to build connection info");
+        assert!(matches!(
+            connection_info.addr(),
+            redis::ConnectionAddr::Tcp(..)
+        ));
+    }
+
+    #[test]
+    fn test_standalone_connection_uses_tls_when_enabled() {
+        let settings = RedisSettings {
+            tls_enabled: true,
+            ..RedisSettings::default()
+        };
+        let connection_info = settings
+            .build_standalone_connection_info()
+            .expect("failed to build connection info");
+        assert!(matches!(
+            connection_info.addr(),
+            redis::ConnectionAddr::TcpTls {
+                insecure: false,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn test_normalize_cluster_urls_keeps_existing_schemes() {
+        let settings = RedisSettings {
+            cluster_urls: vec![
+                "127.0.0.1:7000".to_string(),
+                "redis://127.0.0.1:7001".to_string(),
+                "rediss://127.0.0.1:7002".to_string(),
+            ],
+            ..RedisSettings::default()
+        };
+        assert_eq!(
+            settings.normalize_cluster_urls(),
+            vec![
+                "redis://127.0.0.1:7000".to_string(),
+                "redis://127.0.0.1:7001".to_string(),
+                "rediss://127.0.0.1:7002".to_string(),
+            ]
+        );
     }
 }

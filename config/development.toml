@@ -113,6 +113,11 @@ port = 6379
 # `default` user); setting `username` requires `password`.
 # username = "default"
 # password = ""
+# Connect over TLS (`rediss://`); required by most managed Redis offerings
+# (e.g. ElastiCache with encryption in transit, Redis Cloud with TLS). The
+# server certificate is verified against the platform's trusted CA roots;
+# a private CA can be supplied via the `SSL_CERT_FILE` environment variable.
+# tls_enabled = true
 pool_size = 5
 reconnect_max_attempts = 5
 reconnect_delay = 5

@@ -242,6 +242,15 @@ impl RedisConnectionPool {
         config.username = conf.auth_username().map(ToOwned::to_owned);
         config.password = conf.auth_password().map(ToOwned::to_owned);
 
+        if conf.tls_enabled {
+            // Verifies the server against the platform's trusted CA roots
+            // (`SSL_CERT_FILE` / `SSL_CERT_DIR` can supply additional ones).
+            let tls_connector = fred::types::TlsConnector::default_rustls()
+                .change_context(crate::errors::RedisError::RedisConnectionError)
+                .attach_printable("Failed to build the TLS configuration for Redis")?;
+            config.tls = Some(tls_connector.into());
+        }
+
         let perf = fred::types::PerformanceConfig {
             auto_pipeline: conf.auto_pipeline,
             default_command_timeout: std::time::Duration::from_secs(conf.default_command_timeout),
