@@ -1,10 +1,6 @@
 //! Mock Router tests exercise the same authorization policy as both public endpoints.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use super::*;
-use crate::core::router_client::RouterClient;
-use actix_web::{test, web, App, HttpRequest, HttpResponse, HttpServer};
-use serde_json::{json, Value};
 use std::{
     net::TcpListener,
     sync::{
@@ -12,6 +8,12 @@ use std::{
         Arc,
     },
 };
+
+use actix_web::{test, web, App, HttpRequest, HttpResponse, HttpServer};
+use serde_json::{json, Value};
+
+use super::*;
+use crate::core::router_client::RouterClient;
 
 #[actix_web::test]
 async fn session_cookie_and_fail_closed_contract() {
