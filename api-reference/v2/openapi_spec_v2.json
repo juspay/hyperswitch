@@ -8652,7 +8652,27 @@
           "vanquis_bank",
           "vestjysk_bank",
           "voss_sparebank",
-          "yorkshire_building_society"
+          "yorkshire_building_society",
+          "spare_bank1_gudbrandsdal",
+          "spare_bank1_hallingdal_valdres",
+          "spare_bank1_lom_og_skjak",
+          "spare_bank1_modum",
+          "spare_bank1_nordmore",
+          "spare_bank1_ringerike_hadeland",
+          "spare_bank1_smn",
+          "spare_bank1_sr_bank",
+          "spare_bank1_sore_sunnmore",
+          "spare_bank1_sorost_norge_bv",
+          "spare_bank1_sorost_norge_telemark",
+          "spare_bank1_ostfold_akershus",
+          "spare_bank1_ostlandet",
+          "citi_handlowy",
+          "deutsche_bank_polska",
+          "ing_bank_slaski",
+          "ing_diba",
+          "nordea_direct",
+          "santander_uk",
+          "swedbank_sparbankerna"
         ]
       },
       "BankRedirect": {
