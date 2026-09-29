@@ -1101,3 +1101,15 @@ config! {
 impl DatabaseBackedConfig for PayoutBlocklistGuard {
     const KEY: &'static str = "payout_blocklist_guard";
 }
+
+config! {
+    superposition_key = ACCEPT_PAYMENT_AMOUNT_MISMATCH,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndPaymentMethodType,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for AcceptPaymentAmountMismatch {
+    const KEY: &'static str = "accept_payment_amount_mismatch";
+}

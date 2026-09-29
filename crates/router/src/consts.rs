@@ -541,6 +541,10 @@ pub mod superposition {
         "routing.preferred_connectors_enabled_payment_method_types";
     /// Payout blocklist guard configuration key
     pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
+    /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
+    /// and payment method type). When enabled, a connector-reported payment amount that differs
+    /// from the requested amount does not fail the integrity check. Refunds are not affected.
+    pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
