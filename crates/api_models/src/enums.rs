@@ -652,21 +652,43 @@ pub enum TokenStatus {
 
 /// Enum representing the allowed intent statuses for manual status update
 /// Only Succeeded and Failed are valid transitions from Review state
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[derive(
+    Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ManualUpdateIntentStatus {
     /// Transition the payment to succeeded state
     Succeeded,
     /// Transition the payment to failed state
     Failed,
+    /// Transition the payment to partially captured state
+    PartiallyCaptured,
+    /// Transition the payment to requires capture state
+    RequiresCapture,
+    /// Transition the payment to partially authorized, requires capture state
+    PartiallyAuthorizedAndRequiresCapture,
+    /// Transition the payment to partially captured and still capturable state
+    PartiallyCapturedAndCapturable,
 }
 
 impl ManualUpdateIntentStatus {
-    /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus
-    pub fn to_intent_status(&self) -> IntentStatus {
+    /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus.
+    /// Goes via `to_attempt_status()` and the existing `AttemptStatus -> IntentStatus`
+    /// conversion, rather than hand-maintaining a second, independent mapping that could
+    /// drift out of sync with it.
+    pub fn to_intent_status(self) -> IntentStatus {
+        self.to_attempt_status().into()
+    }
+
+    /// Convert ManualUpdateIntentStatus to the corresponding AttemptStatus
+    pub fn to_attempt_status(self) -> AttemptStatus {
         match self {
-            Self::Succeeded => IntentStatus::Succeeded,
-            Self::Failed => IntentStatus::Failed,
+            Self::Succeeded => AttemptStatus::Charged,
+            Self::Failed => AttemptStatus::Failure,
+            Self::PartiallyCaptured => AttemptStatus::PartialCharged,
+            Self::RequiresCapture => AttemptStatus::Authorized,
+            Self::PartiallyAuthorizedAndRequiresCapture => AttemptStatus::PartiallyAuthorized,
+            Self::PartiallyCapturedAndCapturable => AttemptStatus::PartialChargedAndChargeable,
         }
     }
 }

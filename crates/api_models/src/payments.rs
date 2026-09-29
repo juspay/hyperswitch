@@ -11953,10 +11953,12 @@ pub struct PaymentsManualUpdateResponse {
     pub amount_captured: Option<MinorUnit>,
 }
 
-/// Request to manually update payment status from Review state (Dashboard API)
+/// Request to manually update payment status from the Review or Conflicted state (Dashboard API)
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsManualStatusUpdateRequest {
-    /// The target status to transition to (Succeeded or Failed)
+    /// The target status to transition to. From `review`, only Succeeded or Failed are valid;
+    /// from `conflicted`, the valid subset is returned by the `/manual-status-update` (GET)
+    /// eligibility check.
     pub intent_status: enums::ManualUpdateIntentStatus,
 }
 
@@ -11971,6 +11973,17 @@ pub struct PaymentsManualStatusUpdateResponse {
     pub intent_status: enums::IntentStatus,
     /// The updated status of the attempt
     pub attempt_status: enums::AttemptStatus,
+}
+
+/// Response listing which statuses a payment is currently eligible for a manual status update
+/// to. Only returned for payments in the `conflicted` state.
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateEligibleStatusesResponse {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The statuses that a manual status update for this payment may currently target,
+    /// computed from the payment's capture method and requested/received/capturable amounts.
+    pub eligible_statuses: HashSet<enums::ManualUpdateIntentStatus>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
