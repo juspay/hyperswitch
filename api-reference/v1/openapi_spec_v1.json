@@ -19654,6 +19654,7 @@
           "envoy",
           "elavon",
           "etisalat",
+          "elavon_pg",
           "facilitapay",
           "finix",
           "fiserv",
@@ -32296,6 +32297,17 @@
             "type": "string",
             "description": "Currency code for the payment",
             "example": "USD"
+          },
+          "preferredConnectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ordered preferred connector account identities in `connector:mca_id` format.",
+            "example": [
+              "adyen:mca_5678"
+            ],
+            "nullable": true
           },
           "paymentType": {
             "type": "string",
@@ -45713,6 +45725,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "elavon_pg",
           "envoy",
           "etisalat",
           "facilitapay",

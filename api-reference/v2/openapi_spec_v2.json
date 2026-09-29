@@ -12409,6 +12409,7 @@
           "envoy",
           "elavon",
           "etisalat",
+          "elavon_pg",
           "facilitapay",
           "finix",
           "fiserv",
@@ -25319,6 +25320,14 @@
             "description": "First Payment Attempt Network Advice Code",
             "example": "02",
             "nullable": true
+          },
+          "revenue_recovery_ab_routing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryABAlgorithm"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31916,6 +31925,13 @@
           }
         }
       },
+      "RevenueRecoveryABAlgorithm": {
+        "type": "string",
+        "description": "The retry implementations available within the `Smart` arm of revenue recovery.",
+        "enum": [
+          "adaptive_retry"
+        ]
+      },
       "RevenueRecoveryAlgorithmType": {
         "type": "string",
         "enum": [
@@ -32118,6 +32134,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "elavon_pg",
           "envoy",
           "etisalat",
           "facilitapay",
@@ -34938,9 +34955,16 @@
             "enum": [
               "Unset"
             ]
+          },
+          {
+            "type": "string",
+            "description": "Leave the active attempt id as it is.",
+            "enum": [
+              "NoAction"
+            ]
           }
         ],
-        "description": "Whether active attempt is to be set/unset"
+        "description": "Whether active attempt is to be set/unset/left alone"
       },
       "UpdateApiKeyRequest": {
         "type": "object",
