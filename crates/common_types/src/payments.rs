@@ -1805,10 +1805,8 @@ impl_to_sql_from_sql_json!(AppliedOfferDetails);
 #[derive(
     Clone,
     Debug,
-    Default,
     serde::Deserialize,
     Eq,
-    ToSchema,
     PartialEq,
     serde::Serialize,
     diesel::AsExpression,
@@ -1816,7 +1814,6 @@ impl_to_sql_from_sql_json!(AppliedOfferDetails);
 #[diesel(sql_type = Jsonb)]
 pub struct AppliedOverrides {
     /// Capture method actually sent to the connector for this attempt
-    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method_applied: Option<enums::CaptureMethod>,
 }
 

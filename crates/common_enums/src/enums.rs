@@ -4098,7 +4098,6 @@ pub enum SplitTxnsEnabled {
     Clone,
     Debug,
     Copy,
-    Default,
     Eq,
     Hash,
     PartialEq,
@@ -4106,7 +4105,6 @@ pub enum SplitTxnsEnabled {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
@@ -4115,7 +4113,6 @@ pub enum AutoFallbackCaptureMethod {
     /// Fall back to automatic capture when the requested capture method is unsupported
     Enabled,
     /// Reject the payment when the requested capture method is unsupported
-    #[default]
     Disabled,
 }
 
