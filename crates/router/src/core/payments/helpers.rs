@@ -5453,7 +5453,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payout_id: router_data.payout_id,
         connector_response: router_data.connector_response,
         integrity_check: Ok(()),
-        accept_amount_mismatch: None,
+        accept_amount_mismatch: router_data.accept_amount_mismatch,
         connector_wallets_details: router_data.connector_wallets_details,
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,

@@ -210,7 +210,6 @@ where
                     Ok(enums::AttemptStatus::Authorized)
                 }
             }
-
             enums::AttemptStatus::CaptureFailed => {
                 // If the intent has already been marked successful but we receive a CaptureFailed event for the payment attempt (via webhook), mark it as Review
                 if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
