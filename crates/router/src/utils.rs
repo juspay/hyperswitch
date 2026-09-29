@@ -122,7 +122,8 @@ pub mod error_parser {
 #[inline]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
+    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,
+        on_miss = format!("{}_{}", prefix, common_utils::synth_shape::over(&__deja_miss, &consts::ALPHABETS, length)),)
 )]
 #[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
