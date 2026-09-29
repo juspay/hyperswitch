@@ -1376,7 +1376,8 @@ impl DisputeInterface for MockDb {
     }
 }
 
-#[cfg(all(test, feature = "v1"))]
+#[cfg(test)]
+#[cfg(feature = "v1")]
 mod tests {
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
