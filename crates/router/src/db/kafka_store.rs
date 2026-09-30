@@ -668,6 +668,28 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_disputes_by_constraints_for_platform(platform_merchant_id, dispute_constraints)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_disputes_count_for_platform(platform_merchant_id, dispute_constraints)
+            .await
+    }
+
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -1674,6 +1696,17 @@ impl QueueInterface for KafkaStore {
             .await
     }
 
+    async fn consumer_group_remove_consumer(
+        &self,
+        stream: &str,
+        group: &str,
+        consumer: &str,
+    ) -> CustomResult<(), RedisError> {
+        self.diesel_store
+            .consumer_group_remove_consumer(stream, group, consumer)
+            .await
+    }
+
     async fn acquire_pt_lock(
         &self,
         tag: &str,
@@ -2196,6 +2229,34 @@ impl PaymentIntentInterface for KafkaStore {
                 key_store,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<
+        Vec<(
+            diesel_models::PaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .get_filtered_payment_intents_attempt_for_platform(platform_merchant_id, filters)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_intents_attempt_count_for_platform(platform_merchant_id, filters)
             .await
     }
 
@@ -3203,6 +3264,35 @@ impl RefundInterface for KafkaStore {
                 limit,
                 offset,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn filter_refund_by_platform_merchant_id(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
+    ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_platform_merchant_id(
+                platform_merchant_id,
+                refund_details,
+                limit,
+                offset,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_total_count_of_refunds_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_refunds_for_platform(platform_merchant_id, refund_details)
             .await
     }
 

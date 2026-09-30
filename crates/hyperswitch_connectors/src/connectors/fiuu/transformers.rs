@@ -190,7 +190,7 @@ impl TryFrom<BankNames> for BankCode {
             BankNames::OcbcBank => Ok(Self::OCBCMYKL),
             bank => Err(errors::ConnectorError::NotSupported {
                 message: format!("Invalid BankName for FPX Refund: {bank:?}"),
-                connector: "Fiuu",
+                connector: "Fiuu".into(),
             })?,
         }
     }

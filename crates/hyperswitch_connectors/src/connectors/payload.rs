@@ -1195,6 +1195,7 @@ impl webhooks::IncomingWebhook for Payload {
             connector_status: webhook_body.trigger.as_str().to_string(),
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 
@@ -1423,7 +1424,7 @@ impl ConnectorSpecifications for Payload {
             }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Scope type not supported".to_string(),
-                connector: "Payload",
+                connector: "Payload".into(),
             })?,
         }
     }
