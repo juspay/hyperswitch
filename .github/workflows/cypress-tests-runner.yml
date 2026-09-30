@@ -4,7 +4,22 @@ on:
   merge_group:
     types:
       - checks_requested
+  # `labeled` is what makes the gating label usable. The default event types
+  # are opened, synchronize and reopened, so adding S-test-ready to an open
+  # pull request would not start anything at all.
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
+      - ready_for_review
+  # Escape hatches for the heaviest suites, which are otherwise only reachable
+  # through S-test-full.
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
 
 permissions:
   contents: read
@@ -33,7 +48,15 @@ env:
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
-  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+  # Secrets are only available to checkouts we trust, so a pull request from a
+  # fork runs no tests here and self skips through this flag. The merge queue
+  # and the scheduled and manually dispatched runs are ours, so they run.
+  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group') || (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch')}}
+  # Budget for the label driven runs of a single commit. Both can be raised
+  # through repository variables, so nobody has to edit this file to change
+  # how often the suite can be re-triggered on one push.
+  CYPRESS_RATE_LIMIT_MAX_RUNS: ${{ vars.CYPRESS_RATE_LIMIT_MAX_RUNS || '3' }}
+  CYPRESS_RATE_LIMIT_WINDOW_MINUTES: ${{ vars.CYPRESS_RATE_LIMIT_WINDOW_MINUTES || '60' }}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 16777216
 
@@ -102,41 +125,43 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run-checks: ${{ steps.check.outputs.run-checks }}
+      run-heavy: ${{ steps.check.outputs.run-heavy }}
+      reason: ${{ steps.check.outputs.reason }}
     steps:
-      - name: Check if S-test-ready label is present
+      - name: Decide whether the Cypress suites should run
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          # Merge queue, run checks
-          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
-            echo "run-checks=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
+          bash .github/scripts/cypress-prerequisites.sh \
+            --event "${{ github.event_name }}" \
+            --label "${{ github.event.label.name }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --head-repo "${{ github.event.pull_request.head.repo.full_name }}" \
+            --base-repo "${{ github.event.pull_request.base.repo.full_name }}" \
+            --max-runs "${CYPRESS_RATE_LIMIT_MAX_RUNS}" \
+            --window-minutes "${CYPRESS_RATE_LIMIT_WINDOW_MINUTES}"
 
-          HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
-          BASE_REPO="${{ github.event.pull_request.base.repo.full_name }}"
-          # Repository is a fork.
-          # `RUN_TESTS` based checks successfully skip the checks anyway,
-          # no point gating it behind a label in that case.
-          if [[ "${HEAD_REPO}" != "${BASE_REPO}" ]]; then
-            echo "run-checks=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          LABELS=$(
-            gh pr view ${{ github.event.pull_request.number }} \
-              --repo ${{ github.repository }} \
-              --json labels \
-              --jq '.labels[].name'
-          )
-          if echo "${LABELS}" | grep --quiet "S-test-ready"; then
-            echo "run-checks=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "run-checks=false" >> "${GITHUB_OUTPUT}"
-            exit 1
-          fi
+      - name: Record the decision in the run summary
+        if: ${{ always() }}
+        shell: bash
+        env:
+          RUN_CHECKS: ${{ steps.check.outputs.run-checks }}
+          RUN_HEAVY: ${{ steps.check.outputs.run-heavy }}
+          REASON: ${{ steps.check.outputs.reason }}
+        run: |
+          {
+            echo "### Cypress prerequisites"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Run the main suites | \`${RUN_CHECKS:-unknown}\` |"
+            echo "| Run the optional, alpha and extended suites | \`${RUN_HEAVY:-unknown}\` |"
+            echo "| Why | ${REASON:-the decision step did not run} |"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   build-hyperswitch:
     name: Build hyperswitch server
@@ -486,7 +511,7 @@ jobs:
 
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
-    needs: [mandatory-cypress-tests]
+    needs: [mandatory-cypress-tests, check-cypress-prerequisites]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
@@ -497,32 +522,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RESULT="${{ needs.mandatory-cypress-tests.result }}"
-          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
-
-          echo "mandatory-cypress-tests result: $RESULT"
-          echo "Run tests env: $RUN_TESTS_VAL"
-
-          if [ "$RUN_TESTS_VAL" == "false" ]; then
-            echo "Tests were skipped (Fork PR). Marking as success."
-            exit 0
-          fi
-
-          if [ "$RESULT" == "success" ]; then
-            echo "All mandatory tests passed."
-            exit 0
-          else
-            echo "Mandatory tests failed."
-            if [ "${{ github.event_name }}" != "merge_group" ]; then
-              echo "Removing 'S-test-ready' label from the PR."
-              gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
-            fi
-            exit 1
-          fi
+          bash .github/scripts/cypress-consolidated-result.sh \
+            --suite mandatory \
+            --result "${{ needs.mandatory-cypress-tests.result }}" \
+            --run-checks "${{ needs.check-cypress-prerequisites.outputs.run-checks }}" \
+            --event "${{ github.event_name }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}"
 
   prepare-extended-matrix:
     name: Prepare Extended Connectors matrix to run cypress tests
-    if: false
+    needs: [check-cypress-prerequisites]
+    if: ${{ needs.check-cypress-prerequisites.outputs.run-heavy == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       extended-matrix: ${{ steps.set-extended-matrix.outputs.matrix }}
@@ -566,8 +577,8 @@ jobs:
 
   extended-cypress-tests:
     name: Run extended Cypress tests
-    needs: [build-hyperswitch, prepare-extended-matrix]
-    if: false
+    needs: [check-cypress-prerequisites, build-hyperswitch, prepare-extended-matrix]
+    if: ${{ !cancelled() && needs.check-cypress-prerequisites.outputs.run-checks == 'true' && needs.check-cypress-prerequisites.outputs.run-heavy == 'true' }}
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -599,29 +610,42 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      superposition:
+        image: ghcr.io/juspay/superposition-demo:0.102.0
+        env:
+          API_HOSTNAME: http://localhost:8081
+          REDIS_URL: redis://redis:6379
+        ports:
+          - 8081:8080
 
     steps:
       - name: Checkout repository
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v6
 
       - name: Install Rust
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
       - name: Mask S3 cache location in job logs
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Download hyperswitch server binary from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -638,12 +662,14 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
           echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
 
       - name: Fetch keys
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -651,40 +677,58 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
 
       - name: Install Just
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v6
         with:
           node-version: "24"
 
       - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Insert GSM info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
+      - name: Seed Superposition
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        env:
+          SUPERPOSITION_URL: "http://localhost:8081"
+          SEED_FILE: "./config/superposition_seed.toml"
+          WORKSPACE_ID: "dev"
+          ORG_ID: "localorg"
+        run: bash scripts/seed_superposition.sh
+
       - name: Setup Local Server
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -714,6 +758,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -726,7 +771,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload server logs on failure
-        if: failure()
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -735,7 +780,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Cypress test results
-        if: failure()
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.report_artifact_name }}
@@ -745,24 +790,24 @@ jobs:
 
   extended-cypress-tests-consolidated-result:
     name: Extended Cypress Tests — Consolidated Result
-    needs: [extended-cypress-tests]
+    needs: [extended-cypress-tests, check-cypress-prerequisites]
     runs-on: ubuntu-latest
-    if: false
+    if: ${{ !cancelled() }}
+    permissions:
+      pull-requests: write
     steps:
       - name: Evaluate Matrix Results
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          RESULT="${{ needs.extended-cypress-tests.result }}"
-
-          echo "extended-cypress-tests result: $RESULT"
-
-          if [ "$RESULT" == "success" ] || [ "$RESULT" == "skipped" ]; then
-            echo "Extended cypress tests passed (or skipped upstream)."
-            exit 0
-          else
-            echo "Extended cypress tests failed."
-            exit 1
-          fi
+          bash .github/scripts/cypress-consolidated-result.sh \
+            --suite extended \
+            --result "${{ needs.extended-cypress-tests.result }}" \
+            --run-checks "${{ needs.check-cypress-prerequisites.outputs.run-checks }}" \
+            --event "${{ github.event_name }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}"
 
   prepare-mock-matrix:
     name: Prepare Mock Connectors matrix
@@ -1199,7 +1244,7 @@ jobs:
 
   mitm-cassette-replay-cypress-tests-consolidated-result:
     name: MITM Mock Cypress Tests — Consolidated Result
-    needs: [mitm-cassette-replay-cypress-tests]
+    needs: [mitm-cassette-replay-cypress-tests, check-cypress-prerequisites]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
@@ -1210,32 +1255,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RESULT="${{ needs.mitm-cassette-replay-cypress-tests.result }}"
-          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
-
-          echo "mitm-cassette-replay-cypress-tests result: $RESULT"
-          echo "Run tests env: $RUN_TESTS_VAL"
-
-          if [ "$RUN_TESTS_VAL" == "false" ]; then
-            echo "Tests were skipped (Fork PR). Marking as success."
-            exit 0
-          fi
-
-          if [ "$RESULT" == "success" ]; then
-            echo "All MITM mock tests passed."
-            exit 0
-          else
-            echo "MITM mock tests failed."
-            if [ "${{ github.event_name }}" != "merge_group" ]; then
-              echo "Removing 'S-test-ready' label from the PR."
-              gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
-            fi
-            exit 1
-          fi
+          bash .github/scripts/cypress-consolidated-result.sh \
+            --suite "MITM mock" \
+            --result "${{ needs.mitm-cassette-replay-cypress-tests.result }}" \
+            --run-checks "${{ needs.check-cypress-prerequisites.outputs.run-checks }}" \
+            --event "${{ github.event_name }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}"
 
   prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: false
+    needs: [check-cypress-prerequisites]
+    if: ${{ needs.check-cypress-prerequisites.outputs.run-heavy == 'true' }}
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -1269,8 +1300,8 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: false
-    needs: [build-hyperswitch, prepare-optional-matrix]
+    needs: [check-cypress-prerequisites, build-hyperswitch, prepare-optional-matrix]
+    if: ${{ !cancelled() && needs.check-cypress-prerequisites.outputs.run-checks == 'true' && needs.check-cypress-prerequisites.outputs.run-heavy == 'true' }}
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -1312,26 +1343,32 @@ jobs:
 
     steps:
       - name: Checkout repository
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v6
 
       - name: Install Rust
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
       - name: Mask S3 cache location in job logs
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Download hyperswitch server binary from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
       - name: Download Encrypted TOML from S3 and Decrypt
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.CONNECTOR_CREDS_AWS_ACCESS_KEY_ID }}
           AWS_REGION: ${{ secrets.CONNECTOR_CREDS_AWS_REGION }}
@@ -1348,12 +1385,14 @@ jobs:
           gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" --output ".github/test/creds.json" ".github/secrets/${DESTINATION_FILE_NAME}"
 
       - name: Set paths in env
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
           echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
 
       - name: Fetch keys
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -1361,40 +1400,48 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: diesel_cli
 
       - name: Install Just
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/setup-node@v6
         with:
           node-version: "24"
 
       - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
       - name: Insert card info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Insert GSM info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
       - name: Seed Superposition
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           SUPERPOSITION_URL: "http://localhost:8081"
           SEED_FILE: "./config/superposition_seed.toml"
@@ -1403,6 +1450,7 @@ jobs:
         run: bash scripts/seed_superposition.sh
 
       - name: Setup Local Server
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
@@ -1432,6 +1480,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -1452,7 +1501,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Cypress test results
-        if: failure()
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.report_artifact_name }}
@@ -1462,8 +1511,8 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
-    needs: build-hyperswitch
-    if: false
+    needs: [check-cypress-prerequisites, build-hyperswitch]
+    if: ${{ !cancelled() && needs.check-cypress-prerequisites.outputs.run-checks == 'true' && needs.check-cypress-prerequisites.outputs.run-heavy == 'true' }}
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -1510,6 +1559,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Mask S3 cache location in job logs
+        if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: .github/scripts/sccache-mask-s3-env.sh
 

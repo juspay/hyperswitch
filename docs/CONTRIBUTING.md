@@ -35,6 +35,7 @@ Please join us!
 - [Pull Requests](#pull-requests)
   - [Cargo Commands](#cargo-commands)
   - [Code Coverage](#code-coverage)
+  - [Running the Cypress tests](#running-the-cypress-tests)
   - [Commits](#commits)
   - [Opening the Pull Request](#opening-the-pull-request)
   - [Discuss and update](#discuss-and-update)
@@ -291,6 +292,46 @@ grcov . -s . -t lcov --output-path lcov.info --binary-path ./target/debug --keep
 This will generate an `lcov.info` file that can be read by the extension.
 
 [cypress-v2-readme]: /cypress-tests-v2/README.md
+
+### Running the Cypress tests
+
+The Cypress suites are expensive, both in runner time and in real connector
+traffic, so they do not run on every commit. Instead, a maintainer opts a pull
+request in by adding a label to it, and the run starts on the moment the label
+appears.
+
+- `S-test-ready` runs the mandatory connector suite, the MITM mock suite and
+  the v2 suite with its coverage report.
+- `S-test-full`, added on top of `S-test-ready`, runs everything above plus
+  the optional, alpha and extended connector suites. It only takes effect on the
+  event that adds it, so toggling `S-test-ready` cannot be used to pull the
+  heaviest suites in again and again.
+
+A few things worth knowing about the flow:
+
+- Adding the label is enough on its own. You do not need to push a commit after
+  labeling, the workflow reacts to the label event itself.
+- If a suite fails, the label is removed from the pull request. Fix the problem,
+  push the fix and ask for the suite again, the label has to be re-applied.
+- An unlabeled pull request cannot be merged. The aggregated result job fails
+  on purpose, so that a change cannot reach the merge queue without ever having
+  been validated.
+- Pull requests from forks never run the suites, because the connector
+  credentials are secrets and are not available to untrusted checkouts.
+- The merge queue always runs everything, labels or not.
+- There is a cooldown, so that adding and removing the label repeatedly cannot
+  be used to farm runner minutes on a single commit. The budget is set by the
+  `CYPRESS_RATE_LIMIT_MAX_RUNS` and `CYPRESS_RATE_LIMIT_WINDOW_MINUTES`
+  repository variables, which default to 3 runs per 60 minutes.
+- The optional, alpha and extended suites are also reachable without a pull
+  request, through the nightly schedule or by dispatching the
+  `Run Cypress tests` workflow by hand.
+
+To try the same suites locally instead, follow the instructions in the
+[cypress-tests README][cypress-readme] and the
+[cypress-tests-v2 README][cypress-v2-readme].
+
+[cypress-readme]: /cypress-tests/README.md
 
 ### Commits
 
@@ -689,6 +730,11 @@ The status label provides information about the status of the issue or PR.
   resolved by the author.
 - **S-needs-reproduction-steps**: This behavior hasn't been reproduced by the
   team.
+- **S-test-full**: This PR needs the optional, alpha and extended Cypress
+  suites on top of the mandatory ones. See
+  [Running the Cypress tests](#running-the-cypress-tests).
+- **S-test-ready**: This PR is ready to be validated by the Cypress suites.
+  See [Running the Cypress tests](#running-the-cypress-tests).
 - **S-unactionable**: There is not enough information to act on this problem.
 - **S-unassigned**: This issue has no one assigned to address it.
 - **S-waiting-on-author**: This PR is incomplete or the author needs to address

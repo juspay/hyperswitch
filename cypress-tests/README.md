@@ -487,6 +487,17 @@ This will redirect all Silverflow API calls from Hyperswitch to your local mock 
 3. Add tests following the guidelines
 4. Submit a pull request
 
+## Running these tests in CI
+
+These tests do not run on every commit. A maintainer opts a pull request in by
+adding the `S-test-ready` label, and the run starts as soon as the label
+appears. Adding `S-test-full` on top of that also runs the optional, alpha and
+extended connector suites. If a suite fails the label is removed, so re-apply
+it once the failure is fixed.
+
+See [Running the Cypress tests](/docs/CONTRIBUTING.md#running-the-cypress-tests)
+for the full flow.
+
 ## Appendix
 
 ### Example creds.json

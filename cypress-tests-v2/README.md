@@ -4,6 +4,13 @@
 
 This Tool is a solution designed to automate testing for the [Hyperswitch](https://github.com/juspay/hyperswitch/) using Cypress, an open-source tool capable of conducting API call tests and UI tests. This README provides guidance on installing Cypress and its dependencies.
 
+These tests do not run on every commit in CI. A maintainer opts a pull request
+in by adding the `S-test-ready` label, and the run starts as soon as the label
+appears. Adding `S-test-full` on top of that also runs the optional, alpha and
+extended connector suites. See
+[Running the Cypress tests](/docs/CONTRIBUTING.md#running-the-cypress-tests)
+for the full flow.
+
 ## Installation
 
 ### Prerequisites
