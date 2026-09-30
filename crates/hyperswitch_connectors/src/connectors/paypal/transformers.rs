@@ -1447,11 +1447,9 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::Payjustnow
                     | enums::PaymentMethodType::OpenBanking
                     | enums::PaymentMethodType::NetworkToken
-                    | enums::PaymentMethodType::Ted => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("paypal"),
-                        ))
-                    }
+                    | enums::PaymentMethodType::Ted => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("paypal"),
+                    )),
                 };
 
                 Ok(Self {

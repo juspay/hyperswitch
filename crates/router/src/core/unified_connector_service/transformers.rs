@@ -9727,9 +9727,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::TedBankTransfer>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(
-        item: &api_models::payouts::TedBankTransfer,
-    ) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: &api_models::payouts::TedBankTransfer) -> Result<Self, Self::Error> {
         let bank_name = item
             .bank_name
             .map(payments_grpc::BankNames::foreign_try_from)
