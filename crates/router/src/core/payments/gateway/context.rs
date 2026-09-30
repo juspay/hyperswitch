@@ -7,7 +7,7 @@
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Processor};
+use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
@@ -42,39 +42,36 @@ pub struct RouterGatewayContext {
 
     /// Execution path (Direct, UCS, or Shadow)
     pub execution_path: ExecutionPath,
+
+    /// Kill switch thresholds for this scope, read once by the gate. Carried so a failure
+    /// is counted against the same threshold the gate used, rather than re-reading the
+    /// config later and risking a different answer.
+    pub kill_switch_enabled: bool,
+    pub kill_switch_threshold: u64,
+    /// `None` means connector declines never trip this scope.
+    pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate decided under. Carried so the flows that inherit this context
+    /// without gating for themselves count against the scope that authorised them.
+    pub rollout_scope: Option<String>,
 }
 
-impl RouterGatewayContext {
-    pub fn new(
-        processor: Processor,
-        header_payload: HeaderPayload,
-        business_profile: &business_profile::Profile,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
-        execution_path: ExecutionPath,
-        creds_identifier: Option<String>,
-    ) -> Self {
-        let lineage_ids = LineageIds::new(
-            business_profile.merchant_id.clone(),
-            business_profile.get_id().clone(),
-        );
-        let execution_mode = match execution_path {
-            ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
-            ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
-            // ExecutionMode is irrelevant for Direct path in this context
-            ExecutionPath::Direct => ExecutionMode::NotApplicable,
-        };
-        Self {
-            processor,
-            header_payload,
-            lineage_ids,
-            merchant_connector_account,
-            execution_mode,
-            execution_path,
-            creds_identifier,
-        }
+/// Implementation of GatewayContext trait for RouterGatewayContext
+///
+/// This allows the framework to extract execution metadata without knowing
+/// the concrete structure of RouterGatewayContext.
+impl GatewayContext for RouterGatewayContext {
+    fn execution_path(&self) -> ExecutionPath {
+        self.execution_path
     }
+
+    /// Get the execution mode (Primary, Shadow, etc.)
+    fn execution_mode(&self) -> ExecutionMode {
+        self.execution_mode
+    }
+}
+impl RouterGatewayContext {
+    /// Context for the Direct path, which never calls UCS and so never trips the kill
+    /// switch; the thresholds are inert here.
     pub fn direct(
         processor: Processor,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
@@ -93,26 +90,28 @@ impl RouterGatewayContext {
             execution_mode: ExecutionMode::NotApplicable,
             execution_path: ExecutionPath::Direct,
             creds_identifier,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            // The direct path is not gated, so no scope decided it.
+            rollout_scope: None,
         }
     }
-}
 
-/// Implementation of GatewayContext trait for RouterGatewayContext
-///
-/// This allows the framework to extract execution metadata without knowing
-/// the concrete structure of RouterGatewayContext.
-impl GatewayContext for RouterGatewayContext {
-    fn execution_path(&self) -> ExecutionPath {
-        self.execution_path
-    }
-
-    /// Get the execution mode (Primary, Shadow, etc.)
-    fn execution_mode(&self) -> ExecutionMode {
-        self.execution_mode
-    }
-}
-impl RouterGatewayContext {
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)
+    /// The kill switch settings this request resolved, for the UCS logging wrappers.
+    pub fn rollout_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
+        }
+    }
+
     pub fn get_gateway_system(&self) -> GatewaySystem {
         match self.execution_path {
             ExecutionPath::Direct => GatewaySystem::Direct,

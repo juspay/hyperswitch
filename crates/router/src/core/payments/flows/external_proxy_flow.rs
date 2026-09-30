@@ -407,7 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         processor: &domain::Processor,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
+        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -453,7 +453,9 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let headers_builder = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(self.payment_method))
+            .payment_method_type(self.payment_method_type)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -463,7 +465,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             state,
             payment_authorize_request.clone(),
             headers_builder,
-            unified_connector_service_execution_mode,
+            rollout_settings,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
@@ -521,7 +523,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         processor: &domain::Processor,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
+        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -568,7 +570,9 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let headers_builder = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(self.payment_method))
+            .payment_method_type(self.payment_method_type)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -579,7 +583,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             state,
             payment_authorize_request.clone(),
             headers_builder,
-            unified_connector_service_execution_mode,
+            rollout_settings,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client

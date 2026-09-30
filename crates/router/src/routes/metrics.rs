@@ -299,3 +299,25 @@ counter_metric!(VAULT_CALL_FAILURES, GLOBAL_METER);
 
 // Encryption/keymanager latency for payment_methods operations
 histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);
+
+// Revenue recovery A/B routing
+//
+// Both count invoices the A/B arm could not price, which it treats as an error. They matter for
+// experiment validity rather than availability: an arm that drops invoices for reasons correlated
+// with the arm itself biases the comparison, and the logs alone make that invisible in aggregate.
+counter_metric!(
+    REVENUE_RECOVERY_AB_MISSING_ERROR_CODE,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.missing_error_code",
+    description: "Invoices whose assigned algorithm needed the previous attempt's error code to \
+                  pick a retry time, but the CALCULATE task carried none",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.unassigned_algorithm",
+    description: "Invoices that reached the A/B arm with no retry implementation recorded on the \
+                  intent, so no algorithm could be replayed",
+    unit: "1",
+);
