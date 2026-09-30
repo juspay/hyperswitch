@@ -534,6 +534,13 @@ impl
             .map(payments_grpc::SetupMandateDetails::foreign_try_from)
             .transpose()?;
 
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             split_payments: router_data
                 .request
@@ -581,6 +588,7 @@ impl
                 .access_token
                 .as_ref()
                 .map(ConnectorState::foreign_from),
+            browser_info,
         })
     }
 }
@@ -4435,6 +4443,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
+            common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => Self::Unspecified,
         }
     }
 }
@@ -5938,6 +5951,108 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
             common_enums::BankNames::AfricanBank => Ok(Self::AfricanBank),
             common_enums::BankNames::AfricanBankBusiness => Ok(Self::AfricanBankBusiness),
+            common_enums::BankNames::Abanca => Ok(Self::Abanca),
+            common_enums::BankNames::AlmBrand => Ok(Self::AlmBrand),
+            common_enums::BankNames::AlphaFx => Ok(Self::AlphaFx),
+            common_enums::BankNames::ArbejdernesLandsbank => Ok(Self::ArbejdernesLandsbank),
+            common_enums::BankNames::ArbuthnotLatham => Ok(Self::ArbuthnotLatham),
+            common_enums::BankNames::BancoPopular => Ok(Self::BancoPopular),
+            common_enums::BankNames::BankPocztowy => Ok(Self::BankPocztowy),
+            common_enums::BankNames::Bankia => Ok(Self::Bankia),
+            common_enums::BankNames::BnBank => Ok(Self::BnBank),
+            common_enums::BankNames::CaterAllen => Ok(Self::CaterAllen),
+            common_enums::BankNames::ChelseaBuildingSociety => Ok(Self::ChelseaBuildingSociety),
+            common_enums::BankNames::Citadele => Ok(Self::Citadele),
+            common_enums::BankNames::CoopPank => Ok(Self::CoopPank),
+            common_enums::BankNames::CooperativeBank => Ok(Self::CooperativeBank),
+            common_enums::BankNames::Cumberland => Ok(Self::Cumberland),
+            common_enums::BankNames::DabBank => Ok(Self::DabBank),
+            common_enums::BankNames::DjurslandsBank => Ok(Self::DjurslandsBank),
+            common_enums::BankNames::Dnb => Ok(Self::Dnb),
+            common_enums::BankNames::EtneSparebank => Ok(Self::EtneSparebank),
+            common_enums::BankNames::FanaSparebank => Ok(Self::FanaSparebank),
+            common_enums::BankNames::FidorBank => Ok(Self::FidorBank),
+            common_enums::BankNames::FlekkefjordSparebank => Ok(Self::FlekkefjordSparebank),
+            common_enums::BankNames::ForexBank => Ok(Self::ForexBank),
+            common_enums::BankNames::HaugesundSparebank => Ok(Self::HaugesundSparebank),
+            common_enums::BankNames::HoareAndCo => Ok(Self::HoareAndCo),
+            common_enums::BankNames::IcaBanken => Ok(Self::IcaBanken),
+            common_enums::BankNames::JyskeBank => Ok(Self::JyskeBank),
+            common_enums::BankNames::KleinwortHambros => Ok(Self::KleinwortHambros),
+            common_enums::BankNames::KlpBanken => Ok(Self::KlpBanken),
+            common_enums::BankNames::Kreditbanken => Ok(Self::Kreditbanken),
+            common_enums::BankNames::LandkredittBank => Ok(Self::LandkredittBank),
+            common_enums::BankNames::Lansforsakringar => Ok(Self::Lansforsakringar),
+            common_enums::BankNames::LhvPank => Ok(Self::LhvPank),
+            common_enums::BankNames::LillesandsSparebank => Ok(Self::LillesandsSparebank),
+            common_enums::BankNames::Luminor => Ok(Self::Luminor),
+            common_enums::BankNames::LusterSparebank => Ok(Self::LusterSparebank),
+            common_enums::BankNames::MetroBank => Ok(Self::MetroBank),
+            common_enums::BankNames::NordfynsBank => Ok(Self::NordfynsBank),
+            common_enums::BankNames::NordjyskeBank => Ok(Self::NordjyskeBank),
+            common_enums::BankNames::Norisbank => Ok(Self::Norisbank),
+            common_enums::BankNames::NykreditBank => Ok(Self::NykreditBank),
+            common_enums::BankNames::ObosBanken => Ok(Self::ObosBanken),
+            common_enums::BankNames::OrangeFinanse => Ok(Self::OrangeFinanse),
+            common_enums::BankNames::ParetoBank => Ok(Self::ParetoBank),
+            common_enums::BankNames::PkoBankPolski => Ok(Self::PkoBankPolski),
+            common_enums::BankNames::RingkjobingLandbobank => Ok(Self::RingkjobingLandbobank),
+            common_enums::BankNames::Sbanken => Ok(Self::Sbanken),
+            common_enums::BankNames::SiauliuBankas => Ok(Self::SiauliuBankas),
+            common_enums::BankNames::SiliconValleyBank => Ok(Self::SiliconValleyBank),
+            common_enums::BankNames::Skandiabanken => Ok(Self::Skandiabanken),
+            common_enums::BankNames::SkjernBank => Ok(Self::SkjernBank),
+            common_enums::BankNames::SkudenesOgAakraSparebank => Ok(Self::SkudenesOgAakraSparebank),
+            common_enums::BankNames::SogneOgGreipstadSparebank => {
+                Ok(Self::SogneOgGreipstadSparebank)
+            }
+            common_enums::BankNames::SparNordBank => Ok(Self::SparNordBank),
+            common_enums::BankNames::SparbankenSyd => Ok(Self::SparbankenSyd),
+            common_enums::BankNames::SpardaBank => Ok(Self::SpardaBank),
+            common_enums::BankNames::SpareBank1 => Ok(Self::SpareBank1),
+            common_enums::BankNames::SparebankenMore => Ok(Self::SparebankenMore),
+            common_enums::BankNames::SparebankenOst => Ok(Self::SparebankenOst),
+            common_enums::BankNames::SparebankenSognOgFjordane => {
+                Ok(Self::SparebankenSognOgFjordane)
+            }
+            common_enums::BankNames::SparebankenSor => Ok(Self::SparebankenSor),
+            common_enums::BankNames::SparebankenVest => Ok(Self::SparebankenVest),
+            common_enums::BankNames::SparekassenDanmark => Ok(Self::SparekassenDanmark),
+            common_enums::BankNames::SparekassenSjaellandFyn => Ok(Self::SparekassenSjaellandFyn),
+            common_enums::BankNames::Spareskillingsbanken => Ok(Self::Spareskillingsbanken),
+            common_enums::BankNames::Sydbank => Ok(Self::Sydbank),
+            common_enums::BankNames::VanquisBank => Ok(Self::VanquisBank),
+            common_enums::BankNames::VestjyskBank => Ok(Self::VestjyskBank),
+            common_enums::BankNames::VossSparebank => Ok(Self::VossSparebank),
+            common_enums::BankNames::YorkshireBuildingSociety => Ok(Self::YorkshireBuildingSociety),
+            common_enums::BankNames::SpareBank1Gudbrandsdal => Ok(Self::SpareBank1Gudbrandsdal),
+            common_enums::BankNames::SpareBank1HallingdalValdres => {
+                Ok(Self::SpareBank1HallingdalValdres)
+            }
+            common_enums::BankNames::SpareBank1LomOgSkjak => Ok(Self::SpareBank1LomOgSkjak),
+            common_enums::BankNames::SpareBank1Modum => Ok(Self::SpareBank1Modum),
+            common_enums::BankNames::SpareBank1Nordmore => Ok(Self::SpareBank1Nordmore),
+            common_enums::BankNames::SpareBank1RingerikeHadeland => {
+                Ok(Self::SpareBank1RingerikeHadeland)
+            }
+            common_enums::BankNames::SpareBank1Smn => Ok(Self::SpareBank1Smn),
+            common_enums::BankNames::SpareBank1SrBank => Ok(Self::SpareBank1SrBank),
+            common_enums::BankNames::SpareBank1SoreSunnmore => Ok(Self::SpareBank1SoreSunnmore),
+            common_enums::BankNames::SpareBank1SorostNorgeBv => Ok(Self::SpareBank1SorostNorgeBv),
+            common_enums::BankNames::SpareBank1SorostNorgeTelemark => {
+                Ok(Self::SpareBank1SorostNorgeTelemark)
+            }
+            common_enums::BankNames::SpareBank1OstfoldAkershus => {
+                Ok(Self::SpareBank1OstfoldAkershus)
+            }
+            common_enums::BankNames::SpareBank1Ostlandet => Ok(Self::SpareBank1Ostlandet),
+            common_enums::BankNames::CitiHandlowy => Ok(Self::CitiHandlowy),
+            common_enums::BankNames::DeutscheBankPolska => Ok(Self::DeutscheBankPolska),
+            common_enums::BankNames::IngBankSlaski => Ok(Self::IngBankSlaski),
+            common_enums::BankNames::IngDiba => Ok(Self::IngDiba),
+            common_enums::BankNames::NordeaDirect => Ok(Self::NordeaDirect),
+            common_enums::BankNames::SantanderUk => Ok(Self::SantanderUk),
+            common_enums::BankNames::SwedbankSparbankerna => Ok(Self::SwedbankSparbankerna),
         }
     }
 }
@@ -9073,6 +9188,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            payout_method_type: None,
         })
     }
 }
