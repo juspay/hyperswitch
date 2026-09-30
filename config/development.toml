@@ -114,10 +114,10 @@ port = 6379
 # username = "default"
 # password = ""
 # Connect over TLS (`rediss://`); required by most managed Redis offerings
-# (e.g. ElastiCache with encryption in transit, Redis Cloud with TLS). The
-# server certificate is verified against the platform's trusted CA roots,
-# unless a PEM file with a private CA (e.g. the Redis Cloud CA bundle) is
-# supplied via `tls_ca_certificate_path`.
+# (e.g. ElastiCache with encryption in transit, Redis Cloud with TLS).
+# When `tls_ca_certificate_path` is set, the server certificate is verified
+# against the CA certificate(s) in that PEM file (e.g. the Redis Cloud CA
+# bundle); when unset, it is verified against the platform's trusted CA roots.
 # tls_enabled = true
 # tls_ca_certificate_path = "/path/to/redis_ca.pem"
 pool_size = 5

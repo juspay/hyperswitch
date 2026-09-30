@@ -10,7 +10,7 @@ license.workspace = true
 [features]
 default = ["redis-rs"]
 fred = ["dep:fred", "deja?/fred"]
-redis-rs = ["dep:redis", "dep:rustls", "deja?/redis-rs"]
+redis-rs = ["dep:redis", "deja?/redis-rs"]
 multitenancy_fallback = []
 deja = ["common_utils/deja", "dep:deja", "dep:serde_json"]
 metrics = ["dep:router_env"]
@@ -32,10 +32,6 @@ redis = { version = "1.2.0", optional = true, features = [
 fred = { version = "8.0.6", optional = true, features = [
     "metrics", "partial-tracing", "subscriber-client", "enable-rustls"
 ]}
-# Direct dependency only to pin the process-level crypto provider used by the
-# redis-rs backend for TLS connections (see `ensure_tls_crypto_provider`).
-# The fred backend uses rustls 0.22, which selects its provider at compile time.
-rustls = { version = "0.23", optional = true, default-features = false, features = ["aws_lc_rs", "std"] }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
@@ -44,6 +40,7 @@ hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 [dev-dependencies]
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 
 [lints]

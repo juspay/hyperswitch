@@ -43,6 +43,11 @@ pub struct RedisSettings {
     ///
     /// The server certificate is verified against the platform's trusted CA
     /// roots unless [`Self::tls_ca_certificate_path`] is set.
+    ///
+    /// With the `redis-rs` backend, the application must make a `rustls`
+    /// crypto provider available — either by having exactly one provider
+    /// feature (`aws_lc_rs` or `ring`) enabled in its dependency graph, or by
+    /// calling `rustls::crypto::CryptoProvider::install_default()` at startup
     pub tls_enabled: bool,
     /// Path to a PEM file containing the trusted CA certificate(s) used to
     /// verify the Redis server certificate, for servers whose certificate is

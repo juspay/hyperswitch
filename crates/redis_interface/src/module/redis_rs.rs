@@ -610,26 +610,6 @@ impl RedisConnectionPool {
 
 // ─── RedisSettings helpers (redis-rs backend only) ────────────────────────────
 
-/// Ensure a process-level rustls crypto provider is installed before any TLS
-/// configuration is built.
-///
-/// `rustls` resolves its cryptography backend through a process-global default.
-/// When several crates in the final binary enable different provider features,
-/// that default becomes ambiguous and `rustls` panics at connection time
-/// instead of picking one. The router, scheduler and drainer binaries install
-/// a provider at startup, but only when the `gcp_kms` feature is enabled
-/// (part of the `release` feature set, not of default builds) — and this crate
-/// is also used outside those binaries (e.g. its own integration tests), so it
-/// cannot rely on that. Installing here is idempotent: if a provider is
-/// already installed, that installation is kept.
-fn ensure_tls_crypto_provider() {
-    static INSTALL_ONCE: std::sync::Once = std::sync::Once::new();
-    INSTALL_ONCE.call_once(|| {
-        // An `Err` here means a provider is already installed, which is fine.
-        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
-    });
-}
-
 impl crate::types::RedisSettings {
     /// Normalize cluster URLs by prepending the scheme matching the configured
     /// transport security (`redis://`, or `rediss://` when TLS is enabled) if
@@ -677,10 +657,6 @@ impl crate::types::RedisSettings {
     ) -> CustomResult<redis::ConnectionInfo, crate::errors::RedisError> {
         use error_stack::ResultExt;
         use redis::IntoConnectionInfo;
-
-        if self.tls_enabled {
-            ensure_tls_crypto_provider();
-        }
 
         let connection_url = format!("{}://{}:{}", self.redis_url_scheme(), self.host, self.port);
         let mut connection_info = connection_url
@@ -771,7 +747,6 @@ impl crate::types::RedisSettings {
             builder = builder.password(password);
         }
         if self.tls_enabled {
-            ensure_tls_crypto_provider();
             builder = builder.tls(redis::TlsMode::Secure);
             if let Some(root_cert) = self.read_tls_ca_certificates()? {
                 builder = builder.certs(redis::TlsCertificates {
