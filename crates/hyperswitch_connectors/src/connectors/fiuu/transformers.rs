@@ -974,7 +974,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(data.txn_id.clone()),
+                            connector_transaction_id: Some(data.txn_id),
                             connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
