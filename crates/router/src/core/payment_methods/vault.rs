@@ -1090,7 +1090,7 @@ impl Vaultable for api::BankPayout {
                     account_holder_name: bank_sensitive_data.account_holder_name,
                 })
             }
-            (Some(ban), None, None, None, None, None, tax_id, None, Some(PaymentMethodType::Ted)) => {
+            (Some(ban), None, None, None, None, None, tax_id, _, Some(PaymentMethodType::Ted)) => {
                 Self::Ted(payouts::TedBankTransfer {
                     bank_account_number: ban,
                     bank_branch: bank_insensitive_data.bank_branch,

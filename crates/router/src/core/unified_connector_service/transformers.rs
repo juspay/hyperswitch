@@ -9882,12 +9882,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
                     payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                 ))
             }
-            api_models::payouts::BankTransfer::Trustly(_) => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Trustly bank transfer not supported as source bank data for Unified Connector Service"
-                        .to_string(),
-                ),
-            ))?,
+            api_models::payouts::BankTransfer::Trustly(trustly) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Trustly(
+                    payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
+                ))
+            },
             api_models::payouts::BankTransfer::OpenBanking(_) => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "OpenBanking bank transfer not supported for Unified Connector Service"
