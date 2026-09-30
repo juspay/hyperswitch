@@ -416,5 +416,5 @@ key2 = "key2"
 api_key = "Secret API Key"
 
 [tdaypay]
-api_key="Merchant Key"
-key1="Merchant ID"
+api_key = "Merchant Key"
+key1 = "Merchant ID"

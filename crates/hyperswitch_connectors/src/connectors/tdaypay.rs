@@ -588,8 +588,7 @@ impl webhooks::IncomingWebhook for Tdaypay {
 }
 
 static TDAYPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods =
-        vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+    let supported_capture_methods = vec![CaptureMethod::Automatic];
     let mut methods = SupportedPaymentMethods::new();
     // BRL — PIX
     methods.add(
