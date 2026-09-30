@@ -553,11 +553,13 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
-/// Escapes SQL string metacharacters so the value is safe inside a single-quoted SQL
-/// literal: `'<sanitized>'`. Spaces are kept: values such as error messages, refund
-/// reasons and issuer names contain them and must match as stored.
+/// Strips whitespace and escapes SQL string metacharacters so the value is
+/// safe inside a single-quoted SQL literal: `'<sanitized>'`.
 pub fn sanitize_sql_string_literal(raw: &str) -> String {
-    let sanitized = raw.replace('\\', "\\\\").replace('\'', "''");
+    let sanitized = raw
+        .replace(' ', "")
+        .replace('\\', "\\\\")
+        .replace('\'', "''");
     format!("'{sanitized}'")
 }
 
