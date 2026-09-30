@@ -1,4 +1,4 @@
-use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
+use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc, time::Duration};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -12,6 +12,7 @@ use router_env::{
     logger,
     tracing::{self, instrument},
 };
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 
 use crate::{
     errors::StorageError,
@@ -27,6 +28,13 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 
 /// Default time to idle 10 mins
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
+
+/// Default budget a caller waits on another caller's population of the same key, 5 seconds.
+///
+/// Roughly two orders of magnitude above a healthy redis `GET` plus database `SELECT`, so
+/// legitimately slow populations still coalesce, while a stuck backend is bounded well under
+/// redis's own command timeout.
+pub const DEFAULT_POPULATE_WAIT_TIMEOUT_IN_SECS: u64 = 5;
 
 /// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
@@ -45,6 +53,34 @@ pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 /// set `max_capacity` per cache, in either unit, once the sizes involved are known.
 pub const DEFAULT_MAX_ENTRIES: u64 = 30 * 1024 * 1024;
 
+/// How long an unused per-key population lock is kept around.
+///
+/// Only has to outlive a population, which is bounded by the wait budget; the lower bound
+/// keeps short budgets from evicting locks that are still in use.
+fn populate_lock_time_to_idle(populate_wait: Duration) -> Duration {
+    Duration::from_secs(300).max(populate_wait * 2)
+}
+
+/// The read side of a key's population lock, plus whether taking it meant waiting on a
+/// population that was already in flight.
+struct ReadPermit {
+    _guard: Option<OwnedRwLockReadGuard<()>>,
+    waited: bool,
+}
+
+impl ReadPermit {
+    fn unheld(waited: bool) -> Self {
+        Self {
+            _guard: None,
+            waited,
+        }
+    }
+}
+
+/// Upper bound on distinct keys holding a population lock at once. moka counts entries here,
+/// and an `Arc<RwLock<()>>` is tiny, so this is generous by design.
+const POPULATE_LOCK_MAX_ENTRIES: u64 = 10_000;
+
 /// Runtime overrides for a single in-memory cache.
 ///
 /// Every field is optional: whatever is left unset falls back to that cache's compiled-in
@@ -60,6 +96,9 @@ pub struct CacheSettings {
     /// Maximum number of entries the cache may hold. `0` makes it unbounded, and leaving it
     /// unset keeps the cache's own default.
     pub max_entries: Option<u64>,
+    /// Seconds a caller waits for another caller's population of the same key before giving
+    /// up and populating the key itself. `0` disables the wait entirely.
+    pub populate_wait_timeout_in_secs: Option<u64>,
 }
 
 impl CacheSettings {
@@ -71,7 +110,14 @@ impl CacheSettings {
         self.tti_in_secs.unwrap_or(DEFAULT_CACHE_TTI)
     }
 
-    /// Resolves the entry ceiling against the cache's own default.
+    fn populate_wait(&self) -> Duration {
+        Duration::from_secs(
+            self.populate_wait_timeout_in_secs
+                .unwrap_or(DEFAULT_POPULATE_WAIT_TIMEOUT_IN_SECS),
+        )
+    }
+
+    /// Resolves the ceiling this configuration asks for.
     ///
     /// `None` means unbounded, and an explicitly configured `0` is how a bounded cache is made
     /// unbounded, since the key's absence already means "use the default".
@@ -93,6 +139,7 @@ impl CacheSettings {
             self.time_to_live(),
             self.time_to_idle(),
             self.max_entries(default),
+            self.populate_wait(),
         )
     }
 }
@@ -408,6 +455,16 @@ dyn_clone::clone_trait_object!(Cacheable);
 pub struct Cache {
     name: &'static str,
     inner: MokaCache<String, Arc<dyn Cacheable>>,
+    /// Per-key population locks, keyed exactly as [`Self::inner`] is.
+    ///
+    /// Readers hold the read side and so run concurrently with each other; a population
+    /// holds the write side and excludes them until the value is in place.
+    ///
+    /// Best effort: should an entry be evicted while its lock is held, a later arrival
+    /// builds a fresh lock and populates concurrently. That costs a coalescing, never
+    /// correctness — both populations write the same value.
+    populate_locks: MokaCache<String, Arc<RwLock<()>>>,
+    populate_wait: Duration,
 }
 
 impl Debug for Cache {
@@ -470,6 +527,7 @@ impl Cache {
         time_to_live: u64,
         time_to_idle: u64,
         max_entries: Option<u64>,
+        populate_wait: Duration,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -482,8 +540,8 @@ impl Cache {
             );
         };
         let mut cache_builder = MokaCache::builder()
-            .time_to_live(std::time::Duration::from_secs(time_to_live))
-            .time_to_idle(std::time::Duration::from_secs(time_to_idle))
+            .time_to_live(Duration::from_secs(time_to_live))
+            .time_to_idle(Duration::from_secs(time_to_idle))
             .eviction_listener(eviction_listener);
 
         // No weigher is configured, so moka counts entries — which is what this number has
@@ -495,7 +553,126 @@ impl Cache {
         Self {
             name,
             inner: cache_builder.build(),
+            populate_locks: MokaCache::builder()
+                .time_to_idle(populate_lock_time_to_idle(populate_wait))
+                .max_capacity(POPULATE_LOCK_MAX_ENTRIES)
+                .build(),
+            populate_wait,
         }
+    }
+
+    /// The lock coordinating population of `key`, created on first use.
+    async fn get_lock_for_cache_key(&self, key: &CacheKey) -> Arc<RwLock<()>> {
+        self.populate_locks
+            .get_with(in_memory_cache_key(key.clone()), async {
+                Arc::new(RwLock::new(()))
+            })
+            .await
+    }
+
+    /// Takes the read side for `key`: concurrent with every other reader of it, held off
+    /// only while a population owns the write side.
+    ///
+    /// Giving up is always safe. The lock coordinates callers, it does not protect the cache
+    /// — moka is already thread-safe — so a caller that proceeds without it costs a
+    /// coalescing and nothing else.
+    async fn read_permit(&self, key: &CacheKey) -> ReadPermit {
+        if self.populate_wait.is_zero() {
+            return ReadPermit::unheld(false);
+        }
+
+        let lock = self.get_lock_for_cache_key(key).await;
+
+        // The uncontended case settles here, without suspending: the read side is only ever
+        // unavailable while a population holds the write side.
+        if let Ok(guard) = Arc::clone(&lock).try_read_owned() {
+            return ReadPermit {
+                _guard: Some(guard),
+                waited: false,
+            };
+        }
+
+        match tokio::time::timeout(self.populate_wait, lock.read_owned()).await {
+            Ok(guard) => ReadPermit {
+                _guard: Some(guard),
+                waited: true,
+            },
+            Err(_elapsed) => {
+                self.record_population_wait_timeout();
+                ReadPermit::unheld(true)
+            }
+        }
+    }
+
+    /// Takes the write side for `key`, excluding every reader of it until dropped.
+    async fn populate_permit(&self, key: &CacheKey) -> Option<OwnedRwLockWriteGuard<()>> {
+        if self.populate_wait.is_zero() {
+            return None;
+        }
+
+        let lock = self.get_lock_for_cache_key(key).await;
+        match tokio::time::timeout(self.populate_wait, lock.write_owned()).await {
+            Ok(guard) => Some(guard),
+            Err(_elapsed) => {
+                self.record_population_wait_timeout();
+                None
+            }
+        }
+    }
+
+    fn record_population_wait_timeout(&self) {
+        metrics::IN_MEMORY_CACHE_POPULATION_WAIT_TIMEOUT
+            .add(1, router_env::metric_attributes!(("cache_type", self.name)));
+        logger::warn!(
+            cache_type = self.name,
+            wait_secs = self.populate_wait.as_secs(),
+            "Timed out waiting on an in-memory cache population; proceeding independently"
+        );
+    }
+
+    fn record_population_avoided(&self) {
+        metrics::IN_MEMORY_CACHE_POPULATION_AVOIDED
+            .add(1, router_env::metric_attributes!(("cache_type", self.name)));
+    }
+
+    /// Reads `key`, and on a miss populates it by running `populate`.
+    ///
+    /// Concurrent callers for one key are coordinated rather than serialized: readers run
+    /// together, and while one of them is populating, the rest wait on the write side and
+    /// then read the value it wrote instead of each running `populate` themselves. When the
+    /// population finishes they are all released at once.
+    ///
+    /// Waits are bounded. A caller whose budget expires populates independently — which is
+    /// exactly what it would have done without any of this — so a stuck population slows
+    /// callers down but never strands them.
+    pub async fn get_or_populate<T, F, Fut, E>(&self, key: CacheKey, populate: F) -> Result<T, E>
+    where
+        T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
+        F: FnOnce() -> Fut + Send,
+        Fut: futures::Future<Output = Result<T, E>> + Send,
+    {
+        {
+            let permit = self.read_permit(&key).await;
+            if let Some(val) = self.get_val::<T>(key.clone()).await {
+                if permit.waited {
+                    self.record_population_avoided();
+                }
+                return Ok(val);
+            }
+        }
+
+        // The read guard has to be dropped before asking for the write side — tokio's
+        // `RwLock` has no upgrade, and holding both would deadlock against ourselves. That
+        // leaves a gap in which another caller may have populated the key, so re-check.
+        let _populating = self.populate_permit(&key).await;
+        if let Some(val) = self.get_val::<T>(key.clone()).await {
+            return Ok(val);
+        }
+
+        let val = populate().await?;
+        self.push(key, val.clone()).await;
+
+        Ok(val)
     }
 
     // Deja: recorded args-only for population accounting; the real moka insert
@@ -699,24 +876,21 @@ where
         prefix: store.cache_key_prefix().to_string(),
     };
 
-    // An in-memory hit answers on its own. The redis connection is acquired only on a miss,
-    // so a redis outage degrades this to a cold cache rather than an error.
-    if let Some(val) = cache.get_val::<T>(cache_key.clone()).await {
-        return Ok(val);
-    }
-
-    let redis = &store
-        .get_redis_conn()
-        .change_context(StorageError::RedisError(
-            RedisError::RedisConnectionError.into(),
-        ))
-        .attach_printable("Failed to get redis connection")?;
-    // The redis round trip already materialized the payload, so its size is free here and
-    // does not have to be recomputed to bound the cache.
-    let val = get_or_populate_redis(redis, key, None, fun).await?;
-    cache.push(cache_key, val.clone()).await;
-
-    Ok(val)
+    // The redis connection is acquired only when this caller is the one populating, so an
+    // in-memory hit answers during a redis outage rather than erroring, and concurrent
+    // misses for one key cost a single redis round trip between them. The round trip also
+    // reports the payload size, so weighing the entry costs nothing extra.
+    cache
+        .get_or_populate(cache_key, || async {
+            let redis = store
+                .get_redis_conn()
+                .change_context(StorageError::RedisError(
+                    RedisError::RedisConnectionError.into(),
+                ))
+                .attach_printable("Failed to get redis connection")?;
+            get_or_populate_redis(&redis, key, None, fun).await
+        })
+        .await
 }
 
 #[instrument(skip_all)]
@@ -802,7 +976,12 @@ where
 
 #[cfg(test)]
 mod cache_tests {
+
     use super::*;
+
+    /// Long enough that a correctly coalescing test never trips it, short enough that a test
+    /// asserting the timeout does not drag.
+    const TEST_POPULATE_WAIT: Duration = Duration::from_millis(500);
 
     /// The `[cache]` documentation in `config/*.toml` promises this syntax.
     #[test]
@@ -881,7 +1060,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn construct_and_get_cache() {
-        let cache = Cache::new("test", 1800, 1800, None);
+        let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT);
         cache
             .push(
                 CacheKey {
@@ -904,7 +1083,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn eviction_on_size_test() {
-        let cache = Cache::new("test", 2, 2, Some(0));
+        let cache = Cache::new("test", 2, 2, Some(0), TEST_POPULATE_WAIT);
         cache
             .push(
                 CacheKey {
@@ -927,7 +1106,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn invalidate_cache_for_key() {
-        let cache = Cache::new("test", 1800, 1800, None);
+        let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT);
         cache
             .push(
                 CacheKey {
@@ -958,7 +1137,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn eviction_on_time_test() {
-        let cache = Cache::new("test", 2, 2, None);
+        let cache = Cache::new("test", 2, 2, None, TEST_POPULATE_WAIT);
         cache
             .push(
                 CacheKey {
@@ -968,7 +1147,7 @@ mod cache_tests {
                 "val".to_string(),
             )
             .await;
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        tokio::time::sleep(Duration::from_secs(3)).await;
         assert_eq!(
             cache
                 .get_val::<String>(CacheKey {
