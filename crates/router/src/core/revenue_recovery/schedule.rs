@@ -45,6 +45,8 @@ impl StaticLadderProgress {
 pub enum ScheduleSource {
     Static,
     Adaptive,
+    /// The MIT cascading ladder, consulted only once the other two have nothing to offer.
+    Fallback,
 }
 
 /// Outcome of one scheduling decision.
@@ -58,16 +60,18 @@ pub struct ScheduleDecision {
     pub source: ScheduleSource,
 }
 
-/// The adaptive model decides whenever it has an opinion; the static ladder covers only the
-/// decisions it declines. `None` when neither has anything left to offer.
+/// The adaptive model decides whenever it has an opinion; the static ladder covers the decisions it
+/// declines, and the MIT cascading ladder covers what is left. `None` when none of the three has
+/// anything to offer.
 ///
-/// The two candidates are NOT compared — an adaptive time is taken as it stands, however much later
+/// The candidates are NOT compared — an adaptive time is taken as it stands, however much later
 /// than the ladder's it falls. The ladder is a standby, not a ceiling.
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
     queried_rung: i32,
     static_time: Option<PrimitiveDateTime>,
     adaptive_time: Option<PrimitiveDateTime>,
+    fallback_time: Option<PrimitiveDateTime>,
 ) -> Option<ScheduleDecision> {
     // Adaptive spends no ladder position, so the count stays put and the same position is offered
     // again on the next decision.
@@ -90,7 +94,16 @@ pub fn decide_next_retry(
         (Some(adaptive_time), _) => Some(adaptive(adaptive_time)),
         // The model declined, so the ladder covers this decision and spends a position.
         (None, Some(static_time)) => Some(static_ladder(static_time)),
-        (None, None) => None,
+        // Model declined and the ladder is spent, so the MIT cascading ladder gets the last word.
+        // It spends no ladder position, so the count stays put; `None` here means there is
+        // genuinely nothing left to schedule for this invoice.
+        (None, None) => fallback_time.map(|schedule_time| ScheduleDecision {
+            schedule_time,
+            next_progress: StaticLadderProgress {
+                consumed_rungs: schedule.consumed_rungs,
+            },
+            source: ScheduleSource::Fallback,
+        }),
     }
 }
 
@@ -121,7 +134,7 @@ mod tests {
         static_time: Option<PrimitiveDateTime>,
         adaptive_time: Option<PrimitiveDateTime>,
     ) -> ScheduleDecision {
-        decide_next_retry(schedule, queried_rung, static_time, adaptive_time)
+        decide_next_retry(schedule, queried_rung, static_time, adaptive_time, None)
             .expect("a time was available")
     }
 
@@ -234,9 +247,19 @@ mod tests {
     }
 
     #[test]
-    fn both_declining_yields_no_decision() {
-        // Nothing left to schedule, and no third source behind these two.
-        assert_eq!(decide_next_retry(&at_rung(5), 6, None, None), None);
+    fn the_mit_ladder_covers_what_the_other_two_decline() {
+        let decision = decide_next_retry(&at_rung(5), 6, None, None, Some(at(72)))
+            .expect("the fallback had a time");
+
+        assert_eq!(decision.schedule_time, at(72));
+        assert_eq!(decision.source, ScheduleSource::Fallback);
+        // Spends no ladder position, so the count stays where the ladder left it.
+        assert_eq!(decision.next_progress.consumed_rungs, 5);
+    }
+
+    #[test]
+    fn all_three_declining_yields_no_decision() {
+        assert_eq!(decide_next_retry(&at_rung(5), 6, None, None, None), None);
     }
 
     // ---- successive decisions ---------------------------------------------
