@@ -2690,64 +2690,76 @@ impl From<RolloutConfig> for RolloutExecutionResult {
         let is_valid_percent = config.execution_mode != ExecutionMode::Primary
             || (0.0..=1.0).contains(&config.rollout_percent);
 
-        if !is_valid_percent {
-            logger::warn!(
-                is_valid_percent = is_valid_percent,
-                "Invalid rollout percent in rollout config. Defaulting to should_execute false."
-            );
-            return Self::default();
-        }
-
-        let primary_percent = match config.execution_mode {
-            ExecutionMode::Primary => config.rollout_percent,
-            ExecutionMode::Shadow | ExecutionMode::NotApplicable => 0.0,
-        };
-        let shadow_percent = match (config.execution_mode, config.shadow_rollout_percent) {
-            (ExecutionMode::NotApplicable, _) | (_, None) => 0.0,
-            (_, Some(percent)) if !(0.0..=1.0).contains(&percent) => {
+        match is_valid_percent {
+            false => {
                 logger::warn!(
-                    shadow_rollout_percent = percent,
-                    "Invalid shadow_rollout_percent in rollout config, ignoring"
+                    is_valid_percent = is_valid_percent,
+                    "Invalid rollout percent in rollout config. Defaulting to should_execute false."
                 );
-                0.0
+                Self::default()
             }
-            (_, Some(percent)) => percent.min(1.0 - primary_percent),
-        };
+            true => {
+                let primary_percent = match config.execution_mode {
+                    ExecutionMode::Primary => config.rollout_percent,
+                    ExecutionMode::Shadow | ExecutionMode::NotApplicable => 0.0,
+                };
+                let shadow_percent = match (config.execution_mode, config.shadow_rollout_percent) {
+                    (ExecutionMode::NotApplicable, _) | (_, None) => 0.0,
+                    (_, Some(percent)) if !(0.0..=1.0).contains(&percent) => {
+                        logger::warn!(
+                            shadow_rollout_percent = percent,
+                            "Invalid shadow_rollout_percent in rollout config, ignoring"
+                        );
+                        0.0
+                    }
+                    (_, Some(percent)) => percent.min(1.0 - primary_percent),
+                };
 
-        let sampled_value: f64 = common_utils::generate_random_f64_unit();
-        let execution_mode = if sampled_value < primary_percent {
-            ExecutionMode::Primary
-        } else if sampled_value < primary_percent + shadow_percent {
-            ExecutionMode::Shadow
-        } else {
-            logger::info!(
-                execution_mode = ?config.execution_mode,
-                "Rollout will not be executed"
-            );
-            return Self::default();
-        };
+                let sampled_value: f64 = common_utils::generate_random_f64_unit();
+                let rollout_execution_mode = if sampled_value < primary_percent {
+                    Some(ExecutionMode::Primary)
+                } else if sampled_value < primary_percent + shadow_percent {
+                    Some(ExecutionMode::Shadow)
+                } else {
+                    None
+                };
 
-        logger::debug!(
-            rollout_percent = config.rollout_percent,
-            shadow_rollout_percent = ?config.shadow_rollout_percent,
-            sampled_value = sampled_value,
-            execution_mode = ?execution_mode,
-            "Rollout execution decision made"
-        );
-        logger::info!(
-            execution_mode = ?execution_mode,
-            "Rollout will be executed"
-        );
-        Self {
-            should_execute: true,
-            execution_mode,
-            kill_switch_enabled: config.kill_switch_enabled,
-            kill_switch_threshold: config.kill_switch_threshold,
-            connector_decline_threshold: config.connector_decline_threshold,
-            // Proxy override is sourced from the env-configured comparison
-            // service, not from the DB rollout config — populated by the caller
-            // after conversion.
-            ..Default::default()
+                logger::debug!(
+                    rollout_percent = config.rollout_percent,
+                    sampled_value = sampled_value,
+                    shadow_rollout_percent = ?config.shadow_rollout_percent,
+                    should_execute = rollout_execution_mode.is_some(),
+                    execution_mode = ?config.execution_mode,
+                    "Rollout execution decision made"
+                );
+
+                match rollout_execution_mode {
+                    Some(execution_mode) => {
+                        logger::info!(
+                            execution_mode = ?execution_mode,
+                            "Rollout will be executed"
+                        );
+                        Self {
+                            should_execute: true,
+                            execution_mode,
+                            kill_switch_enabled: config.kill_switch_enabled,
+                            kill_switch_threshold: config.kill_switch_threshold,
+                            connector_decline_threshold: config.connector_decline_threshold,
+                            // Proxy override is sourced from the env-configured comparison
+                            // service, not from the DB rollout config — populated by the caller
+                            // after conversion.
+                            ..Default::default()
+                        }
+                    }
+                    None => {
+                        logger::info!(
+                            execution_mode = ?config.execution_mode,
+                            "Rollout will not be executed"
+                        );
+                        Self::default()
+                    }
+                }
+            }
         }
     }
 }
