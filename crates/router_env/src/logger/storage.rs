@@ -28,9 +28,8 @@ impl<'a> Storage<'a> {
     }
 
     pub fn record_value(&mut self, key: &'a str, value: serde_json::Value) {
-        if super::formatter::IMPLICIT_KEYS.contains(key) {
-            tracing::warn!(value =? value, "{} is a reserved entry. Skipping it.", key);
-        } else {
+        // Logging here would re-enter the subscriber while span locks may be held.
+        if !super::formatter::IMPLICIT_KEYS.contains(key) {
             self.values.insert(key, value);
         }
     }
@@ -108,32 +107,35 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
     fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
         #[allow(clippy::expect_used)]
         let span = ctx.span(id).expect("No span");
-        let mut extensions = span.extensions_mut();
 
         let mut visitor = if let Some(parent_span) = span.parent() {
-            let mut extensions = parent_span.extensions_mut();
+            let extensions = parent_span.extensions();
             extensions
-                .get_mut::<Storage<'_>>()
-                .map(|v| v.to_owned())
+                .get::<Storage<'_>>()
+                .cloned()
                 .unwrap_or_default()
         } else {
             Storage::default()
         };
 
+        // Debug implementations may re-enter tracing; format outside the lock.
         attrs.record(&mut visitor);
-        extensions.insert(visitor);
+        span.extensions_mut().insert(visitor);
     }
 
     /// On additional key value pairs store it.
     fn on_record(&self, span: &Id, values: &Record<'_>, ctx: Context<'_, S>) {
         #[allow(clippy::expect_used)]
         let span = ctx.span(span).expect("No span");
+        let mut updates = Storage::default();
+        values.record(&mut updates);
+
         let mut extensions = span.extensions_mut();
         #[allow(clippy::expect_used)]
         let visitor = extensions
             .get_mut::<Storage<'_>>()
             .expect("The span does not have storage");
-        values.record(visitor);
+        visitor.values.extend(updates.values);
     }
 
     /// On enter store time.

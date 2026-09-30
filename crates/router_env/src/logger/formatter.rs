@@ -252,6 +252,8 @@ where
         #[cfg(feature = "log_custom_entries_to_extra")]
         let mut extra = serde_json::Map::default();
         let mut explicit_entries_set: HashSet<&str> = HashSet::default();
+        // Never emit tracing events inside a subscriber callback: nested layers may
+        // acquire the same span's extensions lock (e.g. OpenTelemetry's on_event).
         // Write down explicit event's entries.
         for (key, value) in storage.values.iter() {
             if is_extra_implicit(key) {
@@ -264,12 +266,6 @@ where
                 #[cfg(not(feature = "log_custom_entries_to_extra"))]
                 map_serializer.serialize_entry(key, value)?;
                 explicit_entries_set.insert(key);
-            } else {
-                tracing::warn!(
-                    ?key,
-                    ?value,
-                    "Attempting to log a reserved entry. It won't be added to the logs"
-                );
             }
         }
 
@@ -286,12 +282,6 @@ where
                         extra.insert(key.to_string(), value.clone());
                         #[cfg(not(feature = "log_custom_entries_to_extra"))]
                         map_serializer.serialize_entry(key, value)?;
-                    } else {
-                        tracing::warn!(
-                            ?key,
-                            ?value,
-                            "Attempting to log a reserved entry. It won't be added to the logs"
-                        );
                     }
                 }
             }
