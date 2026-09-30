@@ -137,32 +137,20 @@ max_feed_count = 200              # The maximum number of frames that will be fe
 # Each of the caches below accepts the same keys:
 #   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
 #   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
-#   max_capacity       # The cache's ceiling. moka bounds a cache by a single number, so the unit is part
-#                      # of the ceiling and a cache is bounded by size or by count, never both:
+#   max_entries        # Maximum number of entries the cache may hold. `0` makes it unbounded.
 #                      #
-#                      #   max_capacity = { megabytes = 30 }   # total size of the cache's entries
-#                      #   max_capacity = { entries = 10000 }  # number of entries, whatever they weigh
-#                      #   max_capacity = "unbounded"          # only TTL and time-to-idle apply
+#                      # Default for every cache except `config`: 31457280. That is the ceiling these
+#                      # caches have always had — a `30` that was documented as megabytes but reached moka
+#                      # as an entry count, because no weigher was ever configured — kept so that enabling
+#                      # this section changes no eviction behaviour. It binds nothing in practice; pick a
+#                      # real ceiling per cache once you know the numbers involved. `config` defaults to
+#                      # unbounded, as before.
 #                      #
-#                      # Default for every cache except `config`: { entries = 31457280 }. That is the
-#                      # ceiling these caches have always had — a `30` that was documented as megabytes
-#                      # but reached moka as an entry count — kept so that enabling this section changes
-#                      # no eviction behaviour. It binds nothing in practice; pick a real ceiling per
-#                      # cache once you know the sizes involved. `config` defaults to "unbounded", as before.
-#                      #
-#                      # A megabytes ceiling is weighed by the payload size redis reported for each entry,
-#                      # so it only binds caches populated through redis. `routing`, `cgraph` and
-#                      # `pm_filters_cgraph` are built in-process and their entries carry no size, so a
-#                      # megabytes ceiling there can never be reached — it is logged and ignored in favour
-#                      # of the default. Use `{ entries = N }` for those three.
-#                      #
-#                      # As environment variables the unit becomes a further `__` segment:
-#                      #   ROUTER__CACHE__ACCOUNTS__MAX_CAPACITY__MEGABYTES=30
-#                      #   ROUTER__CACHE__CGRAPH__MAX_CAPACITY__ENTRIES=10000
-#                      #   ROUTER__CACHE__CONFIG__MAX_CAPACITY=unbounded
+#                      # As an environment variable:
+#                      #   ROUTER__CACHE__ACCOUNTS__MAX_ENTRIES=500000
 #
 # Note that `time_to_idle` is what bounds the resident set in normal operation — these caches are
-# keyed per merchant and profile, so an entry unread for its window is dropped. `max_capacity` is a
+# keyed per merchant and profile, so an entry unread for its window is dropped. `max_entries` is a
 # backstop against runaway growth, and an eviction attributable to it shows up on
 # IN_MEMORY_CACHE_EVICTION_COUNT with removal_cause=Size.
 #
