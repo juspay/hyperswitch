@@ -268,6 +268,11 @@ pub enum CardNetworkLowercase {
     Prop,
     PrivateLabel,
     Dinacard,
+    AirPlus,
+    Aurore,
+    EftposAustralia,
+    GeCapital,
+    Uatp,
 }
 
 impl From<common_enums::CardNetwork> for CardNetworkLowercase {
@@ -291,6 +296,11 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
