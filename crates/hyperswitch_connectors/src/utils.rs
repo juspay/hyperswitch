@@ -99,7 +99,7 @@ pub(crate) fn construct_not_supported_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotSupported {
         message: capture_method.to_string(),
-        connector: connector_name,
+        connector: connector_name.into(),
     }
     .into()
 }
@@ -461,7 +461,7 @@ pub(crate) fn validate_currency(
             message: format!(
                 "currency {request_currency} is not supported for this merchant account",
             ),
-            connector: "Braintree",
+            connector: "Braintree".into(),
         })?
     }
     Ok(())
@@ -3551,14 +3551,14 @@ macro_rules! capture_method_not_supported {
     ($connector:expr, $capture_method:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
-            connector: $connector,
+            connector: $connector.into(),
         }
         .into())
     };
     ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for {}", $capture_method, $payment_method_type),
-            connector: $connector,
+            connector: $connector.into(),
         }
         .into())
     };
@@ -7824,6 +7824,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
+        accept_amount_mismatch: data.accept_amount_mismatch,
         additional_merchant_data: data.additional_merchant_data.clone(),
         header_payload: data.header_payload.clone(),
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
@@ -8055,7 +8056,7 @@ pub fn get_card_details(
         PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: connector_name,
+            connector: connector_name.into(),
         })?,
     }
 }
@@ -8075,6 +8076,80 @@ pub fn get_authorise_integrity_object<T>(
         amount: amount_in_minor_unit,
         currency: currency_enum,
     })
+}
+
+/// Returns the connector-reported amount as the captured amount when the payment is charged
+/// (fully or partially), `None` otherwise.
+pub fn get_amount_captured(status: AttemptStatus, amount: Option<MinorUnit>) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
+/// Returns the connector-reported amount as the capturable amount when the payment is
+/// authorized (fully or partially), `None` otherwise.
+pub fn get_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
 }
 
 pub fn get_sync_integrity_object<T>(

@@ -175,7 +175,8 @@ function expectWebhookStatusMembers(actualWebhook, expectedWebhook) {
 function createIndividualRolloutConfig(
   methodFlow,
   globalState,
-  configType = "rollout"
+  configType = "rollout",
+  configValueOverride = null
 ) {
   const merchantId = globalState.get("merchantId");
   const adminApiKey = globalState.get("adminApiKey");
@@ -197,12 +198,14 @@ function createIndividualRolloutConfig(
     ? "primary"
     : "shadow";
 
-  const configValue = {
-    rollout_percent: rolloutPercent,
-    http_url: httpUrl,
-    https_url: httpsUrl,
-    execution_mode: executionMode,
-  };
+  const configValue = configValueOverride
+    ? { ...configValueOverride }
+    : {
+        rollout_percent: rolloutPercent,
+        http_url: httpUrl,
+        https_url: httpsUrl,
+        execution_mode: executionMode,
+      };
   const value = JSON.stringify(configValue);
 
   const headers = {
@@ -371,7 +374,7 @@ function parseMethodFlows(methodFlowInput, connector) {
   ];
 }
 
-function createUcsConfigs(globalState, flow, type) {
+function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   // --- Phase 1: Environment Setup & Validation ---
   const ucsEnabled = globalState.get("ucsEnabled");
   if (!ucsEnabled) {
@@ -387,7 +390,7 @@ function createUcsConfigs(globalState, flow, type) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  if (!httpUrl || !httpsUrl) {
+  if ((!httpUrl || !httpsUrl) && !configValueOverride) {
     throw new Error(
       `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
     );
@@ -459,7 +462,8 @@ function createUcsConfigs(globalState, flow, type) {
                 return createIndividualRolloutConfig(
                   currentFlow,
                   globalState,
-                  type
+                  type,
+                  configValueOverride
                 );
               })
               .then((result) => {
@@ -1827,6 +1831,11 @@ Cypress.Commands.add(
             authDetails.additional_merchant_data;
         }
 
+        if (authDetails && authDetails.connector_webhook_details) {
+          createConnectorBody.connector_webhook_details =
+            authDetails.connector_webhook_details;
+        }
+
         cy.request({
           method: "POST",
           url: url,
@@ -2189,14 +2198,17 @@ Cypress.Commands.add(
           `${connectorName}_payout`
         );
 
-        if (connectorName === "truelayer") {
-          const { authDetails: truelayerAuthDetails } = getValueByKey(
+        if (
+          (connectorName === "truelayer" || connectorName === "trustly") &&
+          authDetails === null
+        ) {
+          const { authDetails: paymentAuthDetails } = getValueByKey(
             authFileContent,
             connectorName
           );
 
-          if (truelayerAuthDetails !== null) {
-            authDetails = truelayerAuthDetails;
+          if (paymentAuthDetails !== null) {
+            authDetails = paymentAuthDetails;
           }
         }
 
@@ -2210,6 +2222,11 @@ Cypress.Commands.add(
 
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
+
+        if (authDetails.connector_webhook_details) {
+          createConnectorBody.connector_webhook_details =
+            authDetails.connector_webhook_details;
+        }
 
         // Stash sensitive payout bank transfer details (if any) so payout
         // create/confirm commands can inject them at runtime instead of
@@ -2475,7 +2492,7 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
 
 Cypress.Commands.add(
   "createCustomerCallTest",
-  (customerCreateBody, globalState) => {
+  (customerCreateBody, globalState, data = null) => {
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/customers`,
@@ -2511,7 +2528,19 @@ Cypress.Commands.add(
             "phone_country_code"
           ).to.equal(response.body.phone_country_code);
         } else if (response.status === 400) {
-          if (response.body.error.message.includes("already exists")) {
+          if (data?.Response?.body?.error) {
+            const resData = data.Response;
+            expect(response.status, "response status").to.equal(resData.status);
+            expect(response.body.error.type, "error type").to.equal(
+              resData.body.error.type
+            );
+            expect(response.body.error.message, "error message").to.equal(
+              resData.body.error.message
+            );
+            expect(response.body.error.code, "error code").to.equal(
+              resData.body.error.code
+            );
+          } else if (response.body.error.message.includes("already exists")) {
             expect(response.body.error.code).to.equal("IR_12");
             expect(response.body.error.message).to.equal(
               "Customer with the given `customer_id` already exists"
@@ -3548,7 +3577,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -3652,7 +3687,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4412,7 +4453,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4486,7 +4533,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4765,7 +4818,13 @@ Cypress.Commands.add(
                 response.body[key]?.card?.auth_code,
                 "payment_method_data.card.auth_code"
               ).to.be.a("string").and.not.be.empty;
-            } else if (key === "payment_account_reference") {
+            } else if (
+              key === "payment_account_reference" ||
+              key === "network_transaction_link_id"
+            ) {
+              // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+              // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+              // "dynamic_par") to assert the field is populated, and null to assert it is absent.
               if (resData.body[key] === null) {
                 expect(response.body[key], [key]).to.be.null;
               } else {
@@ -4956,6 +5015,26 @@ Cypress.Commands.add(
               expect(
                 response.body.payment_account_reference,
                 "payment_account_reference"
+              ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(
+              resData.body,
+              "network_transaction_link_id"
+            )
+          ) {
+            if (resData.body.network_transaction_link_id === null) {
+              expect(
+                response.body.network_transaction_link_id,
+                "network_transaction_link_id"
+              ).to.be.null;
+            } else {
+              expect(
+                response.body.network_transaction_link_id,
+                "network_transaction_link_id"
               ).to.be.a("string").and.to.not.be.empty;
             }
           }
@@ -5432,10 +5511,18 @@ Cypress.Commands.add(
           const isWalletRequiresAction =
             response.body.status === "requires_customer_action" &&
             response.body.payment_method === "wallet";
+          const isBankRedirect =
+            response.body.payment_method === "bank_redirect";
+          const isTerminalSuccessForDeferredPm = [
+            "succeeded",
+            "requires_capture",
+            "partially_captured",
+          ].includes(response.body.status);
           if (
             response.body.status !== "failed" &&
             !isWalletRequiresAction &&
-            response.body.setup_future_usage === "off_session"
+            response.body.setup_future_usage === "off_session" &&
+            (!isBankRedirect || isTerminalSuccessForDeferredPm)
           ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
               .be.null;
@@ -7360,6 +7447,53 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "pollPayoutStatusCallTest",
+  (
+    globalState,
+    terminalStatuses = ["success", "failed", "cancelled"],
+    maxAttempts = 2,
+    intervalMs = 30000
+  ) => {
+    const payout_id = globalState.get("payoutID");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    const poll = (attempt) => {
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payouts/${payout_id}`,
+        headers,
+        failOnStatusCode: false,
+      }).then((response) => {
+        const status = response.body?.status;
+        cy.task(
+          "cli_log",
+          `pollPayoutStatusCallTest: attempt ${attempt}/${maxAttempts}, status=${status}`
+        );
+        globalState.set("polledPayoutStatus", status);
+
+        if (terminalStatuses.includes(status) || attempt >= maxAttempts) {
+          if (!terminalStatuses.includes(status)) {
+            cy.task(
+              "cli_log",
+              `pollPayoutStatusCallTest: gave up after ${maxAttempts} attempts - payout ${payout_id} still '${status}' (expected one of: ${terminalStatuses.join(", ")})`
+            );
+          }
+          return;
+        }
+
+        cy.wait(intervalMs);
+        poll(attempt + 1);
+      });
+    };
+
+    poll(1);
+  }
+);
+
+Cypress.Commands.add(
   "updatePayoutCallTest",
   (payoutConfirmBody, data, auto_fulfill, globalState) => {
     const { Response: resData } = data || {};
@@ -8321,9 +8455,12 @@ Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
   cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
-Cypress.Commands.add("createRolloutConfig", (globalState, flow = null) => {
-  return createUcsConfigs(globalState, flow, "rollout");
-});
+Cypress.Commands.add(
+  "createRolloutConfig",
+  (globalState, flow = null, configValueOverride = null) => {
+    return createUcsConfigs(globalState, flow, "rollout", configValueOverride);
+  }
+);
 
 Cypress.Commands.add(
   "createShadowRolloutConfig",
@@ -8707,6 +8844,10 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
     manualUpdateBody.error_message = requestData.error_message;
   }
 
+  if (typeof requestData.amount_captured !== "undefined") {
+    manualUpdateBody.amount_captured = requestData.amount_captured;
+  }
+
   cy.request({
     method: "PUT",
     url: completeUrl,
@@ -8747,6 +8888,31 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
             responseData.body.error_message
           );
         }
+
+        if (
+          responseData.body &&
+          typeof responseData.body.amount_captured !== "undefined"
+        ) {
+          expect(response.body.amount_captured, "amount_captured").to.equal(
+            responseData.body.amount_captured
+          );
+        }
+
+        if (
+          responseData.body &&
+          typeof responseData.body.amount_capturable !== "undefined"
+        ) {
+          expect(response.body.amount_capturable, "amount_capturable").to.equal(
+            responseData.body.amount_capturable
+          );
+        }
+      } else if (responseData.body && responseData.body.error) {
+        // Expected error response (e.g. 400/422 IR_06 validation failures).
+        // defaultErrorHandler asserts the keys configured in
+        // Response.body.error, so it covers both error body shapes: 422
+        // validation errors use "type" while 400 deserialize errors use
+        // "error_type", and deserialize messages are matched by substring.
+        defaultErrorHandler(response, responseData);
       } else {
         throw new Error(
           `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
