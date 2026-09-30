@@ -180,6 +180,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PlatformPaymentsList
+            | Flow::PlatformPaymentsFilters
             | Flow::PaymentsFilters
             | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
