@@ -144,13 +144,29 @@ max_feed_count = 200
 # [cache]
 # invalidation_channel = "hyperswitch_invalidate" # Redis pub/sub channel used to invalidate in-memory cache entries across instances; must be identical on every instance of a deployment
 #
-# Each of the caches below accepts the same three keys:
+# Each of the caches below accepts the same keys:
 #   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
 #   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
-#   max_capacity_in_mb # Size limit of the cache in megabytes, weighed by the size of the payload redis holds for
-#                      # each entry, 0 meaning unbounded (default: 30). `cache.config`, `cache.routing`,
-#                      # `cache.cgraph` and `cache.pm_filters_cgraph` default to unbounded — the latter three are
-#                      # populated in-process rather than through redis, so their entries carry no size to weigh
+#   max_capacity       # The cache's ceiling. moka bounds a cache by a single number, so the unit is part
+#                      # of the ceiling and a cache is bounded by size or by count, never both:
+#                      #
+#                      #   max_capacity = { megabytes = 30 }   # total size of the cache's entries
+#                      #   max_capacity = { entries = 10000 }  # number of entries, whatever they weigh
+#                      #   max_capacity = "unbounded"          # only TTL and time-to-idle apply
+#                      #
+#                      # Defaults: { megabytes = 30 } for most caches, { entries = 10000 } for `routing`,
+#                      # `cgraph` and `pm_filters_cgraph`, and "unbounded" for `config`.
+#                      #
+#                      # A megabytes ceiling is weighed by the payload size redis reported for each entry,
+#                      # so it only binds caches populated through redis. `routing`, `cgraph` and
+#                      # `pm_filters_cgraph` are built in-process and their entries carry no size, so a
+#                      # megabytes ceiling there can never be reached — it is logged and ignored in favour
+#                      # of the default. Use `{ entries = N }` for those three.
+#
+# Note that `time_to_idle` is what bounds the resident set in normal operation — these caches are
+# keyed per merchant and profile, so an entry unread for its window is dropped. `max_capacity` is a
+# backstop against runaway growth, and an eviction attributable to it shows up on
+# IN_MEMORY_CACHE_EVICTION_COUNT with removal_cause=Size.
 #
 # [cache.config]                              # CONFIG_CACHE, unbounded by default
 # [cache.accounts]                            # ACCOUNTS_CACHE

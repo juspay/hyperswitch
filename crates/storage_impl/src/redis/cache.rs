@@ -35,6 +35,58 @@ pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 /// was multiplied to ~31M entries and never actually bound anything.
 pub const DEFAULT_MAX_CAPACITY: u64 = 30;
 
+/// Default entry ceiling for caches bounded by count rather than size.
+///
+/// A backstop against unbounded growth, not a memory target. What bounds the resident set in
+/// normal operation is `time_to_idle`: these caches are keyed per merchant and profile, and an
+/// entry unread for its window is dropped, so only recently active merchants stay resident.
+/// 10,000 simultaneously active merchant-profile pairs is already a very large deployment, so
+/// this should not fire in practice — and if it does, it shows up on
+/// `IN_MEMORY_CACHE_EVICTION_COUNT` with `removal_cause=Size`, which is the signal to raise it
+/// rather than to let the cache thrash.
+pub const DEFAULT_MAX_ENTRIES: u64 = 10_000;
+
+/// Whether a cache's entries arrive with a measurable size.
+///
+/// Fixed by how a cache is populated rather than by configuration: entries fetched through
+/// redis carry the payload size it reported, entries built in-process carry nothing. Either
+/// kind can be bounded by entry count; only measured entries can be bounded by megabytes,
+/// since unmeasured ones each weigh zero against a size ceiling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntrySizing {
+    Measured,
+    Unmeasured,
+}
+
+/// A cache's ceiling, and the unit it is counted in.
+///
+/// moka bounds a cache by a single number read through its weigher, so the unit is part of the
+/// ceiling rather than a setting beside it. Hence one field rather than two: a cache is bounded
+/// by size or by count, and "both" is not a state this can be in.
+///
+/// In configuration:
+///
+/// ```toml
+/// [cache.accounts]
+/// max_capacity = { megabytes = 30 }
+///
+/// [cache.cgraph]
+/// max_capacity = { entries = 10000 }
+///
+/// [cache.config]
+/// max_capacity = "unbounded"
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheLimit {
+    /// Bounded by the total reported size of its entries.
+    Megabytes(u64),
+    /// Bounded by how many entries it holds, whatever they weigh.
+    Entries(u64),
+    /// Bounded only by TTL and time-to-idle.
+    Unbounded,
+}
+
 /// Runtime overrides for a single in-memory cache.
 ///
 /// Every field is optional: whatever is left unset falls back to that cache's compiled-in
@@ -47,9 +99,9 @@ pub struct CacheSettings {
     pub ttl_in_secs: Option<u64>,
     /// Time in seconds an entry is retained after it was last read or written
     pub tti_in_secs: Option<u64>,
-    /// Max size in MB the cache may hold, measured as the serialized size of its entries.
-    /// `0` makes the cache unbounded.
-    pub max_capacity_in_mb: Option<u64>,
+    /// The cache's ceiling, in whichever unit is chosen — see [`CacheLimit`]. Unset keeps the
+    /// cache's own default.
+    pub max_capacity: Option<CacheLimit>,
 }
 
 impl CacheSettings {
@@ -61,27 +113,41 @@ impl CacheSettings {
         self.tti_in_secs.unwrap_or(DEFAULT_CACHE_TTI)
     }
 
-    /// Resolves the max capacity against the cache's own default, `None` meaning unbounded.
+    /// Resolves the ceiling this configuration asks for.
     ///
-    /// An explicitly configured `0` is how a bounded cache is made unbounded, since the
-    /// absence of the key already means "use the default".
-    fn max_capacity(&self, default: Option<u64>) -> Option<u64> {
-        match self.max_capacity_in_mb {
-            Some(0) => None,
-            Some(capacity) => Some(capacity),
-            None => default,
+    /// Either unit may be chosen for any cache, and [`CacheLimit`] makes it one choice rather
+    /// than two competing settings, so there is no "both were set" case to arbitrate.
+    ///
+    /// The one combination that cannot work is a megabyte ceiling on a cache whose entries
+    /// carry no size: each would weigh zero and the ceiling would never be reached. Rather
+    /// than accept a setting that silently does nothing, such a cache keeps its default and
+    /// says so.
+    fn limit(&self, name: &'static str, sizing: EntrySizing, default: CacheLimit) -> CacheLimit {
+        match (self.max_capacity, sizing) {
+            (Some(CacheLimit::Megabytes(_)), EntrySizing::Unmeasured) => {
+                logger::warn!(
+                    cache_type = name,
+                    "Ignoring a megabyte `max_capacity`: this cache is populated in-process, \
+                     so its entries carry no size to weigh and the ceiling would never be \
+                     reached. Use `{{ entries = N }}` instead. Falling back to {default:?}"
+                );
+                default
+            }
+            (Some(limit), _) => limit,
+            (None, _) => default,
         }
     }
 
     /// Builds the cache this configuration describes.
     ///
-    /// `default_max_capacity` is the cache's own capacity default, `None` meaning unbounded.
-    fn build(&self, name: &'static str, default_max_capacity: Option<u64>) -> Cache {
+    /// `sizing` is fixed by how the cache is populated; `default` is its own ceiling when the
+    /// configuration names none.
+    fn build(&self, name: &'static str, sizing: EntrySizing, default: CacheLimit) -> Cache {
         Cache::new(
             name,
             self.time_to_live(),
             self.time_to_idle(),
-            self.max_capacity(default_max_capacity),
+            self.limit(name, sizing, default),
         )
     }
 }
@@ -150,39 +216,51 @@ impl Caches {
     /// Builds every cache from `config`, falling back to the per-cache defaults for anything
     /// left unset.
     pub fn new(config: &CacheConfig) -> Self {
-        let bounded = Some(DEFAULT_MAX_CAPACITY);
-        const UNBOUNDED: Option<u64> = None;
+        // Both `max_entries` and `max_capacity_in_mb` are accepted for every cache; these are
+        // only the defaults when neither is configured. `EntrySizing` records which caches
+        // could honour a megabyte ceiling at all — see [`CacheSettings::limit`].
+        use EntrySizing::{Measured, Unmeasured};
+
+        const BY_SIZE: CacheLimit = CacheLimit::Megabytes(DEFAULT_MAX_CAPACITY);
+        const BY_COUNT: CacheLimit = CacheLimit::Entries(DEFAULT_MAX_ENTRIES);
+        const UNBOUNDED: CacheLimit = CacheLimit::Unbounded;
 
         Self {
             invalidation_channel: config
                 .invalidation_channel
                 .clone()
                 .unwrap_or_else(|| DEFAULT_IMC_INVALIDATION_CHANNEL.to_string()),
-            config: config.config.build("CONFIG_CACHE", None),
-            accounts: config.accounts.build("ACCOUNTS_CACHE", bounded),
-            mca_list: config.mca_list.build("MCA_LIST_CACHE", bounded),
-            // Routing, cgraph and PM-filter caches are populated by direct `Cache::push`
-            // from the router rather than through redis, so their entries carry no
-            // `EntrySize::Bytes` to weigh and a byte budget could not bound them. Left
-            // unbounded, which is what they have effectively always been.
-            routing: config.routing.build("ROUTING_CACHE", UNBOUNDED),
-            decision_manager: config
-                .decision_manager
-                .build("DECISION_MANAGER_CACHE", bounded),
-            surcharge: config.surcharge.build("SURCHARGE_CACHE", bounded),
-            cgraph: config.cgraph.build("CGRAPH_CACHE", UNBOUNDED),
-            pm_filters_cgraph: config
-                .pm_filters_cgraph
-                .build("PM_FILTERS_CGRAPH_CACHE", UNBOUNDED),
-            success_based_dynamic_algorithm: config
-                .success_based_dynamic_algorithm
-                .build("SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE", bounded),
-            elimination_based_dynamic_algorithm: config
-                .elimination_based_dynamic_algorithm
-                .build("ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE", bounded),
-            contract_based_dynamic_algorithm: config
-                .contract_based_dynamic_algorithm
-                .build("CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE", bounded),
+            config: config.config.build("CONFIG_CACHE", Measured, UNBOUNDED),
+            accounts: config.accounts.build("ACCOUNTS_CACHE", Measured, BY_SIZE),
+            mca_list: config.mca_list.build("MCA_LIST_CACHE", Measured, BY_SIZE),
+            routing: config.routing.build("ROUTING_CACHE", Unmeasured, BY_COUNT),
+            decision_manager: config.decision_manager.build(
+                "DECISION_MANAGER_CACHE",
+                Measured,
+                BY_SIZE,
+            ),
+            surcharge: config.surcharge.build("SURCHARGE_CACHE", Measured, BY_SIZE),
+            cgraph: config.cgraph.build("CGRAPH_CACHE", Unmeasured, BY_COUNT),
+            pm_filters_cgraph: config.pm_filters_cgraph.build(
+                "PM_FILTERS_CGRAPH_CACHE",
+                Unmeasured,
+                BY_COUNT,
+            ),
+            success_based_dynamic_algorithm: config.success_based_dynamic_algorithm.build(
+                "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+                Measured,
+                BY_SIZE,
+            ),
+            elimination_based_dynamic_algorithm: config.elimination_based_dynamic_algorithm.build(
+                "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
+                Measured,
+                BY_SIZE,
+            ),
+            contract_based_dynamic_algorithm: config.contract_based_dynamic_algorithm.build(
+                "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
+                Measured,
+                BY_SIZE,
+            ),
         }
     }
 
@@ -471,12 +549,12 @@ impl Cache {
     /// `name`        : Cache type name to be used as an attribute in metrics
     /// `time_to_live`: Time in seconds before an object is stored in a caching system before it’s deleted
     /// `time_to_idle`: Time in seconds before a `get` or `insert` operation an object is stored in a caching system before it's deleted
-    /// `max_capacity`: Max size in MB's that the cache can hold, `None` for unbounded
+    /// `limit`       : The ceiling, and the unit it is counted in
     pub fn new(
         name: &'static str,
         time_to_live: u64,
         time_to_idle: u64,
-        max_capacity_in_mb: Option<u64>,
+        limit: CacheLimit,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -488,17 +566,32 @@ impl Cache {
                 ),
             );
         };
+        // moka reads `max_capacity` through the weigher, so the weigher is what fixes the
+        // unit: an entry's reported byte size for a megabyte ceiling, a flat 1 per entry for
+        // an entry ceiling. Leaving the weigher off entirely is what made the megabyte figure
+        // a no-op before — moka silently counted entries instead.
+        let counts_bytes = matches!(limit, CacheLimit::Megabytes(_));
         let mut cache_builder = MokaCache::builder()
             .time_to_live(std::time::Duration::from_secs(time_to_live))
             .time_to_idle(std::time::Duration::from_secs(time_to_idle))
-            // Without a weigher moka reads `max_capacity` as a number of entries, which is
-            // what made the megabyte figure below a no-op until now.
-            .weigher(|_key, entry: &WeightedEntry| entry.weight)
+            .weigher(
+                move |_key, entry: &WeightedEntry| {
+                    if counts_bytes {
+                        entry.weight
+                    } else {
+                        1
+                    }
+                },
+            )
             .eviction_listener(eviction_listener);
 
-        if let Some(capacity_in_mb) = max_capacity_in_mb {
-            cache_builder = cache_builder.max_capacity(capacity_in_mb.saturating_mul(1024 * 1024));
-        }
+        cache_builder = match limit {
+            CacheLimit::Megabytes(capacity_in_mb) => {
+                cache_builder.max_capacity(capacity_in_mb.saturating_mul(1024 * 1024))
+            }
+            CacheLimit::Entries(entries) => cache_builder.max_capacity(entries),
+            CacheLimit::Unbounded => cache_builder,
+        };
 
         Self {
             name,
@@ -820,6 +913,142 @@ where
 mod cache_tests {
     use super::*;
 
+    /// Either unit may be chosen for any cache, so the resolution is worth pinning as a
+    /// table rather than one case at a time.
+    #[test]
+    fn a_configured_limit_is_honoured_in_whichever_unit_it_names() {
+        let by_entries = CacheSettings {
+            max_capacity: Some(CacheLimit::Entries(500)),
+            ..CacheSettings::default()
+        };
+        let by_size = CacheSettings {
+            max_capacity: Some(CacheLimit::Megabytes(64)),
+            ..CacheSettings::default()
+        };
+
+        // Entry counts bind either kind of cache.
+        for sizing in [EntrySizing::Measured, EntrySizing::Unmeasured] {
+            assert_eq!(
+                by_entries.limit("TEST", sizing, CacheLimit::Unbounded),
+                CacheLimit::Entries(500)
+            );
+        }
+
+        // A megabyte ceiling binds only where entries report a size.
+        assert_eq!(
+            by_size.limit("TEST", EntrySizing::Measured, CacheLimit::Unbounded),
+            CacheLimit::Megabytes(64)
+        );
+    }
+
+    #[test]
+    fn a_megabyte_limit_on_unmeasured_entries_falls_back_to_the_default() {
+        // Honouring it would be worse than ignoring it: every entry weighs zero, so the
+        // ceiling would never be reached and the cache would look bounded while growing.
+        let settings = CacheSettings {
+            max_capacity: Some(CacheLimit::Megabytes(64)),
+            ..CacheSettings::default()
+        };
+
+        assert_eq!(
+            settings.limit("TEST", EntrySizing::Unmeasured, CacheLimit::Entries(10)),
+            CacheLimit::Entries(10)
+        );
+    }
+
+    #[test]
+    fn an_unconfigured_cache_keeps_its_own_default() {
+        let settings = CacheSettings::default();
+
+        assert_eq!(
+            settings.limit("TEST", EntrySizing::Measured, CacheLimit::Megabytes(30)),
+            CacheLimit::Megabytes(30)
+        );
+        assert_eq!(
+            settings.limit("TEST", EntrySizing::Unmeasured, CacheLimit::Entries(10_000)),
+            CacheLimit::Entries(10_000)
+        );
+    }
+
+    /// The config shape is the point of [`CacheLimit`] being one field, so pin how it reads.
+    #[test]
+    fn a_limit_deserializes_in_either_unit_and_never_in_both() {
+        let config: CacheConfig = serde_json::from_value(serde_json::json!({
+            "accounts": { "max_capacity": { "megabytes": 64 } },
+            "cgraph": { "max_capacity": { "entries": 500 } },
+            "config": { "max_capacity": "unbounded" },
+        }))
+        .expect("failed to deserialize cache configuration");
+
+        assert_eq!(
+            config.accounts.max_capacity,
+            Some(CacheLimit::Megabytes(64))
+        );
+        assert_eq!(config.cgraph.max_capacity, Some(CacheLimit::Entries(500)));
+        assert_eq!(config.config.max_capacity, Some(CacheLimit::Unbounded));
+        assert_eq!(config.routing.max_capacity, None);
+
+        // Naming both units is not a shape this can deserialize into.
+        serde_json::from_value::<CacheConfig>(serde_json::json!({
+            "accounts": { "max_capacity": { "megabytes": 64, "entries": 500 } },
+        }))
+        .expect_err("a limit in two units at once should not deserialize");
+    }
+
+    /// The `[cache]` documentation in `config/*.toml` promises this exact syntax, and TOML
+    /// reaches serde through the `config` crate's own value tree rather than directly — so
+    /// pin it against real TOML, not just an equivalent JSON shape.
+    #[test]
+    fn the_documented_toml_syntax_deserializes() {
+        let config: CacheConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                r#"
+                [accounts]
+                max_capacity = { megabytes = 64 }
+
+                [cgraph]
+                max_capacity = { entries = 500 }
+
+                [config]
+                max_capacity = "unbounded"
+                "#,
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .expect("failed to build cache configuration")
+            .try_deserialize()
+            .expect("failed to deserialize cache configuration from TOML");
+
+        assert_eq!(
+            config.accounts.max_capacity,
+            Some(CacheLimit::Megabytes(64))
+        );
+        assert_eq!(config.cgraph.max_capacity, Some(CacheLimit::Entries(500)));
+        assert_eq!(config.config.max_capacity, Some(CacheLimit::Unbounded));
+    }
+
+    #[tokio::test]
+    async fn an_entry_ceiling_binds_regardless_of_entry_size() {
+        // Three entries allowed, eight pushed, and every one is `Unmeasured` — so nothing
+        // here has a byte weight that could have bound it.
+        let cache = Cache::new("test", 1800, 1800, CacheLimit::Entries(3));
+        for index in 0..8 {
+            cache
+                .push(
+                    CacheKey {
+                        key: format!("key{index}"),
+                        prefix: "prefix".to_string(),
+                    },
+                    "val".to_string(),
+                    EntrySize::Unmeasured,
+                )
+                .await;
+        }
+        cache.run_pending_tasks().await;
+
+        assert_eq!(cache.get_entry_count(), 3);
+    }
+
     #[test]
     fn a_measured_entry_weighs_its_payload_plus_its_key() {
         assert_eq!(EntrySize::Bytes(1000).weight("key"), 1000 + 3);
@@ -837,7 +1066,7 @@ mod cache_tests {
         // One megabyte, against eight entries of ~256 KiB: they cannot all be held. Without
         // a weigher moka would read this as a capacity of 1048576 *entries* and keep all
         // eight.
-        let cache = Cache::new("test", 1800, 1800, Some(1));
+        let cache = Cache::new("test", 1800, 1800, CacheLimit::Megabytes(1));
         for index in 0..8 {
             cache
                 .push(
@@ -865,13 +1094,6 @@ mod cache_tests {
 
         assert_eq!(settings.time_to_live(), DEFAULT_CACHE_TTL);
         assert_eq!(settings.time_to_idle(), DEFAULT_CACHE_TTI);
-        // Each cache keeps its own capacity default: unbounded for `CONFIG_CACHE`, 30 MB
-        // for the rest.
-        assert_eq!(settings.max_capacity(None), None);
-        assert_eq!(
-            settings.max_capacity(Some(DEFAULT_MAX_CAPACITY)),
-            Some(DEFAULT_MAX_CAPACITY)
-        );
     }
 
     #[test]
@@ -879,23 +1101,15 @@ mod cache_tests {
         let settings = CacheSettings {
             ttl_in_secs: Some(60),
             tti_in_secs: Some(30),
-            max_capacity_in_mb: Some(128),
+            max_capacity: Some(CacheLimit::Megabytes(128)),
         };
 
         assert_eq!(settings.time_to_live(), 60);
         assert_eq!(settings.time_to_idle(), 30);
-        assert_eq!(settings.max_capacity(None), Some(128));
-        assert_eq!(settings.max_capacity(Some(DEFAULT_MAX_CAPACITY)), Some(128));
-    }
-
-    #[test]
-    fn a_zero_max_capacity_makes_a_bounded_cache_unbounded() {
-        let settings = CacheSettings {
-            max_capacity_in_mb: Some(0),
-            ..CacheSettings::default()
-        };
-
-        assert_eq!(settings.max_capacity(Some(DEFAULT_MAX_CAPACITY)), None);
+        assert_eq!(
+            settings.limit("TEST", EntrySizing::Measured, CacheLimit::Unbounded),
+            CacheLimit::Megabytes(128)
+        );
     }
 
     #[test]
@@ -908,11 +1122,20 @@ mod cache_tests {
         assert_eq!(config.accounts.time_to_live(), 120);
         assert_eq!(config.accounts.time_to_idle(), DEFAULT_CACHE_TTI);
         assert_eq!(
-            config.accounts.max_capacity(Some(DEFAULT_MAX_CAPACITY)),
-            Some(DEFAULT_MAX_CAPACITY)
+            config.accounts.limit(
+                "TEST",
+                EntrySizing::Measured,
+                CacheLimit::Megabytes(DEFAULT_MAX_CAPACITY)
+            ),
+            CacheLimit::Megabytes(DEFAULT_MAX_CAPACITY)
         );
         assert_eq!(config.routing.time_to_live(), DEFAULT_CACHE_TTL);
-        assert_eq!(config.config.max_capacity(None), None);
+        assert_eq!(
+            config
+                .config
+                .limit("TEST", EntrySizing::Measured, CacheLimit::Unbounded),
+            CacheLimit::Unbounded
+        );
     }
 
     #[test]
@@ -947,7 +1170,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn construct_and_get_cache() {
-        let cache = Cache::new("test", 1800, 1800, None);
+        let cache = Cache::new("test", 1800, 1800, CacheLimit::Unbounded);
         cache
             .push(
                 CacheKey {
@@ -971,7 +1194,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn eviction_on_size_test() {
-        let cache = Cache::new("test", 2, 2, Some(0));
+        let cache = Cache::new("test", 2, 2, CacheLimit::Megabytes(0));
         cache
             .push(
                 CacheKey {
@@ -995,7 +1218,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn invalidate_cache_for_key() {
-        let cache = Cache::new("test", 1800, 1800, None);
+        let cache = Cache::new("test", 1800, 1800, CacheLimit::Unbounded);
         cache
             .push(
                 CacheKey {
@@ -1027,7 +1250,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn eviction_on_time_test() {
-        let cache = Cache::new("test", 2, 2, None);
+        let cache = Cache::new("test", 2, 2, CacheLimit::Unbounded);
         cache
             .push(
                 CacheKey {
