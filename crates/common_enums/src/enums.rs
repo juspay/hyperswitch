@@ -2683,6 +2683,7 @@ pub enum PaymentMethodType {
     NetworkToken,
     Payshap,
     PayshapProxy,
+    Ted,
 }
 
 /// Indicates whether a wallet token is decrypted .
@@ -2838,6 +2839,7 @@ impl PaymentMethodType {
             Self::NetworkToken => "Network Token",
             Self::Payshap => "PayShap",
             Self::PayshapProxy => "PayShap Proxy",
+            Self::Ted => "TED",
         };
         display_name.to_string()
     }
