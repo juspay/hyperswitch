@@ -640,7 +640,7 @@ pub struct PayshapProxyBankTransfer {
 pub struct TedBankTransfer {
     /// Bank name
     #[schema(value_type = Option<BankNames>)]
-    pub bank_name: Option<api_enums::BankNames>,
+    pub bank_name: Option<BankNames>,
 
     /// The bank code (COMPE code) used to identify the bank
     #[schema(value_type = Option<String>, example = "033")]
