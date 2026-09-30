@@ -974,7 +974,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             reason: non_threeds_data.error_desc.clone(),
                             status_code: item.http_code,
                             attempt_status: None,
-                            connector_transaction_id: Some(non_threeds_data.tran_id.clone()),
+                            connector_transaction_id: Some(data.txn_id.clone()),
                             connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
@@ -992,9 +992,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 })
                             });
                         Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(
-                                non_threeds_data.tran_id.clone(),
-                            ),
+                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id.clone()),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference),
                             connector_metadata: None,
