@@ -2403,6 +2403,35 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
   });
 });
 
+Cypress.Commands.add("deleteSurchargeConnector", (globalState) => {
+  const surchargeMcaId = globalState.get("surchargeConnectorId");
+
+  if (!surchargeMcaId) {
+    cy.task("cli_log", "No surchargeConnectorId found, skipping delete");
+    return;
+  }
+
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  cy.request({
+    method: "DELETE",
+    url: `${baseUrl}/account/${merchantId}/connectors/${surchargeMcaId}`,
+    headers: {
+      Accept: "application/json",
+      "api-key": adminApiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.task(
+      "cli_log",
+      "Surcharge processor connector delete status: " + response.status
+    );
+  });
+});
+
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
@@ -4998,6 +5027,18 @@ Cypress.Commands.add(
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;
+
+          if (resData.body && resData.body.surcharge_details) {
+            expect(response.body, "surcharge_details").to.have.property(
+              "surcharge_details"
+            );
+            expect(
+              response.body.surcharge_details,
+              "surcharge_details.surcharge_percentage"
+            )
+              .to.have.property("surcharge_percentage")
+              .to.be.a("number");
+          }
 
           if (
             resData.body &&
@@ -8608,6 +8649,21 @@ Cypress.Commands.add(
                 "Expected no deny action for non-blocklisted card"
               );
             }
+          }
+
+          // For external surcharge processors (e.g. InterPayments), the eligibility
+          // response carries the computed surcharge. surcharge_percentage is supplied
+          // by the connector at call time, so only presence/type is asserted here.
+          if (resData.body.surcharge_details) {
+            expect(response.body, "surcharge_details").to.have.property(
+              "surcharge_details"
+            );
+            expect(
+              response.body.surcharge_details,
+              "surcharge_details.surcharge_percentage"
+            )
+              .to.have.property("surcharge_percentage")
+              .to.be.a("number");
           }
         } else {
           throw new Error(
