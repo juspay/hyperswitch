@@ -192,7 +192,9 @@ jobs:
       # populates the shared cache: PRs restore-only, this saves on `push`.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      SCCACHE_CACHE_SIZE: "4G"
+      # 1536M = 1.5 GiB. Not "1.5G": sccache's parse_size rejects fractional
+      # values and silently falls back to its 10 GiB default.
+      SCCACHE_CACHE_SIZE: "1536M"
       SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
 
@@ -308,7 +310,9 @@ jobs:
       # — see `test` for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      SCCACHE_CACHE_SIZE: "4G"
+      # 1536M = 1.5 GiB. Not "1.5G": sccache's parse_size rejects fractional
+      # values and silently falls back to its 10 GiB default.
+      SCCACHE_CACHE_SIZE: "1536M"
       SCCACHE_IDLE_TIMEOUT: "0"
 
     steps:
