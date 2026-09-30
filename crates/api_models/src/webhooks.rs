@@ -26,6 +26,9 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
     PaymentActionRequired,
+    /// Associated data about a payment shared by the connector out of band, typically after
+    /// the payment has reached a terminal state
+    PaymentAssociatedDataUpdate,
     EventNotSupported,
     SourceChargeable,
     SourceTransactionCreated,
@@ -129,6 +132,8 @@ impl IncomingWebhookEvent {
             35 => Self::PayoutExpired,
             #[cfg(feature = "payouts")]
             36 => Self::PayoutReversed,
+            // Associated data events
+            43 => Self::PaymentAssociatedDataUpdate,
             _ => Self::EventNotSupported,
         }
     }
@@ -145,6 +150,7 @@ pub enum WebhookFlow {
     ReturnResponse,
     BankTransfer,
     Mandate,
+    AssociatedDataUpdate,
     ExternalAuthentication,
     FraudCheck,
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -295,6 +301,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
                 Self::Mandate
             }
+            IncomingWebhookEvent::PaymentAssociatedDataUpdate => Self::AssociatedDataUpdate,
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted
             | IncomingWebhookEvent::DisputeExpired

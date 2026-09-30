@@ -16,7 +16,7 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    types::{domain, storage},
+    types::{domain, storage, transformers::ForeignTryFrom},
 };
 
 const CHUNK_SIZE: usize = 2_000;
@@ -344,15 +344,16 @@ pub async fn initiate_batch_blocklist_upload(
     file_name: Option<String>,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
     let created_by = platform
         .get_initiator()
         .and_then(|initiator| initiator.to_created_by())
@@ -431,6 +432,7 @@ pub async fn initiate_batch_blocklist_upload(
         profile_id: profile_id.clone(),
         job_type: common_enums::BatchBlocklistJobType::Upload,
         file_name,
+        metadata: None,
     };
 
     state
@@ -581,6 +583,7 @@ fn to_job_status_response(
     Ok(api_blocklist::BatchBlocklistJobStatusResponse {
         job_id: job.id,
         merchant_id: job.merchant_id.get_string_repr().to_owned(),
+        profile_id: job.profile_id,
         job_type: job
             .job_type
             .unwrap_or(common_enums::BatchBlocklistJobType::Upload),
@@ -597,9 +600,41 @@ fn to_job_status_response(
         expires_at: job.expires_at,
         downloadable,
         error_message: job.error_message,
+        metadata: job
+            .metadata
+            .map(storage::BlocklistProfileCloneJobMetadata::from)
+            .map(api_blocklist::ProfileCloneJobMetadata::foreign_try_from)
+            .transpose()?,
         download_url: None,
         download_url_expires_at: None,
     })
+}
+
+impl ForeignTryFrom<storage::BlocklistProfileCloneJobMetadata>
+    for api_blocklist::ProfileCloneJobMetadata
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        metadata: storage::BlocklistProfileCloneJobMetadata,
+    ) -> Result<Self, Self::Error> {
+        let targets = metadata
+            .targets
+            .into_iter()
+            .map(|target| {
+                u32::try_from(target.processed_rows)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map(|processed_rows| api_blocklist::ProfileCloneTargetMetadata {
+                        profile_id: target.profile_id,
+                        status: target.status,
+                        processed_rows,
+                        error_message: target.error_message,
+                    })
+            })
+            .collect::<RouterResult<Vec<_>>>()?;
+
+        Ok(Self { targets })
+    }
 }
 
 /// Returns a paginated list of batch blocklist jobs for a merchant along with the total count.

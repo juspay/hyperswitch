@@ -17,18 +17,53 @@ for dependency in curl jq; do
     fi
 done
 
+# The checked-in seed file has a couple of hand-authored values that aren't
+# valid TOML and trip up every parser:
+#   1. `"\null\"` is used as a placeholder default for nullable string
+#      fields. The `\n` is parsed as a newline escape, leaving the string
+#      unterminated.
+#   2. A handful of `_validation_regex_pattern` entries hold an email regex
+#      as a double-quoted TOML string in which every literal `"` in the
+#      regex was mistakenly encoded as `\\` instead of `\"` (e.g. `(".+")`
+#      became `(\\.+\\)`), and that string also contains other backslash
+#      sequences (`\s`, `\.`, `\-`, ...) that aren't valid TOML escapes at
+#      all, so the fix switches those values to single-quoted TOML literal
+#      strings instead (literal strings don't process escapes).
+# Sanitize both in memory rather than editing the seed file itself.
+sanitize_seed() {
+    sed \
+        -e 's/"\\null\\"/""/g' \
+        -e '/_validation_regex_pattern/ {
+s/@\\\\\]/@"]/g
+s/(\\\\\.+\\\\)/(".+")/g
+s/, value = "\(.*\)" }$/, value = '"'"'\1'"'"' }/
+}' \
+        "$SEED_FILE"
+}
+
 toml_to_json() {
+    local sanitized
+    local output
+    local status
+
+    sanitized=$(sanitize_seed)
+
     if command -v yq >/dev/null 2>&1; then
-        yq -p toml -o json '.' "$SEED_FILE"
+        output=$(printf '%s\n' "$sanitized" | yq -p toml -o json '.' - 2>&1) && { printf '%s' "$output"; return 0; }
+        status=$?
     elif command -v python3 >/dev/null 2>&1 \
         && python3 -c 'import tomllib' >/dev/null 2>&1; then
-        python3 -c \
-            'import json, sys, tomllib; json.dump(tomllib.load(open(sys.argv[1], "rb")), sys.stdout)' \
-            "$SEED_FILE"
+        output=$(printf '%s\n' "$sanitized" | python3 -c \
+            'import json, sys, tomllib; json.dump(tomllib.load(sys.stdin.buffer), sys.stdout)' 2>&1) && { printf '%s' "$output"; return 0; }
+        status=$?
     else
         echo "Error: TOML parsing requires yq or Python 3.11+" >&2
         exit 127
     fi
+
+    echo "Error: '$SEED_FILE' is not valid TOML:" >&2
+    echo "$output" | tail -3 >&2
+    exit "$status"
 }
 
 show_progress() {

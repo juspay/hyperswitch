@@ -93,7 +93,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
             | Flow::RoutingEvaluateRule
-            | Flow::DecisionEngineDiffCounterReset
             | Flow::DecisionEngineRuleMigration
             | Flow::DecisionEngineMigrationStatus
             | Flow::VolumeSplitOnRoutingType
@@ -120,6 +119,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetBlocklistCount => Self::Blocklist,
             Flow::LookupBlocklistEntry => Self::Blocklist,
             Flow::CreateBlocklistExport => Self::Blocklist,
+            Flow::CloneBlocklistEntries => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
@@ -180,6 +180,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PlatformPaymentsList
+            | Flow::PlatformPaymentsFilters
             | Flow::PaymentsFilters
             | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
@@ -191,6 +193,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
             | Flow::PaymentsManualStatusUpdate
+            | Flow::PaymentsManualStatusUpdateEligibleStatuses
             | Flow::SessionUpdateTaxCalculation
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
@@ -229,6 +232,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsUpdate
             | Flow::RefundsReverse
             | Flow::RefundsList
+            | Flow::PlatformRefundsList
+            | Flow::PlatformRefundsFilters
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
@@ -249,6 +254,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::DisputesRetrieve
             | Flow::DisputesList
             | Flow::DisputesFilters
+            | Flow::PlatformDisputesList
+            | Flow::PlatformDisputesFilters
             | Flow::DisputesEvidenceSubmit
             | Flow::AttachDisputeEvidence
             | Flow::RetrieveDisputeEvidence
