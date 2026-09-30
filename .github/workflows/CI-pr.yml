@@ -287,11 +287,11 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # sccache on local disk, restored as a single compressed archive —
+      # sccache on local disk, restored as a single uncompressed archive —
       # see `test` for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      SCCACHE_CACHE_SIZE: "4G"
+      SCCACHE_CACHE_SIZE: "1.5G"
       SCCACHE_IDLE_TIMEOUT: "0"
 
     steps:

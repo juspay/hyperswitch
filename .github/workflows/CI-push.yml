@@ -304,7 +304,7 @@ jobs:
     runs-on: hyperswitch-runners-merge
 
     env:
-      # sccache on local disk, restored/saved as a single compressed archive
+      # sccache on local disk, restored/saved as a single uncompressed archive
       # — see `test` for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
