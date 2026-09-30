@@ -178,6 +178,7 @@ pub async fn get_webhook_event_details_from_ucs(
     connector_name: &str,
     merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
     request: &IncomingWebhookRequestDetails<'_>,
+    execution_mode: ExecutionMode,
 ) -> (
     Option<payments_grpc::EventReference>,
     Option<IncomingWebhookEvent>,
@@ -194,7 +195,7 @@ pub async fn get_webhook_event_details_from_ucs(
         connector_name: connector_name.to_string(),
         merchant_connector_account: merchant_connector_account.cloned(),
         execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
+        execution_mode,
         ucs_reference: None,
         ucs_event_type: None,
     };
@@ -214,7 +215,7 @@ pub async fn get_webhook_event_details_from_ucs(
         Err(_) => return (None, None),
     };
 
-    let parse_headers = build_ucs_headers_builder(&ctx, None, ExecutionMode::NotApplicable);
+    let parse_headers = build_ucs_headers_builder(&ctx, None, execution_mode);
 
     let parse_response = match unified_connector_service::ucs_webhook_logging_wrapper(
         state,
@@ -706,6 +707,11 @@ async fn report_shadow_diff(
         api_client::ApiClientWrapper, helpers::GetComparisonServiceConfig,
     };
     if let Some(config) = state.get_comparison_service_config() {
+        let webhook_flow_name = primary.event_type.map(|event_type| {
+            let flow: api_models::webhooks::WebhookFlow = event_type.into();
+            format!("webhook_{}", flow.to_string().to_lowercase())
+        });
+
         hyperswitch_interfaces::helpers::serialize_webhook_outcome_and_send_to_comparison_service(
             state,
             primary,
@@ -714,6 +720,7 @@ async fn report_shadow_diff(
             connector_name.to_string(),
             state.get_request_id_str(),
             merchant_id.as_ref(),
+            webhook_flow_name,
         )
         .await;
     }
