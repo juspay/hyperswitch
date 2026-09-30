@@ -181,11 +181,33 @@ impl super::RedisConnectionWithContext {
     where
         V: serde::Serialize + Debug,
     {
+        self.serialize_and_set_key_with_payload_size(key, value)
+            .await
+            .map(|_payload_size| ())
+    }
+
+    /// As [`Self::serialize_and_set_key`], additionally reporting how many bytes were stored.
+    ///
+    /// The count is free: the serialized payload is materialized either way. Callers that
+    /// need to account for the size of what they cached can take it from here instead of
+    /// serializing the value a second time to measure it.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_with_payload_size<V>(
+        &self,
+        key: &RedisKey,
+        value: V,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
         let serialized = value
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
+        let payload_size = serialized.len();
 
-        self.set_key(key, serialized.as_slice()).await
+        self.set_key(key, serialized.as_slice()).await?;
+
+        Ok(payload_size)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -551,13 +573,32 @@ impl super::RedisConnectionWithContext {
     where
         T: serde::de::DeserializeOwned,
     {
-        let value_bytes = self.get_key::<Vec<u8>>(key).await?;
+        self.get_and_deserialize_key_with_payload_size(key, type_name)
+            .await
+            .map(|(value, _payload_size)| value)
+    }
 
+    /// As [`Self::get_and_deserialize_key`], additionally reporting how many bytes redis held
+    /// for the value.
+    ///
+    /// The count is free: the payload is read into memory either way.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_and_deserialize_key_with_payload_size<T>(
+        &self,
+        key: &RedisKey,
+        type_name: &'static str,
+    ) -> CustomResult<(T, usize), errors::RedisError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let value_bytes = self.get_key::<Vec<u8>>(key).await?;
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+        let payload_size = value_bytes.len();
 
         value_bytes
             .parse_struct(type_name)
             .change_context(errors::RedisError::JsonDeserializationFailed)
+            .map(|value| (value, payload_size))
     }
 
     #[instrument(level = "DEBUG", skip(self))]

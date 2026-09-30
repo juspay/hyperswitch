@@ -30,9 +30,9 @@ pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
 /// Default max capacity of cache in MB
 ///
-/// Enforced by weighing each entry's serialized size — see [`entry_weight`]. Until that
-/// weigher existed moka read `max_capacity` as a number of entries, so this figure was
-/// multiplied to ~31M entries and never actually bound anything.
+/// Enforced by weighing entries with the byte size their caller reports — see [`EntrySize`].
+/// Until that weigher existed moka read `max_capacity` as a number of entries, so this figure
+/// was multiplied to ~31M entries and never actually bound anything.
 pub const DEFAULT_MAX_CAPACITY: u64 = 30;
 
 /// Runtime overrides for a single in-memory cache.
@@ -151,6 +151,7 @@ impl Caches {
     /// left unset.
     pub fn new(config: &CacheConfig) -> Self {
         let bounded = Some(DEFAULT_MAX_CAPACITY);
+        const UNBOUNDED: Option<u64> = None;
 
         Self {
             invalidation_channel: config
@@ -160,15 +161,19 @@ impl Caches {
             config: config.config.build("CONFIG_CACHE", None),
             accounts: config.accounts.build("ACCOUNTS_CACHE", bounded),
             mca_list: config.mca_list.build("MCA_LIST_CACHE", bounded),
-            routing: config.routing.build("ROUTING_CACHE", bounded),
+            // Routing, cgraph and PM-filter caches are populated by direct `Cache::push`
+            // from the router rather than through redis, so their entries carry no
+            // `EntrySize::Bytes` to weigh and a byte budget could not bound them. Left
+            // unbounded, which is what they have effectively always been.
+            routing: config.routing.build("ROUTING_CACHE", UNBOUNDED),
             decision_manager: config
                 .decision_manager
                 .build("DECISION_MANAGER_CACHE", bounded),
             surcharge: config.surcharge.build("SURCHARGE_CACHE", bounded),
-            cgraph: config.cgraph.build("CGRAPH_CACHE", bounded),
+            cgraph: config.cgraph.build("CGRAPH_CACHE", UNBOUNDED),
             pm_filters_cgraph: config
                 .pm_filters_cgraph
-                .build("PM_FILTERS_CGRAPH_CACHE", bounded),
+                .build("PM_FILTERS_CGRAPH_CACHE", UNBOUNDED),
             success_based_dynamic_algorithm: config
                 .success_based_dynamic_algorithm
                 .build("SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE", bounded),
@@ -415,58 +420,49 @@ fn in_memory_cache_key(key: CacheKey) -> String {
     physical
 }
 
+/// How much of a cache's byte budget an entry consumes.
+///
+/// Supplied by the caller rather than measured here. The values these caches hold are
+/// arbitrary types behind `Arc<dyn Cacheable>`: their real allocation graph cannot be walked,
+/// and `size_of` would see only the shallow struct — for a merchant account, a handful of
+/// pointers rather than the strings they point at. Serializing each entry just to measure it
+/// would be accurate but would burn CPU on every insert, so instead the size comes from
+/// callers that already have it for free.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntrySize {
+    /// Serialized size of the value, in bytes.
+    ///
+    /// Taken from the redis round trip that produced the value: both reading and writing
+    /// materialize the payload anyway, so its length costs nothing to know.
+    Bytes(usize),
+    /// No size available for this entry.
+    ///
+    /// It contributes nothing to a byte budget, so a cache populated this way cannot be
+    /// bounded by one — see the unbounded caches in [`Caches::new`].
+    Unmeasured,
+}
+
+impl EntrySize {
+    /// The weight moka accounts this entry at.
+    fn weight(self, key: &str) -> u32 {
+        match self {
+            // The key is included: moka stores it alongside the value.
+            Self::Bytes(bytes) => {
+                u32::try_from(bytes.saturating_add(key.len())).unwrap_or(u32::MAX)
+            }
+            Self::Unmeasured => 0,
+        }
+    }
+}
+
 /// A cached value together with the byte weight moka bounds the cache by.
 ///
-/// The weight has to be known when the entry goes in: moka's weigher is synchronous and only
-/// sees `&V`, and a value behind `dyn Cacheable` cannot be serialized through the trait
-/// object. So it is measured once at insert time and carried alongside the value.
+/// The weight travels with the value because moka's weigher is synchronous and only sees
+/// `&V`, from which a `dyn Cacheable` cannot be measured.
 #[derive(Clone)]
 struct WeightedEntry {
     value: Arc<dyn Cacheable>,
     weight: u32,
-}
-
-/// Counts bytes written and discards them, so an entry can be measured without allocating a
-/// second copy of it.
-struct ByteCounter(usize);
-
-impl std::io::Write for ByteCounter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0 = self.0.saturating_add(buf.len());
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
-/// Approximate footprint of a cache entry, in bytes.
-///
-/// Serialized length stands in for heap footprint. The values these caches hold are arbitrary
-/// types behind `Arc<dyn Cacheable>`, so their real allocation graph cannot be walked, and
-/// `size_of` would see only the shallow struct — for a merchant account, a handful of pointers
-/// rather than the strings they point at. Every type stored here is already `Serialize`,
-/// because reading it back through [`Cache::get_val`] requires it.
-///
-/// The key is included: moka stores it alongside the value.
-fn entry_weight<T: serde::Serialize>(key: &str, val: &T) -> u32 {
-    let mut counter = ByteCounter(0);
-    let value_bytes = match serde_json::to_writer(&mut counter, val) {
-        Ok(()) => counter.0,
-        // A value that will not serialize cannot be measured. Fall back to its shallow size
-        // rather than refusing to cache it — under-weighing one entry is better than losing
-        // the caching of a whole type.
-        Err(error) => {
-            logger::warn!(
-                ?error,
-                "Could not measure a cache entry; falling back to its shallow size"
-            );
-            size_of::<T>()
-        }
-    };
-
-    u32::try_from(key.len().saturating_add(value_bytes)).unwrap_or(u32::MAX)
 }
 
 impl Cache {
@@ -524,9 +520,9 @@ impl Cache {
             args = deja_in_memory_args(self.name, &key),
         )
     )]
-    pub async fn push<T: Cacheable + serde::Serialize>(&self, key: CacheKey, val: T) {
+    pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T, size: EntrySize) {
         let physical_key = in_memory_cache_key(key);
-        let weight = entry_weight(&physical_key, &val);
+        let weight = size.weight(&physical_key);
 
         self.inner
             .insert(
@@ -646,7 +642,7 @@ pub async fn get_or_populate_redis<T, F, Fut>(
     key: impl AsRef<str>,
     ttl: Option<i64>,
     fun: F,
-) -> CustomResult<T, StorageError>
+) -> CustomResult<(T, EntrySize), StorageError>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Debug,
     F: FnOnce() -> Fut + Send,
@@ -655,20 +651,30 @@ where
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
     let redis_val = redis
-        .get_and_deserialize_key::<T>(&key.into(), type_name)
+        .get_and_deserialize_key_with_payload_size::<T>(&key.into(), type_name)
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        match ttl {
+        let size = match ttl {
             Some(ttl) => {
                 redis
                     .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
                     .await
+                    .change_context(StorageError::KVError)?;
+                // The expiring setter has no size-reporting variant, and nothing calls this
+                // function with a ttl today. Add one alongside
+                // `serialize_and_set_key_with_payload_size` if a caller appears that also
+                // needs its entries to count against a byte budget.
+                EntrySize::Unmeasured
             }
-            None => redis.serialize_and_set_key(&key.into(), &data).await,
-        }
-        .change_context(StorageError::KVError)?;
-        Ok::<_, Report<StorageError>>(data)
+            None => EntrySize::Bytes(
+                redis
+                    .serialize_and_set_key_with_payload_size(&key.into(), &data)
+                    .await
+                    .change_context(StorageError::KVError)?,
+            ),
+        };
+        Ok::<_, Report<StorageError>>((data, size))
     };
     match redis_val {
         Err(err) => match err.current_context() {
@@ -679,7 +685,7 @@ where
                 .change_context(StorageError::KVError)
                 .attach_printable(format!("Error while fetching cache for {type_name}"))),
         },
-        Ok(val) => Ok(val),
+        Ok((val, payload_size)) => Ok((val, EntrySize::Bytes(payload_size))),
     }
 }
 
@@ -721,8 +727,10 @@ where
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
-    let val = get_or_populate_redis(redis, key, None, fun).await?;
-    cache.push(cache_key, val.clone()).await;
+    // The redis round trip already materialized the payload, so its size is free here and
+    // does not have to be recomputed to bound the cache.
+    let (val, size) = get_or_populate_redis(redis, key, None, fun).await?;
+    cache.push(cache_key, val.clone(), size).await;
 
     Ok(val)
 }
@@ -813,12 +821,15 @@ mod cache_tests {
     use super::*;
 
     #[test]
-    fn an_entry_is_weighed_by_its_serialized_size() {
-        let payload = "x".repeat(1000);
+    fn a_measured_entry_weighs_its_payload_plus_its_key() {
+        assert_eq!(EntrySize::Bytes(1000).weight("key"), 1000 + 3);
+    }
 
-        // 1000 bytes of payload, the two quotes serde writes around a string, and the key
-        // moka stores alongside it.
-        assert_eq!(entry_weight("key", &payload), 1000 + 2 + 3);
+    #[test]
+    fn an_unmeasured_entry_weighs_nothing() {
+        // Which is why a cache fed unmeasured entries cannot be bounded by bytes, and is
+        // left unbounded instead.
+        assert_eq!(EntrySize::Unmeasured.weight("key"), 0);
     }
 
     #[tokio::test]
@@ -835,6 +846,7 @@ mod cache_tests {
                         prefix: "prefix".to_string(),
                     },
                     "x".repeat(256 * 1024),
+                    EntrySize::Bytes(256 * 1024),
                 )
                 .await;
         }
@@ -943,6 +955,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
         assert_eq!(
@@ -966,6 +979,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
         assert_eq!(
@@ -989,6 +1003,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
 
@@ -1020,6 +1035,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
         tokio::time::sleep(std::time::Duration::from_secs(3)).await;

@@ -57,7 +57,7 @@ use rand::SeedableRng;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
-use storage_impl::redis::cache::CacheKey;
+use storage_impl::redis::cache::{self, CacheKey};
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
@@ -2215,6 +2215,9 @@ pub async fn refresh_routing_cache_v1(
                 prefix: state.tenant.redis_key_prefix.clone(),
             },
             arc_cached_algorithm.clone(),
+            // Built in-process rather than read through redis, so there is no payload length
+            // to weigh it by. `ROUTING_CACHE` is unbounded for that reason.
+            cache::EntrySize::Unmeasured,
         )
         .await;
 
@@ -2452,6 +2455,9 @@ pub async fn refresh_cgraph_cache(
                 prefix: state.tenant.redis_key_prefix.clone(),
             },
             Arc::clone(&cgraph),
+            // Built in-process rather than read through redis, so there is no payload length
+            // to weigh it by. `CGRAPH_CACHE` is unbounded for that reason.
+            cache::EntrySize::Unmeasured,
         )
         .await;
 
