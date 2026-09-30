@@ -2,6 +2,8 @@
 use strum::IntoEnumIterator;
 pub mod access_token;
 pub mod gateway;
+#[cfg(feature = "v1")]
+pub mod guards;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -286,14 +288,14 @@ pub async fn make_connector_decision(
         api::ConnectorCallType::PreDetermined(routing_data) => {
             let frm_outcome = match payout_frm_applicability {
                 Some(applicability) => handle_payout_pre_frm_result!(
-                    fraud_check::pre_payouts_frm_core(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &routing_data.connector_data,
                         applicability,
                         &pre_frm_failure_mode,
-                    )
+                    ))
                     .await,
                     &pre_frm_failure_mode,
                     platform,
@@ -339,14 +341,14 @@ pub async fn make_connector_decision(
 
             let frm_outcome = match payout_frm_applicability {
                 Some(applicability) => handle_payout_pre_frm_result!(
-                    fraud_check::pre_payouts_frm_core(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &connector_data,
                         applicability,
                         &pre_frm_failure_mode,
-                    )
+                    ))
                     .await,
                     &pre_frm_failure_mode,
                     platform,
@@ -600,20 +602,23 @@ pub async fn payouts_create_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // Validate create request
-    let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_profile_id(profile_id.clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    // Validate create request
+    let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
+        validator::validate_create_request(&state, &platform, &req, &dimensions),
+    )
+    .await?;
+
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     // Create DB entries
     let mut payout_data = Box::pin(payout_create_db_entries(
         &state,
         &platform,
         &req,
         &payout_id,
-        &profile_id,
+        business_profile,
         payout_method_data.as_ref(),
         &state.locale,
         customer.as_ref(),
@@ -1506,6 +1511,37 @@ pub async fn call_connector_payout(
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
         helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
     }
+
+    #[cfg(feature = "v1")]
+    let is_blocked = guards::is_payout_blocked(state, platform, payout_data, dimensions).await?;
+    #[cfg(feature = "v2")]
+    let is_blocked = false;
+
+    if !is_blocked {
+        Box::pin(run_payout_connector_flows(
+            state,
+            platform,
+            header_payload,
+            connector_data,
+            payout_data,
+            dimensions,
+        ))
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn run_payout_connector_flows(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    let payouts = &payout_data.payouts.to_owned();
+
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
         payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
@@ -3349,7 +3385,7 @@ pub async fn payout_create_db_entries(
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
     _payout_id: &str,
-    _profile_id: &id_type::ProfileId,
+    _business_profile: domain::Profile,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     _locale: &str,
     _customer: Option<&domain::Customer>,
@@ -3367,7 +3403,7 @@ pub async fn payout_create_db_entries(
     platform: &domain::Platform,
     req: &payouts::PayoutCreateRequest,
     payout_id: &id_type::PayoutId,
-    profile_id: &id_type::ProfileId,
+    business_profile: domain::Profile,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     locale: &str,
     customer: Option<&domain::Customer>,
@@ -3377,10 +3413,7 @@ pub async fn payout_create_db_entries(
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
     let customer_id = customer.map(|cust| cust.get_id().clone());
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile =
-        validate_and_get_business_profile(state, platform.get_processor(), profile_id).await?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let payout_link = match req.payout_link {
         Some(true) => Some(
@@ -4408,7 +4441,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         router_data,
@@ -4463,6 +4496,10 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
         lineage_ids,
         merchant_connector_account,
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
     // Update feature metadata to track Direct routing usage for stickiness

@@ -103,6 +103,11 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub integrity_check: Result<(), IntegrityCheckError>,
 
+    /// Whether a connector-reported amount that differs from the requested amount should be
+    /// accepted by the integrity check, resolved from the `payments.accept_payment_amount_mismatch`
+    /// config for the processor merchant and payment method type
+    pub accept_amount_mismatch: Option<primitive_wrappers::AcceptAmountMismatchBool>,
+
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
     pub header_payload: Option<payments::HeaderPayload>,
@@ -555,6 +560,116 @@ impl PaymentMethodToken {
     }
 }
 
+impl TryFrom<(api_models::payments::PaymentMethodData, PaymentMethodToken)>
+    for payment_method_data::PaymentMethodData
+{
+    type Error = common_utils::errors::ValidationError;
+    fn try_from(
+        data: (api_models::payments::PaymentMethodData, PaymentMethodToken),
+    ) -> Result<Self, Self::Error> {
+        let (api_model_payment_method_data, payment_method_token) = data;
+        match api_model_payment_method_data {
+            // modified flow for decrypted wallet data
+            api_models::payments::PaymentMethodData::Wallet(wallet_data) => Ok(Self::Wallet(
+                TryFrom::try_from((wallet_data, payment_method_token))?,
+            )),
+            // existing flow
+            _ => Ok(Self::from(api_model_payment_method_data)),
+        }
+    }
+}
+
+impl TryFrom<(api_models::payments::WalletData, PaymentMethodToken)>
+    for payment_method_data::WalletData
+{
+    type Error = common_utils::errors::ValidationError;
+    fn try_from(
+        data: (api_models::payments::WalletData, PaymentMethodToken),
+    ) -> Result<Self, Self::Error> {
+        let (wallet_data, payment_method_token) = data;
+        match wallet_data {
+            // modified flow for decrypted Applepay data
+            api_models::payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::ApplePay(
+                TryFrom::try_from((apple_pay_data, payment_method_token))?,
+            )),
+            // modified flow for decrypted GooglePay data
+            api_models::payments::WalletData::GooglePay(google_pay_data) => Ok(Self::GooglePay(
+                TryFrom::try_from((google_pay_data, payment_method_token))?,
+            )),
+            // existing flow
+            _ => Ok(Self::from(wallet_data)),
+        }
+    }
+}
+
+impl TryFrom<(api_models::payments::ApplePayWalletData, PaymentMethodToken)>
+    for payment_method_data::ApplePayWalletData
+{
+    type Error = common_utils::errors::ValidationError;
+    fn try_from(
+        data: (api_models::payments::ApplePayWalletData, PaymentMethodToken),
+    ) -> Result<Self, Self::Error> {
+        let (value, payment_method_token) = data;
+
+        let apple_pay_decrypt_data = payment_method_token.get_apple_pay_decrypt_data().ok_or(
+            common_utils::errors::ValidationError::MissingRequiredField {
+                field_name: "ApplePayDecrypt".to_string(),
+            },
+        )?;
+        Ok(Self {
+            payment_data: common_payment_types::ApplePayPaymentData::Decrypted(
+                apple_pay_decrypt_data,
+            ),
+            payment_method: payment_method_data::ApplepayPaymentMethod {
+                display_name: value.payment_method.display_name,
+                network: value.payment_method.network,
+                pm_type: value.payment_method.pm_type,
+            },
+            transaction_identifier: value.transaction_identifier,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        api_models::payments::GooglePayWalletData,
+        PaymentMethodToken,
+    )> for payment_method_data::GooglePayWalletData
+{
+    type Error = common_utils::errors::ValidationError;
+    fn try_from(
+        data: (
+            api_models::payments::GooglePayWalletData,
+            PaymentMethodToken,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (value, payment_method_token) = data;
+        let gpay_pay_decrypt_data = payment_method_token.get_google_pay_decrypt_data().ok_or(
+            common_utils::errors::ValidationError::MissingRequiredField {
+                field_name: "GPayPredecryptData".to_string(),
+            },
+        )?;
+        Ok(Self {
+            pm_type: value.pm_type,
+            description: value.description,
+            info: payment_method_data::GooglePayPaymentMethodInfo {
+                card_network: value.info.card_network,
+                card_details: value.info.card_details,
+                assurance_details: value.info.assurance_details.map(|info| {
+                    payment_method_data::GooglePayAssuranceDetails {
+                        card_holder_authenticated: info.card_holder_authenticated,
+                        account_verified: info.account_verified,
+                    }
+                }),
+                card_funding_source: value.info.card_funding_source,
+            },
+            tokenization_data: common_payment_types::GpayTokenizationData::Decrypted(
+                gpay_pay_decrypt_data,
+            ),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPredecryptDataInternal {
@@ -585,6 +700,7 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
             application_expiration_month,
             application_expiration_year,
             payment_data: data.payment_data.into(),
+            device_manufacturer_identifier: Some(data.device_manufacturer_identifier),
         })
     }
 }

@@ -24,6 +24,7 @@ pub mod semantic_boundary;
 
 use std::{fmt::Debug, sync::Arc};
 
+use common_enums::{PaymentMethod, PaymentMethodType};
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
 use common_utils::{id_type, ucs_types};
@@ -104,8 +105,10 @@ pub struct GrpcClientSettings {
 impl GrpcClientSettings {
     /// # Panics
     ///
-    /// This function will panic if it fails to establish a connection with the gRPC server.
-    /// This function will be called at service startup.
+    /// This function will panic if it fails to establish a connection with the gRPC server, or if
+    /// the Unified Connector Service is configured but its client cannot be built. Both are fatal
+    /// at service startup by design: a pod that silently loses UCS would route every payment down
+    /// the direct connector path, which is not an option for `ucs_only_connectors`.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
@@ -136,7 +139,9 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
-            UnifiedConnectorServiceClient::build_connections(self).await;
+            UnifiedConnectorServiceClient::build_connections(self)
+                .await
+                .expect("Failed to build the Unified Connector Service client from configuration");
 
         #[cfg(feature = "revenue_recovery")]
         let recovery_decider_client = {
@@ -207,6 +212,12 @@ pub struct GrpcHeadersUcs {
     proxy_name: Option<&'static str>,
     /// Config override as JSON string to pass to UCS
     config_override: Option<String>,
+    /// Sent as `x-payment-method` / `x-payment-method-type` so UCS can attribute the call
+    /// (its rollout scope includes the payment method). `None` where the flow has no
+    /// payment method: access-token fetch, FRM notification, incoming webhooks, surcharge
+    /// calculation, notify-connector, account-updater refresh.
+    payment_method: Option<PaymentMethod>,
+    payment_method_type: Option<PaymentMethodType>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
@@ -220,6 +231,8 @@ pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<&'static str>,),
     (Option<String>,),
+    (),
+    (),
 )>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
@@ -232,6 +245,8 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<&'static str>,),
     (Option<String>,),
+    (Option<PaymentMethod>,),
+    (Option<PaymentMethodType>,),
 )>;
 
 /// struct to represent set of Lineage ids

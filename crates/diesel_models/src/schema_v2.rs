@@ -494,6 +494,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        preferred_connectors -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
@@ -576,6 +577,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        additional_details -> Nullable<Jsonb>,
     }
 }
 
