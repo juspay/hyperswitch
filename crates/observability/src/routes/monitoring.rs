@@ -3,10 +3,12 @@
 #[cfg(test)]
 mod tests;
 
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use api_models::observability::monitoring::GrafanaAuthRequest;
 
-use crate::{auth, core::monitoring, services, state::AppState};
+use common_utils::errors::ErrorSwitch;
+
+use crate::{auth, core::monitoring, errors::types::ApiErrorResponse, services, state::AppState};
 
 pub async fn authenticate(
     state: web::Data<AppState>,
@@ -29,13 +31,17 @@ pub async fn session(
     request: HttpRequest,
     id: web::Path<String>,
 ) -> HttpResponse {
+    let token = match auth::get_jwt_from_authorization_header(request.headers()) {
+        Ok(token) => token,
+        Err(error) => {
+            return ErrorSwitch::<ApiErrorResponse>::switch(error.current_context())
+                .error_response();
+        }
+    };
     services::server_wrap(
         state.get_ref().clone(),
         &request,
-        (
-            id.into_inner(),
-            auth::get_jwt_from_authorization_header(request.headers()),
-        ),
+        (id.into_inner(), token),
         monitoring::session,
         &auth::NoAuth,
     )

@@ -42,12 +42,8 @@ pub async fn authorize(
 /// Successful bootstrap sets a cookie only after Router validation; cache policy belongs to the gateway.
 pub async fn session(
     state: AppState,
-    (id, token): (
-        String,
-        error_stack::Result<Secret<String>, ObservabilityError>,
-    ),
+    (id, token): (String, Secret<String>),
 ) -> error_stack::Result<ApplicationResponse<GrafanaSessionResponse>, ObservabilityError> {
-    let token = token?;
     authorize(
         state.clone(),
         GrafanaAuthRequest {
