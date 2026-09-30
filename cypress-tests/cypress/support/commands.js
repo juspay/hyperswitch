@@ -3277,8 +3277,7 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
         expect(reqData.customer_id ?? null, "customer_id").to.equal(
           response.body.customer_id
         );
-        // Assert the configured stable card fields when a response body is
-        // provided (e.g. card_isin/last4_digits for saved-card setups)
+        // Assert configured card fields when provided
         if (resData?.body?.card?.card_isin) {
           expect(response.body.card, "card.card_isin")
             .to.have.property("card_isin")
@@ -8545,8 +8544,7 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
 
         if (resData?.status === 400) {
-          // Expected-error cases (e.g. malformed card_bin deserialization
-          // failures surface as HTTP 400 IR_06).
+          // Expected-error cases (malformed card_bin deserialization → 400 IR_06)
           expect(response.status, "status").to.equal(resData.status);
           expect(response.body, "error").to.have.property("error");
           expect(response.body.error, "error.code")
@@ -8558,9 +8556,7 @@ Cypress.Commands.add(
               .to.equal(resData.body.error.error_type);
           }
           if (resData.body.error.message) {
-            // The deserialize message embeds a JSON column number that
-            // shifts with the dynamic client_secret, so the configured
-            // message is matched as a stable prefix of the actual message.
+            // column number shifts with client_secret; match the stable prefix
             expect(response.body.error, "error.message")
               .to.have.property("message")
               .to.include(resData.body.error.message);
@@ -8594,8 +8590,7 @@ Cypress.Commands.add(
                 "Expected no deny action for non-blocklisted card"
               );
             }
-            // When a concrete next_action (e.g. "confirm") is configured,
-            // assert that the eligibility check allowed the payment
+            // assert the configured next_action (e.g. "confirm") when present
             if (typeof resData.body.sdk_next_action?.next_action === "string") {
               expect(
                 response.body.sdk_next_action,
@@ -8658,9 +8653,7 @@ Cypress.Commands.add("paymentsClientListCallTest", (data, globalState) => {
         }
       }
 
-      // Assert the full set of card isins returned for the customer —
-      // the blocklist guard filters saved cards whose card_isin is
-      // present in the BIN blocklist
+      // assert the exact set of card isins returned for the customer
       const actualCardIsins = response.body.customer_payment_methods
         .map(
           (paymentMethod) =>

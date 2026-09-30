@@ -110,11 +110,8 @@ const blocklistedCardDetails = {
   card_network: "Visa",
 };
 
-// Cards saved onto a dedicated customer for the BIN-based eligibility
-// blocklist spec (54-BinBasedEligibilityBlocklist.cy.js). The card_isin
-// derived from each number (411111 / 400005 / 424242 / 555555) is what the
-// blocklist guard matches against, both for eligibility checks and for
-// saved-card filtering in the payments client list.
+// Saved cards for spec 54; the blocklist guard matches on the derived
+// card_isin of each number.
 const savedCard411111Details = {
   card_number: "4111111111111111",
   card_exp_month: "12",
@@ -142,6 +139,18 @@ const savedCard555555Details = {
   card_exp_year: "2030",
   card_holder_name: "John Doe",
 };
+
+// Blocklist entries and shared values reused across the spec 54 exchanges below
+export const cardBinEntry411111 = "411111";
+export const extendedCardBinEntry42424242 = "42424242";
+export const genericCardBinEntry5555444 = "5555444";
+export const genericCardBinEntry400005 = "400005";
+const cardIsin424242 = "424242";
+const cardIsin555555 = "555555";
+const malformedBinMessage =
+  "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number";
+const blockedBinDenyMessage =
+  "We're unable to accept this card, please try another card or a different payment method";
 
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
@@ -4658,8 +4667,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: blockedBinDenyMessage,
                 code: "blocked_bin",
               },
             },
@@ -4683,8 +4691,6 @@ export const connectorDetails = {
       },
     }),
     // ---- BIN-based eligibility blocklist exchanges (spec 54) ----
-    // Setup: saved cards vaulted onto a dedicated customer. The blocklist
-    // guard matches the derived card_isin of each saved card.
     SavedCard411111: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -4695,7 +4701,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           card: {
-            card_isin: "411111",
+            card_isin: cardBinEntry411111,
             last4_digits: "1111",
           },
         },
@@ -4711,7 +4717,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           card: {
-            card_isin: "400005",
+            card_isin: genericCardBinEntry400005,
             last4_digits: "5556",
           },
         },
@@ -4727,7 +4733,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           card: {
-            card_isin: "424242",
+            card_isin: cardIsin424242,
             last4_digits: "4242",
           },
         },
@@ -4743,14 +4749,13 @@ export const connectorDetails = {
         status: 200,
         body: {
           card: {
-            card_isin: "555555",
+            card_isin: cardIsin555555,
             last4_digits: "4444",
           },
         },
       },
     }),
-    // Test 3: 8-digit BIN-only input matched by the 6-digit card_bin entry
-    // (a 6-digit entry blocks 6/7/8/9/10-digit inputs sharing its prefix)
+    // 6-digit entries also block longer inputs sharing their prefix
     EightDigitPrefixMatch: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4766,8 +4771,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: blockedBinDenyMessage,
                 code: "blocked_bin",
               },
             },
@@ -4775,8 +4779,7 @@ export const connectorDetails = {
         },
       },
     }),
-    // Edge case: 7-digit BIN-only input blocked via the 6-digit card_bin
-    // entry prefix (input probes its 6- and 7-digit prefixes)
+    // 7-digit input matched by the 6-digit entry prefix
     BinOnlyBlocked: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4792,8 +4795,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: blockedBinDenyMessage,
                 code: "blocked_bin",
               },
             },
@@ -4801,13 +4803,13 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 4: 8-digit extended_card_bin entry blocks the exact 8-digit input
+    // exact 8-digit input blocked by the extended_card_bin entry
     ExtendedBinBlocked: getCustomExchange({
       Request: {
         payment_method_type: "card",
         payment_method_data: {
           card_bin: {
-            card_bin: "42424242",
+            card_bin: extendedCardBinEntry42424242,
           },
         },
       },
@@ -4817,8 +4819,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: blockedBinDenyMessage,
                 code: "blocked_bin",
               },
             },
@@ -4826,13 +4827,13 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 5: 7-digit generic_card_bin entry blocks the exact 7-digit input
+    // exact 7-digit input blocked by the generic_card_bin entry
     GenericBinBlocked: getCustomExchange({
       Request: {
         payment_method_type: "card",
         payment_method_data: {
           card_bin: {
-            card_bin: "5555444",
+            card_bin: genericCardBinEntry5555444,
           },
         },
       },
@@ -4842,8 +4843,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: blockedBinDenyMessage,
                 code: "blocked_bin",
               },
             },
@@ -4851,7 +4851,7 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 6: 10-digit BIN input blocked via the 6-digit card_bin entry prefix
+    // 10-digit input blocked by the 6-digit card_bin entry prefix
     TenDigitBinPrefixBlocked: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4867,8 +4867,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: blockedBinDenyMessage,
                 code: "blocked_bin",
               },
             },
@@ -4876,14 +4875,13 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 7: 6-digit input is NOT blocked by the 8-digit extended_card_bin
-    // entry (a 6-digit input never probes length-8 prefixes)
+    // 6-digit input never probes longer (8-digit) entries
     SixDigitNotBlockedByEightDigitEntry: getCustomExchange({
       Request: {
         payment_method_type: "card",
         payment_method_data: {
           card_bin: {
-            card_bin: "424242",
+            card_bin: cardIsin424242,
           },
         },
       },
@@ -4896,8 +4894,7 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 8: 6-digit input is NOT blocked by the 7-digit generic_card_bin
-    // entry (a 6-digit input never probes length-7 prefixes)
+    // 6-digit input never probes longer (7-digit) entries
     SixDigitNotBlockedBySevenDigitEntry: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4916,7 +4913,7 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 9: unlisted 6-digit BIN is allowed
+    // unlisted BIN is allowed
     UnlistedBinAllowed: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4935,7 +4932,7 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 10: full card whose BIN is not blocklisted is allowed
+    // full card with unlisted BIN is allowed
     UnlistedFullCardAllowed: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4952,10 +4949,9 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 11: 5-digit card_bin fails request deserialization (IR_06).
-    // The server message embeds a JSON column number that shifts with the
-    // dynamic client_secret, so the configured message is the stable prefix
-    // (asserted with a substring match).
+    // malformed card_bin fails deserialization (IR_06); the message's JSON
+    // column number shifts with the client_secret, so only its stable
+    // prefix is asserted
     MalformedBinError5Digit: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4970,14 +4966,12 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message:
-              "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number",
+            message: malformedBinMessage,
             code: "IR_06",
           },
         },
       },
     }),
-    // Test 12: 11-digit card_bin fails request deserialization (IR_06)
     MalformedBinError11Digit: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -4992,14 +4986,12 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message:
-              "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number",
+            message: malformedBinMessage,
             code: "IR_06",
           },
         },
       },
     }),
-    // Test 13: non-digit card_bin fails request deserialization (IR_06)
     MalformedBinErrorNonDigit: getCustomExchange({
       Request: {
         payment_method_type: "card",
@@ -5014,20 +5006,19 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message:
-              "Json deserialize error: card_bin must be the leading 6 to 10 digits of the card number",
+            message: malformedBinMessage,
             code: "IR_06",
           },
         },
       },
     }),
-    // Test 14: with the guard disabled, the previously blocked BIN is allowed
+    // guard disabled — previously blocked BIN is allowed
     GuardDisabledAllowsBlockedBin: getCustomExchange({
       Request: {
         payment_method_type: "card",
         payment_method_data: {
           card_bin: {
-            card_bin: "411111",
+            card_bin: cardBinEntry411111,
           },
         },
       },
@@ -5040,34 +5031,39 @@ export const connectorDetails = {
         },
       },
     }),
-    // Test 15: guard ON — saved cards whose card_isin is blocklisted
-    // (411111 via card_bin entry, 400005 via generic_card_bin entry) are
-    // filtered out of the payments client list. The 8-digit extended entry
-    // (42424242) does not filter the 6-digit isin 424242.
+    // guard ON — saved cards with blocklisted card_isin are filtered
     SavedCardFilteringGuardOn: getCustomExchange({
       Response: {
         status: 200,
         body: {
-          expected_card_isins: ["424242", "555555"],
+          expected_card_isins: [cardIsin424242, cardIsin555555],
         },
       },
     }),
-    // Test 16: guard OFF — every saved card is returned
+    // guard OFF — every saved card is returned
     SavedCardFilteringGuardOff: getCustomExchange({
       Response: {
         status: 200,
         body: {
-          expected_card_isins: ["400005", "411111", "424242", "555555"],
+          expected_card_isins: [
+            genericCardBinEntry400005,
+            cardBinEntry411111,
+            cardIsin424242,
+            cardIsin555555,
+          ],
         },
       },
     }),
-    // Test 17: after deleting the generic_card_bin 400005 entry, the 400005
-    // saved card reappears while the card_bin 411111 entry still filters
+    // deleted entry's saved card reappears
     DeleteEntryCardReappears: getCustomExchange({
       Response: {
         status: 200,
         body: {
-          expected_card_isins: ["400005", "424242", "555555"],
+          expected_card_isins: [
+            genericCardBinEntry400005,
+            cardIsin424242,
+            cardIsin555555,
+          ],
         },
       },
     }),

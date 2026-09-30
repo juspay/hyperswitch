@@ -1,6 +1,12 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { connectorDetails } from "../../configs/Payment/Commons";
+import {
+  cardBinEntry411111,
+  connectorDetails,
+  extendedCardBinEntry42424242,
+  genericCardBinEntry400005,
+  genericCardBinEntry5555444,
+} from "../../configs/Payment/Commons";
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -24,9 +30,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
   });
 
   after("restore customer id and flush global state", () => {
-    // The saved-card filtering tests below run against a customer created
-    // by this spec, so restore the customer id the standard setup chain
-    // (02-CustomerCreate) seeded for the specs that follow.
+    // Restore the customer id seeded by the standard setup chain
     globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
@@ -81,7 +85,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     it("should create blocklist rule for card_bin 411111", () => {
       cy.blocklistCreateRule(
         fixtures.blocklistCreateBody,
-        "411111",
+        cardBinEntry411111,
         globalState,
         "card_bin"
       );
@@ -90,7 +94,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     it("should create blocklist rule for extended_card_bin 42424242", () => {
       cy.blocklistCreateRule(
         fixtures.blocklistCreateBody,
-        "42424242",
+        extendedCardBinEntry42424242,
         globalState,
         "extended_card_bin"
       );
@@ -99,7 +103,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     it("should create blocklist rule for generic_card_bin 5555444", () => {
       cy.blocklistCreateRule(
         fixtures.blocklistCreateBody,
-        "5555444",
+        genericCardBinEntry5555444,
         globalState,
         "generic_card_bin"
       );
@@ -108,7 +112,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     it("should create blocklist rule for generic_card_bin 400005", () => {
       cy.blocklistCreateRule(
         fixtures.blocklistCreateBody,
-        "400005",
+        genericCardBinEntry400005,
         globalState,
         "generic_card_bin"
       );
@@ -265,7 +269,11 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     });
 
     it("should delete blocklist rule for generic_card_bin 400005", () => {
-      cy.blocklistDeleteRule("generic_card_bin", "400005", globalState);
+      cy.blocklistDeleteRule(
+        "generic_card_bin",
+        genericCardBinEntry400005,
+        globalState
+      );
     });
 
     it("should return deleted entry saved card in client payment methods list", function () {
@@ -281,15 +289,23 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
 
   context("Cleanup", () => {
     it("should delete blocklist rule for card_bin 411111", () => {
-      cy.blocklistDeleteRule("card_bin", "411111", globalState);
+      cy.blocklistDeleteRule("card_bin", cardBinEntry411111, globalState);
     });
 
     it("should delete blocklist rule for extended_card_bin 42424242", () => {
-      cy.blocklistDeleteRule("extended_card_bin", "42424242", globalState);
+      cy.blocklistDeleteRule(
+        "extended_card_bin",
+        extendedCardBinEntry42424242,
+        globalState
+      );
     });
 
     it("should delete blocklist rule for generic_card_bin 5555444", () => {
-      cy.blocklistDeleteRule("generic_card_bin", "5555444", globalState);
+      cy.blocklistDeleteRule(
+        "generic_card_bin",
+        genericCardBinEntry5555444,
+        globalState
+      );
     });
 
     it("should disable blocklist guard", () => {
