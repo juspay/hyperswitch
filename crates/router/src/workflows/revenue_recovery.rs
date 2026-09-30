@@ -1001,11 +1001,28 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     }
                 };
 
+                // Both the model and the ladder came up empty, so the MIT cascading ladder gets
+                // the last word. Resolved only here, so it costs nothing on the paths that never
+                // reach it.
+                let fallback_time = match (static_time, adaptive_time) {
+                    (None, None) => {
+                        get_schedule_time_to_retry_mit_payments(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            retry_count,
+                        )
+                        .await
+                    }
+                    _ => None,
+                };
+
                 let decision = pcr::schedule::decide_next_retry(
                     static_ladder_progress,
                     queried_rung,
                     static_time,
                     adaptive_time,
+                    fallback_time,
                 )
                 .ok_or_else(|| {
                     logger::error!(
@@ -1013,8 +1030,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         error_code = ?tracking_data.prev_attempt_error_code,
                         remaining_grace_days = remaining_grace_days,
                         remaining_budget = remaining_budget,
-                        "No retry time available — the adaptive model declined and the static \
-                         ladder is exhausted"
+                        "No retry time available — the model declined, the static ladder is \
+                         exhausted and the MIT ladder had nothing left"
                     );
                     // Same failure as the A/B path's: nothing had a time to offer. The logs say
                     // which sources were consulted.
@@ -1028,6 +1045,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     queried_rung = queried_rung,
                     static_time = ?static_time,
                     adaptive_time = ?adaptive_time,
+                    fallback_time = ?fallback_time,
                     error_code = ?tracking_data.prev_attempt_error_code,
                     remaining_grace_days = remaining_grace_days,
                     remaining_budget = remaining_budget,
