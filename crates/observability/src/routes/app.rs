@@ -153,7 +153,9 @@ impl Monitoring {
         web::scope("/monitoring")
             .app_data(web::Data::new(state))
             .service(web::resource("/grafana/auth").route(web::post().to(monitoring::authenticate)))
-            .service(web::resource("/grafana/session").route(web::post().to(monitoring::session)))
+            .service(
+                web::resource("/grafana/session/{id}").route(web::post().to(monitoring::session)),
+            )
     }
 }
 

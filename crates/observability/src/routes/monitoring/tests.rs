@@ -23,7 +23,7 @@ use crate::core::router_client::RouterClient;
 async fn test_state(client: Option<&RouterClient>) -> AppState {
     use crate::{db::Store, domain::notifier::Registry, settings::Database};
     AppState {
-        conf: Arc::new(Default::default()),
+        conf: Arc::new(serde_json::from_value(json!({"monitoring": {"destinations": {"payment_logs": "https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"}}})).unwrap()),
         router_transport: client.cloned().map(Arc::new),
         chat: Arc::new(Registry::default()),
         email: Arc::new(Registry::default()),
@@ -48,7 +48,7 @@ async fn session_with_client(client: Option<&RouterClient>, request: &HttpReques
         App::new().service(crate::routes::Monitoring::server(test_state(client).await)),
     )
     .await;
-    let mut incoming = test::TestRequest::post().uri("/monitoring/grafana/session");
+    let mut incoming = test::TestRequest::post().uri("/monitoring/grafana/session/payment_logs");
     for (name, value) in request.headers() {
         incoming = incoming.append_header((name.clone(), value.clone()));
     }
@@ -91,7 +91,7 @@ async fn auth_route_without_router_and_bad_json_fail_closed() {
 #[actix_web::test]
 async fn session_cookie_and_fail_closed_contract() {
     for (authorize_status, user_status, body, expected) in [
-        (200, 200, r#"{"email":"user@example.com"}"#, 204),
+        (200, 200, r#"{"email":"user@example.com"}"#, 200),
         (401, 200, r#"{"email":"user@example.com"}"#, 401),
         (403, 200, r#"{"email":"user@example.com"}"#, 403),
         (500, 200, r#"{"email":"user@example.com"}"#, 503),
@@ -149,7 +149,7 @@ async fn session_cookie_and_fail_closed_contract() {
         let response = session_with_client(Some(&client), &request).await;
         assert_eq!(response.status().as_u16(), expected);
         assert!(response.headers().get(header::CACHE_CONTROL).is_none());
-        if expected == 204 {
+        if expected == 200 {
             let cookie = response.cookies().next().unwrap();
             assert_eq!(cookie.name(), "grafana_token");
             assert_eq!(cookie.value(), "signed.token.value");
@@ -160,6 +160,30 @@ async fn session_cookie_and_fail_closed_contract() {
             assert!(cookie.domain().is_none());
             assert!(cookie.max_age().is_none());
             assert!(cookie.expires().is_none());
+            let body = actix_web::body::to_bytes(response.into_body())
+                .await
+                .unwrap();
+            let body: Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(
+                body,
+                json!({"embed_url":"https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"})
+            );
+            let app = test::init_service(App::new().service(crate::routes::Monitoring::server(
+                test_state(Some(&client)).await,
+            )))
+            .await;
+            let unknown = test::call_service(
+                &app,
+                test::TestRequest::post()
+                    .uri("/monitoring/grafana/session/unknown_id")
+                    .insert_header((header::AUTHORIZATION, "Bearer signed.token.value"))
+                    .to_request(),
+            )
+            .await;
+            assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+            assert!(unknown.headers().get(header::SET_COOKIE).is_none());
+            let body: Value = test::read_body_json(unknown).await;
+            assert!(!body.to_string().contains("cc.example"));
             let identity = monitoring::authorize(
                 test_state(Some(&client)).await,
                 GrafanaAuthRequest {
@@ -279,4 +303,37 @@ async fn router_owns_token_validation() {
     }
     assert_eq!(observed.load(Ordering::SeqCst), 3);
     handle.stop(false).await;
+}
+
+#[actix_web::test]
+async fn session_requires_post_and_a_destination_id() {
+    let app = test::init_service(
+        App::new().service(crate::routes::Monitoring::server(test_state(None).await)),
+    )
+    .await;
+    let missing = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/monitoring/grafana/session")
+            .to_request(),
+    )
+    .await;
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    let get = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/monitoring/grafana/session/payment_logs")
+            .to_request(),
+    )
+    .await;
+    assert_eq!(get.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert!(get.headers().get(header::SET_COOKIE).is_none());
+    let unauthenticated = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/monitoring/grafana/session/unknown_id")
+            .to_request(),
+    )
+    .await;
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
 }

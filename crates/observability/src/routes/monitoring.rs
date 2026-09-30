@@ -24,11 +24,18 @@ pub async fn authenticate(
     .await
 }
 
-pub async fn session(state: web::Data<AppState>, request: HttpRequest) -> HttpResponse {
+pub async fn session(
+    state: web::Data<AppState>,
+    request: HttpRequest,
+    id: web::Path<String>,
+) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
-        auth::get_jwt_from_authorization_header(request.headers()),
+        (
+            id.into_inner(),
+            auth::get_jwt_from_authorization_header(request.headers()),
+        ),
         monitoring::session,
         &auth::NoAuth,
     )

@@ -92,7 +92,7 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 | `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
-| `POST` | `/monitoring/grafana/session` | Router-validated Bearer token in Authorization header |
+| `POST` | `/monitoring/grafana/session/{id}` | Router-validated Bearer token in Authorization header |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
@@ -252,7 +252,7 @@ malformed JSON returns 400 and oversized bodies use its default limit/status. Ro
 403; all transport failures, malformed responses, and unexpected Router statuses return 503.
 Router can currently return a 5xx for an inactive user lookup; this maps to 503 but still denies
 access. Both monitoring handlers use the shared `server_wrap` request/auth/error pipeline. Core returns
-`ApplicationResponse::NoContentWithHeaders` for the session; the wrapper renders its status and
+`ApplicationResponse::JsonWithHeaders` for the session; the wrapper renders its status and
 cookie centrally. Header extraction lives in `auth`, following Router's
 Bearer helper pattern. Authorization remains in core because it requires asynchronous Router
 calls; `NoAuth` explicitly means there is no additional internal API-key gate.
@@ -268,16 +268,48 @@ to be public without a separate service key by the agreed temporary integration 
 limit and monitor it at the gateway/ingress. The existing operational Grafana still needs its
 Auth Proxy whitelist and data-source access reviewed before rollout.
 
+### Grafana embed destinations
+
+Configure an ID-to-URL map, following the chat destination pattern. Use underscore-separated IDs
+such as `payment_logs` and `payment_overview`:
+
+```toml
+[monitoring.destinations]
+payment_logs = "https://cc.example/api/observability-plane/grafana/explore?orgId=1"
+payment_overview = "https://cc.example/api/observability-plane/grafana/d/dashboard_uid/overview?kiosk"
+```
+
+Environment override:
+`OBSERVABILITY__MONITORING__DESTINATIONS__PAYMENT_LOGS=https://cc.example/api/observability-plane/grafana/explore?orgId=1`
+
+The map defaults to empty. IDs use the same lowercase/non-empty/no-double-underscore rules as
+chat destinations. URLs are parsed as `Url`; query parameters are preserved. Deployment owners
+must use the same HTTPS CC host and `/api/observability-plane/grafana` proxy path so the session
+cookie applies. These are trusted configuration values, never URLs supplied by the caller.
+This service does not discover dashboards or generate Grafana Explore state: configure the
+complete embed URL for each target.
+
 ### Browser session bootstrap
 
-The frontend calls `POST {cc_url}/api/observability-plane/monitoring/grafana/session` with
+The frontend calls `POST {cc_url}/api/observability-plane/monitoring/grafana/session/{id}` (for example
+`payment_logs`) with no request body and
 `Authorization: Bearer <JWT>`. Ingress strips `/api/observability-plane`; the application route
-is `/monitoring/grafana/session`. It uses the same permission and active-user validation as the
-identity endpoint, then returns 204 and the following cookie (the gateway adds `Cache-Control: no-store`):
+is `/monitoring/grafana/session/{id}`. It uses the same permission and active-user validation as the
+identity endpoint, then returns 200 JSON and the following cookie (the gateway adds `Cache-Control: no-store`):
 
 ```http
 Set-Cookie: grafana_token=<JWT>; Path=/api/observability-plane/grafana; Secure; HttpOnly; SameSite=Strict
 ```
+
+The success body is:
+
+```json
+{"embed_url":"https://cc.example/api/observability-plane/grafana/explore?orgId=1"}
+```
+
+Authorization is performed before looking up the ID. Unknown IDs (including an empty destination
+map) return 404 without setting a cookie or exposing configured IDs/URLs. The old path without
+an ID no longer creates a session; GET is not supported.
 
 This is a distinct, host-only session cookie (no Domain, Expires or Max-Age), not a replacement
 for Control Center's `login_token`. The browser sends it to

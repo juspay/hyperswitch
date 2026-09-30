@@ -80,6 +80,8 @@ pub enum ObservabilityError {
 
     #[error("Invalid session credential")]
     InvalidSession,
+    #[error("Unknown monitoring destination")]
+    UnknownMonitoringDestination,
     #[error("Monitoring permission denied")]
     MonitoringForbidden,
     #[error("Router unavailable")]
@@ -131,6 +133,9 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 1,
                 "API key not provided or invalid",
             )),
+            Self::UnknownMonitoringDestination => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 8, "Unknown monitoring destination"))
+            }
             Self::InvalidSession => {
                 ApiErrorResponse::Unauthorized(ApiError::new("IR", 6, "Invalid session credential"))
             }

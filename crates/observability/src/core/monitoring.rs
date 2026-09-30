@@ -4,7 +4,9 @@ use actix_web::{
     cookie::{Cookie, SameSite},
     http::header::{HeaderMap, HeaderValue, SET_COOKIE},
 };
-use api_models::observability::monitoring::{GrafanaAuthRequest, GrafanaAuthResponse};
+use api_models::observability::monitoring::{
+    GrafanaAuthRequest, GrafanaAuthResponse, GrafanaSessionResponse,
+};
 use error_stack::report;
 use hyperswitch_masking::{PeekInterface, Secret};
 
@@ -40,16 +42,26 @@ pub async fn authorize(
 /// Successful bootstrap sets a cookie only after Router validation; cache policy belongs to the gateway.
 pub async fn session(
     state: AppState,
-    token: error_stack::Result<Secret<String>, ObservabilityError>,
-) -> error_stack::Result<ApplicationResponse, ObservabilityError> {
+    (id, token): (
+        String,
+        error_stack::Result<Secret<String>, ObservabilityError>,
+    ),
+) -> error_stack::Result<ApplicationResponse<GrafanaSessionResponse>, ObservabilityError> {
     let token = token?;
     authorize(
-        state,
+        state.clone(),
         GrafanaAuthRequest {
             token: token.clone(),
         },
     )
     .await?;
+    let embed_url = state
+        .conf
+        .monitoring
+        .destinations
+        .get(&id)
+        .ok_or_else(|| report!(ObservabilityError::UnknownMonitoringDestination))?
+        .to_string();
     let cookie = Cookie::build("grafana_token", token.peek().clone())
         .path("/api/observability-plane/grafana")
         .secure(true)
@@ -61,5 +73,8 @@ pub async fn session(
     value.set_sensitive(true);
     let mut headers = HeaderMap::new();
     headers.insert(SET_COOKIE, value);
-    Ok(ApplicationResponse::NoContentWithHeaders { headers })
+    Ok(ApplicationResponse::JsonWithHeaders {
+        body: GrafanaSessionResponse { embed_url },
+        headers,
+    })
 }

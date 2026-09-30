@@ -14,3 +14,9 @@ pub struct GrafanaAuthRequest {
 pub struct GrafanaAuthResponse {
     pub grafana_login: String,
 }
+
+/// Configured embed destination for an authenticated Grafana session.
+#[derive(Debug, serde::Serialize)]
+pub struct GrafanaSessionResponse {
+    pub embed_url: String,
+}

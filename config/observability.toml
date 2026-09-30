@@ -38,6 +38,11 @@ internal_api_key = "observability_dev_key"
 # [router]
 # base_url = "http://localhost:8080"
 
+# Optional Grafana embed targets. IDs use underscores; use the same HTTPS CC host and proxy path.
+# [monitoring.destinations]
+# payment_logs = "https://cc.example/api/observability-plane/grafana/explore?orgId=1"
+# payment_overview = "https://cc.example/api/observability-plane/grafana/d/dashboard_uid/overview?kiosk"
+
 # How the secrets above are resolved at boot. `no_encryption` takes them literally; the KMS
 # variants are compiled in under the `release` feature and treat them as handles to resolve.
 [secrets_management]

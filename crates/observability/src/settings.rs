@@ -61,6 +61,8 @@ pub struct Settings<S: SecretState> {
     pub auth: SecretStateContainer<AuthSettings, S>,
     /// Router dependency for the Grafana gateway authorization endpoint.
     pub router: Option<RouterSettings>,
+    /// Configured Grafana embed targets, keyed by IDs such as payment_logs.
+    pub monitoring: MonitoringSettings,
     /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
@@ -74,6 +76,13 @@ pub struct Settings<S: SecretState> {
     pub cloudwatch: CloudWatchSettings,
     /// The observability database, which holds alert state. Separate from `hyperswitch_db`.
     pub database: SecretStateContainer<Database, S>,
+}
+
+/// Grafana destinations use the same ID-keyed configuration pattern as chat destinations.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct MonitoringSettings {
+    pub destinations: HashMap<String, url::Url>,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -414,6 +423,7 @@ impl Settings<SecuredSecret> {
         self.auth.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
+        validate_config_ids(&self.monitoring.destinations, "monitoring destination")?;
         self.cloudwatch.validate()?;
         self.database.get_inner().validate()?;
         self.secrets_management
@@ -433,6 +443,40 @@ impl Settings<SecuredSecret> {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn monitoring_destinations_default_empty_and_support_environment_overrides() {
+        let defaults: Settings<SecuredSecret> = serde_json::from_str("{}").unwrap();
+        assert!(defaults.monitoring.destinations.is_empty());
+        let environment = HashMap::from([(
+            "OBSERVABILITY__MONITORING__DESTINATIONS__PAYMENT_LOGS".to_owned(),
+            "https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"
+                .to_owned(),
+        )]);
+        let settings: Settings<SecuredSecret> = config::Config::builder()
+            .add_source(
+                config::Environment::with_prefix("OBSERVABILITY")
+                    .prefix_separator("__")
+                    .separator("__")
+                    .source(Some(environment)),
+            )
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        assert_eq!(
+            settings.monitoring.destinations["payment_logs"].query(),
+            Some("orgId=1&left=logs")
+        );
+        assert!(
+            validate_config_ids(&settings.monitoring.destinations, "monitoring destination")
+                .is_ok()
+        );
+        assert!(serde_json::from_value::<MonitoringSettings>(
+            serde_json::json!({"destinations":{"payment_logs":"not a URL"}})
+        )
+        .is_err());
+    }
 
     fn chat_with_ids(ids: &[&str]) -> ChatSettings {
         ChatSettings {
