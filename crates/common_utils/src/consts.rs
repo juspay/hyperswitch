@@ -228,6 +228,10 @@ pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 /// Merchant ID Header
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 
+/// Whether UCS should accept a connector-reported amount that differs from the requested amount
+/// (resolved from the `payments.accept_payment_amount_mismatch` config)
+pub const X_ACCEPT_AMOUNT_MISMATCH: &str = "x-accept-amount-mismatch";
+
 /// Selects the integration the caller is building. `server` opts a payments response into the
 /// combined shape that also carries the payment-method list and wallet session tokens; `client`
 /// or an absent header keeps the existing response untouched.

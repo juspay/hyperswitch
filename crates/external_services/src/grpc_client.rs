@@ -212,6 +212,10 @@ pub struct GrpcHeadersUcs {
     proxy_name: Option<&'static str>,
     /// Config override as JSON string to pass to UCS
     config_override: Option<String>,
+    /// Whether a connector-reported amount that differs from the requested amount is accepted.
+    /// Set from the router data just before the request is sent; not sent when `None`.
+    #[builder(default)]
+    accept_amount_mismatch: Option<bool>,
     /// Sent as `x-payment-method` / `x-payment-method-type` so UCS can attribute the call
     /// (its rollout scope includes the payment method). `None` where the flow has no
     /// payment method: access-token fetch, FRM notification, incoming webhooks, surcharge
@@ -231,6 +235,8 @@ pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<&'static str>,),
     (Option<String>,),
+    // `accept_amount_mismatch` is not set yet; the UCS logging wrapper sets it from the router data
+    (),
     (),
     (),
 )>;
@@ -245,6 +251,8 @@ pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<&'static str>,),
     (Option<String>,),
+    // `accept_amount_mismatch` is not set yet; the UCS logging wrapper sets it from the router data
+    (),
     (Option<PaymentMethod>,),
     (Option<PaymentMethodType>,),
 )>;

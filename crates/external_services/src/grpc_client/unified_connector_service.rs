@@ -1701,6 +1701,7 @@ fn build_grpc_headers_internal(
         shadow_mode,
         proxy_name,
         config_override,
+        accept_amount_mismatch,
         payment_method,
         payment_method_type,
     } = grpc_headers;
@@ -1849,6 +1850,16 @@ fn build_grpc_headers_internal(
         metadata.append(
             common_utils_consts::X_CONFIG_OVERRIDE,
             parse(common_utils_consts::X_CONFIG_OVERRIDE, &config_override)?,
+        );
+    }
+
+    if let Some(accept_amount_mismatch) = accept_amount_mismatch {
+        metadata.append(
+            common_utils_consts::X_ACCEPT_AMOUNT_MISMATCH,
+            parse(
+                common_utils_consts::X_ACCEPT_AMOUNT_MISMATCH,
+                &accept_amount_mismatch.to_string(),
+            )?,
         );
     }
 
