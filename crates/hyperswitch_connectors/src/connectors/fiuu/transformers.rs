@@ -1261,26 +1261,6 @@ pub struct FiuuPaymentSyncRequest {
     skey: Secret<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct FiuuRedirectTxnId {
-    #[serde(rename = "tranID")]
-    tran_id: Option<String>,
-}
-
-fn get_redirect_transaction_id(encoded_data: Option<&str>) -> Option<String> {
-    encoded_data.and_then(|data| {
-        serde_urlencoded::from_str::<FiuuRedirectTxnId>(data)
-            .map_err(|err| {
-                router_env::logger::warn!(
-                    "Failed to parse Fiuu redirect transaction id from encoded_data for sync: {:?}",
-                    err
-                );
-            })
-            .ok()
-            .and_then(|response| response.tran_id)
-            .filter(|transaction_id| !transaction_id.is_empty())
-    })
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -1342,22 +1322,11 @@ impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
     type Error = Report<errors::ConnectorError>;
     fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
-        let stored_txn_id = item
+        let txn_id = item
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let redirect_txn_id = get_redirect_transaction_id(item.request.encoded_data.as_deref());
-        let txn_id = match redirect_txn_id {
-            Some(redirect_txn_id) if redirect_txn_id != stored_txn_id => {
-                router_env::logger::info!(
-                    "Using Fiuu redirect transaction id for payment sync request"
-                );
-                redirect_txn_id
-            }
-            Some(redirect_txn_id) => redirect_txn_id,
-            None => stored_txn_id,
-        };
         let merchant_id = auth.merchant_id.peek().to_string();
         let verify_key = auth.verify_key.peek().to_string();
         let amount = StringMajorUnitForConnector
