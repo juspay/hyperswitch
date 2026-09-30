@@ -288,14 +288,14 @@ pub async fn make_connector_decision(
         api::ConnectorCallType::PreDetermined(routing_data) => {
             let frm_outcome = match payout_frm_applicability {
                 Some(applicability) => handle_payout_pre_frm_result!(
-                    fraud_check::pre_payouts_frm_core(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &routing_data.connector_data,
                         applicability,
                         &pre_frm_failure_mode,
-                    )
+                    ))
                     .await,
                     &pre_frm_failure_mode,
                     platform,
@@ -341,14 +341,14 @@ pub async fn make_connector_decision(
 
             let frm_outcome = match payout_frm_applicability {
                 Some(applicability) => handle_payout_pre_frm_result!(
-                    fraud_check::pre_payouts_frm_core(
+                    Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &connector_data,
                         applicability,
                         &pre_frm_failure_mode,
-                    )
+                    ))
                     .await,
                     &pre_frm_failure_mode,
                     platform,
@@ -4441,7 +4441,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         router_data,
@@ -4496,6 +4496,10 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
         lineage_ids,
         merchant_connector_account,
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
     };
     // Update feature metadata to track Direct routing usage for stickiness
