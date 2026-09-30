@@ -9884,7 +9884,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
                 Some(payments_grpc::source_bank_data::SourceBankData::Trustly(
                     payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
                 ))
-            },
+            }
             api_models::payouts::BankTransfer::OpenBanking(_) => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "OpenBanking bank transfer not supported for Unified Connector Service"
