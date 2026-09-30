@@ -1177,9 +1177,28 @@ impl super::RedisConnectionWithContext {
             codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
             state_write = key.tenant_aware_key(&self.redis_conn),
             args = {
+                // The reply is the count of NEWLY added members, so `members` decides
+                // the value and belongs in the identity. Two `insert_reverse_lookup`
+                // calls in one function reach this on the same key with different
+                // members (storage_impl/src/payments/payment_attempt.rs:942 and :956),
+                // and without this they differ only by occurrence.
+                //
+                // Sorted, because SADD is a set while `to_redis_args` preserves the
+                // producing Vec's order and `args_hash` is order-DEPENDENT for arrays:
+                // an unsorted capture would move the key whenever `unique_constraints()`
+                // reorders, which is a divergence with no semantic cause. Not a digest
+                // — these are identifier strings already elsewhere on the tape, and a
+                // digest hides WHICH member differed when someone reads a divergence.
+                let mut members_captured: Vec<String> =
+                    redis::ToRedisArgs::to_redis_args(&members)
+                        .into_iter()
+                        .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+                        .collect();
+                members_captured.sort();
                 serde_json::json!({
                     "key": key.as_str(),
                     "command": "SADD",
+                    "members": members_captured,
                 })
             },
         )

@@ -170,6 +170,13 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::date_as_yyyymmddthhmmssmmmz",
+            // Without a codec the capture mode is Debug, whose replay hit arm is
+            // unconditionally a reconstruction failure — so on this Substitute preset
+            // EVERY replayed call fail-stopped, the Ok path included, not just the
+            // errors. `SerdeCodec` cannot serve here because `time::error::Format` is
+            // not `Serialize`; `ResultOkCodec` needs only `Debug` of the error and
+            // restores the Ok path, leaving a recorded error a stop as intended.
+            codec = ResultOkCodec,
             on_miss = { const SYNTH_ISO: EncodedConfig = Config::DEFAULT.set_time_precision(TimePrecision::Second { decimal_digits: NonZeroU8::new(3) }).encode(); convert_to_pdt(crate::synth_shape::instant(&__deja_miss)).assume_utc().format(&Iso8601::<SYNTH_ISO>) },
         )
     )]
@@ -194,6 +201,9 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_rfc7231_http_date",
+            // As above: no codec meant Debug capture, and a Substitute site whose hit
+            // arm always fails is a site that cannot be replayed at all.
+            codec = ResultOkCodec,
             on_miss = crate::synth_shape::instant(&__deja_miss).format(&time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT")),
         )
     )]

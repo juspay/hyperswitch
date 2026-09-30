@@ -92,7 +92,11 @@ macro_rules! unimplemented_payment_method {
 
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
-        #[derive(Debug)]
+        // Serialize/Deserialize so a `ResultCodec<T, Self>` can carry a recorded
+        // failure back on replay. Without them the only option is `ResultOkCodec`,
+        // which records the error as a sentinel and makes every replayed failure a
+        // fail-stop rather than the failure it was.
+        #[derive(Debug, serde::Serialize, serde::Deserialize)]
         pub struct $name;
 
         impl_error_display!($name, $arg);
