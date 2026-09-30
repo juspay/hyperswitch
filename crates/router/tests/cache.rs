@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use router::{configs::settings::Settings, routes, services};
-use storage_impl::redis::cache::{self, CacheKey};
+use storage_impl::redis::cache::CacheKey;
 
 mod utils;
 

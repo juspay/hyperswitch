@@ -222,36 +222,64 @@ impl Caches {
 
     /// The cache `id` names.
     pub fn get(&self, id: CacheId) -> &Cache {
+        let Self {
+            config,
+            accounts,
+            mca_list,
+            routing,
+            decision_manager,
+            surcharge,
+            cgraph,
+            pm_filters_cgraph,
+            success_based_dynamic_algorithm,
+            elimination_based_dynamic_algorithm,
+            contract_based_dynamic_algorithm,
+            invalidation_channel: _,
+        } = self;
         match id {
-            CacheId::Config => &self.config,
-            CacheId::Accounts => &self.accounts,
-            CacheId::McaList => &self.mca_list,
-            CacheId::Routing => &self.routing,
-            CacheId::DecisionManager => &self.decision_manager,
-            CacheId::Surcharge => &self.surcharge,
-            CacheId::CGraph => &self.cgraph,
-            CacheId::PmFiltersCGraph => &self.pm_filters_cgraph,
-            CacheId::SuccessBasedDynamicAlgorithm => &self.success_based_dynamic_algorithm,
-            CacheId::EliminationBasedDynamicAlgorithm => &self.elimination_based_dynamic_algorithm,
-            CacheId::ContractBasedDynamicAlgorithm => &self.contract_based_dynamic_algorithm,
+            CacheId::Config => config,
+            CacheId::Accounts => accounts,
+            CacheId::McaList => mca_list,
+            CacheId::Routing => routing,
+            CacheId::DecisionManager => decision_manager,
+            CacheId::Surcharge => surcharge,
+            CacheId::CGraph => cgraph,
+            CacheId::PmFiltersCGraph => pm_filters_cgraph,
+            CacheId::SuccessBasedDynamicAlgorithm => success_based_dynamic_algorithm,
+            CacheId::EliminationBasedDynamicAlgorithm => elimination_based_dynamic_algorithm,
+            CacheId::ContractBasedDynamicAlgorithm => contract_based_dynamic_algorithm,
         }
     }
 
     /// Every cache in the set, so that callers iterating over all of them — metrics
     /// collection, say — cannot silently fall behind a newly added cache.
     pub fn all(&self) -> [&Cache; 11] {
+        let Self {
+            config,
+            accounts,
+            mca_list,
+            routing,
+            decision_manager,
+            surcharge,
+            cgraph,
+            pm_filters_cgraph,
+            success_based_dynamic_algorithm,
+            elimination_based_dynamic_algorithm,
+            contract_based_dynamic_algorithm,
+            invalidation_channel: _,
+        } = self;
         [
-            &self.config,
-            &self.accounts,
-            &self.mca_list,
-            &self.routing,
-            &self.decision_manager,
-            &self.surcharge,
-            &self.cgraph,
-            &self.pm_filters_cgraph,
-            &self.success_based_dynamic_algorithm,
-            &self.elimination_based_dynamic_algorithm,
-            &self.contract_based_dynamic_algorithm,
+            config,
+            accounts,
+            mca_list,
+            routing,
+            decision_manager,
+            surcharge,
+            cgraph,
+            pm_filters_cgraph,
+            success_based_dynamic_algorithm,
+            elimination_based_dynamic_algorithm,
+            contract_based_dynamic_algorithm,
         ]
     }
 }
