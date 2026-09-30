@@ -271,8 +271,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             let (ucs_event_reference, ucs_event_type) = match candidate_path {
-                common_enums::ExecutionPath::UnifiedConnectorService
-                | common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                common_enums::ExecutionPath::UnifiedConnectorService => {
                     super::gateway::get_webhook_event_details_from_ucs(
                         &state,
                         &platform,
@@ -280,6 +279,19 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         &connector_name,
                         mca_ref,
                         &request_details,
+                        common_enums::ExecutionMode::Primary,
+                    )
+                    .await
+                }
+                common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                    super::gateway::get_webhook_event_details_from_ucs(
+                        &state,
+                        &platform,
+                        connector.clone(),
+                        &connector_name,
+                        mca_ref,
+                        &request_details,
+                        common_enums::ExecutionMode::Shadow,
                     )
                     .await
                 }
