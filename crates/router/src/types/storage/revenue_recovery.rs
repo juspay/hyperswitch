@@ -103,7 +103,7 @@ pub struct RevenueRecoverySettings {
     pub redis_ttl_in_seconds: i64,
     #[serde(default)]
     pub retry_stats_lock: RetryStatsLockSettings,
-    /// Fallback hour-of-day (UTC, 0–23) the MathModel schedules a retry at when a cluster has no
+    /// Fallback hour-of-day (UTC, 0–23) the retry model schedules at when a cluster has no
     /// usable hour-of-day history. Overridable per environment via the config file's
     /// `[revenue_recovery]` section or the `ROUTER__REVENUE_RECOVERY__DEFAULT_RETRY_HOUR_UTC` env var;
     /// when omitted it defaults to noon UTC (see [`DefaultRetryHour`]).
@@ -147,7 +147,7 @@ impl RetryStatsLockSettings {
     }
 }
 
-/// Fallback hour-of-day (UTC, 0–23) for the MathModel. A newtype so its `Default` (noon UTC = 12) is
+/// Fallback hour-of-day (UTC, 0–23) for the retry model. A newtype so its `Default` (noon UTC = 12) is
 /// carried automatically by both `#[derive(Default)]` on the settings and serde's `#[serde(default)]`
 /// — the value lives in exactly one place, with no field-list repetition.
 #[derive(Debug, Clone, Copy, serde::Deserialize)]
