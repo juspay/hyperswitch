@@ -2096,9 +2096,7 @@ fn combine_day_weight(
 ///  * **Days within `tie_tolerance` split their share.** Ranking alone breaks ties by array
 ///    position, giving days of equal value wildly different probabilities. Splitting leaves the
 ///    group total untouched.
-// `usize -> f64` is exact here: `n` is a candidate-day count, capped at `MAX_GRACE_DAYS` (31).
 #[cfg(feature = "v2")]
-#[allow(clippy::as_conversions)]
 fn inclusion_probabilities(
     values: &[f64],
     budget: u32,
@@ -2109,6 +2107,11 @@ fn inclusion_probabilities(
     if n == 0 {
         return Vec::new();
     }
+    // `usize -> f64`. std offers no `From`/`TryFrom` here (a 64-bit `usize` exceeds f64's exact
+    // range), and routing through `u32` would be WORSE than the cast: the fallback for an
+    // out-of-range count returns a wrong magnitude, where `as` stays exact to 2^53 and merely
+    // rounds beyond it. `n` is a candidate-day count, capped at `MAX_GRACE_DAYS` (31).
+    #[allow(clippy::as_conversions)]
     let n_f = n as f64;
     // πᵢ ≤ 1 caps the total at n, so a budget wider than the window can only spend n — every day
     // pinned at 1.0, which is the old runway guard arrived at by arithmetic rather than by a rule.
@@ -2142,6 +2145,8 @@ fn inclusion_probabilities(
     {
         if tied_days.len() > 1 {
             let total: f64 = tied_days.iter().filter_map(|&(day, _)| pi.get(day)).sum();
+            // `usize -> f64`, exact: a tied group is a subset of the window, so at most 31.
+            #[allow(clippy::as_conversions)]
             let share = total / tied_days.len() as f64;
             for &(day, _) in tied_days {
                 if let Some(slot) = pi.get_mut(day) {
@@ -2175,10 +2180,13 @@ fn inclusion_probabilities(
 /// can fall past the final edge and collapse onto a taken segment, yielding k−1 days. Needs
 /// `u > 1 − 1e-14` and the caller uses only the soonest day, so it is documented rather than
 /// patched — the fixes for it (rescaling probes, normalising π) are what silently break G1/G2.
-// `usize -> f64` and `f64 -> usize` are exact here: both are day counts bounded by the window.
+///
+/// `probe_count` is `k`, passed rather than recovered from `Σπ`. The two are equal by construction
+/// — `inclusion_probabilities` pours exactly `k` — but reading it back off the accumulated line
+/// means a float round-trip, and an infinite or absurd `pi` would then produce a probe count to
+/// match and loop on it. Being told how many probes to place removes that and the cast with it.
 #[cfg(feature = "v2")]
-#[allow(clippy::as_conversions)]
-fn systematic_sample(pi: &[f64], u: f64, order: &[usize]) -> Vec<usize> {
+fn systematic_sample(pi: &[f64], u: f64, order: &[usize], probe_count: usize) -> Vec<usize> {
     // Right edge of each segment, accumulated along the shuffled line.
     let mut acc = 0.0;
     let edges: Vec<f64> = order
@@ -2188,13 +2196,17 @@ fn systematic_sample(pi: &[f64], u: f64, order: &[usize]) -> Vec<usize> {
             acc
         })
         .collect();
-    let Some(&line_length) = edges.last() else {
+    if edges.is_empty() {
         return Vec::new();
-    };
-    let probe_count = line_length.round().max(0.0) as usize;
+    }
 
     let mut selected: Vec<usize> = (0..probe_count)
         .filter_map(|step| {
+            // `usize -> f64`, exact: `step` is bounded by `probe_count`, itself the budget.
+            // Written `u + step` rather than an accumulated `+ 1.0` per probe: one rounding
+            // instead of `step` of them, and the doc above records why probe arithmetic is
+            // left alone.
+            #[allow(clippy::as_conversions)]
             let probe = u + step as f64;
             // First segment whose right edge is strictly past the probe.
             let position = edges
@@ -2244,7 +2256,11 @@ fn select_systematic_k_day(
     let order = common_utils::generate_random_permutation(weights.len());
 
     let u = common_utils::generate_random_f64_unit();
-    let selected = systematic_sample(&pi, u, &order);
+    // The same `k` the pour spends: the budget, capped by the window it has to spend it over.
+    let probe_count = usize::try_from(budget)
+        .unwrap_or(usize::MAX)
+        .min(weights.len());
+    let selected = systematic_sample(&pi, u, &order, probe_count);
     let chosen = selected.first().copied()?;
     let chosen_inclusion_probability = pi.get(chosen).copied().unwrap_or(0.0);
 
@@ -3188,7 +3204,7 @@ mod retry_model_tests {
         let expected_days = usize::try_from(budget).unwrap_or(0);
         for step in 0..1000 {
             let u = f64::from(step) / 1000.0;
-            let selected = systematic_sample(&pi, u, &order);
+            let selected = systematic_sample(&pi, u, &order, expected_days);
             assert_eq!(
                 selected.len(),
                 expected_days,
@@ -3213,7 +3229,7 @@ mod retry_model_tests {
         let mut hits = vec![0u32; n];
         for step in 0..draws {
             let u = (f64::from(step) + 0.5) / f64::from(draws);
-            for day in systematic_sample(&pi, u, &order) {
+            for day in systematic_sample(&pi, u, &order, 4) {
                 if let Some(count) = hits.get_mut(day) {
                     *count += 1;
                 }
@@ -3238,7 +3254,7 @@ mod retry_model_tests {
         let mut seen = vec![false; n];
         for step in 0..2_000 {
             let u = (f64::from(step) + 0.5) / 2000.0;
-            for day in systematic_sample(&pi, u, &order) {
+            for day in systematic_sample(&pi, u, &order, 3) {
                 if let Some(hit) = seen.get_mut(day) {
                     *hit = true;
                 }
