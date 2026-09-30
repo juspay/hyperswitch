@@ -1261,7 +1261,6 @@ pub struct FiuuPaymentSyncRequest {
     skey: Secret<String>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum FiuuPaymentResponse {
@@ -1414,10 +1413,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 let stat_name = response.stat_name;
                 let stat_code = response.stat_code.clone();
                 let txn_id = response.tran_id;
-                router_env::logger::info!(
-                    "Fiuu sync response: txn_id={} stat_code={:?} stat_name={:?} capture_method={:?} current_status={:?}",
-                    txn_id, stat_code, stat_name, item.data.request.capture_method, item.data.status
-                );
                 let status = enums::AttemptStatus::try_from(FiuuSyncStatus {
                     stat_name,
                     stat_code,
