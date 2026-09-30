@@ -1027,6 +1027,52 @@ mod cache_tests {
         assert_eq!(config.config.max_capacity, Some(CacheLimit::Unbounded));
     }
 
+    /// The env-var shape for a tagged `max_capacity` is not obvious — the unit becomes a
+    /// further `__`-separated segment — so pin it against the same `Environment` source
+    /// `Settings::with_config_path` builds.
+    ///
+    /// The registered list-parse keys are part of that setup and are load-bearing here:
+    /// without any of them, `list_separator` applies to every key and silently turns plain
+    /// string values into single-element arrays, which no string or enum field will accept.
+    #[test]
+    fn the_documented_env_vars_deserialize() {
+        let source: std::collections::HashMap<String, String> = [
+            ("ROUTER__ACCOUNTS__MAX_CAPACITY__MEGABYTES", "64"),
+            ("ROUTER__CGRAPH__MAX_CAPACITY__ENTRIES", "500"),
+            ("ROUTER__CONFIG__MAX_CAPACITY", "unbounded"),
+            ("ROUTER__INVALIDATION_CHANNEL", "channel_from_env"),
+        ]
+        .into_iter()
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect();
+
+        let config: CacheConfig = config::Config::builder()
+            .add_source(
+                config::Environment::with_prefix("ROUTER")
+                    .try_parsing(true)
+                    .separator("__")
+                    .list_separator(",")
+                    .with_list_parse_key("log.telemetry.route_to_trace")
+                    .with_list_parse_key("redis.cluster_urls")
+                    .source(Some(source)),
+            )
+            .build()
+            .expect("failed to build cache configuration")
+            .try_deserialize()
+            .expect("failed to deserialize cache configuration from the environment");
+
+        assert_eq!(
+            config.accounts.max_capacity,
+            Some(CacheLimit::Megabytes(64))
+        );
+        assert_eq!(config.cgraph.max_capacity, Some(CacheLimit::Entries(500)));
+        assert_eq!(config.config.max_capacity, Some(CacheLimit::Unbounded));
+        assert_eq!(
+            config.invalidation_channel.as_deref(),
+            Some("channel_from_env")
+        );
+    }
+
     #[tokio::test]
     async fn an_entry_ceiling_binds_regardless_of_entry_size() {
         // Three entries allowed, eight pushed, and every one is `Unmeasured` — so nothing

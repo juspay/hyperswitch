@@ -204,6 +204,11 @@ max_feed_count = 200
 #                      # `pm_filters_cgraph` are built in-process and their entries carry no size, so a
 #                      # megabytes ceiling there can never be reached — it is logged and ignored in favour
 #                      # of the default. Use `{ entries = N }` for those three.
+#                      #
+#                      # As environment variables the unit becomes a further `__` segment:
+#                      #   ROUTER__CACHE__ACCOUNTS__MAX_CAPACITY__MEGABYTES=30
+#                      #   ROUTER__CACHE__CGRAPH__MAX_CAPACITY__ENTRIES=10000
+#                      #   ROUTER__CACHE__CONFIG__MAX_CAPACITY=unbounded
 #
 # Note that `time_to_idle` is what bounds the resident set in normal operation — these caches are
 # keyed per merchant and profile, so an entry unread for its window is dropped. `max_capacity` is a
