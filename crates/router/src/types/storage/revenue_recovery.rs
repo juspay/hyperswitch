@@ -29,9 +29,11 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     /// Standardised error code for the failed attempt that motivated this retry chain,
     #[serde(default)]
     pub prev_attempt_error_code: Option<enums::StandardisedCode>,
-    /// Adaptive retry scheduling state — how far down the static ladder this invoice has
-    /// been. Only meaningful on the CALCULATE row, which is reopened rather than recreated
-    /// and so survives for the whole recovery lifecycle of an invoice.
+    /// Ladder position carried across an invoice's recovery. Inert since the static ladder was
+    /// removed from the decision — nothing advances it and nothing reads it to pick a time — but
+    /// still seeded and still persisted, so it keeps round-tripping until it is removed properly.
+    /// Only meaningful on the CALCULATE row, which is reopened rather than recreated and so
+    /// survives for the whole recovery lifecycle of an invoice.
     #[serde(default)]
     pub static_ladder_progress: Option<StaticLadderProgress>,
 }

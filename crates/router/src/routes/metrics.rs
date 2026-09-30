@@ -314,8 +314,8 @@ counter_metric!(
     GLOBAL_METER,
     name: "revenue_recovery.ab.missing_error_code",
     description: "Invoices whose retry model needed the previous attempt's error code to pick a \
-                  time, but the CALCULATE task carried none — the model declines and the ladders \
-                  cover it; `algorithm` is `unenrolled` for invoices outside the experiment",
+                  time, but the CALCULATE task carried none — the model declines and the global \
+                  fallback covers it; `algorithm` is `unenrolled` outside the experiment",
     unit: "1",
 );
 // No algorithm attribute on this one: the thing being counted is that no arm was resolved yet, so
@@ -332,8 +332,8 @@ counter_metric!(
     REVENUE_RECOVERY_NO_SCHEDULE_TIME,
     GLOBAL_METER,
     name: "revenue_recovery.no_schedule_time",
-    description: "Invoices left with no retry time after every source declined — the assigned \
-                  model, the adaptive ladder and the cascading ladder",
+    description: "Invoices left with no retry time after both sources declined — the assigned \
+                  model and the MIT cascading ladder behind it",
     unit: "1",
 );
 
@@ -345,7 +345,7 @@ counter_metric!(
     GLOBAL_METER,
     name: "revenue_recovery.stats_lookup_failed",
     description: "Retry-stats lookups that errored, so the model declined and the invoice fell \
-                  through to the ladders — distinct from a cluster that simply has no stats yet",
+                  through to the global fallback — distinct from a cluster with no stats yet",
     unit: "1",
 );
 

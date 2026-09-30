@@ -253,23 +253,6 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
-/// Static ladder time for whichever retry model the invoice was routed to.
-#[cfg(feature = "v2")]
-pub(crate) async fn get_schedule_time_to_retry_payments(
-    db: &dyn StorageInterface,
-    superposition_client: &external_services::superposition::SuperpositionClient,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
-) -> Option<time::PrimitiveDateTime> {
-    let mapping = dimensions
-        .get_pt_mapping_adaptive_retries(db, superposition_client, None)
-        .await;
-
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
-
-    scheduler_utils::get_time_from_delta(time_delta)
-}
-
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -781,7 +764,7 @@ async fn get_retry_time_for_error_code(
         logger::info!(
             ?algorithm,
             "retry model: the CALCULATE task carries no error code, so the model cannot be \
-             consulted — falling back to the ladders"
+             consulted — falling back to the cascading ladder"
         );
         return None;
     };
@@ -959,13 +942,12 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             if ab_enabled || adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on the
                 // token. The addition is the model's candidate, which decides outright whenever
-                // it has one; the ladders cover only the decisions it declines.
+                // it has one; the cascading ladder covers only the decisions it declines.
                 //
                 // Enrolled and unenrolled invoices differ ONLY in which variant produces that
-                // candidate. Everything after it — the ladders, the decision, the token, the rung —
-                // is shared, so enrolling an invoice cannot change whether it gets retried at all.
+                // candidate. Everything after it — the fallback, the decision, the token — is
+                // shared, so enrolling an invoice cannot change whether it gets retried at all.
                 let now = common_utils::date_time::now();
-                let queried_rung = static_ladder_progress.next_rung();
 
                 let (model_time, grace_days_used, budget_used, assigned_algorithm) = if ab_enabled {
                     let (time, algorithm) = get_ab_routed_retry_time(
@@ -1017,7 +999,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                             logger::info!(
                                 payment_id = %payment_intent.id.get_string_repr(),
                                 "retry model: the CALCULATE task carries no error code, so the \
-                                 model cannot be consulted — falling back to the ladders"
+                                 model cannot be consulted — falling back to the cascading \
+                                 ladder"
                             );
                             None
                         }
@@ -1025,27 +1008,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     (time, grace_days, budget, None)
                 };
 
-                // The ladder covers only what the model declines, so it is resolved only then —
-                // the lookup is a Superposition read and costs nothing on the paths that never
-                // reach it. `None` here therefore means "not consulted", not "nothing to offer".
-                let static_time = match model_time {
+                // The MIT cascading ladder is the global fallback for everything the model
+                // declines, indexed by the invoice's overall retry count. Resolved only on the
+                // decline path, so the Superposition read costs nothing when the model decides —
+                // `None` here means "not consulted", not "nothing to offer".
+                let fallback_time = match model_time {
                     Some(_) => None,
                     None => {
-                        get_schedule_time_to_retry_payments(
-                            state.store.as_ref(),
-                            state.superposition_service.as_ref(),
-                            &dimensions,
-                            queried_rung,
-                        )
-                        .await
-                    }
-                };
-
-                // Both the model and the ladder came up empty, so the MIT cascading ladder gets
-                // the last word. Resolved only here, so it costs nothing on the paths that never
-                // reach it.
-                let fallback_time = match (static_time, model_time) {
-                    (None, None) => {
                         get_schedule_time_to_retry_mit_payments(
                             state.store.as_ref(),
                             state.superposition_service.as_ref(),
@@ -1054,24 +1023,21 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         )
                         .await
                     }
-                    _ => None,
                 };
 
                 let decision = pcr::schedule::decide_next_retry(
                     static_ladder_progress,
-                    queried_rung,
-                    static_time,
                     model_time,
                     fallback_time,
                 )
                 .ok_or_else(|| {
                     logger::error!(
-                        queried_rung = queried_rung,
+                        retry_count = retry_count,
                         error_code = ?tracking_data.prev_attempt_error_code,
                         remaining_grace_days = grace_days_used,
                         remaining_budget = budget_used,
-                        "No retry time available — the model declined, the static ladder is \
-                         exhausted and the MIT ladder had nothing left"
+                        "No retry time available — the model declined and the MIT cascading \
+                         ladder had nothing left"
                     );
                     // Counted, not just logged: an arm that loses invoices at a different rate
                     // from another is measuring its own drop rate rather than retry quality, and
@@ -1091,8 +1057,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
                 logger::info!(
                     source = ?decision.source,
-                    queried_rung = queried_rung,
-                    static_time = ?static_time,
+                    retry_count = retry_count,
                     model_time = ?model_time,
                     fallback_time = ?fallback_time,
                     error_code = ?tracking_data.prev_attempt_error_code,
@@ -1113,8 +1078,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
                 // Only a booked retry advances the count. The other outcomes finish or reschedule
                 // the CALCULATE job without an attempt, so writing here would spend a ladder
-                // position on a retry that never happened. (`next_progress` itself only advances
-                // when the static ladder produced the time; the model leaves it where it was.)
+                // position on a retry that never happened. (`next_progress` no longer advances
+                // at all — see `decide_next_retry` — so this write is inert; the guard stays
+                // because the field is still persisted.)
                 if matches!(
                     payment_processor_token_response,
                     PaymentProcessorTokenResponse::ScheduledTime { .. }
@@ -2465,7 +2431,7 @@ pub fn compute_predicted_retry_time(
 ///
 /// Returns `None` on every "no opinion" case — no stats recorded for the cluster yet, a lookup
 /// failure (a corrupt stored key/document surfaces as one), or the model itself declining — so the
-/// caller always has the ladders to fall back on. The returned instant is UTC
+/// caller always has the global fallback behind it. The returned instant is UTC
 /// (`OffsetDateTime`); the codebase stays in explicit UTC and only converts to a naive
 /// `PrimitiveDateTime` at the schedule boundary.
 #[cfg(feature = "v2")]
@@ -2575,7 +2541,7 @@ pub async fn compute_model_retry_time(
             remaining_budget,
             combine = ?variant.combine,
             selection = ?variant.selection,
-            "retry model: declined to schedule — falling back to the ladders"
+            "retry model: declined to schedule — falling back to the cascading ladder"
         );
     }
 
