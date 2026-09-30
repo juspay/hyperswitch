@@ -832,7 +832,7 @@ pub async fn get_or_populate_redis<T, F, Fut>(
     key: impl AsRef<str>,
     ttl: Option<i64>,
     fun: F,
-) -> CustomResult<T, StorageError>
+) -> CustomResult<(T, EntrySize), StorageError>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Debug,
     F: FnOnce() -> Fut + Send,
@@ -841,20 +841,30 @@ where
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
     let redis_val = redis
-        .get_and_deserialize_key::<T>(&key.into(), type_name)
+        .get_and_deserialize_key_with_payload_size::<T>(&key.into(), type_name)
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        match ttl {
+        let size = match ttl {
             Some(ttl) => {
                 redis
                     .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
                     .await
+                    .change_context(StorageError::KVError)?;
+                // The expiring setter has no size-reporting variant, and nothing calls this
+                // function with a ttl today. Add one alongside
+                // `serialize_and_set_key_with_payload_size` if a caller appears that also
+                // needs its entries to count against a byte budget.
+                EntrySize::Unmeasured
             }
-            None => redis.serialize_and_set_key(&key.into(), &data).await,
-        }
-        .change_context(StorageError::KVError)?;
-        Ok::<_, Report<StorageError>>(data)
+            None => EntrySize::Bytes(
+                redis
+                    .serialize_and_set_key_with_payload_size(&key.into(), &data)
+                    .await
+                    .change_context(StorageError::KVError)?,
+            ),
+        };
+        Ok::<_, Report<StorageError>>((data, size))
     };
     match redis_val {
         Err(err) => match err.current_context() {
@@ -865,7 +875,7 @@ where
                 .change_context(StorageError::KVError)
                 .attach_printable(format!("Error while fetching cache for {type_name}"))),
         },
-        Ok(val) => Ok(val),
+        Ok((val, payload_size)) => Ok((val, EntrySize::Bytes(payload_size))),
     }
 }
 
@@ -1332,6 +1342,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
         assert_eq!(
@@ -1355,6 +1366,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
         assert_eq!(
@@ -1378,6 +1390,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
 
@@ -1409,6 +1422,7 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
+                EntrySize::Bytes(5),
             )
             .await;
         tokio::time::sleep(time::Duration::from_secs(3)).await;

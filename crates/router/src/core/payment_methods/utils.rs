@@ -17,7 +17,7 @@ use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 #[cfg(feature = "v1")]
 use router_env::logger;
-use storage_impl::redis::cache::CacheKey;
+use storage_impl::redis::cache::{self, CacheKey};
 
 use crate::{
     configs::settings, core::configs::dimension_state, routes::SessionState,
@@ -91,6 +91,9 @@ pub async fn refresh_pm_filters_cache(
                 prefix: state.tenant.redis_key_prefix.clone(),
             },
             pm_filter_graph.clone(),
+            // Built in-process rather than read through redis, so there is no payload length
+            // to weigh it by. `PM_FILTERS_CGRAPH_CACHE` is unbounded for that reason.
+            cache::EntrySize::Unmeasured,
         )
         .await;
     pm_filter_graph

@@ -160,8 +160,11 @@ impl super::RedisConnectionWithContext {
         let serialized = value
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
+        let payload_size = serialized.len();
 
-        self.set_key(key, serialized.as_slice()).await
+        self.set_key(key, serialized.as_slice()).await?;
+
+        Ok(payload_size)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -511,12 +514,31 @@ impl super::RedisConnectionWithContext {
     where
         T: serde::de::DeserializeOwned,
     {
+        self.get_and_deserialize_key_with_payload_size(key, type_name)
+            .await
+            .map(|(value, _payload_size)| value)
+    }
+
+    /// As [`Self::get_and_deserialize_key`], additionally reporting how many bytes redis held
+    /// for the value.
+    ///
+    /// The count is free: the payload is read into memory either way.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_and_deserialize_key_with_payload_size<T>(
+        &self,
+        key: &RedisKey,
+        type_name: &'static str,
+    ) -> CustomResult<(T, usize), errors::RedisError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
 
         value_bytes
             .parse_struct(type_name)
             .change_context(errors::RedisError::JsonDeserializationFailed)
+            .map(|value| (value, payload_size))
     }
 
     #[instrument(level = "DEBUG", skip(self))]
