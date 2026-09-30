@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0-hotfix3
+
+### Bug Fixes
+
+- **connector:** [worldpayxml] enable webhook source verification ([#14546](https://github.com/juspay/hyperswitch/pull/14546)) ([`41d3335`](https://github.com/juspay/hyperswitch/commit/41d3335220a0d9a47e58969f5219be4742d29b75))
+- **payouts:** Restrict client confirm fields ([#14548](https://github.com/juspay/hyperswitch/pull/14548)) ([`9eb2663`](https://github.com/juspay/hyperswitch/commit/9eb26634a6e8251361c3640e68a71277921b9350))
+
+**Full Changelog:** [`2026.09.23.0-hotfix2...2026.09.23.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0-hotfix2...2026.09.23.0-hotfix3)
+
+- - -
+
 ## 2026.09.23.0-hotfix2
 
 ### Bug Fixes
