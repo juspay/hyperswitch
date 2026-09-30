@@ -8783,6 +8783,9 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_connector_metadata: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -9064,6 +9067,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_method_data: None,
+            test_mode: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
