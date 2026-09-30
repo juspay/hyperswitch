@@ -147,6 +147,7 @@ impl
             payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,
@@ -182,6 +183,8 @@ impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransact
         connector: &frm_api::FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
+        // No UCS equivalent for this flow; always direct.
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }

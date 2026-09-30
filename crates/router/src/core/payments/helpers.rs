@@ -1542,7 +1542,7 @@ pub async fn add_domain_task_to_pt<Op>(
 where
     Op: std::fmt::Debug,
 {
-    if check_if_operation_confirm(operation) {
+    if check_if_operation_adds_payment_sync_task(operation) {
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -2510,7 +2510,7 @@ pub fn decide_payment_method_retrieval_action(
 
 pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+    db.find_config_by_key_unwrap_or(config_key, "false".to_string())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
@@ -2531,13 +2531,16 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
 #[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
     #[serde(default = "default_kill_switch_enabled")]
     pub kill_switch_enabled: bool,
     #[serde(default = "default_kill_switch_threshold")]
     pub kill_switch_threshold: u64,
+    /// Threshold for connector declines (UCS answered, the connector refused).
+    /// Unset means declines never trip the kill switch; other failures still use
+    /// `kill_switch_threshold`.
+    #[serde(default)]
+    pub connector_decline_threshold: Option<u64>,
 }
 
 fn default_kill_switch_enabled() -> bool {
@@ -2562,11 +2565,10 @@ impl Default for RolloutConfig {
     fn default() -> Self {
         Self {
             rollout_percent: 0.0,
-            http_url: None,
-            https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
         }
     }
 }
@@ -2581,6 +2583,28 @@ pub struct RolloutExecutionResult {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
+    /// See `RolloutConfig::connector_decline_threshold`.
+    pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate evaluated this config under, set by the gate rather than by
+    /// `From<RolloutConfig>`: the config value does not know which key it was read from.
+    /// `None` until the gate runs, and on paths no gate governs.
+    pub rollout_scope: Option<String>,
+}
+
+impl RolloutExecutionResult {
+    /// The gate-resolved values the failure path needs, so a failure counts against the same
+    /// scope and thresholds the gate used rather than recomputing either.
+    pub fn rollout_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
+        }
+    }
 }
 
 impl Default for RolloutExecutionResult {
@@ -2591,6 +2615,8 @@ impl Default for RolloutExecutionResult {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            rollout_scope: None,
         }
     }
 }
@@ -2601,36 +2627,31 @@ pub struct WebhookRolloutExecutionResult {
     pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
-/// Validates a proxy URL, filtering out invalid ones and logging warnings
-fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
-    url.and_then(|url_str| {
-        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
-            logger::warn!(
-                invalid_url = %url_str,
-                url_type = url_type,
-                "Invalid proxy URL in rollout config, ignoring"
-            );
-            None
-        } else {
-            Some(url_str)
-        }
-    })
+/// Validates a proxy URL, filtering out invalid (empty or unparseable) ones and logging warnings
+fn validate_proxy_url(url: String, url_type: &str) -> Option<String> {
+    if url.trim().is_empty() || url::Url::parse(&url).is_err() {
+        logger::warn!(
+            invalid_url = %url,
+            url_type = url_type,
+            "Invalid proxy URL in comparison service config, ignoring"
+        );
+        None
+    } else {
+        Some(url)
+    }
 }
 
 /// Creates proxy override with validated URLs and logging
-fn create_proxy_override(
-    http_url: Option<String>,
-    https_url: Option<String>,
-) -> Option<ProxyOverride> {
+fn create_proxy_override(http_url: String, https_url: String) -> Option<ProxyOverride> {
     let validated_http = validate_proxy_url(http_url, "HTTP");
     let validated_https = validate_proxy_url(https_url, "HTTPS");
 
     if validated_http.is_some() || validated_https.is_some() {
         if let Some(ref http_url) = validated_http {
-            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from comparison service config");
         }
         if let Some(ref https_url) = validated_https {
-            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from comparison service config");
         }
         Some(ProxyOverride {
             http_url: validated_http,
@@ -2639,6 +2660,16 @@ fn create_proxy_override(
     } else {
         None
     }
+}
+
+/// Builds the rollout proxy override from the env-configured comparison service, rather than
+/// from the DB-backed rollout config.
+fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
+    let comparison_service = state.conf.comparison_service.as_ref()?;
+    create_proxy_override(
+        comparison_service.http_url.clone(),
+        comparison_service.https_url.clone(),
+    )
 }
 
 // Helper function to execute rollout logic or return default
@@ -2668,18 +2699,20 @@ impl From<RolloutConfig> for RolloutExecutionResult {
 
                 match should_execute {
                     true => {
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
                             execution_mode = ?config.execution_mode,
-                            "Rollout will be executed with proxy override"
+                            "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            proxy_override,
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            connector_decline_threshold: config.connector_decline_threshold,
+                            // Proxy override is sourced from the env-configured comparison
+                            // service, not from the DB rollout config — populated by the caller
+                            // after conversion.
+                            ..Default::default()
                         }
                     }
                     false => {
@@ -2716,38 +2749,35 @@ where
 {
     let db = state.store.as_ref();
 
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
+    match db.find_config_by_key_optional(config_key).await {
+        Ok(Some(rollout_config)) => {
             // Parse as JSON - log error if it fails but don't propagate
-            Ok(serde_json::from_str::<C>(&rollout_config.config)
+            let parsed_rollout_config: Result<C, _> =
+                rollout_config.config.parse_struct("RolloutConfig");
+            Ok(parsed_rollout_config
                 .map(R::from)
                 .map_err(|err| {
                     logger::error!(
                         error = ?err,
-                        config = %rollout_config.config,
                         "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
                     R::default()
                 })
                 .unwrap_or_default())
         }
+        // ValueNotFound may be an expected outcome when a rollout configuration has not
+        // been provisioned. Treat it as a warning to avoid generating misleading errors.
+        Ok(None) => {
+            logger::warn!(
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
+            Ok(R::default())
+        }
         Err(err) => {
-            // ValueNotFound may be an expected outcome when a rollout configuration has not
-            // been provisioned. Treat it as a warning to avoid generating misleading errors.
-            match err.current_context() {
-                errors::StorageError::ValueNotFound(_) => {
-                    logger::warn!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-                _ => {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-            }
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
             Ok(R::default())
         }
     }
@@ -2762,8 +2792,9 @@ where
 /// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
 /// 4. `ucs_rollout_config_<org_id>`                                — org level
 ///
-/// Uses `find_config_by_key_unwrap_or` with a sentinel so absent keys are cached after
-/// the first DB miss — subsequent requests hit in-memory cache instead of the DB.
+/// Uses `find_config_by_key_unwrap_or` with a sentinel default; the key's absence
+/// (not the sentinel itself) is cached after the first DB miss, so subsequent
+/// requests still hit in-memory cache instead of the DB.
 /// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
 pub async fn should_execute_based_on_rollout_with_precedence(
     state: &SessionState,
@@ -2775,7 +2806,7 @@ pub async fn should_execute_based_on_rollout_with_precedence(
         // Box the future to avoid large stack frames from nested async in debug builds
         let result = Box::pin(state.store.find_config_by_key_unwrap_or(
             key,
-            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+            consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string(),
         ))
         .await
         .ok();
@@ -2788,17 +2819,22 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             }
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
-                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                let parsed_rollout_config: Result<RolloutConfig, _> =
+                    config.config.parse_struct("RolloutConfig");
+                let mut execution_result = parsed_rollout_config
                     .map(RolloutExecutionResult::from)
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,
-                            config = %config.config,
                             "Failed to parse rollout config as JSON. Defaulting to not execute."
                         );
                         RolloutExecutionResult::default()
                     })
-                    .unwrap_or_default());
+                    .unwrap_or_default();
+                if execution_result.should_execute {
+                    execution_result.proxy_override = build_rollout_proxy_override(state);
+                }
+                return Ok(execution_result);
             }
             None => {
                 // Unexpected DB error — skip and try next key
@@ -4620,8 +4656,11 @@ pub fn hmac_sha512_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
-pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{operations:?}") == "PaymentConfirm"
+pub fn check_if_operation_adds_payment_sync_task<Op: std::fmt::Debug>(operations: Op) -> bool {
+    matches!(
+        format!("{operations:?}").as_str(),
+        "PaymentConfirm" | "PaymentCapture"
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5273,13 +5312,21 @@ pub async fn get_merchant_connector_account(
             };
 
             let db_fetch = || async {
-                db.find_config_by_key(cloned_key.as_str())
+                let config_optional = db
+                    .find_config_by_key_optional(cloned_key.as_str())
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                             id: cloned_key.to_owned(),
                         },
+                    )?;
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::from(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: cloned_key.to_owned(),
+                        },
                     )
+                })
             };
 
             let mca_config: String = redis_fetch()
@@ -5437,6 +5484,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payout_id: router_data.payout_id,
         connector_response: router_data.connector_response,
         integrity_check: Ok(()),
+        accept_amount_mismatch: router_data.accept_amount_mismatch,
         connector_wallets_details: router_data.connector_wallets_details,
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
@@ -5771,6 +5819,7 @@ impl AttemptType {
             applied_offer_details: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            active_frm_id: None,
         }
     }
 
@@ -8205,7 +8254,30 @@ pub fn validate_payment_link_request(
             message: "return_url must be sent while creating a payment link".to_string(),
         });
     }
-    Ok(())
+
+    #[cfg(feature = "v1")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.theme_config.redirect_delay_seconds);
+
+    #[cfg(feature = "v2")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.redirect_delay_seconds);
+
+    redirect_delay
+        .filter(|&delay| delay > common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+        .map(|_| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ),
+            })
+        })
+        .unwrap_or(Ok(()))
 }
 
 /// Creates a lookup key for issuer error codes with network and code
@@ -9255,6 +9327,7 @@ pub async fn fetch_active_surcharge_mca(
 pub fn check_integrity_based_on_flow<T, Request>(
     request: &Request,
     payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
+    accept_amount_mismatch: Option<common_types::primitive_wrappers::AcceptAmountMismatchBool>,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: FlowIntegrity,
@@ -9278,7 +9351,12 @@ where
         },
         Err(_) => &None,
     };
-    request.check_integrity(request, connector_transaction_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_transaction_id.to_owned(),
+        // `None` (not resolved for this router data) defaults to `false`: a strict check.
+        accept_amount_mismatch.unwrap_or_default(),
+    )
 }
 
 pub async fn config_skip_saving_wallet_at_connector(
@@ -9288,7 +9366,7 @@ pub async fn config_skip_saving_wallet_at_connector(
     let config = db
         .find_config_by_key_unwrap_or(
             &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            Some("[]".to_string()),
+            "[]".to_string(),
         )
         .await;
     Ok(match config {
@@ -9773,7 +9851,14 @@ async fn get_payment_update_enabled_for_client_auth(
 ) -> bool {
     let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
     let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    let update_enabled =
+        db.find_config_by_key_optional(key.as_str())
+            .await
+            .and_then(|config_optional| {
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+                })
+            });
 
     match update_enabled {
         Ok(conf) => conf.config.to_lowercase() == "true",

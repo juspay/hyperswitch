@@ -953,6 +953,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: from.invoice_billing_started_at_time,
+            revenue_recovery_ab_routing: from.revenue_recovery_ab_routing,
         }
     }
 
@@ -978,6 +979,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
                 .first_payment_attempt_network_decline_code,
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: self.invoice_billing_started_at_time,
+            revenue_recovery_ab_routing: self.revenue_recovery_ab_routing,
         }
     }
 }
@@ -1156,6 +1158,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
             payment_methods_separator_text: item.payment_methods_separator_text,
+            redirect_delay_seconds: item.redirect_delay_seconds,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -1188,6 +1191,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error,
             show_merchant_name,
             payment_methods_separator_text,
+            redirect_delay_seconds,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -1224,6 +1228,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             color_icon_card_cvc_error,
             show_merchant_name,
             payment_methods_separator_text,
+            redirect_delay_seconds,
         }
     }
 }

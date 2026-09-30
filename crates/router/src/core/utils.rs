@@ -35,6 +35,8 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, VaultRouterDataV2},
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "frm")]
+use hyperswitch_interfaces::configs::Connectors;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
 use hyperswitch_masking::Secret;
@@ -352,6 +354,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payout_id: Some(payouts.payout_id.get_string_repr().to_string()),
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -415,10 +418,11 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_enum}"))
+            .find_config_by_key_optional(&format!("connector_api_version_{connector_enum}"))
             .await
-            .map(|value| value.config)
             .ok()
+            .flatten()
+            .map(|value| value.config)
     } else {
         None
     };
@@ -536,6 +540,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -554,6 +559,27 @@ pub async fn construct_refund_router_data<'a, F>(
     };
 
     Ok(router_data)
+}
+
+/// Resolves the `payments.accept_payment_amount_mismatch` config for the processor merchant and payment
+/// method type. Without a payment method type the config cannot be scoped, so `None` is returned and
+/// the integrity check stays strict.
+#[cfg(feature = "v1")]
+pub async fn get_accept_payment_amount_mismatch(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> Option<common_types::primitive_wrappers::AcceptAmountMismatchBool> {
+    let accept_amount_mismatch = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_payment_method_type(payment_method_type?)
+        .get_accept_payment_amount_mismatch(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(processor.get_account().get_id()),
+        )
+        .await;
+    Some(common_types::primitive_wrappers::AcceptAmountMismatchBool::new(accept_amount_mismatch))
 }
 
 #[cfg(feature = "v1")]
@@ -611,10 +637,11 @@ pub async fn construct_refund_router_data<'a, F>(
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
+            .find_config_by_key_optional(&format!("connector_api_version_{connector_id}"))
             .await
-            .map(|value| value.config)
             .ok()
+            .flatten()
+            .map(|value| value.config)
     } else {
         None
     };
@@ -736,6 +763,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1259,6 +1287,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1373,6 +1402,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1496,6 +1526,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1577,6 +1608,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1690,6 +1722,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1829,6 +1862,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         payment_method_status: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1946,6 +1980,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -2056,6 +2091,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -2139,13 +2175,13 @@ pub fn get_payout_connector_request_reference_id(
 
 #[cfg(feature = "frm")]
 pub fn get_gateway_frm_metadata(
-    conf: &Settings,
+    connectors: &Connectors,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
 ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
     match &payment_attempt.connector {
         Some(connector_name) => {
             let connector_data = api::ConnectorData::get_connector_by_name(
-                &conf.connectors,
+                connectors,
                 connector_name,
                 api::GetToken::Connector,
                 payment_attempt.merchant_connector_id.clone(),
@@ -2155,7 +2191,33 @@ pub fn get_gateway_frm_metadata(
 
             connector_data
                 .connector
-                .get_frm_metadata(payment_attempt)
+                .get_payment_frm_metadata(payment_attempt)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
+        }
+        None => Ok(None),
+    }
+}
+
+#[cfg(feature = "frm")]
+pub fn get_payout_gateway_frm_metadata(
+    connectors: &Connectors,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
+    match &payout_attempt.connector {
+        Some(connector_name) => {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payout_attempt.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+            connector_data
+                .connector
+                .get_payout_frm_metadata(payout_attempt)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
         }
@@ -2316,39 +2378,39 @@ pub fn get_connector_label(
 #[cfg(feature = "v1")]
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
-/// or return a `MissingRequiredField` error
-#[allow(clippy::too_many_arguments)]
-pub async fn get_profile_id_from_business_details(
+/// or return a `MissingRequiredField` error.
+/// Both lookups are scoped to the merchant, so fetching the profile also validates that it belongs
+/// to the merchant.
+pub async fn get_profile_from_business_details(
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
     processor: &domain::Processor,
     request_profile_id: Option<&common_utils::id_type::ProfileId>,
     db: &dyn StorageInterface,
-    should_validate: bool,
-) -> RouterResult<common_utils::id_type::ProfileId> {
+) -> RouterResult<domain::Profile> {
     match request_profile_id.or(processor.get_account().default_profile.as_ref()) {
-        Some(profile_id) => {
-            // Check whether this business profile belongs to the merchant
-            if should_validate {
-                let _ = validate_and_get_business_profile(db, processor, Some(profile_id)).await?;
-            }
-            Ok(profile_id.clone())
-        }
+        Some(profile_id) => db
+            .find_business_profile_by_merchant_id_profile_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+                profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            }),
         None => match business_country.zip(business_label) {
             Some((business_country, business_label)) => {
                 let profile_name = format!("{business_country}_{business_label}");
-                let business_profile = db
-                    .find_business_profile_by_profile_name_merchant_id(
-                        processor.get_key_store(),
-                        &profile_name,
-                        processor.get_account().get_id(),
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                        id: profile_name,
-                    })?;
-
-                Ok(business_profile.get_id().to_owned())
+                db.find_business_profile_by_profile_name_merchant_id(
+                    processor.get_key_store(),
+                    &profile_name,
+                    processor.get_account().get_id(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_name,
+                })
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "profile_id or business_country, business_label".into()

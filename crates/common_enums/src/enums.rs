@@ -373,6 +373,28 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// The retry implementations available within the `Smart` arm of revenue recovery.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryABAlgorithm {
+    /// Adaptive Retry algorithm.
+    AdaptiveRetry,
+}
+
 #[derive(
     Default,
     Clone,
@@ -3437,26 +3459,43 @@ pub enum MandateStatus {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
+    #[strum(to_string = "Visa", serialize = "VISA")]
     Visa,
     #[serde(alias = "MASTERCARD")]
+    #[strum(
+        to_string = "Mastercard",
+        serialize = "MasterCard",
+        serialize = "MASTERCARD"
+    )]
     Mastercard,
     #[serde(alias = "AMERICANEXPRESS")]
     #[serde(alias = "AMEX")]
+    #[strum(
+        to_string = "AmericanExpress",
+        serialize = "AMEX",
+        serialize = "AmEx",
+        serialize = "Amex",
+        serialize = "AMERICAN EXPRESS"
+    )]
     AmericanExpress,
     JCB,
     #[serde(alias = "DINERSCLUB")]
     DinersClub,
     #[serde(alias = "DISCOVER")]
+    #[strum(to_string = "Discover", serialize = "DISCOVER")]
     Discover,
     #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
+    // Apple Pay sends UnionPay under its full name. Not seen in production traffic.
+    #[strum(to_string = "UnionPay", serialize = "ChinaUnionPay")]
     UnionPay,
     #[serde(alias = "INTERAC")]
     Interac,
     #[serde(alias = "RUPAY")]
     RuPay,
     #[serde(alias = "MAESTRO")]
+    #[strum(to_string = "Maestro", serialize = "MAESTRO")]
     Maestro,
     #[serde(alias = "STAR")]
     Star,
@@ -3659,6 +3698,37 @@ impl CardNetwork {
             | Self::PrivateLabel
             | Self::Dinacard => false,
         }
+    }
+
+    pub fn from_payment_method_data(payment_method_data: &serde_json::Value) -> Option<Self> {
+        let wallet = payment_method_data.get("wallet");
+
+        // Absent wallet providers serialise as `null` rather than being omitted, so each provider is
+        // matched on the network it yields, not on whether its key is present.
+        let network = match (
+            payment_method_data
+                .get("card")
+                .and_then(|card| card.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("apple_pay"))
+                .and_then(|apple_pay| apple_pay.get("network")),
+            wallet
+                .and_then(|wallet| wallet.get("google_pay"))
+                .and_then(|google_pay| google_pay.get("card_network")),
+            wallet
+                .and_then(|wallet| wallet.get("samsung_pay"))
+                .and_then(|samsung_pay| samsung_pay.get("card_network")),
+        ) {
+            (Some(network), ..)
+            | (_, Some(network), ..)
+            | (_, _, Some(network), _)
+            | (_, _, _, Some(network)) => Some(network),
+            (None, None, None, None) => None,
+        };
+
+        network
+            .and_then(|network| network.as_str())
+            .and_then(|network| Self::from_str(network).ok())
     }
 }
 
@@ -9639,6 +9709,10 @@ pub enum PermissionGroup {
     ReconRulesManage,
     OffersView,
     OffersManage,
+    AlertsView,
+    AlertsManage,
+    MonitoringView,
+    MonitoringManage,
 }
 
 #[derive(
@@ -9661,6 +9735,8 @@ pub enum ParentGroup {
     ReconTransactions,
     ReconRules,
     Offers,
+    Alerts,
+    Monitoring,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9695,6 +9771,8 @@ pub enum Resource {
     ReconRule,
     SuperpositionConfig,
     Offers,
+    Alert,
+    Monitoring,
 }
 
 #[derive(
@@ -10321,6 +10399,96 @@ pub enum BankNames {
     Seb,
     Swedbank,
     MockUkPayments,
+    Abanca,
+    AlmBrand,
+    AlphaFx,
+    ArbejdernesLandsbank,
+    ArbuthnotLatham,
+    BancoPopular,
+    BankPocztowy,
+    Bankia,
+    BnBank,
+    CaterAllen,
+    ChelseaBuildingSociety,
+    Citadele,
+    CoopPank,
+    CooperativeBank,
+    Cumberland,
+    DabBank,
+    DjurslandsBank,
+    Dnb,
+    EtneSparebank,
+    FanaSparebank,
+    FidorBank,
+    FlekkefjordSparebank,
+    ForexBank,
+    HaugesundSparebank,
+    HoareAndCo,
+    IcaBanken,
+    JyskeBank,
+    KleinwortHambros,
+    KlpBanken,
+    Kreditbanken,
+    LandkredittBank,
+    Lansforsakringar,
+    LhvPank,
+    LillesandsSparebank,
+    Luminor,
+    LusterSparebank,
+    MetroBank,
+    NordfynsBank,
+    NordjyskeBank,
+    Norisbank,
+    NykreditBank,
+    ObosBanken,
+    OrangeFinanse,
+    ParetoBank,
+    PkoBankPolski,
+    RingkjobingLandbobank,
+    Sbanken,
+    SiauliuBankas,
+    SiliconValleyBank,
+    Skandiabanken,
+    SkjernBank,
+    SkudenesOgAakraSparebank,
+    SogneOgGreipstadSparebank,
+    SparNordBank,
+    SparbankenSyd,
+    SpardaBank,
+    SpareBank1,
+    SparebankenMore,
+    SparebankenOst,
+    SparebankenSognOgFjordane,
+    SparebankenSor,
+    SparebankenVest,
+    SparekassenDanmark,
+    SparekassenSjaellandFyn,
+    Spareskillingsbanken,
+    Sydbank,
+    VanquisBank,
+    VestjyskBank,
+    VossSparebank,
+    YorkshireBuildingSociety,
+    SpareBank1Gudbrandsdal,
+    SpareBank1HallingdalValdres,
+    SpareBank1LomOgSkjak,
+    SpareBank1Modum,
+    SpareBank1Nordmore,
+    SpareBank1RingerikeHadeland,
+    SpareBank1Smn,
+    SpareBank1SrBank,
+    SpareBank1SoreSunnmore,
+    SpareBank1SorostNorgeBv,
+    SpareBank1SorostNorgeTelemark,
+    SpareBank1OstfoldAkershus,
+    SpareBank1Ostlandet,
+    CitiHandlowy,
+    DeutscheBankPolska,
+    IngBankSlaski,
+    IngDiba,
+    NordeaDirect,
+    SantanderUk,
+    SwedbankSparbankerna,
 }
 
 impl BankNames {
@@ -10401,10 +10569,48 @@ impl BankNames {
             Self::RoyalBankOfScotland => "Royal Bank of Scotland",
             Self::RoyalBankOfScotlandBankline => "Royal Bank of Scotland Bankline",
             Self::SPankki => "S-Pankki",
+            Self::IngBankSlaski => "ING Bank Slaski",
+            Self::IngDiba => "ING-DiBa",
+            Self::SantanderUk => "Santander UK",
+            Self::SpareBank1 => "SpareBank 1",
+            Self::SpareBank1Gudbrandsdal => "SpareBank 1 Gudbrandsdal",
+            Self::SpareBank1HallingdalValdres => "SpareBank 1 Hallingdal Valdres",
+            Self::SpareBank1LomOgSkjak => "SpareBank 1 Lom og Skjak",
+            Self::SpareBank1Modum => "SpareBank 1 Modum",
+            Self::SpareBank1Nordmore => "SpareBank 1 Nordmore",
+            Self::SpareBank1OstfoldAkershus => "SpareBank 1 Ostfold Akershus",
+            Self::SpareBank1Ostlandet => "SpareBank 1 Ostlandet",
+            Self::SpareBank1RingerikeHadeland => "SpareBank 1 Ringerike Hadeland",
+            Self::SpareBank1Smn => "SpareBank 1 SMN",
+            Self::SpareBank1SoreSunnmore => "SpareBank 1 Sore Sunnmore",
+            Self::SpareBank1SorostNorgeBv => "SpareBank 1 Sorost-Norge (BV)",
+            Self::SpareBank1SorostNorgeTelemark => "SpareBank 1 Sorost-Norge (Telemark)",
+            Self::SpareBank1SrBank => "SpareBank 1 SR-Bank",
+            Self::SwedbankSparbankerna => "Swedbank & Sparbankerna",
+            Self::AsnBank => "ASN Bank",
+            Self::Bank99Ag => "Bank99",
+            Self::BawagPskAg => "BAWAG P.S.K.",
+            Self::LhvPank => "LHV Pank",
+            Self::DabBank => "DAB Bank",
+            Self::SpardaBank => "Sparda-Bank",
+            Self::VolksbankenRaiffeisenbanken => "Volksbanken-Raiffeisenbanken",
+            Self::BnBank => "BN Bank ASA",
+            Self::KlpBanken => "KLP Banken",
+            Self::LandkredittBank => "Landkreditt Bank AS",
+            Self::ObosBanken => "OBOS-banken AS",
+            Self::SkudenesOgAakraSparebank => "Skudenes & Aakra Sparebank",
+            Self::PkoBankPolski => "PKO Bank Polski",
+            Self::EvoBanco => "EVO Banco",
+            Self::ForexBank => "FOREX",
+            Self::IcaBanken => "ICA Banken",
+            Self::AlphaFx => "Alpha FX",
+            Self::HoareAndCo => "C. Hoare & Co.",
+            Self::TsbBank => "TSB Bank",
+            Self::CooperativeBank => "The Co-operative Bank",
             Self::Seb => "SEB",
             Self::Sns => "SNS",
             Self::Tsb => "TSB",
-            Self::VirginMoneyMerged => "Virgin Money (Merged)",
+            Self::VirginMoneyMerged => "Virgin Money",
             Self::FirstDirect => "first direct",
             _ => return None,
         })
@@ -11378,6 +11584,7 @@ pub enum ProcessTrackerRunner {
     NetworkTokenizationWorkflow,
     OfferEngineNotifyWorkflow,
     BlocklistExportWorkflow,
+    BlocklistProfileCloneWorkflow,
 }
 
 #[derive(
@@ -12054,7 +12261,7 @@ pub enum BatchBlocklistJobStatus {
     Failed,
 }
 
-/// Distinguishes a bulk upload job from a CSV export job in the `batch_blocklist_jobs` table.
+/// Distinguishes bulk upload, CSV export, and profile clone jobs.
 #[derive(
     Clone,
     Copy,
@@ -12073,6 +12280,7 @@ pub enum BatchBlocklistJobStatus {
 pub enum BatchBlocklistJobType {
     Upload,
     Export,
+    ProfileClone,
 }
 
 #[derive(
