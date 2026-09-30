@@ -46,7 +46,6 @@ async fn invalidate_existing_cache_success() {
                 prefix: String::default(),
             },
             cache_key_value.clone(),
-            cache::EntrySize::Bytes(cache_key_value.len()),
         )
         .await;
 
@@ -60,7 +59,6 @@ async fn invalidate_existing_cache_success() {
                 prefix: String::default(),
             },
             cache_key_value.clone(),
-            cache::EntrySize::Bytes(cache_key_value.len()),
         )
         .await;
 
