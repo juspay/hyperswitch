@@ -42,9 +42,19 @@ pub struct RedisSettings {
     /// transit, Azure Cache for Redis, or Redis Cloud with TLS enabled.
     ///
     /// The server certificate is verified against the platform's trusted CA
-    /// roots; a private CA can be supplied through the standard
-    /// `SSL_CERT_FILE` / `SSL_CERT_DIR` environment variables.
+    /// roots unless [`Self::tls_ca_certificate_path`] is set.
     pub tls_enabled: bool,
+    /// Path to a PEM file containing the trusted CA certificate(s) used to
+    /// verify the Redis server certificate, for servers whose certificate is
+    /// issued by a private CA (e.g. the Redis Cloud CA bundle). When set, the
+    /// server certificate is verified against this file instead of the
+    /// platform's trusted CA roots. Only applicable when `tls_enabled` is
+    /// `true`.
+    ///
+    /// Example: `"/etc/hyperswitch/redis_ca.pem"` — an absolute path to a
+    /// file holding one or more `-----BEGIN CERTIFICATE-----` blocks, such
+    /// as the `redis_ca.pem` bundle downloaded from the Redis Cloud console.
+    pub tls_ca_certificate_path: Option<String>,
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
@@ -92,6 +102,24 @@ impl RedisSettings {
             .map(|password| password.peek().as_str())
     }
 
+    /// Read the PEM bytes of the configured CA certificate file, if any.
+    pub(crate) fn read_tls_ca_certificates(
+        &self,
+    ) -> CustomResult<Option<Vec<u8>>, errors::RedisError> {
+        use error_stack::ResultExt;
+
+        self.tls_ca_certificate_path
+            .as_ref()
+            .map(|path| {
+                std::fs::read(path)
+                    .change_context(errors::RedisError::InvalidConfiguration(format!(
+                        "Failed to read the Redis CA certificate file at `{path}`"
+                    )))
+                    .attach_printable("`tls_ca_certificate_path` must point to a readable PEM file")
+            })
+            .transpose()
+    }
+
     /// Validates the Redis configuration provided.
     pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
@@ -133,6 +161,31 @@ impl RedisSettings {
             },
         )?;
 
+        when(
+            self.tls_ca_certificate_path
+                .as_ref()
+                .is_some_and(|path| path.is_default_or_empty()),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `tls_ca_certificate_path` must not be empty when specified".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.tls_ca_certificate_path.is_some() && !self.tls_enabled,
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Redis `tls_ca_certificate_path` is only applicable when `tls_enabled` is `true`"
+                        .into(),
+                ))
+            },
+        )?;
+
+        // Fail at configuration validation, rather than on the first
+        // connection attempt, when the CA certificate file cannot be read.
+        self.read_tls_ca_certificates()?;
+
         when(self.cluster_enabled && self.cluster_urls.is_empty(), || {
             Err(errors::RedisError::InvalidConfiguration(
                 "Redis `cluster_urls` must be specified if `cluster_enabled` is `true`".into(),
@@ -170,6 +223,7 @@ impl Default for RedisSettings {
             username: None,
             password: None,
             tls_enabled: false,
+            tls_ca_certificate_path: None,
             cluster_enabled: false,
             cluster_urls: vec![],
             use_legacy_version: false,
@@ -584,6 +638,81 @@ mod tests {
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_err());
+    }
+
+    /// Create a throwaway CA file on disk so path-based validation can
+    /// exercise the "file is readable" path without external fixtures.
+    fn write_temp_ca_file(name: &str) -> String {
+        let path = std::env::temp_dir().join(format!(
+            "redis_interface_test_{name}_{}.pem",
+            common_utils::process_id()
+        ));
+        std::fs::write(
+            &path,
+            "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n",
+        )
+        .expect("failed to write temporary CA file");
+        path.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn test_redis_settings_validate_ca_path_with_tls_enabled() {
+        let ca_path = write_temp_ca_file("validate_ok");
+        let settings = RedisSettings {
+            tls_enabled: true,
+            tls_ca_certificate_path: Some(ca_path.clone()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_ok());
+        let _ = std::fs::remove_file(ca_path);
+    }
+
+    #[test]
+    fn test_redis_settings_validate_ca_path_without_tls_rejected() {
+        let ca_path = write_temp_ca_file("validate_no_tls");
+        let settings = RedisSettings {
+            tls_enabled: false,
+            tls_ca_certificate_path: Some(ca_path.clone()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+        let _ = std::fs::remove_file(ca_path);
+    }
+
+    #[test]
+    fn test_redis_settings_validate_missing_ca_file_rejected() {
+        let settings = RedisSettings {
+            tls_enabled: true,
+            tls_ca_certificate_path: Some("/nonexistent/path/to/ca.pem".to_string()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_empty_ca_path_rejected() {
+        let settings = RedisSettings {
+            tls_enabled: true,
+            tls_ca_certificate_path: Some("   ".to_string()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_read_tls_ca_certificates_missing_file_fails() {
+        let settings = RedisSettings {
+            tls_enabled: true,
+            tls_ca_certificate_path: Some("/nonexistent/path/to/ca.pem".to_string()),
+            ..RedisSettings::default()
+        };
+        assert!(settings.read_tls_ca_certificates().is_err());
+    }
+
+    #[test]
+    fn test_read_tls_ca_certificates_none_when_unset() {
+        let settings = RedisSettings::default();
+        assert!(matches!(settings.read_tls_ca_certificates(), Ok(None)));
     }
 
     #[test]

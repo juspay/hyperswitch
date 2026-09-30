@@ -243,11 +243,52 @@ impl RedisConnectionPool {
         config.password = conf.auth_password().map(ToOwned::to_owned);
 
         if conf.tls_enabled {
-            // Verifies the server against the platform's trusted CA roots
-            // (`SSL_CERT_FILE` / `SSL_CERT_DIR` can supply additional ones).
-            let tls_connector = fred::types::TlsConnector::default_rustls()
-                .change_context(crate::errors::RedisError::RedisConnectionError)
-                .attach_printable("Failed to build the TLS configuration for Redis")?;
+            let tls_connector = match conf.read_tls_ca_certificates()? {
+                // Verify the server against the CA certificate(s) from the
+                // configured PEM file instead of the platform's trusted roots.
+                Some(ca_pem) => {
+                    use fred::rustls::{
+                        pki_types::{pem::PemObject, CertificateDer},
+                        ClientConfig, RootCertStore,
+                    };
+
+                    let certificates = CertificateDer::pem_slice_iter(&ca_pem)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|error| {
+                            error_stack::report!(crate::errors::RedisError::InvalidConfiguration(
+                                format!("Failed to parse the Redis CA certificate file: {error}")
+                            ))
+                        })?;
+
+                    if certificates.is_empty() {
+                        return Err(error_stack::report!(
+                            crate::errors::RedisError::InvalidConfiguration(
+                                "The Redis CA certificate file contains no PEM certificates"
+                                    .to_string()
+                            )
+                        ));
+                    }
+
+                    let mut root_store = RootCertStore::empty();
+                    for certificate in certificates {
+                        root_store.add(certificate).change_context(
+                            crate::errors::RedisError::InvalidConfiguration(
+                                "Invalid certificate in the Redis CA certificate file".to_string(),
+                            ),
+                        )?;
+                    }
+
+                    fred::types::TlsConnector::from(
+                        ClientConfig::builder()
+                            .with_root_certificates(root_store)
+                            .with_no_client_auth(),
+                    )
+                }
+                // Verify the server against the platform's trusted CA roots.
+                None => fred::types::TlsConnector::default_rustls()
+                    .change_context(crate::errors::RedisError::RedisConnectionError)
+                    .attach_printable("Failed to build the TLS configuration for Redis")?,
+            };
             config.tls = Some(tls_connector.into());
         }
 

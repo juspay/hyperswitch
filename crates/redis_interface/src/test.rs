@@ -2528,9 +2528,11 @@ async fn test_authenticated_connection_wrong_password_fails() {
 //   TEST_REDIS_TLS_HOST      (optional, default 127.0.0.1)
 //   TEST_REDIS_TLS_PASSWORD  (optional — for servers that also require AUTH)
 //   TEST_REDIS_TLS_USERNAME  (optional — ACL user; omit for the default user)
+//   TEST_REDIS_TLS_CA_PATH   (optional — PEM file with the server's CA, for
+//                             servers not signed by a platform-trusted CA;
+//                             maps to the `tls_ca_certificate_path` setting)
 //
-// Local example (self-signed CA — note `SSL_CERT_FILE`, which rustls uses to
-// extend the trusted roots without any additional application configuration):
+// Local example (self-signed CA):
 //   openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
 //       -keyout ca.key -out ca.crt -subj "/CN=redis-test-ca"
 //   openssl req -newkey rsa:2048 -nodes -keyout redis.key -out redis.csr -subj "/CN=localhost"
@@ -2540,11 +2542,11 @@ async fn test_authenticated_connection_wrong_password_fails() {
 //       --port 0 --tls-port 6390 --tls-cert-file /certs/redis.crt \
 //       --tls-key-file /certs/redis.key --tls-ca-cert-file /certs/ca.crt \
 //       --tls-auth-clients no --requirepass s3cret
-//   SSL_CERT_FILE="$PWD/ca.crt" TEST_REDIS_TLS_PORT=6390 TEST_REDIS_TLS_PASSWORD=s3cret \
+//   TEST_REDIS_TLS_CA_PATH="$PWD/ca.crt" TEST_REDIS_TLS_PORT=6390 TEST_REDIS_TLS_PASSWORD=s3cret \
 //       cargo test -p redis_interface tls
 //
 // Redis Cloud example (TLS-enabled database):
-//   SSL_CERT_FILE=<path to the Redis Cloud CA bundle> \
+//   TEST_REDIS_TLS_CA_PATH=<path to the Redis Cloud CA bundle (redis_ca.pem)> \
 //   TEST_REDIS_TLS_HOST=redis-12345.c8.us-east-1-2.ec2.redns.redis-cloud.com \
 //   TEST_REDIS_TLS_PORT=12345 TEST_REDIS_TLS_PASSWORD=<db password> \
 //       cargo test -p redis_interface tls
@@ -2562,6 +2564,9 @@ fn tls_settings_from_env() -> Option<RedisSettings> {
     let username = std::env::var("TEST_REDIS_TLS_USERNAME")
         .ok()
         .filter(|username| !username.is_empty());
+    let tls_ca_certificate_path = std::env::var("TEST_REDIS_TLS_CA_PATH")
+        .ok()
+        .filter(|path| !path.is_empty());
 
     Some(RedisSettings {
         host,
@@ -2569,6 +2574,7 @@ fn tls_settings_from_env() -> Option<RedisSettings> {
         username,
         password: password.map(Into::into),
         tls_enabled: true,
+        tls_ca_certificate_path,
         ..RedisSettings::default()
     })
 }
@@ -2669,8 +2675,21 @@ async fn test_tls_disabled_against_tls_port_fails() {
 
             // A plaintext handshake against a TLS-only port must be rejected.
             settings.tls_enabled = false;
+            settings.tls_ca_certificate_path = None;
 
-            test_connection(&settings).await.is_err()
+            match test_connection(&settings).await {
+                Err(_) => true,
+                // Some client stacks consider the pool "connected" once the
+                // TCP connection is accepted, before the server has rejected
+                // the plaintext handshake; in that case an actual command
+                // round trip must still fail.
+                Ok(pool) => {
+                    let key: RedisKey = format!("test_tls_disabled_{}", unique_test_id()).into();
+                    pool.set_key_with_expiry(&key, "value".to_string(), 60)
+                        .await
+                        .is_err()
+                }
+            }
         })
     })
     .await
