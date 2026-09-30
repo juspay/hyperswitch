@@ -12,9 +12,9 @@ use crate::{configs::Settings, core::errors::UserErrors};
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "router::jwt", operation = "generate_exp", codec = ResultOkCodec,
-        on_miss = Ok(std::time::Duration::from_nanos(
-            u64::try_from(common_utils::synth_shape::epoch_nanos(&__deja_miss)).unwrap_or(0)
-        ).saturating_add(exp_duration)),)
+        on_miss = { use common_utils::synth_shape::Synthesize as _; Ok(std::time::Duration::from_nanos(
+            u64::try_from(__deja_miss.epoch_nanos()).unwrap_or(0)
+        ).saturating_add(exp_duration)) },)
 )]
 #[allow(
     clippy::disallowed_methods,

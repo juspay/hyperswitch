@@ -1,5 +1,8 @@
 //! Elapsed-time readings that reach a request the candidate builds.
 
+#[cfg(feature = "deja")]
+use crate::synth_shape::Synthesize;
+
 /// Milliseconds since `started`, as a value a recording can serve back.
 ///
 /// A duration a caller measures and then writes into an outgoing request is the
@@ -35,10 +38,7 @@
         operation = "millis_since",
         codec = SerdeCodec,
         skip_all,
-        // The step is deliberately below the timing rule's evidential floor
-        // (`MIN_EVIDENTIAL_MS`, juspay/deja#188); above it, a derived value could
-        // coincide with a span's duration and read as a measured one.
-        on_miss = u128::try_from(deja::synth::monotonic(&__deja_miss, 0, 1)).unwrap_or(0),
+        on_miss = __deja_miss.elapsed_millis(),
     )
 )]
 pub fn millis_since(started: std::time::Instant) -> u128 {
@@ -47,6 +47,8 @@ pub fn millis_since(started: std::time::Instant) -> u128 {
 
 #[cfg(all(test, feature = "deja"))]
 mod tests {
+    use crate::synth_shape::Synthesize;
+
     /// The codec is serde_json and the value is a `u128`, which serde_json
     /// represents exactly below `u64::MAX` — a millisecond reading is many
     /// orders below it, but the type is wider than the guarantee, so the round
@@ -65,9 +67,7 @@ mod tests {
             occurrence,
             correlation_id: None,
         };
-        let derived: Vec<u128> = (0..4_u32)
-            .map(|n| u128::try_from(deja::synth::monotonic(&miss(n), 0, 1)).unwrap_or(0))
-            .collect();
+        let derived: Vec<u128> = (0..4_u32).map(|n| miss(n).elapsed_millis()).collect();
         assert_eq!(
             derived,
             vec![0, 1, 2, 3],

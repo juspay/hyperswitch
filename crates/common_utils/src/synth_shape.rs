@@ -15,106 +15,7 @@
 //! records the outcome as synthesized, so the scorer is unaffected.
 
 /// Decimal digits, for the generators that promise only these.
-pub const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-/// `length` characters drawn from `alphabet`, derived from `miss`.
-///
-/// Returns an empty string for an empty alphabet rather than panicking: this
-/// runs on the miss path, where a panic would take down a correlation that the
-/// whole point is to keep alive.
-pub fn over(miss: &deja::SubstituteMiss, alphabet: &[char], length: usize) -> String {
-    let span = match u64::try_from(alphabet.len()) {
-        Ok(span) if span > 0 => span,
-        _ => return String::new(),
-    };
-    let seed = deja::synth::u64(miss);
-    (0..length)
-        .filter_map(|index| {
-            let index = u64::try_from(index).ok()?;
-            let pick = usize::try_from(mix(seed, index) % span).ok()?;
-            alphabet.get(pick).copied()
-        })
-        .collect()
-}
-
-/// A deterministic `f64` in `[0, 1)`.
-///
-/// The half-open range matters: this seam feeds a comparison against a rollout
-/// percentage, and a value of exactly `1.0` would fire a 100%-exclusive branch
-/// that the live generator can never reach.
-pub fn unit_f64(miss: &deja::SubstituteMiss) -> f64 {
-    // Via u32 so the conversion is `f64::from`, which is lossless and total,
-    // rather than an `as` cast.
-    let span = f64::from(u32::MAX) + 1.0;
-    let draw = u32::try_from(deja::synth::u64(miss) >> 32).unwrap_or(0);
-    f64::from(draw) / span
-}
-
-/// A deterministic value in `min..=max`, inclusive, matching `gen_range`.
-///
-/// Computed in `i128` so a range spanning the whole of `i64` cannot overflow on
-/// the way to being reduced.
-pub fn in_range(miss: &deja::SubstituteMiss, min: i64, max: i64) -> i64 {
-    if min >= max {
-        return min;
-    }
-    let span = i128::from(max) - i128::from(min) + 1;
-    let draw = i128::from(deja::synth::u64(miss)) % span;
-    i64::try_from(i128::from(min) + draw).unwrap_or(min)
-}
-
-/// A deterministic index into `0..length`; `None` for an empty range, which is
-/// what the live generator answers.
-pub fn index(miss: &deja::SubstituteMiss, length: usize) -> Option<usize> {
-    let span = u64::try_from(length).ok().filter(|n| *n > 0)?;
-    usize::try_from(deja::synth::u64(miss) % span).ok()
-}
-
-/// `length` deterministic bytes.
-///
-/// Not [`deja::synth::bytes`], whose length is a const generic: these callers
-/// choose a length at runtime.
-pub fn byte_vec(miss: &deja::SubstituteMiss, length: usize) -> Vec<u8> {
-    let seed = deja::synth::u64(miss);
-    (0..length)
-        .filter_map(|position| {
-            let position = u64::try_from(position).ok()?;
-            u8::try_from(mix(seed, position) & 0xff).ok()
-        })
-        .collect()
-}
-
-/// A deterministic permutation of `0..length`.
-///
-/// Fisher-Yates driven by the miss, so the result is a genuine permutation —
-/// every index present exactly once — rather than a sequence of independent
-/// draws, which is what the caller's `shuffle` promises.
-pub fn permutation(miss: &deja::SubstituteMiss, length: usize) -> Vec<usize> {
-    let seed = deja::synth::u64(miss);
-    let mut out: Vec<usize> = (0..length).collect();
-    for position in (1..length).rev() {
-        let Ok(cursor) = u64::try_from(position) else {
-            continue;
-        };
-        let Ok(span) = u64::try_from(position + 1) else {
-            continue;
-        };
-        if let Ok(pick) = usize::try_from(mix(seed, cursor) % span) {
-            out.swap(position, pick);
-        }
-    }
-    out
-}
-
-/// A deterministic UUID in the **version 8** space.
-///
-/// Version 8 is RFC 9562's custom space, so a synthesized uuid is structurally
-/// disjoint from the v4 and v7 values real code produces — a synthesized id can
-/// never satisfy a lookup keyed on a recorded one. Falls back to nil rather than
-/// panicking if the formatted value ever fails to parse.
-pub fn uuid(miss: &deja::SubstituteMiss) -> uuid::Uuid {
-    uuid::Uuid::parse_str(&deja::synth::uuid_v8(miss)).unwrap_or(uuid::Uuid::nil())
-}
+const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 /// How far a synthesized clock advances between two misses at one call site.
 ///
@@ -122,26 +23,231 @@ pub fn uuid(miss: &deja::SubstituteMiss) -> uuid::Uuid {
 /// nanoseconds. Kept small deliberately — a step above the timing rule's
 /// evidential floor (`MIN_EVIDENTIAL_MS`, juspay/deja#188) would let a derived
 /// value coincide with a span's duration and read as a measured one.
-pub const CLOCK_STEP_NS: i64 = 1_000_000;
+const CLOCK_STEP_NS: i64 = 1_000_000;
 
-/// Nanoseconds since the Unix epoch, advancing with the occurrence at this site.
+/// The shapes a miss arm can synthesize, as methods on the miss itself.
 ///
-/// `base` is **zero**, not a correlation's time origin. The doc for
-/// [`deja::synth::monotonic`] offers a correlation-scoped origin, but no such
-/// origin is available at a miss, and inventing one would reintroduce exactly
-/// the ambient dependency these arms exist to remove. Zero also makes the value
-/// read as obviously synthetic to a human, which is a feature rather than a cost.
-pub fn epoch_nanos(miss: &deja::SubstituteMiss) -> i64 {
-    deja::synth::monotonic(miss, 0, CLOCK_STEP_NS)
+/// A miss arm is written inside an attribute, far from anything that could give
+/// it a home, and the values it needs are all functions of one argument. Hanging
+/// them off that argument is what keeps them findable: a reader who has a
+/// [`deja::SubstituteMiss`] can ask what it will answer with, instead of having
+/// to know that a module called `synth_shape` exists and that three different
+/// path prefixes reach it.
+///
+/// **Inherent methods win over trait methods, silently.** If deja ever grows an
+/// inherent `uuid` or `instant` on `SubstituteMiss`, a call site here would
+/// start resolving to it with no error and no warning, and the synthesized value
+/// would change shape. Nothing in this repo can prevent that; the defence is the
+/// golden-value test below, which pins every one of these outputs and fails on
+/// the byte.
+pub trait Synthesize {
+    /// `length` characters drawn from `alphabet`.
+    ///
+    /// Returns an empty string for an empty alphabet rather than panicking: this
+    /// runs on the miss path, where a panic would take down a correlation that
+    /// the whole point is to keep alive.
+    fn over(&self, alphabet: &[char], length: usize) -> String;
+
+    /// `length` characters over `consts::ALPHABETS` — 62 symbols, no `-` or `_`.
+    ///
+    /// The shape `generate_id_with_len` and its relatives promise. Folds the
+    /// alphabet in so no call site has to name it, and so no call site can name
+    /// a different one by accident.
+    fn alphanumeric(&self, length: usize) -> String;
+
+    /// `prefix`, an underscore, then [`Self::alphanumeric`] of `length`.
+    fn prefixed(&self, prefix: &str, length: usize) -> String;
+
+    /// `length` decimal digits, for the generators that promise only these.
+    fn digits(&self, length: usize) -> String;
+
+    /// A deterministic `f64` in `[0, 1)`.
+    ///
+    /// The half-open range matters: this seam feeds a comparison against a
+    /// rollout percentage, and a value of exactly `1.0` would fire a
+    /// 100%-exclusive branch that the live generator can never reach.
+    fn unit_f64(&self) -> f64;
+
+    /// A deterministic value in `min..=max`, inclusive, matching `gen_range`.
+    fn in_range(&self, min: i64, max: i64) -> i64;
+
+    /// A deterministic index into `0..length`; `None` for an empty range, which
+    /// is what the live generator answers.
+    fn index(&self, length: usize) -> Option<usize>;
+
+    /// `length` deterministic bytes.
+    ///
+    /// Not [`deja::synth::bytes`], whose length is a const generic: these
+    /// callers choose a length at runtime.
+    fn byte_vec(&self, length: usize) -> Vec<u8>;
+
+    /// A deterministic permutation of `0..length`.
+    ///
+    /// Fisher-Yates driven by the miss, so the result is a genuine permutation —
+    /// every index present exactly once — rather than a sequence of independent
+    /// draws, which is what the caller's `shuffle` promises.
+    fn permutation(&self, length: usize) -> Vec<usize>;
+
+    /// A deterministic UUID in the **version 8** space.
+    ///
+    /// Version 8 is RFC 9562's custom space, so a synthesized uuid is
+    /// structurally disjoint from the v4 and v7 values real code produces — a
+    /// synthesized id can never satisfy a lookup keyed on a recorded one. Falls
+    /// back to nil rather than panicking if the formatted value ever fails to
+    /// parse.
+    /// A caller wanting the 32-character hex rendering asks for `.as_simple()`,
+    /// the same way the live bodies do.
+    fn uuid(&self) -> uuid::Uuid;
+
+    /// A deterministic `u32`, for a seam standing in for an ambient numeric
+    /// identifier rather than for a value with a shape.
+    ///
+    /// `process_id` is the only caller. Unlike everything else here the value
+    /// carries no marker at all, because the thing it replaces has no room for
+    /// one — which is a reason to keep its use to seams nothing derives from.
+    fn opaque_u32(&self) -> u32;
+
+    /// Nanoseconds since the Unix epoch, advancing with the occurrence at this
+    /// site.
+    ///
+    /// `base` is **zero**, not a correlation's time origin. The doc for
+    /// [`deja::synth::monotonic`] offers a correlation-scoped origin, but no such
+    /// origin is available at a miss, and inventing one would reintroduce exactly
+    /// the ambient dependency these arms exist to remove. Zero also makes the
+    /// value read as obviously synthetic to a human, which is a feature rather
+    /// than a cost.
+    fn epoch_nanos(&self) -> i64;
+
+    /// A deterministic UTC instant for this miss, advancing by
+    /// [`CLOCK_STEP_NS`].
+    ///
+    /// Total: falls back to the epoch rather than panicking, because a panic
+    /// inside a miss arm would stop the request the arm exists to keep alive.
+    fn instant(&self) -> time::OffsetDateTime;
+
+    /// A deterministic UTC instant advancing by a whole second per miss.
+    ///
+    /// For the arms whose consumer renders only whole seconds — a unix timestamp
+    /// and an RFC 7231 HTTP date. Through those, [`Self::instant`] holds still
+    /// for a thousand consecutive misses, which merges calls the tape treats as
+    /// distinct; the step has to be at least the consumer's resolution for the
+    /// value to stay distinguishing.
+    fn instant_at_second_resolution(&self) -> time::OffsetDateTime;
+
+    /// Milliseconds of elapsed time, advancing by one per miss.
+    ///
+    /// A duration counter rather than a clock: `common_utils::elapsed` measures
+    /// an interval, so the value is a difference and not a point in time. The
+    /// step is deliberately below the timing rule's evidential floor
+    /// (`MIN_EVIDENTIAL_MS`, juspay/deja#188); above it, a derived value could
+    /// coincide with a span's duration and read as a measured one.
+    fn elapsed_millis(&self) -> u128;
 }
 
-/// A deterministic UTC instant for this miss.
-///
-/// Total: falls back to the epoch rather than panicking, because a panic inside
-/// a miss arm would stop the request the arm exists to keep alive.
-pub fn instant(miss: &deja::SubstituteMiss) -> time::OffsetDateTime {
-    time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(epoch_nanos(miss)))
-        .unwrap_or(time::OffsetDateTime::UNIX_EPOCH)
+impl Synthesize for deja::SubstituteMiss {
+    fn over(&self, alphabet: &[char], length: usize) -> String {
+        let span = match u64::try_from(alphabet.len()) {
+            Ok(span) if span > 0 => span,
+            _ => return String::new(),
+        };
+        let seed = deja::synth::u64(self);
+        (0..length)
+            .filter_map(|index| {
+                let index = u64::try_from(index).ok()?;
+                let pick = usize::try_from(mix(seed, index) % span).ok()?;
+                alphabet.get(pick).copied()
+            })
+            .collect()
+    }
+
+    fn alphanumeric(&self, length: usize) -> String {
+        self.over(&crate::consts::ALPHABETS, length)
+    }
+
+    fn prefixed(&self, prefix: &str, length: usize) -> String {
+        format!("{}_{}", prefix, self.alphanumeric(length))
+    }
+
+    fn digits(&self, length: usize) -> String {
+        self.over(&DIGITS, length)
+    }
+
+    fn unit_f64(&self) -> f64 {
+        // Via u32 so the conversion is `f64::from`, which is lossless and total,
+        // rather than an `as` cast.
+        let span = f64::from(u32::MAX) + 1.0;
+        let draw = u32::try_from(deja::synth::u64(self) >> 32).unwrap_or(0);
+        f64::from(draw) / span
+    }
+
+    fn in_range(&self, min: i64, max: i64) -> i64 {
+        if min >= max {
+            return min;
+        }
+        // In `i128` so a range spanning the whole of `i64` cannot overflow on
+        // the way to being reduced.
+        let span = i128::from(max) - i128::from(min) + 1;
+        let draw = i128::from(deja::synth::u64(self)) % span;
+        i64::try_from(i128::from(min) + draw).unwrap_or(min)
+    }
+
+    fn index(&self, length: usize) -> Option<usize> {
+        let span = u64::try_from(length).ok().filter(|n| *n > 0)?;
+        usize::try_from(deja::synth::u64(self) % span).ok()
+    }
+
+    fn byte_vec(&self, length: usize) -> Vec<u8> {
+        let seed = deja::synth::u64(self);
+        (0..length)
+            .filter_map(|position| {
+                let position = u64::try_from(position).ok()?;
+                u8::try_from(mix(seed, position) & 0xff).ok()
+            })
+            .collect()
+    }
+
+    fn permutation(&self, length: usize) -> Vec<usize> {
+        let seed = deja::synth::u64(self);
+        let mut out: Vec<usize> = (0..length).collect();
+        for position in (1..length).rev() {
+            let Ok(cursor) = u64::try_from(position) else {
+                continue;
+            };
+            let Ok(span) = u64::try_from(position + 1) else {
+                continue;
+            };
+            if let Ok(pick) = usize::try_from(mix(seed, cursor) % span) {
+                out.swap(position, pick);
+            }
+        }
+        out
+    }
+
+    fn uuid(&self) -> uuid::Uuid {
+        uuid::Uuid::parse_str(&deja::synth::uuid_v8(self)).unwrap_or(uuid::Uuid::nil())
+    }
+
+    fn opaque_u32(&self) -> u32 {
+        u32::try_from(deja::synth::u64(self) % u64::from(u32::MAX)).unwrap_or(1)
+    }
+
+    fn epoch_nanos(&self) -> i64 {
+        deja::synth::monotonic(self, 0, CLOCK_STEP_NS)
+    }
+
+    fn instant(&self) -> time::OffsetDateTime {
+        time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(self.epoch_nanos()))
+            .unwrap_or(time::OffsetDateTime::UNIX_EPOCH)
+    }
+
+    fn instant_at_second_resolution(&self) -> time::OffsetDateTime {
+        time::OffsetDateTime::from_unix_timestamp(deja::synth::monotonic(self, 0, 1))
+            .unwrap_or(time::OffsetDateTime::UNIX_EPOCH)
+    }
+
+    fn elapsed_millis(&self) -> u128 {
+        u128::try_from(deja::synth::monotonic(self, 0, 1)).unwrap_or(0)
+    }
 }
 
 /// One digest per position.
@@ -186,8 +292,8 @@ mod tests {
     /// be attributed.
     #[test]
     fn the_same_miss_gives_the_same_string() {
-        let first = over(&miss(serde_json::json!({"len": 12})), &HEX, 12);
-        let second = over(&miss(serde_json::json!({"len": 12})), &HEX, 12);
+        let first = miss(serde_json::json!({"len": 12})).over(&HEX, 12);
+        let second = miss(serde_json::json!({"len": 12})).over(&HEX, 12);
         assert_eq!(first, second, "one miss must synthesize one value");
         assert!(!first.is_empty(), "and it must not be vacuously equal");
     }
@@ -196,8 +302,8 @@ mod tests {
     /// one fabricated id would resolve another's.
     #[test]
     fn a_different_miss_gives_a_different_string() {
-        let first = over(&miss(serde_json::json!({"len": 12})), &HEX, 12);
-        let second = over(&miss(serde_json::json!({"len": 13})), &HEX, 12);
+        let first = miss(serde_json::json!({"len": 12})).over(&HEX, 12);
+        let second = miss(serde_json::json!({"len": 13})).over(&HEX, 12);
         assert_ne!(first, second, "different args must synthesize differently");
     }
 
@@ -206,7 +312,7 @@ mod tests {
     #[test]
     fn the_value_honours_the_alphabet_and_the_length() {
         for length in [1_usize, 8, 32, 64] {
-            let value = over(&miss(serde_json::json!({"n": length})), &DIGITS, length);
+            let value = miss(serde_json::json!({"n": length})).over(&DIGITS, length);
             assert_eq!(
                 value.chars().count(),
                 length,
@@ -223,8 +329,8 @@ mod tests {
     /// one seed serves an 8-character site and a 40-character site coherently.
     #[test]
     fn extending_the_length_keeps_the_earlier_characters() {
-        let short = over(&miss(serde_json::json!({})), &HEX, 8);
-        let long = over(&miss(serde_json::json!({})), &HEX, 40);
+        let short = miss(serde_json::json!({})).over(&HEX, 8);
+        let long = miss(serde_json::json!({})).over(&HEX, 40);
         assert!(
             long.starts_with(&short),
             "extending rewrote earlier positions: {short} then {long}"
@@ -235,7 +341,7 @@ mod tests {
     /// to panic — that would stop the correlation this exists to keep alive.
     #[test]
     fn an_empty_alphabet_yields_an_empty_string_rather_than_a_panic() {
-        assert_eq!(over(&miss(serde_json::json!({})), &[], 8), "");
+        assert_eq!(miss(serde_json::json!({})).over(&[], 8), "");
     }
 
     /// Positions must differ from each other, not merely be drawn from the
@@ -248,7 +354,7 @@ mod tests {
     /// would then be violated by a value that looks well-formed.
     #[test]
     fn positions_do_not_all_collapse_to_one_character() {
-        let value = over(&miss(serde_json::json!({})), &HEX, 32);
+        let value = miss(serde_json::json!({})).over(&HEX, 32);
         let distinct: std::collections::BTreeSet<char> = value.chars().collect();
         assert!(
             distinct.len() > 4,
@@ -304,77 +410,93 @@ mod golden {
 
     #[test]
     fn over_an_alphabet_is_pinned() {
-        assert_eq!(over(&miss(0), &consts::ALPHABETS, 12), "77z992CVQZxg");
-        assert_eq!(over(&miss(0), &DIGITS, 10), "7133908345");
+        assert_eq!(miss(0).over(&consts::ALPHABETS, 12), "77z992CVQZxg");
+        assert_eq!(miss(0).alphanumeric(12), "77z992CVQZxg");
+        assert_eq!(miss(0).prefixed("pay", 12), "pay_77z992CVQZxg");
+        assert_eq!(miss(0).digits(10), "7133908345");
         assert_eq!(
-            over(&miss(0), &nanoid::alphabet::SAFE, 21),
+            miss(0).over(&nanoid::alphabet::SAFE, 21),
             "DDBnXeIlmxl2UqmnXe2EI"
         );
-        assert_eq!(over(&miss(0), &consts::ALPHABETS, 0), "");
+        assert_eq!(miss(0).alphanumeric(0), "");
     }
 
     #[test]
     fn the_numeric_draws_are_pinned() {
-        assert_eq!(unit_f64(&miss(0)), 0.400_051_809_847_354_9);
-        assert_eq!(in_range(&miss(0), -5, 5), -2);
+        assert_eq!(miss(0).unit_f64(), 0.400_051_809_847_354_9);
+        assert_eq!(miss(0).in_range(-5, 5), -2);
         assert_eq!(
-            in_range(&miss(0), i64::MIN, i64::MAX),
+            miss(0).in_range(i64::MIN, i64::MAX),
             -1_843_718_680_693_841_055
         );
-        assert_eq!(in_range(&miss(0), 7, 7), 7);
-        assert_eq!(index(&miss(0), 10), Some(3));
-        assert_eq!(index(&miss(0), 0), None);
-        assert_eq!(byte_vec(&miss(0), 8), [105, 41, 231, 89, 125, 16, 174, 23]);
-        assert_eq!(permutation(&miss(0), 6), [0, 3, 5, 1, 4, 2]);
+        assert_eq!(miss(0).in_range(7, 7), 7);
+        assert_eq!(miss(0).index(10), Some(3));
+        assert_eq!(miss(0).index(0), None);
+        assert_eq!(miss(0).byte_vec(8), [105, 41, 231, 89, 125, 16, 174, 23]);
+        assert_eq!(miss(0).permutation(6), [0, 3, 5, 1, 4, 2]);
+        assert_eq!(miss(0).opaque_u32(), 1_105_702_658);
     }
 
     #[test]
     fn the_uuid_shapes_are_pinned() {
         assert_eq!(
-            uuid(&miss(0)).to_string(),
+            miss(0).uuid().to_string(),
             "c41247c7-5493-8f37-9a15-cd1ff03594e9"
         );
         assert_eq!(
-            uuid(&miss(0)).simple().to_string(),
-            "c41247c754938f379a15cd1ff03594e9"
-        );
-        // The two `generate_time_ordered_id` arms, which strip the hyphens off
-        // the formatted value rather than parsing it.
-        assert_eq!(
-            deja::synth::uuid_v8(&miss(0)).replace('-', ""),
+            miss(0).uuid().simple().to_string(),
             "c41247c754938f379a15cd1ff03594e9"
         );
     }
 
-    /// `process_id`'s arm, which reduces the raw digest rather than taking a
-    /// shape from this module.
+    /// The two time-ordered id arms used to strip hyphens off
+    /// [`deja::synth::uuid_v8`]'s string rather than parse it, on the belief
+    /// that parsing would add a `Uuid::nil` failure path. It cannot:
+    /// `uuid_v8` assembles 8-4-4-4-12 hex digits by construction, so the parse
+    /// is total and the two renderings are the same bytes. Asserted over a
+    /// sweep rather than argued, because it is what lets those arms share
+    /// [`Synthesize::uuid`] with every other uuid seam.
     #[test]
-    fn the_process_id_reduction_is_pinned() {
-        assert_eq!(
-            u32::try_from(deja::synth::u64(&miss(0)) % u64::from(u32::MAX)).unwrap_or(1),
-            1_105_702_658
-        );
+    fn stripping_the_hyphens_and_parsing_agree() {
+        for occurrence in 0..512_u32 {
+            let stripped = deja::synth::uuid_v8(&miss(occurrence)).replace('-', "");
+            assert_eq!(
+                miss(occurrence).uuid().as_simple().to_string(),
+                stripped,
+                "the parse moved a value at occurrence {occurrence}"
+            );
+            assert_ne!(
+                stripped,
+                uuid::Uuid::nil().as_simple().to_string(),
+                "and it must not be vacuously equal through the nil fallback"
+            );
+        }
     }
 
     /// The clock, read the way each of the five arms reads it.
     ///
-    /// Occurrence 1 is what matters: four of these five values must differ from
-    /// their occurrence-0 counterpart, or the arm has merged two distinct calls.
+    /// Occurrence 1 is what matters: every one of these five values must differ
+    /// from its occurrence-0 counterpart, or the arm has merged two distinct
+    /// calls. The two second-resolution arms read
+    /// [`Synthesize::instant_at_second_resolution`] for exactly that reason.
     #[test]
     fn the_clock_arms_are_pinned() {
         let rfc7231 = time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT");
         let render = |occurrence: u32| {
-            let at = instant(&miss(occurrence));
+            let at = miss(occurrence).instant();
+            let per_second = miss(occurrence).instant_at_second_resolution();
             (
-                epoch_nanos(&miss(occurrence)),
+                miss(occurrence).epoch_nanos(),
                 time::PrimitiveDateTime::new(at.date(), at.time()).to_string(),
-                at.unix_timestamp(),
+                per_second.unix_timestamp(),
                 at.unix_timestamp_nanos() / 1_000_000,
                 crate::date_time::convert_to_pdt(at)
                     .assume_utc()
                     .format(&Iso8601::<SYNTH_ISO>)
                     .expect("the synthesized instant formats"),
-                at.format(&rfc7231).expect("and renders as an HTTP date"),
+                per_second
+                    .format(&rfc7231)
+                    .expect("and renders as an HTTP date"),
             )
         };
 
@@ -394,21 +516,41 @@ mod golden {
             (
                 1_000_000,
                 "1970-01-01 0:00:00.001".to_string(),
-                0,
+                1,
                 1,
                 "1970-01-01T00:00:00.001Z".to_string(),
-                "Thu, 01 Jan 1970 00:00:00 GMT".to_string(),
+                "Thu, 01 Jan 1970 00:00:01 GMT".to_string(),
             )
         );
+    }
+
+    /// Two consecutive misses at one clock arm must not synthesize one value.
+    ///
+    /// The assertion neither repo had. A synthesized value that merges two
+    /// distinct calls defeats deja's second synthesis property, and it fails
+    /// quietly: the value is well-formed, in range, and deterministic.
+    #[test]
+    fn consecutive_misses_at_a_clock_arm_differ() {
+        for occurrence in [0_u32, 1, 998, 12_345] {
+            let (here, next) = (miss(occurrence), miss(occurrence + 1));
+            assert_ne!(
+                here.instant(),
+                next.instant(),
+                "the nanosecond clock held still across occurrence {occurrence}"
+            );
+            assert_ne!(
+                here.instant_at_second_resolution().unix_timestamp(),
+                next.instant_at_second_resolution().unix_timestamp(),
+                "the second clock held still across occurrence {occurrence}"
+            );
+        }
     }
 
     /// The duration counter behind `elapsed::millis_since`, whose step is one
     /// millisecond rather than this module's `CLOCK_STEP_NS`.
     #[test]
     fn the_elapsed_counter_is_pinned() {
-        let derived: Vec<u128> = (0..4_u32)
-            .map(|n| u128::try_from(deja::synth::monotonic(&miss(n), 0, 1)).unwrap_or(0))
-            .collect();
+        let derived: Vec<u128> = (0..4_u32).map(|n| miss(n).elapsed_millis()).collect();
         assert_eq!(derived, vec![0, 1, 2, 3]);
     }
 }

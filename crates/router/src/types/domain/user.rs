@@ -998,7 +998,7 @@ impl NewUser {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,
-        on_miss = common_utils::synth_shape::uuid(&__deja_miss).to_string(),)
+        on_miss = { use common_utils::synth_shape::Synthesize as _; __deja_miss.uuid().to_string() },)
 )]
 fn generate_user_id() -> String {
     common_utils::generate_uuid_v4().to_string()
