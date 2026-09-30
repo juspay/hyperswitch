@@ -162,12 +162,6 @@ jobs:
       SCCACHE_CACHE_SIZE: "1536M"
       SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
-      # TEMPORARY (revert together with the save step below): true only on branch
-      # `ci/drop-cargo-check-covered-by-clippy`, and only for same-repo PRs.
-      # The same-repo test comes first deliberately — CI-pr runs on fork PRs and
-      # `github.head_ref` carries no owner, so the branch name alone would let a
-      # fork claim it and write to the cache bucket from an untrusted checkout.
-      EXPERIMENT_SAVE_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'ci/drop-cargo-check-covered-by-clippy' }}
 
     steps:
       - name: Generate a token
@@ -258,17 +252,6 @@ jobs:
         shell: bash
         run: sccache --show-stats
 
-      # TEMPORARY: populate the shared cache key so later runs on this branch
-      # start warm. No pr-number argument, so this writes the same key
-      # merge_group and main read — which after the `.tar` rename is empty, so it
-      # fills them early rather than displacing anything.
-      # `!cancelled()` rather than `always()`: cache on failure, skip on cancel.
-      - name: Save sccache cache to S3
-        if: ${{ !cancelled() && env.EXPERIMENT_SAVE_CACHE == 'true' }}
-        continue-on-error: true
-        shell: bash
-        run: .github/scripts/sccache-save-s3.sh test
-
   typos:
     name: Spell check
     runs-on: ubuntu-latest
@@ -314,12 +297,6 @@ jobs:
       # values and silently falls back to its 10 GiB default.
       SCCACHE_CACHE_SIZE: "1536M"
       SCCACHE_IDLE_TIMEOUT: "0"
-      # TEMPORARY (revert together with the save step below): true only on branch
-      # `ci/drop-cargo-check-covered-by-clippy`, and only for same-repo PRs.
-      # The same-repo test comes first deliberately — CI-pr runs on fork PRs and
-      # `github.head_ref` carries no owner, so the branch name alone would let a
-      # fork claim it and write to the cache bucket from an untrusted checkout.
-      EXPERIMENT_SAVE_CACHE: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'ci/drop-cargo-check-covered-by-clippy' }}
 
     steps:
       - name: Checkout repository
@@ -379,14 +356,3 @@ jobs:
         if: always()
         shell: bash
         run: sccache --show-stats
-
-      # TEMPORARY: populate the shared cache key so later runs on this branch
-      # start warm. No pr-number argument, so this writes the same key
-      # merge_group and main read — which after the `.tar` rename is empty, so it
-      # fills them early rather than displacing anything.
-      # `!cancelled()` rather than `always()`: cache on failure, skip on cancel.
-      - name: Save sccache cache to S3
-        if: ${{ !cancelled() && env.EXPERIMENT_SAVE_CACHE == 'true' }}
-        continue-on-error: true
-        shell: bash
-        run: .github/scripts/sccache-save-s3.sh check-v2
