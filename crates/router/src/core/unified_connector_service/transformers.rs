@@ -2874,6 +2874,13 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Stripe's setup_intents needs this for on_behalf_of on a destination charge,
+            // and echoes the charge details back as mandate_reference.mandate_metadata.
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             test_mode: router_data.test_mode,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
