@@ -43,10 +43,9 @@ impl StaticLadderProgress {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ScheduleSource {
-    Static,
     /// Whichever retry model the invoice was routed to.
     Model,
-    /// The MIT cascading ladder, consulted only once the other two have nothing to offer.
+    /// The MIT cascading ladder, the global fallback for whatever the model declines.
     Fallback,
 }
 
@@ -61,51 +60,35 @@ pub struct ScheduleDecision {
     pub source: ScheduleSource,
 }
 
-/// The retry model decides whenever it has an opinion; the static ladder covers the decisions it
-/// declines, and the MIT cascading ladder covers what is left. `None` when none of the three has
-/// anything to offer.
+/// The retry model decides whenever it has an opinion; the MIT cascading ladder is the global
+/// fallback for everything it declines. `None` when neither has anything to offer.
 ///
-/// The candidates are NOT compared — the model's time is taken as it stands, however much later
-/// than the ladder's it falls. The ladder is a standby, not a ceiling.
+/// The two are NOT compared — the model's time is taken as it stands, however much later than the
+/// fallback's it falls. The fallback is a standby, not a ceiling.
+///
+/// Neither source spends a ladder position, so `next_progress` echoes what it was handed. The
+/// counter is inert here and kept only so the persisted field keeps round-tripping; removing it
+/// reaches merchant-facing config and belongs in its own change.
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
-    queried_rung: i32,
-    static_time: Option<PrimitiveDateTime>,
     model_time: Option<PrimitiveDateTime>,
     fallback_time: Option<PrimitiveDateTime>,
 ) -> Option<ScheduleDecision> {
-    // The model spends no ladder position, so the count stays put and the same position is offered
-    // again on the next decision.
-    let model = |schedule_time| ScheduleDecision {
+    let decision = |schedule_time, source| ScheduleDecision {
         schedule_time,
         next_progress: StaticLadderProgress {
             consumed_rungs: schedule.consumed_rungs,
         },
-        source: ScheduleSource::Model,
-    };
-    let static_ladder = |schedule_time| ScheduleDecision {
-        schedule_time,
-        next_progress: StaticLadderProgress {
-            consumed_rungs: queried_rung,
-        },
-        source: ScheduleSource::Static,
+        source,
     };
 
-    match (model_time, static_time) {
-        (Some(model_time), _) => Some(model(model_time)),
-        // The model declined, so the ladder covers this decision and spends a position.
-        (None, Some(static_time)) => Some(static_ladder(static_time)),
-        // Model declined and the ladder is spent, so the MIT cascading ladder gets the last word.
-        // It spends no ladder position, so the count stays put; `None` here means there is
+    model_time
+        .map(|schedule_time| decision(schedule_time, ScheduleSource::Model))
+        // The model declined, so the global fallback gets the last word. `None` here means there is
         // genuinely nothing left to schedule for this invoice.
-        (None, None) => fallback_time.map(|schedule_time| ScheduleDecision {
-            schedule_time,
-            next_progress: StaticLadderProgress {
-                consumed_rungs: schedule.consumed_rungs,
-            },
-            source: ScheduleSource::Fallback,
-        }),
-    }
+        .or_else(|| {
+            fallback_time.map(|schedule_time| decision(schedule_time, ScheduleSource::Fallback))
+        })
 }
 
 #[cfg(test)]
@@ -131,12 +114,10 @@ mod tests {
     /// A decision the caller would act on. Panics where the test's premise is that one exists.
     fn expect_decision(
         schedule: &StaticLadderProgress,
-        queried_rung: i32,
-        static_time: Option<PrimitiveDateTime>,
         model_time: Option<PrimitiveDateTime>,
+        fallback_time: Option<PrimitiveDateTime>,
     ) -> ScheduleDecision {
-        decide_next_retry(schedule, queried_rung, static_time, model_time, None)
-            .expect("a time was available")
+        decide_next_retry(schedule, model_time, fallback_time).expect("a time was available")
     }
 
     // ---- seeding ----------------------------------------------------------
@@ -217,85 +198,56 @@ mod tests {
         );
     }
 
-    // ---- the model decides whenever it has an opinion ---------------------
+    // ---- the model decides, the global fallback covers what it declines ---
 
     #[test]
     fn a_later_model_time_still_wins() {
-        // The ladder is not a ceiling: a model day after the static one is taken as it
-        // stands. Nothing here compares the two.
-        let static_time = at(240);
+        // The fallback is not a ceiling: a model day after the fallback's is taken as it stands.
+        // Nothing here compares the two.
+        let fallback_time = at(240);
         let model_time = at(336);
-        assert!(model_time.date() > static_time.date());
+        assert!(model_time.date() > fallback_time.date());
 
-        let decision = expect_decision(&at_rung(2), 3, Some(static_time), Some(model_time));
+        let decision = expect_decision(&at_rung(2), Some(model_time), Some(fallback_time));
 
         assert_eq!(decision.schedule_time, model_time);
         assert_eq!(decision.source, ScheduleSource::Model);
-        // Rung 3 was offered but not used, so it is offered again next time.
-        assert_eq!(decision.next_progress.consumed_rungs, 2);
-        assert_eq!(decision.next_progress.next_rung(), 3);
     }
 
-    // ---- the ladder covers what the model declines ------------------------
-
     #[test]
-    fn no_model_opinion_uses_static_and_consumes_the_rung() {
-        let decision = expect_decision(&StaticLadderProgress::default(), 1, Some(at(240)), None);
+    fn no_model_opinion_uses_the_global_fallback() {
+        let decision = expect_decision(&StaticLadderProgress::default(), None, Some(at(240)));
 
         assert_eq!(decision.schedule_time, at(240));
-        assert_eq!(decision.source, ScheduleSource::Static);
-        assert_eq!(decision.next_progress.consumed_rungs, 1);
-    }
-
-    #[test]
-    fn the_mit_ladder_covers_what_the_other_two_decline() {
-        let decision = decide_next_retry(&at_rung(5), 6, None, None, Some(at(72)))
-            .expect("the fallback had a time");
-
-        assert_eq!(decision.schedule_time, at(72));
         assert_eq!(decision.source, ScheduleSource::Fallback);
-        // Spends no ladder position, so the count stays where the ladder left it.
-        assert_eq!(decision.next_progress.consumed_rungs, 5);
     }
 
     #[test]
-    fn all_three_declining_yields_no_decision() {
-        assert_eq!(decide_next_retry(&at_rung(5), 6, None, None, None), None);
+    fn both_declining_yields_no_decision() {
+        assert_eq!(decide_next_retry(&at_rung(5), None, None), None);
     }
 
-    // ---- successive decisions ---------------------------------------------
+    // ---- the rung counter is inert ----------------------------------------
 
     #[test]
-    fn a_rung_survives_repeated_model_wins_and_is_spent_once() {
-        // Driven through `next_rung` exactly as the workflow does, so rung sourcing is under
-        // test rather than assumed.
-        let schedule = StaticLadderProgress::default();
+    fn no_source_spends_a_ladder_position() {
+        // With the static ladder gone, neither source advances the count: whatever a decision is
+        // handed, it hands back. Pinned because the field is still persisted and still seeded, so
+        // a future edit that starts moving it would otherwise change stored state unnoticed.
+        for (model_time, fallback_time, expected_source) in [
+            (Some(at(72)), None, ScheduleSource::Model),
+            (Some(at(72)), Some(at(240)), ScheduleSource::Model),
+            (None, Some(at(240)), ScheduleSource::Fallback),
+        ] {
+            for consumed_rungs in [0, 1, 5] {
+                let schedule = at_rung(consumed_rungs);
+                let decision = expect_decision(&schedule, model_time, fallback_time);
 
-        // Fresh invoice: rung 1 is offered, the model takes the slot.
-        let queried_rung = schedule.next_rung();
-        assert_eq!(queried_rung, 1);
-        let first = expect_decision(&schedule, queried_rung, Some(at(240)), Some(at(72)));
-        assert_eq!(first.source, ScheduleSource::Model);
-
-        // The process tracker's retry_count is now 2, but rung 1 was never used, so it is
-        // offered again.
-        let schedule = first.next_progress;
-        let queried_rung = schedule.next_rung();
-        assert_eq!(queried_rung, 1);
-        let second = expect_decision(&schedule, queried_rung, Some(at(240)), Some(at(120)));
-        assert_eq!(second.source, ScheduleSource::Model);
-
-        // retry_count 3, and still rung 1. Only a decision the model declines spends it.
-        let schedule = second.next_progress;
-        let queried_rung = schedule.next_rung();
-        assert_eq!(queried_rung, 1);
-        let third = expect_decision(&schedule, queried_rung, Some(at(240)), None);
-        assert_eq!(third.source, ScheduleSource::Static);
-        assert_eq!(third.next_progress.consumed_rungs, 1);
-
-        // Three attempts in, exactly one static position spent — the next query is rung 2,
-        // not rung 4 as `retry_count` alone would have given.
-        assert_eq!(third.next_progress.next_rung(), 2);
+                assert_eq!(decision.source, expected_source);
+                assert_eq!(decision.next_progress, schedule);
+                assert_eq!(decision.next_progress.consumed_rungs, consumed_rungs);
+            }
+        }
     }
 
     // ---- persistence ------------------------------------------------------
