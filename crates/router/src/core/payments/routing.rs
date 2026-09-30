@@ -1088,7 +1088,7 @@ impl RoutingStage for SessionRoutingStage {
                     profile_id,
                     input.transaction_type,
                     input.active_mca_ids,
-                    input.business_profile,
+                    input.business_profile.get_auto_fallback_capture_method(),
                 )
                 .await?;
 
@@ -1102,7 +1102,7 @@ impl RoutingStage for SessionRoutingStage {
                         profile_id,
                         input.transaction_type,
                         input.active_mca_ids,
-                        input.business_profile,
+                        input.business_profile.get_auto_fallback_capture_method(),
                     )
                     .await?
                 } else {
@@ -2448,24 +2448,6 @@ pub async fn refresh_cgraph_cache(
     Ok(cgraph)
 }
 
-/// Whether routing eligibility should ignore the payment's capture method for this profile.
-///
-/// With `auto_fallback_capture_method` enabled, a connector that does not support the requested
-/// capture method is still eligible: the payment falls back to automatic capture on it.
-fn should_ignore_capture_method_for_eligibility(business_profile: &domain::Profile) -> bool {
-    #[cfg(feature = "v1")]
-    {
-        business_profile
-            .auto_fallback_capture_method
-            .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled)
-    }
-    #[cfg(feature = "v2")]
-    {
-        let _ = business_profile;
-        false
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_cgraph_filtering(
     state: &SessionState,
@@ -2476,16 +2458,15 @@ pub async fn perform_cgraph_filtering(
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
-    business_profile: &domain::Profile,
+    auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut backend_input = backend_input;
     let can_fall_back = backend_input
         .payment
         .capture_method
-        .is_some_and(|capture_method| {
-            common_enums::AutoFallbackCaptureMethod::Enabled.can_fall_back_from(capture_method)
-        });
-    if can_fall_back && should_ignore_capture_method_for_eligibility(business_profile) {
+        .zip(auto_fallback_capture_method)
+        .is_some_and(|(capture_method, setting)| setting.can_fall_back_from(capture_method));
+    if can_fall_back {
         // The profile falls back to automatic capture for connectors that cannot do the
         // requested capture method, so `pm_filters` capture-method restrictions must not remove
         // those connectors here; `apply_auto_fallback_capture_method` decides per connector.
@@ -2655,7 +2636,7 @@ pub async fn perform_eligibility_analysis(
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
-        business_profile,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await
 }
@@ -2725,7 +2706,7 @@ pub async fn perform_fallback_routing(
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
-        business_profile,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await
 }
@@ -3279,7 +3260,7 @@ async fn perform_session_routing_for_pm_type(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
-        business_profile,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await?;
 
@@ -3301,7 +3282,7 @@ async fn perform_session_routing_for_pm_type(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
-            business_profile,
+            business_profile.get_auto_fallback_capture_method(),
         )
         .await?;
     }
@@ -3381,7 +3362,7 @@ async fn perform_session_routing_for_pm_type<'a>(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
-        business_profile,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await?;
 
@@ -3399,7 +3380,7 @@ async fn perform_session_routing_for_pm_type<'a>(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
-            business_profile,
+            business_profile.get_auto_fallback_capture_method(),
         )
         .await?;
     }

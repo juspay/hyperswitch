@@ -511,6 +511,20 @@ impl Profile {
         &self.profile_id
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_auto_fallback_capture_method(
+        &self,
+    ) -> Option<common_enums::AutoFallbackCaptureMethod> {
+        self.auto_fallback_capture_method
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_auto_fallback_capture_method(
+        &self,
+    ) -> Option<common_enums::AutoFallbackCaptureMethod> {
+        None
+    }
+
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.id
