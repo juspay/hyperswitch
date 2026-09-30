@@ -237,19 +237,21 @@ impl
             Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?,
             None => None,
         };
+        let connector_mandate_request_reference_id = item
+            .response
+            .ativacao
+            .as_ref()
+            .and_then(|activation| activation.dados_jornada.as_ref())
+            .and_then(|journey| journey.txid.clone());
         let mandate_reference = Box::new(Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
+            connector_mandate_request_reference_id: connector_mandate_request_reference_id.clone(),
         }));
         let connector_transaction_id = match journey.as_ref() {
             Some(SantanderJourneyType::Jornada3 | SantanderJourneyType::Jornada4) => Some(
-                item.response
-                    .ativacao
-                    .as_ref()
-                    .and_then(|activation| activation.dados_jornada.as_ref())
-                    .and_then(|journey| journey.txid.clone())
+                connector_mandate_request_reference_id
                     .unwrap_or_else(|| item.data.connector_request_reference_id.clone()),
             ),
             Some(SantanderJourneyType::Jornada2) | None => {
