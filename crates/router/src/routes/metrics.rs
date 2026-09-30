@@ -299,9 +299,11 @@ histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);
 
 // Revenue recovery A/B routing
 //
-// Both count invoices the A/B arm could not price, which it treats as an error. They matter for
-// experiment validity rather than availability: an arm that drops invoices for reasons correlated
-// with the arm itself biases the comparison, and the logs alone make that invisible in aggregate.
+// All three count invoices that could not be priced. They matter for experiment validity rather
+// than availability: an arm that drops invoices for reasons correlated with the arm itself biases
+// the comparison, and the logs alone make that invisible in aggregate. Which is why each carries
+// the algorithm as an attribute — the aggregate count answers how many, not whether one arm is
+// losing more of them than another.
 counter_metric!(
     REVENUE_RECOVERY_AB_MISSING_ERROR_CODE,
     GLOBAL_METER,
@@ -316,5 +318,13 @@ counter_metric!(
     name: "revenue_recovery.ab.unassigned_algorithm",
     description: "Invoices that reached the A/B arm with no retry implementation recorded on the \
                   intent, so no algorithm could be replayed",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_NO_SCHEDULE_TIME,
+    GLOBAL_METER,
+    name: "revenue_recovery.no_schedule_time",
+    description: "Invoices left with no retry time after every source declined — the assigned \
+                  model, the adaptive ladder and the cascading ladder",
     unit: "1",
 );

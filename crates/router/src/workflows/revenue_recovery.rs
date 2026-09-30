@@ -255,7 +255,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
 
 /// Static ladder time for the adaptive retry algorithm.
 #[cfg(feature = "v2")]
-pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
+pub(crate) async fn get_schedule_time_to_retry_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
@@ -736,7 +736,7 @@ async fn get_adaptive_retry_allowances(
 
 /// The adaptive model's retry time for an invoice, or `None` when the model cannot be consulted.
 #[cfg(feature = "v2")]
-async fn get_adaptive_retry_time_for_error_code(
+async fn get_retry_time_for_error_code(
     state: &SessionState,
     algorithm: common_enums::RevenueRecoveryABAlgorithm,
     prev_attempt_error_code: Option<common_enums::StandardisedCode>,
@@ -751,12 +751,12 @@ async fn get_adaptive_retry_time_for_error_code(
         return None;
     };
 
-    compute_adaptive_retry_time(
+    compute_model_retry_time(
         state,
         error_code,
         remaining_grace_days,
         remaining_budget,
-        MathModelVariant::from(algorithm),
+        RetryModelVariant::from(algorithm),
     )
     .await
     .map(common_utils::date_time::convert_to_pdt)
@@ -765,7 +765,7 @@ async fn get_adaptive_retry_time_for_error_code(
 /// Picks the retry time for an invoice enrolled in A/B routing, then finds a token for it.
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-async fn ab_routed_adaptive_time(
+async fn get_ab_routed_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
@@ -774,7 +774,10 @@ async fn ab_routed_adaptive_time(
     // Both needed only to assign an implementation to an invoice that arrives without one
     revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
     ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-) -> Option<time::PrimitiveDateTime> {
+) -> (
+    Option<time::PrimitiveDateTime>,
+    common_enums::RevenueRecoveryABAlgorithm,
+) {
     let algorithm = payment_intent
         .feature_metadata
         .as_ref()
@@ -811,7 +814,7 @@ async fn ab_routed_adaptive_time(
         }
     };
 
-    let schedule_time = get_adaptive_retry_time_for_error_code(
+    let schedule_time = get_retry_time_for_error_code(
         state,
         assigned_algorithm,
         tracking_data.prev_attempt_error_code,
@@ -826,7 +829,7 @@ async fn ab_routed_adaptive_time(
         "A/B routing ran the invoice's assigned arm"
     );
 
-    schedule_time
+    (schedule_time, assigned_algorithm)
 }
 
 #[cfg(feature = "v2")]
@@ -930,9 +933,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
 
-                let (adaptive_time, grace_days_used, budget_used) = if ab_enabled {
-                    (
-                        ab_routed_adaptive_time(
+                let (adaptive_time, grace_days_used, budget_used, assigned_algorithm) =
+                    if ab_enabled {
+                        let (time, algorithm) = get_ab_routed_retry_time(
                             state,
                             payment_intent,
                             tracking_data,
@@ -941,36 +944,39 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                             revenue_recovery_payment_data,
                             &ab_dimensions,
                         )
-                        .await,
-                        remaining_grace_days,
-                        remaining_budget,
-                    )
-                } else {
-                    let (grace_days, budget) = get_adaptive_retry_allowances(
-                        state,
-                        &dimensions,
-                        payment_intent,
-                        max_retry_count,
-                        retry_count,
-                        now,
-                    )
-                    .await?;
-
-                    let time = match tracking_data.prev_attempt_error_code {
-                        // Not enrolled in A/B routing, so this runs the baseline pairing.
-                        Some(error_code) => compute_adaptive_retry_time(
-                            state,
-                            error_code,
-                            grace_days,
-                            budget,
-                            MathModelVariant::default(),
+                        .await;
+                        (
+                            time,
+                            remaining_grace_days,
+                            remaining_budget,
+                            Some(algorithm),
                         )
-                        .await
-                        .map(common_utils::date_time::convert_to_pdt),
-                        None => None,
+                    } else {
+                        let (grace_days, budget) = get_adaptive_retry_allowances(
+                            state,
+                            &dimensions,
+                            payment_intent,
+                            max_retry_count,
+                            retry_count,
+                            now,
+                        )
+                        .await?;
+
+                        let time = match tracking_data.prev_attempt_error_code {
+                            // Not enrolled in A/B routing, so this runs the baseline pairing.
+                            Some(error_code) => compute_model_retry_time(
+                                state,
+                                error_code,
+                                grace_days,
+                                budget,
+                                RetryModelVariant::default(),
+                            )
+                            .await
+                            .map(common_utils::date_time::convert_to_pdt),
+                            None => None,
+                        };
+                        (time, grace_days, budget, None)
                     };
-                    (time, grace_days, budget)
-                };
 
                 // The ladder covers only what the model declines, so it is resolved only then —
                 // the lookup is a Superposition read and costs nothing on the paths that never
@@ -978,7 +984,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let static_time = match adaptive_time {
                     Some(_) => None,
                     None => {
-                        get_schedule_time_to_retry_adaptive_payments(
+                        get_schedule_time_to_retry_payments(
                             state.store.as_ref(),
                             state.superposition_service.as_ref(),
                             &dimensions,
@@ -1020,8 +1026,17 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         "No retry time available — the model declined, the static ladder is \
                          exhausted and the MIT ladder had nothing left"
                     );
-                    // Same failure as the A/B path's: nothing had a time to offer. The logs say
-                    // which sources were consulted.
+                    // Counted, not just logged: an arm that loses invoices at a different rate
+                    // from another is measuring its own drop rate rather than retry quality, and
+                    // an aggregate count cannot show that.
+                    crate::routes::metrics::REVENUE_RECOVERY_NO_SCHEDULE_TIME.add(
+                        1,
+                        router_env::metric_attributes!((
+                            "algorithm",
+                            assigned_algorithm
+                                .map_or_else(|| "unenrolled".to_string(), |arm| arm.to_string())
+                        )),
+                    );
                     errors::ProcessTrackerError::FlowExecutionError {
                         flow: "revenue_recovery_no_schedule_time",
                     }
@@ -1605,14 +1620,14 @@ pub fn add_random_delay_to_schedule_time(
 }
 
 // ---------------------------------------------------------------------------
-// MathModel retry-time prediction — the data-driven half of the Cascading (MathModel) strategy.
+// Retry-time prediction — the data-driven half of the Cascading strategy.
 //
 // Given a cluster's day-of-week / day-of-month / hour-of-day success stats (`StatsDocument`), the
 // remaining retry budget, and the grace window, it returns the datetime to retry on. The caller
 // takes this time as it stands; the Superposition static schedule covers only the decisions this
 // declines.
 //
-// The DAY is produced by two independently selectable stages — see `MathModelVariant`: a COMBINE
+// The DAY is produced by two independently selectable stages — see `RetryModelVariant`: a COMBINE
 // folding the weekday and month-day signals into one weight per candidate day, and a SELECTION
 // drawing one day from those weights. The HOUR always uses the per-tick walk.
 //
@@ -1770,13 +1785,13 @@ pub enum DaySelection {
 /// pinned separately in the `From` impl below.
 #[cfg(feature = "v2")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MathModelVariant {
+pub struct RetryModelVariant {
     pub combine: DayCombine,
     pub selection: DaySelection,
 }
 
 #[cfg(feature = "v2")]
-impl Default for MathModelVariant {
+impl Default for RetryModelVariant {
     fn default() -> Self {
         Self {
             combine: DayCombine::MaxAtScore,
@@ -1795,7 +1810,7 @@ impl Default for MathModelVariant {
 /// invoice and replayed across its retries, so one that tracked the default would switch algorithm
 /// mid-recovery the moment the default moved.
 #[cfg(feature = "v2")]
-impl From<common_enums::RevenueRecoveryABAlgorithm> for MathModelVariant {
+impl From<common_enums::RevenueRecoveryABAlgorithm> for RetryModelVariant {
     fn from(algorithm: common_enums::RevenueRecoveryABAlgorithm) -> Self {
         match algorithm {
             common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry => Self {
@@ -1917,7 +1932,7 @@ fn pick_index<T: Copy + std::fmt::Debug>(
             fire_probability = p,
             rand_draw = draw,
             fired = fired,
-            "mathmodel: pick step"
+            "retry model: pick step"
         );
         if fired {
             return Some((
@@ -1932,7 +1947,7 @@ fn pick_index<T: Copy + std::fmt::Debug>(
     }
     logger::debug!(
         context = context,
-        "mathmodel: pick exhausted — no step fired (budget 0); no candidate to schedule"
+        "retry model: pick exhausted — no step fired (budget 0); no candidate to schedule"
     );
     None
 }
@@ -1949,7 +1964,7 @@ fn pick_hour(hod: &[SlotCounter], default_hour: u8) -> u8 {
         // since a real pick can land on the default hour too.
         logger::debug!(
             default_hour = default_hour,
-            "mathmodel: no usable hour-of-day history — falling back to the configured hour"
+            "retry model: no usable hour-of-day history — falling back to the configured hour"
         );
         return default_hour;
     }
@@ -2010,23 +2025,23 @@ fn combine_day_weight(
 
     // Whichever pair the `max` compares — normalized per axis, or raw — decides both the weight and
     // the attributed axis.
-    let (left, right) = match combine {
+    let (weekday_values, month_day_values) = match combine {
         DayCombine::MaxAtSoftmax => (softmax(&dow_sc), softmax(&dom_sc)),
         DayCombine::MaxAtScore => (dow_sc, dom_sc),
     };
 
-    let (maxed, winners): (Vec<f64>, Vec<DayAxis>) = left
+    let (maxed, winners): (Vec<f64>, Vec<DayAxis>) = weekday_values
         .iter()
-        .zip(right.iter())
-        .map(|(&w, &m)| {
-            let winner = if m > w {
+        .zip(month_day_values.iter())
+        .map(|(&weekday, &month_day)| {
+            let winner = if month_day > weekday {
                 DayAxis::Dom
-            } else if w > m {
+            } else if weekday > month_day {
                 DayAxis::Dow
             } else {
                 DayAxis::Tie // both axes equal (e.g. a cold cluster: both uniform) — neither "won"
             };
-            (w.max(m), winner)
+            (weekday.max(month_day), winner)
         })
         .unzip();
 
@@ -2215,7 +2230,7 @@ fn select_systematic_k_day(
         scheduled_days = ?selected,
         chosen_index = chosen,
         chosen_inclusion_probability = chosen_inclusion_probability,
-        "mathmodel: systematic-k selection"
+        "retry model: systematic-k selection"
     );
 
     Some((chosen, chosen_inclusion_probability))
@@ -2242,12 +2257,12 @@ fn select_systematic_k_day(
 /// result as it stands, rather than bounding it by the static schedule.
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub fn compute_mathmodel_retry_time(
+pub fn compute_predicted_retry_time(
     stats: &StatsDocument,
     budget: u32,
     grace_days: u32,
     default_hour: u8,
-    variant: MathModelVariant,
+    variant: RetryModelVariant,
     exploration_floor: f64,
     tie_tolerance: f64,
 ) -> Option<time::OffsetDateTime> {
@@ -2261,7 +2276,7 @@ pub fn compute_mathmodel_retry_time(
         logger::debug!(
             budget = budget,
             grace_days = grace_days,
-            "mathmodel: declined — no future day inside the grace window (grace_days <= 1)"
+            "retry model: declined — no future day inside the grace window (grace_days <= 1)"
         );
         return None;
     }
@@ -2272,7 +2287,7 @@ pub fn compute_mathmodel_retry_time(
         logger::debug!(
             budget = budget,
             grace_days = grace_days,
-            "mathmodel: declined — no retry budget remaining"
+            "retry model: declined — no retry budget remaining"
         );
         return None;
     }
@@ -2287,7 +2302,7 @@ pub fn compute_mathmodel_retry_time(
         logger::debug!(
             configured = grace_days,
             capped = MAX_GRACE_DAYS,
-            "mathmodel: grace window capped"
+            "retry model: grace window capped"
         );
     }
     // future_days is capped at MAX_GRACE_DAYS (31), so this always fits usize; 0 is an unreachable
@@ -2312,7 +2327,7 @@ pub fn compute_mathmodel_retry_time(
         tie_tolerance = tie_tolerance,
         combine = ?variant.combine,
         selection = ?variant.selection,
-        "mathmodel: decision start"
+        "retry model: decision start"
     );
 
     let (day_weights, winners) =
@@ -2337,7 +2352,7 @@ pub fn compute_mathmodel_retry_time(
             dom_score = dom_score,
             combined_weight = weight,
             winning_axis = winner.as_str(),
-            "mathmodel: candidate day score"
+            "retry model: candidate day score"
         );
     }
 
@@ -2376,7 +2391,7 @@ pub fn compute_mathmodel_retry_time(
         driver = driver,
         inclusion_probability = ?day_inclusion_probability,
         weight = chosen_weight,
-        "mathmodel: decision final"
+        "retry model: decision final"
     );
 
     Some(retry_at)
@@ -2394,12 +2409,12 @@ pub fn compute_mathmodel_retry_time(
 /// (`OffsetDateTime`); the codebase stays in explicit UTC and only converts to a naive
 /// `PrimitiveDateTime` at the schedule boundary.
 #[cfg(feature = "v2")]
-pub async fn compute_adaptive_retry_time(
+pub async fn compute_model_retry_time(
     state: &SessionState,
     error_code: common_enums::StandardisedCode,
     remaining_grace_days: u32,
     remaining_budget: u32,
-    variant: MathModelVariant,
+    variant: RetryModelVariant,
 ) -> Option<time::OffsetDateTime> {
     // The store builds the cluster key and parses the stored document internally. A missing cluster
     // and a failed lookup both decline, but they are different problems, so they are logged apart —
@@ -2430,7 +2445,7 @@ pub async fn compute_adaptive_retry_time(
         ?error_code,
         remaining_grace_days,
         remaining_budget,
-        "adaptive retry: stats fetched — running mathmodel"
+        "adaptive retry: stats fetched — running the model"
     );
 
     // A configured hour outside 0..=23 is a misconfiguration; warn (so it's visible) and fall back to
@@ -2474,7 +2489,7 @@ pub async fn compute_adaptive_retry_time(
         fallback
     };
 
-    compute_mathmodel_retry_time(
+    compute_predicted_retry_time(
         &record.stats,
         remaining_budget,
         remaining_grace_days,
@@ -2486,7 +2501,7 @@ pub async fn compute_adaptive_retry_time(
 }
 
 #[cfg(all(test, feature = "v2"))]
-mod mathmodel_retry_time_tests {
+mod retry_model_tests {
     use super::*;
 
     // The values the production config supplies, passed explicitly so the tests do not depend on
@@ -2538,21 +2553,21 @@ mod mathmodel_retry_time_tests {
     // Every combine x selection pairing. The contract tests below run over all four, because the
     // guarantees they assert (in-window, never panics, declines only when it should) must not depend
     // on which variant an invoice was bucketed into.
-    fn all_variants() -> [MathModelVariant; 4] {
+    fn all_variants() -> [RetryModelVariant; 4] {
         [
-            MathModelVariant {
+            RetryModelVariant {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
             },
-            MathModelVariant {
+            RetryModelVariant {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::SystematicK,
             },
-            MathModelVariant {
+            RetryModelVariant {
                 combine: DayCombine::MaxAtScore,
                 selection: DaySelection::PerTick,
             },
-            MathModelVariant {
+            RetryModelVariant {
                 combine: DayCombine::MaxAtScore,
                 selection: DaySelection::SystematicK,
             },
@@ -2715,7 +2730,7 @@ mod mathmodel_retry_time_tests {
             for stats in [sample(), StatsDocument::default()] {
                 for _ in 0..200 {
                     let before = common_utils::date_time::now().assume_utc();
-                    let dt = compute_mathmodel_retry_time(
+                    let dt = compute_predicted_retry_time(
                         &stats,
                         3,
                         grace,
@@ -2743,7 +2758,7 @@ mod mathmodel_retry_time_tests {
         // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
         for variant in all_variants() {
             let before = common_utils::date_time::now().assume_utc();
-            let dt = compute_mathmodel_retry_time(
+            let dt = compute_predicted_retry_time(
                 &sample(),
                 3,
                 2,
@@ -2767,7 +2782,7 @@ mod mathmodel_retry_time_tests {
     fn grace_zero_and_one_return_none() {
         // grace COUNTS today; grace 0 = no grace, grace 1 = today only -> no future day -> None (v1).
         for variant in all_variants() {
-            assert!(compute_mathmodel_retry_time(
+            assert!(compute_predicted_retry_time(
                 &sample(),
                 3,
                 0,
@@ -2777,7 +2792,7 @@ mod mathmodel_retry_time_tests {
                 TIE_TOLERANCE
             )
             .is_none());
-            assert!(compute_mathmodel_retry_time(
+            assert!(compute_predicted_retry_time(
                 &sample(),
                 3,
                 1,
@@ -2795,7 +2810,7 @@ mod mathmodel_retry_time_tests {
         // No retries left: the model must NOT hand back a date (pick_index with budget 0 would
         // otherwise fall through to the last grace day). Guard holds for any grace / stats shape.
         for variant in all_variants() {
-            assert!(compute_mathmodel_retry_time(
+            assert!(compute_predicted_retry_time(
                 &sample(),
                 0,
                 14,
@@ -2805,7 +2820,7 @@ mod mathmodel_retry_time_tests {
                 TIE_TOLERANCE
             )
             .is_none());
-            assert!(compute_mathmodel_retry_time(
+            assert!(compute_predicted_retry_time(
                 &StatsDocument::default(),
                 0,
                 30,
@@ -2856,12 +2871,12 @@ mod mathmodel_retry_time_tests {
         let corrupt = doc_with(&[(0, 1, 100), (3, 2, 50)], &[(5, 1, 80)], &[(9, 1, 30)]);
         let before = common_utils::date_time::now().assume_utc();
         for _ in 0..50 {
-            let dt = compute_mathmodel_retry_time(
+            let dt = compute_predicted_retry_time(
                 &corrupt,
                 3,
                 14,
                 DEFAULT_RETRY_HOUR,
-                MathModelVariant::default(),
+                RetryModelVariant::default(),
                 EXPLORATION_FLOOR,
                 TIE_TOLERANCE,
             )
@@ -2881,12 +2896,12 @@ mod mathmodel_retry_time_tests {
     #[test]
     fn grace_is_capped_at_max() {
         let before = common_utils::date_time::now().assume_utc();
-        let dt = compute_mathmodel_retry_time(
+        let dt = compute_predicted_retry_time(
             &sample(),
             3,
             365,
             DEFAULT_RETRY_HOUR,
-            MathModelVariant::default(),
+            RetryModelVariant::default(),
             EXPLORATION_FLOOR,
             TIE_TOLERANCE,
         )
@@ -3016,8 +3031,8 @@ mod mathmodel_retry_time_tests {
         // AdaptiveRetry is persisted on live invoices, so it must keep its pairing whatever the
         // default becomes — otherwise an in-flight invoice switches algorithm mid-recovery.
         assert_eq!(
-            MathModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry),
-            MathModelVariant {
+            RetryModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry),
+            RetryModelVariant {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
             }
@@ -3030,11 +3045,11 @@ mod mathmodel_retry_time_tests {
         // SystematicKMaxAtScore only the combine from it. An arm moving both against both
         // references leaves nothing able to say which change caused a result.
         use common_enums::RevenueRecoveryABAlgorithm as Arm;
-        let control = MathModelVariant::from(Arm::AdaptiveRetry);
-        let softmax_k = MathModelVariant::from(Arm::SystematicKMaxAtSoftmax);
-        let score_k = MathModelVariant::from(Arm::SystematicKMaxAtScore);
+        let control = RetryModelVariant::from(Arm::AdaptiveRetry);
+        let softmax_k = RetryModelVariant::from(Arm::SystematicKMaxAtSoftmax);
+        let score_k = RetryModelVariant::from(Arm::SystematicKMaxAtScore);
 
-        let axes_differing = |a: MathModelVariant, b: MathModelVariant| {
+        let axes_differing = |a: RetryModelVariant, b: RetryModelVariant| {
             usize::from(a.combine != b.combine) + usize::from(a.selection != b.selection)
         };
         assert_eq!(
@@ -3053,9 +3068,9 @@ mod mathmodel_retry_time_tests {
     fn arms_map_to_distinct_variants() {
         // Two arms on the same pairing compare an arm against itself, which reads as a null.
         use strum::IntoEnumIterator;
-        let mut seen: Vec<MathModelVariant> = Vec::new();
+        let mut seen: Vec<RetryModelVariant> = Vec::new();
         for arm in common_enums::RevenueRecoveryABAlgorithm::iter() {
-            let variant = MathModelVariant::from(arm);
+            let variant = RetryModelVariant::from(arm);
             assert!(
                 !seen.contains(&variant),
                 "{arm:?} duplicates an earlier arm's variant: {variant:?}"
