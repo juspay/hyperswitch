@@ -7216,6 +7216,268 @@ Cypress.Commands.add(
   }
 );
 
+// Platform-level refund list — GET /refunds/platform/list
+// queryParams: query parameters for the list call (e.g. { refund_id, limit })
+// expected: {
+//   status: expected HTTP status (default 200),
+//   error: { type, code, message } — JSON error body assertions (IR_49 / IR_01),
+//   rawError: exact message for plain-text query-deserialize 400s,
+//   count / totalCount: exact count / total_count assertions,
+//   empty: expect count=0, total_count=0 and data=[],
+//   nonEmpty: expect at least one refund in data,
+//   match: { field: value } — every returned refund must match,
+//   contains: { field: value } — at least one returned refund must match,
+//   notContains: { field: value } — no returned refund may match,
+//   minRefundAmount / maxRefundAmount: refund_amount range assertions,
+//   omitApiKey: send the request without the api-key header,
+// }
+Cypress.Commands.add(
+  "platformRefundListCallTest",
+  (queryParams, expected, globalState, connectedMerchantId) => {
+    const {
+      status: expectedStatus = 200,
+      error: expectedError,
+      rawError: expectedRawError,
+      count: expectedCount,
+      totalCount: expectedTotalCount,
+      empty: expectEmpty = false,
+      nonEmpty: expectNonEmpty = false,
+      match: expectedMatch,
+      contains: expectedContains,
+      notContains: expectedNotContains,
+      minRefundAmount,
+      maxRefundAmount,
+      omitApiKey = false,
+    } = expected || {};
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (omitApiKey) {
+      delete headers["api-key"];
+    }
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/refunds/platform/list`,
+      headers,
+      qs: queryParams,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedRawError) {
+          // Pagination validation failures fail query deserialization
+          // before auth and return a plain-text body
+          expect(response.body).to.be.a("string");
+          expect(response.body).to.equal(expectedRawError);
+          return;
+        }
+
+        if (expectedStatus !== 200) {
+          expect(response.body.error.type).to.equal(expectedError.type);
+          expect(response.body.error.code).to.equal(expectedError.code);
+          expect(response.body.error.message).to.equal(expectedError.message);
+          return;
+        }
+
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.body.count).to.be.a("number");
+        expect(response.body.total_count).to.be.a("number");
+        expect(response.body.data).to.be.an("array");
+        expect(response.body.data).to.have.lengthOf(response.body.count);
+
+        if (expectEmpty) {
+          expect(response.body.count).to.equal(0);
+          expect(response.body.total_count).to.equal(0);
+          expect(response.body.data).to.be.empty;
+          return;
+        }
+
+        if (expectNonEmpty) {
+          expect(response.body.count).to.be.at.least(1);
+          expect(response.body.data).to.not.be.empty;
+        }
+
+        // Platform attribution: every refund in the platform list is
+        // attributed to the platform merchant, including refunds initiated
+        // by connected merchants with their own api keys
+        const platformMerchantId = globalState.get("platformMerchantId");
+        response.body.data.forEach((refund, index) => {
+          expect(refund.merchant_id, `merchant_id at index ${index}`).to.equal(
+            platformMerchantId
+          );
+        });
+
+        if (expectedMatch) {
+          for (const key in expectedMatch) {
+            response.body.data.forEach((refund, index) => {
+              expect(refund[key], `${key} at index ${index}`).to.equal(
+                expectedMatch[key]
+              );
+            });
+          }
+        }
+
+        if (expectedContains) {
+          for (const key in expectedContains) {
+            const isPresent = response.body.data.some(
+              (refund) => refund[key] === expectedContains[key]
+            );
+            expect(
+              isPresent,
+              `at least one refund with ${key} = ${expectedContains[key]}`
+            ).to.be.true;
+          }
+        }
+
+        if (expectedNotContains) {
+          for (const key in expectedNotContains) {
+            const isPresent = response.body.data.some(
+              (refund) => refund[key] === expectedNotContains[key]
+            );
+            expect(
+              isPresent,
+              `no refund with ${key} = ${expectedNotContains[key]}`
+            ).to.be.false;
+          }
+        }
+
+        if (minRefundAmount !== undefined) {
+          response.body.data.forEach((refund, index) => {
+            expect(
+              refund.refund_amount,
+              `refund_amount at index ${index}`
+            ).to.be.at.least(minRefundAmount);
+          });
+        }
+
+        if (maxRefundAmount !== undefined) {
+          response.body.data.forEach((refund, index) => {
+            expect(
+              refund.refund_amount,
+              `refund_amount at index ${index}`
+            ).to.be.at.most(maxRefundAmount);
+          });
+        }
+
+        if (expectedCount !== undefined) {
+          expect(response.body.count).to.equal(expectedCount);
+        }
+
+        if (expectedTotalCount !== undefined) {
+          expect(response.body.total_count).to.equal(expectedTotalCount);
+        }
+
+        // Results are ordered by modified_at descending
+        for (let i = 1; i < response.body.data.length; i++) {
+          expect(
+            new Date(response.body.data[i - 1].modified_at).getTime(),
+            "modified_at ordering (descending)"
+          ).to.be.at.least(
+            new Date(response.body.data[i].modified_at).getTime()
+          );
+        }
+      });
+    });
+  }
+);
+
+// Platform-level refund filters — GET /refunds/platform/filter
+// expected: {
+//   status: expected HTTP status (default 200),
+//   error: { type, code, message } — JSON error body assertions (IR_49 / IR_01),
+// }
+Cypress.Commands.add(
+  "platformRefundFilterCallTest",
+  (expected, globalState, connectedMerchantId) => {
+    const { status: expectedStatus = 200, error: expectedError } =
+      expected || {};
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/refunds/platform/filter`,
+      headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          expect(response.body.error.type).to.equal(expectedError.type);
+          expect(response.body.error.code).to.equal(expectedError.code);
+          expect(response.body.error.message).to.equal(expectedError.message);
+          return;
+        }
+
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        // The connector map is keyed by connector name and lists the
+        // labeled connector accounts configured under the platform's
+        // connected merchants
+        const connectorName = globalState.get("connectorId");
+        expect(response.body.connector).to.be.an("object");
+        expect(response.body.connector).to.have.property(connectorName);
+
+        const connectorAccounts = response.body.connector[connectorName];
+        expect(connectorAccounts).to.be.an("array").and.not.empty;
+
+        const merchantConnectorIds = connectorAccounts.map(
+          (connectorAccount) => connectorAccount.merchant_connector_id
+        );
+        expect(merchantConnectorIds).to.include(
+          globalState.get("connectorIdCm1")
+        );
+        expect(merchantConnectorIds).to.include(
+          globalState.get("connectorIdCm2")
+        );
+        // The standard merchant's connector is out of platform scope
+        expect(merchantConnectorIds).to.not.include(
+          globalState.get("connectorIdSm")
+        );
+
+        connectorAccounts.forEach((connectorAccount, index) => {
+          expect(
+            connectorAccount.connector_type,
+            `connector_type at index ${index}`
+          ).to.equal("payment_processor");
+        });
+
+        // Currency and refund_status filter enums
+        expect(response.body.currency).to.be.an("array").and.not.empty;
+        expect(response.body.currency).to.include("USD");
+        expect(response.body.refund_status).to.deep.equal([
+          "failure",
+          "manual_review",
+          "pending",
+          "success",
+          "transaction_failure",
+        ]);
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "createConfirmPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
