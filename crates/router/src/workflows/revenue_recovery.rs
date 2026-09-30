@@ -765,9 +765,8 @@ async fn get_adaptive_retry_time_for_error_code(
 /// Picks the retry time for an invoice enrolled in A/B routing, then finds a token for it.
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-async fn get_token_with_schedule_time_for_ab_routing(
+async fn ab_routed_adaptive_time(
     state: &SessionState,
-    connector_customer_id: &str,
     payment_intent: &PaymentIntent,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     remaining_grace_days: u32,
@@ -775,7 +774,7 @@ async fn get_token_with_schedule_time_for_ab_routing(
     // Both needed only to assign an implementation to an invoice that arrives without one
     revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
     ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+) -> Option<time::PrimitiveDateTime> {
     let algorithm = payment_intent
         .feature_metadata
         .as_ref()
@@ -823,33 +822,11 @@ async fn get_token_with_schedule_time_for_ab_routing(
 
     logger::info!(
         ?assigned_algorithm,
-        error_code = ?tracking_data.prev_attempt_error_code,
-        remaining_grace_days = remaining_grace_days,
-        remaining_budget = remaining_budget,
         schedule_time = ?schedule_time,
-        "Adaptive retry decision"
+        "A/B routing ran the invoice's assigned arm"
     );
 
-    let schedule_time = schedule_time.ok_or_else(|| {
-        logger::error!(
-            payment_id = %payment_intent.id.get_string_repr(),
-            ?assigned_algorithm,
-            error_code = ?tracking_data.prev_attempt_error_code,
-            "No retry time available — the assigned algorithm produced none and this path has no \
-             ladder to fall back on"
-        );
-        errors::ProcessTrackerError::FlowExecutionError {
-            flow: "revenue_recovery_no_schedule_time",
-        }
-    })?;
-
-    get_token_availability_for_schedule_time(
-        state,
-        connector_customer_id,
-        payment_intent,
-        schedule_time,
-    )
-    .await
+    schedule_time
 }
 
 #[cfg(feature = "v2")]
@@ -942,47 +919,57 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await;
 
-            if ab_enabled {
-                payment_processor_token_response = get_token_with_schedule_time_for_ab_routing(
-                    state,
-                    connector_customer_id,
-                    payment_intent,
-                    tracking_data,
-                    remaining_grace_days,
-                    remaining_budget,
-                    revenue_recovery_payment_data,
-                    &ab_dimensions,
-                )
-                .await?;
-            } else if adaptive_retry_enabled {
+            if ab_enabled || adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on the
                 // token. The addition is the adaptive candidate, which decides outright whenever
-                // it has one; the ladder covers only the decisions it declines.
+                // it has one; the ladders cover only the decisions it declines.
+                //
+                // Enrolled and unenrolled invoices differ ONLY in which variant produces that
+                // candidate. Everything after it — the ladders, the decision, the token, the rung —
+                // is shared, so enrolling an invoice cannot change whether it gets retried at all.
                 let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
 
-                let (remaining_grace_days, remaining_budget) = get_adaptive_retry_allowances(
-                    state,
-                    &dimensions,
-                    payment_intent,
-                    max_retry_count,
-                    retry_count,
-                    now,
-                )
-                .await?;
-
-                let adaptive_time = match tracking_data.prev_attempt_error_code {
-                    // Not enrolled in A/B routing, so this runs the baseline pairing.
-                    Some(error_code) => compute_adaptive_retry_time(
-                        state,
-                        error_code,
+                let (adaptive_time, grace_days_used, budget_used) = if ab_enabled {
+                    (
+                        ab_routed_adaptive_time(
+                            state,
+                            payment_intent,
+                            tracking_data,
+                            remaining_grace_days,
+                            remaining_budget,
+                            revenue_recovery_payment_data,
+                            &ab_dimensions,
+                        )
+                        .await,
                         remaining_grace_days,
                         remaining_budget,
-                        MathModelVariant::default(),
                     )
-                    .await
-                    .map(common_utils::date_time::convert_to_pdt),
-                    None => None,
+                } else {
+                    let (grace_days, budget) = get_adaptive_retry_allowances(
+                        state,
+                        &dimensions,
+                        payment_intent,
+                        max_retry_count,
+                        retry_count,
+                        now,
+                    )
+                    .await?;
+
+                    let time = match tracking_data.prev_attempt_error_code {
+                        // Not enrolled in A/B routing, so this runs the baseline pairing.
+                        Some(error_code) => compute_adaptive_retry_time(
+                            state,
+                            error_code,
+                            grace_days,
+                            budget,
+                            MathModelVariant::default(),
+                        )
+                        .await
+                        .map(common_utils::date_time::convert_to_pdt),
+                        None => None,
+                    };
+                    (time, grace_days, budget)
                 };
 
                 // The ladder covers only what the model declines, so it is resolved only then —
@@ -1028,8 +1015,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     logger::error!(
                         queried_rung = queried_rung,
                         error_code = ?tracking_data.prev_attempt_error_code,
-                        remaining_grace_days = remaining_grace_days,
-                        remaining_budget = remaining_budget,
+                        remaining_grace_days = grace_days_used,
+                        remaining_budget = budget_used,
                         "No retry time available — the model declined, the static ladder is \
                          exhausted and the MIT ladder had nothing left"
                     );
@@ -1047,8 +1034,9 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     adaptive_time = ?adaptive_time,
                     fallback_time = ?fallback_time,
                     error_code = ?tracking_data.prev_attempt_error_code,
-                    remaining_grace_days = remaining_grace_days,
-                    remaining_budget = remaining_budget,
+                    remaining_grace_days = grace_days_used,
+                    remaining_budget = budget_used,
+                    ab_enabled = ab_enabled,
                     schedule_time = ?decision.schedule_time,
                     "Adaptive retry decision"
                 );
