@@ -52,6 +52,47 @@ pub const DEFAULT_POPULATE_TIMEOUT_IN_SECS: u64 = 5;
 /// set `max_capacity` per cache, in either unit, once the sizes involved are known.
 pub const DEFAULT_MAX_ENTRIES: u64 = 30 * 1024 * 1024;
 
+/// Whether a cache's entries arrive with a measurable size.
+///
+/// Fixed by how a cache is populated rather than by configuration: entries fetched through
+/// redis carry the payload size it reported, entries built in-process carry nothing. Either
+/// kind can be bounded by entry count; only measured entries can be bounded by megabytes,
+/// since unmeasured ones each weigh zero against a size ceiling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntrySizing {
+    Measured,
+    Unmeasured,
+}
+
+/// A cache's ceiling, and the unit it is counted in.
+///
+/// moka bounds a cache by a single number read through its weigher, so the unit is part of the
+/// ceiling rather than a setting beside it. Hence one field rather than two: a cache is bounded
+/// by size or by count, and "both" is not a state this can be in.
+///
+/// In configuration:
+///
+/// ```toml
+/// [cache.accounts]
+/// max_capacity = { megabytes = 30 }
+///
+/// [cache.cgraph]
+/// max_capacity = { entries = 10000 }
+///
+/// [cache.config]
+/// max_capacity = "unbounded"
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheLimit {
+    /// Bounded by the total reported size of its entries.
+    Megabytes(u64),
+    /// Bounded by how many entries it holds, whatever they weigh.
+    Entries(u64),
+    /// Bounded only by TTL and time-to-idle.
+    Unbounded,
+}
+
 /// Runtime overrides for a single in-memory cache.
 ///
 /// Every field is optional: whatever is left unset falls back to that cache's compiled-in
@@ -541,6 +582,11 @@ impl Cache {
                 ),
             );
         };
+        // moka reads `max_capacity` through the weigher, so the weigher is what fixes the
+        // unit: an entry's reported byte size for a megabyte ceiling, a flat 1 per entry for
+        // an entry ceiling. Leaving the weigher off entirely is what made the megabyte figure
+        // a no-op before — moka silently counted entries instead.
+        let counts_bytes = matches!(limit, CacheLimit::Megabytes(_));
         let mut cache_builder = MokaCache::builder()
             .time_to_live(time::Duration::from_secs(time_to_live))
             .time_to_idle(time::Duration::from_secs(time_to_idle))
