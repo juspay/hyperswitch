@@ -2774,6 +2774,27 @@ impl
     }
 }
 
+/// Connectors whose connector-service SetupMandate builder accepts raw card data.
+///
+/// `build_unified_connector_service_payment_method` substitutes the connector token for
+/// *any* payment method, so a card SetupMandate reaches the connector service as a token
+/// and the card itself is lost -- the gRPC `PaymentMethod.payment_method` oneof is card
+/// XOR token, so it cannot carry both. Our own connectors do not behave that way: Stripe's
+/// SetupMandate builder consumes `payment_method_token` on the wallet arm and ignores it
+/// for cards, re-sending the card. Shadow validation sees the difference as UCS sending
+/// `payment_method=<pm_id>` where the direct call sends `payment_method_data[card][*]`,
+/// `payment_method_data[type]`, `payment_method_options[card][network]`,
+/// `[request_three_d_secure]` and `payment_method_types[0]`.
+///
+/// An allow-list rather than a deny-list on purpose: some connectors genuinely require a
+/// token on this flow and reject raw cards (billwerk's `source` must be a `ct_`/`ca_`
+/// token; stax resolves a mandate token or errors), so an unverified connector keeps
+/// today's behaviour. Extend one connector at a time, after confirming its
+/// connector-service SetupMandate builder handles `PaymentMethodData::Card`.
+fn setup_mandate_accepts_raw_card(connector: &str) -> bool {
+    matches!(connector, "stripe")
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
@@ -2785,11 +2806,20 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        // Wallets always travel as a token; cards do too unless the connector is known
+        // to take raw card data on this flow. See setup_mandate_accepts_raw_card.
+        let payment_method_token = match router_data.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_) => {
+                router_data.payment_method_token.as_ref()
+            }
+            _ if setup_mandate_accepts_raw_card(router_data.connector.as_str()) => None,
+            _ => router_data.payment_method_token.as_ref(),
+        };
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-                router_data.payment_method_token.as_ref(),
+                payment_method_token,
                 router_data.connector_meta_data.as_ref(),
             )?;
 
