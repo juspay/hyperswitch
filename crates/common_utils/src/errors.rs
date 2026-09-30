@@ -91,7 +91,10 @@ pub struct IntegrityCheckError {
 }
 
 /// Cryptographic algorithm errors
-#[derive(Debug, thiserror::Error)]
+// Serialize/Deserialize so a `ResultCodec` can round-trip a recorded crypto
+// failure instead of reducing it to a fail-stop sentinel. Every variant is
+// fieldless, so this carries a variant name and nothing else.
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum CryptoError {
     /// The cryptographic algorithm was unable to encode the message
     #[error("Failed to encode given message")]
