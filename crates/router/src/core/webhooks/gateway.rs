@@ -917,26 +917,28 @@ fn event_reference_to_object_ref(
 
     let out = match resource {
         Resource::Payment(payment) => {
-            if let Some(ctx_id) = payment.connector_transaction_id.as_ref() {
+            if let Some(merchant_txn_id) = payment.merchant_transaction_id.as_ref() {
                 Some(ObjectReferenceId::PaymentId(
-                    api_payments::PaymentIdType::ConnectorTransactionId(ctx_id.clone()),
+                    api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
                 ))
             } else {
-                payment.merchant_transaction_id.as_ref().map(|mref| {
-                    ObjectReferenceId::PaymentId(api_payments::PaymentIdType::PaymentAttemptId(
-                        mref.clone(),
-                    ))
+                payment.connector_transaction_id.as_ref().map(|ctx_id| {
+                    ObjectReferenceId::PaymentId(
+                        api_payments::PaymentIdType::ConnectorTransactionId(ctx_id.clone()),
+                    )
                 })
             }
         }
         Resource::Refund(refund) => {
-            if let Some(cr_id) = refund.connector_refund_id.as_ref() {
+            if let Some(merchant_refund_id) = refund.merchant_refund_id.as_ref() {
                 Some(ObjectReferenceId::RefundId(
-                    api_webhooks::RefundIdType::ConnectorRefundId(cr_id.clone()),
+                    api_webhooks::RefundIdType::RefundId(merchant_refund_id.clone()),
                 ))
             } else {
-                refund.merchant_refund_id.as_ref().map(|mid| {
-                    ObjectReferenceId::RefundId(api_webhooks::RefundIdType::RefundId(mid.clone()))
+                refund.connector_refund_id.as_ref().map(|cr_id| {
+                    ObjectReferenceId::RefundId(api_webhooks::RefundIdType::ConnectorRefundId(
+                        cr_id.clone(),
+                    ))
                 })
             }
         }
@@ -956,14 +958,14 @@ fn event_reference_to_object_ref(
         }),
         #[cfg(feature = "payouts")]
         Resource::Payout(payout) => {
-            if let Some(cid) = payout.connector_payout_id.as_ref() {
+            if let Some(merchant_payout_id) = payout.merchant_payout_id.as_ref() {
                 Some(ObjectReferenceId::PayoutId(
-                    api_webhooks::PayoutIdType::ConnectorPayoutId(cid.clone()),
+                    api_webhooks::PayoutIdType::PayoutAttemptId(merchant_payout_id.clone()),
                 ))
             } else {
-                payout.merchant_payout_id.as_ref().map(|mid| {
-                    ObjectReferenceId::PayoutId(api_webhooks::PayoutIdType::PayoutAttemptId(
-                        mid.clone(),
+                payout.connector_payout_id.as_ref().map(|cid| {
+                    ObjectReferenceId::PayoutId(api_webhooks::PayoutIdType::ConnectorPayoutId(
+                        cid.clone(),
                     ))
                 })
             }
