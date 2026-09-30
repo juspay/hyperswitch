@@ -14745,6 +14745,7 @@ async fn store_external_surcharge_in_redis(
 fn build_surcharge_response(
     surcharge_amount: MinorUnit,
     currency: storage_enums::Currency,
+    surcharge_percentage: Option<f64>,
 ) -> api_models::payment_methods::SurchargeDetailsResponse {
     let surcharge_f64 = currency
         .to_currency_base_unit_asf64(surcharge_amount.get_amount_as_i64())
@@ -14755,6 +14756,7 @@ fn build_surcharge_response(
         display_surcharge_amount: surcharge_f64,
         display_tax_on_surcharge_amount: 0.0,
         display_total_surcharge_amount: surcharge_f64,
+        surcharge_percentage,
     }
 }
 
@@ -14837,7 +14839,11 @@ async fn calculate_external_surcharge(
                         .attach_printable(
                             "eligibility: failed to set external_surcharge_applicable on payment_intent",
                         )?;
-                    Some(build_surcharge_response(surcharge_amount, currency))
+                    Some(build_surcharge_response(
+                        surcharge_amount,
+                        currency,
+                        surcharge_percentage,
+                    ))
                 }
                 None => None,
             }

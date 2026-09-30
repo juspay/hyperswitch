@@ -34257,6 +34257,12 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
+            "nullable": true
           }
         }
       },
