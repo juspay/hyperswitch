@@ -976,12 +976,191 @@ where
 
 #[cfg(test)]
 mod cache_tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
 
     /// Long enough that a correctly coalescing test never trips it, short enough that a test
     /// asserting the timeout does not drag.
     const TEST_POPULATE_WAIT: Duration = Duration::from_millis(500);
+
+    fn test_key(key: &str) -> CacheKey {
+        CacheKey {
+            key: key.to_string(),
+            prefix: "prefix".to_string(),
+        }
+    }
+
+    /// A populate that counts its own invocations, so a test can assert how many callers
+    /// actually reached the backend.
+    fn counting_populate(
+        calls: &Arc<AtomicUsize>,
+        delay: Duration,
+        value: impl Into<String>,
+    ) -> impl FnOnce() -> futures::future::BoxFuture<'static, Result<String, String>> {
+        let calls = Arc::clone(calls);
+        let value = value.into();
+        move || {
+            Box::pin(async move {
+                calls.fetch_add(1, Ordering::SeqCst);
+                tokio::time::sleep(delay).await;
+                Ok(value)
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn concurrent_misses_for_one_key_populate_once() {
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        let readers = (0..20).map(|_| {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&calls, Duration::from_millis(50), "val");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        });
+
+        for result in futures::future::join_all(readers).await {
+            assert_eq!(result.unwrap(), Ok("val".to_string()));
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_reader_arriving_during_a_populate_waits_and_hits() {
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let populating_calls = Arc::new(AtomicUsize::new(0));
+        let reader_calls = Arc::new(AtomicUsize::new(0));
+
+        let populating = {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&populating_calls, Duration::from_millis(100), "val");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        };
+
+        // Let the first caller take the write side before the second one arrives.
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        let reader = {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&reader_calls, Duration::ZERO, "other");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        };
+
+        assert_eq!(populating.await.unwrap(), Ok("val".to_string()));
+        assert_eq!(reader.await.unwrap(), Ok("val".to_string()));
+        assert_eq!(populating_calls.load(Ordering::SeqCst), 1);
+        // The reader never reached the backend — it read what the populate wrote.
+        assert_eq!(reader_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn reads_of_a_populated_key_do_not_block_each_other() {
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        cache.push(test_key("key"), "val".to_string()).await;
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        // Far more concurrent readers than the runtime has worker threads: if the read side
+        // serialized them, this could not finish well inside the wait budget.
+        let started = std::time::Instant::now();
+        let readers = (0..200).map(|_| {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&calls, Duration::ZERO, "other");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        });
+
+        for result in futures::future::join_all(readers).await {
+            assert_eq!(result.unwrap(), Ok("val".to_string()));
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert!(started.elapsed() < TEST_POPULATE_WAIT);
+    }
+
+    #[tokio::test]
+    async fn a_populate_that_overruns_the_budget_releases_waiting_readers() {
+        // A budget far below how long the populate takes, so the waiter is guaranteed to give
+        // up rather than racing the sleep.
+        let cache = Arc::new(Cache::new(
+            "test",
+            1800,
+            1800,
+            None,
+            Duration::from_millis(50),
+        ));
+        let slow_calls = Arc::new(AtomicUsize::new(0));
+        let waiter_calls = Arc::new(AtomicUsize::new(0));
+
+        let slow = {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&slow_calls, Duration::from_millis(600), "slow");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        };
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        let waiter = {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&waiter_calls, Duration::ZERO, "own");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        };
+
+        // The waiter gave up on the stuck population and fetched for itself rather than
+        // blocking until the slow caller finished.
+        assert_eq!(waiter.await.unwrap(), Ok("own".to_string()));
+        assert_eq!(waiter_calls.load(Ordering::SeqCst), 1);
+
+        assert_eq!(slow.await.unwrap(), Ok("slow".to_string()));
+        assert_eq!(slow_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn distinct_keys_never_block_each_other() {
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        let populates = (0..8).map(|index| {
+            let cache = Arc::clone(&cache);
+            let populate =
+                counting_populate(&calls, Duration::from_millis(50), format!("val{index}"));
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate(test_key(&format!("key{index}")), populate)
+                    .await
+            })
+        });
+
+        for (index, result) in futures::future::join_all(populates)
+            .await
+            .into_iter()
+            .enumerate()
+        {
+            assert_eq!(result.unwrap(), Ok(format!("val{index}")));
+        }
+        // Every key is distinct, so every one of them populates.
+        assert_eq!(calls.load(Ordering::SeqCst), 8);
+    }
+
+    /// The negative control for `concurrent_misses_for_one_key_populate_once`.
+    ///
+    /// Without it that test could pass for the wrong reason — tasks simply not overlapping.
+    /// Here the coordination is switched off and the same shape produces one populate per
+    /// caller, so the two together show the coalescing is what causes the difference.
+    #[tokio::test]
+    async fn a_zero_wait_budget_disables_coordination() {
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, Duration::ZERO));
+        let calls = Arc::new(AtomicUsize::new(0));
+
+        let readers = (0..4).map(|_| {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&calls, Duration::from_millis(50), "val");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        });
+
+        for result in futures::future::join_all(readers).await {
+            assert_eq!(result.unwrap(), Ok("val".to_string()));
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 4);
+    }
 
     /// The `[cache]` documentation in `config/*.toml` promises this syntax.
     #[test]
