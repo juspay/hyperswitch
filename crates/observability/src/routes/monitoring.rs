@@ -5,7 +5,6 @@ mod tests;
 
 use actix_web::{web, HttpRequest, HttpResponse, ResponseError};
 use api_models::observability::monitoring::GrafanaAuthRequest;
-
 use common_utils::errors::ErrorSwitch;
 
 use crate::{auth, core::monitoring, errors::types::ApiErrorResponse, services, state::AppState};
