@@ -253,7 +253,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
-/// Static ladder time for the adaptive retry algorithm.
+/// Static ladder time for whichever retry model the invoice was routed to.
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_payments(
     db: &dyn StorageInterface,
@@ -657,7 +657,33 @@ pub enum PaymentProcessorTokenResponse {
     None,
 }
 
-/// The two allowances the math model needs: how much of the invoice's grace window is left, and
+#[cfg(feature = "v2")]
+impl PaymentProcessorTokenResponse {
+    /// Stable metric label for the outcome. Spelled out rather than derived so a renamed variant
+    /// cannot silently break the series a dashboard is grouped on.
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::HardDecline => "hard_decline",
+            Self::ScheduledTime { .. } => "scheduled",
+            Self::NextAvailableTime { .. } => "next_available_time",
+            Self::RetriesExhausted => "retries_exhausted",
+            Self::GraceWindowExpired => "grace_window_expired",
+            Self::None => "none",
+        }
+    }
+}
+
+/// Counts an invoice we could not work out a grace window for. All three callers are terminal, and
+/// they fail for unrelated reasons — the invoice carries no billing start date, the configured
+/// period pushes the end date past what a timestamp holds, or the days left do not fit the model's
+/// day count — so `step` is what separates them.
+#[cfg(feature = "v2")]
+fn record_grace_window_failure(step: &'static str) {
+    crate::routes::metrics::REVENUE_RECOVERY_GRACE_WINDOW_FAILED
+        .add(1, router_env::metric_attributes!(("step", step)));
+}
+
+/// The two allowances the retry model needs: how much of the invoice's grace window is left, and
 /// how many retries remain of the merchant's budget. The grace window comes from Superposition,
 /// the budget from the billing connector's account.
 #[cfg(feature = "v2")]
@@ -687,9 +713,10 @@ async fn get_adaptive_retry_allowances(
         .ok_or_else(|| {
             logger::error!(
                 payment_id = %payment_intent.id.get_string_repr(),
-                "adaptive retry: the invoice has no billing start time, so its grace window \
+                "retry allowances: the invoice has no billing start time, so its grace window \
                  cannot be established"
             );
+            record_grace_window_failure("missing_billing_start_time");
             errors::ProcessTrackerError::EApiErrorResponse
         })?;
 
@@ -700,8 +727,9 @@ async fn get_adaptive_retry_allowances(
                 payment_id = %payment_intent.id.get_string_repr(),
                 grace_period_days,
                 %grace_window_start,
-                "adaptive retry: failed to calculate the grace window end time"
+                "retry allowances: failed to calculate the grace window end time"
             );
+            record_grace_window_failure("grace_window_end_overflow");
             errors::ProcessTrackerError::EApiErrorResponse
         })?;
 
@@ -712,8 +740,9 @@ async fn get_adaptive_retry_allowances(
             ?error,
             payment_id = %payment_intent.id.get_string_repr(),
             days_left_in_grace_window,
-            "adaptive retry: the days left in the grace window do not fit the model's day count"
+            "retry allowances: the days left in the grace window do not fit the model's day count"
         );
+        record_grace_window_failure("grace_days_out_of_range");
         errors::ProcessTrackerError::EApiErrorResponse
     })?;
 
@@ -722,8 +751,9 @@ async fn get_adaptive_retry_allowances(
             ?error,
             payment_id = %payment_intent.id.get_string_repr(),
             retry_count,
-            "adaptive retry: failed to read how many retries have already been made"
+            "retry allowances: failed to read how many retries have already been made"
         );
+        crate::routes::metrics::REVENUE_RECOVERY_RETRY_BUDGET_FAILED.add(1, &[]);
         errors::ProcessTrackerError::EApiErrorResponse
     })?;
 
@@ -734,7 +764,7 @@ async fn get_adaptive_retry_allowances(
     Ok((remaining_grace_days, remaining_budget))
 }
 
-/// The adaptive model's retry time for an invoice, or `None` when the model cannot be consulted.
+/// The assigned arm's retry time for an invoice, or `None` when the model cannot be consulted.
 #[cfg(feature = "v2")]
 async fn get_retry_time_for_error_code(
     state: &SessionState,
@@ -747,6 +777,11 @@ async fn get_retry_time_for_error_code(
         crate::routes::metrics::REVENUE_RECOVERY_AB_MISSING_ERROR_CODE.add(
             1,
             router_env::metric_attributes!(("algorithm", algorithm.to_string())),
+        );
+        logger::info!(
+            ?algorithm,
+            "retry model: the CALCULATE task carries no error code, so the model cannot be \
+             consulted — falling back to the ladders"
         );
         return None;
     };
@@ -858,9 +893,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     errors::ProcessTrackerError,
 > {
     let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
-    // Updated scheduling state, set only when a retry is actually scheduled by the adaptive
-    // path. The other responses reschedule the CALCULATE job without making an attempt, so
-    // persisting there would consume a ladder position for a retry that never happened.
+    // Ladder position to write back onto the CALCULATE row. `None` leaves the stored count alone,
+    // which is the case for every outcome but one — see where it is set.
     let mut next_static_ladder_progress = None;
     match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
@@ -924,7 +958,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             if ab_enabled || adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on the
-                // token. The addition is the adaptive candidate, which decides outright whenever
+                // token. The addition is the model's candidate, which decides outright whenever
                 // it has one; the ladders cover only the decisions it declines.
                 //
                 // Enrolled and unenrolled invoices differ ONLY in which variant produces that
@@ -933,55 +967,68 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let now = common_utils::date_time::now();
                 let queried_rung = static_ladder_progress.next_rung();
 
-                let (adaptive_time, grace_days_used, budget_used, assigned_algorithm) =
-                    if ab_enabled {
-                        let (time, algorithm) = get_ab_routed_retry_time(
-                            state,
-                            payment_intent,
-                            tracking_data,
-                            remaining_grace_days,
-                            remaining_budget,
-                            revenue_recovery_payment_data,
-                            &ab_dimensions,
-                        )
-                        .await;
-                        (
-                            time,
-                            remaining_grace_days,
-                            remaining_budget,
-                            Some(algorithm),
-                        )
-                    } else {
-                        let (grace_days, budget) = get_adaptive_retry_allowances(
-                            state,
-                            &dimensions,
-                            payment_intent,
-                            max_retry_count,
-                            retry_count,
-                            now,
-                        )
-                        .await?;
+                let (model_time, grace_days_used, budget_used, assigned_algorithm) = if ab_enabled {
+                    let (time, algorithm) = get_ab_routed_retry_time(
+                        state,
+                        payment_intent,
+                        tracking_data,
+                        remaining_grace_days,
+                        remaining_budget,
+                        revenue_recovery_payment_data,
+                        &ab_dimensions,
+                    )
+                    .await;
+                    (
+                        time,
+                        remaining_grace_days,
+                        remaining_budget,
+                        Some(algorithm),
+                    )
+                } else {
+                    let (grace_days, budget) = get_adaptive_retry_allowances(
+                        state,
+                        &dimensions,
+                        payment_intent,
+                        max_retry_count,
+                        retry_count,
+                        now,
+                    )
+                    .await?;
 
-                        let time = match tracking_data.prev_attempt_error_code {
-                            // Not enrolled in A/B routing, so this runs the baseline pairing.
-                            Some(error_code) => compute_model_retry_time(
-                                state,
-                                error_code,
-                                grace_days,
-                                budget,
-                                RetryModelVariant::default(),
-                            )
-                            .await
-                            .map(common_utils::date_time::convert_to_pdt),
-                            None => None,
-                        };
-                        (time, grace_days, budget, None)
+                    let time = match tracking_data.prev_attempt_error_code {
+                        // Not enrolled in A/B routing, so this runs the baseline pairing.
+                        Some(error_code) => compute_model_retry_time(
+                            state,
+                            error_code,
+                            grace_days,
+                            budget,
+                            RetryModelVariant::default(),
+                        )
+                        .await
+                        .map(common_utils::date_time::convert_to_pdt),
+                        // Counted here as well as on the A/B branch: the condition is the same,
+                        // and with A/B off this is the branch every invoice takes, so counting it
+                        // only there would read zero exactly when it matters.
+                        None => {
+                            crate::routes::metrics::REVENUE_RECOVERY_AB_MISSING_ERROR_CODE.add(
+                                1,
+                                router_env::metric_attributes!(("algorithm", "unenrolled")),
+                            );
+                            logger::info!(
+                                payment_id = %payment_intent.id.get_string_repr(),
+                                "retry model: the CALCULATE task carries no error code, so the \
+                                 model cannot be consulted — falling back to the ladders"
+                            );
+                            None
+                        }
                     };
+                    (time, grace_days, budget, None)
+                };
 
                 // The ladder covers only what the model declines, so it is resolved only then —
                 // the lookup is a Superposition read and costs nothing on the paths that never
                 // reach it. `None` here therefore means "not consulted", not "nothing to offer".
-                let static_time = match adaptive_time {
+                let static_time = match model_time {
                     Some(_) => None,
                     None => {
                         get_schedule_time_to_retry_payments(
@@ -997,7 +1044,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 // Both the model and the ladder came up empty, so the MIT cascading ladder gets
                 // the last word. Resolved only here, so it costs nothing on the paths that never
                 // reach it.
-                let fallback_time = match (static_time, adaptive_time) {
+                let fallback_time = match (static_time, model_time) {
                     (None, None) => {
                         get_schedule_time_to_retry_mit_payments(
                             state.store.as_ref(),
@@ -1014,7 +1061,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     static_ladder_progress,
                     queried_rung,
                     static_time,
-                    adaptive_time,
+                    model_time,
                     fallback_time,
                 )
                 .ok_or_else(|| {
@@ -1046,14 +1093,14 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     source = ?decision.source,
                     queried_rung = queried_rung,
                     static_time = ?static_time,
-                    adaptive_time = ?adaptive_time,
+                    model_time = ?model_time,
                     fallback_time = ?fallback_time,
                     error_code = ?tracking_data.prev_attempt_error_code,
                     remaining_grace_days = grace_days_used,
                     remaining_budget = budget_used,
                     ab_enabled = ab_enabled,
                     schedule_time = ?decision.schedule_time,
-                    "Adaptive retry decision"
+                    "Retry decision"
                 );
 
                 payment_processor_token_response = get_token_availability_for_schedule_time(
@@ -1064,8 +1111,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await?;
 
-                // The rung is consumed only when a retry is genuinely scheduled. The other
-                // responses finish or reschedule the CALCULATE job without an attempt.
+                // Only a booked retry advances the count. The other outcomes finish or reschedule
+                // the CALCULATE job without an attempt, so writing here would spend a ladder
+                // position on a retry that never happened. (`next_progress` itself only advances
+                // when the static ladder produced the time; the model leaves it where it was.)
                 if matches!(
                     payment_processor_token_response,
                     PaymentProcessorTokenResponse::ScheduledTime { .. }
@@ -1083,6 +1132,17 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             }
         }
     }
+
+    // Counted before the per-outcome handling so every arm below is covered by one call. Four of
+    // these six mean the invoice is not retried; without the other two in the same series there is
+    // no denominator to read them against.
+    crate::routes::metrics::REVENUE_RECOVERY_CALCULATE_OUTCOME.add(
+        1,
+        router_env::metric_attributes!(
+            ("outcome", payment_processor_token_response.as_str()),
+            ("algorithm", retry_algorithm_type.to_string())
+        ),
+    );
 
     match &mut payment_processor_token_response {
         PaymentProcessorTokenResponse::HardDecline => {
@@ -1147,7 +1207,7 @@ pub(crate) fn get_invoice_payment_processor_token(
 }
 
 /// Check the invoice's payment processor token against a schedule time already decided.
-/// Shared by the cascading and adaptive paths so both gate on the same conditions
+/// Shared by the cascading and model paths so both gate on the same conditions
 #[cfg(feature = "v2")]
 async fn get_token_availability_for_schedule_time(
     state: &SessionState,
@@ -1802,7 +1862,7 @@ impl Default for RetryModelVariant {
 
 /// The experiment arm an invoice was assigned, resolved to the pair of choices that actually run.
 ///
-/// This is the only place the experiment taxonomy meets the math model, which is why the match is
+/// This is the only place the experiment taxonomy meets the retry model, which is why the match is
 /// exhaustive with no `_` arm: a new arm added upstream must fail to compile here rather than fall
 /// through to some other pairing and quietly produce an experiment that measures nothing.
 ///
@@ -2397,15 +2457,15 @@ pub fn compute_predicted_retry_time(
     Some(retry_at)
 }
 
-/// Adaptive retry time for a failed invoice: fetch the cluster's success stats by the
-/// (standardised) error code and ask the math model when to retry.
+/// Retry time for a failed invoice: fetch the cluster's success stats by the (standardised) error
+/// code and ask the assigned retry model when to retry.
 ///
 /// `remaining_grace_days` and `remaining_budget` are resolved by the caller (from the invoice's
 /// grace window and retry allowance) and passed straight through to the model.
 ///
 /// Returns `None` on every "no opinion" case — no stats recorded for the cluster yet, a lookup
 /// failure (a corrupt stored key/document surfaces as one), or the model itself declining — so the
-/// caller always has the static ladder to fall back on. The returned instant is UTC
+/// caller always has the ladders to fall back on. The returned instant is UTC
 /// (`OffsetDateTime`); the codebase stays in explicit UTC and only converts to a naive
 /// `PrimitiveDateTime` at the schedule boundary.
 #[cfg(feature = "v2")]
@@ -2431,12 +2491,18 @@ pub async fn compute_model_retry_time(
                 ?error_code,
                 remaining_grace_days,
                 remaining_budget,
-                "adaptive retry: no stats recorded for this cluster yet — declining"
+                "retry model: no stats recorded for this cluster yet — declining"
             );
             return None;
         }
         Err(error) => {
-            logger::error!(?error, ?error_code, "adaptive retry: failed to fetch stats");
+            logger::error!(?error, ?error_code, "retry model: failed to fetch stats");
+            // Counted apart from the cold-start decline above: that one is expected and shrinks as
+            // clusters accumulate history, this one is the store failing and does not.
+            crate::routes::metrics::REVENUE_RECOVERY_STATS_LOOKUP_FAILED.add(
+                1,
+                router_env::metric_attributes!(("cluster", error_code.to_string())),
+            );
             return None;
         }
     };
@@ -2445,7 +2511,7 @@ pub async fn compute_model_retry_time(
         ?error_code,
         remaining_grace_days,
         remaining_budget,
-        "adaptive retry: stats fetched — running the model"
+        "retry model: stats fetched — running the model"
     );
 
     // A configured hour outside 0..=23 is a misconfiguration; warn (so it's visible) and fall back to
@@ -2456,7 +2522,7 @@ pub async fn compute_model_retry_time(
     } else {
         logger::warn!(
             configured_hour,
-            "adaptive retry: revenue_recovery.default_retry_hour_utc is out of range (0-23); using noon UTC"
+            "retry model: revenue_recovery.default_retry_hour_utc is out of range (0-23); using noon UTC"
         );
         12
     };
@@ -2470,7 +2536,7 @@ pub async fn compute_model_retry_time(
         logger::warn!(
             configured_floor,
             fallback,
-            "adaptive retry: revenue_recovery.exploration_floor is not in [0, 1); using the default"
+            "retry model: revenue_recovery.exploration_floor is not in [0, 1); using the default"
         );
         fallback
     };
@@ -2483,13 +2549,13 @@ pub async fn compute_model_retry_time(
         logger::warn!(
             configured_tolerance,
             fallback,
-            "adaptive retry: revenue_recovery.tie_tolerance is negative or not finite; using the \
+            "retry model: revenue_recovery.tie_tolerance is negative or not finite; using the \
              default"
         );
         fallback
     };
 
-    compute_predicted_retry_time(
+    let retry_time = compute_predicted_retry_time(
         &record.stats,
         remaining_budget,
         remaining_grace_days,
@@ -2497,7 +2563,23 @@ pub async fn compute_model_retry_time(
         variant,
         exploration_floor,
         tie_tolerance,
-    )
+    );
+
+    // Every reason the model itself declines (empty grace window, spent budget, a sampler that
+    // fired nothing) is logged at debug inside the model, which is off in production. Log the
+    // decline once here at info so the rate is visible; the reason stays at debug.
+    if retry_time.is_none() {
+        logger::info!(
+            ?error_code,
+            remaining_grace_days,
+            remaining_budget,
+            combine = ?variant.combine,
+            selection = ?variant.selection,
+            "retry model: declined to schedule — falling back to the ladders"
+        );
+    }
+
+    retry_time
 }
 
 #[cfg(all(test, feature = "v2"))]
