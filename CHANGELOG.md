@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.30.0
+
+### Features
+
+- **connector:** [Revolv3] MITs for Applepay and Googlepay using Decrypted payload + NTID ([#14400](https://github.com/juspay/hyperswitch/pull/14400)) ([`6bef5b9`](https://github.com/juspay/hyperswitch/commit/6bef5b90364d9aa763a027584e01ff40449db917))
+- **connector/core:** Implement Trustly returning user flow ([#14465](https://github.com/juspay/hyperswitch/pull/14465)) ([`b56bc0d`](https://github.com/juspay/hyperswitch/commit/b56bc0d426e1749d915511dc53ec5ad134134ed2))
+- **core:** Add support for decrypted wallet persistent storage in pm-modular service ([#14456](https://github.com/juspay/hyperswitch/pull/14456)) ([`46ef4c8`](https://github.com/juspay/hyperswitch/commit/46ef4c8d03722569dd8870efc8cde923343d9c2e))
+- **platform:** Implement platform payment list ([#12483](https://github.com/juspay/hyperswitch/pull/12483)) ([`a7a4dd6`](https://github.com/juspay/hyperswitch/commit/a7a4dd603b375e41e60b0a8060f27d3f8456ce25))
+- **revenue-recovery:** Add A/B monitoring implementation ([#14285](https://github.com/juspay/hyperswitch/pull/14285)) ([`b7d0697`](https://github.com/juspay/hyperswitch/commit/b7d06975d045546945682fb03f7914a48863b63c))
+- **router:** Add config-based disablement of integrity checks for amount mismatches ([#14429](https://github.com/juspay/hyperswitch/pull/14429)) ([`1200dba`](https://github.com/juspay/hyperswitch/commit/1200dba7b62b6774ce3bde7c87ce33fd8bc0060b))
+- **ucs:** Add connector_decline_threshold and make kill switch logs alertable ([#14395](https://github.com/juspay/hyperswitch/pull/14395)) ([`fb366ef`](https://github.com/juspay/hyperswitch/commit/fb366ef9755d03807cfe51b5ca05bda15d38ac9a))
+- **vault:** Route HyperswitchVault calls through an optional egress proxy ([#13434](https://github.com/juspay/hyperswitch/pull/13434)) ([`acb21b1`](https://github.com/juspay/hyperswitch/commit/acb21b142413f2149cc9451fc9bc6dc232d7f91e))
+- Add merchant alert read permission ([#14344](https://github.com/juspay/hyperswitch/pull/14344)) ([`c4bb215`](https://github.com/juspay/hyperswitch/commit/c4bb215f6c38b9c4bc1f83637d3ba9d1ceee3eaf))
+
+### Bug Fixes
+
+- **core:** Donot attempt step-up for GooglePay PAN_ONLY when authentication type is No3ds ([#14470](https://github.com/juspay/hyperswitch/pull/14470)) ([`c4b32de`](https://github.com/juspay/hyperswitch/commit/c4b32de9b8836f021ac1e4f413109bcced63bc25))
+- **disputes:** Handle concurrent duplicate dispute webhook insert ([#14489](https://github.com/juspay/hyperswitch/pull/14489)) ([`e63c89b`](https://github.com/juspay/hyperswitch/commit/e63c89bff7d8a7224c367025125f39e36ddcc70f))
+- **payment_methods:** Skip vault delete for PMs never stored in vault ([#14252](https://github.com/juspay/hyperswitch/pull/14252)) ([`8435a33`](https://github.com/juspay/hyperswitch/commit/8435a33d22c53e451b484842551fab7bd0f8181d))
+- **ucs:**
+  - Record request rejections as payment failures ([#14187](https://github.com/juspay/hyperswitch/pull/14187)) ([`0654e81`](https://github.com/juspay/hyperswitch/commit/0654e8161e3320e290ead54765e5c15255ba7353))
+  - Forward browser info during tokenization ([#14459](https://github.com/juspay/hyperswitch/pull/14459)) ([`e1296d4`](https://github.com/juspay/hyperswitch/commit/e1296d47a2b8fbf3ba9bae0e102092acfdc0e011))
+
+### Testing
+
+- **cypress:** Add network_transaction_link_id assertions for Nuvei ([#14447](https://github.com/juspay/hyperswitch/pull/14447)) ([`2ac5e8e`](https://github.com/juspay/hyperswitch/commit/2ac5e8e91bbffa808446a3ba9ef58b6fd2914c75))
+
+**Full Changelog:** [`2026.09.29.0...2026.09.30.0`](https://github.com/juspay/hyperswitch/compare/2026.09.29.0...2026.09.30.0)
+
+- - -
+
 ## 2026.09.29.0
 
 ### Features
