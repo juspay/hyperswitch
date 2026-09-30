@@ -52,47 +52,6 @@ pub const DEFAULT_POPULATE_TIMEOUT_IN_SECS: u64 = 5;
 /// set `max_capacity` per cache, in either unit, once the sizes involved are known.
 pub const DEFAULT_MAX_ENTRIES: u64 = 30 * 1024 * 1024;
 
-/// Whether a cache's entries arrive with a measurable size.
-///
-/// Fixed by how a cache is populated rather than by configuration: entries fetched through
-/// redis carry the payload size it reported, entries built in-process carry nothing. Either
-/// kind can be bounded by entry count; only measured entries can be bounded by megabytes,
-/// since unmeasured ones each weigh zero against a size ceiling.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EntrySizing {
-    Measured,
-    Unmeasured,
-}
-
-/// A cache's ceiling, and the unit it is counted in.
-///
-/// moka bounds a cache by a single number read through its weigher, so the unit is part of the
-/// ceiling rather than a setting beside it. Hence one field rather than two: a cache is bounded
-/// by size or by count, and "both" is not a state this can be in.
-///
-/// In configuration:
-///
-/// ```toml
-/// [cache.accounts]
-/// max_capacity = { megabytes = 30 }
-///
-/// [cache.cgraph]
-/// max_capacity = { entries = 10000 }
-///
-/// [cache.config]
-/// max_capacity = "unbounded"
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CacheLimit {
-    /// Bounded by the total reported size of its entries.
-    Megabytes(u64),
-    /// Bounded by how many entries it holds, whatever they weigh.
-    Entries(u64),
-    /// Bounded only by TTL and time-to-idle.
-    Unbounded,
-}
-
 /// Runtime overrides for a single in-memory cache.
 ///
 /// Every field is optional: whatever is left unset falls back to that cache's compiled-in
@@ -582,11 +541,6 @@ impl Cache {
                 ),
             );
         };
-        // moka reads `max_capacity` through the weigher, so the weigher is what fixes the
-        // unit: an entry's reported byte size for a megabyte ceiling, a flat 1 per entry for
-        // an entry ceiling. Leaving the weigher off entirely is what made the megabyte figure
-        // a no-op before — moka silently counted entries instead.
-        let counts_bytes = matches!(limit, CacheLimit::Megabytes(_));
         let mut cache_builder = MokaCache::builder()
             .time_to_live(time::Duration::from_secs(time_to_live))
             .time_to_idle(time::Duration::from_secs(time_to_idle))
@@ -878,7 +832,7 @@ pub async fn get_or_populate_redis<T, F, Fut>(
     key: impl AsRef<str>,
     ttl: Option<i64>,
     fun: F,
-) -> CustomResult<(T, EntrySize), StorageError>
+) -> CustomResult<T, StorageError>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Debug,
     F: FnOnce() -> Fut + Send,
@@ -886,31 +840,24 @@ where
 {
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
-    let redis_val = redis
-        .get_and_deserialize_key_with_payload_size::<T>(&key.into(), type_name)
-        .await;
+    let redis_val = redis.get_and_deserialize_key::<T>(&key.into(), type_name).await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        let size = match ttl {
+        match ttl {
             Some(ttl) => {
                 redis
                     .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
                     .await
                     .change_context(StorageError::KVError)?;
-                // The expiring setter has no size-reporting variant, and nothing calls this
-                // function with a ttl today. Add one alongside
-                // `serialize_and_set_key_with_payload_size` if a caller appears that also
-                // needs its entries to count against a byte budget.
-                EntrySize::Unmeasured
             }
-            None => EntrySize::Bytes(
+            None => {
                 redis
-                    .serialize_and_set_key_with_payload_size(&key.into(), &data)
+                    .serialize_and_set_key(&key.into(), &data)
                     .await
-                    .change_context(StorageError::KVError)?,
-            ),
-        };
-        Ok::<_, Report<StorageError>>((data, size))
+                    .change_context(StorageError::KVError)?;
+            }
+        }
+        Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
         Err(err) => match err.current_context() {
@@ -921,7 +868,7 @@ where
                 .change_context(StorageError::KVError)
                 .attach_printable(format!("Error while fetching cache for {type_name}"))),
         },
-        Ok((val, payload_size)) => Ok((val, EntrySize::Bytes(payload_size))),
+        Ok(val) => Ok(val),
     }
 }
 
@@ -953,8 +900,7 @@ where
 
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
-    // misses for one key cost a single redis round trip between them. The round trip also
-    // reports the payload size, so weighing the entry costs nothing extra.
+    // misses for one key cost a single redis round trip between them.
     cache
         .get_or_populate(cache_key, || async {
             let redis = store
@@ -1378,6 +1324,99 @@ mod cache_tests {
         );
     }
 
+    /// The ceiling that ships must not evict where nothing evicted before, so pin it against
+    /// the number moka was actually being given before any of this — read from moka's own
+    /// policy rather than from our enum, so a mistake in the plumbing cannot hide here.
+    #[test]
+    fn every_cache_defaults_to_the_historical_entry_ceiling() {
+        // The `30` that was documented as megabytes, multiplied by 1024 * 1024 on the way in,
+        // and read by moka as a number of entries because no weigher was configured.
+        assert_eq!(DEFAULT_MAX_ENTRIES, 31_457_280);
+
+        let caches = Caches::default();
+        for cache in caches.all() {
+            let expected = if cache.name() == "CONFIG_CACHE" {
+                // The one cache that was built with no ceiling at all.
+                None
+            } else {
+                Some(DEFAULT_MAX_ENTRIES)
+            };
+
+            assert_eq!(
+                cache.inner.policy().max_capacity(),
+                expected,
+                "default ceiling for {} changed",
+                cache.name()
+            );
+        }
+    }
+
+    #[test]
+    fn unset_settings_resolve_to_the_compiled_in_defaults() {
+        let settings = CacheSettings::default();
+
+        assert_eq!(settings.time_to_live(), DEFAULT_CACHE_TTL);
+        assert_eq!(settings.time_to_idle(), DEFAULT_CACHE_TTI);
+    }
+
+    #[test]
+    fn configured_settings_override_the_defaults() {
+        let settings = CacheSettings {
+            ttl_in_secs: Some(60),
+            tti_in_secs: Some(30),
+            max_entries: Some(500_000),
+            populate_timeout_in_secs: None,
+        };
+
+        assert_eq!(settings.time_to_live(), 60);
+        assert_eq!(settings.time_to_idle(), 30);
+        assert_eq!(settings.max_entries(None), Some(500_000));
+    }
+
+    #[test]
+    fn partially_configured_caches_deserialize_with_defaults_for_the_rest() {
+        let config: CacheConfig = serde_json::from_value(serde_json::json!({
+            "accounts": { "ttl_in_secs": 120 },
+        }))
+        .expect("failed to deserialize cache configuration");
+
+        assert_eq!(config.accounts.time_to_live(), 120);
+        assert_eq!(config.accounts.time_to_idle(), DEFAULT_CACHE_TTI);
+        assert_eq!(config.accounts.max_entries(Some(30)), Some(30));
+        assert_eq!(config.routing.time_to_live(), DEFAULT_CACHE_TTL);
+        assert_eq!(config.config.max_entries(None), None);
+    }
+
+    #[test]
+    fn an_unset_invalidation_channel_falls_back_to_the_default() {
+        let caches = Caches::default();
+
+        assert_eq!(caches.invalidation_channel, "hyperswitch_invalidate");
+    }
+
+    #[test]
+    fn a_cache_id_resolves_to_the_cache_it_names() {
+        let caches = Caches::default();
+
+        assert_eq!(caches.get(CacheId::Config).name(), "CONFIG_CACHE");
+        assert_eq!(caches.get(CacheId::Accounts).name(), "ACCOUNTS_CACHE");
+        assert_eq!(caches.get(CacheId::McaList).name(), "MCA_LIST_CACHE");
+        assert_eq!(
+            caches.get(CacheId::ContractBasedDynamicAlgorithm).name(),
+            "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE"
+        );
+    }
+
+    #[test]
+    fn every_cache_is_reachable_from_all() {
+        let caches = Caches::default();
+        let names = caches.all().map(Cache::name);
+
+        assert_eq!(names.len(), 11);
+        assert!(names.contains(&"CONFIG_CACHE"));
+        assert!(names.contains(&"CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE"));
+    }
+
     #[tokio::test]
     async fn construct_and_get_cache() {
         let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT);
@@ -1388,7 +1427,6 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
-                EntrySize::Bytes(5),
             )
             .await;
         assert_eq!(
@@ -1412,7 +1450,6 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
-                EntrySize::Bytes(5),
             )
             .await;
         assert_eq!(
@@ -1436,7 +1473,6 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
-                EntrySize::Bytes(5),
             )
             .await;
 
@@ -1468,7 +1504,6 @@ mod cache_tests {
                     prefix: "prefix".to_string(),
                 },
                 "val".to_string(),
-                EntrySize::Bytes(5),
             )
             .await;
         tokio::time::sleep(time::Duration::from_secs(3)).await;

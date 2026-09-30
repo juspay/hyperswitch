@@ -157,6 +157,25 @@ impl super::RedisConnectionWithContext {
     where
         V: serde::Serialize + Debug,
     {
+        self.serialize_and_set_key_with_payload_size(key, value)
+            .await
+            .map(|_payload_size| ())
+    }
+
+    /// As [`Self::serialize_and_set_key`], additionally reporting how many bytes were stored.
+    ///
+    /// The count is free: the serialized payload is materialized either way. Callers that
+    /// need to account for the size of what they cached can take it from here instead of
+    /// serializing the value a second time to measure it.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_with_payload_size<V>(
+        &self,
+        key: &RedisKey,
+        value: V,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
         let serialized = value
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
@@ -534,6 +553,7 @@ impl super::RedisConnectionWithContext {
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+        let payload_size = value_bytes.len();
 
         value_bytes
             .parse_struct(type_name)
