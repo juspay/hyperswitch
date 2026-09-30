@@ -174,9 +174,11 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "53-DelayedSessionToken.cy.js": ["wallet"],
   "54-OpenBanking.cy.js": ["open_banking"],
   "54-RefundType.cy.js": ["card"],
+  "54-ConnectorAgnosticMandates.cy.js": ["card"],
+  "54-ServerIntegrationHeader.cy.js": ["card"],
+  "54-ServerIntegrationStability.cy.js": ["card"],
   "55-DynamicFields.cy.js": ["card"],
   "56-VaultTokenizationDisable.cy.js": ["card"],
-  "54-ConnectorAgnosticMandates.cy.js": ["card"],
 });
 
 /**

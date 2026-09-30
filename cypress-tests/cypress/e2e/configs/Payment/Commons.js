@@ -2329,6 +2329,127 @@ export const connectorDetails = {
         },
       },
     }),
+    // `POST /payments` with `X-Integration-Type: server` once the merchant is
+    // opted in via the `system.payment_integration_type` superposition config.
+    // The enrichment fields themselves are asserted structurally by the
+    // createPaymentIntentServerIntegrationTest command (they are connector
+    // dependent), so they are intentionally not deep-compared here.
+    ServerIntegrationCreate: {
+      Request: {
+        currency: "USD",
+        billing: {
+          address: {
+            line1: "1467",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    // Same request without the header (or with `client`) keeps the plain
+    // response shape — the command asserts the enrichment fields are absent
+    // (they are skip-serialized when unset, so they do not appear as keys).
+    ServerIntegrationCreatePlain: {
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    // A create-and-confirm keeps the plain shape even with the header.
+    // `payment_method_data` and the expected `status` come from the connector's
+    // own `No3DSAutoCapture` entry (merged in by the spec); the plain-shape
+    // contract is asserted by the command, so only the HTTP status is pinned.
+    ServerIntegrationCreateAndConfirm: {
+      Request: {
+        currency: "USD",
+        confirm: true,
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    // Amount-changing update (issue hyperswitch-cloud#23422 case 4): the
+    // update must rebuild the cached list for the new intent state while the
+    // pinned customer payment token and vault session stay put.
+    ServerIntegrationUpdateAmount: {
+      Request: {
+        amount: 8940,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 8940,
+        },
+      },
+    },
+    // Regression on the update route, which shares the same enrichment module.
+    ServerIntegrationUpdate: {
+      Request: {
+        amount: 6500,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6500,
+        },
+      },
+    },
+    // Default merchant integration type is `client`, which rejects the
+    // `server` header with IR_06 (422) before the config is opted into.
+    // `server`-type merchants require the header: an absent header reads as
+    // `client`, which mismatches the merchant type and is rejected.
+    ServerIntegrationHeaderRequired: {
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
+            message:
+              "`x-integration-type` header value `client` does not match the merchant integration type `server`",
+          },
+        },
+      },
+    },
+    ServerIntegrationCreateRejected: {
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
+            message:
+              "`x-integration-type` header value `server` does not match the merchant integration type `client`",
+          },
+        },
+      },
+    },
     PaymentIntentWithShippingCost: getCustomExchange({
       Request: {
         currency: "USD",

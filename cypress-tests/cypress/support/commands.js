@@ -38,6 +38,7 @@ import getConnectorDetails, {
 } from "../e2e/configs/Payment/Utils";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
+import { jsonDiffPaths, normalizeJsonForCompare } from "../utils/jsonCompare";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import {
@@ -3167,6 +3168,469 @@ Cypress.Commands.add(
     });
   }
 );
+
+// Asserts the server-integration sections of a payments response.
+// When `expectEnriched` is true, both sections must carry their success shapes
+// — a degraded section (`{ "error": ... }`) fails the test, since a healthy
+// stack resolves both reads. When false, both must be absent — the fields are
+// `skip_serializing_if = "Option::is_none"` on PaymentsResponse, so a plain
+// response omits them rather than emitting null.
+function expectServerIntegrationShape(body, expectEnriched, context) {
+  if (expectEnriched) {
+    expect(
+      body.payment_method_list,
+      `payment_method_list (${context})`
+    ).to.be.an("object").and.to.not.be.null;
+    expect(
+      body.payment_method_list.error,
+      `payment_method_list.error (${context})`
+    ).to.be.undefined;
+    expect(
+      body.payment_method_list.payment_methods_enabled,
+      `payment_method_list.payment_methods_enabled (${context})`
+    ).to.be.an("array");
+    expect(
+      body.payment_method_list.customer_payment_methods,
+      `payment_method_list.customer_payment_methods (${context})`
+    ).to.be.an("array");
+    expect(
+      body.payment_method_list.sdk_next_action,
+      `payment_method_list.sdk_next_action (${context})`
+    ).to.be.an("object").and.to.not.be.null;
+    expect(
+      body.payment_method_list.intent_data?.payment_id,
+      `payment_method_list.intent_data.payment_id (${context})`
+    ).to.equal(body.payment_id);
+
+    expect(body.session_tokens, `session_tokens (${context})`).to.be.an(
+      "object"
+    ).and.to.not.be.null;
+    expect(body.session_tokens.error, `session_tokens.error (${context})`).to.be
+      .undefined;
+    expect(
+      body.session_tokens.payment_id,
+      `session_tokens.payment_id (${context})`
+    ).to.equal(body.payment_id);
+    if (body.client_secret) {
+      expect(
+        body.session_tokens.client_secret,
+        `session_tokens.client_secret (${context})`
+      ).to.equal(body.client_secret);
+    } else {
+      expect(
+        body.session_tokens.client_secret,
+        "session_tokens.client_secret"
+      ).to.be.a("string").and.to.not.be.empty;
+    }
+    expect(
+      body.session_tokens.session_token,
+      `session_tokens.session_token (${context})`
+    ).to.be.an("array");
+  } else {
+    // Omits-or-null: `undefined` in the current router, `null` would also be
+    // a valid plain-shape encoding. Anything else (a populated section or a
+    // degraded `{ error }`) must fail.
+    expect(body.payment_method_list, `payment_method_list (${context})`).to.not
+      .exist;
+    expect(body.session_tokens, `session_tokens (${context})`).to.not.exist;
+  }
+}
+
+// Keys asserted by expectServerIntegrationShape/defaultErrorHandler instead of
+// the generic resData body loop.
+const SERVER_INTEGRATION_KEYS = ["payment_method_list", "session_tokens"];
+
+// Creates a payment intent with an optional `X-Integration-Type` header and
+// asserts the server-integration response contract on top of the usual intent
+// checks. The first five parameters mirror createPaymentIntentTest;
+// `integrationType` may be "server", "client" or null (header absent).
+//
+// Enrichment is expected only for `X-Integration-Type: server` on a request
+// that is not a create-and-confirm — the one case the create route attaches
+// `payment_method_list` and `session_tokens` for (see
+// crates/router/src/core/payments/server_integration.rs).
+Cypress.Commands.add(
+  "createPaymentIntentServerIntegrationTest",
+  (
+    createPaymentBody,
+    data,
+    authentication_type,
+    capture_method,
+    globalState,
+    integrationType = null
+  ) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createPaymentIntentServerIntegrationTest"
+      );
+      return;
+    }
+
+    if (
+      !createPaymentBody ||
+      typeof createPaymentBody !== "object" ||
+      !reqData
+    ) {
+      throw new Error(
+        "Invalid parameters provided to createPaymentIntentServerIntegrationTest command"
+      );
+    }
+
+    const configInfo = execConfig(validatedConfigs);
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    const body = JSON.parse(JSON.stringify(createPaymentBody));
+    for (const key in reqData) {
+      body[key] = reqData[key];
+    }
+    body.authentication_type = authentication_type;
+    body.capture_method = capture_method;
+    body.customer_id = globalState.get("customerId");
+    body.profile_id = profile_id;
+
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (integrationType) {
+      headers["X-Integration-Type"] = integrationType;
+    }
+
+    const expectEnriched =
+      integrationType === "server" && body.confirm !== true;
+
+    globalState.set("captureMethod", capture_method);
+    globalState.set("nextActionUrl", null);
+    globalState.set("nextActionType", null);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers,
+      failOnStatusCode: false,
+      body,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status, "status_code").to.equal(resData.status);
+        if (resData.status === 200) {
+          expect(response.body).to.have.property("client_secret");
+          expect(response.body.payment_id, "payment_id").to.not.be.null;
+          globalState.set("clientSecret", response.body.client_secret);
+          globalState.set("paymentID", response.body.payment_id);
+          globalState.set("paymentAmount", response.body.amount);
+          globalState.set("paymentCurrency", response.body.currency);
+          for (const key in resData.body) {
+            if (SERVER_INTEGRATION_KEYS.includes(key) || key === "error") {
+              continue;
+            }
+            if (
+              typeof resData.body[key] === "object" &&
+              resData.body[key] !== null
+            ) {
+              expect(
+                response.body[key],
+                `Expected ${key} to deep equal`
+              ).to.deep.eq(resData.body[key]);
+            } else {
+              expect(resData.body[key], `Expected ${key}`).to.equal(
+                response.body[key],
+                `Expected ${resData.body[key]} but got ${response.body[key]}`
+              );
+            }
+          }
+          expect(body.amount, "amount").to.equal(response.body.amount);
+          expect(body.currency, "currency").to.equal(response.body.currency);
+          expectServerIntegrationShape(
+            response.body,
+            expectEnriched,
+            "create intent"
+          );
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+// Updates a payment intent (POST /payments/{payment_id}) with an optional
+// `X-Integration-Type` header. The update route shares the create route's
+// enrichment module, so a merchant-authenticated update carrying
+// `X-Integration-Type: server` must attach both sections regardless of the
+// intent's confirm flag. Uses the payment created by the preceding create
+// step (paymentID in the shared state).
+Cypress.Commands.add(
+  "updatePaymentIntentServerIntegrationTest",
+  (data, globalState, integrationType = null) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping updatePaymentIntentServerIntegrationTest"
+      );
+      return;
+    }
+
+    const paymentId = globalState.get("paymentID");
+    if (!reqData || !resData || !paymentId) {
+      throw new Error(
+        "Invalid parameters provided to updatePaymentIntentServerIntegrationTest command"
+      );
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (integrationType) {
+      headers["X-Integration-Type"] = integrationType;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
+      headers,
+      failOnStatusCode: false,
+      body: reqData,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status, "status_code").to.equal(resData.status);
+        if (resData.status === 200) {
+          expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+          for (const key in resData.body) {
+            if (SERVER_INTEGRATION_KEYS.includes(key) || key === "error") {
+              continue;
+            }
+            if (
+              typeof resData.body[key] === "object" &&
+              resData.body[key] !== null
+            ) {
+              expect(
+                response.body[key],
+                `Expected ${key} to deep equal`
+              ).to.deep.eq(resData.body[key]);
+            } else {
+              expect(resData.body[key], `Expected ${key}`).to.equal(
+                response.body[key],
+                `Expected ${resData.body[key]} but got ${response.body[key]}`
+              );
+            }
+          }
+          // An API-key authenticated update is a merchant flow, so the header
+          // alone gates the enrichment here — there is no confirm gate.
+          expectServerIntegrationShape(
+            response.body,
+            integrationType === "server",
+            "update intent"
+          );
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+// GET /payments/{payment_id}/client — the SDK's combined payment-method list
+// (publishable-key reader, same route the SDK polls).
+//
+// Per PR #14174 the response must be byte-identical across repeated calls
+// within the intent's fulfillment window (tokens are pinned in Redis; the PR
+// deliberately caches no response), and a merchant-config change must land on
+// the very next call.
+//
+// options:
+//   storeAs           — stash the body under this global-state key
+//   compareTo         — deep-equal the body against that stashed key
+//   expectEmptyEnabled — assert both lists are empty (connector disabled)
+Cypress.Commands.add(
+  "clientPaymentMethodsListCall",
+  (globalState, { storeAs, compareTo, expectEmptyEnabled } = {}) => {
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/client?client_secret=${clientSecret}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body).to.have.property("payment_methods_enabled");
+        if (expectEmptyEnabled) {
+          expect(
+            response.body.payment_methods_enabled,
+            "payment_methods_enabled"
+          ).to.be.an("array").and.to.be.empty;
+          expect(
+            response.body.customer_payment_methods,
+            "customer_payment_methods"
+          ).to.be.an("array").and.to.be.empty;
+        }
+        if (storeAs) {
+          globalState.set(storeAs, response.body);
+        }
+        if (compareTo) {
+          // Not byte equality: the enabled list is re-rendered per request on
+          // multi-replica deployments — both the entry array and inner lists
+          // (e.g. eligible connectors) can reorder across replicas even when
+          // the cached content is identical. Compare order-normalized copies;
+          // on a real content mismatch, log the first differing path so the
+          // volatile field is visible in the test output.
+          const baseline = globalState.get(compareTo);
+          for (const section of [
+            "customer_payment_methods",
+            "payment_methods_enabled",
+          ]) {
+            const actualNorm = normalizeJsonForCompare(response.body[section]);
+            const expectedNorm = normalizeJsonForCompare(baseline[section]);
+            if (JSON.stringify(actualNorm) !== JSON.stringify(expectedNorm)) {
+              cy.task(
+                "cli_log",
+                `PML "${compareTo}" ${section} differences:\n  ${jsonDiffPaths(
+                  actualNorm,
+                  expectedNorm,
+                  `$.${section}`
+                ).join("\n  ")}`
+              );
+            }
+            expect(
+              actualNorm,
+              `${section} must match the "${compareTo}" snapshot`
+            ).to.deep.equal(expectedNorm);
+          }
+          expect(
+            response.body.sdk_next_action,
+            `sdk_next_action must match the "${compareTo}" snapshot`
+          ).to.deep.equal(baseline.sdk_next_action);
+          expect(
+            response.body.intent_data,
+            `intent_data must match the "${compareTo}" snapshot`
+          ).to.deep.equal(baseline.intent_data);
+        }
+      });
+    });
+  }
+);
+
+// POST /payments/session_tokens (publishable) — asserts the vault SDK
+// authorization stays stable across calls (PR #14174: the PM vault session is
+// pinned in Redis, so repeated reads must hand out the same one).
+//
+// The first call stashes the authorization under `storeKey`; later calls must
+// reproduce it. Environments with no vault service mint no `vault_details` at
+// all — then `null` is asserted stable instead of failing the env.
+Cypress.Commands.add(
+  "sessionTokensStabilityCall",
+  (globalState, { storeKey = "sdkVaultAuthorization" } = {}) => {
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+        "x-client-platform": "web",
+      },
+      body: {
+        payment_id: paymentId,
+        client_secret: clientSecret,
+        wallets: [],
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+        const authorization =
+          response.body.vault_details?.vault_data?.sdk_authorization ?? null;
+        const stashed = globalState.get(storeKey);
+        if (stashed === undefined) {
+          globalState.set(storeKey, authorization);
+          cy.task(
+            "cli_log",
+            authorization
+              ? `vault sdk authorization captured: ${authorization}`
+              : "no vault session minted in this environment (vault_details is null)"
+          );
+        } else {
+          expect(
+            authorization,
+            "vault sdk authorization must be stable across session-token calls"
+          ).to.equal(stashed);
+        }
+      });
+    });
+  }
+);
+
+// Flips the payment connector's disabled flag for the current merchant
+// (issue hyperswitch-cloud#23422 case 7): the response cache must never hide
+// a merchant-config change, so the next combined-PML call after each toggle
+// reflects it.
+Cypress.Commands.add("connectorDisabledCallTest", (globalState, disabled) => {
+  const merchantId = globalState.get("merchantId");
+  const merchantConnectorId = globalState.get("merchantConnectorId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors/${merchantConnectorId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      connector_type: "payment_processor",
+      disabled,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.status, "status_code").to.equal(200);
+      expect(response.body.disabled, "disabled").to.equal(disabled);
+      globalState.set("connectorDisabled", disabled);
+    });
+  });
+});
 
 Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
   const resData = data?.Response || data;
@@ -12580,9 +13044,12 @@ Cypress.Commands.add(
 // Polls payment creation with throwaway customer_ids until the response status
 // matches `expectedStatus` (e.g. 404 while block_implicit_customer_creation is
 // propagating, 200 after it is reset). `label` prefixes the throwaway customer ids.
+// `extraHeaders` lets a poll distinguish configs that only change behavior for
+// requests carrying a specific header (e.g. system.payment_integration_type,
+// which is only observable via the X-Integration-Type header).
 Cypress.Commands.add(
   "waitForConfigPropagation",
-  (globalState, expectedStatus, label) => {
+  (globalState, expectedStatus, label, extraHeaders = {}) => {
     const maxAttempts = 60;
     const intervalMs = 5000;
     const poll = (attempt) => {
@@ -12601,6 +13068,7 @@ Cypress.Commands.add(
         headers: {
           "api-key": globalState.get("apiKey"),
           "Content-Type": "application/json",
+          ...extraHeaders,
         },
         body: {
           currency: "USD",
