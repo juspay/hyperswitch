@@ -106,6 +106,7 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
 }
 
 /// Webhook-flow analogue of `serialize_router_data_and_send_to_comparison_service`.
+#[allow(clippy::too_many_arguments)]
 pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     state: &dyn api_client::ApiClientWrapper,
     primary: &P,
