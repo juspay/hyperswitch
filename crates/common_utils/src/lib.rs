@@ -3,6 +3,9 @@
 
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
+#[cfg(feature = "deja")]
+use crate::synth_shape::Synthesize;
+
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
@@ -63,6 +66,9 @@ pub mod date_time {
         OffsetDateTime, PrimitiveDateTime,
     };
 
+    #[cfg(feature = "deja")]
+    use crate::synth_shape::Synthesize;
+
     /// Enum to represent date formats
     #[derive(Debug)]
     pub enum DateFormat {
@@ -81,7 +87,7 @@ pub mod date_time {
     #[cfg_attr(
         feature = "deja",
         deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,
-            on_miss = { let synthetic = crate::synth_shape::instant(&__deja_miss); PrimitiveDateTime::new(synthetic.date(), synthetic.time()) },)
+            on_miss = { let synthetic = __deja_miss.instant(); PrimitiveDateTime::new(synthetic.date(), synthetic.time()) },)
     )]
     pub fn now() -> PrimitiveDateTime {
         #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
@@ -101,7 +107,7 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_unix_timestamp",
-            on_miss = crate::synth_shape::instant(&__deja_miss).unix_timestamp(),
+            on_miss = __deja_miss.instant_at_second_resolution().unix_timestamp(),
             codec = SerdeCodec,
         )
     )]
@@ -131,7 +137,7 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_unix_timestamp_millis",
-            on_miss = crate::synth_shape::instant(&__deja_miss).unix_timestamp_nanos() / 1_000_000,
+            on_miss = __deja_miss.instant().unix_timestamp_nanos() / 1_000_000,
             codec = SerdeCodec,
         )
     )]
@@ -177,7 +183,7 @@ pub mod date_time {
             // not `Serialize`; `ResultOkCodec` needs only `Debug` of the error and
             // restores the Ok path, leaving a recorded error a stop as intended.
             codec = ResultOkCodec,
-            on_miss = { const SYNTH_ISO: EncodedConfig = Config::DEFAULT.set_time_precision(TimePrecision::Second { decimal_digits: NonZeroU8::new(3) }).encode(); convert_to_pdt(crate::synth_shape::instant(&__deja_miss)).assume_utc().format(&Iso8601::<SYNTH_ISO>) },
+            on_miss = { const SYNTH_ISO: EncodedConfig = Config::DEFAULT.set_time_precision(TimePrecision::Second { decimal_digits: NonZeroU8::new(3) }).encode(); convert_to_pdt(__deja_miss.instant()).assume_utc().format(&Iso8601::<SYNTH_ISO>) },
         )
     )]
     pub fn date_as_yyyymmddthhmmssmmmz() -> Result<String, time::error::Format> {
@@ -204,7 +210,7 @@ pub mod date_time {
             // As above: no codec meant Debug capture, and a Substitute site whose hit
             // arm always fails is a site that cannot be replayed at all.
             codec = ResultOkCodec,
-            on_miss = crate::synth_shape::instant(&__deja_miss).format(&time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT")),
+            on_miss = __deja_miss.instant_at_second_resolution().format(&time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT")),
         )
     )]
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
@@ -325,7 +331,7 @@ pub mod date_time {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "common_utils", operation = "generate_uuid_v4", codec = SerdeCodec,
-        on_miss = synth_shape::uuid(&__deja_miss),)
+        on_miss = __deja_miss.uuid(),)
 )]
 #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn generate_uuid_v4() -> uuid::Uuid {
@@ -348,7 +354,7 @@ pub fn generate_uuid_v4() -> uuid::Uuid {
     deja::id(
         component = "common_utils",
         operation = "generate_random_alphanumeric_string",
-        on_miss = synth_shape::over(&__deja_miss, &consts::ALPHABETS, length),
+        on_miss = __deja_miss.alphanumeric(length),
         codec = SerdeCodec,
     )
 )]
@@ -372,7 +378,7 @@ pub fn generate_random_alphanumeric_string(length: usize) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_random_numeric_string",
-        on_miss = synth_shape::over(&__deja_miss, &synth_shape::DIGITS, length),
+        on_miss = __deja_miss.digits(length),
         codec = SerdeCodec,
     )
 )]
@@ -398,7 +404,7 @@ pub fn generate_random_numeric_string(length: usize) -> String {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "common_utils", operation = "generate_uuid_v7", codec = SerdeCodec,
-        on_miss = synth_shape::uuid(&__deja_miss),)
+        on_miss = __deja_miss.uuid(),)
 )]
 #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn generate_uuid_v7() -> uuid::Uuid {
@@ -419,7 +425,7 @@ pub fn generate_uuid_v7() -> uuid::Uuid {
     deja::id(
         component = "common_utils",
         operation = "generate_nanoid_with_default_alphabet",
-        on_miss = synth_shape::over(&__deja_miss, &nanoid::alphabet::SAFE, length),
+        on_miss = __deja_miss.over(&nanoid::alphabet::SAFE, length),
         codec = SerdeCodec,
     )
 )]
@@ -441,7 +447,7 @@ pub fn generate_nanoid_with_default_alphabet(length: usize) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_random_f64_unit",
-        on_miss = synth_shape::unit_f64(&__deja_miss),
+        on_miss = __deja_miss.unit_f64(),
         codec = SerdeCodec,
     )
 )]
@@ -464,7 +470,7 @@ pub fn generate_random_f64_unit() -> f64 {
     deja::id(
         component = "common_utils",
         operation = "generate_random_number_in_range",
-        on_miss = synth_shape::in_range(&__deja_miss, min, max),
+        on_miss = __deja_miss.in_range(min, max),
         codec = SerdeCodec,
     )
 )]
@@ -487,7 +493,7 @@ pub fn generate_random_number_in_range(min: i64, max: i64) -> i64 {
     deja::id(
         component = "common_utils",
         operation = "generate_random_index",
-        on_miss = synth_shape::index(&__deja_miss, length),
+        on_miss = __deja_miss.index(length),
         codec = SerdeCodec,
     )
 )]
@@ -514,7 +520,7 @@ pub fn generate_random_index(length: usize) -> Option<usize> {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "common_utils", operation = "process_id", codec = SerdeCodec,
-        on_miss = u32::try_from(deja::synth::u64(&__deja_miss) % u64::from(u32::MAX)).unwrap_or(1),)
+        on_miss = __deja_miss.opaque_u32(),)
 )]
 #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn process_id() -> u32 {
@@ -540,7 +546,7 @@ pub fn process_id() -> u32 {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "common_utils", operation = "hostname", codec = SerdeCodec,
-        on_miss = Some(synth_shape::over(&__deja_miss, &consts::ALPHABETS, 12)),)
+        on_miss = Some(__deja_miss.alphanumeric(12)),)
 )]
 pub fn hostname() -> Option<String> {
     std::env::var("HOSTNAME")
@@ -560,7 +566,7 @@ pub fn hostname() -> Option<String> {
     deja::id(
         component = "common_utils",
         operation = "generate_random_permutation",
-        on_miss = synth_shape::permutation(&__deja_miss, length),
+        on_miss = __deja_miss.permutation(length),
         codec = SerdeCodec,
     )
 )]
@@ -587,7 +593,7 @@ pub fn generate_random_permutation(length: usize) -> Vec<usize> {
     deja::id(
         component = "common_utils",
         operation = "generate_random_bytes",
-        on_miss = synth_shape::byte_vec(&__deja_miss, length),
+        on_miss = __deja_miss.byte_vec(length),
         codec = SerdeCodec,
     )
 )]
@@ -605,7 +611,7 @@ pub fn generate_random_bytes(length: usize) -> Vec<u8> {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,
-        on_miss = format!("{}_{}", prefix, synth_shape::over(&__deja_miss, &consts::ALPHABETS, length)),)
+        on_miss = __deja_miss.prefixed(prefix, length),)
 )]
 #[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
@@ -676,7 +682,7 @@ pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcqui
     deja::id(
         component = "common_utils",
         operation = "generate_id_with_default_len",
-        on_miss = format!("{}_{}", prefix, synth_shape::over(&__deja_miss, &consts::ALPHABETS, consts::ID_LENGTH)),
+        on_miss = __deja_miss.prefixed(prefix, consts::ID_LENGTH),
         codec = SerdeCodec,
     )
 )]
@@ -694,7 +700,7 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_time_ordered_id",
-        on_miss = format!("{prefix}_{}", deja::synth::uuid_v8(&__deja_miss).replace('-', "")),
+        on_miss = format!("{prefix}_{}", __deja_miss.uuid().as_simple()),
         codec = SerdeCodec,
     )
 )]
@@ -711,7 +717,7 @@ pub fn generate_time_ordered_id(prefix: &str) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_time_ordered_id_without_prefix",
-        on_miss = deja::synth::uuid_v8(&__deja_miss).replace('-', ""),
+        on_miss = __deja_miss.uuid().as_simple().to_string(),
         codec = SerdeCodec,
     )
 )]
@@ -726,7 +732,7 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
 #[cfg_attr(
     feature = "deja",
     deja::id(component = "common_utils", operation = "generate_id_with_len", codec = SerdeCodec,
-        on_miss = synth_shape::over(&__deja_miss, &consts::ALPHABETS, length),)
+        on_miss = __deja_miss.alphanumeric(length),)
 )]
 #[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id_with_len(length: usize) -> String {

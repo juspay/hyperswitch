@@ -37,27 +37,6 @@ macro_rules! append_filter {
     };
 }
 
-/// Args for the OpenSearch seam: everything about the query that a replay must
-/// reproduce, and nothing that moves on its own.
-///
-/// Built field by field rather than from `Debug` on the builder, because the
-/// builder holds a `HashSet` whose rendering order is per-process random —
-/// folding that into the args hash would move the key every run.
-/// `search_params` is excluded: it carries auth scope, not query identity.
-#[cfg(feature = "deja")]
-fn opensearch_args(builder: &OpenSearchQueryBuilder) -> Value {
-    serde_json::json!({
-        "query": builder.query,
-        "indexes": format!("{:?}", builder.query_type),
-        "offset": builder.offset,
-        "count": builder.count,
-        "filters": format!("{:?}", builder.filters),
-        "time_range": format!("{:?}", builder.time_range),
-        "amount_range": format!("{:?}", builder.amount_range),
-        "order": format!("{:?}", builder.order),
-    })
-}
-
 /// The OpenSearch query, resolved to the response text.
 ///
 /// The seam sits here rather than on `OpenSearchClient::execute` because that
@@ -83,7 +62,7 @@ fn opensearch_args(builder: &OpenSearchQueryBuilder) -> Value {
         effect = Http,
         returns = Value,
         codec = deja::codec::ResultCodec::<String, OpenSearchError>,
-        args = opensearch_args(&query_builder),
+        args = query_builder.deja_args(),
     )
 )]
 async fn execute_search_to_text(
