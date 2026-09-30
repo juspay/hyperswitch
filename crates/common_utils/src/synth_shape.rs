@@ -257,3 +257,158 @@ mod tests {
         );
     }
 }
+
+/// Every synthesized value this crate can produce, pinned to the exact bytes it
+/// produces today.
+///
+/// The tests above state properties; these state values. A property test stays
+/// green when a refactor silently moves a value, and a value that moves changes
+/// what a candidate puts on the wire — a replay would then diverge from its own
+/// recording for a reason that has nothing to do with the candidate. So each
+/// arm's output is frozen here, and any change to one has to be made by editing
+/// this file, deliberately, in a diff a reviewer can read.
+///
+/// The clock arms are pinned at their CONSUMER's resolution rather than in
+/// nanoseconds, because that is where a collapse would show: two arms render
+/// only whole seconds, and their assertions below say what consecutive misses
+/// look like through them.
+#[cfg(test)]
+mod golden {
+    use std::num::NonZeroU8;
+
+    use time::format_description::well_known::iso8601::{
+        Config, EncodedConfig, Iso8601, TimePrecision,
+    };
+
+    use super::*;
+    use crate::consts;
+
+    /// One fixed miss, varied only by occurrence. Every value below is a
+    /// function of this and nothing else.
+    fn miss(occurrence: u32) -> deja::SubstituteMiss {
+        deja::SubstituteMiss {
+            boundary: "id",
+            component: "common_utils",
+            method: "golden",
+            args: serde_json::json!({"len": 12}),
+            occurrence,
+            correlation_id: None,
+        }
+    }
+
+    const SYNTH_ISO: EncodedConfig = Config::DEFAULT
+        .set_time_precision(TimePrecision::Second {
+            decimal_digits: NonZeroU8::new(3),
+        })
+        .encode();
+
+    #[test]
+    fn over_an_alphabet_is_pinned() {
+        assert_eq!(over(&miss(0), &consts::ALPHABETS, 12), "77z992CVQZxg");
+        assert_eq!(over(&miss(0), &DIGITS, 10), "7133908345");
+        assert_eq!(
+            over(&miss(0), &nanoid::alphabet::SAFE, 21),
+            "DDBnXeIlmxl2UqmnXe2EI"
+        );
+        assert_eq!(over(&miss(0), &consts::ALPHABETS, 0), "");
+    }
+
+    #[test]
+    fn the_numeric_draws_are_pinned() {
+        assert_eq!(unit_f64(&miss(0)), 0.400_051_809_847_354_9);
+        assert_eq!(in_range(&miss(0), -5, 5), -2);
+        assert_eq!(
+            in_range(&miss(0), i64::MIN, i64::MAX),
+            -1_843_718_680_693_841_055
+        );
+        assert_eq!(in_range(&miss(0), 7, 7), 7);
+        assert_eq!(index(&miss(0), 10), Some(3));
+        assert_eq!(index(&miss(0), 0), None);
+        assert_eq!(byte_vec(&miss(0), 8), [105, 41, 231, 89, 125, 16, 174, 23]);
+        assert_eq!(permutation(&miss(0), 6), [0, 3, 5, 1, 4, 2]);
+    }
+
+    #[test]
+    fn the_uuid_shapes_are_pinned() {
+        assert_eq!(
+            uuid(&miss(0)).to_string(),
+            "c41247c7-5493-8f37-9a15-cd1ff03594e9"
+        );
+        assert_eq!(
+            uuid(&miss(0)).simple().to_string(),
+            "c41247c754938f379a15cd1ff03594e9"
+        );
+        // The two `generate_time_ordered_id` arms, which strip the hyphens off
+        // the formatted value rather than parsing it.
+        assert_eq!(
+            deja::synth::uuid_v8(&miss(0)).replace('-', ""),
+            "c41247c754938f379a15cd1ff03594e9"
+        );
+    }
+
+    /// `process_id`'s arm, which reduces the raw digest rather than taking a
+    /// shape from this module.
+    #[test]
+    fn the_process_id_reduction_is_pinned() {
+        assert_eq!(
+            u32::try_from(deja::synth::u64(&miss(0)) % u64::from(u32::MAX)).unwrap_or(1),
+            1_105_702_658
+        );
+    }
+
+    /// The clock, read the way each of the five arms reads it.
+    ///
+    /// Occurrence 1 is what matters: four of these five values must differ from
+    /// their occurrence-0 counterpart, or the arm has merged two distinct calls.
+    #[test]
+    fn the_clock_arms_are_pinned() {
+        let rfc7231 = time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT");
+        let render = |occurrence: u32| {
+            let at = instant(&miss(occurrence));
+            (
+                epoch_nanos(&miss(occurrence)),
+                time::PrimitiveDateTime::new(at.date(), at.time()).to_string(),
+                at.unix_timestamp(),
+                at.unix_timestamp_nanos() / 1_000_000,
+                crate::date_time::convert_to_pdt(at)
+                    .assume_utc()
+                    .format(&Iso8601::<SYNTH_ISO>)
+                    .expect("the synthesized instant formats"),
+                at.format(&rfc7231).expect("and renders as an HTTP date"),
+            )
+        };
+
+        assert_eq!(
+            render(0),
+            (
+                0,
+                "1970-01-01 0:00:00.0".to_string(),
+                0,
+                0,
+                "1970-01-01T00:00:00.000Z".to_string(),
+                "Thu, 01 Jan 1970 00:00:00 GMT".to_string(),
+            )
+        );
+        assert_eq!(
+            render(1),
+            (
+                1_000_000,
+                "1970-01-01 0:00:00.001".to_string(),
+                0,
+                1,
+                "1970-01-01T00:00:00.001Z".to_string(),
+                "Thu, 01 Jan 1970 00:00:00 GMT".to_string(),
+            )
+        );
+    }
+
+    /// The duration counter behind `elapsed::millis_since`, whose step is one
+    /// millisecond rather than this module's `CLOCK_STEP_NS`.
+    #[test]
+    fn the_elapsed_counter_is_pinned() {
+        let derived: Vec<u128> = (0..4_u32)
+            .map(|n| u128::try_from(deja::synth::monotonic(&miss(n), 0, 1)).unwrap_or(0))
+            .collect();
+        assert_eq!(derived, vec![0, 1, 2, 3]);
+    }
+}
