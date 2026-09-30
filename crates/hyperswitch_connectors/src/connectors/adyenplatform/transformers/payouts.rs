@@ -570,7 +570,7 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                     payouts::BankTransfer::Ted(..) => {
                         Err(ConnectorError::NotSupported {
                             message: "Bank transfer via TED is not supported".to_string(),
-                            connector: "Adyenplatform",
+                            connector: std::borrow::Cow::Borrowed("Adyenplatform"),
                         })?
                     }
                 };

@@ -6339,7 +6339,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     payouts::BankTransfer::Ted(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via TED is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: std::borrow::Cow::Borrowed("Adyen"),
                         })?
                     }
                 };

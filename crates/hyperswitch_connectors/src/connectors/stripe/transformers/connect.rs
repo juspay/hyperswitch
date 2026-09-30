@@ -477,7 +477,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 api_models::payouts::BankTransfer::Ted(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "TED payouts are not supported".to_string(),
-                        connector: "stripe",
+                        connector: std::borrow::Cow::Borrowed("stripe"),
                     }
                     .into())
                 }
