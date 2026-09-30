@@ -10,9 +10,10 @@ use common_utils::{
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payment_methods::PaymentMethod,
+    payment_method_data::{self, PaymentMethodData},
+    payment_methods::PaymentMethod,
 };
-use router_env::{instrument, tracing, which as router_env_which, Env};
+use router_env::{instrument, logger, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
@@ -66,7 +67,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    id_type::ProfileId,
+    domain::Profile,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -86,7 +87,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     id_type::PayoutId,
     Option<payouts::PayoutMethodData>,
-    id_type::ProfileId,
+    domain::Profile,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -152,26 +153,16 @@ pub async fn validate_create_request(
         None
     };
 
-    #[cfg(feature = "v1")]
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    // Fetch the profile once and hand it back, so payout creation doesn't fetch it again
+    let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
         &*state.store,
-        false,
     )
     .await?;
-
-    #[cfg(feature = "v2")]
-    // Profile id will be mandatory in v2 in the request / headers
-    let profile_id = req
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id".into(),
-        })
-        .attach_printable("Profile id is a mandatory parameter")?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -264,7 +255,7 @@ pub async fn validate_create_request(
     Ok((
         payout_id,
         payout_method_data,
-        profile_id,
+        business_profile,
         customer,
         payment_method,
     ))
@@ -305,6 +296,64 @@ pub async fn get_payout_method_data_generic(
                         card_network: card_details.card_network.clone(),
                     }),
                 )),
+                Some(PaymentMethodData::Wallet(payment_method_data::WalletData::ApplePay(
+                    data,
+                ))) => match data.payment_data {
+                    common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                        Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::ApplePayDecrypt(
+                                api_models::payouts::ApplePayDecrypt {
+                                    dpan: decrypted_data.application_primary_account_number,
+                                    expiry_month: decrypted_data.application_expiration_month,
+                                    expiry_year: decrypted_data.application_expiration_year,
+                                    card_holder_name: None,
+                                    card_network: data
+                                        .payment_method
+                                        .network
+                                        .parse::<common_enums::CardNetwork>()
+                                        .inspect_err(|error| {
+                                            logger::warn!(
+                                                ?error,
+                                                unparsed_card_network = %data.payment_method.network,
+                                                "Received an unrecognized card_network value from Apple Pay (Payout); defaulting to None"
+                                            )
+                                        })
+                                        .ok(),
+                                },
+                            ),
+                        )))
+                    }
+                    common_types::payments::ApplePayPaymentData::Encrypted(_) => Ok(None),
+                },
+                Some(PaymentMethodData::Wallet(payment_method_data::WalletData::GooglePay(
+                    data,
+                ))) => match data.tokenization_data {
+                    common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+                        Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::GooglePayDecrypt(
+                                api_models::payouts::GooglePayDecrypt {
+                                    application_primary_account_number: decrypted_data
+                                        .application_primary_account_number,
+                                    expiry_month: decrypted_data.card_exp_month,
+                                    expiry_year: decrypted_data.card_exp_year,
+                                    card_network: data.info
+                                        .card_network
+                                        .parse::<common_enums::CardNetwork>()
+                                        .inspect_err(|error| {
+                                            logger::warn!(
+                                                ?error,
+                                                unparsed_card_network = %data.info.card_network,
+                                                "Received an unrecognized card_network value from Google Pay (Payout); defaulting to None"
+                                            )
+                                        })
+                                        .ok(),
+                                    card_holder_name: None,
+                                },
+                            ),
+                        )))
+                    }
+                    common_types::payments::GpayTokenizationData::Encrypted(_) => Ok(None),
+                },
                 Some(_) | None => Ok(None),
             }
         }
@@ -327,63 +376,51 @@ pub async fn get_payout_method_data_generic(
             )
             .await?
             {
-                Some(pm) => {
-                    match (pm.card_details, pm.wallet_details, pm.bank_transfer_details) {
-                        (Some(card), _, _) => Ok(Some(payouts::PayoutMethodData::Card(
-                            api_models::payouts::CardPayout {
-                                card_number: card
-                                    .card_number
-                                    .get_required_value("card_number")?,
-                                card_holder_name: card.card_holder_name,
-                                expiry_month: card
-                                    .expiry_month
-                                    .get_required_value("expiry_month")?,
-                                expiry_year: card
-                                    .expiry_year
-                                    .get_required_value("expiry_year")?,
-                                card_network: card.card_network.clone(),
-                            },
+                Some(pm) => match (pm.card_details, pm.wallet_details, pm.bank_transfer_details) {
+                    (Some(card), _, _) => Ok(Some(payouts::PayoutMethodData::Card(
+                        api_models::payouts::CardPayout {
+                            card_number: card.card_number.get_required_value("card_number")?,
+                            card_holder_name: card.card_holder_name,
+                            expiry_month: card.expiry_month.get_required_value("expiry_month")?,
+                            expiry_year: card.expiry_year.get_required_value("expiry_year")?,
+                            card_network: card.card_network.clone(),
+                        },
+                    ))),
+                    (_, Some(wallet), _) => match wallet {
+                        payment_method_data::WalletDetail::ApplePayDecryptedData {
+                            application_primary_account_number,
+                            expiry_month,
+                            expiry_year,
+                        } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::ApplePayDecrypt(
+                                api_models::payouts::ApplePayDecrypt {
+                                    dpan: application_primary_account_number,
+                                    expiry_month,
+                                    expiry_year,
+                                    card_holder_name: None,
+                                    card_network: None,
+                                },
+                            ),
                         ))),
-                        (_, Some(wallet), _) => {
-                            match wallet {
-                                hyperswitch_domain_models::payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        payment_method_data::WalletDetail::GooglePayDecryptedData {
+                            application_primary_account_number,
+                            expiry_month,
+                            expiry_year,
+                        } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                            api_models::payouts::Wallet::GooglePayDecrypt(
+                                api_models::payouts::GooglePayDecrypt {
                                     application_primary_account_number,
                                     expiry_month,
                                     expiry_year,
-                                } => Ok(Some(payouts::PayoutMethodData::Wallet(
-                                    api_models::payouts::Wallet::ApplePayDecrypt(
-                                        api_models::payouts::ApplePayDecrypt {
-                                            dpan: application_primary_account_number,
-                                            expiry_month,
-                                            expiry_year,
-                                            card_holder_name: None,
-                                            card_network: None,
-                                        }
-                                    )
-                                ))),
-                                hyperswitch_domain_models::payment_method_data::WalletDetail::GooglePayDecryptedData {
-                                    application_primary_account_number,
-                                    expiry_month,
-                                    expiry_year,
-                                } => Ok(Some(payouts::PayoutMethodData::Wallet(
-                                    api_models::payouts::Wallet::GooglePayDecrypt(
-                                        api_models::payouts::GooglePayDecrypt {
-                                            application_primary_account_number,
-                                            expiry_month,
-                                            expiry_year,
-                                            card_holder_name: None,
-                                            card_network: None,
-                                        }
-                                    )
-                                ))),
-                            }
-                        }
-                        (_, _, Some(bank)) => {
-                            Ok(Some(payouts::PayoutMethodData::BankTransfer(bank)))
-                        }
-                        _ => Ok(None),
-                    }
-                }
+                                    card_holder_name: None,
+                                    card_network: None,
+                                },
+                            ),
+                        ))),
+                    },
+                    (_, _, Some(bank)) => Ok(Some(payouts::PayoutMethodData::BankTransfer(bank))),
+                    _ => Ok(None),
+                },
                 None => Ok(None),
             }
         }

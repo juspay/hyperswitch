@@ -361,6 +361,10 @@ pub struct PaymentsCaptureData {
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    /// Whether the merchant is allowed to capture more than the originally authorized/requested
+    /// amount for this payment. Used to avoid treating a legitimate overcapture as an integrity
+    /// mismatch.
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -779,6 +783,10 @@ impl TryFrom<PaymentsAuthorizeData> for GiftCardBalanceCheckRequestData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsPreAuthenticateData {
     pub payment_method_data: PaymentMethodData,
+    /// Connector order identifier, when an order was created before pre-authentication.
+    /// Elavon PG's hosted-payment-page 3DS opens its payment session against the Order
+    /// resource created by the preceding CreateOrder call, so the id has to reach this leg.
+    pub order_id: Option<String>,
     pub amount: i64,
     pub email: Option<pii::Email>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
@@ -801,6 +809,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            order_id: data.order_id,
             customer_name: data.customer_name,
             metadata: data.metadata.map(Secret::new),
             amount: data.amount,
@@ -824,6 +833,8 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            // SetupMandate has no preceding order-create leg.
+            order_id: None,
             customer_name: data.customer_name,
             metadata: data.metadata,
             amount: data.amount,
@@ -1033,6 +1044,7 @@ pub struct CompleteAuthorizeData {
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub order_id: Option<String>,
     pub force_3ds_challenge: Option<bool>,
+    pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1060,6 +1072,13 @@ pub struct PaymentsSyncData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub connector_mandate_id: Option<String>,
+    /// Whether partial authorization was enabled for this payment. Used to avoid treating a
+    /// legitimately lower authorized amount as an integrity mismatch on sync.
+    pub enable_partial_authorization:
+        Option<common_types::primitive_wrappers::EnablePartialAuthorizationBool>,
+    /// Whether overcapture was applied for this payment by the connector. Used to avoid treating
+    /// a legitimate overcapture as an integrity mismatch on sync.
+    pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

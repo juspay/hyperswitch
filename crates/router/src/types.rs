@@ -1504,6 +1504,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            accept_amount_mismatch: data.accept_amount_mismatch,
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
             connector_mandate_request_reference_id: data
@@ -1584,6 +1585,7 @@ impl<F1, F2>
             payout_id: data.payout_id.clone(),
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             header_payload: data.header_payload.clone(),
             authentication_id: None,
             psd2_sca_exemption_type: None,
