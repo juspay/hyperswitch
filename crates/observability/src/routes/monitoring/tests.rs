@@ -140,7 +140,11 @@ async fn session_cookie_and_fail_closed_contract() {
         .run();
         let handle = server.handle();
         actix_web::rt::spawn(server);
-        let client = RouterClient::new(url.parse().unwrap()).unwrap();
+        let client = RouterClient::new(
+            url.parse().unwrap(),
+            &hyperswitch_interfaces::types::Proxy::default(),
+        )
+        .unwrap();
         let request = test::TestRequest::post()
             .insert_header((header::AUTHORIZATION, "Bearer signed.token.value"))
             .insert_header(("X-WEBAUTH-USER", "admin"))
@@ -222,7 +226,11 @@ async fn router_timeout_does_not_set_cookie() {
     .run();
     let handle = server.handle();
     actix_web::rt::spawn(server);
-    let client = RouterClient::new(url.parse().unwrap()).unwrap();
+    let client = RouterClient::new(
+        url.parse().unwrap(),
+        &hyperswitch_interfaces::types::Proxy::default(),
+    )
+    .unwrap();
     let request = test::TestRequest::post()
         .insert_header((header::AUTHORIZATION, "Bearer signed.token.value"))
         .to_http_request();
@@ -284,7 +292,11 @@ async fn router_owns_token_validation() {
     .run();
     let handle = server.handle();
     actix_web::rt::spawn(server);
-    let client = RouterClient::new(url.parse().unwrap()).unwrap();
+    let client = RouterClient::new(
+        url.parse().unwrap(),
+        &hyperswitch_interfaces::types::Proxy::default(),
+    )
+    .unwrap();
     let app = test::init_service(App::new().service(crate::routes::Monitoring::server(
         test_state(Some(&client)).await,
     )))
