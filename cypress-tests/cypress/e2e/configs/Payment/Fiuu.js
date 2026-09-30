@@ -241,12 +241,6 @@ export const connectorDetails = {
       },
     },
     Capture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -261,12 +255,6 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -281,12 +269,6 @@ export const connectorDetails = {
       },
     },
     Void: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {},
       Response: {
         status: 200,
@@ -296,12 +278,6 @@ export const connectorDetails = {
       },
     },
     VoidAfterConfirm: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {},
       Response: {
         status: 200,
@@ -311,12 +287,6 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {
         amount: 6000,
       },
@@ -328,12 +298,6 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {
         amount: 2000,
       },
@@ -353,12 +317,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {
         amount: 6000,
       },
@@ -370,12 +328,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 1000,
-        },
-      },
       Request: {
         amount: 2000,
       },
