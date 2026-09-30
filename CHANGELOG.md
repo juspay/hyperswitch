@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.28.0-hotfix1
+
+### Features
+
+- **core:** Add surcharge_percentage in surcharge_details in eligibility response ([#14549](https://github.com/juspay/hyperswitch/pull/14549)) ([`04e2b0b`](https://github.com/juspay/hyperswitch/commit/04e2b0bb8772fcad10b03bfd2c2c909dbb6c11f7))
+
+**Full Changelog:** [`2026.09.28.0...2026.09.28.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.28.0...2026.09.28.0-hotfix1)
+
+- - -
+
 ## 2026.09.28.0
 
 ### Features
