@@ -858,6 +858,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 RecurringDetails::CardWithLimitedData(_)
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                     Some(mandates::MandateIds {
                         mandate_id: None,

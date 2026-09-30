@@ -186,6 +186,11 @@ pub enum RecurringDetails {
         Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
 
+    /// Network transaction ID and external vault card details for MIT payments where the card
+    /// is held in an external vault and referenced by a vault alias rather than by PAN.
+    #[smithy(value_type = "NetworkTransactionIdAndVaultCardDetails")]
+    NetworkTransactionIdAndVaultCardDetails(Box<NetworkTransactionIdAndVaultCardDetails>),
+
     /// Card with Limited Data to do MIT payment
     /// Can only be used if enabled for Merchant
     /// Allows doing MIT with only Card data (no reference id)
@@ -407,6 +412,100 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub transaction_link_id: Option<String>,
 }
 
+/// Card details held in an external vault and referenced by vault aliases rather than by PAN.
+///
+/// `card_number` is the vault's alias for the card, not the card number itself, so this
+/// payload stays non-PCI and is authorized through the external vault proxy.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct VaultCardData {
+    /// The vault alias which refers to the card number
+    #[schema(value_type = String, example = "token_card_number")]
+    #[smithy(value_type = "String")]
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The first six digits of the card number
+    #[schema(value_type = Option<String>, example = "424242")]
+    #[smithy(value_type = "Option<String>")]
+    pub bin_number: Option<String>,
+
+    /// The last four digits of the card number
+    #[schema(value_type = Option<String>, example = "4242")]
+    #[smithy(value_type = "Option<String>")]
+    pub last_four: Option<String>,
+}
+
+/// Network transaction ID and external vault card details for MIT payments where the card is
+/// held in an external vault. Authorized through the external vault proxy.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndVaultCardDetails {
+    /// The external vault card details
+    #[smithy(value_type = "VaultCardData")]
+    pub vault_card_data: VaultCardData,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT
+    /// (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+}
+
 impl RecurringDetails {
     pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
@@ -423,7 +522,136 @@ impl RecurringDetails {
         )
     }
 
+    pub fn is_network_transaction_id_and_vault_card_details_flow(self) -> bool {
+        matches!(self, Self::NetworkTransactionIdAndVaultCardDetails(_))
+    }
+
     pub fn is_card_limited_details_flow(self) -> bool {
         matches!(self, Self::CardWithLimitedData(_))
+    }
+}
+
+#[cfg(test)]
+mod vault_card_recurring_details_tests {
+    use super::*;
+
+    fn vault_card_data() -> VaultCardData {
+        VaultCardData {
+            card_number: Secret::new("tok_4242424242424242".to_string()),
+            card_exp_month: Secret::new("03".to_string()),
+            card_exp_year: Secret::new("30".to_string()),
+            card_holder_name: Some(Secret::new("John Test".to_string())),
+            card_issuer: Some("chase".to_string()),
+            card_network: Some(api_enums::CardNetwork::Visa),
+            card_type: Some("CREDIT".to_string()),
+            card_issuing_country: Some("INDIA".to_string()),
+            bank_code: Some("JP_AMEX".to_string()),
+            nick_name: Some(Secret::new("my card".to_string())),
+            bin_number: Some("424242".to_string()),
+            last_four: Some("4242".to_string()),
+        }
+    }
+
+    fn vault_card_recurring_details() -> RecurringDetails {
+        RecurringDetails::NetworkTransactionIdAndVaultCardDetails(Box::new(
+            NetworkTransactionIdAndVaultCardDetails {
+                vault_card_data: vault_card_data(),
+                network_transaction_id: Secret::new("MCC12345678".to_string()),
+                transaction_link_id: Some("TLID-99".to_string()),
+            },
+        ))
+    }
+
+    #[test]
+    fn vault_card_details_round_trip_through_serde() {
+        let recurring_details = vault_card_recurring_details();
+
+        let serialized = serde_json::to_string(&recurring_details)
+            .expect("vault card recurring details should serialize");
+        let deserialized: RecurringDetails =
+            serde_json::from_str(&serialized).expect("vault card recurring details should decode");
+
+        assert_eq!(recurring_details, deserialized);
+    }
+
+    /// The externally tagged representation is part of the API contract, so pin the tag the
+    /// merchant has to send rather than only asserting a round trip.
+    #[test]
+    fn vault_card_details_use_the_documented_type_tag() {
+        let serialized = serde_json::to_value(vault_card_recurring_details())
+            .expect("vault card recurring details should serialize");
+
+        assert_eq!(
+            serialized["type"],
+            serde_json::json!("network_transaction_id_and_vault_card_details")
+        );
+        assert_eq!(
+            serialized["data"]["network_transaction_id"],
+            serde_json::json!("MCC12345678")
+        );
+        assert_eq!(
+            serialized["data"]["vault_card_data"]["card_number"],
+            serde_json::json!("tok_4242424242424242")
+        );
+    }
+
+    /// `transaction_link_id` is Mastercard-only, so the payload has to decode without it.
+    #[test]
+    fn vault_card_details_decode_without_transaction_link_id() {
+        let payload = serde_json::json!({
+            "type": "network_transaction_id_and_vault_card_details",
+            "data": {
+                "vault_card_data": {
+                    "card_number": "tok_4242424242424242",
+                    "card_exp_month": "03",
+                    "card_exp_year": "30"
+                },
+                "network_transaction_id": "MCC12345678"
+            }
+        });
+
+        let decoded: RecurringDetails =
+            serde_json::from_value(payload).expect("minimal vault card payload should decode");
+
+        match decoded {
+            RecurringDetails::NetworkTransactionIdAndVaultCardDetails(details) => {
+                assert!(details.transaction_link_id.is_none());
+                assert!(details.vault_card_data.card_network.is_none());
+            }
+            other => panic!("expected vault card details, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn vault_card_details_are_recognised_as_their_own_flow() {
+        assert!(
+            vault_card_recurring_details().is_network_transaction_id_and_vault_card_details_flow()
+        );
+    }
+
+    /// The vault card flow must not be mistaken for the raw-card or network-token NTI flows:
+    /// those route to the plain proxy core, this one routes to the external vault proxy.
+    #[test]
+    fn vault_card_details_are_not_confused_with_other_nti_flows() {
+        let recurring_details = vault_card_recurring_details();
+
+        assert!(!recurring_details
+            .clone()
+            .is_network_transaction_id_and_card_details_flow());
+        assert!(!recurring_details
+            .clone()
+            .is_network_transaction_id_and_network_token_details_flow());
+        assert!(!recurring_details
+            .clone()
+            .is_network_transaction_id_and_decrypted_wallet_token_details_flow());
+        assert!(!recurring_details.is_card_limited_details_flow());
+    }
+
+    #[test]
+    fn other_flows_are_not_reported_as_vault_card_details() {
+        assert!(!RecurringDetails::MandateId("mandate_1".to_string())
+            .is_network_transaction_id_and_vault_card_details_flow());
+        assert!(!RecurringDetails::PaymentMethodId("pm_1".to_string())
+            .is_network_transaction_id_and_vault_card_details_flow());
     }
 }

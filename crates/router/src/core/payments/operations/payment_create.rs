@@ -330,18 +330,31 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let domain_recurring_details = recurring_details
+            .clone()
+            .map(domain_recurring_details::from);
+
         let (mandate_reference_id_from_recurring_details, payment_method_recurring_details) =
-            match recurring_details
-                .clone()
-                .map(domain_recurring_details::from)
-                .and_then(|details| {
-                    details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
-                }) {
+            match domain_recurring_details.as_ref().and_then(|details| {
+                details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+            }) {
                 Some((mandate_reference_id, payment_method_recurring_details)) => (
                     Some(mandate_reference_id),
                     Some(payment_method_recurring_details),
                 ),
-                None => (None, None),
+                // A card held in an external vault has no domain payment method data form: the
+                // alias is non-PCI and travels as `ExternalVaultPaymentMethodData` through the
+                // external vault proxy core. It still authorizes on its network transaction ID,
+                // so carry that mandate reference on its own.
+                None => (
+                    domain_recurring_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+                        })
+                        .map(|(mandate_reference_id, _external_vault_pmd)| mandate_reference_id),
+                    None,
+                ),
             };
 
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
@@ -507,6 +520,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     RecurringDetails::CardWithLimitedData(_)
                     | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                         Some(mandates::MandateIds {
                             mandate_id: None,

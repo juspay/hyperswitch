@@ -108,6 +108,22 @@ pub(crate) fn build_external_vault_payment_method_data(
         }
         _ => None,
     };
+
+    // An MIT driven by `recurring_details` carries no `payment_method_data`: the card sits in the
+    // external vault behind an alias, and the network transaction ID supplies the mandate
+    // reference. This mirrors the raw-card MIT flow, which derives its payment method data from
+    // the recurring details in the same way, only through the plain proxy core.
+    let external_vault_pmd = external_vault_pmd.or_else(|| {
+        request
+            .recurring_details
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
+            .and_then(|recurring_details| {
+                recurring_details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            })
+            .map(|(_mandate_reference_id, external_vault_pmd)| external_vault_pmd)
+    });
+
     Ok(external_vault_pmd)
 }
 
@@ -377,12 +393,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             })
             .transpose()?);
 
+        // A recurring payment against a vault-held card authorizes on the network transaction ID
+        // rather than on a connector mandate, so surface it as the mandate reference for the
+        // connector to issue a merchant initiated transaction.
+        let recurring_details = request.recurring_details.clone();
+
+        let mandate_id = recurring_details
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
+            .and_then(|details| {
+                details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            })
+            .map(|(mandate_reference_id, _external_vault_pmd)| {
+                hyperswitch_domain_models::mandates::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(mandate_reference_id),
+                }
+            });
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
             currency,
             amount,
-            mandate_id: None,
+            mandate_id,
             mandate_connector: None,
             setup_mandate: None,
             customer_acceptance,
@@ -418,7 +452,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             incremental_authorization_details: None,
             authorizations: vec![],
             authentication: None,
-            recurring_details: None,
+            recurring_details,
             poll_config: None,
             tax_data: None,
             session_id: None,

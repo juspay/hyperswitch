@@ -84,6 +84,10 @@ pub enum RecurringDetails {
         Box<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
 
+    /// Network transaction ID and external vault card details for MIT payments where the card
+    /// is held in an external vault and referenced by a vault alias rather than by PAN.
+    NetworkTransactionIdAndVaultCardDetails(Box<NetworkTransactionIdAndVaultCardDetails>),
+
     CardWithLimitedData(Box<CardWithLimitedData>),
 }
 
@@ -180,6 +184,59 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
 
     /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
     /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct VaultCardDetails {
+    /// The vault alias which refers to the card number, not the card number itself
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    pub nick_name: Option<Secret<String>>,
+
+    /// The first six digits of the card number
+    pub bin_number: Option<String>,
+
+    /// The last four digits of the card number
+    pub last_four: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndVaultCardDetails {
+    /// The external vault card details
+    pub vault_card_data: VaultCardDetails,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a
+    /// CIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.
     pub transaction_link_id: Option<String>,
 }
 
@@ -876,6 +933,59 @@ impl CardDetailsForNetworkTransactionId {
                 network_transaction_id_and_card_details.into(),
             ),
         )
+    }
+}
+
+impl VaultCardDetails {
+    /// The vault alias counterpart of
+    /// `CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow`: same network
+    /// mandate reference, but the card payload is the non-PCI external vault form.
+    pub fn get_nti_and_vault_card_details_for_mit_flow(
+        network_transaction_id_and_vault_card_details: NetworkTransactionIdAndVaultCardDetails,
+    ) -> (mandates::MandateReferenceId, ExternalVaultPaymentMethodData) {
+        let mandate_reference_id =
+            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_vault_card_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_vault_card_details
+                    .transaction_link_id
+                    .clone(),
+            });
+
+        (
+            mandate_reference_id,
+            ExternalVaultPaymentMethodData::Card(Box::new(
+                network_transaction_id_and_vault_card_details
+                    .vault_card_data
+                    .into(),
+            )),
+        )
+    }
+}
+
+impl From<VaultCardDetails> for ExternalVaultCard {
+    /// A merchant initiated transaction has no cardholder present, so no CVC is collected and the
+    /// field is sent empty. The transaction authorizes on the network transaction ID carried
+    /// alongside the vault alias, not on the CVC.
+    fn from(vault_card_details: VaultCardDetails) -> Self {
+        Self {
+            card_number: vault_card_details.card_number,
+            card_exp_month: vault_card_details.card_exp_month,
+            card_exp_year: vault_card_details.card_exp_year,
+            card_cvc: Secret::new(String::new()),
+            bin_number: vault_card_details.bin_number,
+            last_four: vault_card_details.last_four,
+            card_issuer: vault_card_details.card_issuer,
+            card_network: vault_card_details.card_network,
+            card_type: vault_card_details.card_type,
+            card_issuing_country: vault_card_details.card_issuing_country,
+            bank_code: vault_card_details.bank_code,
+            nick_name: vault_card_details.nick_name,
+            card_holder_name: vault_card_details.card_holder_name,
+            co_badged_card_data: None,
+        }
     }
 }
 
@@ -4758,6 +4868,11 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(Box::new(
                 *network_transaction_id_and_decrypted_wallet_token_details,
             )),
+            api_mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(
+                network_transaction_id_and_vault_card_details,
+            ) => Self::NetworkTransactionIdAndVaultCardDetails(Box::new(
+                (*network_transaction_id_and_vault_card_details).into(),
+            )),
             api_mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
             }
@@ -4810,6 +4925,37 @@ impl From<api_mandates::NetworkTransactionIdAndNetworkTokenDetails>
     }
 }
 
+impl From<api_mandates::VaultCardData> for VaultCardDetails {
+    fn from(value: api_mandates::VaultCardData) -> Self {
+        Self {
+            card_number: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+            nick_name: value.nick_name,
+            bin_number: value.bin_number,
+            last_four: value.last_four,
+        }
+    }
+}
+
+impl From<api_mandates::NetworkTransactionIdAndVaultCardDetails>
+    for NetworkTransactionIdAndVaultCardDetails
+{
+    fn from(value: api_mandates::NetworkTransactionIdAndVaultCardDetails) -> Self {
+        Self {
+            vault_card_data: value.vault_card_data.into(),
+            network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
+        }
+    }
+}
+
 impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
     fn from(card_with_limited_data: api_mandates::CardWithLimitedData) -> Self {
         Self {
@@ -4825,6 +4971,30 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
 }
 
 impl RecurringDetails {
+    /// The external vault counterpart of
+    /// `get_mandate_reference_id_and_payment_method_data_for_proxy_flow`.
+    ///
+    /// The raw-card flow pairs its network mandate reference with a domain `PaymentMethodData`
+    /// and authorizes through the plain proxy core. A vault alias is non-PCI and has no such
+    /// form, so it pairs the same mandate reference with `ExternalVaultPaymentMethodData` and
+    /// authorizes through the external vault proxy core instead.
+    pub fn get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow(
+        &self,
+    ) -> Option<(mandates::MandateReferenceId, ExternalVaultPaymentMethodData)> {
+        match self.clone() {
+            Self::NetworkTransactionIdAndVaultCardDetails(vault_card_details) => Some(
+                VaultCardDetails::get_nti_and_vault_card_details_for_mit_flow(*vault_card_details),
+            ),
+            Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndNetworkTokenDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+            | Self::CardWithLimitedData(_)
+            | Self::PaymentMethodId(_)
+            | Self::MandateId(_)
+            | Self::ProcessorPaymentToken(_) => None,
+        }
+    }
+
     pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
     ) -> Option<(mandates::MandateReferenceId, PaymentMethodData)> {
@@ -4841,9 +5011,143 @@ impl RecurringDetails {
             Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
                 Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
-            Self::PaymentMethodId(_)
+            // Vault card details are authorized through the external vault proxy core, which
+            // builds its own non-PCI payment method data, so there is nothing to hand the
+            // plain proxy core here.
+            Self::NetworkTransactionIdAndVaultCardDetails(_)
+            | Self::PaymentMethodId(_)
             | Self::MandateId(_)
             | Self::ProcessorPaymentToken(_) => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod vault_card_recurring_details_tests {
+    use super::*;
+
+    fn api_vault_card_details() -> api_mandates::NetworkTransactionIdAndVaultCardDetails {
+        api_mandates::NetworkTransactionIdAndVaultCardDetails {
+            vault_card_data: api_mandates::VaultCardData {
+                card_number: Secret::new("tok_4242424242424242".to_string()),
+                card_exp_month: Secret::new("03".to_string()),
+                card_exp_year: Secret::new("30".to_string()),
+                card_holder_name: Some(Secret::new("John Test".to_string())),
+                card_issuer: Some("chase".to_string()),
+                card_network: Some(api_enums::CardNetwork::Visa),
+                card_type: Some("CREDIT".to_string()),
+                card_issuing_country: Some("INDIA".to_string()),
+                bank_code: Some("JP_AMEX".to_string()),
+                nick_name: Some(Secret::new("my card".to_string())),
+                bin_number: Some("424242".to_string()),
+                last_four: Some("4242".to_string()),
+            },
+            network_transaction_id: Secret::new("MCC12345678".to_string()),
+            transaction_link_id: Some("TLID-99".to_string()),
+        }
+    }
+
+    fn domain_vault_card_recurring_details() -> RecurringDetails {
+        RecurringDetails::from(
+            api_mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(Box::new(
+                api_vault_card_details(),
+            )),
+        )
+    }
+
+    #[test]
+    fn api_vault_card_details_convert_to_the_domain_variant_field_for_field() {
+        match domain_vault_card_recurring_details() {
+            RecurringDetails::NetworkTransactionIdAndVaultCardDetails(details) => {
+                assert_eq!(details.network_transaction_id.peek(), "MCC12345678");
+                assert_eq!(details.transaction_link_id.as_deref(), Some("TLID-99"));
+
+                let card = details.vault_card_data;
+                assert_eq!(card.card_number.peek(), "tok_4242424242424242");
+                assert_eq!(card.card_exp_month.peek(), "03");
+                assert_eq!(card.card_exp_year.peek(), "30");
+                assert_eq!(
+                    card.card_holder_name
+                        .as_ref()
+                        .map(|name| name.peek().as_str()),
+                    Some("John Test")
+                );
+                assert_eq!(card.card_issuer.as_deref(), Some("chase"));
+                assert_eq!(card.card_network, Some(api_enums::CardNetwork::Visa));
+                assert_eq!(card.card_type.as_deref(), Some("CREDIT"));
+                assert_eq!(card.card_issuing_country.as_deref(), Some("INDIA"));
+                assert_eq!(card.bank_code.as_deref(), Some("JP_AMEX"));
+                assert_eq!(
+                    card.nick_name.as_ref().map(|name| name.peek().as_str()),
+                    Some("my card")
+                );
+                assert_eq!(card.bin_number.as_deref(), Some("424242"));
+                assert_eq!(card.last_four.as_deref(), Some("4242"));
+            }
+            other => panic!("expected vault card details, got {other:?}"),
+        }
+    }
+
+    /// An MIT against a vault-held card authorizes on the network transaction ID, so the mandate
+    /// reference must come back as a `NetworkMandateId` carrying that ID and the TLID.
+    #[test]
+    fn vault_card_details_yield_a_network_mandate_reference() {
+        let (mandate_reference_id, _external_vault_pmd) = domain_vault_card_recurring_details()
+            .get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            .expect("vault card details should produce a mandate reference");
+
+        match mandate_reference_id {
+            mandates::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
+                assert_eq!(network_mandate_id.network_transaction_id, "MCC12345678");
+                assert_eq!(
+                    network_mandate_id.transaction_link_id.as_deref(),
+                    Some("TLID-99")
+                );
+            }
+            other => panic!("expected a network mandate id, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn non_vault_card_flows_have_no_vault_card_mandate_reference() {
+        assert!(RecurringDetails::MandateId("mandate_1".to_string())
+            .get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            .is_none());
+        assert!(RecurringDetails::PaymentMethodId("pm_1".to_string())
+            .get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            .is_none());
+    }
+
+    /// The raw-card MIT flow pairs its mandate reference with a domain `PaymentMethodData`; the
+    /// vault alias pairs the same reference with the non-PCI external vault form instead. Pinned
+    /// because that pairing is what routes the flow to the external vault proxy core.
+    #[test]
+    fn vault_card_details_pair_the_mandate_reference_with_external_vault_card_data() {
+        let (_mandate_reference_id, external_vault_pmd) = domain_vault_card_recurring_details()
+            .get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            .expect("vault card details should produce external vault payment method data");
+
+        match external_vault_pmd {
+            ExternalVaultPaymentMethodData::Card(card) => {
+                assert_eq!(card.card_number.peek(), "tok_4242424242424242");
+                assert_eq!(card.card_exp_month.peek(), "03");
+                assert_eq!(card.card_exp_year.peek(), "30");
+                assert_eq!(card.card_network, Some(api_enums::CardNetwork::Visa));
+                assert!(
+                    card.card_cvc.peek().is_empty(),
+                    "an MIT has no cardholder present, so no CVC should be sent"
+                );
+            }
+            other => panic!("expected an external vault card, got {other:?}"),
+        }
+    }
+
+    /// The plain proxy core cannot authorize a vault alias: it has no non-PCI payment method data
+    /// form. Returning `None` here is what keeps the flow on the external vault proxy core.
+    #[test]
+    fn vault_card_details_are_not_offered_to_the_plain_proxy_core() {
+        assert!(domain_vault_card_recurring_details()
+            .get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+            .is_none());
     }
 }

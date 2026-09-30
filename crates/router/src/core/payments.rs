@@ -11668,6 +11668,7 @@ pub fn get_proxy_connector_filters(
     match recurring_details {
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors
