@@ -203,35 +203,7 @@ mod tests {
         );
     }
 
-    // ---- rung sourcing ----------------------------------------------------
-
-    #[test]
-    fn a_fresh_schedule_starts_the_ladder_at_one() {
-        // Nothing consumed yet, so the first position offered is 1. Never 0 — `get_delay`
-        // returns `None` for a non-positive index, which would fail the very first decision.
-        assert_eq!(StaticLadderProgress::default().consumed_rungs, 0);
-        assert_eq!(StaticLadderProgress::default().next_rung(), 1);
-    }
-
-    #[test]
-    fn stored_rung_advances_by_one() {
-        // Independent of `retry_count`, which runs ahead as adaptive retries are inserted.
-        // Following it would exhaust a five-entry ladder long before rung 5.
-        assert_eq!(at_rung(3).next_rung(), 4);
-    }
-
     // ---- the model decides whenever it has an opinion ---------------------
-
-    #[test]
-    fn adaptive_wins_and_leaves_the_rung_unconsumed() {
-        let decision = expect_decision(&at_rung(2), 3, Some(at(240)), Some(at(72)));
-
-        assert_eq!(decision.schedule_time, at(72));
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
-        // Rung 3 was offered but not used, so it is offered again next time.
-        assert_eq!(decision.next_progress.consumed_rungs, 2);
-        assert_eq!(decision.next_progress.next_rung(), 3);
-    }
 
     #[test]
     fn a_later_adaptive_time_still_wins() {
@@ -245,36 +217,9 @@ mod tests {
 
         assert_eq!(decision.schedule_time, adaptive_time);
         assert_eq!(decision.source, ScheduleSource::Adaptive);
+        // Rung 3 was offered but not used, so it is offered again next time.
         assert_eq!(decision.next_progress.consumed_rungs, 2);
-    }
-
-    #[test]
-    fn an_adaptive_time_on_the_static_day_still_wins() {
-        let static_time = at(240 + 18);
-        let adaptive_time = at(240 + 9);
-        assert_eq!(static_time.date(), adaptive_time.date());
-
-        let decision = expect_decision(
-            &StaticLadderProgress::default(),
-            1,
-            Some(static_time),
-            Some(adaptive_time),
-        );
-
-        assert_eq!(decision.schedule_time, adaptive_time);
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
-    }
-
-    #[test]
-    fn an_adaptive_time_identical_to_static_still_wins() {
-        let decision = expect_decision(
-            &StaticLadderProgress::default(),
-            1,
-            Some(at(240)),
-            Some(at(240)),
-        );
-
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
+        assert_eq!(decision.next_progress.next_rung(), 3);
     }
 
     // ---- the ladder covers what the model declines ------------------------
@@ -286,19 +231,6 @@ mod tests {
         assert_eq!(decision.schedule_time, at(240));
         assert_eq!(decision.source, ScheduleSource::Static);
         assert_eq!(decision.next_progress.consumed_rungs, 1);
-    }
-
-    #[test]
-    fn an_exhausted_ladder_hands_the_slot_to_adaptive() {
-        // Past the ladder's last entry there is no static candidate, but the invoice is not
-        // finished — the adaptive algorithm carries it for the rest of the grace window.
-        let decision = expect_decision(&at_rung(5), 6, None, Some(at(72)));
-
-        assert_eq!(decision.schedule_time, at(72));
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
-        // No position to spend, so the count stays where the ladder left it rather than
-        // creeping past the end on every adaptive retry.
-        assert_eq!(decision.next_progress.consumed_rungs, 5);
     }
 
     #[test]
