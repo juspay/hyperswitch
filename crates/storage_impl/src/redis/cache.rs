@@ -28,23 +28,22 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 /// Default time to idle 10 mins
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
-/// Default max capacity of cache in MB
+/// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
-/// Enforced by weighing entries with the byte size their caller reports — see [`EntrySize`].
-/// Until that weigher existed moka read `max_capacity` as a number of entries, so this figure
-/// was multiplied to ~31M entries and never actually bound anything.
-pub const DEFAULT_MAX_CAPACITY: u64 = 30;
-
-/// Default entry ceiling for caches bounded by count rather than size.
+/// It was written as `30` and documented as megabytes, then multiplied by `1024 * 1024` on the
+/// way into moka — which, with no weigher configured, read it as a number of entries. So the
+/// effective ceiling has always been 31,457,280 entries, and these caches have never come
+/// close to it.
 ///
-/// A backstop against unbounded growth, not a memory target. What bounds the resident set in
-/// normal operation is `time_to_idle`: these caches are keyed per merchant and profile, and an
-/// entry unread for its window is dropped, so only recently active merchants stay resident.
-/// 10,000 simultaneously active merchant-profile pairs is already a very large deployment, so
-/// this should not fire in practice — and if it does, it shows up on
-/// `IN_MEMORY_CACHE_EVICTION_COUNT` with `removal_cause=Size`, which is the signal to raise it
-/// rather than to let the cache thrash.
-pub const DEFAULT_MAX_ENTRIES: u64 = 10_000;
+/// Kept verbatim rather than replaced with a tighter or byte-based default: at this size it
+/// binds nothing, which is exactly the point — the ceiling that ships must not start evicting
+/// where nothing evicted before. What bounds the resident set in normal operation is
+/// `time_to_idle`, since these caches are keyed per merchant and profile and an entry unread
+/// for its window is dropped.
+///
+/// Choosing a ceiling that actually binds is an operational decision rather than a default:
+/// set `max_capacity` per cache, in either unit, once the sizes involved are known.
+pub const DEFAULT_MAX_ENTRIES: u64 = 30 * 1024 * 1024;
 
 /// Whether a cache's entries arrive with a measurable size.
 ///
@@ -216,13 +215,13 @@ impl Caches {
     /// Builds every cache from `config`, falling back to the per-cache defaults for anything
     /// left unset.
     pub fn new(config: &CacheConfig) -> Self {
-        // Both `max_entries` and `max_capacity_in_mb` are accepted for every cache; these are
-        // only the defaults when neither is configured. `EntrySizing` records which caches
-        // could honour a megabyte ceiling at all — see [`CacheSettings::limit`].
+        // Every cache defaults to the entry ceiling it has always had, so shipping this changes
+        // no eviction behaviour; a megabyte ceiling is opt-in per cache. `EntrySizing` records
+        // which caches could honour one at all — see [`CacheSettings::limit`].
         use EntrySizing::{Measured, Unmeasured};
 
-        const BY_SIZE: CacheLimit = CacheLimit::Megabytes(DEFAULT_MAX_CAPACITY);
-        const BY_COUNT: CacheLimit = CacheLimit::Entries(DEFAULT_MAX_ENTRIES);
+        const DEFAULT: CacheLimit = CacheLimit::Entries(DEFAULT_MAX_ENTRIES);
+        // As before, the config cache is the one built with no ceiling at all.
         const UNBOUNDED: CacheLimit = CacheLimit::Unbounded;
 
         Self {
@@ -231,35 +230,35 @@ impl Caches {
                 .clone()
                 .unwrap_or_else(|| DEFAULT_IMC_INVALIDATION_CHANNEL.to_string()),
             config: config.config.build("CONFIG_CACHE", Measured, UNBOUNDED),
-            accounts: config.accounts.build("ACCOUNTS_CACHE", Measured, BY_SIZE),
-            mca_list: config.mca_list.build("MCA_LIST_CACHE", Measured, BY_SIZE),
-            routing: config.routing.build("ROUTING_CACHE", Unmeasured, BY_COUNT),
+            accounts: config.accounts.build("ACCOUNTS_CACHE", Measured, DEFAULT),
+            mca_list: config.mca_list.build("MCA_LIST_CACHE", Measured, DEFAULT),
+            routing: config.routing.build("ROUTING_CACHE", Unmeasured, DEFAULT),
             decision_manager: config.decision_manager.build(
                 "DECISION_MANAGER_CACHE",
                 Measured,
-                BY_SIZE,
+                DEFAULT,
             ),
-            surcharge: config.surcharge.build("SURCHARGE_CACHE", Measured, BY_SIZE),
-            cgraph: config.cgraph.build("CGRAPH_CACHE", Unmeasured, BY_COUNT),
+            surcharge: config.surcharge.build("SURCHARGE_CACHE", Measured, DEFAULT),
+            cgraph: config.cgraph.build("CGRAPH_CACHE", Unmeasured, DEFAULT),
             pm_filters_cgraph: config.pm_filters_cgraph.build(
                 "PM_FILTERS_CGRAPH_CACHE",
                 Unmeasured,
-                BY_COUNT,
+                DEFAULT,
             ),
             success_based_dynamic_algorithm: config.success_based_dynamic_algorithm.build(
                 "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
                 Measured,
-                BY_SIZE,
+                DEFAULT,
             ),
             elimination_based_dynamic_algorithm: config.elimination_based_dynamic_algorithm.build(
                 "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
                 Measured,
-                BY_SIZE,
+                DEFAULT,
             ),
             contract_based_dynamic_algorithm: config.contract_based_dynamic_algorithm.build(
                 "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
                 Measured,
-                BY_SIZE,
+                DEFAULT,
             ),
         }
     }
@@ -448,6 +447,7 @@ dyn_clone::clone_trait_object!(Cacheable);
 pub struct Cache {
     name: &'static str,
     inner: MokaCache<String, WeightedEntry>,
+    limit: CacheLimit,
 }
 
 impl Debug for Cache {
@@ -596,6 +596,15 @@ impl Cache {
         Self {
             name,
             inner: cache_builder.build(),
+            limit,
+        }
+    }
+
+    /// The unit this cache's weight is counted in, for labelling its size metrics.
+    fn limit_unit(&self) -> &'static str {
+        match self.limit {
+            CacheLimit::Megabytes(_) => "megabytes",
+            CacheLimit::Entries(_) | CacheLimit::Unbounded => "entries",
         }
     }
 
@@ -719,13 +728,27 @@ impl Cache {
         self.name
     }
 
-    pub async fn record_entry_count_metric(&self) {
+    /// Records everything moka exposes about this cache's occupancy.
+    ///
+    /// `entry_count` and `weighted_size` are the only runtime figures it publishes — there are
+    /// no built-in hit or miss statistics, which is why those are counted by hand in
+    /// [`Self::get_val`]. The configured ceiling is recorded alongside so that utilisation is
+    /// derivable from the metrics rather than from configuration.
+    pub async fn record_size_metrics(&self) {
         self.run_pending_tasks().await;
 
-        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(
-            self.get_entry_count(),
-            router_env::metric_attributes!(("cache_type", self.name)),
+        let attributes = router_env::metric_attributes!(
+            ("cache_type", self.name),
+            ("limit_unit", self.limit_unit()),
         );
+
+        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(self.get_entry_count(), attributes);
+        metrics::IN_MEMORY_CACHE_WEIGHTED_SIZE.record(self.inner.weighted_size(), attributes);
+
+        // Absent for an unbounded cache, where there is no ceiling to be a fraction of.
+        if let Some(max_capacity) = self.inner.policy().max_capacity() {
+            metrics::IN_MEMORY_CACHE_MAX_CAPACITY.record(max_capacity, attributes);
+        }
     }
 }
 
@@ -1073,6 +1096,33 @@ mod cache_tests {
         );
     }
 
+    /// The ceiling that ships must not evict where nothing evicted before, so pin it against
+    /// the number moka was actually being given before any of this — read from moka's own
+    /// policy rather than from our enum, so a mistake in the plumbing cannot hide here.
+    #[test]
+    fn every_cache_defaults_to_the_historical_entry_ceiling() {
+        // The `30` that was documented as megabytes, multiplied by 1024 * 1024 on the way in,
+        // and read by moka as a number of entries because no weigher was configured.
+        assert_eq!(DEFAULT_MAX_ENTRIES, 31_457_280);
+
+        let caches = Caches::default();
+        for cache in caches.all() {
+            let expected = if cache.name() == "CONFIG_CACHE" {
+                // The one cache that was built with no ceiling at all.
+                None
+            } else {
+                Some(DEFAULT_MAX_ENTRIES)
+            };
+
+            assert_eq!(
+                cache.inner.policy().max_capacity(),
+                expected,
+                "default ceiling for {} changed",
+                cache.name()
+            );
+        }
+    }
+
     #[tokio::test]
     async fn an_entry_ceiling_binds_regardless_of_entry_size() {
         // Three entries allowed, eight pushed, and every one is `Unmeasured` — so nothing
@@ -1168,12 +1218,10 @@ mod cache_tests {
         assert_eq!(config.accounts.time_to_live(), 120);
         assert_eq!(config.accounts.time_to_idle(), DEFAULT_CACHE_TTI);
         assert_eq!(
-            config.accounts.limit(
-                "TEST",
-                EntrySizing::Measured,
-                CacheLimit::Megabytes(DEFAULT_MAX_CAPACITY)
-            ),
-            CacheLimit::Megabytes(DEFAULT_MAX_CAPACITY)
+            config
+                .accounts
+                .limit("TEST", EntrySizing::Measured, CacheLimit::Megabytes(30)),
+            CacheLimit::Megabytes(30)
         );
         assert_eq!(config.routing.time_to_live(), DEFAULT_CACHE_TTL);
         assert_eq!(

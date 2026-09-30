@@ -13,6 +13,12 @@ counter_metric!(KV_SOFT_KILL_ACTIVE_UPDATE, GLOBAL_METER);
 
 // Metrics for In-memory cache
 gauge_metric!(IN_MEMORY_CACHE_ENTRY_COUNT, GLOBAL_METER);
+// Total weight a cache holds, and the ceiling it is weighed against. Both carry a `limit_unit`
+// attribute, since a cache bounded by entry count weighs 1 per entry while one bounded in
+// megabytes weighs each entry's reported bytes. Recording the ceiling alongside the weight is
+// what makes utilisation computable without hardcoding configuration into a dashboard.
+gauge_metric!(IN_MEMORY_CACHE_WEIGHTED_SIZE, GLOBAL_METER);
+gauge_metric!(IN_MEMORY_CACHE_MAX_CAPACITY, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_HIT, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_MISS, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_EVICTION_COUNT, GLOBAL_METER);

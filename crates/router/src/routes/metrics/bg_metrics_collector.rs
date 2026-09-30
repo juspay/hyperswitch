@@ -14,7 +14,7 @@ pub fn spawn_metrics_collector(
     tokio::spawn(async move {
         loop {
             for instance in caches.all() {
-                instance.record_entry_count_metric().await
+                instance.record_size_metrics().await
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(

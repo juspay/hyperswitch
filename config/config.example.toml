@@ -144,8 +144,11 @@ max_feed_count = 200              # The maximum number of frames that will be fe
 #                      #   max_capacity = { entries = 10000 }  # number of entries, whatever they weigh
 #                      #   max_capacity = "unbounded"          # only TTL and time-to-idle apply
 #                      #
-#                      # Defaults: { megabytes = 30 } for most caches, { entries = 10000 } for `routing`,
-#                      # `cgraph` and `pm_filters_cgraph`, and "unbounded" for `config`.
+#                      # Default for every cache except `config`: { entries = 31457280 }. That is the
+#                      # ceiling these caches have always had — a `30` that was documented as megabytes
+#                      # but reached moka as an entry count — kept so that enabling this section changes
+#                      # no eviction behaviour. It binds nothing in practice; pick a real ceiling per
+#                      # cache once you know the sizes involved. `config` defaults to "unbounded", as before.
 #                      #
 #                      # A megabytes ceiling is weighed by the payload size redis reported for each entry,
 #                      # so it only binds caches populated through redis. `routing`, `cgraph` and
