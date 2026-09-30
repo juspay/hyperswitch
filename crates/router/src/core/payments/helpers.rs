@@ -2686,33 +2686,46 @@ fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
 // Helper function to execute rollout logic or return default
 impl From<RolloutConfig> for RolloutExecutionResult {
     fn from(config: RolloutConfig) -> Self {
-        // `rollout_percent` only matters (and is only validated) when it controls primary.
-        let is_valid_percent = config.execution_mode != ExecutionMode::Primary
-            || (0.0..=1.0).contains(&config.rollout_percent);
+        let is_valid_primary_rollout_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        // An unset shadow percent is valid: it simply means no shadow.
+        let is_valid_shadow_rollout_percent = config
+            .shadow_rollout_percent
+            .is_none_or(|shadow_rollout_percent| (0.0..=1.0).contains(&shadow_rollout_percent));
 
-        match is_valid_percent {
+        match is_valid_primary_rollout_percent {
             false => {
                 logger::warn!(
-                    is_valid_percent = is_valid_percent,
+                    is_valid_primary_rollout_percent = is_valid_primary_rollout_percent,
                     "Invalid rollout percent in rollout config. Defaulting to should_execute false."
                 );
                 Self::default()
             }
             true => {
+                // rollout_percent only ever controls primary traffic.
                 let primary_percent = match config.execution_mode {
                     ExecutionMode::Primary => config.rollout_percent,
                     ExecutionMode::Shadow | ExecutionMode::NotApplicable => 0.0,
                 };
-                let shadow_percent = match (config.execution_mode, config.shadow_rollout_percent) {
-                    (ExecutionMode::NotApplicable, _) | (_, None) => 0.0,
-                    (_, Some(percent)) if !(0.0..=1.0).contains(&percent) => {
-                        logger::warn!(
-                            shadow_rollout_percent = percent,
-                            "Invalid shadow_rollout_percent in rollout config, ignoring"
-                        );
-                        0.0
+
+                if !is_valid_shadow_rollout_percent {
+                    logger::warn!("Invalid shadow_rollout_percent in rollout config, ignoring");
+                }
+                let shadow_percent = match config.shadow_rollout_percent {
+                    Some(shadow_rollout_percent)
+                        if is_valid_shadow_rollout_percent
+                            && config.execution_mode != ExecutionMode::NotApplicable =>
+                    {
+                        let remaining_percent = 1.0 - primary_percent;
+                        if shadow_rollout_percent > remaining_percent {
+                            logger::warn!(
+                                shadow_rollout_percent,
+                                remaining_percent,
+                                "shadow_rollout_percent exceeds the traffic left after primary, capping"
+                            );
+                        }
+                        shadow_rollout_percent.min(remaining_percent)
                     }
-                    (_, Some(percent)) => percent.min(1.0 - primary_percent),
+                    _ => 0.0,
                 };
 
                 let sampled_value: f64 = common_utils::generate_random_f64_unit();
@@ -10158,9 +10171,8 @@ mod rollout_config_tests {
     }
 
     #[test]
-    fn invalid_rollout_percent_rejects_primary_config_only() {
+    fn invalid_rollout_percent_rejects_the_config() {
         assert!(!resolve(ExecutionMode::Primary, 1.5, Some(0.5)).should_execute);
-        // Shadow mode does not use `rollout_percent`, so it is not validated there.
-        assert!(resolve(ExecutionMode::Shadow, 1.5, Some(1.0)).should_execute);
+        assert!(!resolve(ExecutionMode::Shadow, 1.5, Some(1.0)).should_execute);
     }
 }
