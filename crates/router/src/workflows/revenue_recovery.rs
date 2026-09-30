@@ -2548,7 +2548,11 @@ pub async fn compute_model_retry_time(
     retry_time
 }
 
-#[cfg(all(test, feature = "v2"))]
+// Split rather than `cfg(all(test, feature = "v2"))`: clippy recognises a test module by a literal
+// `cfg(test)` attribute and does not look inside `all(...)`, so the combined form loses the
+// in-test lint allowances (`expect_used`, `unwrap_used`, `panic`) that `.clippy.toml` grants.
+#[cfg(test)]
+#[cfg(feature = "v2")]
 mod retry_model_tests {
     use super::*;
 
@@ -2732,9 +2736,9 @@ mod retry_model_tests {
 
         // index 2 = Thursday 27 Aug (score 2.0), index 0 = Tuesday 25 Aug (no signal).
         let a_thursday = a_weights.get(2).copied().expect("index in window");
-        let a_unscored = a_weights.get(0).copied().expect("index in window");
+        let a_unscored = a_weights.first().copied().expect("index in window");
         let b_thursday = b_weights.get(2).copied().expect("index in window");
-        let b_unscored = b_weights.get(0).copied().expect("index in window");
+        let b_unscored = b_weights.first().copied().expect("index in window");
 
         assert!(
             approx(a_thursday, a_unscored, 1e-12),
