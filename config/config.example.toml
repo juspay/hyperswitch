@@ -137,7 +137,8 @@ max_feed_count = 200              # The maximum number of frames that will be fe
 # Each of the caches below accepts the same three keys:
 #   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
 #   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
-#   max_capacity_in_mb # Size limit of the cache, 0 meaning unbounded (default: 30, and unbounded for `cache.config`)
+#   max_capacity_in_mb # Size limit of the cache in megabytes, measured as the serialized size of its entries,
+#                      # 0 meaning unbounded (default: 30, and unbounded for `cache.config`)
 #
 # [cache.config]                              # CONFIG_CACHE, unbounded by default
 # [cache.accounts]                            # ACCOUNTS_CACHE

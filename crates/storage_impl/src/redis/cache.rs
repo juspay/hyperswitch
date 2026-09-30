@@ -29,6 +29,10 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
 /// Default max capacity of cache in MB
+///
+/// Enforced by weighing each entry's serialized size — see [`entry_weight`]. Until that
+/// weigher existed moka read `max_capacity` as a number of entries, so this figure was
+/// multiplied to ~31M entries and never actually bound anything.
 pub const DEFAULT_MAX_CAPACITY: u64 = 30;
 
 /// Runtime overrides for a single in-memory cache.
@@ -43,7 +47,8 @@ pub struct CacheSettings {
     pub ttl_in_secs: Option<u64>,
     /// Time in seconds an entry is retained after it was last read or written
     pub tti_in_secs: Option<u64>,
-    /// Max size in MB the cache may hold. `0` makes the cache unbounded.
+    /// Max size in MB the cache may hold, measured as the serialized size of its entries.
+    /// `0` makes the cache unbounded.
     pub max_capacity_in_mb: Option<u64>,
 }
 
@@ -359,7 +364,7 @@ dyn_clone::clone_trait_object!(Cacheable);
 
 pub struct Cache {
     name: &'static str,
-    inner: MokaCache<String, Arc<dyn Cacheable>>,
+    inner: MokaCache<String, WeightedEntry>,
 }
 
 impl Debug for Cache {
@@ -410,18 +415,72 @@ fn in_memory_cache_key(key: CacheKey) -> String {
     physical
 }
 
+/// A cached value together with the byte weight moka bounds the cache by.
+///
+/// The weight has to be known when the entry goes in: moka's weigher is synchronous and only
+/// sees `&V`, and a value behind `dyn Cacheable` cannot be serialized through the trait
+/// object. So it is measured once at insert time and carried alongside the value.
+#[derive(Clone)]
+struct WeightedEntry {
+    value: Arc<dyn Cacheable>,
+    weight: u32,
+}
+
+/// Counts bytes written and discards them, so an entry can be measured without allocating a
+/// second copy of it.
+struct ByteCounter(usize);
+
+impl std::io::Write for ByteCounter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0 = self.0.saturating_add(buf.len());
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Approximate footprint of a cache entry, in bytes.
+///
+/// Serialized length stands in for heap footprint. The values these caches hold are arbitrary
+/// types behind `Arc<dyn Cacheable>`, so their real allocation graph cannot be walked, and
+/// `size_of` would see only the shallow struct — for a merchant account, a handful of pointers
+/// rather than the strings they point at. Every type stored here is already `Serialize`,
+/// because reading it back through [`Cache::get_val`] requires it.
+///
+/// The key is included: moka stores it alongside the value.
+fn entry_weight<T: serde::Serialize>(key: &str, val: &T) -> u32 {
+    let mut counter = ByteCounter(0);
+    let value_bytes = match serde_json::to_writer(&mut counter, val) {
+        Ok(()) => counter.0,
+        // A value that will not serialize cannot be measured. Fall back to its shallow size
+        // rather than refusing to cache it — under-weighing one entry is better than losing
+        // the caching of a whole type.
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "Could not measure a cache entry; falling back to its shallow size"
+            );
+            size_of::<T>()
+        }
+    };
+
+    u32::try_from(key.len().saturating_add(value_bytes)).unwrap_or(u32::MAX)
+}
+
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
     /// `name`        : Cache type name to be used as an attribute in metrics
     /// `time_to_live`: Time in seconds before an object is stored in a caching system before it’s deleted
     /// `time_to_idle`: Time in seconds before a `get` or `insert` operation an object is stored in a caching system before it's deleted
-    /// `max_capacity`: Max size in MB's that the cache can hold
+    /// `max_capacity`: Max size in MB's that the cache can hold, `None` for unbounded
     pub fn new(
         name: &'static str,
         time_to_live: u64,
         time_to_idle: u64,
-        max_capacity: Option<u64>,
+        max_capacity_in_mb: Option<u64>,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -436,10 +495,13 @@ impl Cache {
         let mut cache_builder = MokaCache::builder()
             .time_to_live(std::time::Duration::from_secs(time_to_live))
             .time_to_idle(std::time::Duration::from_secs(time_to_idle))
+            // Without a weigher moka reads `max_capacity` as a number of entries, which is
+            // what made the megabyte figure below a no-op until now.
+            .weigher(|_key, entry: &WeightedEntry| entry.weight)
             .eviction_listener(eviction_listener);
 
-        if let Some(capacity) = max_capacity {
-            cache_builder = cache_builder.max_capacity(capacity * 1024 * 1024);
+        if let Some(capacity_in_mb) = max_capacity_in_mb {
+            cache_builder = cache_builder.max_capacity(capacity_in_mb.saturating_mul(1024 * 1024));
         }
 
         Self {
@@ -462,9 +524,18 @@ impl Cache {
             args = deja_in_memory_args(self.name, &key),
         )
     )]
-    pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
+    pub async fn push<T: Cacheable + serde::Serialize>(&self, key: CacheKey, val: T) {
+        let physical_key = in_memory_cache_key(key);
+        let weight = entry_weight(&physical_key, &val);
+
         self.inner
-            .insert(in_memory_cache_key(key), Arc::new(val))
+            .insert(
+                physical_key,
+                WeightedEntry {
+                    value: Arc::new(val),
+                    weight,
+                },
+            )
             .await;
     }
 
@@ -499,9 +570,13 @@ impl Cache {
                 .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         }
 
-        let val = (*val?).as_any().downcast_ref::<T>().cloned();
+        let entry = val?;
 
-        val
+        // The explicit deref is load-bearing. `Arc<dyn Cacheable>` satisfies the blanket
+        // `Cacheable` impl itself, so `entry.value.as_any()` resolves to the `Arc`'s own impl
+        // and hands back a `&dyn Any` describing the `Arc` — downcasting which silently turns
+        // every read into a miss. Deref first so `as_any` comes from the value inside.
+        (*entry.value).as_any().downcast_ref::<T>().cloned()
     }
 
     /// Check if a key exists in cache
@@ -736,6 +811,41 @@ where
 #[cfg(test)]
 mod cache_tests {
     use super::*;
+
+    #[test]
+    fn an_entry_is_weighed_by_its_serialized_size() {
+        let payload = "x".repeat(1000);
+
+        // 1000 bytes of payload, the two quotes serde writes around a string, and the key
+        // moka stores alongside it.
+        assert_eq!(entry_weight("key", &payload), 1000 + 2 + 3);
+    }
+
+    #[tokio::test]
+    async fn a_cache_evicts_once_its_megabyte_budget_is_exceeded() {
+        // One megabyte, against eight entries of ~256 KiB: they cannot all be held. Without
+        // a weigher moka would read this as a capacity of 1048576 *entries* and keep all
+        // eight.
+        let cache = Cache::new("test", 1800, 1800, Some(1));
+        for index in 0..8 {
+            cache
+                .push(
+                    CacheKey {
+                        key: format!("key{index}"),
+                        prefix: "prefix".to_string(),
+                    },
+                    "x".repeat(256 * 1024),
+                )
+                .await;
+        }
+        cache.run_pending_tasks().await;
+
+        let held = cache.get_entry_count();
+        assert!(
+            (1..8).contains(&held),
+            "expected the megabyte budget to bind, but the cache held {held} of 8 entries"
+        );
+    }
 
     #[test]
     fn unset_settings_resolve_to_the_compiled_in_defaults() {
