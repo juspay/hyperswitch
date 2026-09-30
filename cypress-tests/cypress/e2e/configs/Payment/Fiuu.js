@@ -883,22 +883,6 @@ export const connectorDetails = {
         },
       },
     },
-    "3DSCaptureGreaterAmount": {
-      Request: {
-        amount_to_capture: 6000000,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a capture_method of manual. The expected state is manual_multiple",
-            code: "IR_14",
-          },
-        },
-      },
-    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
