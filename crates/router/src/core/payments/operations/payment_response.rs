@@ -289,7 +289,7 @@ where
                                     ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
                                 )?;
                                 let connector_token_status =
-                                    ConnectorTokenStatus::from(payment_data.payment_attempt.status);
+                                    ConnectorTokenStatus::from(resp.status);
                                 mandate_reference
                                     .connector_mandate_id
                                     .map(|connector_mandate_id| {
