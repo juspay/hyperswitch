@@ -234,73 +234,11 @@ pub mod metric_behaviour {
     pub struct AvgTicketSize;
 }
 
-impl PaymentMetrics {
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::PaymentSuccessRate => "Charged attempts ÷ all attempts, pending included.",
-            Self::PaymentCount => "Attempts created, all statuses. Retries count separately.",
-            Self::PaymentSuccessCount => "Attempts with status charged.",
-            Self::PaymentProcessedAmount => "Charged amount per currency, in minor units.",
-            Self::AvgTicketSize => "Processed amount ÷ charged attempts, per currency.",
-            Self::RetriesCount => {
-                "Succeeded payments that took more than one attempt. Ignores filters."
-            }
-            Self::ConnectorSuccessRate => "Success rate of attempts routed to a connector.",
-            Self::DebitRouting => "Charged attempts and their debit routing savings.",
-            Self::SessionizedPaymentSuccessRate => "payment_success_rate, from the sessionizer.",
-            Self::SessionizedPaymentCount => "payment_count, from the sessionizer.",
-            Self::SessionizedPaymentSuccessCount => "payment_success_count, from the sessionizer.",
-            Self::SessionizedPaymentProcessedAmount => {
-                "payment_processed_amount, from the sessionizer."
-            }
-            Self::SessionizedAvgTicketSize => "avg_ticket_size, from the sessionizer.",
-            Self::SessionizedRetriesCount => "retries_count, from the sessionizer.",
-            Self::SessionizedConnectorSuccessRate => {
-                "connector_success_rate, from the sessionizer."
-            }
-            Self::SessionizedDebitRouting => "debit_routing, from the sessionizer.",
-            Self::PaymentsDistribution => {
-                "Success and failure rates for first attempts and retries, from the sessionizer."
-            }
-            Self::FailureReasons => {
-                "Failed attempts per error reason, with each reason's share, from the sessionizer."
-            }
-        }
-    }
-}
-
-impl PaymentDimensions {
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::Connector => "Connector that processed the attempt.",
-            Self::PaymentMethod => "Payment method, such as card or wallet.",
-            Self::PaymentMethodType => "Payment method type, such as credit or google_pay.",
-            Self::Currency => "Currency of the attempt.",
-            Self::AuthType => "three_ds or no_three_ds.",
-            Self::PaymentStatus => "Attempt status, such as charged or failure.",
-            Self::ClientSource => "Client that created the attempt.",
-            Self::ClientVersion => "Version of that client.",
-            Self::ProfileId => "Business profile.",
-            Self::CardNetwork => "Card network, such as Visa.",
-            Self::MerchantId => "Merchant account.",
-            Self::CardLast4 => "Last four card digits. Sessionized metrics only.",
-            Self::CardIssuer => "Bank that issued the card. Sessionized metrics only.",
-            Self::ErrorReason => "Error message returned by the connector, as sent.",
-            Self::RoutingApproach => "How the connector was chosen.",
-            Self::SignatureNetwork => "Card signature network, for debit routing.",
-            Self::IsIssuerRegulated => "Whether the issuer is regulated.",
-            Self::IsDebitRouted => {
-                "Whether the attempt was debit routed. Sessionized metrics only."
-            }
-        }
-    }
-}
-
 impl From<PaymentMetrics> for NameDescription {
     fn from(value: PaymentMetrics) -> Self {
         Self {
             name: value.to_string(),
-            desc: value.description().to_string(),
+            desc: String::new(),
         }
     }
 }
@@ -309,7 +247,7 @@ impl From<PaymentDimensions> for NameDescription {
     fn from(value: PaymentDimensions) -> Self {
         Self {
             name: value.to_string(),
-            desc: value.description().to_string(),
+            desc: String::new(),
         }
     }
 }

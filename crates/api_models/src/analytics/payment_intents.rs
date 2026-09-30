@@ -84,33 +84,6 @@ pub enum PaymentIntentDimensions {
     SetupFutureUsage,
 }
 
-impl PaymentIntentDimensions {
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::PaymentIntentStatus => "Status of the payment, such as succeeded or failed.",
-            Self::Currency => "Currency of the payment.",
-            Self::ProfileId => "Business profile.",
-            Self::Connector => "Connector of the payment's attempt. Sessionized metrics only.",
-            Self::AuthType => "three_ds or no_three_ds. Sessionized metrics only.",
-            Self::PaymentMethod => "Payment method, such as card. Sessionized metrics only.",
-            Self::PaymentMethodType => {
-                "Payment method type, such as credit. Sessionized metrics only."
-            }
-            Self::CardNetwork => "Card network, such as Visa. Sessionized metrics only.",
-            Self::MerchantId => "Merchant account.",
-            Self::CardLast4 => "Last four card digits. Sessionized metrics only.",
-            Self::CardIssuer => "Bank that issued the card. Sessionized metrics only.",
-            Self::ErrorReason => "Error reason from the connector. Sessionized metrics only.",
-            Self::OffSession => {
-                "true when the merchant initiated the payment (MIT). Empty for customer payments."
-            }
-            Self::SetupFutureUsage => {
-                "Whether the payment saves the card: off_session for future MITs, on_session for checkouts."
-            }
-        }
-    }
-}
-
 #[derive(
     Clone,
     Debug,
@@ -140,35 +113,6 @@ pub enum PaymentIntentMetrics {
     SessionizedPaymentProcessedAmount,
     SessionizedPaymentsDistribution,
 }
-
-impl PaymentIntentMetrics {
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::SuccessfulSmartRetries => "Succeeded payments that needed more than one attempt.",
-            Self::TotalSmartRetries => "Payments that needed more than one attempt.",
-            Self::SmartRetriedAmount => "Amount of succeeded payments that needed a retry.",
-            Self::PaymentIntentCount => "Payments created, all statuses.",
-            Self::PaymentsSuccessRate => {
-                "Succeeded payments ÷ payments, excluding those still awaiting the customer or merchant."
-            }
-            Self::PaymentProcessedAmount => "Amount of succeeded payments, per currency.",
-            Self::SessionizedSuccessfulSmartRetries => {
-                "successful_smart_retries, from the sessionizer."
-            }
-            Self::SessionizedTotalSmartRetries => "total_smart_retries, from the sessionizer.",
-            Self::SessionizedSmartRetriedAmount => "smart_retried_amount, from the sessionizer.",
-            Self::SessionizedPaymentIntentCount => "payment_intent_count, from the sessionizer.",
-            Self::SessionizedPaymentsSuccessRate => "payments_success_rate, from the sessionizer.",
-            Self::SessionizedPaymentProcessedAmount => {
-                "payment_processed_amount, from the sessionizer."
-            }
-            Self::SessionizedPaymentsDistribution => {
-                "Success and failure rates with and without smart retries, from the sessionizer."
-            }
-        }
-    }
-}
-
 impl ForexMetric for PaymentIntentMetrics {
     fn is_forex_metric(&self) -> bool {
         matches!(
@@ -200,7 +144,7 @@ impl From<PaymentIntentMetrics> for NameDescription {
     fn from(value: PaymentIntentMetrics) -> Self {
         Self {
             name: value.to_string(),
-            desc: value.description().to_string(),
+            desc: String::new(),
         }
     }
 }
@@ -209,7 +153,7 @@ impl From<PaymentIntentDimensions> for NameDescription {
     fn from(value: PaymentIntentDimensions) -> Self {
         Self {
             name: value.to_string(),
-            desc: value.description().to_string(),
+            desc: String::new(),
         }
     }
 }
