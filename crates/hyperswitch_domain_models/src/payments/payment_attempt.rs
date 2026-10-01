@@ -1658,8 +1658,10 @@ impl PaymentAttempt {
         self.amount_details.surcharge_amount
     }
 
+    /// Network of the card, as stored on the attempt's payment method data.
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
-        todo!()
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_network)
     }
 
     /// Funding type of the card, as stored on the attempt's payment method data.
