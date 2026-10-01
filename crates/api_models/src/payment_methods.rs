@@ -147,9 +147,14 @@ pub struct PaymentMethodCreate {
         min_length = 32,
         max_length = 64,
         example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String
+        value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The merchant's own identifier for the customer, i.e. the `merchant_reference_id` sent while creating the customer.
+    /// Used to look up the customer when `customer_id` is not provided. If both are provided, they must refer to the same customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_customer_ref_id: Option<id_type::CustomerId>,
 
     /// Payment method data to be passed
     pub payment_method_data: PaymentMethodCreateData,
@@ -183,9 +188,14 @@ pub struct PaymentMethodIntentCreate {
         min_length = 32,
         max_length = 64,
         example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
-        value_type = String
+        value_type = Option<String>
     )]
-    pub customer_id: id_type::GlobalCustomerId,
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The merchant's own identifier for the customer, i.e. the `merchant_reference_id` sent while creating the customer.
+    /// Used to look up the customer when `customer_id` is not provided. If both are provided, they must refer to the same customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_customer_ref_id: Option<id_type::CustomerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -4711,6 +4721,11 @@ pub struct PaymentMethodSessionRequest {
     /// The customer id for which the payment methods session is to be created
     #[schema(value_type = Option<String>, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The merchant's own identifier for the customer, i.e. the `merchant_reference_id` sent while creating the customer.
+    /// Used to look up the customer when `customer_id` is not provided. If both are provided, they must refer to the same customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_customer_ref_id: Option<id_type::CustomerId>,
 
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]

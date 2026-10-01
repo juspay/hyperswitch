@@ -667,6 +667,45 @@ pub async fn retrieve_customer_by_merchant_reference_id(
     ))
 }
 
+/// Resolves the global customer id for requests that identify the customer either by
+/// `customer_id` or by the `merchant_reference_id` the merchant sent while creating the customer.
+///
+/// `customer_id` takes precedence. When both are sent, they must refer to the same customer.
+#[cfg(feature = "v2")]
+#[instrument(skip(state, provider))]
+pub async fn resolve_customer_id_by_merchant_reference_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: Option<id_type::GlobalCustomerId>,
+    merchant_customer_ref_id: Option<&id_type::CustomerId>,
+) -> errors::RouterResult<Option<id_type::GlobalCustomerId>> {
+    let Some(merchant_customer_ref_id) = merchant_customer_ref_id else {
+        return Ok(customer_id);
+    };
+
+    let customer = state
+        .store
+        .find_customer_by_merchant_reference_id_merchant_id(
+            merchant_customer_ref_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found for the merchant_customer_ref_id")?;
+
+    match customer_id {
+        Some(customer_id) if customer_id != customer.id => {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "customer_id and merchant_customer_ref_id refer to different customers"
+                    .to_string(),
+            }))
+        }
+        _ => Ok(Some(customer.id)),
+    }
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,

@@ -84,7 +84,7 @@ use crate::routes::metrics;
 use crate::{
     configs::settings,
     core::{
-        account_updater,
+        account_updater, customers,
         payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
         tokenization as tokenization_core,
     },
@@ -1369,6 +1369,7 @@ pub(crate) fn get_payment_method_create_request(
                 payment_method_subtype,
                 metadata: None,
                 customer_id,
+                merchant_customer_ref_id: None,
                 payment_method_data: payment_methods::PaymentMethodCreateData::Card(card_detail),
                 billing: billing_address.map(ToOwned::to_owned),
                 network_tokenization: payment_method_session
@@ -1411,6 +1412,7 @@ pub(crate) fn get_payment_method_create_request(
                 payment_method_subtype,
                 metadata: None,
                 customer_id,
+                merchant_customer_ref_id: None,
                 payment_method_data: payment_methods::PaymentMethodCreateData::BankDebit(
                     bank_debit_detail,
                 ),
@@ -1789,10 +1791,18 @@ pub async fn get_card_nt_eligibility(
 pub async fn create_payment_method(
     state: &SessionState,
     request_state: &routes::app::ReqState,
-    req: api::PaymentMethodCreate,
+    mut req: api::PaymentMethodCreate,
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
+    req.customer_id = customers::resolve_customer_id_by_merchant_reference_id(
+        state,
+        platform.get_provider(),
+        req.customer_id.take(),
+        req.merchant_customer_ref_id.as_ref(),
+    )
+    .await?;
+
     // payment_method is for internal use, can never be populated in response
     let (response, _payment_method) = Box::pin(create_payment_method_core(
         state,
@@ -4280,7 +4290,14 @@ pub async fn payment_method_intent_create(
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let merchant_id = provider.get_account().get_id();
-    let customer_id = req.customer_id.to_owned();
+    let customer_id = customers::resolve_customer_id_by_merchant_reference_id(
+        state,
+        &provider,
+        req.customer_id.clone(),
+        req.merchant_customer_ref_id.as_ref(),
+    )
+    .await?
+    .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
     db.find_customer_by_global_id_merchant_id_without_encrypted(
@@ -7234,7 +7251,15 @@ pub async fn payment_methods_session_create(
     let key_manager_state = &(&state).into();
     let _provider = platform.get_provider();
 
-    let customer = if let Some(customer_id) = &request.customer_id {
+    let customer_id = customers::resolve_customer_id_by_merchant_reference_id(
+        &state,
+        platform.get_provider(),
+        request.customer_id.clone(),
+        request.merchant_customer_ref_id.as_ref(),
+    )
+    .await?;
+
+    let customer = if let Some(customer_id) = &customer_id {
         let customer = db
             .find_customer_by_global_id_merchant_id(
                 customer_id,
@@ -7297,7 +7322,7 @@ pub async fn payment_methods_session_create(
     let payment_method_session_domain_model =
         hyperswitch_domain_models::payment_methods::PaymentMethodSession {
             id: payment_methods_session_id,
-            customer_id: request.customer_id.clone(),
+            customer_id,
             billing,
             psp_tokenization: None,
             network_tokenization: request.network_tokenization,
