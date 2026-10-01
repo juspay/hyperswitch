@@ -222,8 +222,14 @@ mod helpers {
         fn latency_boundaries_cover_the_expected_range() {
             let buckets = latency_histogram_buckets_seconds();
             assert_eq!(buckets.len(), 134);
-            assert!((buckets[0] - 0.000_1).abs() < 1e-12);
-            assert!((buckets[133] - 52.4288).abs() < 1e-9);
+            assert!(matches!(
+                buckets.first(),
+                Some(boundary) if (*boundary - 0.000_1).abs() < 1e-12
+            ));
+            assert!(matches!(
+                buckets.last(),
+                Some(boundary) if (*boundary - 52.4288).abs() < 1e-9
+            ));
             assert!(buckets
                 .iter()
                 .all(|boundary| boundary.is_finite() && *boundary > 0.0));
@@ -233,11 +239,17 @@ mod helpers {
         fn latency_boundaries_have_seven_intervals_per_doubling() {
             let buckets = latency_histogram_buckets_seconds();
             for pair in buckets.windows(2) {
-                assert!(pair[1] > pair[0]);
-                assert!(pair[1] / pair[0] < 1.105);
+                let [first, second] = pair else {
+                    panic!("windows(2) must yield exactly two boundaries");
+                };
+                assert!(second > first);
+                assert!(second / first < 1.105);
             }
             for interval in buckets.windows(8) {
-                assert!((interval[7] / interval[0] - 2.0).abs() < 1e-12);
+                let [first, _, _, _, _, _, _, eighth] = interval else {
+                    panic!("windows(8) must yield exactly eight boundaries");
+                };
+                assert!((eighth / first - 2.0).abs() < 1e-12);
             }
         }
 
