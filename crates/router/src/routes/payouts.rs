@@ -14,7 +14,7 @@ use super::app::AppState;
 use crate::{
     core::{
         api_locking::{self, GetLockingInput},
-        errors::RouterResult,
+        errors::{self, RouterResult},
         payouts::*,
     },
     logger,
@@ -172,7 +172,7 @@ pub async fn payouts_confirm(
     payload.confirm = Some(true);
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth_type, _auth_flow) = {
+    let (auth_type, auth_flow) = {
         #[cfg(feature = "v1")]
         {
             match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
@@ -188,6 +188,12 @@ pub async fn payouts_confirm(
             }
         }
     };
+
+    if auth_flow == api::AuthFlow::Client {
+        if let Err(err) = validate_client_payout_confirm_request(&payload) {
+            return api::log_and_return_error_response(err);
+        }
+    }
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -214,6 +220,33 @@ pub async fn payouts_confirm(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+fn validate_client_payout_confirm_request(
+    payload: &payout_types::PayoutCreateRequest,
+) -> RouterResult<()> {
+    let merchant_owned_fields = [
+        payload.amount.is_some().then_some("amount"),
+        payload.auto_fulfill.is_some().then_some("auto_fulfill"),
+        payload.currency.is_some().then_some("currency"),
+        payload.connector.is_some().then_some("connector"),
+        payload.routing.is_some().then_some("routing"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    if merchant_owned_fields.is_empty() {
+        Ok(())
+    } else {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "The following fields cannot be provided for client-authenticated payout confirmation: {}",
+                merchant_owned_fields.join(", ")
+            ),
+        }
+        .into())
+    }
 }
 
 /// Payouts - Cancel

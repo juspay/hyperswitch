@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.01.0
+
+### Features
+
+- **connector:** Fill card attributes from the connector response when bin lookup misses ([#14423](https://github.com/juspay/hyperswitch/pull/14423)) ([`66f6385`](https://github.com/juspay/hyperswitch/commit/66f63854e106e0e265734637115c5332859d1ab9))
+- **core:** Add surcharge_percentage in surcharge_details in eligibility response ([#14544](https://github.com/juspay/hyperswitch/pull/14544)) ([`a07c63d`](https://github.com/juspay/hyperswitch/commit/a07c63dc1d60428dfed809518891fcecc43853e5))
+- **redis_interface:** Add TLS connection support for redis cache ([#14508](https://github.com/juspay/hyperswitch/pull/14508)) ([`eee7787`](https://github.com/juspay/hyperswitch/commit/eee778723e3f7ed797fd2e291e0a6e59b762693e))
+- **ucs:** Add shift4 to ucs only connectors list ([#14521](https://github.com/juspay/hyperswitch/pull/14521)) ([`18196a2`](https://github.com/juspay/hyperswitch/commit/18196a2dc097883946ac684ed69552c33c3b96a3))
+
+### Bug Fixes
+
+- **connector:** [worldpayxml] enable webhook source verification ([#14543](https://github.com/juspay/hyperswitch/pull/14543)) ([`681cf96`](https://github.com/juspay/hyperswitch/commit/681cf96bbc888239daf669a71b0554e934210ee3))
+- **payouts:** Restrict client confirm fields ([#14547](https://github.com/juspay/hyperswitch/pull/14547)) ([`607b15f`](https://github.com/juspay/hyperswitch/commit/607b15fcc4b7dae71c2aafb8c004eea333ac6fd8))
+- **webhooks:** Prefer merchant txn id over connector id in UCS webhook bridge ([#14514](https://github.com/juspay/hyperswitch/pull/14514)) ([`e8c465e`](https://github.com/juspay/hyperswitch/commit/e8c465e228f56dac95922df802af462c28b944dc))
+
+### Testing
+
+- **cypress:** Add stripe error_on_requires_action coverage for MIT payments ([#14495](https://github.com/juspay/hyperswitch/pull/14495)) ([`35f1405`](https://github.com/juspay/hyperswitch/commit/35f1405fa57eb147580248ef3cb2bd11499886dd))
+
+**Full Changelog:** [`2026.09.30.0...2026.10.01.0`](https://github.com/juspay/hyperswitch/compare/2026.09.30.0...2026.10.01.0)
+
+- - -
+
 ## 2026.09.30.0
 
 ### Features
