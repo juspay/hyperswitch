@@ -1263,8 +1263,17 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
+                    let payment_method_update_phase = PaymentMethodUpdatePhase::for_payment(
+                        payment_data
+                            .get_payment_attempt()
+                            .setup_future_usage_applied,
+                        helpers::is_ptv_payment_method(state, &payment_data).await,
+                    );
+
                     handle_pm_and_mandate_post_update(
                         state,
+                        payment_method_update_phase,
+                        false,
                         operation.as_ref(),
                         &router_data,
                         platform,
@@ -1329,6 +1338,21 @@ where
                         )
                         .await?;
                     }
+
+                    handle_pm_and_mandate_post_update(
+                        state,
+                        payment_method_update_phase,
+                        true,
+                        operation.as_ref(),
+                        &router_data_for_pm_mandate,
+                        platform,
+                        &mut payment_data,
+                        &business_profile,
+                        req.get_payment_method_data(),
+                        &feature_config,
+                        &dimensions.without_profile_id(),
+                    )
+                    .await?;
 
                     payment_data
                 }
@@ -1506,8 +1530,17 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
+                    let payment_method_update_phase = PaymentMethodUpdatePhase::for_payment(
+                        payment_data
+                            .get_payment_attempt()
+                            .setup_future_usage_applied,
+                        helpers::is_ptv_payment_method(state, &payment_data).await,
+                    );
+
                     handle_pm_and_mandate_post_update(
                         state,
+                        payment_method_update_phase,
+                        false,
                         operation.as_ref(),
                         &router_data,
                         platform,
@@ -1572,6 +1605,21 @@ where
                         )
                         .await?;
                     }
+
+                    handle_pm_and_mandate_post_update(
+                        state,
+                        payment_method_update_phase,
+                        true,
+                        operation.as_ref(),
+                        &router_data_for_pm_mandate,
+                        platform,
+                        &mut payment_data,
+                        &business_profile,
+                        req.get_payment_method_data(),
+                        &feature_config,
+                        &dimensions.without_profile_id(),
+                    )
+                    .await?;
 
                     payment_data
                 }
@@ -2954,9 +3002,39 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 }
 
 #[cfg(feature = "v1")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PaymentMethodUpdatePhase {
+    BeforeTracker,
+    AfterTracker,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentMethodUpdatePhase {
+    fn for_payment(
+        setup_future_usage_applied: Option<common_enums::FutureUsage>,
+        is_ptv: bool,
+    ) -> Self {
+        if setup_future_usage_applied != Some(common_enums::FutureUsage::OffSession) && is_ptv {
+            Self::AfterTracker
+        } else {
+            Self::BeforeTracker
+        }
+    }
+
+    fn should_run(self, after_tracker_update: bool) -> bool {
+        matches!(
+            (self, after_tracker_update),
+            (Self::BeforeTracker, false) | (Self::AfterTracker, true)
+        )
+    }
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     state: &SessionState,
+    payment_method_update_phase: PaymentMethodUpdatePhase,
+    after_tracker_update: bool,
     operation: &Op,
     router_data: &RouterData<F, R, router_types::PaymentsResponseData>,
     platform: &domain::Platform,
@@ -2972,6 +3050,10 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
+    if !payment_method_update_phase.should_run(after_tracker_update) {
+        return Ok(());
+    }
+
     // Log the inputs of the modular-vs-legacy decision so a wrong branch is diagnosable:
     // the feature flag, the payment method's version and the modular/legacy modification
     // timestamps are everything `should_use_modular_pm_path` looks at.
@@ -3033,6 +3115,28 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod payment_method_update_phase_tests {
+    use super::PaymentMethodUpdatePhase;
+    use common_enums::FutureUsage;
+
+    #[test]
+    fn ptv_update_runs_once_when_connector_downgrades_future_usage() {
+        let phase = PaymentMethodUpdatePhase::for_payment(Some(FutureUsage::OffSession), true);
+
+        // Connector processing may subsequently downgrade the request to OnSession. The phase
+        // selected from the initial payment state must remain stable across tracker persistence.
+        let _downgraded_future_usage = Some(FutureUsage::OnSession);
+        let executions = [phase.should_run(false), phase.should_run(true)]
+            .into_iter()
+            .filter(|should_run| *should_run)
+            .count();
+
+        assert_eq!(executions, 1);
+        assert!(phase.should_run(false));
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -3479,8 +3583,17 @@ where
 
             let router_data_for_pm_mandate = router_data.clone();
 
+            let payment_method_update_phase = PaymentMethodUpdatePhase::for_payment(
+                payment_data
+                    .get_payment_attempt()
+                    .setup_future_usage_applied,
+                helpers::is_ptv_payment_method(state, &payment_data).await,
+            );
+
             handle_pm_and_mandate_post_update(
                 state,
+                payment_method_update_phase,
+                false,
                 operation.as_ref(),
                 &router_data_for_pm_mandate,
                 &platform,
@@ -3523,6 +3636,21 @@ where
                 )
                 .await?;
             }
+
+            handle_pm_and_mandate_post_update(
+                state,
+                payment_method_update_phase,
+                true,
+                operation.as_ref(),
+                &router_data_for_pm_mandate,
+                &platform,
+                &mut payment_data,
+                &business_profile,
+                req.get_payment_method_data(),
+                &feature_config,
+                &dimensions.without_profile_id(),
+            )
+            .await?;
 
             utils::trigger_payments_webhook(
                 &platform,
@@ -9967,7 +10095,7 @@ where
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
-                            helpers::make_modular_pm_data(payment_data)?;
+                            helpers::make_modular_pm_data(state, payment_data).await?;
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
 
@@ -10016,7 +10144,7 @@ where
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
-                            helpers::make_modular_pm_data(payment_data)?;
+                            helpers::make_modular_pm_data(state, payment_data).await?;
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
 
