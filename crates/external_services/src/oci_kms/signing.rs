@@ -52,6 +52,26 @@ pub(crate) fn sign_post_request(
         .format(HTTP_DATE_FORMAT)
         .change_context(OciKmsError::SigningFailed)
         .attach_printable("Failed to format the request date")?;
+
+    Ok(sign_post_request_at(
+        date,
+        key_id,
+        private_key,
+        host,
+        path,
+        body,
+    ))
+}
+
+/// [`sign_post_request`] with the `date` header value supplied, so output is reproducible.
+fn sign_post_request_at(
+    date: String,
+    key_id: &str,
+    private_key: &RsaPrivateKey,
+    host: &str,
+    path: &str,
+    body: &[u8],
+) -> SignedHeaders {
     let content_length = body.len().to_string();
     let content_type = "application/json";
     let body_hash = BASE64_ENGINE.encode(Sha256::digest(body));
@@ -77,9 +97,109 @@ pub(crate) fn sign_post_request(
          algorithm=\"rsa-sha256\",signature=\"{encoded_signature}\""
     );
 
-    Ok(SignedHeaders {
+    SignedHeaders {
         date,
         authorization,
         x_content_sha256: body_hash,
-    })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rsa::{
+        pkcs1v15::{Signature, VerifyingKey},
+        signature::Verifier,
+    };
+
+    use super::*;
+
+    const DATE: &str = "Thu, 05 Jan 2014 21:31:40 GMT";
+    const HOST: &str = "iaas.us-phoenix-1.oraclecloud.com";
+    const PATH: &str = "/20160918/volumeAttachments";
+    const BODY: &[u8] = br#"{"compartmentId":"ocid1.compartment.oc1..aaaa"}"#;
+    const KEY_ID: &str = "ocid1.tenancy.oc1..test/ocid1.user.oc1..test/fingerprint";
+
+    /// Generated per run rather than checked in, so no private key lives in the repo.
+    fn test_key() -> RsaPrivateKey {
+        RsaPrivateKey::new(&mut rand::rngs::OsRng, 1024).expect("key generation succeeds")
+    }
+
+    /// Pulls the base64 `signature="..."` value out of an `Authorization` header.
+    fn signature_of(authorization: &str) -> Vec<u8> {
+        let encoded = authorization
+            .split("signature=\"")
+            .nth(1)
+            .and_then(|rest| rest.strip_suffix('"'))
+            .expect("authorization header carries a signature");
+        BASE64_ENGINE.decode(encoded).expect("signature is base64")
+    }
+
+    #[test]
+    fn x_content_sha256_is_the_base64_sha256_of_the_body() {
+        let signed = sign_post_request_at(DATE.to_owned(), KEY_ID, &test_key(), HOST, PATH, b"");
+        // SHA-256 of the empty string.
+        assert_eq!(
+            signed.x_content_sha256,
+            "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+        );
+    }
+
+    #[test]
+    fn authorization_header_has_the_oci_signature_v1_shape() {
+        let signed = sign_post_request_at(DATE.to_owned(), KEY_ID, &test_key(), HOST, PATH, BODY);
+
+        assert_eq!(signed.date, DATE);
+        assert!(signed.authorization.starts_with(
+            "Signature version=\"1\",\
+             headers=\"date (request-target) host content-length content-type x-content-sha256\",\
+             keyId=\"ocid1.tenancy.oc1..test/ocid1.user.oc1..test/fingerprint\",\
+             algorithm=\"rsa-sha256\",\
+             signature=\""
+        ));
+    }
+
+    /// The signing string is written out literally here, in the exact form Oracle's docs
+    /// specify for a POST, rather than rebuilt from the code under test. The signature only
+    /// verifies if the code signed exactly this string, with RSA PKCS#1 v1.5 over SHA-256.
+    #[test]
+    fn signature_verifies_over_oracles_post_signing_string() {
+        let private_key = test_key();
+        let signed = sign_post_request_at(DATE.to_owned(), KEY_ID, &private_key, HOST, PATH, BODY);
+
+        let expected_signing_string = "date: Thu, 05 Jan 2014 21:31:40 GMT\n\
+             (request-target): post /20160918/volumeAttachments\n\
+             host: iaas.us-phoenix-1.oraclecloud.com\n\
+             content-length: 47\n\
+             content-type: application/json\n\
+             x-content-sha256: JL3n1o6nGMwsBAd+52/KQ24uJCKaE4r2X8cuX1MVPRw=";
+
+        let signature = Signature::try_from(signature_of(&signed.authorization).as_slice())
+            .expect("well-formed PKCS#1 v1.5 signature");
+        VerifyingKey::<Sha256>::new(private_key.to_public_key())
+            .verify(expected_signing_string.as_bytes(), &signature)
+            .expect("signature verifies over Oracle's signing string");
+    }
+
+    #[test]
+    fn signature_does_not_verify_over_a_different_signing_string() {
+        let private_key = test_key();
+        let signed = sign_post_request_at(DATE.to_owned(), KEY_ID, &private_key, HOST, PATH, BODY);
+
+        let signature = Signature::try_from(signature_of(&signed.authorization).as_slice())
+            .expect("well-formed PKCS#1 v1.5 signature");
+        let verified = VerifyingKey::<Sha256>::new(private_key.to_public_key()).verify(
+            b"date: Thu, 05 Jan 2014 21:31:41 GMT\n(request-target): post /20160918/volumeAttachments",
+            &signature,
+        );
+        assert!(verified.is_err());
+    }
+
+    #[test]
+    fn http_date_format_matches_rfc_7231() {
+        // Not Oracle's sample date: 5 Jan 2014 was a Sunday, not the Thursday it claims.
+        let date = time::macros::datetime!(2014-01-02 09:05:07 UTC)
+            .format(HTTP_DATE_FORMAT)
+            .expect("formattable");
+        assert_eq!(date, "Thu, 02 Jan 2014 09:05:07 GMT");
+    }
 }

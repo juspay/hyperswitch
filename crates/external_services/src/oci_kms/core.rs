@@ -8,7 +8,11 @@ use error_stack::{report, ResultExt};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use super::{credentials::CredentialCache, signing};
+use super::{
+    credentials::CredentialCache,
+    signing,
+    transport::{self, AttemptError},
+};
 use crate::{consts, metrics};
 
 /// Configuration parameters required for constructing an [`OciKmsClient`].
@@ -98,8 +102,13 @@ impl OciKmsClient {
             .attach_printable("OCI KMS vault crypto endpoint URL has no host")?
             .to_owned();
 
+        let http_client = transport::client_builder()
+            .build()
+            .change_context(OciKmsError::ClientCreationFailed)
+            .attach_printable("Failed to build the OCI KMS HTTP client")?;
+
         Ok(Self {
-            http_client: reqwest::Client::new(),
+            http_client,
             vault_crypto_endpoint: config
                 .vault_crypto_endpoint
                 .trim_end_matches('/')
@@ -177,18 +186,35 @@ impl OciKmsClient {
         Request: Serialize,
         Response: serde::de::DeserializeOwned,
     {
-        let credentials = self.credentials.current().await?;
         let body = serde_json::to_vec(request)
-            .change_context(OciKmsError::ClientCreationFailed)
+            .change_context(OciKmsError::SerializationFailed)
             .attach_printable("Failed to serialize OCI KMS request body")?;
+
+        let response_body =
+            transport::with_retries("oci_kms_crypto", || self.send_once(path, &body)).await?;
+
+        serde_json::from_str(&response_body)
+            .change_context(OciKmsError::RequestFailed)
+            .attach_printable("Failed to parse OCI KMS response body")
+    }
+
+    /// One signed attempt. Signed afresh on every call, since the signature covers `date`.
+    async fn send_once(&self, path: &str, body: &[u8]) -> Result<String, AttemptError> {
+        // Credential resolution retries on its own; a failure surfacing here is final.
+        let credentials = self
+            .credentials
+            .current()
+            .await
+            .map_err(AttemptError::Fatal)?;
 
         let signed = signing::sign_post_request(
             &credentials.key_id,
             &credentials.private_key,
             &self.host,
             path,
-            &body,
-        )?;
+            body,
+        )
+        .map_err(AttemptError::Fatal)?;
 
         let response = self
             .http_client
@@ -197,28 +223,31 @@ impl OciKmsClient {
             .header("authorization", signed.authorization)
             .header("content-type", "application/json")
             .header("x-content-sha256", signed.x_content_sha256)
-            .body(body)
+            .body(body.to_vec())
             .send()
             .await
             .change_context(OciKmsError::RequestFailed)
-            .attach_printable("Failed to send OCI KMS request")?;
+            .attach_printable("Failed to send OCI KMS request")
+            .map_err(AttemptError::Retryable)?;
 
         let status = response.status();
         let response_body = response
             .text()
             .await
             .change_context(OciKmsError::RequestFailed)
-            .attach_printable("Failed to read OCI KMS response body")?;
+            .attach_printable("Failed to read OCI KMS response body")
+            .map_err(AttemptError::Retryable)?;
 
         if !status.is_success() {
-            return Err(report!(OciKmsError::RequestFailed)).attach_printable(format!(
-                "OCI KMS request failed with status {status}: {response_body}"
+            return Err(AttemptError::from_status(
+                status,
+                report!(OciKmsError::RequestFailed).attach_printable(format!(
+                    "OCI KMS request failed with status {status}: {response_body}"
+                )),
             ));
         }
 
-        serde_json::from_str(&response_body)
-            .change_context(OciKmsError::RequestFailed)
-            .attach_printable("Failed to parse OCI KMS response body")
+        Ok(response_body)
     }
 }
 
@@ -245,9 +274,14 @@ pub enum OciKmsError {
     #[error("Failed to sign OCI KMS request")]
     SigningFailed,
 
-    /// Workload Identity credentials couldn't be obtained from the OKE proxymux service.
-    #[error("OCI Workload Identity credentials unavailable")]
+    /// Signing credentials couldn't be obtained, from OKE Workload Identity inside
+    /// Kubernetes or from the `oci` CLI config file outside it.
+    #[error("OCI signing credentials unavailable")]
     CredentialsUnavailable,
+
+    /// The crypto-endpoint request body couldn't be serialized.
+    #[error("Failed to serialize OCI KMS request")]
+    SerializationFailed,
 
     /// The crypto-endpoint request failed, returned a non-success status, or its response body couldn't be parsed.
     #[error("OCI KMS request failed")]
@@ -256,4 +290,66 @@ pub enum OciKmsError {
     /// Failed while creating the OCI KMS client.
     #[error("Failed to create OCI KMS client")]
     ClientCreationFailed,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config() -> OciKmsConfig {
+        OciKmsConfig {
+            vault_crypto_endpoint: "https://abc-crypto.kms.ap-mumbai-1.oraclecloud.com".to_string(),
+            key_id: "ocid1.key.oc1.ap-mumbai-1.test".to_string(),
+        }
+    }
+
+    #[test]
+    fn validate_succeeds_when_all_fields_are_set() {
+        assert!(config().validate().is_ok());
+    }
+
+    #[test]
+    fn validate_fails_when_vault_crypto_endpoint_is_empty() {
+        let config = OciKmsConfig {
+            vault_crypto_endpoint: String::new(),
+            ..config()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn validate_fails_when_key_id_is_empty() {
+        let config = OciKmsConfig {
+            key_id: String::new(),
+            ..config()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[tokio::test]
+    async fn new_extracts_host_and_trims_trailing_slash() {
+        let client = OciKmsClient::new(&OciKmsConfig {
+            vault_crypto_endpoint: "https://abc-crypto.kms.ap-mumbai-1.oraclecloud.com/"
+                .to_string(),
+            ..config()
+        })
+        .await
+        .expect("client should build from a valid endpoint");
+
+        assert_eq!(client.host, "abc-crypto.kms.ap-mumbai-1.oraclecloud.com");
+        assert_eq!(
+            client.vault_crypto_endpoint,
+            "https://abc-crypto.kms.ap-mumbai-1.oraclecloud.com"
+        );
+    }
+
+    #[tokio::test]
+    async fn new_rejects_an_invalid_endpoint() {
+        let result = OciKmsClient::new(&OciKmsConfig {
+            vault_crypto_endpoint: "not a url".to_string(),
+            ..config()
+        })
+        .await;
+        assert!(result.is_err());
+    }
 }

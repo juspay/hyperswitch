@@ -101,3 +101,53 @@ fn is_stale(soft_expires_at: Option<i64>) -> bool {
         .unwrap_or(i64::MAX);
     soft_expires_at <= now + REFRESH_BUFFER_SECONDS
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn jwt_with_payload(payload: &str) -> String {
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload);
+        format!("header.{encoded}.signature")
+    }
+
+    #[test]
+    fn soft_expiry_is_halfway_through_the_token_lifetime() {
+        let token = jwt_with_payload(r#"{"iat":1000,"exp":4600}"#);
+        assert_eq!(soft_expiry(&token).expect("valid token"), 2800);
+    }
+
+    #[test]
+    fn soft_expiry_rejects_a_token_that_is_not_a_jwt() {
+        assert!(soft_expiry("not-a-jwt").is_err());
+    }
+
+    #[test]
+    fn soft_expiry_rejects_a_token_without_lifetime_claims() {
+        let token = jwt_with_payload(r#"{"sub":"workload"}"#);
+        assert!(soft_expiry(&token).is_err());
+    }
+
+    #[test]
+    fn credentials_without_an_expiry_are_never_stale() {
+        assert!(!is_stale(None));
+    }
+
+    #[test]
+    fn credentials_past_their_soft_expiry_are_stale() {
+        assert!(is_stale(Some(0)));
+    }
+
+    #[test]
+    fn credentials_within_the_refresh_buffer_are_stale() {
+        let now = i64::try_from(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("clock after epoch")
+                .as_secs(),
+        )
+        .expect("fits in i64");
+        assert!(is_stale(Some(now + REFRESH_BUFFER_SECONDS - 1)));
+        assert!(!is_stale(Some(now + REFRESH_BUFFER_SECONDS + 60)));
+    }
+}

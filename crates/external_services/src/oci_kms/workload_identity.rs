@@ -14,6 +14,7 @@ use rsa::pkcs8::EncodePublicKey;
 use super::{
     core::OciKmsError,
     credentials::{soft_expiry, OciCredentials},
+    transport::{self, AttemptError},
 };
 use crate::consts;
 
@@ -75,37 +76,12 @@ pub(super) async fn credentials() -> CustomResult<OciCredentials, OciKmsError> {
     .change_context(OciKmsError::CredentialsUnavailable)
     .attach_printable("Failed to serialize the proxymux session token request")?;
 
-    let response = proxymux_client(&cluster_ca)?
-        .post(format!(
-            "https://{kubernetes_host}:{PROXYMUX_PORT}{PROXYMUX_PATH}"
-        ))
-        .bearer_auth(service_account_token.trim())
-        .header("content-type", "application/json")
-        .header("opc-request-id", format!("{:032x}", rand::random::<u128>()))
-        .body(body)
-        .send()
-        .await
-        .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable("Failed to reach the OKE proxymux service")?;
-
-    let status = response.status();
-    let response_body = response
-        .text()
-        .await
-        .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable("Failed to read the proxymux response body")?;
-
-    if !status.is_success() {
-        // Proxymux answers 403 when the cluster isn't an *enhanced* OKE cluster, which
-        // is the usual cause and isn't otherwise obvious from the response.
-        let hint = match status {
-            reqwest::StatusCode::FORBIDDEN => " (Workload Identity needs an enhanced OKE cluster and a policy granting this service account access)",
-            _ => "",
-        };
-        return Err(report!(OciKmsError::CredentialsUnavailable)).attach_printable(format!(
-            "Proxymux rejected the session token request with status {status}{hint}: {response_body}"
-        ));
-    }
+    let client = proxymux_client(&cluster_ca)?;
+    let url = proxymux_url(&kubernetes_host);
+    let response_body = transport::with_retries("oci_proxymux_session_token", || {
+        request_session_token(&client, &url, service_account_token.trim(), &body)
+    })
+    .await?;
 
     let session_token = parse_session_token(&response_body)?;
 
@@ -114,6 +90,59 @@ pub(super) async fn credentials() -> CustomResult<OciCredentials, OciKmsError> {
         key_id: format!("{SECURITY_TOKEN_PREFIX}{session_token}"),
         private_key,
     })
+}
+
+async fn request_session_token(
+    client: &reqwest::Client,
+    url: &str,
+    service_account_token: &str,
+    body: &[u8],
+) -> Result<String, AttemptError> {
+    let response = client
+        .post(url)
+        .bearer_auth(service_account_token)
+        .header("content-type", "application/json")
+        .header("opc-request-id", format!("{:032x}", rand::random::<u128>()))
+        .body(body.to_vec())
+        .send()
+        .await
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to reach the OKE proxymux service")
+        .map_err(AttemptError::Retryable)?;
+
+    let status = response.status();
+    let response_body = response
+        .text()
+        .await
+        .change_context(OciKmsError::CredentialsUnavailable)
+        .attach_printable("Failed to read the proxymux response body")
+        .map_err(AttemptError::Retryable)?;
+
+    if !status.is_success() {
+        // Proxymux answers 403 when the cluster isn't an *enhanced* OKE cluster, which
+        // is the usual cause and isn't otherwise obvious from the response.
+        let hint = match status {
+            reqwest::StatusCode::FORBIDDEN => " (Workload Identity needs an enhanced OKE cluster and a policy granting this service account access)",
+            _ => "",
+        };
+        return Err(AttemptError::from_status(
+            status,
+            report!(OciKmsError::CredentialsUnavailable).attach_printable(format!(
+                "Proxymux rejected the session token request with status {status}{hint}: {response_body}"
+            )),
+        ));
+    }
+
+    Ok(response_body)
+}
+
+/// `KUBERNETES_SERVICE_HOST` is a bare IP, so an IPv6 address needs brackets in a URL.
+fn proxymux_url(kubernetes_host: &str) -> String {
+    if kubernetes_host.contains(':') && !kubernetes_host.starts_with('[') {
+        format!("https://[{kubernetes_host}]:{PROXYMUX_PORT}{PROXYMUX_PATH}")
+    } else {
+        format!("https://{kubernetes_host}:{PROXYMUX_PORT}{PROXYMUX_PATH}")
+    }
 }
 
 /// Trusts the cluster CA alone: this request carries the pod's Kubernetes identity as a
@@ -128,7 +157,7 @@ fn proxymux_client(cluster_ca_pem: &[u8]) -> CustomResult<reqwest::Client, OciKm
     certificates
         .into_iter()
         .fold(
-            reqwest::Client::builder()
+            transport::client_builder()
                 .use_rustls_tls()
                 .tls_built_in_root_certs(false),
             |builder, certificate| builder.add_root_certificate(certificate),
@@ -172,4 +201,66 @@ fn parse_session_token(response_body: &str) -> CustomResult<String, OciKmsError>
         .strip_prefix(SECURITY_TOKEN_PREFIX)
         .unwrap_or(&response.token)
         .to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Wraps `inner` the way proxymux does: a JSON string holding base64 of the JSON body.
+    fn proxymux_response(inner: &str) -> String {
+        serde_json::to_string(&consts::BASE64_ENGINE.encode(inner)).expect("serializable")
+    }
+
+    #[test]
+    fn parse_session_token_strips_the_security_token_prefix() {
+        let body = proxymux_response(r#"{"token":"ST$header.payload.signature"}"#);
+        assert_eq!(
+            parse_session_token(&body).expect("valid response"),
+            "header.payload.signature"
+        );
+    }
+
+    #[test]
+    fn parse_session_token_accepts_an_unprefixed_token() {
+        let body = proxymux_response(r#"{"token":"header.payload.signature"}"#);
+        assert_eq!(
+            parse_session_token(&body).expect("valid response"),
+            "header.payload.signature"
+        );
+    }
+
+    #[test]
+    fn parse_session_token_rejects_a_plain_json_object() {
+        assert!(parse_session_token(r#"{"token":"ST$abc"}"#).is_err());
+    }
+
+    #[test]
+    fn parse_session_token_rejects_invalid_base64() {
+        assert!(parse_session_token(r#""not base64!""#).is_err());
+    }
+
+    #[test]
+    fn proxymux_url_uses_an_ipv4_host_as_is() {
+        assert_eq!(
+            proxymux_url("10.96.0.1"),
+            "https://10.96.0.1:12250/resourcePrincipalSessionTokens"
+        );
+    }
+
+    #[test]
+    fn proxymux_url_brackets_an_ipv6_host() {
+        assert_eq!(
+            proxymux_url("fd00::1"),
+            "https://[fd00::1]:12250/resourcePrincipalSessionTokens"
+        );
+    }
+
+    #[test]
+    fn proxymux_url_keeps_an_already_bracketed_ipv6_host() {
+        assert_eq!(
+            proxymux_url("[fd00::1]"),
+            "https://[fd00::1]:12250/resourcePrincipalSessionTokens"
+        );
+    }
 }

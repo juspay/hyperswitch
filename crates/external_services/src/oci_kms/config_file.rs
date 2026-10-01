@@ -142,3 +142,65 @@ fn expand_home(path: &str) -> PathBuf {
         None => PathBuf::from(path),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const CONFIG: &str = "\
+[DEFAULT]
+user=ocid1.user.oc1..default
+fingerprint=aa:bb
+# a comment
+Tenancy = ocid1.tenancy.oc1..default
+key_file=~/.oci/default.pem
+
+[SESSION]
+security_token_file=~/.oci/sessions/token
+key_file=~/.oci/sessions/key.pem
+";
+
+    #[test]
+    fn parse_profile_reads_only_the_requested_section() {
+        let profile = parse_profile(CONFIG, "SESSION").expect("profile exists");
+        assert_eq!(profile.len(), 2);
+        assert_eq!(
+            profile.get("security_token_file").map(String::as_str),
+            Some("~/.oci/sessions/token")
+        );
+        assert!(!profile.contains_key("user"));
+    }
+
+    #[test]
+    fn parse_profile_trims_and_lowercases_keys_and_skips_comments() {
+        let profile = parse_profile(CONFIG, "DEFAULT").expect("profile exists");
+        assert_eq!(
+            profile.get("tenancy").map(String::as_str),
+            Some("ocid1.tenancy.oc1..default")
+        );
+        assert_eq!(profile.len(), 4);
+    }
+
+    #[test]
+    fn parse_profile_returns_none_for_a_missing_section() {
+        assert!(parse_profile(CONFIG, "MISSING").is_none());
+    }
+
+    #[test]
+    fn pem_block_drops_the_cli_label_after_the_footer() {
+        // `pem_block` only looks for the `-----END` line, so the label doesn't matter.
+        let contents = "-----BEGIN TEST BLOCK-----\nabc\n-----END TEST BLOCK-----\nOCI_API_KEY\n";
+        assert_eq!(
+            pem_block(contents),
+            "-----BEGIN TEST BLOCK-----\nabc\n-----END TEST BLOCK-----\n"
+        );
+    }
+
+    #[test]
+    fn expand_home_leaves_absolute_paths_untouched() {
+        assert_eq!(
+            expand_home("/etc/oci/config"),
+            PathBuf::from("/etc/oci/config")
+        );
+    }
+}
