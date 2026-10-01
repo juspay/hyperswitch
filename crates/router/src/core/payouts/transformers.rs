@@ -178,8 +178,13 @@ impl
 
                         api::PaymentMethodTypeInfo {
                             payment_method_type: pmt,
-                            required_fields: required_fields
-                                .and_then(|f| if f.is_empty() { None } else { Some(f) }),
+                            required_fields: required_fields.and_then(|f| {
+                                if f.is_empty() {
+                                    None
+                                } else {
+                                    Some(f)
+                                }
+                            }),
                         }
                     })
                     .collect();

@@ -25,14 +25,22 @@ impl Default for PayoutRequiredFields {
                         PaymentMethodType::Debit,
                         connectors(vec![(
                             PayoutConnectors::Adyenplatform,
-                            fields(vec![], vec![], adyen_billing_fields(PaymentMethodType::Debit, card_fields())),
+                            fields(
+                                vec![],
+                                vec![],
+                                adyen_billing_fields(PaymentMethodType::Debit, card_fields()),
+                            ),
                         )]),
                     ),
                     (
                         PaymentMethodType::Credit,
                         connectors(vec![(
                             PayoutConnectors::Adyenplatform,
-                            fields(vec![], vec![], adyen_billing_fields(PaymentMethodType::Credit, card_fields())),
+                            fields(
+                                vec![],
+                                vec![],
+                                adyen_billing_fields(PaymentMethodType::Credit, card_fields()),
+                            ),
                         )]),
                     ),
                 ])),
@@ -45,7 +53,14 @@ impl Default for PayoutRequiredFields {
                         connectors(vec![
                             (
                                 PayoutConnectors::Adyenplatform,
-                                fields(vec![], vec![], adyen_billing_fields(PaymentMethodType::SepaBankTransfer, sepa_fields())),
+                                fields(
+                                    vec![],
+                                    vec![],
+                                    adyen_billing_fields(
+                                        PaymentMethodType::SepaBankTransfer,
+                                        sepa_fields(),
+                                    ),
+                                ),
                             ),
                             (
                                 PayoutConnectors::Deutschebank,
@@ -81,7 +96,11 @@ impl Default for PayoutRequiredFields {
                     PaymentMethodType::Paypal,
                     connectors(vec![(
                         PayoutConnectors::Adyenplatform,
-                        fields(vec![], vec![], adyen_billing_fields(PaymentMethodType::Paypal, paypal_fields())),
+                        fields(
+                            vec![],
+                            vec![],
+                            adyen_billing_fields(PaymentMethodType::Paypal, paypal_fields()),
+                        ),
                     )]),
                 )])),
             ),
@@ -105,14 +124,9 @@ impl Default for PayoutRequiredFields {
     }
 }
 
-fn connectors(
-    connectors: Vec<(PayoutConnectors, RequiredFieldFinal)>,
-) -> ConnectorFields {
+fn connectors(connectors: Vec<(PayoutConnectors, RequiredFieldFinal)>) -> ConnectorFields {
     ConnectorFields {
-        fields: connectors
-            .into_iter()
-            .map(|(c, f)| (c.into(), f))
-            .collect(),
+        fields: connectors.into_iter().map(|(c, f)| (c.into(), f)).collect(),
     }
 }
 
@@ -323,10 +337,7 @@ fn adyen_billing_fields(
                 required_field: "billing.address.country".to_string(),
                 display_name: "billing_address_country".to_string(),
                 field_type: FieldType::UserAddressCountry {
-                    options: adyen_countries()
-                        .iter()
-                        .map(|c| c.to_string())
-                        .collect(),
+                    options: adyen_countries().iter().map(|c| c.to_string()).collect(),
                 },
                 value: None,
             },
@@ -349,7 +360,9 @@ fn adyen_billing_fields(
     fields
 }
 
-fn wise_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(String, RequiredFieldInfo)> {
+fn wise_billing_fields(
+    mut extra: Vec<(String, RequiredFieldInfo)>,
+) -> Vec<(String, RequiredFieldInfo)> {
     let mut fields = vec![
         (
             "billing.address.line1".to_string(),
@@ -412,7 +425,9 @@ fn wise_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(Stri
     fields
 }
 
-fn gigadat_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(String, RequiredFieldInfo)> {
+fn gigadat_billing_fields(
+    mut extra: Vec<(String, RequiredFieldInfo)>,
+) -> Vec<(String, RequiredFieldInfo)> {
     let mut fields = vec![
         (
             "billing.address.first_name".to_string(),
@@ -455,7 +470,9 @@ fn gigadat_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(S
     fields
 }
 
-fn loonio_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(String, RequiredFieldInfo)> {
+fn loonio_billing_fields(
+    mut extra: Vec<(String, RequiredFieldInfo)>,
+) -> Vec<(String, RequiredFieldInfo)> {
     let mut fields = vec![
         (
             "billing.address.first_name".to_string(),
