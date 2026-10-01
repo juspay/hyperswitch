@@ -907,6 +907,9 @@ pub enum ApplePayPreDecryptFlow {
 pub enum GooglePayPreDecryptFlow {
     #[default]
     ConnectorTokenization,
+    /// Connector tokenization only for a token that carries a cryptogram, for connectors whose
+    /// tokenization endpoint does not accept a `PAN_ONLY` token
+    ConnectorTokenizationWithCryptogram,
     NetworkTokenization,
 }
 
