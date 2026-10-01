@@ -306,6 +306,27 @@ impl Cache {
     // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
     // re-triggers the caller's fallback. The serde bound is deliberately
     // unconditional: a type that cannot be captured cannot be cached.
+    //
+    // `on_miss = None`: a read the recording never made returns "not in cache"
+    // instead of fail-stopping the request. A candidate under review adds cache
+    // reads — that is what a change is — and the fail-stop default answers the
+    // first one by unwinding, which actix does not contain, so the worker writes
+    // nothing and the whole correlation scores as a 500. One added read that way
+    // took 45 of 52 correlations to `500 vs 200` and left one correlation
+    // matched: a single regression censoring every other signal in the run.
+    //
+    // `None` is honest here in a way a fabricated value never is. It asserts only
+    // that this key is not in the process-local cache, which IS true under replay
+    // — the moka is cold and correlation-namespaced — and the caller's fallback
+    // to Redis or the database is separately instrumented, so the work that
+    // follows the miss is scored on its own boundaries rather than hidden behind
+    // a substituted value. Egress keeps the fail-stop default: synthesizing an
+    // http/grpc response would claim a third party answered when none did.
+    //
+    // The miss is not swallowed. The lookup emits its blocking novel-call
+    // divergence before `on_miss` is reached, so the scorecard still shows the
+    // added read; what changes is that the divergence localises to the subtree
+    // that depended on it instead of taking the request down with it.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -316,6 +337,7 @@ impl Cache {
             effect = Imc,
             codec = SerdeCodec,
             args = deja_in_memory_args(self.name, &key),
+            on_miss = None,
         )
     )]
     pub async fn get_val<T>(&self, key: CacheKey) -> Option<T>
@@ -339,6 +361,20 @@ impl Cache {
     }
 
     /// Check if a key exists in cache
+    //
+    // Deja: `on_miss = false` is the same honest absence `get_val` answers with,
+    // in this method's own type. "Not in cache" is TRUE under replay — the moka
+    // is cold and correlation-namespaced — and a `false` sends the caller down
+    // the fallback path, which is instrumented on its own boundaries.
+    //
+    // Without it, this sibling still takes the correlation down. `get_val`'s
+    // declaration covers reads made THROUGH `get_val`, so a candidate that adds
+    // an existence check fail-stops exactly the way an added read did before
+    // that declaration existed: the same incident, one method over.
+    //
+    // As there, the miss is not swallowed — the lookup emits its blocking
+    // novel-call divergence before `on_miss` is reached, so the added read still
+    // shows on the scorecard; what changes is that it stops being fatal.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -349,6 +385,7 @@ impl Cache {
             effect = Imc,
             codec = SerdeCodec,
             args = deja_in_memory_args(self.name, &key),
+            on_miss = false,
         )
     )]
     pub async fn exists(&self, key: CacheKey) -> bool {

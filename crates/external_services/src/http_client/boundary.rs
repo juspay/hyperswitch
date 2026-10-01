@@ -143,8 +143,13 @@ pub(super) fn response_result(
                 "response_headers": response_headers_json(response).expose(),
                 "response_body": captured_body_json(response).expose(),
             }),
+            // The typed error, not its report text: callers branch on the
+            // variant (a timeout becomes a 504), and the report's location
+            // attachments differ per build, so only the variant can be rebuilt.
             Err(error) => json!({
-                "error": format!("{error:?}"),
+                "version": 1,
+                "result": "Err",
+                "kind": error.current_context(),
                 "response_body": {
                     "captured": false,
                 },
@@ -170,16 +175,34 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
     }
 
     fn reconstruct(recorded: serde_json::Value) -> Option<Self::Value> {
+        if recorded.get("result").and_then(serde_json::Value::as_str) == Some("Err") {
+            return replay_error(&recorded).map(Err);
+        }
         replay_response(&recorded).map(Ok)
     }
+}
+
+/// Rebuilds a recorded `send_request` error from its typed variant.
+///
+/// A recording made before errors were typed holds only report text under
+/// `error`; it has no `result` tag, so it reaches `replay_response`, which
+/// refuses it, and the call fail-stops as it did before.
+pub(super) fn replay_error(
+    recorded: &serde_json::Value,
+) -> Option<error_stack::Report<HttpClientError>> {
+    let kind = recorded.get("kind")?.clone();
+    serde_json::from_value::<HttpClientError>(kind)
+        .ok()
+        .map(|error| error_stack::report!(error))
 }
 
 /// Rebuilds a `reqwest::Response` from a recorded `response_result` payload, so
 /// a replayed connector call is served from the tape and touches no network.
 ///
 /// Headers are read as an array of values per name; any other shape is a
-/// pre-fix recording that had already lost its repeats, so it is refused.
-/// `None` fail-stops with a named reason — never a fallback to a live call.
+/// recording that predates that capture and had already lost its repeats, so it
+/// is refused rather than replayed. Refusing means returning `None`, which deja
+/// fail-stops with a named reason — it is not a fallback to a live call.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
@@ -201,7 +224,16 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
             }
         }
     }
-    let http_response = builder.body(bytes::Bytes::from(raw_bytes)).ok()?;
+    let body = bytes::Bytes::from(raw_bytes);
+    let mut http_response = builder.body(body.clone()).ok()?;
+    // Restore the extension the body is captured from. Without it, capturing a
+    // reconstructed response reports "body not captured (missing extension)"
+    // instead of the body just rebuilt, so `capture(reconstruct(v))` does not
+    // equal `v`. Nothing re-captures on a replay hit today, so this is inert at
+    // runtime; the codec should not depend on that staying true.
+    http_response
+        .extensions_mut()
+        .insert(CapturedResponseBody(body));
     Some(reqwest::Response::from(http_response))
 }
 
@@ -301,5 +333,96 @@ mod tests {
             replay_response(&recorded).is_none(),
             "a pre-fix recording must refuse rather than replay with its headers dropped"
         );
+    }
+
+    /// Capturing a reconstructed response must reproduce the recording it came
+    /// from.
+    ///
+    /// Fails without the extension restore in `replay_response`: the rebuilt
+    /// response carried the body but not the extension the capture reads it
+    /// from, so the second capture reported "body not captured" where the first
+    /// had reported the bytes. Stated over the whole payload rather than over
+    /// the body alone, because asserting only on the field under suspicion is
+    /// how this stayed hidden.
+    #[test]
+    fn capturing_a_reconstructed_response_reproduces_the_recording() {
+        const BODY: &[u8] = b"{\"ok\":true}";
+
+        let mut builder = http::Response::builder().status(200);
+        for (name, value) in [("content-type", "application/json"), ("set-cookie", "a=1")] {
+            builder = builder.header(name, value);
+        }
+        let mut source = builder
+            .body(bytes::Bytes::from_static(BODY))
+            .expect("failed to build the test response");
+        source
+            .extensions_mut()
+            .insert(CapturedResponseBody(bytes::Bytes::from_static(BODY)));
+
+        let first: CustomResult<reqwest::Response, HttpClientError> =
+            Ok(reqwest::Response::from(source));
+        let captured = response_result(&first).0.expose();
+
+        let reconstructed =
+            replay_response(&captured).expect("a captured response must reconstruct");
+        let second: CustomResult<reqwest::Response, HttpClientError> = Ok(reconstructed);
+        let recaptured = response_result(&second).0.expose();
+
+        assert_eq!(recaptured, captured, "capture(reconstruct(v)) must equal v");
+    }
+
+    /// A recorded error rebuilds as the same variant, and capturing the rebuilt
+    /// error reproduces the recording. Covers the payload variant and the
+    /// timeout variant callers turn into a 504.
+    #[test]
+    fn a_recorded_error_rebuilds_its_variant() {
+        for error in [
+            HttpClientError::RequestNotSent("error sending request".to_string()),
+            HttpClientError::RequestTimeoutReceived,
+        ] {
+            let first: CustomResult<reqwest::Response, HttpClientError> =
+                Err(error_stack::report!(error.clone()));
+            let (captured, is_error) = response_result(&first);
+            let captured = captured.expose();
+            assert!(is_error);
+
+            let rebuilt =
+                <HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(captured.clone())
+                    .expect("a typed error must reconstruct");
+            let Err(report) = &rebuilt else {
+                panic!("a recorded error must rebuild as an error");
+            };
+            assert_eq!(report.current_context(), &error);
+            assert_eq!(response_result(&rebuilt).0.expose(), captured);
+        }
+    }
+
+    /// The error a real aps2 recording holds for the unreachable `decision`
+    /// service, in the typed form this codec now writes.
+    #[test]
+    fn the_recorded_dns_failure_rebuilds() {
+        let recorded = serde_json::json!({
+            "version": 1,
+            "result": "Err",
+            "kind": {"RequestNotSent": "error sending request for url (http://decision-svc.decision-sbx.svc.cluster.local/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known"},
+            "response_body": {"captured": false},
+        });
+        let rebuilt = <HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(recorded)
+            .expect("the recorded dns failure must reconstruct");
+        assert!(matches!(
+            rebuilt.as_ref().map_err(|report| report.current_context()),
+            Err(HttpClientError::RequestNotSent(message)) if message.contains("dns error")
+        ));
+    }
+
+    /// An error recorded before errors were typed holds only report text. It
+    /// has no variant to rebuild, so it still refuses, which fail-stops the call.
+    #[test]
+    fn a_text_only_error_recording_is_refused() {
+        let recorded = serde_json::json!({
+            "error": "Failed to send request to connector error sending request for url (http://decision-svc.decision-sbx.svc.cluster.local/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known",
+            "response_body": {"captured": false},
+        });
+        assert!(<HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(recorded).is_none());
     }
 }

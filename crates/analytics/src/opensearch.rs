@@ -101,7 +101,10 @@ impl Default for OpenSearchConfig {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+// Serialisable so the deja seam on the search query can record and replay a
+// failed search as faithfully as a successful one. Every variant's payload
+// already serialises.
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum OpenSearchError {
     #[error("Opensearch is not enabled")]
     NotEnabled,
@@ -1132,5 +1135,26 @@ impl OpenSearchQueryBuilder {
                 payload
             })
             .collect::<Vec<Value>>())
+    }
+
+    /// Args for the OpenSearch seam: everything about the query that a replay
+    /// must reproduce, and nothing that moves on its own.
+    ///
+    /// Built field by field rather than from `Debug` on the builder, because the
+    /// builder holds a `HashSet` whose rendering order is per-process random —
+    /// folding that into the args hash would move the key every run.
+    /// `search_params` is excluded: it carries auth scope, not query identity.
+    #[cfg(feature = "deja")]
+    pub fn deja_args(&self) -> Value {
+        serde_json::json!({
+            "query": self.query,
+            "indexes": format!("{:?}", self.query_type),
+            "offset": self.offset,
+            "count": self.count,
+            "filters": format!("{:?}", self.filters),
+            "time_range": format!("{:?}", self.time_range),
+            "amount_range": format!("{:?}", self.amount_range),
+            "order": format!("{:?}", self.order),
+        })
     }
 }

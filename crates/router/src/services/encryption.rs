@@ -43,7 +43,10 @@ pub enum EncryptionAlgorithm {
     deja::id(
         component = "router::services::encryption",
         operation = "encrypt_jwe",
-        codec = ResultOkCodec,
+        // `ResultCodec`, not `ResultOkCodec`: a recorded failure here is a real
+        // outcome the caller handles by degrading (it logs and returns Ok), so a
+        // replay that fail-stopped on it would turn a soft degrade into a hard stop.
+        codec = deja::codec::ResultCodec::<String, errors::EncryptionError>,
         // The payload is a digest, never the bytes: the JWS arriving here
         // carries the cleartext card object base64-encoded, which must not
         // reach the tape. The digest is all the lookup needs.

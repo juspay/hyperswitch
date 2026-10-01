@@ -214,7 +214,7 @@ pub async fn validate_create_request(
             field_name: "customer or customer_id when payout_token is provided".into()
         })),
         (Some(payout_token), Some(customer), _) => {
-            helpers::make_payout_method_data(
+            Box::pin(helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
@@ -224,7 +224,7 @@ pub async fn validate_create_request(
                 platform.get_processor().get_key_store(),
                 None,
                 platform.get_processor().get_account().storage_scheme,
-            )
+            ))
             .await
         }
         (_, Some(_), Some(payment_method)) => {

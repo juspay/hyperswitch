@@ -557,12 +557,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                 "Finished payment method modular compatibility PT; already forward compatible"
             );
         } else {
-            workflow
-                .prepare_db_compat()?
-                .apply_locker_compat(state, &process.id)
-                .await?
-                .mark_complete(db)
-                .await?;
+            Box::pin(
+                workflow
+                    .prepare_db_compat()?
+                    .apply_locker_compat(state, &process.id),
+            )
+            .await?
+            .mark_complete(db)
+            .await?;
 
             db.as_scheduler()
                 .finish_process_with_business_status(process, "COMPLETED_BY_PT")

@@ -3804,9 +3804,10 @@ pub async fn network_tokenize_and_vault_the_pmd(
             })
         })?;
 
-    let (resp, network_token_req_ref_id) =
-        network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id)
-            .await?;
+    let (resp, network_token_req_ref_id) = Box::pin(
+        network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id),
+    )
+    .await?;
 
     let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
     let vaulting_resp = vault::add_payment_method_to_vault(
@@ -3877,7 +3878,7 @@ pub async fn generate_network_token_for_payment_method(
     // The per-payment-method opt-in was recorded when the task was scheduled and is not persisted
     // on the payment method, so request tokenization with the toggle enabled here. The
     // profile-level flag is still passed through and re-checked by the callee.
-    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
+    let network_tokenization_resp = Box::pin(network_tokenize_and_vault_the_pmd(
         state,
         &vault_data,
         platform,
@@ -3886,7 +3887,7 @@ pub async fn generate_network_token_for_payment_method(
         }),
         profile.is_network_tokenization_enabled,
         &customer_id,
-    )
+    ))
     .await;
 
     match network_tokenization_resp {

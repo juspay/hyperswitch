@@ -139,7 +139,7 @@ pub async fn get_cache_store(
     deja::id(
         component = "router::services",
         operation = "generate_aes256_key",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<[u8; 32], common_utils::errors::CryptoError>,
     )
 )]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
