@@ -11,8 +11,8 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
-        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
-        StringMinorUnitForConnector,
+        AmountConvertor, FloatMajorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector,
+        StringMinorUnit, StringMinorUnitForConnector,
     },
 };
 use error_stack::{Report, ResultExt};
@@ -940,10 +940,15 @@ impl IncomingWebhook for Rapyd {
             transformers::WebhookData::Dispute(dispute_data) => Ok(dispute_data),
             _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
         }?;
+        let minor_amount = utils::convert_back_amount_to_minor_units(
+            &FloatMajorUnitForConnector,
+            webhook_dispute_data.amount,
+            webhook_dispute_data.currency,
+        )?;
         Ok(DisputePayload {
             amount: convert_amount(
                 self.amount_converter_webhooks,
-                webhook_dispute_data.amount,
+                minor_amount,
                 webhook_dispute_data.currency,
             )?,
             currency: webhook_dispute_data.currency,
@@ -1005,7 +1010,7 @@ static RAPYD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -1024,7 +1029,7 @@ static RAPYD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(

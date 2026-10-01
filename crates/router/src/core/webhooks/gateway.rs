@@ -949,10 +949,14 @@ fn event_reference_to_object_ref(
                 })
             }
         }
+        // The dispute is attached to its payment, so the reference must be the
+        // payment's connector transaction id. The connector's dispute id is only a
+        // fallback: it is not a payment id and the attempt lookup fails on it when
+        // the connector sends both (Rapyd `token`, Adyen, Checkout).
         Resource::Dispute(dispute) => dispute
-            .connector_dispute_id
+            .connector_transaction_id
             .as_ref()
-            .or(dispute.connector_transaction_id.as_ref())
+            .or(dispute.connector_dispute_id.as_ref())
             .map(|id| {
                 ObjectReferenceId::PaymentId(api_payments::PaymentIdType::ConnectorTransactionId(
                     id.clone(),

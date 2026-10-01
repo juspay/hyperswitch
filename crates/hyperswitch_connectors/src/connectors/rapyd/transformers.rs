@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::{
     ext_traits::OptionExt,
     request::Method,
-    types::{FloatMajorUnit, MinorUnit, StringMajorUnit},
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -306,7 +306,8 @@ pub struct ResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DisputeResponseData {
     pub id: String,
-    pub amount: MinorUnit,
+    /// Rapyd sends the disputed amount in major units (e.g. `60` for USD 60.00).
+    pub amount: FloatMajorUnit,
     pub currency: api_models::enums::Currency,
     pub token: String,
     pub dispute_reason_description: String,
