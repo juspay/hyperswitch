@@ -5,11 +5,12 @@ use common_utils::{
     errors::{CryptoError, CustomResult},
     ext_traits::AsyncExt,
     metrics::utils::record_operation_time,
+    pii::EncryptionStrategy,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use encrypt::TypeEncryption;
-use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use hyperswitch_masking::{PeekInterface, Secret};
+use router_env::{instrument, logger, tracing};
 use rustc_hash::FxHashMap;
 
 mod encrypt {
@@ -33,7 +34,7 @@ mod encrypt {
     use router_env::{instrument, logger, tracing};
     use rustc_hash::FxHashMap;
 
-    use super::{metrics, obtain_data_to_decrypt_locally, EncryptedJsonType};
+    use super::{decrypt_resolving_format_ambiguity, metrics, EncryptedJsonType};
 
     #[async_trait]
     pub trait TypeEncryption<
@@ -204,14 +205,14 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
-            let data = crypt_algo.decode_message(key, encrypted.clone())?;
+            let original = encrypted_data.into_inner();
+            let data = decrypt_resolving_format_ambiguity(original.clone(), key, &crypt_algo)?;
 
             let value: String = std::str::from_utf8(&data)
                 .change_context(errors::CryptoError::DecodingFailed)?
                 .to_string();
 
-            Ok(Self::new(value.into(), encrypted))
+            Ok(Self::new(value.into(), original))
         }
 
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -325,12 +326,13 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let encrypted = obtain_data_to_decrypt_locally(v.clone().into_inner())?;
-                    let data = crypt_algo.decode_message(key, encrypted)?;
+                    let original = v.into_inner();
+                    let data =
+                        decrypt_resolving_format_ambiguity(original.clone(), key, &crypt_algo)?;
                     let value: String = std::str::from_utf8(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?
                         .to_string();
-                    Ok((k, Self::new(value.into(), v.into_inner())))
+                    Ok((k, Self::new(value.into(), original)))
                 })
                 .collect()
         }
@@ -443,12 +445,12 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
-            let data = crypt_algo.decode_message(key, encrypted.clone())?;
+            let original = encrypted_data.into_inner();
+            let data = decrypt_resolving_format_ambiguity(original.clone(), key, &crypt_algo)?;
 
             let value: serde_json::Value = serde_json::from_slice(&data)
                 .change_context(errors::CryptoError::DecodingFailed)?;
-            Ok(Self::new(value.into(), encrypted))
+            Ok(Self::new(value.into(), original))
         }
 
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -561,12 +563,13 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let encrypted = obtain_data_to_decrypt_locally(v.clone().into_inner())?;
-                    let data = crypt_algo.decode_message(key, encrypted)?;
+                    let original = v.into_inner();
+                    let data =
+                        decrypt_resolving_format_ambiguity(original.clone(), key, &crypt_algo)?;
 
                     let value: serde_json::Value = serde_json::from_slice(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?;
-                    Ok((k, Self::new(value.into(), v.into_inner())))
+                    Ok((k, Self::new(value.into(), original)))
                 })
                 .collect()
         }
@@ -913,9 +916,9 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
-            let data = crypt_algo.decode_message(key, encrypted.clone())?;
-            Ok(Self::new(data.into(), encrypted))
+            let original = encrypted_data.into_inner();
+            let data = decrypt_resolving_format_ambiguity(original.clone(), key, &crypt_algo)?;
+            Ok(Self::new(data.into(), original))
         }
 
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -1026,18 +1029,10 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    Ok((
-                        k,
-                        Self::new(
-                            crypt_algo
-                                .decode_message(
-                                    key,
-                                    obtain_data_to_decrypt_locally(v.clone().into_inner())?,
-                                )?
-                                .into(),
-                            v.into_inner(),
-                        ),
-                    ))
+                    let original = v.into_inner();
+                    let data =
+                        decrypt_resolving_format_ambiguity(original.clone(), key, &crypt_algo)?;
+                    Ok((k, Self::new(data.into(), original)))
                 })
                 .collect()
         }
@@ -1370,7 +1365,6 @@ where
     use base64::Engine;
     use common_utils::consts::BASE64_ENGINE;
     use error_stack::ResultExt;
-    use hyperswitch_masking::PeekInterface;
 
     if let Some((_version, base64_encoded_data)) = split_version_prefix(encrypted_data.peek()) {
         // Data encrypted by encryption service.
@@ -1385,6 +1379,36 @@ where
         // Data encrypted by hyperswitch locally, proceed with decryption directly.
         router_env::logger::debug!("Attempting to decrypt data encrypted locally");
         Ok(encrypted_data)
+    }
+}
+
+/// Tries the remote-tagged format first, then retries as bare local ciphertext — local
+/// ciphertext occasionally collides with the version-prefix pattern by chance.
+#[inline]
+fn decrypt_resolving_format_ambiguity<V: crypto::DecodeMessage>(
+    original: Secret<Vec<u8>, EncryptionStrategy>,
+    key: &[u8],
+    crypt_algo: &V,
+) -> CustomResult<Vec<u8>, CryptoError> {
+    // No prefix match at all means there was never a second interpretation to try — this *is*
+    // the local-format attempt. Skip straight to it: no retry, no extra clone.
+    if split_version_prefix(original.peek()).is_none() {
+        return crypt_algo.decode_message(key, original);
+    }
+
+    let remote_format_attempt = obtain_data_to_decrypt_locally(original.clone())
+        .and_then(|stripped| crypt_algo.decode_message(key, stripped));
+
+    match remote_format_attempt {
+        Ok(data) => Ok(data),
+        Err(first_err) => match crypt_algo.decode_message(key, original) {
+            Ok(data) => {
+                metrics::LOCAL_DECRYPT_PREFIX_COLLISION_RECOVERED.add(1, &[]);
+                logger::debug!("Recovered from a version-prefix collision on local ciphertext");
+                Ok(data)
+            }
+            Err(_) => Err(first_err),
+        },
     }
 }
 
@@ -1437,11 +1461,98 @@ pub(crate) mod metrics {
     counter_metric!(DECRYPTION_API_FAILURES, GLOBAL_METER);
     counter_metric!(APPLICATION_ENCRYPTION_COUNT, GLOBAL_METER);
     counter_metric!(APPLICATION_DECRYPTION_COUNT, GLOBAL_METER);
+    // A version-prefix collision on local ciphertext was recovered via retry.
+    counter_metric!(LOCAL_DECRYPT_PREFIX_COLLISION_RECOVERED, GLOBAL_METER);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Scripted `DecodeMessage`: succeeds only for the exact bytes in `accepts`. Stands in for
+    /// real AES-GCM ciphertext, which we can't hand-construct (nonce isn't controllable here).
+    /// Counts calls so tests can assert the retry doesn't fire when it structurally can't help.
+    struct FixedInputDecoder {
+        accepts: Vec<u8>,
+        plaintext: Vec<u8>,
+        calls: std::cell::Cell<u32>,
+    }
+
+    impl crypto::DecodeMessage for FixedInputDecoder {
+        fn decode_message(
+            &self,
+            _secret: &[u8],
+            msg: Secret<Vec<u8>, EncryptionStrategy>,
+        ) -> CustomResult<Vec<u8>, CryptoError> {
+            self.calls.set(self.calls.get() + 1);
+            if msg.peek() == self.accepts.as_slice() {
+                Ok(self.plaintext.clone())
+            } else {
+                Err(CryptoError::DecodingFailed.into())
+            }
+        }
+    }
+
+    #[test]
+    fn test_decrypt_resolving_format_ambiguity_recovers_from_prefix_collision() {
+        // Starts with "v0:" (matches split_version_prefix) followed by non-base64 bytes, so the
+        // remote-format attempt fails and must fall back to decrypting `original` as-is.
+        let original: Secret<Vec<u8>, EncryptionStrategy> =
+            Secret::new(b"v0:\x01\x02\x03not-valid-base64!!".to_vec());
+        let decoder = FixedInputDecoder {
+            accepts: original.peek().clone(),
+            plaintext: b"real plaintext".to_vec(),
+            calls: std::cell::Cell::new(0),
+        };
+
+        let result = decrypt_resolving_format_ambiguity(original, b"irrelevant-key", &decoder);
+
+        assert_eq!(result.unwrap(), b"real plaintext".to_vec());
+        assert_eq!(decoder.calls.get(), 1, "stripped bytes never validly base64-decode here, so only the retry call should ever reach decode_message");
+    }
+
+    #[test]
+    fn test_decrypt_resolving_format_ambiguity_propagates_error_when_both_attempts_fail() {
+        // Neither interpretation succeeds here — the retry must not mask real corruption.
+        let original: Secret<Vec<u8>, EncryptionStrategy> =
+            Secret::new(b"v0:\x01\x02\x03not-valid-base64!!".to_vec());
+        let decoder = FixedInputDecoder {
+            accepts: b"something-else-entirely".to_vec(),
+            plaintext: b"unreachable".to_vec(),
+            calls: std::cell::Cell::new(0),
+        };
+
+        let result = decrypt_resolving_format_ambiguity(original, b"irrelevant-key", &decoder);
+
+        assert!(result.is_err());
+        assert_eq!(
+            decoder.calls.get(),
+            1,
+            "same reasoning as the recovery test — only the retry call reaches decode_message"
+        );
+    }
+
+    #[test]
+    fn test_decrypt_resolving_format_ambiguity_skips_retry_without_a_prefix_match() {
+        // No "v<digit>:" prefix at all — this *is* the local-format attempt already, so a
+        // failure here must not trigger a second, byte-identical decode_message call.
+        let original: Secret<Vec<u8>, EncryptionStrategy> =
+            Secret::new(b"not-tagged-at-all".to_vec());
+        let decoder = FixedInputDecoder {
+            accepts: b"never-matches".to_vec(),
+            plaintext: b"unreachable".to_vec(),
+            calls: std::cell::Cell::new(0),
+        };
+
+        let result = decrypt_resolving_format_ambiguity(original, b"irrelevant-key", &decoder);
+
+        assert!(result.is_err());
+        assert_eq!(
+            decoder.calls.get(),
+            1,
+            "no prefix matched, so decode_message must be called exactly once, not retried"
+        );
+    }
 
     #[test]
     fn test_split_version_prefix_valid_minimal() {
