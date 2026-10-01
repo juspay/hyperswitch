@@ -23,6 +23,9 @@ pub async fn authentication_create() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/eligibility",
+    params(
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationEligibilityRequest,
     responses(
         (status = 200, description = "Authentication eligibility checked", body = AuthenticationEligibilityResponse),
@@ -41,6 +44,9 @@ pub async fn authentication_eligibility() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/authenticate",
+    params(
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationAuthenticateRequest,
     responses(
         (status = 200, description = "Authentication authenticated", body = AuthenticationAuthenticateResponse),
@@ -58,7 +64,11 @@ pub async fn authentication_authenticate() {}
 ///
 #[utoipa::path(
     post,
-    path = "/authentication/{authentication_id}/redirect",
+    path = "/authentication/{merchant_id}/{authentication_id}/redirect",
+    params(
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationSyncPostUpdateRequest,
     responses(
         (status = 200, description = "Authentication redirect"),
@@ -76,7 +86,11 @@ pub async fn authentication_redirect() {}
 ///
 #[utoipa::path(
     post,
-    path = "/authentication/{authentication_id}/sync",
+    path = "/authentication/{merchant_id}/{authentication_id}/sync",
+    params(
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationSyncRequest,
     responses(
         (status = 200, description = "Authentication sync", body = AuthenticationSyncResponse),
@@ -95,6 +109,9 @@ pub async fn authentication_sync() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/enabled_authn_methods_token",
+    params(
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationSessionTokenRequest,
     responses(
         (status = 200, description = "Authentication enabled authn methods token", body = AuthenticationSessionResponse),
@@ -111,6 +128,9 @@ pub async fn authentication_enabled_authn_methods_token() {}
 #[utoipa::path(
     post,
     path = "/authentication/{authentication_id}/eligibility-check",
+    params(
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationEligibilityCheckRequest,
     responses(
         (status = 200, description = "Eligibility Performed for the Authentication", body = AuthenticationEligibilityCheckResponse),
@@ -127,6 +147,9 @@ pub async fn authentication_eligibility_check() {}
 #[utoipa::path(
     get,
     path = "/authentication/{authentication_id}/eligibility-check",
+    params(
+        ("authentication_id" = String, Path, description = "The identifier for authentication"),
+    ),
     request_body = AuthenticationRetrieveEligibilityCheckRequest,
     responses(
         (status = 200, description = "Retrieved Eligibility check data for the Authentication", body = AuthenticationRetrieveEligibilityCheckResponse),

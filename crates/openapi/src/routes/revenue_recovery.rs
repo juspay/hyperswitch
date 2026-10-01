@@ -6,7 +6,7 @@
     get,
     path = "/v2/process-trackers/revenue-recovery-workflow/{revenue_recovery_id}",
     params(
-        ("recovery_recovery_id" = String, Path, description = "The payment intent id"),
+        ("revenue_recovery_id" = String, Path, description = "The payment intent id"),
     ),
     responses(
         (status = 200, description = "Revenue Recovery Info Retrieved Successfully", body = RevenueRecoveryResponse),
