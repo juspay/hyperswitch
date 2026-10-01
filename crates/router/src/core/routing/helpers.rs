@@ -668,7 +668,7 @@ pub trait DynamicRoutingCache {
         func: F,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
+        F: FnOnce() -> Fut + Clone + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send;
 }
@@ -697,7 +697,7 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
         func: F,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
+        F: FnOnce() -> Fut + Clone + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
@@ -737,7 +737,7 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
         func: F,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
+        F: FnOnce() -> Fut + Clone + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
@@ -777,7 +777,7 @@ impl DynamicRoutingCache for routing_types::EliminationRoutingConfig {
         func: F,
     ) -> RouterResult<T>
     where
-        F: FnOnce() -> Fut + Send,
+        F: FnOnce() -> Fut + Clone + Send,
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
