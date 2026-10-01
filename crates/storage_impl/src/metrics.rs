@@ -13,9 +13,21 @@ counter_metric!(KV_SOFT_KILL_ACTIVE_UPDATE, GLOBAL_METER);
 
 // Metrics for In-memory cache
 gauge_metric!(IN_MEMORY_CACHE_ENTRY_COUNT, GLOBAL_METER);
+// The configured entry ceiling, recorded alongside the count above so that utilisation is
+// computable from the metrics rather than from configuration. moka's other runtime figure,
+// `weighted_size`, is not recorded: with no weigher configured it equals the entry count.
+gauge_metric!(IN_MEMORY_CACHE_MAX_CAPACITY, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_HIT, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_MISS, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_EVICTION_COUNT, GLOBAL_METER);
+
+// Metrics for in-memory cache population coalescing. Named for what happened to the caller
+// rather than to the population: `AVOIDED` counts a read that waited for another caller's
+// population and then hit, so a backend round trip did not happen; `WAIT_TIMEOUT` counts one
+// that gave up waiting and populated for itself. Together they account for every read that
+// found a population already in flight.
+counter_metric!(IN_MEMORY_CACHE_POPULATION_AVOIDED, GLOBAL_METER);
+counter_metric!(IN_MEMORY_CACHE_POPULATION_WAIT_TIMEOUT, GLOBAL_METER);
 
 // Metrics for cache invalidation
 counter_metric!(CACHE_REDACTION_FAILURE_COUNT, GLOBAL_METER);
