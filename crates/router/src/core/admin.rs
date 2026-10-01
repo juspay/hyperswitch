@@ -317,14 +317,15 @@ pub async fn create_merchant_account(
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "v1")]
     {
-        req
-            .webhook_details
+        req.webhook_details
             .as_ref()
             .map_or(Ok(()), |details| {
                 details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
             })
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+                message:
+                    "webhook_url is not valid: destination matches a configured proxy bypass host"
+                        .to_string(),
             })?;
     }
 
@@ -1381,14 +1382,15 @@ pub async fn merchant_account_update(
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "v1")]
     {
-        req
-            .webhook_details
+        req.webhook_details
             .as_ref()
             .map_or(Ok(()), |details| {
                 details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
             })
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+                message:
+                    "webhook_url is not valid: destination matches a configured proxy bypass host"
+                        .to_string(),
             })?;
     }
 
@@ -3495,7 +3497,8 @@ pub async fn create_and_insert_business_profile(
             details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
         })
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+            message: "webhook_url is not valid: destination matches a configured proxy bypass host"
+                .to_string(),
         })?;
 
     let business_profile_new =
@@ -3994,7 +3997,8 @@ pub async fn create_profile(
             details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
         })
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+            message: "webhook_url is not valid: destination matches a configured proxy bypass host"
+                .to_string(),
         })?;
 
     let db = state.store.as_ref();
@@ -4550,7 +4554,8 @@ pub async fn update_profile(
             details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
         })
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+            message: "webhook_url is not valid: destination matches a configured proxy bypass host"
+                .to_string(),
         })?;
 
     let db = state.store.as_ref();
