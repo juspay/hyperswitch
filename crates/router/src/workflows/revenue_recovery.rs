@@ -2496,55 +2496,16 @@ pub async fn compute_model_retry_time(
         "retry model: stats fetched — running the model"
     );
 
-    // A configured hour outside 0..=23 is a misconfiguration; warn (so it's visible) and fall back to
-    // noon UTC rather than letting it silently degrade to midnight downstream.
-    let configured_hour = state.conf.revenue_recovery.default_retry_hour_utc.0;
-    let default_hour = if configured_hour <= 23 {
-        configured_hour
-    } else {
-        logger::warn!(
-            configured_hour,
-            "retry model: revenue_recovery.default_retry_hour_utc is out of range (0-23); using noon UTC"
-        );
-        12
-    };
-    // A floor outside [0, 1) is not a probability; the sampler would clamp it downstream and the
-    // misconfiguration would never surface. Same shape as the retry-hour check above.
-    let configured_floor = state.conf.revenue_recovery.exploration_floor.0;
-    let exploration_floor = if (0.0..1.0).contains(&configured_floor) {
-        configured_floor
-    } else {
-        let fallback = storage::revenue_recovery::ExplorationFloor::default().0;
-        logger::warn!(
-            configured_floor,
-            fallback,
-            "retry model: revenue_recovery.exploration_floor is not in [0, 1); using the default"
-        );
-        fallback
-    };
-
-    let configured_tolerance = state.conf.revenue_recovery.tie_tolerance.0;
-    let tie_tolerance = if configured_tolerance >= 0.0 && configured_tolerance.is_finite() {
-        configured_tolerance
-    } else {
-        let fallback = storage::revenue_recovery::TieTolerance::default().0;
-        logger::warn!(
-            configured_tolerance,
-            fallback,
-            "retry model: revenue_recovery.tie_tolerance is negative or not finite; using the \
-             default"
-        );
-        fallback
-    };
-
+    // Each tunable validates itself and warns on the way past, so a misconfigured deployment is
+    // visible rather than silently degraded. See the `resolve` methods for what each rejects.
     let retry_time = compute_predicted_retry_time(
         &record.stats,
         remaining_budget,
         remaining_grace_days,
-        default_hour,
+        state.conf.revenue_recovery.default_retry_hour_utc.resolve(),
         variant,
-        exploration_floor,
-        tie_tolerance,
+        state.conf.revenue_recovery.exploration_floor.resolve(),
+        state.conf.revenue_recovery.tie_tolerance.resolve(),
     );
 
     // Every reason the model itself declines (empty grace window, spent budget, a sampler that

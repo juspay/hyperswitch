@@ -161,6 +161,24 @@ impl Default for DefaultRetryHour {
     }
 }
 
+impl DefaultRetryHour {
+    /// The hour to schedule at: the configured one when it names a real hour, the default
+    /// otherwise. Out of range it would degrade to midnight downstream, which is a legal-looking
+    /// time nobody would question — so it warns instead of being quietly clamped.
+    pub fn resolve(self) -> u8 {
+        if self.0 <= 23 {
+            return self.0;
+        }
+        let fallback = Self::default().0;
+        logger::warn!(
+            configured = self.0,
+            fallback,
+            "revenue_recovery.default_retry_hour_utc is outside 0-23; using the default"
+        );
+        fallback
+    }
+}
+
 /// Exploration floor for the systematic-k sampler: the minimum inclusion probability every
 /// candidate day is guaranteed. A business dial — higher explores more and uses the model less.
 /// Values above `budget / window_length` are infeasible and get clamped at the point of use.
@@ -170,6 +188,24 @@ pub struct ExplorationFloor(pub f64);
 impl Default for ExplorationFloor {
     fn default() -> Self {
         Self(0.10)
+    }
+}
+
+impl ExplorationFloor {
+    /// The floor to sample with: the configured one when it is a probability, the default
+    /// otherwise. Outside `[0, 1)` it is not one, and the sampler clamps it at the point of use —
+    /// so without this the misconfiguration would never surface anywhere.
+    pub fn resolve(self) -> f64 {
+        if (0.0..1.0).contains(&self.0) {
+            return self.0;
+        }
+        let fallback = Self::default().0;
+        logger::warn!(
+            configured = self.0,
+            fallback,
+            "revenue_recovery.exploration_floor is not in [0, 1); using the default"
+        );
+        fallback
     }
 }
 
@@ -185,6 +221,24 @@ pub struct TieTolerance(pub f64);
 impl Default for TieTolerance {
     fn default() -> Self {
         Self(1e-4)
+    }
+}
+
+impl TieTolerance {
+    /// The tolerance to group by: the configured one when it is a usable distance, the default
+    /// otherwise. Negative merges nothing and non-finite merges everything, since every `<=`
+    /// against `NaN` is false and every one against infinity is true.
+    pub fn resolve(self) -> f64 {
+        if self.0 >= 0.0 && self.0.is_finite() {
+            return self.0;
+        }
+        let fallback = Self::default().0;
+        logger::warn!(
+            configured = self.0,
+            fallback,
+            "revenue_recovery.tie_tolerance is negative or not finite; using the default"
+        );
+        fallback
     }
 }
 
@@ -232,6 +286,43 @@ impl RetryLimitsConfig {
             self.0.get(&net).unwrap_or(&DEFAULT_CONFIG)
         } else {
             self.0.get(&CardNetwork::Visa).unwrap_or(&DEFAULT_CONFIG)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tunable_tests {
+    use super::*;
+
+    #[test]
+    fn a_usable_value_is_returned_as_configured() {
+        assert_eq!(DefaultRetryHour(0).resolve(), 0);
+        assert_eq!(DefaultRetryHour(23).resolve(), 23);
+        assert!((ExplorationFloor(0.0).resolve() - 0.0).abs() < f64::EPSILON);
+        assert!((ExplorationFloor(0.25).resolve() - 0.25).abs() < f64::EPSILON);
+        assert!((TieTolerance(0.0).resolve() - 0.0).abs() < f64::EPSILON);
+        assert!((TieTolerance(1e-3).resolve() - 1e-3).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn an_unusable_value_falls_back_to_the_default() {
+        // Each guard's far side, including the boundary that is deliberately excluded: a floor of
+        // exactly 1.0 means "always", which is not a floor.
+        assert_eq!(
+            DefaultRetryHour(24).resolve(),
+            DefaultRetryHour::default().0
+        );
+        for floor in [1.0, -0.1, f64::NAN, f64::INFINITY] {
+            assert!(
+                (ExplorationFloor(floor).resolve() - ExplorationFloor::default().0).abs()
+                    < f64::EPSILON
+            );
+        }
+        for tolerance in [-1e-9, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(
+                (TieTolerance(tolerance).resolve() - TieTolerance::default().0).abs()
+                    < f64::EPSILON
+            );
         }
     }
 }
