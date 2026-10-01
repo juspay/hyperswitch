@@ -345,6 +345,7 @@ pub struct PaymentMethodUpdate {
     pub connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
     pub network_transaction_id: Option<Secret<String>>,
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
     pub status: Option<common_enums::PaymentMethodStatus>,
@@ -358,6 +359,7 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
             connector_token_details: value.connector_token_details,
             network_transaction_id: value.network_transaction_id,
             acknowledgement_status: value.acknowledgement_status,
+            customer_acceptance: value.customer_acceptance,
             network_tokenization: None,
             source_payment_method_data: None,
             status: value.acknowledgement_status.map(|ack| ack.into()),
@@ -367,6 +369,17 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
 
 #[cfg(feature = "v2")]
 impl PaymentMethodUpdate {
+    /// A payment acknowledgement can save a volatile card only with payment-confirm consent
+    /// and a customer to attach it to. Acceptance on the volatile record is not consulted.
+    pub fn can_promote_volatile_payment_method(
+        &self,
+        customer_id: Option<&id_type::GlobalCustomerId>,
+    ) -> bool {
+        self.status == Some(common_enums::PaymentMethodStatus::Active)
+            && self.customer_acceptance.is_some()
+            && customer_id.is_some()
+    }
+
     pub fn fetch_card_cvc_update(&self) -> Option<Secret<String>> {
         match &self.payment_method_data {
             Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
@@ -445,6 +458,7 @@ impl
             connector_token_details: None,
             network_transaction_id: None,
             acknowledgement_status: None,
+            customer_acceptance: None,
             network_tokenization: req.network_tokenization.clone(),
             source_payment_method_data: Some(source_payment_method_data),
             status: None,
@@ -1255,5 +1269,55 @@ mod tests {
 
         assert!(common_mandate.payments.is_some());
         assert!(common_mandate.payouts.is_some());
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod pay_then_vault_tests {
+    use super::*;
+
+    #[test]
+    fn promotion_requires_authenticated_payment_customer_and_payment_acceptance() {
+        let customer_id = id_type::GlobalCustomerId::new_unchecked("cus_test".to_string());
+        for acknowledgement in [
+            None,
+            Some(common_enums::AcknowledgementStatus::Authenticated),
+            Some(common_enums::AcknowledgementStatus::Failed),
+        ] {
+            for acceptance in [
+                None,
+                Some(common_types::payments::CustomerAcceptance::default()),
+            ] {
+                let update = PaymentMethodUpdate::from(payment_methods::PaymentMethodUpdate {
+                    payment_method_data: None,
+                    connector_token_details: None,
+                    network_transaction_id: None,
+                    acknowledgement_status: acknowledgement,
+                    customer_acceptance: acceptance.clone(),
+                });
+                let expected = acknowledgement
+                    == Some(common_enums::AcknowledgementStatus::Authenticated)
+                    && acceptance.is_some();
+                assert_eq!(
+                    update.can_promote_volatile_payment_method(Some(&customer_id)),
+                    expected
+                );
+                assert!(!update.can_promote_volatile_payment_method(None));
+                assert_eq!(update.customer_acceptance, acceptance);
+            }
+        }
+    }
+
+    #[test]
+    fn update_without_acceptance_is_backwards_compatible_but_cannot_promote() {
+        let api_update: payment_methods::PaymentMethodUpdate =
+            serde_json::from_value(serde_json::json!({
+                "acknowledgement_status": "authenticated"
+            }))
+            .expect("existing update requests remain valid");
+        let update = PaymentMethodUpdate::from(api_update);
+        let customer_id = id_type::GlobalCustomerId::new_unchecked("cus_test".to_string());
+        assert!(update.is_payment_method_update_required());
+        assert!(!update.can_promote_volatile_payment_method(Some(&customer_id)));
     }
 }
