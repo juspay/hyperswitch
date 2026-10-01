@@ -8,9 +8,6 @@ histogram_metric_f64!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 counter_metric!(AUTO_RETRY_CONNECTION_CLOSED, GLOBAL_METER);
 
-// Outbound destinations that failed the destination policy (blocked, or would have been in log-only mode)
-counter_metric!(OUTBOUND_DESTINATION_BLOCKED, GLOBAL_METER);
-
 // HTTP Client creation metrics
 counter_metric!(HTTP_CLIENT_CREATED, GLOBAL_METER);
 counter_metric!(HTTP_CLIENT_CACHE_HIT, GLOBAL_METER);

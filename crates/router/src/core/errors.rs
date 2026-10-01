@@ -142,8 +142,6 @@ pub enum WebhooksFlowError {
     MerchantWebhookDetailsNotFound,
     #[error("Merchant does not have a webhook URL configured")]
     MerchantWebhookUrlNotConfigured,
-    #[error("Merchant webhook URL is not an allowed destination")]
-    WebhookDestinationNotAllowed,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
     #[error("Outgoing webhook body signing failed")]
@@ -191,7 +189,6 @@ impl WebhooksFlowError {
             | Self::OutgoingWebhookRetrySchedulingFailed
             | Self::IdGenerationFailed
             | Self::WebhookCallFailed
-            | Self::WebhookDestinationNotAllowed
             | Self::NotReceivedByRecipient => true,
         }
     }

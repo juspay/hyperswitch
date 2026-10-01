@@ -315,6 +315,19 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    #[cfg(feature = "v1")]
+    {
+        req
+            .webhook_details
+            .as_ref()
+            .map_or(Ok(()), |details| {
+                details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
+            })
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+            })?;
+    }
+
     let db = state.store.as_ref();
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1366,6 +1379,19 @@ pub async fn merchant_account_update(
     _profile_id: Option<id_type::ProfileId>,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    #[cfg(feature = "v1")]
+    {
+        req
+            .webhook_details
+            .as_ref()
+            .map_or(Ok(()), |details| {
+                details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
+            })
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+            })?;
+    }
+
     let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
@@ -3462,6 +3488,16 @@ pub async fn create_and_insert_business_profile(
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Profile> {
+    request
+        .webhook_details
+        .as_ref()
+        .map_or(Ok(()), |details| {
+            details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
+        })
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+        })?;
+
     let business_profile_new =
         admin::create_profile_from_merchant_account(state, merchant_account, request, key_store)
             .await?;
@@ -3951,6 +3987,16 @@ pub async fn create_profile(
     request: api::ProfileCreate,
     processor: domain::Processor,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
+    request
+        .webhook_details
+        .as_ref()
+        .map_or(Ok(()), |details| {
+            details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
+        })
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+        })?;
+
     let db = state.store.as_ref();
 
     validate_external_vault_config_for_merchant_account_type(
@@ -4104,13 +4150,23 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 let existing_webhook_details = business_profile
                     .webhook_details
                     .clone()
-                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
+                    .map(|mut stored| {
+                        if let Some(url) = webhook_details.webhook_url.as_ref() {
+                            stored.webhook_url =
+                                Some(Secret::new(url.peek().get_string_repr().to_owned()));
+                        }
+                        api_models::admin::WebhookDetails::foreign_try_from(stored)
+                    })
+                    .transpose()?;
 
-                match existing_webhook_details {
-                    Some(existing_details) => existing_details.merge(webhook_details.into()),
-                    None => webhook_details.into(),
-                }
+                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
+                    match existing_webhook_details {
+                        Some(existing_details) => existing_details.merge(webhook_details),
+                        None => webhook_details,
+                    },
+                )
             })
+            .transpose()?
             .map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
@@ -4487,6 +4543,16 @@ pub async fn update_profile(
     request: api::ProfileUpdate,
     provider_merchant_id: Option<hyperswitch_domain_models::platform::ProviderMerchantId>,
 ) -> RouterResponse<api::ProfileResponse> {
+    request
+        .webhook_details
+        .as_ref()
+        .map_or(Ok(()), |details| {
+            details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
+        })
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "webhook_url is not valid: destination matches a configured proxy bypass host".to_string(),
+        })?;
+
     let db = state.store.as_ref();
 
     let merchant_account = db

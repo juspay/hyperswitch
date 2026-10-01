@@ -15,6 +15,12 @@ pub async fn proxy_core(
     platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    req.destination_url
+        .validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "destination_url is not valid".to_string(),
+        })?;
+
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
     let proxy_record = req_wrapper
         .get_proxy_record(&state, platform.get_provider())
@@ -90,7 +96,6 @@ async fn execute_proxy_request(
         .headers(req_wrapper.get_headers())
         .url(req_wrapper.get_destination_url())
         .set_body(request::RequestContent::Json(Box::new(processed_body)))
-        .restrict_to_public()
         .build();
 
     let response = services::call_connector_api(state, request, "proxy", None)

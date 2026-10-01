@@ -38,6 +38,7 @@ futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
 hex = "0.4.3"
 http = "0.2.12"
+ip_network = { version = "0.4.1", default-features = false }
 md5 = "0.7.0"
 nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }

@@ -50,7 +50,7 @@ pub struct MerchantAccountCreate {
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetailsRequest>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
     #[serde(skip)]
@@ -452,7 +452,7 @@ pub struct MerchantAccountUpdate {
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetailsRequest>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used for routing payments to desired connectors
     #[serde(skip)]
@@ -882,7 +882,7 @@ pub struct WebhookDetails {
 
     ///The url for the webhook endpoint
     #[schema(value_type = Option<String>, example = "https://www.ekart.com/webhooks")]
-    pub webhook_url: Option<Secret<String>>,
+    pub webhook_url: Option<Secret<common_utils::outbound_url::SafeOutboundUrl>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
     #[schema(example = true)]
@@ -923,6 +923,16 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
+    /// Reject a supplied webhook URL that would bypass the configured egress proxy.
+    pub fn validate_proxy_bypass_hosts(
+        &self,
+        bypass_proxy_hosts: Option<&str>,
+    ) -> CustomResult<(), errors::ValidationError> {
+        self.webhook_url.as_ref().map_or(Ok(()), |url| {
+            url.peek().validate_proxy_bypass_hosts(bypass_proxy_hosts)
+        })
+    }
+
     pub fn merge(self, other: Self) -> Self {
         Self {
             webhook_version: other.webhook_version.or(self.webhook_version),
@@ -1004,95 +1014,6 @@ impl WebhookDetails {
         }
 
         Ok(())
-    }
-}
-
-/// Webhook details as accepted in a request, where the url is validated as a destination we are
-/// willing to send a request to. Responses use [`WebhookDetails`], so values stored before this
-/// validation existed can still be read back.
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct WebhookDetailsRequest {
-    ///The version for Webhook
-    #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
-    pub webhook_version: Option<String>,
-
-    ///The user name for Webhook login
-    #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
-    pub webhook_username: Option<String>,
-
-    ///The password for Webhook login
-    #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
-    pub webhook_password: Option<Secret<String>>,
-
-    ///The url for the webhook endpoint
-    #[schema(value_type = Option<String>, example = "https://www.ekart.com/webhooks")]
-    pub webhook_url: Option<Secret<common_utils::outbound_url::SafeOutboundUrl>>,
-
-    /// If this property is true, a webhook message is posted whenever a new payment is created
-    #[schema(example = true)]
-    pub payment_created_enabled: Option<bool>,
-
-    /// If this property is true, a webhook message is posted whenever a payment is successful
-    #[schema(example = true)]
-    pub payment_succeeded_enabled: Option<bool>,
-
-    /// If this property is true, a webhook message is posted whenever a payment fails
-    #[schema(example = true)]
-    pub payment_failed_enabled: Option<bool>,
-
-    /// List of payment statuses that triggers a webhook for payment intents
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
-    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
-
-    /// List of refund statuses that triggers a webhook for refunds
-    #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
-    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
-
-    /// List of payout statuses that triggers a webhook for payouts
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
-    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
-
-    /// List of dispute statuses that trigger outgoing webhooks for disputes
-    #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
-    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
-
-    /// List of mandate statuses that trigger outgoing webhooks for mandates
-    #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
-    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
-
-    /// List of invoice statuses that trigger outgoing webhooks for subscriptions
-    #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
-    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
-}
-
-impl WebhookDetailsRequest {
-    pub fn validate(&self) -> Result<(), String> {
-        WebhookDetails::from(self.clone()).validate()
-    }
-}
-
-impl From<WebhookDetailsRequest> for WebhookDetails {
-    fn from(item: WebhookDetailsRequest) -> Self {
-        Self {
-            webhook_version: item.webhook_version,
-            webhook_username: item.webhook_username,
-            webhook_password: item.webhook_password,
-            webhook_url: item
-                .webhook_url
-                .map(|url| Secret::new(url.peek().get_string_repr().to_string())),
-            payment_created_enabled: item.payment_created_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
-            payment_failed_enabled: item.payment_failed_enabled,
-            payment_statuses_enabled: item.payment_statuses_enabled,
-            refund_statuses_enabled: item.refund_statuses_enabled,
-            #[cfg(feature = "payouts")]
-            payout_statuses_enabled: item.payout_statuses_enabled,
-            dispute_statuses_enabled: item.dispute_statuses_enabled,
-            mandate_statuses_enabled: item.mandate_statuses_enabled,
-            invoice_statuses_enabled: item.invoice_statuses_enabled,
-        }
     }
 }
 
@@ -2426,7 +2347,7 @@ pub struct ProfileCreate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetailsRequest>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -2634,7 +2555,7 @@ pub struct ProfileCreate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetailsRequest>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -3199,7 +3120,7 @@ pub struct ProfileUpdate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetailsRequest>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -3406,7 +3327,7 @@ pub struct ProfileUpdate {
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
     /// Webhook related details
-    pub webhook_details: Option<WebhookDetailsRequest>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -4019,6 +3940,54 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn merchant_create_rejects_metadata_webhook_before_core_execution() {
+        let mut request = serde_json::json!({
+            "merchant_id": "merchant_ssrf_regression",
+            "merchant_name": "outbound_url_validation",
+            "webhook_details": {
+                "webhook_password": null,
+                "webhook_url": "https://merchant.example.com/hook"
+            }
+        });
+        assert!(serde_json::from_value::<MerchantAccountCreate>(request.clone()).is_ok());
+        request
+            .get_mut("webhook_details")
+            .expect("webhook details")
+            .as_object_mut()
+            .expect("details object")
+            .insert(
+                "webhook_url".to_string(),
+                serde_json::json!("https://169.254.169.254/latest/meta-data/"),
+            );
+        assert!(serde_json::from_value::<MerchantAccountCreate>(request).is_err());
+    }
+
+    #[test]
+    fn empty_webhook_url_clears_while_omission_preserves_the_destination() {
+        let existing: WebhookDetails = serde_json::from_value(serde_json::json!({
+            "webhook_url": "https://merchant.example.com/hook"
+        }))
+        .expect("configured webhook");
+        let clear: WebhookDetails = serde_json::from_value(serde_json::json!({
+            "webhook_url": ""
+        }))
+        .expect("empty webhook URL clears the destination");
+        let cleared = serde_json::to_value(existing.clone().merge(clear)).expect("cleared webhook");
+        assert_eq!(cleared.get("webhook_url"), Some(&serde_json::json!("")));
+
+        let omitted: WebhookDetails = serde_json::from_value(serde_json::json!({
+            "payment_succeeded_enabled": true
+        }))
+        .expect("partial webhook update");
+        let retained = serde_json::to_value(existing.merge(omitted)).expect("retained webhook");
+        assert_eq!(
+            retained.get("webhook_url"),
+            Some(&serde_json::json!("https://merchant.example.com/hook"))
+        );
+    }
 
     #[test]
     fn test_payment_link_config_request_validation() {

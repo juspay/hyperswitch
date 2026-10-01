@@ -8,8 +8,6 @@ use request::{HeaderExt, RequestBuilderExt};
 use router_env::{instrument, logger, tracing};
 /// client module
 pub mod client;
-/// destination policy module
-pub mod destination;
 /// metrics module
 pub mod metrics;
 /// request module
@@ -101,16 +99,8 @@ pub async fn send_request(
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
 
-    match request.restrict_to_public {
-        true => destination::check_destination(&url, client_proxy.has_proxy_config())
-            .await
-            .change_context(HttpClientError::DestinationNotAllowed),
-        false => Ok(()),
-    }?;
-
     let client = client::create_client(
         client_proxy,
-        request.restrict_to_public,
         request.certificate,
         request.certificate_key,
         request.ca_certificate,

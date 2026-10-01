@@ -31,7 +31,8 @@ impl Headers {
 pub struct ProxyRequest {
     /// The request body that needs to be forwarded
     pub request_body: Value,
-    /// The destination URL where the request needs to be forwarded
+    /// The HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.
+    /// IP literals must be publicly routable.
     #[schema(value_type = String, example = "https://api.example.com/endpoint")]
     pub destination_url: common_utils::outbound_url::SafeOutboundUrl,
     /// The headers that need to be forwarded
@@ -69,3 +70,21 @@ pub struct ProxyResponse {
 
 impl common_utils::events::ApiEventMetric for ProxyRequest {}
 impl common_utils::events::ApiEventMetric for ProxyResponse {}
+
+#[cfg(test)]
+mod tests {
+    use super::ProxyRequest;
+
+    #[test]
+    fn proxy_destination_rejects_metadata_ip() {
+        let request = serde_json::json!({
+            "request_body": {},
+            "destination_url": "https://169.254.169.254/latest/meta-data/",
+            "headers": {},
+            "method": "GET",
+            "token": "pm_example",
+            "token_type": "payment_method_id"
+        });
+        assert!(serde_json::from_value::<ProxyRequest>(request).is_err());
+    }
+}

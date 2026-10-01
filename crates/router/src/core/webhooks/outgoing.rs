@@ -289,7 +289,7 @@ async fn insert_event_and_spawn_webhook_delivery(
 
     if let types::WebhookRecipientData::Merchant { .. } = event_data.recipient_data {
         let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
-        if webhook_url_result.is_err() {
+        if webhook_url_result.is_err() || webhook_url_result.as_ref().is_ok_and(String::is_empty) {
             logger::debug!(
                 business_profile_id=?webhook_recipient.profile.get_id(),
                 %idempotent_event_id,
@@ -912,13 +912,12 @@ async fn trigger_webhook_to_merchant(
         .collect();
     let request = services::RequestBuilder::new()
         .method(services::Method::Post)
-        .url(webhook_url.get_string_repr())
+        .url(&webhook_url)
         .attach_default_headers()
         .headers(headers)
         .set_body(RequestContent::RawBytes(
             request_content.body.expose().into_bytes(),
         ))
-        .restrict_to_public()
         .build();
 
     let response = state
@@ -1101,7 +1100,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
 
 fn get_webhook_url_from_business_profile(
     business_profile: &domain::Profile,
-) -> CustomResult<common_utils::outbound_url::SafeOutboundUrl, errors::WebhooksFlowError> {
+) -> CustomResult<String, errors::WebhooksFlowError> {
     let webhook_details = business_profile
         .webhook_details
         .clone()
@@ -1113,13 +1112,6 @@ fn get_webhook_url_from_business_profile(
         .get_required_value("webhook_url")
         .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
         .map(ExposeInterface::expose)
-        .and_then(|webhook_url| match webhook_url.trim().is_empty() {
-            true => Err(report!(
-                errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured
-            )),
-            false => common_utils::outbound_url::SafeOutboundUrl::from_str(&webhook_url)
-                .change_context(errors::WebhooksFlowError::WebhookDestinationNotAllowed),
-        })
 }
 
 pub(crate) fn get_outgoing_webhook_request(

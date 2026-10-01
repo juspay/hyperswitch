@@ -53,12 +53,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let webhook_url_result = webhook_recipient
         .profile
         .get_webhook_url_from_profile()
-        .map_err(|error| match error.current_context() {
-            common_utils::errors::ValidationError::InvalidValue { .. } => {
-                error.change_context(errors::WebhooksFlowError::WebhookDestinationNotAllowed)
-            }
-            _ => error.change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured),
-        });
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured);
 
     if utils::is_outgoing_webhook_disabled(
         &state,
@@ -233,17 +228,9 @@ async fn trigger_webhook_to_merchant(
     (domain::Event, Option<Report<errors::WebhooksFlowError>>),
     errors::WebhooksFlowError,
 > {
-    let webhook_url =
-        business_profile
-            .get_webhook_url_from_profile()
-            .map_err(|error| match error.current_context() {
-                common_utils::errors::ValidationError::InvalidValue { .. } => {
-                    error.change_context(errors::WebhooksFlowError::WebhookDestinationNotAllowed)
-                }
-                _ => {
-                    error.change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)
-                }
-            })?;
+    let webhook_url = business_profile
+        .get_webhook_url_from_profile()
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured)?;
 
     let response = build_and_send_request(&state, request_content, webhook_url).await;
 
@@ -418,7 +405,7 @@ pub(crate) fn get_outgoing_webhook_request(
 async fn build_and_send_request(
     state: &SessionState,
     request_content: webhook_events::OutgoingWebhookRequestContent,
-    webhook_url: common_utils::outbound_url::SafeOutboundUrl,
+    webhook_url: String,
 ) -> Result<reqwest::Response, Report<common_enums::ApiClientError>> {
     let headers = request_content
         .headers
@@ -427,13 +414,12 @@ async fn build_and_send_request(
         .collect();
     let request = services::RequestBuilder::new()
         .method(services::Method::Post)
-        .url(webhook_url.get_string_repr())
+        .url(&webhook_url)
         .attach_default_headers()
         .headers(headers)
         .set_body(request::RequestContent::RawBytes(
             hyperswitch_masking::ExposeInterface::expose(request_content.body).into_bytes(),
         ))
-        .restrict_to_public()
         .build();
 
     state
