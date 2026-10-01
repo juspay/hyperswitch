@@ -180,7 +180,6 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -441,7 +440,6 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -459,6 +457,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
                     address
                         .update(&conn, address_update.into())
                         .await
@@ -485,15 +484,14 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_address)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
-                    let drainer_query = address_update_internal
-                        .generate_drainer_update_query(
-                            &mut query_gen_conn,
-                            address.address_id.clone(),
-                        )
-                        .await
-                        .change_context(errors::StorageError::KVError)
-                        .attach_printable("Failed to generate address update query")?;
+                    let drainer_query = {
+                        let mut conn = connection::pg_connection_write(self).await?;
+                        address_update_internal
+                            .generate_drainer_update_query(&mut conn, address.address_id.clone())
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate address update query")?
+                    };
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,

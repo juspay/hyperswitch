@@ -315,12 +315,14 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .await
                     .change_context(errors::StorageError::EncryptionError)?;
 
-                let mut query_gen_conn = pg_connection_write(self).await?;
-                let drainer_query = authentication_to_insert
-                    .generate_drainer_insert_query(&mut query_gen_conn)
-                    .await
-                    .change_context(errors::StorageError::KVError)
-                    .attach_printable("Failed to generate authentication insert query")?;
+                let drainer_query = {
+                    let mut conn = pg_connection_write(self).await?;
+                    authentication_to_insert
+                        .generate_drainer_insert_query(&mut conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate authentication insert query")?
+                };
 
                 let diesel_authentication =
                     <Authentication as Conversion>::convert(authentication.clone())
