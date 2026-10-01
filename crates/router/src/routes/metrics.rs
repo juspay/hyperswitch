@@ -363,18 +363,22 @@ counter_metric!(
     unit: "1",
 );
 counter_metric!(
-    REVENUE_RECOVERY_GRACE_WINDOW_FAILED,
+    REVENUE_RECOVERY_GRACE_WINDOW_UNRESOLVED,
     GLOBAL_METER,
-    name: "revenue_recovery.grace_window_failed",
-    description: "Invoices we could not work out a grace window for — how long they have left to \
-                  be recovered — ending recovery for that invoice; counted by what went wrong",
+    name: "revenue_recovery.grace_window_unresolved",
+    description: "Invoices whose grace window — how long they have left to be recovered — could \
+                  not be established, ending recovery for that invoice; `reason` says which of \
+                  the three steps could not be completed",
     unit: "1",
 );
+// Not to be read as "the invoice ran out of retries", which is the ordinary end of its life and
+// finishes the job cleanly. This counts a stored retry count that is not a count at all — the only
+// way `i32 -> u32` fails is a negative — so the remaining budget cannot be derived from it.
 counter_metric!(
-    REVENUE_RECOVERY_RETRY_BUDGET_FAILED,
+    REVENUE_RECOVERY_RETRY_COUNT_INVALID,
     GLOBAL_METER,
-    name: "revenue_recovery.retry_budget_failed",
-    description: "Invoices we could not work out a retry budget for — how many attempts they have \
-                  left — ending recovery for that invoice",
+    name: "revenue_recovery.retry_count_invalid",
+    description: "Invoices whose stored retry count was negative and so not a usable count, \
+                  leaving the remaining retry budget underivable and ending recovery",
     unit: "1",
 );

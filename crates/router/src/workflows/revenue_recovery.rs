@@ -644,7 +644,7 @@ pub enum PaymentProcessorTokenResponse {
 impl PaymentProcessorTokenResponse {
     /// Stable metric label for the outcome. Spelled out rather than derived so a renamed variant
     /// cannot silently break the series a dashboard is grouped on.
-    fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::HardDecline => "hard_decline",
             Self::ScheduledTime { .. } => "scheduled",
@@ -654,97 +654,6 @@ impl PaymentProcessorTokenResponse {
             Self::None => "none",
         }
     }
-}
-
-/// Counts an invoice we could not work out a grace window for. All three callers are terminal, and
-/// they fail for unrelated reasons — the invoice carries no billing start date, the configured
-/// period pushes the end date past what a timestamp holds, or the days left do not fit the model's
-/// day count — so `step` is what separates them.
-#[cfg(feature = "v2")]
-fn record_grace_window_failure(step: &'static str) {
-    crate::routes::metrics::REVENUE_RECOVERY_GRACE_WINDOW_FAILED
-        .add(1, router_env::metric_attributes!(("step", step)));
-}
-
-/// The two allowances the retry model needs: how much of the invoice's grace window is left, and
-/// how many retries remain of the merchant's budget. The grace window comes from Superposition,
-/// the budget from the billing connector's account.
-#[cfg(feature = "v2")]
-async fn get_adaptive_retry_allowances(
-    state: &SessionState,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    payment_intent: &PaymentIntent,
-    max_retry_count: u16,
-    retry_count: i32,
-    now: time::PrimitiveDateTime,
-) -> Result<(u32, u32), errors::ProcessTrackerError> {
-    let grace_period_days = dimensions
-        .get_recovery_grace_period_days(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
-        .await;
-
-    let grace_window_start = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
-        .and_then(|revenue_recovery_metadata| {
-            revenue_recovery_metadata.invoice_billing_started_at_time
-        })
-        .ok_or_else(|| {
-            logger::error!(
-                payment_id = %payment_intent.id.get_string_repr(),
-                "retry allowances: the invoice has no billing start time, so its grace window \
-                 cannot be established"
-            );
-            record_grace_window_failure("missing_billing_start_time");
-            errors::ProcessTrackerError::EApiErrorResponse
-        })?;
-
-    let grace_window_end = grace_window_start
-        .checked_add(time::Duration::days(grace_period_days))
-        .ok_or_else(|| {
-            logger::error!(
-                payment_id = %payment_intent.id.get_string_repr(),
-                grace_period_days,
-                %grace_window_start,
-                "retry allowances: failed to calculate the grace window end time"
-            );
-            record_grace_window_failure("grace_window_end_overflow");
-            errors::ProcessTrackerError::EApiErrorResponse
-        })?;
-
-    let days_left_in_grace_window = (grace_window_end - now).whole_days().max(0);
-
-    let remaining_grace_days: u32 = days_left_in_grace_window.try_into().map_err(|error| {
-        logger::error!(
-            ?error,
-            payment_id = %payment_intent.id.get_string_repr(),
-            days_left_in_grace_window,
-            "retry allowances: the days left in the grace window do not fit the model's day count"
-        );
-        record_grace_window_failure("grace_days_out_of_range");
-        errors::ProcessTrackerError::EApiErrorResponse
-    })?;
-
-    let retries_already_made: u32 = retry_count.try_into().map_err(|error| {
-        logger::error!(
-            ?error,
-            payment_id = %payment_intent.id.get_string_repr(),
-            retry_count,
-            "retry allowances: failed to read how many retries have already been made"
-        );
-        crate::routes::metrics::REVENUE_RECOVERY_RETRY_BUDGET_FAILED.add(1, &[]);
-        errors::ProcessTrackerError::EApiErrorResponse
-    })?;
-
-    // Saturating so an invoice already past its ceiling reads as no budget left rather than
-    // wrapping to an enormous one.
-    let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
-
-    Ok((remaining_grace_days, remaining_budget))
 }
 
 /// The assigned arm's retry time for an invoice, or `None` when the model cannot be consulted.
@@ -861,7 +770,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     retry_count: i32,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
-    max_retry_count: u16,
     // Needed only to resolve the A/B gate
     provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
     remaining_grace_days: u32,
@@ -945,11 +853,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 // it has one; the cascading ladder covers only the decisions it declines.
                 //
                 // Enrolled and unenrolled invoices differ ONLY in which variant produces that
-                // candidate. Everything after it — the fallback, the decision, the token — is
-                // shared, so enrolling an invoice cannot change whether it gets retried at all.
-                let now = common_utils::date_time::now();
-
-                let (model_time, grace_days_used, budget_used, assigned_algorithm) = if ab_enabled {
+                // candidate. The allowances it works against arrive as arguments, and everything
+                // after it — the fallback, the decision, the token — is shared, so enrolling an
+                // invoice cannot change whether it gets retried at all.
+                let (model_time, assigned_algorithm) = if ab_enabled {
                     let (time, algorithm) = get_ab_routed_retry_time(
                         state,
                         payment_intent,
@@ -960,30 +867,15 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         &ab_dimensions,
                     )
                     .await;
-                    (
-                        time,
-                        remaining_grace_days,
-                        remaining_budget,
-                        Some(algorithm),
-                    )
+                    (time, Some(algorithm))
                 } else {
-                    let (grace_days, budget) = get_adaptive_retry_allowances(
-                        state,
-                        &dimensions,
-                        payment_intent,
-                        max_retry_count,
-                        retry_count,
-                        now,
-                    )
-                    .await?;
-
                     let time = match tracking_data.prev_attempt_error_code {
                         // Not enrolled in A/B routing, so this runs the baseline pairing.
                         Some(error_code) => compute_model_retry_time(
                             state,
                             error_code,
-                            grace_days,
-                            budget,
+                            remaining_grace_days,
+                            remaining_budget,
                             RetryModelVariant::default(),
                         )
                         .await
@@ -1005,7 +897,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                             None
                         }
                     };
-                    (time, grace_days, budget, None)
+                    (time, None)
                 };
 
                 // The MIT cascading ladder is the global fallback for everything the model
@@ -1034,8 +926,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     logger::error!(
                         retry_count = retry_count,
                         error_code = ?tracking_data.prev_attempt_error_code,
-                        remaining_grace_days = grace_days_used,
-                        remaining_budget = budget_used,
+                        remaining_grace_days = remaining_grace_days,
+                        remaining_budget = remaining_budget,
                         "No retry time available — the model declined and the MIT cascading \
                          ladder had nothing left"
                     );
@@ -1061,8 +953,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     model_time = ?model_time,
                     fallback_time = ?fallback_time,
                     error_code = ?tracking_data.prev_attempt_error_code,
-                    remaining_grace_days = grace_days_used,
-                    remaining_budget = budget_used,
+                    remaining_grace_days = remaining_grace_days,
+                    remaining_budget = remaining_budget,
                     ab_enabled = ab_enabled,
                     schedule_time = ?decision.schedule_time,
                     "Retry decision"
@@ -1076,11 +968,8 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await?;
 
-                // Only a booked retry advances the count. The other outcomes finish or reschedule
-                // the CALCULATE job without an attempt, so writing here would spend a ladder
-                // position on a retry that never happened. (`next_progress` no longer advances
-                // at all — see `decide_next_retry` — so this write is inert; the guard stays
-                // because the field is still persisted.)
+                // The ladder position is carried back only when a retry is genuinely scheduled.
+                // The other responses finish or reschedule the CALCULATE job without an attempt.
                 if matches!(
                     payment_processor_token_response,
                     PaymentProcessorTokenResponse::ScheduledTime { .. }
@@ -1098,17 +987,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             }
         }
     }
-
-    // Counted before the per-outcome handling so every arm below is covered by one call. Four of
-    // these six mean the invoice is not retried; without the other two in the same series there is
-    // no denominator to read them against.
-    crate::routes::metrics::REVENUE_RECOVERY_CALCULATE_OUTCOME.add(
-        1,
-        router_env::metric_attributes!(
-            ("outcome", payment_processor_token_response.as_str()),
-            ("algorithm", retry_algorithm_type.to_string())
-        ),
-    );
 
     match &mut payment_processor_token_response {
         PaymentProcessorTokenResponse::HardDecline => {

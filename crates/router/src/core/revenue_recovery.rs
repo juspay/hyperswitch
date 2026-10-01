@@ -726,6 +726,15 @@ pub async fn perform_payments_sync(
     Ok(())
 }
 
+/// Counts an invoice whose grace window could not be established. Every caller is terminal, and
+/// they fail for unrelated reasons — the invoice carries no billing start date, the configured
+/// period pushes the end date past what a timestamp holds, or the days left do not fit the model's
+/// day count — so `reason` is what separates them.
+fn record_grace_window_unresolved(reason: &'static str) {
+    metrics::REVENUE_RECOVERY_GRACE_WINDOW_UNRESOLVED
+        .add(1, router_env::metric_attributes!(("reason", reason)));
+}
+
 /// When the invoice's recovery grace window closes: its billing start plus the configured grace
 /// period.
 async fn get_recovery_grace_window_end(
@@ -750,14 +759,20 @@ async fn get_recovery_grace_window_end(
         .and_then(|revenue_recovery_metadata| {
             revenue_recovery_metadata.invoice_billing_started_at_time
         })
-        .ok_or(errors::RecoveryError::ValueNotFound)
+        .ok_or_else(|| {
+            record_grace_window_unresolved("missing_billing_start_time");
+            errors::RecoveryError::ValueNotFound
+        })
         .attach_printable(
             "Cannot bound the invoice by its grace window: the intent has no billing start time",
         )?;
 
     grace_window_start
         .checked_add(time::Duration::days(grace_period_days))
-        .ok_or(errors::RecoveryError::ValueNotFound)
+        .ok_or_else(|| {
+            record_grace_window_unresolved("grace_window_end_overflow");
+            errors::RecoveryError::ValueNotFound
+        })
         .attach_printable("The end of the grace window does not fit a timestamp")
 }
 
@@ -905,9 +920,11 @@ pub async fn perform_calculate_workflow(
             None,
         )
     } else {
-        // The allowances the adaptive model needs, derived once here from the window
-        // established above rather than inside an arm. Unreachable as `None`: this arm is
-        // only taken when retries remain, and the window is computed — or errored — above.
+        // The allowances the retry model needs, derived once here from the window established
+        // above and handed to whichever arm runs. Both arms read the same pair, so enrolling an
+        // invoice in A/B routing cannot change the budget its model is working against.
+        // Unreachable as `None`: this arm is only taken when retries remain, and the window is
+        // computed — or errored — above.
         let grace_window_end = grace_window_end
             .ok_or(errors::RecoveryError::ValueNotFound)
             .attach_printable("Cannot derive the recovery allowances: the grace window is unset")?;
@@ -917,10 +934,12 @@ pub async fn perform_calculate_workflow(
                 .whole_days()
                 .max(0),
         )
+        .inspect_err(|_| record_grace_window_unresolved("grace_days_out_of_range"))
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("The days left in the grace window do not fit a day count")?;
 
         let retries_already_made = u32::try_from(process.retry_count)
+            .inspect_err(|_| metrics::REVENUE_RECOVERY_RETRY_COUNT_INVALID.add(1, &[]))
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to read how many retries have already been made")?;
 
@@ -938,7 +957,6 @@ pub async fn perform_calculate_workflow(
             process.retry_count,
             tracking_data,
             &static_ladder_progress,
-            max_retry_count,
             platform.get_provider().get_provider_merchant_id(),
             remaining_grace_days,
             remaining_budget,
@@ -960,6 +978,19 @@ pub async fn perform_calculate_workflow(
             }
         }
     };
+
+    // Counted here rather than where each outcome is produced, because this is the only point all
+    // six pass through: the retry-ceiling and grace-window checks above short-circuit the workflow
+    // entirely, and the ladder-exhausted case returns early inside it. Four of the six mean the
+    // invoice is not retried; the two that schedule something are counted as well, since a drop
+    // rate is only readable against a denominator.
+    metrics::REVENUE_RECOVERY_CALCULATE_OUTCOME.add(
+        1,
+        router_env::metric_attributes!(
+            ("outcome", payment_processor_token_response.as_str()),
+            ("algorithm", retry_algorithm_type.to_string())
+        ),
+    );
 
     match payment_processor_token_response {
         revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
