@@ -37,6 +37,15 @@ pub trait ChatClient: Send + Sync + std::fmt::Debug {
     /// Post a message, returning the id of the message that was created.
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId>;
 
+    /// Replace the content of an earlier message, returning its id.
+    ///
+    /// The message's reply target is not read: an edit stays wherever the original was posted.
+    async fn update_message(
+        &self,
+        message_id: &MessageId,
+        message: ChatMessage,
+    ) -> ChatResult<MessageId>;
+
     /// Upload a file and optionally share it under an existing message.
     async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId>;
 }
@@ -159,31 +168,30 @@ impl MessageId {
 /// The fields are private and reached through constructors and accessors on purpose: this is the
 /// type most likely to grow, and private fields mean it can grow without breaking callers.
 ///
-/// Two directions it is expected to grow, and how:
+/// **The content is the caller's, and it is forwarded unchanged.** It is the provider's message
+/// body — for Slack-compatible backends `text`, `mrkdwn`, `attachments` and so on — already built.
+/// A client adds only what addresses the message (the channel, and the thread it replies into)
+/// and never reads, trims or rewrites what it was handed. Deciding what a message looks like, and
+/// fitting it to a provider's limits, belongs to the caller.
 ///
-/// - **A backend that is not Slack-compatible.** `text` is markup, and the markup is not portable
-///   — Slack reads `*bold*` where Discord reads `**bold**`. Today every backend is
-///   Slack-compatible so a rendered string is honest. The first backend that is not forces a
-///   choice between rendering at the call site and carrying structured content here; keeping
-///   `text` private means that choice stays open.
-/// - **Files.** They do not belong on this type. Uploading is a different endpoint with a
-///   different result — a file id, not a message id — and on current Slack it is three calls
-///   rather than one. It earns a sibling method on [`ChatClient`], not a field here.
+/// Files do not belong on this type. Uploading is a different endpoint with a different result —
+/// a file id, not a message id — and on current Slack it is three calls rather than one. It earns
+/// a sibling method on [`ChatClient`], not a field here.
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
-    text: String,
+    content: serde_json::Map<String, serde_json::Value>,
     reply_to: Option<MessageId>,
 }
 
 impl ChatMessage {
     /// A new top-level message.
     ///
-    /// `text` is delivered as-is, in whatever markup the target backend reads. Escape anything
-    /// interpolated into it: on Slack-compatible backends an unescaped `<` in a merchant id or an
-    /// error reason opens markup and mangles the message.
-    pub fn new(text: impl Into<String>) -> Self {
+    /// `content` is delivered as-is. Escape anything interpolated into its markup: on
+    /// Slack-compatible backends an unescaped `<` in a merchant id or an error reason opens markup
+    /// and mangles the message.
+    pub fn new(content: serde_json::Map<String, serde_json::Value>) -> Self {
         Self {
-            text: text.into(),
+            content,
             reply_to: None,
         }
     }
@@ -195,16 +203,19 @@ impl ChatMessage {
     /// A second constructor rather than a `mut self` builder on top of [`ChatMessage::new`]:
     /// whether a message is threaded is known at the call site, so it is an argument rather than a
     /// state a value passes through.
-    pub fn reply(text: impl Into<String>, message_id: MessageId) -> Self {
+    pub fn reply(
+        content: serde_json::Map<String, serde_json::Value>,
+        message_id: MessageId,
+    ) -> Self {
         Self {
-            text: text.into(),
+            content,
             reply_to: Some(message_id),
         }
     }
 
-    /// The message body.
-    pub fn text(&self) -> &str {
-        &self.text
+    /// The message body, exactly as the caller built it.
+    pub fn content(&self) -> &serde_json::Map<String, serde_json::Value> {
+        &self.content
     }
 
     /// The message this one replies to, if any.

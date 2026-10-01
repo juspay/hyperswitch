@@ -78,7 +78,7 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
+Four delivery routes across two channels. **The path says where, the body says what** — the URL names the
 channel and the destination, the body carries only content. Channel ids, recipient addresses and
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
 and no credential travels on the wire.
@@ -88,6 +88,7 @@ The whole surface, guarded and not:
 | Method | Path | Auth |
 |---|---|---|
 | `POST` | `/alerts/chat/notify/{destination}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/chat/update/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
@@ -102,6 +103,47 @@ X-Internal-Api-Key: <key>
 { "text": "*3 merchants not converting*", "reply_to": "cmtk931s114h8c9mfodi4ou1s" }
 → 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
 ```
+
+A message about one alert names it with `alert`, and `text` becomes the body beneath its heading:
+
+```http
+POST /alerts/chat/notify/{destination}
+X-Internal-Api-Key: <key>
+
+{ "text": "SR fell to `42%` …",
+  "reply_to": "<optional message_id>",
+  "alert": { "state": "firing", "severity": "sev1", "title": "SR drop - connector (15m)", "region": "eu-west-1" } }
+→ 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
+```
+
+`state` is `firing`, `persistent` or `resolved`; `severity` is `sev1`, `sev2` or `sev3` and stays the
+alert's own through its life; `region` is optional. The message is laid out here, not by the caller:
+
+- heading `*🔴 [eu-west-1] SEV1 · SR drop - connector (15m)*` — `STILL FIRING` for `persistent`,
+  `🟢 … RESOLVED` for `resolved` — clipped to 150 characters;
+- `text` in the section blocks of an attachment coloured by severity (`resolved` is green), spread
+  across as many 3000-character blocks as it needs, so nothing is cut;
+- **no top-level `mrkdwn`.** Xyne's adapter reads that flag as "text only" and drops the attachment —
+  rail and body — while still answering `ok: true`.
+
+Without `alert` the message is `text` alone with markup on, exactly as before.
+
+```http
+POST /alerts/chat/update/{destination}
+X-Internal-Api-Key: <key>
+
+{ "message_id": "cmtk931zk14lec9mf1svtd88t", "text": "…",
+  "alert": { "state": "firing", "severity": "sev1", "title": "SR drop - connector (15m)" },
+  "resolved": true }
+→ 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
+```
+
+`update` replaces an earlier message's content, laid out by the same rules. `resolved: true` keeps the
+heading `alert` describes and turns the rail green — how an alert's original message is marked once
+it clears — and needs `alert`.
+
+The request types reject unknown fields, so a caller must not send `alert` or call `update` until
+this service is deployed with them.
 
 ```http
 POST /alerts/chat/upload/{destination}
@@ -132,11 +174,13 @@ without anyone parsing a body, so "which destination is failing" is answerable f
 only; sending it to the email route is a `400`, not a silently dropped field, because a recovery
 notice that quietly loses its link to the alert it clears is a bug nobody notices.
 
-**Nothing here renders.** `text`, `subject` and `body` are delivered exactly as they arrive, so the
-caller owns markup and escaping. That is deliberate: the reference alerting service already renders
-a summary in Slack `mrkdwn` for chat and a full per-alert list for email, and those are not the same
+**The caller writes the words.** `text`, `subject` and `body` are never reworded, so the caller owns
+their markup and escaping. That is deliberate: the reference alerting service already writes a
+summary in Slack `mrkdwn` for chat and a full per-alert list for email, and those are not the same
 message. `body` is **HTML**, because both email backends in `external_services` hardcode an HTML
-body and there is no plain-text path to reach.
+body and there is no plain-text path to reach. What a chat *alert* looks like — heading, marker,
+rail — is laid out here from its `alert` fields, and the provider client in `external_services`
+forwards the result without touching it.
 
 A single `POST /notify/{destination}` over a channel-tagged body was considered and rejected: the
 destination already resolves the channel through configuration, so a tag in the body is a second

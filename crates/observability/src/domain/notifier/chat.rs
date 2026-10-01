@@ -1,14 +1,17 @@
 //! Delivering an alert to a chat destination.
 
+mod message;
+
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
 };
 
 use external_services::chat_service::{
-    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, MessageId,
+    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, MessageId,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use serde::Deserialize;
 
 use super::{Outcome, Refusal};
 use crate::{
@@ -28,11 +31,75 @@ const PROVIDER_INTERNAL_ERROR: &str = "internal_error";
 /// A message to post to one chat destination.
 #[derive(Debug, Clone)]
 pub struct ChatNotification {
-    /// The message, in the markup the destination reads. Delivered unchanged.
+    /// The message, in the markup the destination reads. With [`Self::alert`] it is the body under
+    /// the alert's heading; without it, the whole message.
     pub text: Secret<String>,
 
     /// Post as a reply under this message, if given.
     pub reply_to: Option<String>,
+
+    /// What the message is about, when it is about an alert. Turns it into an alert message: a
+    /// heading and a severity rail built here, over `text`.
+    pub alert: Option<ChatAlert>,
+}
+
+/// A replacement for the content of an earlier message.
+#[derive(Debug, Clone)]
+pub struct ChatUpdate {
+    /// The `message_id` an earlier delivery returned.
+    pub message_id: String,
+
+    /// As [`ChatNotification::text`].
+    pub text: Secret<String>,
+
+    /// As [`ChatNotification::alert`].
+    pub alert: Option<ChatAlert>,
+
+    /// The alert this message announced has since cleared: keep the heading `alert` describes and
+    /// turn the rail green.
+    pub resolved: bool,
+}
+
+/// The alert a chat message is about: its domain data, not how it is shown.
+///
+/// The caller says what happened; how that looks — heading, marker, colour — is decided when the
+/// message is built, so it is the same for every caller.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChatAlert {
+    /// Where the alert is in its life.
+    pub state: AlertState,
+
+    /// The alert's own severity. Stays the same through its life.
+    pub severity: AlertSeverity,
+
+    /// What the alert is, e.g. `SR drop - connector (15m)`.
+    pub title: Secret<String>,
+
+    /// The deployment the alert was raised in, named in the heading when given.
+    #[serde(default)]
+    pub region: Option<String>,
+}
+
+/// Where an alert is in its life.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlertState {
+    /// First announcement.
+    Firing,
+    /// Still firing since it was announced.
+    Persistent,
+    /// No longer firing.
+    Resolved,
+}
+
+/// How bad an alert is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlertSeverity {
+    Sev1,
+    Sev2,
+    Sev3,
 }
 
 /// One file to upload to a chat destination.
@@ -78,6 +145,9 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
     /// answered. `Err` means the attempt itself failed, so whether the message arrived is unknown.
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome>;
 
+    /// Replace the content of an earlier message. Outcomes read as for [`Self::notify`].
+    async fn update(&self, update: ChatUpdate) -> ObservabilityApiResult<ChatOutcome>;
+
     /// Upload one file and optionally share it in an existing thread.
     async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome>;
 }
@@ -87,6 +157,8 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
 pub struct ChatClientNotifier {
     destination: String,
     client: Arc<dyn ChatClient>,
+    /// The destination's limit on a message body, applied when the message is built.
+    max_message_chars: usize,
 }
 
 impl ChatClientNotifier {
@@ -94,25 +166,17 @@ impl ChatClientNotifier {
     ///
     /// The id is carried so failures can name it. With several destinations configured, "the chat
     /// provider is unreachable" is not an actionable sentence and "`sr_alerts` is" is.
-    pub fn new(destination: String, client: Arc<dyn ChatClient>) -> Self {
+    pub fn new(destination: String, client: Arc<dyn ChatClient>, max_message_chars: usize) -> Self {
         Self {
             destination,
             client,
+            max_message_chars,
         }
     }
-}
 
-#[async_trait::async_trait]
-impl ChatNotifier for ChatClientNotifier {
-    async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome> {
-        let message = match notification.reply_to {
-            Some(reply_to) => {
-                ChatMessage::reply(notification.text.expose(), MessageId::ts(reply_to))
-            }
-            None => ChatMessage::new(notification.text.expose()),
-        };
-
-        match self.client.post_message(message).await {
+    /// Read a delivery result as an outcome.
+    fn outcome(&self, result: ChatResult<MessageId>) -> ObservabilityApiResult<ChatOutcome> {
+        match result {
             Ok(message_id) => Ok(Outcome::Delivered(ChatReceipt {
                 message_id: message_id.as_ts().map(str::to_owned),
             })),
@@ -135,6 +199,39 @@ impl ChatNotifier for ChatClientNotifier {
                 }
             },
         }
+    }
+}
+
+#[async_trait::async_trait]
+impl ChatNotifier for ChatClientNotifier {
+    async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome> {
+        let content = message::content(
+            notification.text.peek(),
+            notification.alert.as_ref(),
+            false,
+            self.max_message_chars,
+        );
+        let message = match notification.reply_to {
+            Some(reply_to) => ChatMessage::reply(content, MessageId::ts(reply_to)),
+            None => ChatMessage::new(content),
+        };
+
+        self.outcome(self.client.post_message(message).await)
+    }
+
+    async fn update(&self, update: ChatUpdate) -> ObservabilityApiResult<ChatOutcome> {
+        let content = message::content(
+            update.text.peek(),
+            update.alert.as_ref(),
+            update.resolved,
+            self.max_message_chars,
+        );
+
+        self.outcome(
+            self.client
+                .update_message(&MessageId::ts(update.message_id), ChatMessage::new(content))
+                .await,
+        )
     }
 
     async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
@@ -291,6 +388,20 @@ impl ChatNotifier for LogChatNotifier {
         }))
     }
 
+    async fn update(&self, update: ChatUpdate) -> ObservabilityApiResult<ChatOutcome> {
+        logger::info!(
+            tag = "chat_update_skipped",
+            destination = %self.destination,
+            chars = update.text.peek().chars().count(),
+            "not delivered: this destination is configured as `log`"
+        );
+
+        // An edit keeps the message it edits, so the id handed back is the one handed in.
+        Ok(Outcome::Delivered(ChatReceipt {
+            message_id: Some(update.message_id),
+        }))
+    }
+
     async fn upload_file(&self, upload: ChatFileUpload) -> ObservabilityApiResult<ChatFileOutcome> {
         let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
         logger::info!(
@@ -438,6 +549,7 @@ mod tests {
             .notify(ChatNotification {
                 text: "first".to_owned().into(),
                 reply_to: None,
+                alert: None,
             })
             .await
             .unwrap();
@@ -445,11 +557,34 @@ mod tests {
             .notify(ChatNotification {
                 text: "second".to_owned().into(),
                 reply_to: None,
+                alert: None,
             })
             .await
             .unwrap();
 
         assert_ne!(first, second);
         assert!(matches!(first, Outcome::Delivered(_)));
+    }
+
+    #[tokio::test]
+    async fn a_log_destination_update_hands_back_the_edited_id() {
+        let notifier = LogChatNotifier::new("smoke".to_owned());
+
+        let outcome = notifier
+            .update(ChatUpdate {
+                message_id: "log.000001".to_owned(),
+                text: "body".to_owned().into(),
+                alert: None,
+                resolved: false,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            outcome,
+            Outcome::Delivered(ChatReceipt {
+                message_id: Some("log.000001".to_owned())
+            })
+        );
     }
 }
