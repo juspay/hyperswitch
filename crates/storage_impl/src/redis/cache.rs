@@ -633,7 +633,10 @@ impl Cache {
                 }
 
                 match tokio::time::timeout(populate_timeout, populate_for_closure()).await {
-                    Ok(Ok(val)) => Ok(Op::Put(Arc::new(val) as Arc<dyn Cacheable>)),
+                    Ok(Ok(val)) => {
+                        let val: Arc<dyn Cacheable> = Arc::new(val);
+                        Ok(Op::Put(val))
+                    }
                     Ok(Err(e)) => Err(Some(e)),
                     Err(_elapsed) => Err(None),
                 }
