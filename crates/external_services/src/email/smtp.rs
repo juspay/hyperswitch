@@ -46,42 +46,49 @@ async fn connect_via_socks5(
     smtp_host: &str,
     smtp_port: u16,
 ) -> Result<TcpStream, SmtpError> {
-    let proxy_addr = tokio::net::lookup_host((socks5.host.as_str(), socks5.port))
+    let proxy_addrs = tokio::net::lookup_host((socks5.host.as_str(), socks5.port))
         .await
         .map_err(SmtpError::Socks5ProxyResolutionFailed)?
-        .next()
-        .ok_or_else(|| {
-            SmtpError::Socks5ProxyResolutionFailed(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "proxy hostname resolved to no addresses",
-            ))
-        })?;
+        .collect::<Vec<_>>();
 
     let target = (smtp_host, smtp_port);
 
-    let stream = match socks5.username.as_ref().zip(socks5.password.as_ref()) {
-        Some((username, password)) => {
-            Socks5Stream::connect_with_password(
-                proxy_addr,
-                target,
-                username.peek().as_str(),
-                password.peek().as_str(),
-            )
-            .await
-        }
-        None => Socks5Stream::connect(proxy_addr, target).await,
-    }
-    .map_err(|error| {
-        logger::warn!(
-            ?error,
-            proxy_host = %socks5.host,
-            proxy_port = socks5.port,
-            "SOCKS5 proxy connection failed"
-        );
-        SmtpError::Socks5ConnectionFailed(error)
-    })?;
+    // Try every resolved address, not just the first (matches connect_direct's retry).
+    let mut last_error = SmtpError::Socks5ProxyResolutionFailed(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "proxy hostname resolved to no addresses",
+    ));
 
-    Ok(stream.into_inner())
+    for proxy_addr in proxy_addrs {
+        let result = match socks5.username.as_ref().zip(socks5.password.as_ref()) {
+            Some((username, password)) => {
+                Socks5Stream::connect_with_password(
+                    proxy_addr,
+                    target,
+                    username.peek().as_str(),
+                    password.peek().as_str(),
+                )
+                .await
+            }
+            None => Socks5Stream::connect(proxy_addr, target).await,
+        };
+
+        match result {
+            Ok(stream) => return Ok(stream.into_inner()),
+            Err(error) => {
+                logger::warn!(
+                    ?error,
+                    proxy_host = %socks5.host,
+                    proxy_port = socks5.port,
+                    %proxy_addr,
+                    "SOCKS5 connection attempt failed, trying next resolved address if any"
+                );
+                last_error = SmtpError::Socks5ConnectionFailed(error);
+            }
+        }
+    }
+
+    Err(last_error)
 }
 
 /// Client for SMTP server operation
@@ -94,7 +101,7 @@ pub struct SmtpServer {
 }
 
 impl SmtpServer {
-    pub(crate) async fn create_client(&self) -> Result<AsyncSmtpConnection, SmtpError> {
+    pub(crate) async fn create_client(&self) -> CustomResult<AsyncSmtpConnection, SmtpError> {
         let host = &self.smtp_config.host;
         let port = self.smtp_config.port;
         let client_id = ClientId::default();
@@ -107,7 +114,8 @@ impl SmtpServer {
             }
         })
         .await
-        .map_err(|_| SmtpError::Timeout)??;
+        .change_context(SmtpError::Timeout)
+        .attach_printable("Timed out establishing the underlying connection to the SMTP host")??;
 
         let stream: Box<dyn AsyncTokioStream> = Box::new(stream);
 
@@ -116,7 +124,8 @@ impl SmtpServer {
             AsyncSmtpConnection::connect_with_transport(stream, &client_id),
         )
         .await
-        .map_err(|_| SmtpError::Timeout)?
+        .change_context(SmtpError::Timeout)
+        .attach_printable("Timed out completing the SMTP connect handshake")?
         .map_err(SmtpError::ConnectionFailure)?;
 
         if matches!(self.smtp_config.connection, SmtpConnection::StartTls) {
@@ -125,7 +134,8 @@ impl SmtpServer {
                 .map_err(SmtpError::ConnectionFailure)?;
             tokio::time::timeout(timeout, conn.starttls(tls_parameters, &client_id))
                 .await
-                .map_err(|_| SmtpError::Timeout)?
+                .change_context(SmtpError::Timeout)
+                .attach_printable("Timed out during the STARTTLS upgrade")?
                 .map_err(SmtpError::ConnectionFailure)?;
         }
 
@@ -275,7 +285,8 @@ impl EmailClient for SmtpServer {
                 conn.auth(&[Mechanism::Plain, Mechanism::Login], &credentials),
             )
             .await
-            .map_err(|_| SmtpError::Timeout)
+            .change_context(SmtpError::Timeout)
+            .attach_printable("SMTP AUTH command timed out")
             .change_context(EmailError::EmailSendingFailure)?
             .map_err(SmtpError::AuthenticationFailure)
             .change_context(EmailError::EmailSendingFailure)?;
@@ -283,7 +294,8 @@ impl EmailClient for SmtpServer {
 
         tokio::time::timeout(timeout, conn.send(email.envelope(), &email.formatted()))
             .await
-            .map_err(|_| SmtpError::Timeout)
+            .change_context(SmtpError::Timeout)
+            .attach_printable("SMTP SEND command timed out")
             .change_context(EmailError::EmailSendingFailure)?
             .map_err(SmtpError::SendingFailure)
             .change_context(EmailError::EmailSendingFailure)?;
