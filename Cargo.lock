@@ -2906,7 +2906,7 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510#ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510"
+source = "git+https://github.com/juspay/deja?rev=c7a1f6130f383f9370cb9fd7e325604ba6dde9a7#c7a1f6130f383f9370cb9fd7e325604ba6dde9a7"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -2923,7 +2923,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510#ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510"
+source = "git+https://github.com/juspay/deja?rev=c7a1f6130f383f9370cb9fd7e325604ba6dde9a7#c7a1f6130f383f9370cb9fd7e325604ba6dde9a7"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2931,7 +2931,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510#ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510"
+source = "git+https://github.com/juspay/deja?rev=c7a1f6130f383f9370cb9fd7e325604ba6dde9a7#c7a1f6130f383f9370cb9fd7e325604ba6dde9a7"
 dependencies = [
  "serde",
  "serde_json",
@@ -2941,7 +2941,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510#ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510"
+source = "git+https://github.com/juspay/deja?rev=c7a1f6130f383f9370cb9fd7e325604ba6dde9a7#c7a1f6130f383f9370cb9fd7e325604ba6dde9a7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2951,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "deja-diesel"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510#ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510"
+source = "git+https://github.com/juspay/deja?rev=c7a1f6130f383f9370cb9fd7e325604ba6dde9a7#c7a1f6130f383f9370cb9fd7e325604ba6dde9a7"
 dependencies = [
  "async-bb8-diesel",
  "deja-runtime",
@@ -2961,7 +2961,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510#ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510"
+source = "git+https://github.com/juspay/deja?rev=c7a1f6130f383f9370cb9fd7e325604ba6dde9a7#c7a1f6130f383f9370cb9fd7e325604ba6dde9a7"
 dependencies = [
  "async-trait",
  "deja-context",
