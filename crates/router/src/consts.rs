@@ -508,6 +508,9 @@ pub mod superposition {
         "payments.should_return_raw_payment_method_details";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "system.should_call_pm_modular_service";
+    /// Detach the router's modular payment method update from the payment response.
+    pub const SHOULD_DETACH_MODULAR_PAYMENT_METHOD_UPDATE: &str =
+        "system.should_detach_modular_payment_method_update";
     /// Schedule PM modular forward compatibility PT configuration key
     pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
         "system.should_schedule_modular_forward_compat";
