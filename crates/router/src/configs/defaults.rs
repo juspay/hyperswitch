@@ -70,7 +70,7 @@ impl Default for super::settings::Locker {
             #[cfg(feature = "v2")]
             plain_fingerprint_response: true,
             #[cfg(feature = "v2")]
-            use_batched_fingerprint: false,
+            use_batched_fingerprint: true,
         }
     }
 }
