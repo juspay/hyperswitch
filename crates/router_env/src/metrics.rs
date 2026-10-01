@@ -92,6 +92,15 @@ macro_rules! histogram_metric_f64 {
         });
     };
     ($name:ident, $meter:ident, name: $metric_name:literal, description: $description:literal, unit: $unit:literal $(,)?) => {
+        $crate::histogram_metric_f64!(
+            $name, $meter,
+            name: $metric_name,
+            description: $description,
+            unit: $unit,
+            boundaries: $crate::metrics::f64_histogram_buckets(),
+        );
+    };
+    ($name:ident, $meter:ident, name: $metric_name:literal, description: $description:literal, unit: $unit:literal, boundaries: $boundaries:expr $(,)?) => {
         #[doc = $description]
         pub(crate) static $name: ::std::sync::LazyLock<
             $crate::opentelemetry::metrics::Histogram<f64>,
@@ -100,7 +109,7 @@ macro_rules! histogram_metric_f64 {
                 .f64_histogram($metric_name)
                 .with_description($description)
                 .with_unit($unit)
-                .with_boundaries($crate::metrics::f64_histogram_buckets())
+                .with_boundaries($boundaries)
                 .build()
         });
     };

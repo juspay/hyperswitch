@@ -13,7 +13,11 @@ counter_metric!(PREFERRED_CONNECTORS_UPDATE_FAILURES, GLOBAL_METER);
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
-histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
+histogram_metric_f64!(
+    REQUEST_TIME,
+    GLOBAL_METER,
+    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
+);
 
 histogram_metric_f64!(
     PAYMENT_OPERATION_DURATION,
@@ -21,6 +25,7 @@ histogram_metric_f64!(
     name: "payment.operation.duration",
     description: "Duration of completed payment domain operations",
     unit: "s",
+    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
 );
 histogram_metric_f64!(
     MICROSERVICE_CLIENT_CALL_DURATION,
@@ -28,6 +33,7 @@ histogram_metric_f64!(
     name: "microservice.client.call.duration",
     description: "Duration of completed internal microservice call attempts",
     unit: "s",
+    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
 );
 histogram_metric_f64!(
     VAULT_CALL_DURATION,
@@ -35,6 +41,7 @@ histogram_metric_f64!(
     name: "vault.call.duration",
     description: "Duration of completed legacy vault call attempts",
     unit: "s",
+    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
 );
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, strum::IntoStaticStr)]
@@ -279,10 +286,18 @@ counter_metric!(CONFIG_DEFAULT_FALLBACK, GLOBAL_METER); // When defaulted to app
 
 // Payment Method (modular service) business-level metrics
 counter_metric!(PAYMENT_METHOD_OPS_COUNT, GLOBAL_METER);
-histogram_metric_f64!(PAYMENT_METHOD_OPERATION_DURATION, GLOBAL_METER);
+histogram_metric_f64!(
+    PAYMENT_METHOD_OPERATION_DURATION,
+    GLOBAL_METER,
+    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
+);
 
 counter_metric!(PAYMENT_METHOD_SESSION_OPS_COUNT, GLOBAL_METER);
-histogram_metric_f64!(PAYMENT_METHOD_SESSION_OPERATION_DURATION, GLOBAL_METER);
+histogram_metric_f64!(
+    PAYMENT_METHOD_SESSION_OPERATION_DURATION,
+    GLOBAL_METER,
+    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
+);
 counter_metric!(SUCCESSFUL_PAYMENT_METHOD_SESSION_CONFIRM, GLOBAL_METER);
 
 // v2 vault call latency (payment_methods modular service) - distinct from the
