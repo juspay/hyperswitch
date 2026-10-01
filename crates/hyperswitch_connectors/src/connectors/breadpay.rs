@@ -818,7 +818,7 @@ static BREADPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethodType::Breadpay,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::NotSupported,
                 supported_capture_methods,
                 specific_features: None,
             },
@@ -864,5 +864,24 @@ impl ConnectorRedirectResponse for Breadpay {
                 Ok(CallConnectorAction::Trigger)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::enums::{FeatureStatus, PaymentMethod, PaymentMethodType};
+    use hyperswitch_interfaces::api::ConnectorSpecifications;
+
+    use super::Breadpay;
+
+    #[test]
+    fn declares_refunds_not_supported_because_refund_flows_are_not_implemented() {
+        let refunds = Breadpay::new()
+            .get_supported_payment_methods()
+            .and_then(|payment_methods| payment_methods.get(&PaymentMethod::PayLater))
+            .and_then(|payment_method_types| payment_method_types.get(&PaymentMethodType::Breadpay))
+            .map(|details| details.refunds);
+
+        assert_eq!(refunds, Some(FeatureStatus::NotSupported));
     }
 }
