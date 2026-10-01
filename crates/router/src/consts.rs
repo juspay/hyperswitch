@@ -431,6 +431,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
+    pub const GUARD_BLOCKLIST: &str = "payments.guard_blocklist";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Fingerprint secret configuration key retained for migration fallback

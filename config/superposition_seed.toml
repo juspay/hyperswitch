@@ -2677,6 +2677,7 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
 "vaulting.save_wallet_decrypted_data" = { value = false, schema = { type = "boolean" }, description = "Whether to save wallet decrypted data", change_reason = "Initial setup" }
 "vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
 "payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }
+"payments.guard_blocklist" = { value = false, schema = { type = "boolean" }, description = "Whether the blocklist guard runs during payment confirm and the eligibility check", change_reason = "Initial setup" }
 "system.payment_integration_type" = { value = "client", schema = { type = "string", enum = [
     "client",
     "server",
