@@ -16,6 +16,7 @@ use hyperswitch_interfaces::{
 };
 
 use crate::{
+    core::router_client::RouterClient,
     domain::notifier::{
         chat::{ChatClientNotifier, ChatNotifier, LogChatNotifier},
         email::{EmailNotifier, EmailServiceNotifier},
@@ -38,6 +39,8 @@ use crate::{
 pub struct AppState {
     /// The resolved configuration.
     pub conf: Arc<Settings<RawSecret>>,
+    /// Router transport; absent when unconfigured or construction failed (auth fails closed).
+    pub router_transport: Option<Arc<RouterClient>>,
     /// Chat destinations, by the id a request names.
     pub chat: Arc<Registry<dyn ChatNotifier>>,
     /// Email destinations, by the id a request names.
@@ -99,8 +102,20 @@ impl AppState {
         resolve_alarm_destinations(&raw_conf.cloudwatch, &chat)
             .expect("Failed to resolve the cloudwatch alarm destinations");
 
+        let router_transport =
+            raw_conf.router.as_ref().and_then(|config| {
+                match RouterClient::new(config.base_url.clone(), &raw_conf.proxy) {
+                    Ok(client) => Some(Arc::new(client)),
+                    Err(_) => {
+                        logger::error!("Router client unavailable; Grafana auth will fail closed");
+                        None
+                    }
+                }
+            });
+
         Self {
             conf: Arc::new(raw_conf),
+            router_transport,
             chat: Arc::new(chat),
             email: Arc::new(email),
             metrics,

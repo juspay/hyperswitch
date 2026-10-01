@@ -7,4 +7,7 @@
 //! says what delivering an alert *is*, `core` says what one HTTP request does about it.
 
 pub mod cloudwatch;
+pub mod monitoring;
 pub mod notifier;
+pub mod response;
+pub mod router_client;

@@ -53,10 +53,10 @@ than on the first request.
 
 ## Authentication
 
-Every route is guarded by an internal API key supplied in the `X-Internal-Api-Key` header. This is
-not optional: when embedded, the router serves a single `HttpServer` on its public port, so
-anything mounted there is publicly reachable, and an unguarded route would let anyone who can
-reach the router send alerts through this service.
+Alert routes are guarded by an internal API key supplied in the `X-Internal-Api-Key` header.
+The separate `/monitoring/grafana/auth` route has no service key: it requires a Router-validated
+Control Center token and returns only a Grafana login. It is deliberately permitted to be exposed
+publicly; its request body and Router response must never be logged or cached.
 
 Auth is chosen **per route**, as a required argument to `services::server_wrap`, mirroring the
 router's own idiom. A new route cannot silently skip authentication — omitting it is a compile
@@ -91,6 +91,8 @@ The whole surface, guarded and not:
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
+| `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
+| `POST` | `/monitoring/grafana/session/{id}` | Router-validated Bearer token in Authorization header |
 
 The scope is `/alerts` rather than `/observability`: it names the resource being posted, not the
 service, so it stays correct as the crate widens past delivery.
@@ -222,6 +224,114 @@ destination holds one address, so reaching three people is three destinations, a
 HTML. Related: `EmailError` has no refusal vocabulary — a rejected recipient, a throttle and an
 unverified sender all arrive as one variant — so email only ever reports `delivered` or fails.
 `status: "refused"` is reachable for chat and not yet for email.
+
+## Grafana gateway authorization
+
+Configure `[router] base_url` (or `OBSERVABILITY__ROUTER__BASE_URL`) with the Router origin
+or public API base URL, such as `https://app.hyperswitch.io/api/`, to enable monitoring authorization.
+The configured path is preserved; a trailing slash is optional. Public edge routing can supply
+Router's required tenant header without forwarding a caller-provided tenant header from OP.
+Router configuration is optional: alert-only deployments can omit it; valid monitoring requests
+then fail closed with 503.
+A v2 build rejects a configured Router integration and does not register monitoring routes.
+For rollback, remove public gateway routing or remove Router configuration and restart.
+Verify cross-namespace connectivity and the exact Control Center host's `grafana_token` cookie
+in sandbox before enabling Grafana traffic.
+
+The gateway POSTs `{ "token": "<login_token>" }` (never a URL parameter). Observability calls
+Router `POST /user/internal/authorize` with the hard-coded `ProfileReconRuleRead` permission,
+then `GET /user` with **the same token**. For the user lookup, only Authorization is populated with that token;
+Router must run with `force_cookies=false`. No browser cookie, identity, role or tenant header
+is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
+active user's email. The response is only `{ "grafana_login": "cc_<sha256(email)>" }`, where
+SHA-256 uses the exact bytes Router returned. This is a namespaced Grafana username, **not**
+Router's canonical `user_id`; it is deterministic, not an email privacy mechanism. Changing the
+email would create a new Grafana login. A follow-up switches the fixed permission to
+`MonitoringView` once Router supports it.
+
+Missing/malformed Bearer headers and Router 401 return 401. Token validity is left to Router,
+without a local JWT shape or length check. The auth endpoint uses Actix's default JSON extractor:
+malformed JSON returns 400 and oversized bodies use its default limit/status. Router's permission denial returns
+403; all transport failures, malformed responses, and unexpected Router statuses return 503.
+Router can currently return a 5xx for an inactive user lookup; this maps to 503 but still denies
+access. Both monitoring handlers use the shared `server_wrap` request/auth/error pipeline. Core returns
+`ApplicationResponse::JsonWithHeaders` for the session; the wrapper renders its status and
+cookie centrally. Header extraction lives in `auth`, following Router's
+Bearer helper pattern. Authorization remains in core because it requires asynchronous Router
+calls; `NoAuth` explicitly means there is no additional internal API-key gate.
+The **gateway must add `Cache-Control: no-store` to every response** from both monitoring
+endpoints, including 4xx/5xx, malformed-body rejections, and gateway-generated errors. Disable
+any authorization-response caching at the gateway as well. The application does not set cache
+headers; direct service callers do not receive this policy. This gateway configuration is a
+rollout requirement, not implemented by this application PR. No credential, email or login is logged.
+The gateway must remove browser-supplied auth-proxy headers, inject only `grafana_login` as
+`X-WEBAUTH-USER`, strip the Control Center token before Grafana, and fail closed on non-200 or
+malformed response. No Grafana service-account token goes to the frontend. This route is allowed
+to be public without a separate service key by the agreed temporary integration contract; rate
+limit and monitor it at the gateway/ingress. The existing operational Grafana still needs its
+Auth Proxy whitelist and data-source access reviewed before rollout.
+
+### Grafana embed destinations
+
+Configure an ID-to-URL map, following the chat destination pattern. Use underscore-separated IDs
+such as `payment_logs` and `payment_overview`:
+
+```toml
+[monitoring.destinations]
+payment_logs = "https://cc.example/api/observability-plane/grafana/explore?orgId=1"
+payment_overview = "https://cc.example/api/observability-plane/grafana/d/dashboard_uid/overview?kiosk"
+```
+
+Environment override:
+`OBSERVABILITY__MONITORING__DESTINATIONS__PAYMENT_LOGS=https://cc.example/api/observability-plane/grafana/explore?orgId=1`
+
+The map defaults to empty. IDs use the same lowercase/non-empty/no-double-underscore rules as
+chat destinations. URLs are parsed as `Url`; query parameters are preserved. Deployment owners
+must use the same HTTPS CC host and `/api/observability-plane/grafana` proxy path so the session
+cookie applies. These are trusted configuration values, never URLs supplied by the caller.
+This service does not discover dashboards or generate Grafana Explore state: configure the
+complete embed URL for each target.
+
+### Browser session bootstrap
+
+The frontend calls `POST {cc_url}/api/observability-plane/monitoring/grafana/session/{id}` (for example
+`payment_logs`) with no request body and
+`Authorization: Bearer <JWT>`. Ingress strips `/api/observability-plane`; the application route
+is `/monitoring/grafana/session/{id}`. It uses the same permission and active-user validation as the
+identity endpoint, then returns 200 JSON and the following cookie (the gateway adds `Cache-Control: no-store`):
+
+```http
+Set-Cookie: grafana_token=<JWT>; Path=/api/observability-plane/grafana; Secure; HttpOnly; SameSite=Strict
+```
+
+The success body is:
+
+```json
+{"embed_url":"https://cc.example/api/observability-plane/grafana/explore?orgId=1"}
+```
+
+Authorization is performed before looking up the ID. Unknown IDs (including an empty destination
+map) return 404 without setting a cookie or exposing configured IDs/URLs. The old path without
+an ID no longer creates a session; GET is not supported.
+
+This is a distinct, host-only session cookie (no Domain, Expires or Max-Age), not a replacement
+for Control Center's `login_token`. The browser sends it to
+`{cc_url}/api/observability-plane/grafana/...`, including the bare Grafana path. Router still
+enforces token expiry/logout. Cookie Path is delivery scoping, not an access-control boundary.
+The gateway must read `grafana_token`, submit it to the auth endpoint **on every protected request**,
+and strip it before proxying to Grafana. An existing cookie is not cleared or replaced on failed
+bootstrap; it cannot grant access without fresh Router authorization. Request-body tokens and
+cookies are not accepted by the session endpoint, only a single Authorization Bearer header.
+No permissive CORS configuration is added. The cookie is usable only on the same CC host over HTTPS.
+
+Router calls use a dedicated reusable HTTP client, not the generic microservice executor. Only
+HTTP 200 is accepted, redirects are disabled, each call has a three-second timeout, and success
+bodies are bounded to 64 KiB. The client uses the existing `[proxy]` HTTP/HTTPS URLs and
+`bypass_proxy_hosts`, including for public Router origins in clusters without direct internet
+access. When no proxy URL is configured, transport stays direct instead of inheriting environment
+proxies. Verify the public Router host is allowed by the proxy before deployment.
+No upstream error body is retained or logged. The client does not independently decode or validate
+the JWT.
 
 ## Layout
 

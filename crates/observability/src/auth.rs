@@ -10,11 +10,29 @@
 //! handler goes on to use — which is why it cannot be middleware. Ours has nothing to hand back,
 //! and gains a type parameter the day it does.
 
-use actix_web::http::header::HeaderMap;
+use actix_web::http::header::{HeaderMap, AUTHORIZATION};
 use error_stack::report;
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::{errors::ObservabilityError, state::AppState};
+
+/// Extract a Bearer JWT following Router's header helper pattern, without inspecting its claims.
+/// Reject duplicate credentials; never attach the header value to an error report.
+pub fn get_jwt_from_authorization_header(
+    headers: &HeaderMap,
+) -> error_stack::Result<Secret<String>, ObservabilityError> {
+    let mut values = headers.get_all(AUTHORIZATION);
+    let value = values
+        .next()
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| report!(ObservabilityError::InvalidSession))?;
+    if values.next().is_some() {
+        return Err(report!(ObservabilityError::InvalidSession));
+    }
+    Ok(Secret::new(value.to_owned()))
+}
 
 /// The header carrying the internal API key.
 ///

@@ -4,6 +4,10 @@
 pub mod app;
 pub mod cloudwatch;
 pub mod health_check;
+#[cfg(feature = "v1")]
+pub mod monitoring;
 pub mod notify;
 
+#[cfg(feature = "v1")]
+pub use self::app::Monitoring;
 pub use self::app::{Alerts, Health};

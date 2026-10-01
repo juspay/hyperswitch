@@ -33,6 +33,17 @@ metrics_enabled = false
 [auth]
 internal_api_key = "observability_dev_key"
 
+# Optional internal Router origin or public API base URL (the /api prefix is preserved).
+# Uses [proxy] for outbound HTTP/HTTPS; public Router hosts must be allowed by the proxy.
+# Without it, monitoring auth/session return 503; alert-only deployments need not set it.
+# [router]
+# base_url = "https://app.hyperswitch.io/api/"
+
+# Optional Grafana embed targets. IDs use underscores; use the same HTTPS CC host and proxy path.
+# [monitoring.destinations]
+# payment_logs = "https://cc.example/api/observability-plane/grafana/explore?orgId=1"
+# payment_overview = "https://cc.example/api/observability-plane/grafana/d/dashboard_uid/overview?kiosk"
+
 # How the secrets above are resolved at boot. `no_encryption` takes them literally; the KMS
 # variants are compiled in under the `release` feature and treat them as handles to resolve.
 [secrets_management]

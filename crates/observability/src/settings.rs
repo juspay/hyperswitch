@@ -59,6 +59,10 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     /// Credentials guarding this service's routes.
     pub auth: SecretStateContainer<AuthSettings, S>,
+    /// Router dependency for the Grafana gateway authorization endpoint.
+    pub router: Option<RouterSettings>,
+    /// Configured Grafana embed targets, keyed by IDs such as payment_logs.
+    pub monitoring: MonitoringSettings,
     /// How secret values in this file are resolved at boot.
     pub secrets_management: SecretsManagementConfig,
     /// Outbound HTTP proxy. A deployment fact rather than a property of any destination, which is
@@ -70,6 +74,13 @@ pub struct Settings<S: SecretState> {
     pub email: EmailSettings,
     /// The infrastructure alarm catalogue this service evaluates.
     pub cloudwatch: CloudWatchSettings,
+}
+
+/// Grafana destinations use the same ID-keyed configuration pattern as chat destinations.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct MonitoringSettings {
+    pub destinations: HashMap<String, url::Url>,
 }
 
 const DEFAULT_MAX_UPLOAD_BYTES: usize = 25 * 1024 * 1024;
@@ -218,6 +229,13 @@ impl EmailSettings {
     }
 }
 
+/// Optional Router base URL; monitoring returns 503 when not configured.
+#[derive(Debug, Deserialize, Clone)]
+pub struct RouterSettings {
+    /// Internal Router origin or public API base URL, such as https://app.hyperswitch.io/api/.
+    pub base_url: url::Url,
+}
+
 /// Credentials guarding this service's routes.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -339,10 +357,17 @@ impl Settings<SecuredSecret> {
         self.auth.get_inner().validate()?;
         self.chat.get_inner().validate()?;
         self.email.validate()?;
+        validate_config_ids(&self.monitoring.destinations, "monitoring destination")?;
         self.cloudwatch.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
+        #[cfg(feature = "v2")]
+        if self.router.is_some() {
+            return Err(errors::ConfigurationError::ConfigParsingError(
+                "monitoring Grafana auth requires the v1 Router routes".into(),
+            ));
+        }
         Ok(())
     }
 }
@@ -352,6 +377,40 @@ impl Settings<SecuredSecret> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn monitoring_destinations_default_empty_and_support_environment_overrides() {
+        let defaults: Settings<SecuredSecret> = serde_json::from_str("{}").unwrap();
+        assert!(defaults.monitoring.destinations.is_empty());
+        let environment = HashMap::from([(
+            "OBSERVABILITY__MONITORING__DESTINATIONS__PAYMENT_LOGS".to_owned(),
+            "https://cc.example/api/observability-plane/grafana/explore?orgId=1&left=logs"
+                .to_owned(),
+        )]);
+        let settings: Settings<SecuredSecret> = config::Config::builder()
+            .add_source(
+                config::Environment::with_prefix("OBSERVABILITY")
+                    .prefix_separator("__")
+                    .separator("__")
+                    .source(Some(environment)),
+            )
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+        assert_eq!(
+            settings.monitoring.destinations["payment_logs"].query(),
+            Some("orgId=1&left=logs")
+        );
+        assert!(
+            validate_config_ids(&settings.monitoring.destinations, "monitoring destination")
+                .is_ok()
+        );
+        assert!(serde_json::from_value::<MonitoringSettings>(
+            serde_json::json!({"destinations":{"payment_logs":"not a URL"}})
+        )
+        .is_err());
+    }
+
     fn chat_with_ids(ids: &[&str]) -> ChatSettings {
         ChatSettings {
             destinations: ids
@@ -360,6 +419,22 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn router_origin_is_optional_and_typed() {
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>("{}")
+            .unwrap()
+            .router
+            .is_none());
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"not a URL"}}"#,
+        )
+        .is_err());
+        assert!(serde_json::from_str::<Settings<SecuredSecret>>(
+            r#"{"router":{"base_url":"http://localhost:8080"}}"#,
+        )
+        .is_ok());
     }
 
     #[test]

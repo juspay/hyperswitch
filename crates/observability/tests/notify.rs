@@ -54,6 +54,7 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
     ));
 
     AppState {
+        router_transport: None,
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),

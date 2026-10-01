@@ -6528,6 +6528,7 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
+ "api_models",
  "async-trait",
  "clap 4.5.38",
  "common_utils",
@@ -6542,9 +6543,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "sha2",
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "url 2.5.4",
 ]
 
 [[package]]
