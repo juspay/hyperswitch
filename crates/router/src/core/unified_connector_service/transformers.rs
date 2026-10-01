@@ -4396,7 +4396,10 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
             common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
-            common_enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
+            // KlarnaBnpl (not Klarna): renamed upstream to disambiguate from the
+            // Connector enum's own Klarna variant in the same proto package —
+            // see https://github.com/juspay/hyperswitch-prism/pull/2402.
+            common_enums::PaymentMethodType::Klarna => Ok(Self::KlarnaBnpl),
             common_enums::PaymentMethodType::BhnCardNetwork => Ok(Self::BhnCardNetwork),
             common_enums::PaymentMethodType::Bluecode => Ok(Self::Bluecode),
             common_enums::PaymentMethodType::Breadpay => Ok(Self::Breadpay),
@@ -4405,7 +4408,9 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(Self::IndonesianBankTransfer)
             }
-            common_enums::PaymentMethodType::Mifinity => Ok(Self::Mifinity),
+            // MifinityWallet (not Mifinity): same disambiguation as KlarnaBnpl
+            // above — see https://github.com/juspay/hyperswitch-prism/pull/2402.
+            common_enums::PaymentMethodType::Mifinity => Ok(Self::MifinityWallet),
             common_enums::PaymentMethodType::Payjustnow => Ok(Self::Payjustnow),
             common_enums::PaymentMethodType::Paysera => Ok(Self::Paysera),
             common_enums::PaymentMethodType::Payshap => Ok(Self::Payshap),

@@ -35,7 +35,8 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.09.29.2", package = "rust-grpc-client" }
+# TEMPORARY: see crates/external_services/Cargo.toml's comment on this same dependency.
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", branch = "fix/proto-payment-method-type-klarna-mifinity", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
