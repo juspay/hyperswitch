@@ -4393,7 +4393,11 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
                     };
 
                     Ok(Self {
-                        charge: stripe_refund.charge_id.clone(),
+                        charge: stripe_refund.charge_id.clone().ok_or(
+                            ConnectorError::MissingRequiredField {
+                                field_name: "charge_id".into(),
+                            },
+                        )?,
                         refund_application_fee,
                         reverse_transfer,
                         amount: Some(amount),

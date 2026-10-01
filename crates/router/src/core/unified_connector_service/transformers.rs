@@ -10135,11 +10135,17 @@ impl ForeignFrom<&router_request_types::SplitRefundsRequest>
 {
     fn foreign_from(split_refunds: &router_request_types::SplitRefundsRequest) -> Self {
         let split_refund_type = match split_refunds {
-            router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => Some(
-                payments_grpc::split_refunds_details::SplitRefundType::StripeSplitRefund(
-                    payments_grpc::StripeSplitRefundData::foreign_from(stripe),
-                ),
-            ),
+            // `StripeSplitRefundData.charge_id` is a required proto string, so a split refund
+            // with no charge id cannot be represented over gRPC; omit it rather than forward an
+            // empty charge id. Needs a `optional string charge_id` follow-up in
+            // connector-service before the UCS path can match the native one here.
+            router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => {
+                stripe.charge_id.as_ref().map(|_| {
+                    payments_grpc::split_refunds_details::SplitRefundType::StripeSplitRefund(
+                        payments_grpc::StripeSplitRefundData::foreign_from(stripe),
+                    )
+                })
+            }
             router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen) => Some(
                 payments_grpc::split_refunds_details::SplitRefundType::AdyenSplitRefund(
                     payments_grpc::AdyenSplitData::foreign_from(adyen),
@@ -10156,7 +10162,9 @@ impl ForeignFrom<&router_request_types::StripeSplitRefund>
 {
     fn foreign_from(stripe: &router_request_types::StripeSplitRefund) -> Self {
         Self {
-            charge_id: stripe.charge_id.clone(),
+            // unreachable with an empty value: the caller above only maps this when the charge
+            // id is present.
+            charge_id: stripe.charge_id.clone().unwrap_or_default(),
             transfer_account_id: stripe.transfer_account_id.clone(),
             charge_type: payments_grpc::PaymentChargeType::foreign_from(&stripe.charge_type).into(),
             options: Some(payments_grpc::ChargeRefundsOptions::foreign_from(
