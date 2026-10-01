@@ -809,6 +809,26 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
+    // MIT payment with `error_on_requires_action` passed through
+    // connector_metadata. With a no-3DS saved card the payment succeeds
+    // normally; the flag only changes behaviour when the card would
+    // otherwise return `requires_action` (fail outright instead).
+    MITAutoCaptureWithErrorOnRequiresAction: {
+      Request: {
+        amount: 6000,
+        connector_metadata: {
+          stripe: {
+            error_on_requires_action: true,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: { amount: 6000 },
       billing: standardBillingAddress,
