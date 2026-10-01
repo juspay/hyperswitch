@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::{api, consts, errors};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -953,9 +953,13 @@ impl<F, T>
                 connector_metadata: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
-                code: code.clone(),
-                message: message.clone(),
-                reason: Some(message.clone()),
+                code: code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: message.clone(),
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id.clone(),
@@ -963,8 +967,8 @@ impl<F, T>
                 network_advice_code: advice_code,
                 // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
                 // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
-                network_decline_code: Some(code),
-                network_error_message: Some(message),
+                network_decline_code: code,
+                network_error_message: message,
                 connector_metadata: None,
             }),
         };
