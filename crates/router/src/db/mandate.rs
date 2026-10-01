@@ -219,7 +219,6 @@ mod storage {
             mandate: storage_types::Mandate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let key = PartitionKey::MerchantIdMandateId {
                 merchant_id,
                 mandate_id,
@@ -233,6 +232,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
                         &conn,
                         merchant_id,
@@ -271,16 +271,18 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_mandate)
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
-                    let drainer_query = m_update
-                        .generate_drainer_update_query(
-                            &mut query_gen_conn,
-                            merchant_id.clone(),
-                            mandate_id.to_owned(),
-                        )
-                        .await
-                        .change_context(errors::StorageError::KVError)
-                        .attach_printable("Failed to generate mandate update query")?;
+                    let drainer_query = {
+                        let mut conn = connection::pg_connection_write(self).await?;
+                        m_update
+                            .generate_drainer_update_query(
+                                &mut conn,
+                                merchant_id.clone(),
+                                mandate_id.to_owned(),
+                            )
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate mandate update query")?
+                    };
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,
@@ -318,7 +320,6 @@ mod storage {
             mut mandate: storage_types::MandateNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
@@ -327,10 +328,13 @@ mod storage {
             .await;
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
-                MerchantStorageScheme::PostgresOnly => mandate
-                    .insert(&conn)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error))),
+                MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
+                    mandate
+                        .insert(&conn)
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                }
                 MerchantStorageScheme::RedisKv => {
                     let mandate_id = mandate.mandate_id.clone();
                     let merchant_id = &mandate.merchant_id.to_owned();
@@ -364,12 +368,14 @@ mod storage {
                             .await?;
                     }
 
-                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
-                    let drainer_query = mandate
-                        .generate_drainer_insert_query(&mut query_gen_conn)
-                        .await
-                        .change_context(errors::StorageError::KVError)
-                        .attach_printable("Failed to generate mandate insert query")?;
+                    let drainer_query = {
+                        let mut conn = connection::pg_connection_write(self).await?;
+                        mandate
+                            .generate_drainer_insert_query(&mut conn)
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate mandate insert query")?
+                    };
 
                     match Box::pin(kv_wrapper::<diesel_models::Mandate, _, _>(
                         self,
