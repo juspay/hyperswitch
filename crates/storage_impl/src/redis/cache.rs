@@ -11,7 +11,7 @@ use common_utils::{
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
-use moka::future::Cache as MokaCache;
+use moka::{future::Cache as MokaCache, ops::compute::Op};
 use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
@@ -338,6 +338,48 @@ impl Cache {
         val
     }
 
+    /// Returns a cached value, loading it on a miss.
+    ///
+    /// Concurrent callers for the same key share one load per process.
+    /// Other instances may still load the same key concurrently.
+    async fn get_val_or_load<T, F, Fut>(
+        &self,
+        key: CacheKey,
+        fun: F,
+    ) -> CustomResult<T, StorageError>
+    where
+        T: Cacheable + Clone,
+        F: FnOnce() -> Fut + Send,
+        Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+    {
+        let cache_name = self.name;
+
+        self.inner
+            .entry(in_memory_cache_key(key))
+            .and_try_compute_with(|entry| async move {
+                // A value of another type counts as a miss, as `get_val` treats it.
+                let is_cached = entry
+                    .as_ref()
+                    .is_some_and(|entry| (**entry.value()).as_any().is::<T>());
+
+                let op = if is_cached {
+                    Op::Nop
+                } else {
+                    let value: Arc<dyn Cacheable> = Arc::new(fun().await?);
+                    Op::Put(value)
+                };
+                Ok::<_, Report<StorageError>>(op)
+            })
+            .await?
+            .into_entry()
+            .and_then(|entry| {
+                let value = entry.into_value();
+                (*value).as_any().downcast_ref::<T>().cloned()
+            })
+            .ok_or_else(|| Report::new(StorageError::DeserializationFailed))
+            .attach_printable_lazy(|| format!("Unexpected cached value type in {cache_name}"))
+    }
+
     /// Check if a key exists in cache
     #[cfg_attr(
         feature = "deja",
@@ -475,17 +517,15 @@ where
     if let Some(val) = cache_val {
         Ok(val)
     } else {
-        let val = get_or_populate_redis(redis, key, None, fun).await?;
         cache
-            .push(
+            .get_val_or_load(
                 CacheKey {
                     key: key.to_string(),
                     prefix: redis.redis_conn.key_prefix.clone(),
                 },
-                val.clone(),
+                || get_or_populate_redis(redis, key, None, fun),
             )
-            .await;
-        Ok(val)
+            .await
     }
 }
 
@@ -569,6 +609,14 @@ where
 
 #[cfg(test)]
 mod cache_tests {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    use redis_interface::{RedisConnectionPool, RedisConnectionWithContext, RedisSettings};
+    use tokio::sync::Barrier;
+
     use super::*;
 
     #[tokio::test]
@@ -670,5 +718,299 @@ mod cache_tests {
                 .await,
             None
         );
+    }
+
+    /// Minimal [`RedisConnInterface`] over a real Redis, as `redis_interface` tests connect.
+    struct TestStore {
+        pool: Arc<RedisConnectionPool>,
+    }
+
+    impl TestStore {
+        async fn new() -> Self {
+            let pool = RedisConnectionPool::new_without_event_emitter(&RedisSettings::default())
+                .await
+                .expect("failed to connect to Redis");
+
+            Self {
+                pool: Arc::new(pool),
+            }
+        }
+
+        async fn delete(&self, key: &str) {
+            self.get_redis_conn()
+                .expect("redis connection")
+                .delete_key(&key.into())
+                .await
+                .expect("redis key deletion");
+        }
+    }
+
+    impl RedisConnInterface for TestStore {
+        fn get_redis_conn(&self) -> error_stack::Result<RedisConnectionWithContext, RedisError> {
+            Ok(RedisConnectionWithContext::new_without_context(Arc::clone(
+                &self.pool,
+            )))
+        }
+    }
+
+    static KEY_SEQUENCE: AtomicUsize = AtomicUsize::new(0);
+
+    /// A key that is absent from Redis, so the fallback is the only way to a value.
+    fn unique_key(tag: &str) -> String {
+        format!(
+            "cache_test_{tag}_{}_{}_{}",
+            common_utils::process_id(),
+            common_utils::date_time::now_unix_timestamp_millis(),
+            KEY_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        )
+    }
+
+    fn no_prefix_key(key: &str) -> CacheKey {
+        CacheKey {
+            key: key.to_string(),
+            prefix: String::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn concurrent_misses_for_same_key_load_once() {
+        const CONCURRENT_REQUESTS: usize = 100;
+
+        let store = Arc::new(TestStore::new().await);
+        let cache = Arc::new(Cache::new("single_flight_test", 1800, 1800, None));
+        let key = unique_key("same_key");
+
+        let fallback_count = Arc::new(AtomicUsize::new(0));
+        let start = Arc::new(Barrier::new(CONCURRENT_REQUESTS));
+
+        let mut handles = Vec::with_capacity(CONCURRENT_REQUESTS);
+
+        for _ in 0..CONCURRENT_REQUESTS {
+            let store = Arc::clone(&store);
+            let cache = Arc::clone(&cache);
+            let key = key.clone();
+            let fallback_count = Arc::clone(&fallback_count);
+            let start = Arc::clone(&start);
+
+            handles.push(tokio::spawn(async move {
+                start.wait().await;
+
+                get_or_populate_in_memory(
+                    store.as_ref(),
+                    &key,
+                    || {
+                        let fallback_count = Arc::clone(&fallback_count);
+
+                        async move {
+                            fallback_count.fetch_add(1, Ordering::SeqCst);
+                            // Wide enough that every caller misses before the first one returns.
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                            Ok("loaded_from_database".to_string())
+                        }
+                    },
+                    &cache,
+                )
+                .await
+                .expect("cache load should succeed")
+            }));
+        }
+
+        for handle in handles {
+            assert_eq!(
+                handle.await.expect("task should complete"),
+                "loaded_from_database"
+            );
+        }
+
+        let executions = fallback_count.load(Ordering::SeqCst);
+        println!("Concurrent requests: {CONCURRENT_REQUESTS}, fallback executions: {executions}");
+        assert_eq!(executions, 1);
+
+        store.delete(&key).await;
+    }
+
+    #[tokio::test]
+    async fn concurrent_misses_for_distinct_keys_are_not_serialized() {
+        const CONCURRENT_REQUESTS: usize = 16;
+
+        let store = Arc::new(TestStore::new().await);
+        let cache = Arc::new(Cache::new("distinct_keys_test", 1800, 1800, None));
+        let key_prefix = unique_key("distinct");
+
+        let fallback_count = Arc::new(AtomicUsize::new(0));
+        // Every fallback must be in flight at once, so serialized keys would deadlock here.
+        let inside_fallback = Arc::new(Barrier::new(CONCURRENT_REQUESTS));
+
+        let mut handles = Vec::with_capacity(CONCURRENT_REQUESTS);
+
+        for index in 0..CONCURRENT_REQUESTS {
+            let store = Arc::clone(&store);
+            let cache = Arc::clone(&cache);
+            let key = format!("{key_prefix}_{index}");
+            let fallback_count = Arc::clone(&fallback_count);
+            let inside_fallback = Arc::clone(&inside_fallback);
+
+            handles.push(tokio::spawn(async move {
+                let value = get_or_populate_in_memory(
+                    store.as_ref(),
+                    &key,
+                    || {
+                        let fallback_count = Arc::clone(&fallback_count);
+                        let inside_fallback = Arc::clone(&inside_fallback);
+                        let key = key.clone();
+
+                        async move {
+                            fallback_count.fetch_add(1, Ordering::SeqCst);
+                            inside_fallback.wait().await;
+                            Ok(key)
+                        }
+                    },
+                    &cache,
+                )
+                .await
+                .expect("cache load should succeed");
+
+                assert_eq!(value, key);
+                key
+            }));
+        }
+
+        let keys = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            futures::future::join_all(handles),
+        )
+        .await
+        .expect("distinct keys must load concurrently, not one after another");
+
+        assert_eq!(fallback_count.load(Ordering::SeqCst), CONCURRENT_REQUESTS);
+
+        for key in keys {
+            store.delete(&key.expect("task should complete")).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn fallback_error_does_not_poison_key() {
+        const CONCURRENT_REQUESTS: usize = 16;
+
+        let store = Arc::new(TestStore::new().await);
+        let cache = Arc::new(Cache::new("error_test", 1800, 1800, None));
+        let key = unique_key("failing");
+
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let start = Arc::new(Barrier::new(CONCURRENT_REQUESTS));
+
+        let mut handles = Vec::with_capacity(CONCURRENT_REQUESTS);
+
+        for _ in 0..CONCURRENT_REQUESTS {
+            let store = Arc::clone(&store);
+            let cache = Arc::clone(&cache);
+            let key = key.clone();
+            let attempts = Arc::clone(&attempts);
+            let start = Arc::clone(&start);
+
+            handles.push(tokio::spawn(async move {
+                start.wait().await;
+
+                get_or_populate_in_memory::<String, _, _>(
+                    store.as_ref(),
+                    &key,
+                    || {
+                        let attempts = Arc::clone(&attempts);
+
+                        async move {
+                            attempts.fetch_add(1, Ordering::SeqCst);
+                            Err(Report::new(StorageError::ValueNotFound("gone".to_string())))
+                        }
+                    },
+                    &cache,
+                )
+                .await
+            }));
+        }
+
+        for handle in handles {
+            let error = handle
+                .await
+                .expect("task should complete")
+                .expect_err("failing fallback must surface its error");
+
+            assert!(matches!(
+                error.current_context(),
+                StorageError::ValueNotFound(_)
+            ));
+        }
+
+        assert!(attempts.load(Ordering::SeqCst) >= 1);
+        assert!(!cache.exists(no_prefix_key(&key)).await);
+
+        let recovered = get_or_populate_in_memory(
+            store.as_ref(),
+            &key,
+            || async { Ok("recovered".to_string()) },
+            &cache,
+        )
+        .await
+        .expect("retry after a failed fallback should succeed");
+
+        assert_eq!(recovered, "recovered");
+        assert_eq!(
+            cache.get_val::<String>(no_prefix_key(&key)).await,
+            Some("recovered".to_string())
+        );
+
+        store.delete(&key).await;
+    }
+
+    /// Single-flight is process-local; other router instances may still load the same key.
+    #[tokio::test]
+    async fn concurrent_redis_misses_are_not_coalesced() {
+        const CONCURRENT_REQUESTS: usize = 100;
+
+        let store = Arc::new(TestStore::new().await);
+        let redis = Arc::new(store.get_redis_conn().expect("redis connection"));
+        let key = unique_key("redis_only");
+
+        let fallback_count = Arc::new(AtomicUsize::new(0));
+        let start = Arc::new(Barrier::new(CONCURRENT_REQUESTS));
+
+        let mut handles = Vec::with_capacity(CONCURRENT_REQUESTS);
+
+        for _ in 0..CONCURRENT_REQUESTS {
+            let redis = Arc::clone(&redis);
+            let key = key.clone();
+            let fallback_count = Arc::clone(&fallback_count);
+            let start = Arc::clone(&start);
+
+            handles.push(tokio::spawn(async move {
+                start.wait().await;
+
+                get_or_populate_redis(redis.as_ref(), &key, None, || {
+                    let fallback_count = Arc::clone(&fallback_count);
+
+                    async move {
+                        fallback_count.fetch_add(1, Ordering::SeqCst);
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        Ok("loaded_from_database".to_string())
+                    }
+                })
+                .await
+                .expect("get_or_populate_redis should succeed")
+            }));
+        }
+
+        for handle in handles {
+            assert_eq!(
+                handle.await.expect("task should complete"),
+                "loaded_from_database"
+            );
+        }
+
+        let executions = fallback_count.load(Ordering::SeqCst);
+        println!("Concurrent Redis requests: {CONCURRENT_REQUESTS}");
+        println!("Fallback executions: {executions}");
+        assert!(executions >= 1);
+
+        store.delete(&key).await;
     }
 }
