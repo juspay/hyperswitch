@@ -379,6 +379,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             currency,
             amount,
@@ -627,6 +628,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    active_frm_id: payment_data
+                        .frm_message
+                        .as_ref()
+                        .map(|fraud_check| fraud_check.frm_id.clone()),
                 },
                 storage_scheme,
                 key_store,
@@ -769,6 +774,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                         // External vault proxy cards are not in the internal vault; requesting raw
                         // detail fails. The external vault token reference is returned without it.
                         false,
+                        // Account Updater does not cover external vault cards.
+                        false,
                     )
                     .await
                     .attach_printable(
@@ -821,6 +828,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     business_profile.get_id(),
                     &existing_pm_id,
                     None,
+                    false,
                     false,
                 )
                 .await

@@ -54,7 +54,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
-    id_type, impl_enum_str,
+    generate_uuid_v7, id_type, impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -1539,7 +1539,7 @@ pub struct PublishableKey(LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_L
 impl PublishableKey {
     /// Create a new PublishableKey Domain type without any length check from a static str
     pub fn generate(env_prefix: &'static str) -> Self {
-        let publishable_key_string = format!("pk_{env_prefix}_{}", uuid::Uuid::now_v7().simple());
+        let publishable_key_string = format!("pk_{env_prefix}_{}", generate_uuid_v7().simple());
         Self(LengthString::new_unchecked(publishable_key_string))
     }
 

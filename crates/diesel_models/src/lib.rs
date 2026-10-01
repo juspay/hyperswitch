@@ -27,6 +27,7 @@ pub mod file;
 pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
+pub mod hierarchical_resource;
 pub mod invoice;
 #[cfg(feature = "kv_store")]
 pub mod kv;

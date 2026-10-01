@@ -81,6 +81,7 @@ use crate::{
         generic_link::GenericLinkInterface,
         gsm::GsmInterface,
         health_check::HealthCheckDbInterface,
+        hierarchical_resource::HierarchicalResourceInterface,
         locker_mock_up::LockerMockUpInterface,
         mandate::MandateInterface,
         merchant_account::MerchantAccountInterface,
@@ -309,28 +310,11 @@ impl ConfigInterface for KafkaStore {
         self.diesel_store.insert_config(config).await
     }
 
-    async fn find_config_by_key(
+    async fn find_config_by_key_optional(
         &self,
         key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key(key).await
-    }
-
-    async fn find_config_by_key_from_db(
-        &self,
-        key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store.find_config_by_key_from_db(key).await
-    }
-
-    async fn update_config_in_database(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        self.diesel_store
-            .update_config_in_database(key, config_update)
-            .await
+    ) -> CustomResult<Option<storage::Config>, errors::StorageError> {
+        self.diesel_store.find_config_by_key_optional(key).await
     }
 
     async fn update_config_by_key(
@@ -353,7 +337,7 @@ impl ConfigInterface for KafkaStore {
     async fn find_config_by_key_unwrap_or(
         &self,
         key: &str,
-        default_config: Option<String>,
+        default_config: String,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.diesel_store
             .find_config_by_key_unwrap_or(key, default_config)
@@ -681,6 +665,28 @@ impl DisputeInterface for KafkaStore {
                 dispute_constraints,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_disputes_by_constraints_for_platform(platform_merchant_id, dispute_constraints)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_disputes_count_for_platform(platform_merchant_id, dispute_constraints)
             .await
     }
 
@@ -1266,12 +1272,29 @@ impl PaymentLinkInterface for KafkaStore {
     async fn list_payment_link_by_processor_merchant_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
-        payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<id_type::ProfileId>,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         self.diesel_store
             .list_payment_link_by_processor_merchant_id(
                 processor_merchant_id,
                 payment_link_constraints,
+                profile_id,
+            )
+            .await
+    }
+
+    async fn get_total_count_of_payment_links(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_link_constraints: &api_models::payments::PaymentLinkListConstraints,
+        profile_id: Option<id_type::ProfileId>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_payment_links(
+                processor_merchant_id,
+                payment_link_constraints,
+                profile_id,
             )
             .await
     }
@@ -1670,6 +1693,17 @@ impl QueueInterface for KafkaStore {
     ) -> CustomResult<(), RedisError> {
         self.diesel_store
             .consumer_group_create(stream, group, id)
+            .await
+    }
+
+    async fn consumer_group_remove_consumer(
+        &self,
+        stream: &str,
+        group: &str,
+        consumer: &str,
+    ) -> CustomResult<(), RedisError> {
+        self.diesel_store
+            .consumer_group_remove_consumer(stream, group, consumer)
             .await
     }
 
@@ -2195,6 +2229,34 @@ impl PaymentIntentInterface for KafkaStore {
                 key_store,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<
+        Vec<(
+            diesel_models::PaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .get_filtered_payment_intents_attempt_for_platform(platform_merchant_id, filters)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_intents_attempt_count_for_platform(platform_merchant_id, filters)
             .await
     }
 
@@ -3206,6 +3268,35 @@ impl RefundInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn filter_refund_by_platform_merchant_id(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
+    ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_platform_merchant_id(
+                platform_merchant_id,
+                refund_details,
+                limit,
+                offset,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_total_count_of_refunds_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        refund_details: &refunds::RefundListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_refunds_for_platform(platform_merchant_id, refund_details)
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_refund_by_meta_constraints(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -3313,6 +3404,58 @@ impl MerchantKeyStoreInterface for KafkaStore {
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         self.diesel_store.get_all_key_stores(key, from, to).await
+    }
+}
+
+#[async_trait::async_trait]
+impl HierarchicalResourceInterface for KafkaStore {
+    type Error = errors::StorageError;
+
+    async fn insert_linked_resource(
+        &self,
+        resource: domain::HierarchicalResource,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store
+            .insert_linked_resource(resource, key)
+            .await
+    }
+
+    async fn find_linked_resource_by_id(
+        &self,
+        id: id_type::ResourceId,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store.find_linked_resource_by_id(id, key).await
+    }
+
+    async fn find_resource_scope_id(
+        &self,
+        id: id_type::ResourceId,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store.find_resource_scope_id(id).await
+    }
+
+    async fn list_linked_resources_by_scope_id_and_resource_type(
+        &self,
+        scope_id: String,
+        resource_type: String,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<Vec<domain::HierarchicalResource>, errors::StorageError> {
+        self.diesel_store
+            .list_linked_resources_by_scope_id_and_resource_type(scope_id, resource_type, key)
+            .await
+    }
+
+    async fn update_linked_resource_data(
+        &self,
+        id: id_type::ResourceId,
+        update: domain::HierarchicalResourceDataUpdate,
+        key: &Secret<Vec<u8>>,
+    ) -> CustomResult<domain::HierarchicalResource, errors::StorageError> {
+        self.diesel_store
+            .update_linked_resource_data(id, update, key)
+            .await
     }
 }
 

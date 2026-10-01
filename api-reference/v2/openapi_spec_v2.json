@@ -5680,6 +5680,20 @@
           }
         }
       },
+      "AdditionalDetails": {
+        "type": "object",
+        "description": "Additional details of a dispute, stored as jsonb",
+        "properties": {
+          "network_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DisputeNetworkDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -6493,6 +6507,21 @@
           }
         }
       },
+      "ApplePayDecryptedInfo": {
+        "type": "object",
+        "required": [
+          "decrypted_data",
+          "wallet_info"
+        ],
+        "properties": {
+          "decrypted_data": {
+            "$ref": "#/components/schemas/ApplePayPredecryptData"
+          },
+          "wallet_info": {
+            "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+          }
+        }
+      },
       "ApplePayPaymentData": {
         "oneOf": [
           {
@@ -6602,6 +6631,11 @@
           },
           "payment_data": {
             "$ref": "#/components/schemas/ApplePayCryptogramData"
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Identifier of the device that generated the token.",
+            "nullable": true
           }
         }
       },
@@ -8563,7 +8597,97 @@
           "sns",
           "seb",
           "swedbank",
-          "mock_uk_payments"
+          "mock_uk_payments",
+          "abanca",
+          "alm_brand",
+          "alpha_fx",
+          "arbejdernes_landsbank",
+          "arbuthnot_latham",
+          "banco_popular",
+          "bank_pocztowy",
+          "bankia",
+          "bn_bank",
+          "cater_allen",
+          "chelsea_building_society",
+          "citadele",
+          "coop_pank",
+          "cooperative_bank",
+          "cumberland",
+          "dab_bank",
+          "djurslands_bank",
+          "dnb",
+          "etne_sparebank",
+          "fana_sparebank",
+          "fidor_bank",
+          "flekkefjord_sparebank",
+          "forex_bank",
+          "haugesund_sparebank",
+          "hoare_and_co",
+          "ica_banken",
+          "jyske_bank",
+          "kleinwort_hambros",
+          "klp_banken",
+          "kreditbanken",
+          "landkreditt_bank",
+          "lansforsakringar",
+          "lhv_pank",
+          "lillesands_sparebank",
+          "luminor",
+          "luster_sparebank",
+          "metro_bank",
+          "nordfyns_bank",
+          "nordjyske_bank",
+          "norisbank",
+          "nykredit_bank",
+          "obos_banken",
+          "orange_finanse",
+          "pareto_bank",
+          "pko_bank_polski",
+          "ringkjobing_landbobank",
+          "sbanken",
+          "siauliu_bankas",
+          "silicon_valley_bank",
+          "skandiabanken",
+          "skjern_bank",
+          "skudenes_og_aakra_sparebank",
+          "sogne_og_greipstad_sparebank",
+          "spar_nord_bank",
+          "sparbanken_syd",
+          "sparda_bank",
+          "spare_bank1",
+          "sparebanken_more",
+          "sparebanken_ost",
+          "sparebanken_sogn_og_fjordane",
+          "sparebanken_sor",
+          "sparebanken_vest",
+          "sparekassen_danmark",
+          "sparekassen_sjaelland_fyn",
+          "spareskillingsbanken",
+          "sydbank",
+          "vanquis_bank",
+          "vestjysk_bank",
+          "voss_sparebank",
+          "yorkshire_building_society",
+          "spare_bank1_gudbrandsdal",
+          "spare_bank1_hallingdal_valdres",
+          "spare_bank1_lom_og_skjak",
+          "spare_bank1_modum",
+          "spare_bank1_nordmore",
+          "spare_bank1_ringerike_hadeland",
+          "spare_bank1_smn",
+          "spare_bank1_sr_bank",
+          "spare_bank1_sore_sunnmore",
+          "spare_bank1_sorost_norge_bv",
+          "spare_bank1_sorost_norge_telemark",
+          "spare_bank1_ostfold_akershus",
+          "spare_bank1_ostlandet",
+          "citi_handlowy",
+          "deutsche_bank_polska",
+          "ing_bank_slaski",
+          "ing_diba",
+          "nordea_direct",
+          "santander_uk",
+          "swedbank_sparbankerna"
         ]
       },
       "BankRedirect": {
@@ -11443,7 +11567,12 @@
           "Nyce",
           "Prop",
           "PrivateLabel",
-          "Dinacard"
+          "Dinacard",
+          "AirPlus",
+          "Aurore",
+          "EftposAustralia",
+          "GeCapital",
+          "Uatp"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -12375,6 +12504,7 @@
           "ctp_visa",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -12383,6 +12513,8 @@
           "ebanx",
           "envoy",
           "elavon",
+          "etisalat",
+          "elavon_pg",
           "facilitapay",
           "finix",
           "fiserv",
@@ -12395,6 +12527,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -12410,10 +12543,12 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -12429,8 +12564,10 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payload",
           "payme",
+          "paynearme",
           "payone",
           "paypal",
           "paysafe",
@@ -12450,6 +12587,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "saferpay",
           "santander",
           "shift4",
           "silverflow",
@@ -12479,8 +12617,10 @@
           "worldpayxml",
           "worldpaymodular",
           "signifyd",
+          "nsure",
           "plaid",
           "riskified",
+          "sanlam_payshield",
           "xendit",
           "zen",
           "zift",
@@ -12669,6 +12809,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CheckoutData"
+              }
+            ],
+            "nullable": true
+          },
+          "stripe": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StripeConnectorMetadata"
               }
             ],
             "nullable": true
@@ -14267,8 +14415,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "CustomerResponse": {
         "type": "object",
@@ -14465,8 +14612,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "DDCData": {
         "type": "object",
@@ -14754,6 +14900,37 @@
           }
         }
       },
+      "DisputeNetworkDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Visa specific dispute details",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "rapid_dispute_resolution": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/RapidDisputeResolution"
+                  }
+                ],
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "visa"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Card network specific details of a dispute",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -14853,6 +15030,14 @@
           "is_already_refunded": {
             "type": "boolean",
             "description": "Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14921,6 +15106,14 @@
             "type": "string",
             "format": "date-time",
             "description": "Time at which dispute is received"
+          },
+          "additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15642,6 +15835,12 @@
           },
           "external_surcharge_amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the connector (e.g. InterPayments), if provided.\nStored as a `Decimal` so the enclosing attempt model can keep deriving `Eq`.",
+            "nullable": true
           },
           "sale_notified": {
             "type": "boolean",
@@ -16887,6 +17086,21 @@
           }
         }
       },
+      "GooglePayDecryptedInfo": {
+        "type": "object",
+        "required": [
+          "decrypted_data",
+          "wallet_info"
+        ],
+        "properties": {
+          "decrypted_data": {
+            "$ref": "#/components/schemas/GPayPredecryptData"
+          },
+          "wallet_info": {
+            "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -17011,6 +17225,14 @@
             "nullable": true
           }
         }
+      },
+      "GooglePayTokenizationSpecificationType": {
+        "type": "string",
+        "description": "The tokenization type sent to the Google Pay SDK.\n\nUnlike [`GooglePayTokenizationType`], this holds only the values Google itself understands:\nthe Hyperswitch-internal `INTERNAL_GATEWAY` marker is resolved into `PAYMENT_GATEWAY` during\nthe session flow before this is built, so it can never leak into an SDK response.",
+        "enum": [
+          "PAYMENT_GATEWAY",
+          "DIRECT"
+        ]
       },
       "GooglePayWalletData": {
         "type": "object",
@@ -17141,6 +17363,14 @@
           "token": {
             "type": "string",
             "description": "Token generated for the wallet"
+          },
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17235,8 +17465,7 @@
         ],
         "properties": {
           "type": {
-            "type": "string",
-            "description": "The token specification type(ex: PAYMENT_GATEWAY)"
+            "$ref": "#/components/schemas/GooglePayTokenizationSpecificationType"
           },
           "parameters": {
             "$ref": "#/components/schemas/GpayTokenParameters"
@@ -20097,6 +20326,9 @@
           }
         }
       },
+      "NetellerData": {
+        "type": "object"
+      },
       "NetworkParams": {
         "type": "object",
         "description": "Represents additional network-level parameters for 3DS processing.",
@@ -22881,6 +23113,13 @@
             "type": "string",
             "description": "Custom text for the separator shown between wallet and card payment method sections",
             "nullable": true
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "nullable": true,
+            "minimum": 0
           }
         }
       },
@@ -23076,6 +23315,15 @@
             "example": "Or pay with",
             "nullable": true,
             "maxLength": 64
+          },
+          "redirect_delay_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Duration in seconds before the status page auto-redirects to the return URL.\nSet to 0 to disable auto-redirect. Maximum value is 900 seconds. Defaults to 5 seconds.",
+            "example": 10,
+            "nullable": true,
+            "maximum": 900,
+            "minimum": 0
           }
         }
       },
@@ -23416,8 +23664,7 @@
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodCreateData": {
         "oneOf": [
@@ -24091,8 +24338,7 @@
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodIntentCreate": {
         "type": "object",
@@ -24120,8 +24366,7 @@
             "maxLength": 64,
             "minLength": 32
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodIssuerCode": {
         "type": "string",
@@ -24496,8 +24741,7 @@
             "type": "boolean",
             "description": "Trigger an Account Updater check for the stored payment method."
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -24869,6 +25113,7 @@
           "momo",
           "momo_atm",
           "multibanco",
+          "neteller",
           "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -24967,8 +25212,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "PaymentMethodUpdateData": {
         "oneOf": [
@@ -25048,6 +25292,14 @@
             "nullable": true
           }
         }
+      },
+      "PaymentProcessingDetailInputType": {
+        "type": "string",
+        "description": "Specifies how the Apple Pay payment processing details are supplied.",
+        "enum": [
+          "raw",
+          "link_hierarchical_resource"
+        ]
       },
       "PaymentProcessingDetails": {
         "type": "object",
@@ -25187,6 +25439,14 @@
             "type": "string",
             "description": "First Payment Attempt Network Advice Code",
             "example": "02",
+            "nullable": true
+          },
+          "revenue_recovery_ab_routing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryABAlgorithm"
+              }
+            ],
             "nullable": true
           }
         }
@@ -27581,6 +27841,14 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001",
+            "nullable": true
+          },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -30176,6 +30444,19 @@
           }
         }
       },
+      "RapidDisputeResolution": {
+        "type": "object",
+        "description": "Visa Rapid Dispute Resolution details",
+        "required": [
+          "applied"
+        ],
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
       "RawCardWithNTDetails": {
         "type": "object",
         "required": [
@@ -30223,6 +30504,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetail"
               }
             }
           },
@@ -31432,6 +31724,13 @@
               }
             ],
             "nullable": true
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "The surcharge percentage returned by the surcharge connector (e.g. InterPayments), if\navailable. Present only on responses when an external surcharge connector supplied it;\nignored on requests.",
+            "example": 3.25,
+            "nullable": true
           }
         }
       },
@@ -31648,6 +31947,7 @@
         "type": "object",
         "required": [
           "payment_link_id",
+          "payment_id",
           "merchant_id",
           "link_to_pay",
           "amount",
@@ -31659,6 +31959,10 @@
             "type": "string",
             "description": "Identifier for Payment Link"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Identifier for the associated Payment"
+          },
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
@@ -31666,6 +31970,11 @@
           "processor_merchant_id": {
             "type": "string",
             "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile",
             "nullable": true
           },
           "link_to_pay": {
@@ -31746,6 +32055,13 @@
             "$ref": "#/components/schemas/GsmDecision"
           }
         }
+      },
+      "RevenueRecoveryABAlgorithm": {
+        "type": "string",
+        "description": "The retry implementations available within the `Smart` arm of revenue recovery.",
+        "enum": [
+          "adaptive_retry"
+        ]
       },
       "RevenueRecoveryAlgorithmType": {
         "type": "string",
@@ -31941,6 +32257,7 @@
           "cryptopay",
           "cybersource",
           "cybersourcedecisionmanager",
+          "d24",
           "datatrans",
           "deutschebank",
           "digitalvirgo",
@@ -31948,7 +32265,9 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "elavon_pg",
           "envoy",
+          "etisalat",
           "facilitapay",
           "finix",
           "fiserv",
@@ -31961,6 +32280,7 @@
           "gigadat",
           "givepayments",
           "globalpay",
+          "globalpayments_heartland",
           "globepay",
           "gocardless",
           "gotyme_sanlam",
@@ -31974,8 +32294,10 @@
           "interpayments",
           "itaubank",
           "jpmorgan",
+          "jpmorgan_orbital",
           "klarna",
           "loonio",
+          "merchante",
           "mifinity",
           "mollie",
           "moneris",
@@ -31990,7 +32312,9 @@
           "nuvei",
           "opennode",
           "paybox",
+          "paydotcom",
           "payme",
+          "paynearme",
           "payload",
           "payone",
           "paypal",
@@ -32012,9 +32336,12 @@
           "redsys",
           "revolv3",
           "riskified",
+          "saferpay",
+          "sanlam_payshield",
           "santander",
           "shift4",
           "signifyd",
+          "nsure",
           "silverflow",
           "square",
           "stax",
@@ -33404,6 +33731,14 @@
                   }
                 ],
                 "nullable": true
+              },
+              "payment_processing_detail_input_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentProcessingDetailInputType"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -33824,6 +34159,16 @@
           "destination"
         ]
       },
+      "StripeConnectorMetadata": {
+        "type": "object",
+        "properties": {
+          "error_on_requires_action": {
+            "type": "boolean",
+            "description": "For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright\ninstead of returning a `requires_action` status, since there's no customer present to\ncomplete additional authentication.",
+            "nullable": true
+          }
+        }
+      },
       "StripeSplitPaymentRequest": {
         "type": "object",
         "description": "Fee information for Split Payments to be charged on the payment being collected for Stripe",
@@ -34065,6 +34410,12 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
+            "nullable": true
           }
         }
       },
@@ -34741,9 +35092,16 @@
             "enum": [
               "Unset"
             ]
+          },
+          {
+            "type": "string",
+            "description": "Leave the active attempt id as it is.",
+            "enum": [
+              "NoAction"
+            ]
           }
         ],
-        "description": "Whether active attempt is to be set/unset"
+        "description": "Whether active attempt is to be set/unset/left alone"
       },
       "UpdateApiKeyRequest": {
         "type": "object",
@@ -35888,6 +36246,18 @@
           },
           {
             "type": "object",
+            "title": "Neteller",
+            "required": [
+              "neteller"
+            ],
+            "properties": {
+              "neteller": {
+                "$ref": "#/components/schemas/NetellerData"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "SwishQr",
             "required": [
               "swish_qr"
@@ -35962,6 +36332,72 @@
           }
         ]
       },
+      "WalletDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay_decrypted_data"
+            ],
+            "properties": {
+              "apple_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_decrypted_data"
+            ],
+            "properties": {
+              "google_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number (PAN) associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "WalletPaymentMethodData": {
         "oneOf": [
           {
@@ -35978,11 +36414,33 @@
           {
             "type": "object",
             "required": [
+              "apple_pay_decrypted"
+            ],
+            "properties": {
+              "apple_pay_decrypted": {
+                "$ref": "#/components/schemas/ApplePayDecryptedInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "google_pay"
             ],
             "properties": {
               "google_pay": {
                 "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_decrypted"
+            ],
+            "properties": {
+              "google_pay_decrypted": {
+                "$ref": "#/components/schemas/GooglePayDecryptedInfo"
               }
             }
           },

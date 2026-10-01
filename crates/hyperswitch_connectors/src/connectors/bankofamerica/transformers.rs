@@ -299,6 +299,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -570,7 +571,12 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -849,7 +855,7 @@ impl
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
+                connector: "BankOfAmerica".into(),
             })?
         };
 
@@ -1096,6 +1102,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::Neteller(_)
                         | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
@@ -1771,6 +1778,13 @@ fn convert_to_additional_payment_method_connector_response(
         card_network: None,
         domestic_network: None,
         auth_code: None,
+        processor_card_network: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
+        card_type: None,
+        issuer_name: None,
+        issuer_country: None,
     }
 }
 
@@ -2402,7 +2416,7 @@ impl
         if item.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
+                connector: "BankOfAmerica".into(),
             })?
         };
 

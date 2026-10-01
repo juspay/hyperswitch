@@ -25,3 +25,6 @@ pub static ROUTING_ENABLED_PAYMENT_METHOD_TYPES: LazyLock<
 
 /// Length of the unique reference ID generated for connector mandate requests
 pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
+
+/// Custom list for masking sensitive webhook headers in the events API.
+pub const SENSITIVE_WEBHOOK_HEADER_NAMES: [&str; 1] = ["authorization"];

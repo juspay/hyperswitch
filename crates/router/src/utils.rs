@@ -124,6 +124,7 @@ pub mod error_parser {
     feature = "deja",
     deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
 )]
+#[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }

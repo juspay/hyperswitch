@@ -20,7 +20,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
-use router_env::logger;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -120,7 +119,6 @@ pub struct PaymentMethodCreate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
     pub fetch_raw_detail: bool,
@@ -131,7 +129,6 @@ pub struct PaymentMethodRetrieveRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -172,7 +169,6 @@ pub struct PaymentMethodCreate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -194,7 +190,6 @@ pub struct PaymentMethodIntentCreate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
@@ -574,7 +569,6 @@ pub struct PaymentMethodUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
@@ -594,7 +588,6 @@ pub struct PaymentMethodUpdate {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
@@ -618,7 +611,9 @@ pub enum BankDebitDetailUpdate {
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodData {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
+    ApplePayDecrypted(Box<ApplePayDecryptedInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
+    GooglePayDecrypted(Box<GooglePayDecryptedInfo>),
     #[schema(value_type = PaypalRedirection)]
     PayPal(Box<payments::PaypalRedirection>),
 }
@@ -632,7 +627,6 @@ pub enum BankRedirectDetail {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
@@ -708,7 +702,6 @@ pub enum BankDebitDetail {
     },
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -741,7 +734,6 @@ pub enum WalletDetail {
     },
 }
 
-#[cfg(feature = "v1")]
 impl From<ApplePayPredecryptData> for WalletDetail {
     fn from(data: ApplePayPredecryptData) -> Self {
         Self::ApplePayDecryptedData {
@@ -752,7 +744,6 @@ impl From<ApplePayPredecryptData> for WalletDetail {
     }
 }
 
-#[cfg(feature = "v1")]
 impl From<GPayPredecryptData> for WalletDetail {
     fn from(data: GPayPredecryptData) -> Self {
         Self::GooglePayDecryptedData {
@@ -1323,6 +1314,7 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
+    Wallet(WalletDetail),
     ProxyCard(RawProxyCardDataResponse),
 }
 
@@ -1702,6 +1694,12 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
         match wallet_data {
             WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
             WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
+            WalletPaymentMethodData::ApplePayDecrypted(data) => {
+                Self::WalletDetails(data.wallet_info)
+            }
+            WalletPaymentMethodData::GooglePayDecrypted(data) => {
+                Self::WalletDetails(data.wallet_info)
+            }
             WalletPaymentMethodData::PayPal(data) => {
                 Self::WalletDetails(PaymentMethodDataWalletInfo {
                     last4: None,
@@ -1889,6 +1887,22 @@ pub struct PaymentMethodDataWalletInfo {
     pub email: Option<pii::Email>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayDecryptedInfo {
+    /// Apple pay decrypted data
+    pub decrypted_data: ApplePayPredecryptData,
+    /// The information of the payment method
+    pub wallet_info: PaymentMethodDataWalletInfo,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GooglePayDecryptedInfo {
+    /// Google pay decrypted data
+    pub decrypted_data: GPayPredecryptData,
+    /// The information of the payment method
+    pub wallet_info: PaymentMethodDataWalletInfo,
+}
+
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
     fn from(item: payments::additional_info::WalletAdditionalDataForCard) -> Self {
         Self {
@@ -1962,7 +1976,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
                 .to_uppercase()
                 .parse::<api_enums::CardType>()
                 .inspect_err(|error| {
-                    logger::error!(
+                    tracing::warn!(
                         ?error,
                         unparsed_card_type = %card_type,
                         "Received an unrecognized card_type value from Apple Pay; defaulting to None"
@@ -2535,6 +2549,8 @@ pub struct SurchargeDetailsResponse {
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
     pub display_total_surcharge_amount: f64,
+    /// Surcharge percentage returned by the external surcharge connector, if provided.
+    pub surcharge_percentage: Option<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -4180,6 +4196,10 @@ pub struct UpdatePaymentMethodRecord {
     pub merchant_connector_ids: Option<String>,
     pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
     pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuer: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

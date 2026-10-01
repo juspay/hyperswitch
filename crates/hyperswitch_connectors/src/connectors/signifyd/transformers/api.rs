@@ -984,7 +984,7 @@ impl TryFrom<&FrmRecordReturnRouterData> for SignifydPaymentsRecordReturnRequest
             currency,
         };
         Ok(Self {
-            return_id: uuid::Uuid::new_v4().to_string(),
+            return_id: common_utils::generate_uuid_v4().to_string(),
             refund_transaction_id: item.request.refund_transaction_id.clone(),
             refund,
             order_id: item.attempt_id.clone(),

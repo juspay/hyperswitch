@@ -14,6 +14,7 @@ function normalise(input) {
     adyenplatform: "Adyenplatform",
     wise: "Wise",
     wellsfargo: "Wellsfargo",
+    gotyme_sanlam: "GotymeSanlam",
     // Add more known exceptions here
   };
 

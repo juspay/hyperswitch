@@ -75,18 +75,40 @@ pub fn get_index_for_correct_recovery_code(
 }
 
 pub fn get_temp_password() -> Secret<String> {
-    let uuid_pass = uuid::Uuid::new_v4().to_string();
+    Secret::new(get_temp_password_inner())
+}
+
+// deja: the temporary password is emailed to the user, so it reaches an outbound
+// request and must be reproducible on replay. Returns a plain `String` because
+// masking::Secret serializes lossily to "***" -- see
+// `generate_password_hash_inner`. The caller re-wraps immediately.
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::user::password",
+        operation = "get_temp_password",
+        codec = SerdeCodec,
+    )
+)]
+fn get_temp_password_inner() -> String {
+    let uuid_pass = common_utils::generate_uuid_v4().to_string();
+
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "this function IS the seam: the whole password is recorded as one value"
+    )]
     let mut rng = rand::thread_rng();
 
     let special_chars: Vec<char> = "!@#$%^&*()-_=+[]{}|;:,.<>?".chars().collect();
     let special_char = special_chars.choose(&mut rng).unwrap_or(&'@');
 
-    Secret::new(format!(
+    format!(
         "{}{}{}{}{}",
         uuid_pass,
         rng.gen_range('A'..='Z'),
         special_char,
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
-    ))
+    )
 }

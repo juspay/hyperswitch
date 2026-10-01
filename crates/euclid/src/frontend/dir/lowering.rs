@@ -46,6 +46,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::GooglePay => Self::GooglePay,
             enums::WalletType::AmazonPay => Self::AmazonPay,
             enums::WalletType::Skrill => Self::Skrill,
+            enums::WalletType::Neteller => Self::Neteller,
             enums::WalletType::Paysera => Self::Paysera,
             enums::WalletType::ApplePay => Self::ApplePay,
             enums::WalletType::Paypal => Self::Paypal,
