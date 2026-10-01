@@ -2715,15 +2715,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                         if is_valid_shadow_rollout_percent
                             && config.execution_mode != ExecutionMode::NotApplicable =>
                     {
-                        let remaining_percent = 1.0 - primary_percent;
-                        if shadow_rollout_percent > remaining_percent {
-                            logger::warn!(
-                                shadow_rollout_percent,
-                                remaining_percent,
-                                "shadow_rollout_percent exceeds the traffic left after primary, capping"
-                            );
-                        }
-                        shadow_rollout_percent.min(remaining_percent)
+                        shadow_rollout_percent.min(1.0 - primary_percent)
                     }
                     _ => 0.0,
                 };
