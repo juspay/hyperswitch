@@ -854,7 +854,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-         cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
