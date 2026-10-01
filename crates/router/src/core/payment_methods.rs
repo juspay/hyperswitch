@@ -2206,6 +2206,10 @@ pub trait LockerOperations: Send + Sync {
 #[cfg(feature = "v2")]
 pub struct GenericLocker;
 
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+struct FingerprintUnavailable;
+
 /// Legacy locker implementation using the V1 locker system
 #[cfg(feature = "v2")]
 pub struct LegacyLocker;
@@ -2323,6 +2327,7 @@ impl LockerOperations for GenericLocker {
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach(FingerprintUnavailable)
                 }
                 .in_current_span(),
             )
@@ -2335,7 +2340,8 @@ impl LockerOperations for GenericLocker {
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
+        .attach_printable("Failed to get fingerprint_id from vault using generic strategy")
+        .attach(FingerprintUnavailable)?;
 
         match db
             .find_payment_method_by_fingerprint_id(
@@ -3330,6 +3336,7 @@ pub async fn create_generic_volatile_payment_method(
 
     // Fingerprint only for a `PayThenVault` flow with a customer present and customer acceptance:
     // the acceptance reaches this workflow from session confirm under `PayThenVault` alone.
+    let mut vault_operation_failed = false;
     let (payment_method_id, fingerprint_details) = match customer_id
         .as_ref()
         .filter(|_| customer_acceptance.is_some())
@@ -3343,10 +3350,19 @@ pub async fn create_generic_volatile_payment_method(
                 payment_method_data.clone(),
             )
             .await
-            .attach_printable("Failed to resolve volatile payment method")?;
+            .attach_printable("Failed to resolve volatile payment method");
 
-            match resolution.0 {
-                PaymentMethodResolution::Get(existing_payment_method) => (
+            match resolution.map(|resolution| resolution.0) {
+                Err(error) if error.contains::<FingerprintUnavailable>() => {
+                    logger::warn!(
+                        ?error,
+                        "PtV fingerprint unavailable; retaining a temporary payment method"
+                    );
+                    vault_operation_failed = true;
+                    (payment_method_id, None)
+                }
+                Err(error) => return Err(error),
+                Ok(PaymentMethodResolution::Get(existing_payment_method)) => (
                     existing_payment_method.id.clone(),
                     Some(FingerprintDetails {
                         fingerprint_id: existing_payment_method.locker_fingerprint_id.clone(),
@@ -3355,12 +3371,12 @@ pub async fn create_generic_volatile_payment_method(
                             .clone(),
                     }),
                 ),
-                PaymentMethodResolution::Update {
+                Ok(PaymentMethodResolution::Update {
                     fingerprint_id,
                     payment_method_id: existing_payment_method_id,
                     payment_method: existing_payment_method,
                     ..
-                } => (
+                }) => (
                     existing_payment_method_id,
                     Some(FingerprintDetails {
                         fingerprint_id,
@@ -3369,10 +3385,10 @@ pub async fn create_generic_volatile_payment_method(
                             .clone(),
                     }),
                 ),
-                PaymentMethodResolution::Create {
+                Ok(PaymentMethodResolution::Create {
                     fingerprint_details,
                     ..
-                } => (payment_method_id, fingerprint_details),
+                }) => (payment_method_id, fingerprint_details),
             }
         }
         None => (payment_method_id, None),
@@ -3448,7 +3464,10 @@ pub async fn create_generic_volatile_payment_method(
             redis_connection
                 .serialize_and_set_key_with_expiry(
                     &payment_method.get_id().get_string_repr().to_string().into(),
-                    payment_method.clone(),
+                    VolatilePaymentMethodRecord {
+                        payment_method: payment_method.clone(),
+                        vault_operation_failed,
+                    },
                     consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
                 )
                 .await
@@ -6353,6 +6372,7 @@ pub async fn fetch_payment_method_by_storage(
                 state,
                 provider.get_key_store(),
                 pm_id.get_string_repr(),
+                false,
             )
             .await
             .attach_printable("Failed to get volatile payment method record")?;
@@ -6393,6 +6413,7 @@ pub async fn fetch_payment_method_with_fallback(
         state,
         provider.get_key_store(),
         pm_id.get_string_repr(),
+        false,
     )
     .await
     .attach_printable("Failed to get volatile payment method record");
@@ -6422,10 +6443,20 @@ pub async fn fetch_payment_method_with_fallback(
 }
 
 #[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct VolatilePaymentMethodRecord {
+    #[serde(flatten)]
+    payment_method: diesel_models::PaymentMethod,
+    #[serde(default)]
+    vault_operation_failed: bool,
+}
+
+#[cfg(feature = "v2")]
 async fn fetch_volatile_payment_method_record(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     pm_id: &str,
+    for_update: bool,
 ) -> RouterResult<domain::PaymentMethod> {
     let redis_conn = state
         .store
@@ -6434,18 +6465,24 @@ async fn fetch_volatile_payment_method_record(
         .attach_printable("Failed to get redis connection")?;
 
     let payment_method = redis_conn
-        .get_and_deserialize_key::<diesel_models::PaymentMethod>(&pm_id.into(), "PaymentMethod")
+        .get_and_deserialize_key::<VolatilePaymentMethodRecord>(&pm_id.into(), "PaymentMethod")
         .await
         .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Payment method token either expired or does not exist".to_string(),
         })?;
 
+    if for_update && payment_method.vault_operation_failed {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payment method update is unavailable after a PtV vault failure".to_string(),
+        }));
+    }
+
     let keymanager_state = &state.into();
 
     let domain_payment_method = domain::PaymentMethod::convert_back(
         keymanager_state,
-        payment_method,
+        payment_method.payment_method,
         key_store.key.get_inner(),
         key_store.merchant_id.clone().into(),
     )
@@ -6871,16 +6908,25 @@ pub async fn update_payment_method_core(
         && resolve_payment_method_integration_type(state, platform).await
             == pm_types::PaymentMethodIntegrationType::PayThenVault
     {
-        fetch_volatile_payment_method_record(
+        match fetch_volatile_payment_method_record(
             state,
             platform.get_provider().get_key_store(),
             payment_method_id.get_string_repr(),
+            true,
         )
         .await
-        .inspect_err(|error| {
-            logger::info!(?error, "No volatile payment method found to promote");
-        })
-        .ok()
+        {
+            Ok(payment_method) => Some(payment_method),
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    errors::ApiErrorResponse::GenericNotFoundError { .. }
+                ) =>
+            {
+                None
+            }
+            Err(error) => return Err(error),
+        }
         // The acceptance the record was written with is what marks it for promotion, and there
         // has to be a customer to attach the card to. Without either the card was only ever meant
         // to last for this payment, whichever endpoint asks for the acknowledgement.
@@ -7205,8 +7251,7 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 }
 
 /// Resolves the merchant's payment-method integration type, defaulting to `VaultThenPay`.
-#[cfg(feature = "v2")]
-async fn resolve_payment_method_integration_type(
+pub(crate) async fn resolve_payment_method_integration_type(
     state: &SessionState,
     platform: &domain::Platform,
 ) -> pm_types::PaymentMethodIntegrationType {

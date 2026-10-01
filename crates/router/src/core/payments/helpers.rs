@@ -3578,7 +3578,29 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 }
 
 #[cfg(feature = "v1")]
-pub fn make_modular_pm_data<F: Clone, D>(
+pub async fn is_ptv_payment_method<F, D>(state: &SessionState, payment_data: &D) -> bool
+where
+    D: OperationSessionGetters<F>,
+{
+    if !payment_data
+        .get_payment_method_info()
+        .is_some_and(|pm| pm.is_pm_volatile())
+    {
+        return false;
+    }
+    let intent = payment_data.get_payment_intent();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+            intent.merchant_id.clone(),
+        ))
+        .with_organization_id(intent.organization_id.clone());
+    payment_methods::utils::get_payment_method_integration_type(state, &dimensions, None).await
+        == crate::types::payment_methods::PaymentMethodIntegrationType::PayThenVault
+}
+
+#[cfg(feature = "v1")]
+pub async fn make_modular_pm_data<F: Clone, D>(
+    state: &SessionState,
     payment_data: &D,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)>
 where
@@ -3594,8 +3616,10 @@ where
     ))
     .map(|data| data.0)?;
 
+    let is_ptv = is_ptv_payment_method(state, payment_data).await;
     let pm_id = payment_data
         .get_payment_method_info()
+        .filter(|_| !is_ptv)
         .map(|payment_method_info| payment_method_info.payment_method_id.clone());
 
     Ok((payment_method_data, pm_id))

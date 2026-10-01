@@ -2830,6 +2830,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .or(payment_data.payment_attempt.client_version.clone());
 
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
+        let is_ptv = helpers::is_ptv_payment_method(state, &payment_data).await;
         let m_payment_method_id =
             payment_data
                 .payment_attempt
@@ -2838,6 +2839,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 .or(payment_data
                     .payment_method_info
                     .as_ref()
+                    .filter(|_| !is_ptv)
                     .map(|payment_method| payment_method.payment_method_id.clone()));
         let m_browser_info = browser_info.clone();
         let m_connector = connector.clone();
