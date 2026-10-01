@@ -4754,68 +4754,12 @@ export const connectorDetails = {
     // (CVC), not the PAN. Verifies /apply still resolves card_bin/network
     // correctly at confirm time for a repeat customer, instead of sending
     // them null (the bug this PR fixed). Card is saved via the existing
-    // card_pm.SaveCardUseNo3DSAutoCapture fixture, not a dedicated one here.
-    SaveCardEligibilityCheck: getCustomExchange({
-      Request: {
-        payment_method_type: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: standardBillingAddress,
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          amount_details: {
-            total_amount: 100000,
-            net_amount: 98000,
-            currency: "USD",
-          },
-          offer_details: {
-            uplifted_offer_quote_ids: [""],
-            eligible_offers: [
-              {
-                offer_amount: 2000,
-                currency: "USD",
-                code: "TESTHS",
-              },
-            ],
-          },
-        },
-      },
-    }),
-    ConfirmSavedCardWithOfferApplied: getCustomExchange({
-      Request: {
-        offer_details: {
-          offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          amount: 100000,
-          net_amount: 98000,
-          amount_received: 98000,
-          currency: "USD",
-        },
-      },
-    }),
-    AppliedOfferOnSavedCardRetrieve: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          net_amount: 98000,
-          amount_received: 98000,
-          applied_offer: {
-            offer_amount: 2000,
-            currency: "USD",
-          },
-        },
-      },
-    }),
+    // card_pm.SaveCardUseNo3DSAutoCapture fixture; the eligibility/confirm/
+    // retrieve expectations for this flow are identical to the plain-card
+    // case above (OfferEligibilityCheck/ConfirmWithOfferApplied/
+    // AppliedOfferOnRetrieve), reused directly rather than duplicated here —
+    // saveCardConfirmCallTest already strips payment_method_data out of
+    // whatever confirm fixture it's given.
     // PR #13766: once a card has availed an offer, Offer Engine blocks that
     // same card (via card_alias, a PAN-free fingerprint) from availing it
     // again, independent of the customer.

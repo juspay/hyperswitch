@@ -172,7 +172,7 @@ describe("Offer Engine", () => {
     it("payment eligibility check surfaces an eligible offer", () => {
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        connectorDetails.offer_engine.SaveCardEligibilityCheck,
+        connectorDetails.offer_engine.OfferEligibilityCheck,
         globalState
       );
     });
@@ -181,7 +181,7 @@ describe("Offer Engine", () => {
       const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
       cy.saveCardConfirmCallTest(
         saveCardBody,
-        connectorDetails.offer_engine.ConfirmSavedCardWithOfferApplied,
+        connectorDetails.offer_engine.ConfirmWithOfferApplied,
         globalState
       );
     });
@@ -189,7 +189,7 @@ describe("Offer Engine", () => {
     it("applied_offer is reflected on payment retrieve", () => {
       cy.retrievePaymentCallTest({
         globalState,
-        data: connectorDetails.offer_engine.AppliedOfferOnSavedCardRetrieve,
+        data: connectorDetails.offer_engine.AppliedOfferOnRetrieve,
         expectedIntentStatus: "succeeded",
       });
     });
