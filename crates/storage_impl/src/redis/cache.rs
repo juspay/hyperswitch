@@ -6,13 +6,15 @@ use common_utils::{
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
-use moka::future::Cache as MokaCache;
+use moka::{
+    future::Cache as MokaCache,
+    ops::compute::{CompResult, Op},
+};
 use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
     tracing::{self, instrument},
 };
-use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 
 use crate::{
     errors::StorageError,
@@ -29,12 +31,9 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 /// Default time to idle 10 mins
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
-/// Default budget a caller waits on another caller's population of the same key, 5 seconds.
-///
-/// Roughly two orders of magnitude above a healthy redis `GET` plus database `SELECT`, so
-/// legitimately slow populations still coalesce, while a stuck backend is bounded well under
-/// redis's own command timeout.
-pub const DEFAULT_POPULATE_WAIT_TIMEOUT_IN_SECS: u64 = 5;
+/// Default ceiling on how long a single populate attempt may run, 5 seconds — well above a
+/// healthy redis/DB round trip, well under redis's own command timeout.
+pub const DEFAULT_POPULATE_TIMEOUT_IN_SECS: u64 = 5;
 
 /// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
@@ -53,34 +52,6 @@ pub const DEFAULT_POPULATE_WAIT_TIMEOUT_IN_SECS: u64 = 5;
 /// set `max_capacity` per cache, in either unit, once the sizes involved are known.
 pub const DEFAULT_MAX_ENTRIES: u64 = 30 * 1024 * 1024;
 
-/// How long an unused per-key population lock is kept around.
-///
-/// Only has to outlive a population, which is bounded by the wait budget; the lower bound
-/// keeps short budgets from evicting locks that are still in use.
-fn populate_lock_time_to_idle(populate_wait: Duration) -> Duration {
-    Duration::from_secs(300).max(populate_wait * 2)
-}
-
-/// The read side of a key's population lock, plus whether taking it meant waiting on a
-/// population that was already in flight.
-struct ReadPermit {
-    _guard: Option<OwnedRwLockReadGuard<()>>,
-    waited: bool,
-}
-
-impl ReadPermit {
-    fn unheld(waited: bool) -> Self {
-        Self {
-            _guard: None,
-            waited,
-        }
-    }
-}
-
-/// Upper bound on distinct keys holding a population lock at once. moka counts entries here,
-/// and an `Arc<RwLock<()>>` is tiny, so this is generous by design.
-const POPULATE_LOCK_MAX_ENTRIES: u64 = 10_000;
-
 /// Runtime overrides for a single in-memory cache.
 ///
 /// Every field is optional: whatever is left unset falls back to that cache's compiled-in
@@ -96,9 +67,9 @@ pub struct CacheSettings {
     /// Maximum number of entries the cache may hold. `0` makes it unbounded, and leaving it
     /// unset keeps the cache's own default.
     pub max_entries: Option<u64>,
-    /// Seconds a caller waits for another caller's population of the same key before giving
-    /// up and populating the key itself. `0` disables the wait entirely.
-    pub populate_wait_timeout_in_secs: Option<u64>,
+    /// Seconds a single populate attempt may run before it's treated as failed. `0` disables
+    /// coordination entirely.
+    pub populate_timeout_in_secs: Option<u64>,
 }
 
 impl CacheSettings {
@@ -110,10 +81,10 @@ impl CacheSettings {
         self.tti_in_secs.unwrap_or(DEFAULT_CACHE_TTI)
     }
 
-    fn populate_wait(&self) -> Duration {
+    fn populate_timeout(&self) -> Duration {
         Duration::from_secs(
-            self.populate_wait_timeout_in_secs
-                .unwrap_or(DEFAULT_POPULATE_WAIT_TIMEOUT_IN_SECS),
+            self.populate_timeout_in_secs
+                .unwrap_or(DEFAULT_POPULATE_TIMEOUT_IN_SECS),
         )
     }
 
@@ -140,7 +111,7 @@ impl CacheSettings {
             self.time_to_live(),
             self.time_to_idle(),
             self.max_entries(default),
-            self.populate_wait(),
+            self.populate_timeout(),
         )
     }
 }
@@ -480,16 +451,9 @@ dyn_clone::clone_trait_object!(Cacheable);
 pub struct Cache {
     name: &'static str,
     inner: MokaCache<String, Arc<dyn Cacheable>>,
-    /// Per-key population locks, keyed exactly as [`Self::inner`] is.
-    ///
-    /// Readers hold the read side and so run concurrently with each other; a population
-    /// holds the write side and excludes them until the value is in place.
-    ///
-    /// Best effort: should an entry be evicted while its lock is held, a later arrival
-    /// builds a fresh lock and populates concurrently. That costs a coalescing, never
-    /// correctness — both populations write the same value.
-    populate_locks: MokaCache<String, Arc<RwLock<()>>>,
-    populate_wait: Duration,
+    /// How long a single populate attempt may run before it's treated as failed. See
+    /// [`Self::get_or_populate`].
+    populate_timeout: Duration,
 }
 
 impl Debug for Cache {
@@ -540,6 +504,19 @@ fn in_memory_cache_key(key: CacheKey) -> String {
     physical
 }
 
+/// Downcasts a stored value back to its concrete type.
+///
+/// The explicit deref is load-bearing. `Arc<dyn Cacheable>` satisfies the blanket `Cacheable`
+/// impl itself, so `val.as_any()` would resolve to the `Arc`'s own impl and hand back a
+/// `&dyn Any` describing the `Arc` — downcasting which silently turns every read into a miss.
+/// Deref first so `as_any` comes from the value inside.
+fn downcast_cacheable<T>(val: Arc<dyn Cacheable>) -> Option<T>
+where
+    T: Clone + Cacheable,
+{
+    (*val).as_any().downcast_ref::<T>().cloned()
+}
+
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
@@ -552,7 +529,7 @@ impl Cache {
         time_to_live: u64,
         time_to_idle: u64,
         max_entries: Option<u64>,
-        populate_wait: Duration,
+        populate_timeout: Duration,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -578,80 +555,17 @@ impl Cache {
         Self {
             name,
             inner: cache_builder.build(),
-            populate_locks: MokaCache::builder()
-                .time_to_idle(populate_lock_time_to_idle(populate_wait))
-                .max_capacity(POPULATE_LOCK_MAX_ENTRIES)
-                .build(),
-            populate_wait,
+            populate_timeout,
         }
     }
 
-    /// The lock coordinating population of `key`, created on first use.
-    async fn get_lock_for_cache_key(&self, key: &CacheKey) -> Arc<RwLock<()>> {
-        self.populate_locks
-            .get_with(in_memory_cache_key(key.clone()), async {
-                Arc::new(RwLock::new(()))
-            })
-            .await
-    }
-
-    /// Takes the read side for `key`: concurrent with every other reader of it, held off
-    /// only while a population owns the write side.
-    ///
-    /// Giving up is always safe. The lock coordinates callers, it does not protect the cache
-    /// — moka is already thread-safe — so a caller that proceeds without it costs a
-    /// coalescing and nothing else.
-    async fn read_permit(&self, key: &CacheKey) -> ReadPermit {
-        if self.populate_wait.is_zero() {
-            return ReadPermit::unheld(false);
-        }
-
-        let lock = self.get_lock_for_cache_key(key).await;
-
-        // The uncontended case settles here, without suspending: the read side is only ever
-        // unavailable while a population holds the write side.
-        if let Ok(guard) = Arc::clone(&lock).try_read_owned() {
-            return ReadPermit {
-                _guard: Some(guard),
-                waited: false,
-            };
-        }
-
-        match tokio::time::timeout(self.populate_wait, lock.read_owned()).await {
-            Ok(guard) => ReadPermit {
-                _guard: Some(guard),
-                waited: true,
-            },
-            Err(_elapsed) => {
-                self.record_population_wait_timeout();
-                ReadPermit::unheld(true)
-            }
-        }
-    }
-
-    /// Takes the write side for `key`, excluding every reader of it until dropped.
-    async fn populate_permit(&self, key: &CacheKey) -> Option<OwnedRwLockWriteGuard<()>> {
-        if self.populate_wait.is_zero() {
-            return None;
-        }
-
-        let lock = self.get_lock_for_cache_key(key).await;
-        match tokio::time::timeout(self.populate_wait, lock.write_owned()).await {
-            Ok(guard) => Some(guard),
-            Err(_elapsed) => {
-                self.record_population_wait_timeout();
-                None
-            }
-        }
-    }
-
-    fn record_population_wait_timeout(&self) {
-        metrics::IN_MEMORY_CACHE_POPULATION_WAIT_TIMEOUT
+    fn record_populate_timeout(&self) {
+        metrics::IN_MEMORY_CACHE_POPULATE_TIMEOUT
             .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         logger::warn!(
             cache_type = self.name,
-            wait_secs = self.populate_wait.as_secs(),
-            "Timed out waiting on an in-memory cache population; proceeding independently"
+            timeout_secs = self.populate_timeout.as_secs(),
+            "An in-memory cache populate attempt was cut off at the configured cap"
         );
     }
 
@@ -660,44 +574,105 @@ impl Cache {
             .add(1, router_env::metric_attributes!(("cache_type", self.name)));
     }
 
+    fn record_type_mismatch(&self) {
+        metrics::IN_MEMORY_CACHE_TYPE_MISMATCH
+            .add(1, router_env::metric_attributes!(("cache_type", self.name)));
+        logger::error!(
+            cache_type = self.name,
+            "An in-memory cache entry could not be downcast to the expected type"
+        );
+    }
+
+    fn record_invariant_violation(&self) {
+        metrics::IN_MEMORY_CACHE_INVARIANT_VIOLATION
+            .add(1, router_env::metric_attributes!(("cache_type", self.name)));
+        logger::error!(
+            cache_type = self.name,
+            "and_try_compute_with returned a CompResult variant get_or_populate never asks for"
+        );
+    }
+
     /// Reads `key`, and on a miss populates it by running `populate`.
     ///
-    /// Concurrent callers for one key are coordinated rather than serialized: readers run
-    /// together, and while one of them is populating, the rest wait on the write side and
-    /// then read the value it wrote instead of each running `populate` themselves. When the
-    /// population finishes they are all released at once.
-    ///
-    /// Waits are bounded. A caller whose budget expires populates independently — which is
-    /// exactly what it would have done without any of this — so a stuck population slows
-    /// callers down but never strands them.
+    /// Concurrent callers for one key are serialized by moka's per-key lock
+    /// (`and_try_compute_with`): each caller's own `populate` runs in turn against the
+    /// then-current state, so a failure or a timed-out attempt only ever affects the caller it
+    /// happened to, never whoever's queued behind it. A single attempt is capped at
+    /// `populate_timeout`; since a caller's turn ends the moment its closure returns, this
+    /// also bounds how long anyone queued behind it can be made to wait.
     pub async fn get_or_populate<T, F, Fut, E>(&self, key: CacheKey, populate: F) -> Result<T, E>
     where
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
-        F: FnOnce() -> Fut + Send,
+        F: FnOnce() -> Fut + Clone + Send,
         Fut: futures::Future<Output = Result<T, E>> + Send,
+        E: From<StorageError> + Send + Sync + 'static,
     {
-        {
-            let permit = self.read_permit(&key).await;
-            if let Some(val) = self.get_val::<T>(key.clone()).await {
-                if permit.waited {
-                    self.record_population_avoided();
-                }
-                return Ok(val);
-            }
-        }
-
-        // The read guard has to be dropped before asking for the write side — tokio's
-        // `RwLock` has no upgrade, and holding both would deadlock against ourselves. That
-        // leaves a gap in which another caller may have populated the key, so re-check.
-        let _populating = self.populate_permit(&key).await;
+        // Fast path: a hit never touches moka's entry API or its per-key lock at all.
         if let Some(val) = self.get_val::<T>(key.clone()).await {
             return Ok(val);
         }
 
-        let val = populate().await?;
-        self.push(key, val.clone()).await;
+        if self.populate_timeout.is_zero() {
+            let val = populate().await?;
+            self.push(key, val.clone()).await;
+            return Ok(val);
+        }
 
-        Ok(val)
+        let moka_key = in_memory_cache_key(key.clone());
+        let populate_timeout = self.populate_timeout;
+        let populate_for_closure = populate.clone();
+
+        // moka's `Op::Put` does the real insert; `record_populate_insert` below just mirrors
+        // `push`'s deja boundary so the write is still recorded.
+        let outcome = self
+            .inner
+            .entry(moka_key)
+            .and_try_compute_with(move |maybe_entry| async move {
+                if maybe_entry.is_some() {
+                    return Ok(Op::Nop);
+                }
+
+                match tokio::time::timeout(populate_timeout, populate_for_closure()).await {
+                    Ok(Ok(val)) => Ok(Op::Put(Arc::new(val) as Arc<dyn Cacheable>)),
+                    Ok(Err(e)) => Err(Some(e)),
+                    Err(_elapsed) => Err(None),
+                }
+            })
+            .await;
+
+        match outcome {
+            // A same-typed entry is expected here; a downcast failure means some other
+            // caller used this key for a different `T`.
+            Ok(CompResult::Unchanged(entry)) => {
+                self.record_population_avoided();
+                downcast_cacheable::<T>(entry.into_value()).ok_or_else(|| {
+                    self.record_type_mismatch();
+                    StorageError::CacheTypeMismatch.into()
+                })
+            }
+            // `ReplacedWith` can't actually happen here (we never `Op::Put` over an existing
+            // entry), but it carries a value just like `Inserted` does.
+            Ok(CompResult::Inserted(entry) | CompResult::ReplacedWith(entry)) => {
+                self.record_populate_insert(key.clone()).await;
+                downcast_cacheable::<T>(entry.into_value()).ok_or_else(|| {
+                    self.record_type_mismatch();
+                    StorageError::CacheTypeMismatch.into()
+                })
+            }
+            // Can't happen either: we never ask for `Op::Remove`, and `Op::Nop` only follows
+            // an already-present entry.
+            Ok(CompResult::Removed(_) | CompResult::StillNone(_)) => {
+                self.record_invariant_violation();
+                Err(StorageError::CacheInvariantViolation.into())
+            }
+            Err(Some(e)) => Err(e),
+            // Our own cap elapsed, not the backend — there's no real `E` to report. Our turn
+            // already ended, so anyone queued behind us has already moved on.
+            Err(None) => {
+                self.record_populate_timeout();
+                Err(StorageError::CachePopulateTimedOut.into())
+            }
+        }
     }
 
     // Deja: recorded args-only for population accounting; the real moka insert
@@ -718,6 +693,26 @@ impl Cache {
         self.inner
             .insert(in_memory_cache_key(key), Arc::new(val))
             .await;
+    }
+
+    /// Records `push`'s exact `in_memory_push` boundary for a write that moka's own
+    /// `and_try_compute_with` (`Op::Put`) performed directly. deja's call-site identity hashes
+    /// the `boundary`/`operation` literals, not this function's body, so this is
+    /// indistinguishable from a real `push` call to its recording.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_push",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
+    async fn record_populate_insert(&self, key: CacheKey) {
+        let _ = key;
     }
 
     // Deja: the L1 seam, instrumented on the method itself so no call path can
@@ -751,11 +746,7 @@ impl Cache {
                 .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         }
 
-        // The explicit deref is load-bearing. `Arc<dyn Cacheable>` satisfies the blanket
-        // `Cacheable` impl itself, so `val?.as_any()` would resolve to the `Arc`'s own impl and
-        // hand back a `&dyn Any` describing the `Arc` — downcasting which silently turns every
-        // read into a miss. Deref first so `as_any` comes from the value inside.
-        (*val?).as_any().downcast_ref::<T>().cloned()
+        val.and_then(downcast_cacheable::<T>)
     }
 
     /// Check if a key exists in cache
@@ -891,7 +882,7 @@ pub async fn get_or_populate_in_memory<T, F, Fut, S>(
 ) -> CustomResult<T, StorageError>
 where
     T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
-    F: FnOnce() -> Fut + Send,
+    F: FnOnce() -> Fut + Clone + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
     S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
@@ -1005,9 +996,16 @@ mod cache_tests {
 
     use super::*;
 
+    /// Satisfies `get_or_populate`'s `E: From<StorageError>` bound for these tests' `E = String`.
+    impl From<StorageError> for String {
+        fn from(err: StorageError) -> Self {
+            err.to_string()
+        }
+    }
+
     /// Long enough that a correctly coalescing test never trips it, short enough that a test
-    /// asserting the timeout does not drag.
-    const TEST_POPULATE_WAIT: Duration = Duration::from_millis(500);
+    /// asserting the cap does not drag.
+    const TEST_POPULATE_TIMEOUT: Duration = Duration::from_millis(500);
 
     fn test_key(key: &str) -> CacheKey {
         CacheKey {
@@ -1017,12 +1015,12 @@ mod cache_tests {
     }
 
     /// A populate that counts its own invocations, so a test can assert how many callers
-    /// actually reached the backend.
+    /// actually reached the backend. `Clone` because `Cache::get_or_populate` requires it.
     fn counting_populate(
         calls: &Arc<AtomicUsize>,
         delay: Duration,
         value: impl Into<String>,
-    ) -> impl FnOnce() -> futures::future::BoxFuture<'static, Result<String, String>> {
+    ) -> impl FnOnce() -> futures::future::BoxFuture<'static, Result<String, String>> + Clone {
         let calls = Arc::clone(calls);
         let value = value.into();
         move || {
@@ -1034,9 +1032,26 @@ mod cache_tests {
         }
     }
 
+    /// A populate that always fails, counting its own invocations the same way.
+    fn failing_populate(
+        calls: &Arc<AtomicUsize>,
+        delay: Duration,
+        message: impl Into<String>,
+    ) -> impl FnOnce() -> futures::future::BoxFuture<'static, Result<String, String>> + Clone {
+        let calls = Arc::clone(calls);
+        let message = message.into();
+        move || {
+            Box::pin(async move {
+                calls.fetch_add(1, Ordering::SeqCst);
+                tokio::time::sleep(delay).await;
+                Err(message)
+            })
+        }
+    }
+
     #[tokio::test]
     async fn concurrent_misses_for_one_key_populate_once() {
-        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
         let calls = Arc::new(AtomicUsize::new(0));
 
         let readers = (0..20).map(|_| {
@@ -1053,7 +1068,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn a_reader_arriving_during_a_populate_waits_and_hits() {
-        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
         let populating_calls = Arc::new(AtomicUsize::new(0));
         let reader_calls = Arc::new(AtomicUsize::new(0));
 
@@ -1081,7 +1096,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn reads_of_a_populated_key_do_not_block_each_other() {
-        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
         cache.push(test_key("key"), "val".to_string()).await;
         let calls = Arc::new(AtomicUsize::new(0));
 
@@ -1098,13 +1113,12 @@ mod cache_tests {
             assert_eq!(result.unwrap(), Ok("val".to_string()));
         }
         assert_eq!(calls.load(Ordering::SeqCst), 0);
-        assert!(started.elapsed() < TEST_POPULATE_WAIT);
+        assert!(started.elapsed() < TEST_POPULATE_TIMEOUT);
     }
 
     #[tokio::test]
-    async fn a_populate_that_overruns_the_budget_releases_waiting_readers() {
-        // A budget far below how long the populate takes, so the waiter is guaranteed to give
-        // up rather than racing the sleep.
+    async fn a_capped_populate_fails_that_caller_while_a_queued_caller_proceeds_independently() {
+        // A cap far below the populate's delay, so the first caller is guaranteed to be capped.
         let cache = Arc::new(Cache::new(
             "test",
             1800,
@@ -1113,7 +1127,7 @@ mod cache_tests {
             Duration::from_millis(50),
         ));
         let slow_calls = Arc::new(AtomicUsize::new(0));
-        let waiter_calls = Arc::new(AtomicUsize::new(0));
+        let queued_calls = Arc::new(AtomicUsize::new(0));
 
         let slow = {
             let cache = Arc::clone(&cache);
@@ -1121,26 +1135,64 @@ mod cache_tests {
             tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
         };
 
+        // Let the first caller start (and be capped) before the second one arrives.
         tokio::time::sleep(Duration::from_millis(20)).await;
 
-        let waiter = {
+        let queued = {
             let cache = Arc::clone(&cache);
-            let populate = counting_populate(&waiter_calls, Duration::ZERO, "own");
+            let populate = counting_populate(&queued_calls, Duration::ZERO, "own");
             tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
         };
 
-        // The waiter gave up on the stuck population and fetched for itself rather than
-        // blocking until the slow caller finished.
-        assert_eq!(waiter.await.unwrap(), Ok("own".to_string()));
-        assert_eq!(waiter_calls.load(Ordering::SeqCst), 1);
-
-        assert_eq!(slow.await.unwrap(), Ok("slow".to_string()));
+        // Cut off at the cap, no retry: invoked once despite never completing.
+        assert_eq!(
+            slow.await.unwrap(),
+            Err(StorageError::CachePopulateTimedOut.to_string())
+        );
         assert_eq!(slow_calls.load(Ordering::SeqCst), 1);
+
+        // The failed turn still ended at the cap, so the queued caller gets its own turn
+        // against an empty cache and populates for itself.
+        assert_eq!(queued.await.unwrap(), Ok("own".to_string()));
+        assert_eq!(queued_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_populate_failure_fails_only_that_caller_not_a_queued_one() {
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
+        let failing_calls = Arc::new(AtomicUsize::new(0));
+        let queued_calls = Arc::new(AtomicUsize::new(0));
+
+        let failing = {
+            let cache = Arc::clone(&cache);
+            // Delayed, so the second caller below arrives while this is still the active
+            // turn, not after it has already finished and freed the key.
+            let populate = failing_populate(&failing_calls, Duration::from_millis(100), "boom");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        };
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        let queued_started = std::time::Instant::now();
+        let queued = {
+            let cache = Arc::clone(&cache);
+            let populate = counting_populate(&queued_calls, Duration::ZERO, "own");
+            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+        };
+
+        assert_eq!(failing.await.unwrap(), Err("boom".to_string()));
+        assert_eq!(failing_calls.load(Ordering::SeqCst), 1);
+
+        // Proves real queuing rather than lucky scheduling: the second caller's own populate
+        // has no delay, so an uncontended run would resolve in well under 50ms.
+        assert_eq!(queued.await.unwrap(), Ok("own".to_string()));
+        assert!(queued_started.elapsed() >= Duration::from_millis(50));
+        assert_eq!(queued_calls.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
     async fn distinct_keys_never_block_each_other() {
-        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT));
+        let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
         let calls = Arc::new(AtomicUsize::new(0));
 
         let populates = (0..8).map(|index| {
@@ -1171,7 +1223,7 @@ mod cache_tests {
     /// Here the coordination is switched off and the same shape produces one populate per
     /// caller, so the two together show the coalescing is what causes the difference.
     #[tokio::test]
-    async fn a_zero_wait_budget_disables_coordination() {
+    async fn a_zero_timeout_disables_coordination() {
         let cache = Arc::new(Cache::new("test", 1800, 1800, None, Duration::ZERO));
         let calls = Arc::new(AtomicUsize::new(0));
 
@@ -1264,7 +1316,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn construct_and_get_cache() {
-        let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT);
+        let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT);
         cache
             .push(
                 CacheKey {
@@ -1287,7 +1339,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn eviction_on_size_test() {
-        let cache = Cache::new("test", 2, 2, Some(0), TEST_POPULATE_WAIT);
+        let cache = Cache::new("test", 2, 2, Some(0), TEST_POPULATE_TIMEOUT);
         cache
             .push(
                 CacheKey {
@@ -1310,7 +1362,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn invalidate_cache_for_key() {
-        let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_WAIT);
+        let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT);
         cache
             .push(
                 CacheKey {
@@ -1341,7 +1393,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn eviction_on_time_test() {
-        let cache = Cache::new("test", 2, 2, None, TEST_POPULATE_WAIT);
+        let cache = Cache::new("test", 2, 2, None, TEST_POPULATE_TIMEOUT);
         cache
             .push(
                 CacheKey {
