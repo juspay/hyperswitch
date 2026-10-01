@@ -231,10 +231,10 @@ impl EmailSettings {
     }
 }
 
-/// Optional Router origin; monitoring returns 503 when not configured.
+/// Optional Router base URL; monitoring returns 503 when not configured.
 #[derive(Debug, Deserialize, Clone)]
 pub struct RouterSettings {
-    /// Internal Router origin (its HTTP listener serves /user directly, without /api).
+    /// Internal Router origin or public API base URL, such as https://app.hyperswitch.io/api/.
     pub base_url: url::Url,
 }
 

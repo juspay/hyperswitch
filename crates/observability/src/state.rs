@@ -113,16 +113,14 @@ impl AppState {
                 .expect("Failed to connect to the observability database"),
         );
 
-        let router_transport = raw_conf
-            .router
-            .as_ref()
-            .and_then(|config| match RouterClient::new(config.base_url.clone()) {
-                Ok(client) => Some(Arc::new(client)),
-                Err(_) => {
-                    logger::error!(
-                        "Internal Router client unavailable; Grafana auth will fail closed"
-                    );
-                    None
+        let router_transport =
+            raw_conf.router.as_ref().and_then(|config| {
+                match RouterClient::new(config.base_url.clone(), &raw_conf.proxy) {
+                    Ok(client) => Some(Arc::new(client)),
+                    Err(_) => {
+                        logger::error!("Router client unavailable; Grafana auth will fail closed");
+                        None
+                    }
                 }
             });
 

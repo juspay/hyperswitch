@@ -19,7 +19,7 @@ impl RouterClient {
     ) -> Result<(), RouterError> {
         let url = self
             .base_url
-            .join("/user/internal/authorize")
+            .join("user/internal/authorize")
             .map_err(|_| RouterError::Unavailable)?;
         let response = self
             .client

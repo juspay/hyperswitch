@@ -227,9 +227,12 @@ unverified sender all arrive as one variant — so email only ever reports `deli
 
 ## Grafana gateway authorization
 
-Configure `[router] base_url` (or `OBSERVABILITY__ROUTER__BASE_URL`) with the internal Router
-**origin** without `/api` to enable monitoring authorization. Router configuration is optional:
-alert-only deployments can omit it; valid monitoring requests then fail closed with 503.
+Configure `[router] base_url` (or `OBSERVABILITY__ROUTER__BASE_URL`) with the Router origin
+or public API base URL, such as `https://app.hyperswitch.io/api/`, to enable monitoring authorization.
+The configured path is preserved; a trailing slash is optional. Public edge routing can supply
+Router's required tenant header without forwarding a caller-provided tenant header from OP.
+Router configuration is optional: alert-only deployments can omit it; valid monitoring requests
+then fail closed with 503.
 A v2 build rejects a configured Router integration and does not register monitoring routes.
 For rollback, remove public gateway routing or remove Router configuration and restart.
 Verify cross-namespace connectivity and the exact Control Center host's `grafana_token` cookie
@@ -323,8 +326,12 @@ No permissive CORS configuration is added. The cookie is usable only on the same
 
 Router calls use a dedicated reusable HTTP client, not the generic microservice executor. Only
 HTTP 200 is accepted, redirects are disabled, each call has a three-second timeout, and success
-bodies are bounded to 64 KiB. No upstream error body is retained or logged. The client does not
-independently decode or validate the JWT.
+bodies are bounded to 64 KiB. The client uses the existing `[proxy]` HTTP/HTTPS URLs and
+`bypass_proxy_hosts`, including for public Router origins in clusters without direct internet
+access. When no proxy URL is configured, transport stays direct instead of inheriting environment
+proxies. Verify the public Router host is allowed by the proxy before deployment.
+No upstream error body is retained or logged. The client does not independently decode or validate
+the JWT.
 
 ## Layout
 

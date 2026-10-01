@@ -14,7 +14,7 @@ impl RouterClient {
     pub async fn get_user_email(&self, token: &Secret<String>) -> Result<String, RouterError> {
         let url = self
             .base_url
-            .join("/user")
+            .join("user")
             .map_err(|_| RouterError::Unavailable)?;
         // The Router deployment uses force_cookies=false. Never forward browser cookies.
         let mut authorization = header::HeaderValue::from_str(&format!("Bearer {}", token.peek()))
