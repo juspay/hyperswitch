@@ -900,25 +900,28 @@ pub fn get_split_refunds(
                 (_, _) => (None, None),
             };
 
-            if let Some(charge_id) = charge_id_option {
-                let options = refunds_validator::validate_stripe_charge_refund(
-                    charge_type_option,
-                    &split_refund_input.refund_request,
-                )?;
+            let options = refunds_validator::validate_stripe_charge_refund(
+                charge_type_option,
+                &split_refund_input.refund_request,
+            )?;
 
-                Ok(Some(
-                    router_request_types::SplitRefundsRequest::StripeSplitRefund(
-                        router_request_types::StripeSplitRefund {
-                            charge_id,
-                            charge_type: stripe_payment.charge_type.clone(),
-                            transfer_account_id: stripe_payment.transfer_account_id.clone(),
-                            options,
-                        },
-                    ),
-                ))
-            } else {
-                Ok(None)
-            }
+            // The charge id is only known once charge data has been persisted on the attempt,
+            // which does not happen for payments that reach a terminal state without a PSync.
+            // The Connect routing information lives on the payment intent and is always
+            // present, so the refund must still be built as a split refund - issued against
+            // the payment intent rather than the charge when the charge id is unknown.
+            // Returning `None` here instead would silently downgrade the refund to the
+            // non-Connect shape and send it to the platform account.
+            Ok(Some(
+                router_request_types::SplitRefundsRequest::StripeSplitRefund(
+                    router_request_types::StripeSplitRefund {
+                        charge_id: charge_id_option,
+                        charge_type: stripe_payment.charge_type.clone(),
+                        transfer_account_id: stripe_payment.transfer_account_id.clone(),
+                        options,
+                    },
+                ),
+            ))
         }
         Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_)) => {
             match &split_refund_input.payment_charges {
