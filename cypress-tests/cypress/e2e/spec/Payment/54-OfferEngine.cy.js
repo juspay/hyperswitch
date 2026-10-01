@@ -148,7 +148,7 @@ describe("Offer Engine", () => {
     it("save a card via a plain create+confirm payment", () => {
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        connectorDetails.offer_engine.SaveCardSetup,
+        connectorDetails.card_pm.SaveCardUseNo3DSAutoCapture,
         "no_three_ds",
         "automatic",
         globalState

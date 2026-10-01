@@ -4753,29 +4753,8 @@ export const connectorDetails = {
     // PR #13850: a saved-card confirm carries only payment_token + card_token
     // (CVC), not the PAN. Verifies /apply still resolves card_bin/network
     // correctly at confirm time for a repeat customer, instead of sending
-    // them null (the bug this PR fixed).
-    SaveCardSetup: getCustomExchange({
-      Request: {
-        currency: "USD",
-        amount: 100000,
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: standardBillingAddress,
-        },
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          amount: 100000,
-          net_amount: 100000,
-          amount_received: 100000,
-          currency: "USD",
-        },
-      },
-    }),
+    // them null (the bug this PR fixed). Card is saved via the existing
+    // card_pm.SaveCardUseNo3DSAutoCapture fixture, not a dedicated one here.
     SaveCardEligibilityCheck: getCustomExchange({
       Request: {
         payment_method_type: "card",
