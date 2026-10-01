@@ -13,6 +13,6 @@ pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<PgTypeMetadata
     let pairs: Vec<(u32, u32)> = Vec::deserialize(d)?;
     Ok(pairs
         .into_iter()
-        .map(|(oid, array_oid)| PgTypeMetadata::from_result(Ok((oid, array_oid))))
+        .map(|(oid, array_oid)| PgTypeMetadata::new(oid, array_oid))
         .collect())
 }
