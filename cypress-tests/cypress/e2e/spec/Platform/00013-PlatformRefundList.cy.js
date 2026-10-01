@@ -1,6 +1,14 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import {
+  platformRefundsConnectedAccountOperationError,
+  platformRefundsInvalidApiKeyError,
+  platformRefundsListInvalidOffsetError,
+  platformRefundsListLimitAboveMaxError,
+  platformRefundsListLimitZeroError,
+  refundStatusFilterMap,
+} from "../../configs/Payment/Commons";
 
 let globalState;
 
@@ -337,9 +345,17 @@ describe("Platform - Refund List and Filter flow test", () => {
     });
 
     it("list-platform-refunds-filtered-by-refund-status-test", () => {
-      const refundStatus = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Refund"].Response.body.status;
+      // The refund object status (RefundResponse.status) uses
+      // succeeded/failed/pending/review, while the refund_status query
+      // param and the list item's refund_status field use the filter
+      // variants success/failure/pending/manual_review — map between the
+      // two so the filter value is valid for every connector
+      const refundStatus =
+        refundStatusFilterMap[
+          getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+            "Refund"
+          ].Response.body.status
+        ];
       cy.platformRefundListCallTest(
         { refund_status: refundStatus },
         {
@@ -448,11 +464,7 @@ describe("Platform - Refund List and Filter flow test", () => {
     it("list-platform-refunds-with-invalid-limit-zero-test", () => {
       cy.platformRefundListCallTest(
         { limit: 0 },
-        {
-          status: 400,
-          rawError:
-            "Query deserialize error: list limit 0 is invalid, it must be between 1 and 100",
-        },
+        platformRefundsListLimitZeroError,
         globalState
       );
     });
@@ -460,11 +472,7 @@ describe("Platform - Refund List and Filter flow test", () => {
     it("list-platform-refunds-with-invalid-limit-above-max-test", () => {
       cy.platformRefundListCallTest(
         { limit: 1000 },
-        {
-          status: 400,
-          rawError:
-            "Query deserialize error: list limit 1000 is invalid, it must be between 1 and 100",
-        },
+        platformRefundsListLimitAboveMaxError,
         globalState
       );
     });
@@ -472,11 +480,7 @@ describe("Platform - Refund List and Filter flow test", () => {
     it("list-platform-refunds-with-invalid-offset-test", () => {
       cy.platformRefundListCallTest(
         { offset: 999999 },
-        {
-          status: 400,
-          rawError:
-            "Query deserialize error: list offset 999999 is invalid, it must be at most 20000",
-        },
+        platformRefundsListInvalidOffsetError,
         globalState
       );
     });
@@ -506,14 +510,7 @@ describe("Platform - Refund List and Filter flow test", () => {
 
       cy.platformRefundListCallTest(
         {},
-        {
-          status: 400,
-          error: {
-            type: "invalid_request",
-            code: "IR_49",
-            message: "API does not support connected account operation",
-          },
-        },
+        platformRefundsConnectedAccountOperationError,
         globalState
       );
 
@@ -528,14 +525,7 @@ describe("Platform - Refund List and Filter flow test", () => {
 
       cy.platformRefundListCallTest(
         {},
-        {
-          status: 400,
-          error: {
-            type: "invalid_request",
-            code: "IR_49",
-            message: "API does not support connected account operation",
-          },
-        },
+        platformRefundsConnectedAccountOperationError,
         globalState,
         globalState.get("connectedMerchantId1")
       );
@@ -551,14 +541,7 @@ describe("Platform - Refund List and Filter flow test", () => {
 
       cy.platformRefundListCallTest(
         {},
-        {
-          status: 401,
-          error: {
-            type: "invalid_request",
-            code: "IR_01",
-            message: "API key not provided or invalid API key used",
-          },
-        },
+        platformRefundsInvalidApiKeyError,
         globalState
       );
 
@@ -570,15 +553,7 @@ describe("Platform - Refund List and Filter flow test", () => {
     it("missing-api-key-cannot-list-platform-refunds-test", () => {
       cy.platformRefundListCallTest(
         {},
-        {
-          status: 401,
-          error: {
-            type: "invalid_request",
-            code: "IR_01",
-            message: "API key not provided or invalid API key used",
-          },
-          omitApiKey: true,
-        },
+        { ...platformRefundsInvalidApiKeyError, omitApiKey: true },
         globalState
       );
     });
@@ -588,14 +563,7 @@ describe("Platform - Refund List and Filter flow test", () => {
       globalState.set("apiKey", globalState.get("apiKeyCm1"));
 
       cy.platformRefundFilterCallTest(
-        {
-          status: 400,
-          error: {
-            type: "invalid_request",
-            code: "IR_49",
-            message: "API does not support connected account operation",
-          },
-        },
+        platformRefundsConnectedAccountOperationError,
         globalState
       );
 
@@ -609,14 +577,7 @@ describe("Platform - Refund List and Filter flow test", () => {
       globalState.set("apiKey", globalState.get("platformApiKey"));
 
       cy.platformRefundFilterCallTest(
-        {
-          status: 400,
-          error: {
-            type: "invalid_request",
-            code: "IR_49",
-            message: "API does not support connected account operation",
-          },
-        },
+        platformRefundsConnectedAccountOperationError,
         globalState,
         globalState.get("connectedMerchantId1")
       );
@@ -631,14 +592,7 @@ describe("Platform - Refund List and Filter flow test", () => {
       globalState.set("apiKey", globalState.get("apiKeySm"));
 
       cy.platformRefundFilterCallTest(
-        {
-          status: 401,
-          error: {
-            type: "invalid_request",
-            code: "IR_01",
-            message: "API key not provided or invalid API key used",
-          },
-        },
+        platformRefundsInvalidApiKeyError,
         globalState
       );
 
