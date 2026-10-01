@@ -4,7 +4,7 @@
 //! hyperswitch config, just a source picked from the environment. Inside Kubernetes that
 //! is OKE Workload Identity; anywhere else it is the `~/.oci/config` the `oci` CLI writes.
 
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 use base64::Engine;
 use common_utils::errors::CustomResult;
@@ -94,12 +94,7 @@ fn is_stale(soft_expires_at: Option<i64>) -> bool {
     let Some(soft_expires_at) = soft_expires_at else {
         return false;
     };
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .ok()
-        .and_then(|elapsed| i64::try_from(elapsed.as_secs()).ok())
-        .unwrap_or(i64::MAX);
-    soft_expires_at <= now + REFRESH_BUFFER_SECONDS
+    soft_expires_at <= common_utils::date_time::now_unix_timestamp() + REFRESH_BUFFER_SECONDS
 }
 
 #[cfg(test)]
@@ -140,13 +135,7 @@ mod tests {
 
     #[test]
     fn credentials_within_the_refresh_buffer_are_stale() {
-        let now = i64::try_from(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("clock after epoch")
-                .as_secs(),
-        )
-        .expect("fits in i64");
+        let now = common_utils::date_time::now_unix_timestamp();
         assert!(is_stale(Some(now + REFRESH_BUFFER_SECONDS - 1)));
         assert!(!is_stale(Some(now + REFRESH_BUFFER_SECONDS + 60)));
     }

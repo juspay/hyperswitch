@@ -83,7 +83,7 @@ where
 /// Exponential backoff with full jitter: uniform over `[0, min(MAX, BASE * 2^(n-1))]`, so
 /// pods started together by a scale-up don't retry in lockstep.
 fn backoff(attempt_number: u32) -> Duration {
-    backoff_ceiling(attempt_number).mul_f64(rand::random::<f64>())
+    backoff_ceiling(attempt_number).mul_f64(common_utils::generate_random_f64_unit())
 }
 
 fn backoff_ceiling(attempt_number: u32) -> Duration {

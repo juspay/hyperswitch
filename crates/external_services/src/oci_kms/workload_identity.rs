@@ -102,7 +102,10 @@ async fn request_session_token(
         .post(url)
         .bearer_auth(service_account_token)
         .header("content-type", "application/json")
-        .header("opc-request-id", format!("{:032x}", rand::random::<u128>()))
+        .header(
+            "opc-request-id",
+            hex::encode(common_utils::generate_random_bytes(16)),
+        )
         .body(body.to_vec())
         .send()
         .await

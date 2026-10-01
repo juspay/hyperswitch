@@ -14,7 +14,6 @@ use rsa::{
     signature::{RandomizedSigner, SignatureEncoding},
     RsaPrivateKey,
 };
-use time::macros::format_description;
 
 use super::core::OciKmsError;
 
@@ -24,10 +23,6 @@ const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_pu
 /// `headers` field — matches Oracle's POST-signing example verbatim.
 const SIGNED_HEADERS: &str =
     "date (request-target) host content-length content-type x-content-sha256";
-
-const HTTP_DATE_FORMAT: &[time::format_description::FormatItem<'_>] = format_description!(
-    "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT"
-);
 
 /// Header values to attach to a signed request. `x_content_sha256` must be sent as a
 /// literal header too, not just folded into the signature — OCI independently checks
@@ -48,8 +43,7 @@ pub(crate) fn sign_post_request(
     path: &str,
     body: &[u8],
 ) -> CustomResult<SignedHeaders, OciKmsError> {
-    let date = time::OffsetDateTime::now_utc()
-        .format(HTTP_DATE_FORMAT)
+    let date = common_utils::date_time::now_rfc7231_http_date()
         .change_context(OciKmsError::SigningFailed)
         .attach_printable("Failed to format the request date")?;
 
@@ -192,14 +186,5 @@ mod tests {
             &signature,
         );
         assert!(verified.is_err());
-    }
-
-    #[test]
-    fn http_date_format_matches_rfc_7231() {
-        // Not Oracle's sample date: 5 Jan 2014 was a Sunday, not the Thursday it claims.
-        let date = time::macros::datetime!(2014-01-02 09:05:07 UTC)
-            .format(HTTP_DATE_FORMAT)
-            .expect("formattable");
-        assert_eq!(date, "Thu, 02 Jan 2014 09:05:07 GMT");
     }
 }

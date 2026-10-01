@@ -386,7 +386,7 @@ key_id = "gcp_kms_key_id"
 # Required only if `secrets_manager` above is set to "oci_kms". Authenticated via OKE
 # Workload Identity (ambient) — no credentials go in this config.
 [secrets_management.oci_kms]
-vault_crypto_endpoint = "https://<vault>-crypto.kms.<region>.oraclecloud.com"
+vault_crypto_endpoint = "https://<vault>-crypto.kms.<region>.oci.oraclecloud.com"
 key_id = "oci_kms_key_ocid"
 
 [encryption_management]
@@ -407,7 +407,7 @@ key_id = "gcp_kms_key_id"
 # Required only if `encryption_manager` above is set to "oci_kms". Authenticated via
 # OKE Workload Identity (ambient) — no credentials go in this config.
 [encryption_management.oci_kms]
-vault_crypto_endpoint = "https://<vault>-crypto.kms.<region>.oraclecloud.com"
+vault_crypto_endpoint = "https://<vault>-crypto.kms.<region>.oci.oraclecloud.com"
 key_id = "oci_kms_key_ocid"
 
 [crm]

@@ -19,7 +19,7 @@ use crate::{consts, metrics};
 #[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(default)]
 pub struct OciKmsConfig {
-    /// The vault's crypto endpoint (e.g. `https://<vault>-crypto.kms.<region>.oraclecloud.com`),
+    /// The vault's crypto endpoint (e.g. `https://<vault>-crypto.kms.<region>.oci.oraclecloud.com`),
     /// obtained once when the vault is created; doesn't change afterward.
     pub vault_crypto_endpoint: String,
 
@@ -351,5 +351,123 @@ mod tests {
         })
         .await;
         assert!(result.is_err());
+    }
+
+    /// Tests against a real OCI Vault. Skipped by default; run with:
+    ///
+    /// ```text
+    /// OCI_KMS_TEST_CRYPTO_ENDPOINT=https://<vault>-crypto.kms.<region>.oci.oraclecloud.com \
+    /// OCI_KMS_TEST_KEY_ID=ocid1.key.oc1... \
+    /// OCI_KMS_TEST_CLI_CIPHERTEXT=<output of `oci kms crypto encrypt`> \
+    /// OCI_KMS_TEST_CLI_PLAINTEXT=<the plaintext that was encrypted> \
+    /// cargo test -p external_services --features oci_kms,v1 --lib oci_kms::core::tests::live -- --ignored
+    /// ```
+    ///
+    /// Outside Kubernetes, credentials come from `~/.oci/config` (`OCI_CLI_PROFILE` to pick one).
+    mod live {
+        use std::time::Instant;
+
+        use hyperswitch_interfaces::secrets_interface::SecretManagementInterface;
+        use hyperswitch_masking::{PeekInterface, Secret};
+
+        use super::*;
+
+        fn env(name: &str) -> String {
+            std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set for live tests"))
+        }
+
+        fn live_config() -> OciKmsConfig {
+            OciKmsConfig {
+                vault_crypto_endpoint: env("OCI_KMS_TEST_CRYPTO_ENDPOINT"),
+                key_id: env("OCI_KMS_TEST_KEY_ID"),
+            }
+        }
+
+        async fn live_client() -> OciKmsClient {
+            OciKmsClient::new(&live_config())
+                .await
+                .expect("client should build from the live config")
+        }
+
+        #[tokio::test]
+        #[ignore = "calls a real OCI Vault"]
+        async fn encrypt_then_decrypt_round_trips() {
+            let client = live_client().await;
+
+            let ciphertext = client.encrypt("s3cr3t!").await.expect("encrypt succeeds");
+            assert_ne!(ciphertext, "s3cr3t!");
+            // Printed so the OCI CLI can confirm it decrypts our ciphertext too.
+            println!("OCI_KMS_LIVE_CIPHERTEXT={ciphertext}");
+
+            let plaintext = client.decrypt(&ciphertext).await.expect("decrypt succeeds");
+            assert_eq!(plaintext, "s3cr3t!");
+        }
+
+        #[tokio::test]
+        #[ignore = "calls a real OCI Vault"]
+        async fn decrypts_ciphertext_made_by_the_oci_cli() {
+            let plaintext = live_client()
+                .await
+                .decrypt(env("OCI_KMS_TEST_CLI_CIPHERTEXT"))
+                .await
+                .expect("decrypt succeeds");
+            assert_eq!(plaintext, env("OCI_KMS_TEST_CLI_PLAINTEXT"));
+        }
+
+        /// The call Hyperswitch makes at startup for every secret in its config.
+        #[tokio::test]
+        #[ignore = "calls a real OCI Vault"]
+        async fn get_secret_decrypts_a_config_secret() {
+            let client = live_client().await;
+            let secret = SecretManagementInterface::get_secret(
+                &client,
+                Secret::new(env("OCI_KMS_TEST_CLI_CIPHERTEXT")),
+            )
+            .await
+            .expect("get_secret succeeds");
+            assert_eq!(secret.peek(), &env("OCI_KMS_TEST_CLI_PLAINTEXT"));
+        }
+
+        #[tokio::test]
+        #[ignore = "calls a real OCI Vault"]
+        async fn decrypt_with_a_nonexistent_key_fails_without_retrying() {
+            let mut config = live_config();
+            config.key_id = format!("{}x", config.key_id);
+            let client = OciKmsClient::new(&config).await.expect("client builds");
+
+            let start = Instant::now();
+            let result = client.decrypt(env("OCI_KMS_TEST_CLI_CIPHERTEXT")).await;
+
+            assert!(result.is_err());
+            println!("nonexistent key failed after {:?}", start.elapsed());
+        }
+
+        #[tokio::test]
+        #[ignore = "needs OCI credentials; takes ~25s"]
+        async fn unreachable_endpoint_times_out_and_retries() {
+            let client = OciKmsClient::new(&OciKmsConfig {
+                // TEST-NET-1 (RFC 5737): guaranteed unroutable, so every connect times out.
+                vault_crypto_endpoint: "https://192.0.2.1".to_string(),
+                key_id: env("OCI_KMS_TEST_KEY_ID"),
+            })
+            .await
+            .expect("client builds");
+
+            let start = Instant::now();
+            let result = client.decrypt("ignored").await;
+            let elapsed = start.elapsed();
+
+            assert!(result.is_err());
+            // Four attempts, each bounded by the 5s connect timeout.
+            assert!(
+                elapsed >= std::time::Duration::from_secs(15),
+                "expected retries, failed after {elapsed:?}"
+            );
+            assert!(
+                elapsed <= std::time::Duration::from_secs(40),
+                "expected timeouts, took {elapsed:?}"
+            );
+            println!("unreachable endpoint failed after {elapsed:?}");
+        }
     }
 }
