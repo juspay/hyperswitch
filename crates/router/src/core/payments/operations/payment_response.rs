@@ -337,12 +337,32 @@ where
                         }
                         let updated_pm_id = pm_id.clone();
 
-                        // An off-session save carries the connector token and NTI that the next
-                        // MIT reads, so it is awaited; on-session updates remain detached.
+                        // Off-session saves are awaited by default so the next MIT can read the
+                        // connector token and NTI. The rollout flag opts them into the existing
+                        // detached path, including linking the attempt only after a successful save.
                         let is_off_session = matches!(
                             payment_data.payment_attempt.setup_future_usage_applied,
                             Some(common_enums::FutureUsage::OffSession)
                         );
+                        let should_detach_update = if is_off_session {
+                            let dimensions =
+                                crate::core::configs::dimension_state::Dimensions::new()
+                                    .with_provider_merchant_id(
+                                        platform.get_provider().get_provider_merchant_id(),
+                                    )
+                                    .with_organization_id(
+                                        platform.get_provider().get_account().get_org_id().clone(),
+                                    );
+                            dimensions
+                                .get_should_detach_modular_payment_method_update(
+                                    state.store.as_ref(),
+                                    state.superposition_service.as_ref(),
+                                    None,
+                                )
+                                .await
+                        } else {
+                            false
+                        };
 
                         let update_state = state.clone();
                         let processor_merchant_id =
@@ -380,12 +400,18 @@ where
                             }
                         };
 
-                        if is_off_session {
+                        if is_off_session && !should_detach_update {
                             if update_payment_method.await && is_ptv {
                                 payment_data.payment_attempt.payment_method_id =
                                     Some(updated_pm_id);
                             }
                         } else {
+                            logger::info!(
+                                payment_method_id=%updated_pm_id,
+                                is_off_session,
+                                should_detach_update,
+                                "Detaching modular payment method update from payment response"
+                            );
                             let state = state.clone();
                             let platform = platform.clone();
                             let payment_attempt = payment_data.payment_attempt.clone();

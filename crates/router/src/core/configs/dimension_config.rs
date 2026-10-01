@@ -427,6 +427,24 @@ impl DatabaseBackedConfig for ShouldCallPmModularService {
 }
 
 config! {
+    superposition_key = SHOULD_DETACH_MODULAR_PAYMENT_METHOD_UPDATE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldDetachModularPaymentMethodUpdate {
+    const KEY: &'static str = "should_detach_modular_payment_method_update";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYMENT_METHOD_INTEGRATION_TYPE,
     output = pm_types::PaymentMethodIntegrationType,
     default = pm_types::PaymentMethodIntegrationType::VaultThenPay,
