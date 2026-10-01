@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0-hotfix4
+
+### Features
+
+- **redis_interface:** Add TLS connection support for redis cache ([#14552](https://github.com/juspay/hyperswitch/pull/14552)) ([`1bcb5e0`](https://github.com/juspay/hyperswitch/commit/1bcb5e0a84d515674950a8a89b60c2f79c49fc7d))
+
+**Full Changelog:** [`2026.09.23.0-hotfix3...2026.09.23.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0-hotfix3...2026.09.23.0-hotfix4)
+
+- - -
+
 ## 2026.09.23.0-hotfix3
 
 ### Bug Fixes
