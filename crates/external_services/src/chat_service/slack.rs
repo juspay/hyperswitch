@@ -62,6 +62,9 @@ pub struct SlackConfig {
     pub timeout_seconds: u64,
 
     /// Longest message body Slack will accept, in characters.
+    ///
+    /// A fact about the destination for whoever builds the message. The client forwards content
+    /// unchanged and does not enforce it.
     #[serde(default = "default_max_message_chars")]
     pub max_message_chars: usize,
 }
@@ -88,7 +91,6 @@ impl SlackClient {
                 EndpointHeaders::new(authorization_headers(&config.bot_token), Vec::new()),
                 config.channel,
                 config.timeout_seconds,
-                config.max_message_chars,
                 proxy,
             )?,
         })
@@ -108,6 +110,14 @@ impl ChatClient for SlackClient {
         self.endpoint.post_message(message).await
     }
 
+    async fn update_message(
+        &self,
+        message_id: &MessageId,
+        message: ChatMessage,
+    ) -> ChatResult<MessageId> {
+        self.endpoint.update_message(message_id, message).await
+    }
+
     async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
         self.endpoint.upload_file(file).await
     }
@@ -123,6 +133,24 @@ mod tests {
     };
 
     use super::*;
+
+    fn client_for(server: &MockServer) -> SlackClient {
+        SlackClient::new(
+            SlackConfig {
+                base_url: Url::parse(&server.uri()).unwrap(),
+                bot_token: Secret::new("xoxb-test".to_owned()),
+                channel: "C1".to_owned(),
+                timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+                max_message_chars: DEFAULT_MAX_MESSAGE_CHARS,
+            },
+            Proxy::default(),
+        )
+        .unwrap()
+    }
+
+    fn content(value: serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
+        value.as_object().unwrap().clone()
+    }
 
     /// The one thing that differs from Xyne: no `/slack/` namespace in front of the method.
     #[tokio::test]
@@ -140,21 +168,46 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = SlackClient::new(
-            SlackConfig {
-                base_url: Url::parse(&server.uri()).unwrap(),
-                bot_token: Secret::new("xoxb-test".to_owned()),
-                channel: "C1".to_owned(),
-                timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
-                max_message_chars: DEFAULT_MAX_MESSAGE_CHARS,
-            },
-            Proxy::default(),
-        )
-        .unwrap();
+        assert_eq!(
+            client_for(&server)
+                .post_message(ChatMessage::new(content(
+                    json!({"text": "hello", "mrkdwn": true})
+                )))
+                .await
+                .unwrap(),
+            MessageId::ts("1.1")
+        );
+    }
+
+    #[tokio::test]
+    async fn an_update_names_the_message_and_forwards_the_content() {
+        let server = MockServer::start().await;
+        let attachments = json!([{"color": "good", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "body"}}
+        ]}]);
+        Mock::given(method("POST"))
+            .and(path("/chat.update"))
+            .and(header("authorization", "Bearer xoxb-test"))
+            .and(body_json(json!({
+                "channel": "C1",
+                "ts": "1.1",
+                "text": "*heading*",
+                "attachments": attachments
+            })))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.1"})),
+            )
+            .mount(&server)
+            .await;
 
         assert_eq!(
-            client
-                .post_message(ChatMessage::new("hello"))
+            client_for(&server)
+                .update_message(
+                    &MessageId::ts("1.1"),
+                    ChatMessage::new(content(
+                        json!({"text": "*heading*", "attachments": attachments})
+                    )),
+                )
                 .await
                 .unwrap(),
             MessageId::ts("1.1")
@@ -190,18 +243,7 @@ mod tests {
             .mount(&api)
             .await;
 
-        let client = SlackClient::new(
-            SlackConfig {
-                base_url: Url::parse(&api.uri()).unwrap(),
-                bot_token: Secret::new("xoxb-test".to_owned()),
-                channel: "C1".to_owned(),
-                timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
-                max_message_chars: DEFAULT_MAX_MESSAGE_CHARS,
-            },
-            Proxy::default(),
-        )
-        .unwrap();
-        client
+        client_for(&api)
             .upload_file(ChatFile::new(vec![1], "report.pdf", None, None, None))
             .await
             .unwrap();
