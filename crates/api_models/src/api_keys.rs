@@ -4,6 +4,24 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
+/// Maximum number of characters allowed in an API Key name, matching the `api_keys.name` column.
+pub const API_KEY_NAME_MAX_LENGTH: usize = 64;
+
+/// Maximum number of characters allowed in an API Key description, matching the
+/// `api_keys.description` column.
+pub const API_KEY_DESCRIPTION_MAX_LENGTH: usize = 256;
+
+/// Checks that a field does not exceed its maximum length. Postgres `VARCHAR(n)` limits are
+/// expressed in characters, so the length is counted in characters rather than bytes.
+fn validate_max_length(field_name: &str, value: &str, max_length: usize) -> Result<(), String> {
+    if value.chars().count() > max_length {
+        return Err(format!(
+            "`{field_name}` must not exceed {max_length} characters"
+        ));
+    }
+    Ok(())
+}
+
 /// The request body for creating an API Key.
 #[derive(Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -23,6 +41,20 @@ pub struct CreateApiKeyRequest {
     /// rotating your keys once every 6 months.
     #[schema(example = "2022-09-10T10:11:12Z")]
     pub expiration: ApiKeyExpiration,
+}
+
+impl CreateApiKeyRequest {
+    /// Validates the lengths of the `name` and `description` fields.
+    pub fn validate(&self) -> Result<(), String> {
+        validate_max_length("name", &self.name, API_KEY_NAME_MAX_LENGTH)?;
+        self.description
+            .as_deref()
+            .map(|description| {
+                validate_max_length("description", description, API_KEY_DESCRIPTION_MAX_LENGTH)
+            })
+            .transpose()?;
+        Ok(())
+    }
 }
 
 /// The response body for creating an API Key.
@@ -137,6 +169,23 @@ pub struct UpdateApiKeyRequest {
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
     pub merchant_id: common_utils::id_type::MerchantId,
+}
+
+impl UpdateApiKeyRequest {
+    /// Validates the lengths of the `name` and `description` fields, when provided.
+    pub fn validate(&self) -> Result<(), String> {
+        self.name
+            .as_deref()
+            .map(|name| validate_max_length("name", name, API_KEY_NAME_MAX_LENGTH))
+            .transpose()?;
+        self.description
+            .as_deref()
+            .map(|description| {
+                validate_max_length("description", description, API_KEY_DESCRIPTION_MAX_LENGTH)
+            })
+            .transpose()?;
+        Ok(())
+    }
 }
 
 /// The response body for revoking an API Key.
@@ -301,5 +350,87 @@ mod api_key_expiration_tests {
 
         let result = serde_json::from_str::<Option<ApiKeyExpiration>>("null").unwrap();
         assert_eq!(result, None);
+    }
+}
+
+#[cfg(test)]
+mod api_key_request_validation_tests {
+    use super::*;
+
+    fn create_request(name: &str, description: Option<&str>) -> CreateApiKeyRequest {
+        CreateApiKeyRequest {
+            name: name.to_string(),
+            description: description.map(str::to_string),
+            expiration: ApiKeyExpiration::Never,
+        }
+    }
+
+    fn update_request(name: Option<&str>, description: Option<&str>) -> UpdateApiKeyRequest {
+        serde_json::from_value(serde_json::json!({
+            "name": name,
+            "description": description,
+        }))
+        .expect("update request should deserialize")
+    }
+
+    #[test]
+    fn create_request_accepts_fields_at_max_length() {
+        let name = "n".repeat(API_KEY_NAME_MAX_LENGTH);
+        let description = "d".repeat(API_KEY_DESCRIPTION_MAX_LENGTH);
+
+        assert!(create_request(&name, Some(&description)).validate().is_ok());
+        assert!(create_request(&name, None).validate().is_ok());
+    }
+
+    #[test]
+    fn create_request_rejects_description_over_max_length() {
+        let description = "d".repeat(API_KEY_DESCRIPTION_MAX_LENGTH + 1);
+
+        let error = create_request("Sandbox key", Some(&description))
+            .validate()
+            .expect_err("description over the limit should be rejected");
+
+        assert_eq!(error, "`description` must not exceed 256 characters");
+    }
+
+    #[test]
+    fn create_request_rejects_name_over_max_length() {
+        let name = "n".repeat(API_KEY_NAME_MAX_LENGTH + 1);
+
+        let error = create_request(&name, None)
+            .validate()
+            .expect_err("name over the limit should be rejected");
+
+        assert_eq!(error, "`name` must not exceed 64 characters");
+    }
+
+    #[test]
+    fn length_is_counted_in_characters_not_bytes() {
+        // Each "é" is two bytes in UTF-8, so this is 256 characters but 512 bytes.
+        let description = "é".repeat(API_KEY_DESCRIPTION_MAX_LENGTH);
+
+        assert!(create_request("Sandbox key", Some(&description))
+            .validate()
+            .is_ok());
+    }
+
+    #[test]
+    fn update_request_accepts_missing_fields() {
+        assert!(update_request(None, None).validate().is_ok());
+    }
+
+    #[test]
+    fn update_request_rejects_fields_over_max_length() {
+        let name = "n".repeat(API_KEY_NAME_MAX_LENGTH + 1);
+        let description = "d".repeat(API_KEY_DESCRIPTION_MAX_LENGTH + 1);
+
+        assert_eq!(
+            update_request(Some(&name), None).validate(),
+            Err("`name` must not exceed 64 characters".to_string())
+        );
+        assert_eq!(
+            update_request(None, Some(&description)).validate(),
+            Err("`description` must not exceed 256 characters".to_string())
+        );
     }
 }
