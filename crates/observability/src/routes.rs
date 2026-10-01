@@ -9,8 +9,12 @@ pub mod dictionary;
 pub mod health_check;
 pub mod lifecycle_events;
 pub mod metadata;
+#[cfg(feature = "v1")]
+pub mod monitoring;
 pub mod notify;
 pub mod rule_toggles;
 pub mod thresholds;
 
+#[cfg(feature = "v1")]
+pub use self::app::Monitoring;
 pub use self::app::{Alerts, Health};

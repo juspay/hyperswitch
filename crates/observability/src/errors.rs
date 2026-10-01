@@ -19,7 +19,10 @@ pub mod types;
 use common_utils::errors::ErrorSwitch;
 use thiserror::Error;
 
-use crate::errors::types::{ApiError, ApiErrorResponse};
+use crate::{
+    core::router_client::RouterError,
+    errors::types::{ApiError, ApiErrorResponse},
+};
 
 /// Errors raised while the application is starting up.
 ///
@@ -75,6 +78,15 @@ pub enum ObservabilityError {
     #[error("Authentication failed")]
     Unauthorized,
 
+    #[error("Invalid session credential")]
+    InvalidSession,
+    #[error("Unknown monitoring destination")]
+    UnknownMonitoringDestination,
+    #[error("Monitoring permission denied")]
+    MonitoringForbidden,
+    #[error("Router unavailable")]
+    RouterUnavailable,
+
     /// The request body was structurally valid but contained unusable values.
     #[error("The request body is invalid")]
     InvalidRequest,
@@ -121,6 +133,18 @@ impl ErrorSwitch<ApiErrorResponse> for ObservabilityError {
                 1,
                 "API key not provided or invalid",
             )),
+            Self::UnknownMonitoringDestination => {
+                ApiErrorResponse::NotFound(ApiError::new("IR", 8, "Unknown monitoring destination"))
+            }
+            Self::InvalidSession => {
+                ApiErrorResponse::Unauthorized(ApiError::new("IR", 6, "Invalid session credential"))
+            }
+            Self::MonitoringForbidden => {
+                ApiErrorResponse::Forbidden(ApiError::new("IR", 7, "Monitoring permission denied"))
+            }
+            Self::RouterUnavailable => {
+                ApiErrorResponse::ServiceUnavailable(ApiError::new("HE", 4, "Router unavailable"))
+            }
             Self::InvalidRequest => ApiErrorResponse::BadRequest(ApiError::new(
                 "IR",
                 4,
@@ -205,5 +229,15 @@ mod tests {
 
         assert!(body.contains("IR_02"));
         assert!(!body.contains("typo"));
+    }
+}
+
+impl From<RouterError> for ObservabilityError {
+    fn from(error: RouterError) -> Self {
+        match error {
+            RouterError::InvalidCredential => Self::InvalidSession,
+            RouterError::PermissionDenied => Self::MonitoringForbidden,
+            RouterError::Unavailable => Self::RouterUnavailable,
+        }
     }
 }
