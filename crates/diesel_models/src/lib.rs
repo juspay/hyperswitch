@@ -323,7 +323,11 @@ pub(crate) mod metrics {
     global_meter!(GLOBAL_METER, "ROUTER_API");
 
     counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
-    histogram_metric_f64!(DATABASE_CALL_TIME, GLOBAL_METER);
+    histogram_metric_f64!(
+        DATABASE_CALL_TIME,
+        GLOBAL_METER,
+        boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
+    );
 }
 
 #[cfg(feature = "tokenization_v2")]
