@@ -19,13 +19,13 @@ use external_services::superposition::{
 };
 
 use crate::{
-    consts::user_role::{ROLE_ID_MERCHANT_ADMIN, ROLE_ID_PROFILE_ADMIN},
     core::errors::{self, RouterResponse},
     services::{authentication::UserFromToken, ApplicationResponse},
     SessionState,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, strum::EnumString, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
 #[allow(clippy::enum_variant_names)]
 enum ScopingDimension {
     OrganizationId,
@@ -36,15 +36,15 @@ enum ScopingDimension {
 }
 
 impl ScopingDimension {
+    const REQUIRED: [Self; 4] = [
+        Self::OrganizationId,
+        Self::ProfileId,
+        Self::ProcessorMerchantId,
+        Self::ProviderMerchantId,
+    ];
+
     fn from_context_key(key: &str) -> Option<Self> {
-        match key {
-            "organization_id" => Some(Self::OrganizationId),
-            "merchant_id" => Some(Self::MerchantId),
-            "profile_id" => Some(Self::ProfileId),
-            "provider_merchant_id" => Some(Self::ProviderMerchantId),
-            "processor_merchant_id" => Some(Self::ProcessorMerchantId),
-            _ => None,
-        }
+        key.parse().ok()
     }
 
     fn from_dimension_param(key: &str) -> Option<Self> {
@@ -64,90 +64,65 @@ impl ScopingDimension {
     }
 }
 
-fn validate_superposition_params(
-    params: &[(String, String)],
+fn validate_scope<'a>(
+    dimensions: impl Iterator<Item = (ScopingDimension, Option<&'a str>)>,
     auth: &UserFromToken,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    let unauthorized = || {
-        error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
-            resource: "superposition".to_string(),
-        })
-    };
-    for (key, value) in params {
-        if let Some(dimension) = ScopingDimension::from_dimension_param(key) {
-            if value != dimension.expected_value(auth) {
-                return Err(unauthorized());
-            }
-        }
-    }
-    Ok(())
-}
+    let dimensions = dimensions.collect::<Vec<_>>();
 
-fn require_superposition_context(
-    params: &[(String, String)],
-) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    let has_scoping_dimension = params
-        .iter()
-        .any(|(k, _)| ScopingDimension::from_dimension_param(k).is_some());
-    if !has_scoping_dimension {
+    let missing = ScopingDimension::REQUIRED
+        .into_iter()
+        .filter(|required| {
+            !dimensions
+                .iter()
+                .any(|(dimension, _)| dimension == required)
+        })
+        .map(<&'static str>::from)
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
         return Err(error_stack::report!(
             errors::ApiErrorResponse::InvalidRequestData {
-                message: "at least one dimension filter (organization_id, provider_merchant_id, processor_merchant_id, merchant_id, or profile_id) is required".to_string(),
+                message: format!("scope is missing: {}", missing.join(", ")),
+            }
+        ));
+    }
+
+    let is_out_of_scope = dimensions
+        .iter()
+        .any(|(dimension, value)| *value != Some(dimension.expected_value(auth)));
+    if is_out_of_scope {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "superposition".to_string(),
             }
         ));
     }
     Ok(())
+}
+
+fn validate_superposition_params(
+    params: &[(String, String)],
+    auth: &UserFromToken,
+) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+    let dimensions = params.iter().filter_map(|(key, value)| {
+        ScopingDimension::from_dimension_param(key)
+            .map(|dimension| (dimension, Some(value.as_str())))
+    });
+    validate_scope(dimensions, auth)
 }
 
 fn validate_superposition_context_body(
     context: &serde_json::Value,
     auth: &UserFromToken,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    let Some(context_obj) = context.as_object() else {
-        return Ok(());
-    };
-    let has_scoping_dim = context_obj
-        .keys()
-        .any(|k| ScopingDimension::from_context_key(k).is_some());
-    if !has_scoping_dim {
-        return Err(error_stack::report!(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "context must contain at least one of: organization_id, profile_id, provider_merchant_id, processor_merchant_id".to_string(),
-            }
-        ));
-    }
-    let is_merchant_admin_role = auth.role_id == ROLE_ID_MERCHANT_ADMIN;
-    let is_profile_admin_role = auth.role_id == ROLE_ID_PROFILE_ADMIN;
-    let has_merchant_level_dim = context_obj.contains_key("merchant_id")
-        || context_obj.contains_key("profile_id")
-        || context_obj.contains_key("processor_merchant_id")
-        || context_obj.contains_key("provider_merchant_id");
-    if is_merchant_admin_role
-        && context_obj.contains_key("organization_id")
-        && !has_merchant_level_dim
-    {
-        return Err(error_stack::report!(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "superposition".to_string(),
-            }
-        ));
-    }
-    // Profile admin: body must carry profile_id (no org-only/merchant-only contexts).
-    if is_profile_admin_role && !context_obj.contains_key("profile_id") {
-        return Err(error_stack::report!(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "superposition".to_string(),
-            }
-        ));
-    }
-    let params = context_obj
-        .iter()
-        .filter_map(|(k, v)| {
-            v.as_str()
-                .map(|s| (format!("dimension[{k}]"), s.to_owned()))
-        })
-        .collect::<Vec<_>>();
-    validate_superposition_params(&params, auth)
+    let dimensions = context
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(key, value)| {
+            ScopingDimension::from_context_key(key).map(|dimension| (dimension, value.as_str()))
+        });
+    validate_scope(dimensions, auth)
 }
 
 fn map_superposition_err(
@@ -412,7 +387,6 @@ impl SuperpositionProxyFlow for ListContextsQuery {
         org_id: String,
         workspace_id: String,
     ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
-        require_superposition_context(&self.dimension_params)?;
         validate_superposition_params(&self.dimension_params, auth)?;
 
         let output = self
@@ -801,7 +775,6 @@ impl SuperpositionProxyFlow for ListAuditLogsQuery {
         org_id: String,
         workspace_id: String,
     ) -> Result<Self::Response, error_stack::Report<errors::ApiErrorResponse>> {
-        require_superposition_context(&self.dimension_params)?;
         validate_superposition_params(&self.dimension_params, auth)?;
 
         let output = self
