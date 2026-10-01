@@ -24,7 +24,7 @@ use crate::{
     SessionState,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, strum::EnumString, strum::IntoStaticStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 #[allow(clippy::enum_variant_names)]
 enum ScopingDimension {
@@ -44,7 +44,14 @@ impl ScopingDimension {
     ];
 
     fn from_context_key(key: &str) -> Option<Self> {
-        key.parse().ok()
+        match key {
+            "organization_id" => Some(Self::OrganizationId),
+            "merchant_id" => Some(Self::MerchantId),
+            "profile_id" => Some(Self::ProfileId),
+            "provider_merchant_id" => Some(Self::ProviderMerchantId),
+            "processor_merchant_id" => Some(Self::ProcessorMerchantId),
+            _ => None,
+        }
     }
 
     fn from_dimension_param(key: &str) -> Option<Self> {
