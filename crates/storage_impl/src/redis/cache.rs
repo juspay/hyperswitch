@@ -131,11 +131,12 @@ impl CacheSettings {
 
     /// Builds the cache this configuration describes.
     ///
-    /// `default` is the cache's own ceiling when the configuration names none, `None` meaning
-    /// unbounded.
-    fn build(&self, name: &'static str, default: Option<u64>) -> Cache {
+    /// `id` names the cache being built, and supplies the name it reports itself under in
+    /// metrics. `default` is the cache's own ceiling when the configuration names none,
+    /// `None` meaning unbounded.
+    fn build(&self, id: CacheId, default: Option<u64>) -> Cache {
         Cache::new(
-            name,
+            id.name(),
             self.time_to_live(),
             self.time_to_idle(),
             self.max_entries(default),
@@ -219,27 +220,27 @@ impl Caches {
                 .invalidation_channel
                 .clone()
                 .unwrap_or_else(|| DEFAULT_IMC_INVALIDATION_CHANNEL.to_string()),
-            config: config.config.build("CONFIG_CACHE", UNBOUNDED),
-            accounts: config.accounts.build("ACCOUNTS_CACHE", DEFAULT),
-            mca_list: config.mca_list.build("MCA_LIST_CACHE", DEFAULT),
-            routing: config.routing.build("ROUTING_CACHE", DEFAULT),
+            config: config.config.build(CacheId::Config, UNBOUNDED),
+            accounts: config.accounts.build(CacheId::Accounts, DEFAULT),
+            mca_list: config.mca_list.build(CacheId::McaList, DEFAULT),
+            routing: config.routing.build(CacheId::Routing, DEFAULT),
             decision_manager: config
                 .decision_manager
-                .build("DECISION_MANAGER_CACHE", DEFAULT),
-            surcharge: config.surcharge.build("SURCHARGE_CACHE", DEFAULT),
-            cgraph: config.cgraph.build("CGRAPH_CACHE", DEFAULT),
+                .build(CacheId::DecisionManager, DEFAULT),
+            surcharge: config.surcharge.build(CacheId::Surcharge, DEFAULT),
+            cgraph: config.cgraph.build(CacheId::CGraph, DEFAULT),
             pm_filters_cgraph: config
                 .pm_filters_cgraph
-                .build("PM_FILTERS_CGRAPH_CACHE", DEFAULT),
+                .build(CacheId::PmFiltersCGraph, DEFAULT),
             success_based_dynamic_algorithm: config
                 .success_based_dynamic_algorithm
-                .build("SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE", DEFAULT),
+                .build(CacheId::SuccessBasedDynamicAlgorithm, DEFAULT),
             elimination_based_dynamic_algorithm: config
                 .elimination_based_dynamic_algorithm
-                .build("ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE", DEFAULT),
+                .build(CacheId::EliminationBasedDynamicAlgorithm, DEFAULT),
             contract_based_dynamic_algorithm: config
                 .contract_based_dynamic_algorithm
-                .build("CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE", DEFAULT),
+                .build(CacheId::ContractBasedDynamicAlgorithm, DEFAULT),
         }
     }
 
@@ -368,6 +369,30 @@ pub enum CacheId {
     EliminationBasedDynamicAlgorithm,
     ContractBasedDynamicAlgorithm,
 }
+
+impl CacheId {
+    /// The name this cache reports itself under in metrics and traces, as the `cache_type`
+    /// attribute.
+    ///
+    /// Kept verbatim: dashboards and alerts match on these strings, so they are part of the
+    /// deployment's interface rather than an internal label.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Config => "CONFIG_CACHE",
+            Self::Accounts => "ACCOUNTS_CACHE",
+            Self::McaList => "MCA_LIST_CACHE",
+            Self::Routing => "ROUTING_CACHE",
+            Self::DecisionManager => "DECISION_MANAGER_CACHE",
+            Self::Surcharge => "SURCHARGE_CACHE",
+            Self::CGraph => "CGRAPH_CACHE",
+            Self::PmFiltersCGraph => "PM_FILTERS_CGRAPH_CACHE",
+            Self::SuccessBasedDynamicAlgorithm => "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+            Self::EliminationBasedDynamicAlgorithm => "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
+            Self::ContractBasedDynamicAlgorithm => "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
+        }
+    }
+}
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
