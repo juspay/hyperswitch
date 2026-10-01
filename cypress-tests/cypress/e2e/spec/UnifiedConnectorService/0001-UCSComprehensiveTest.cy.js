@@ -328,7 +328,6 @@ describe("UCS Comprehensive Test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -343,7 +342,6 @@ describe("UCS Comprehensive Test", () => {
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState
@@ -359,7 +357,6 @@ describe("UCS Comprehensive Test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -374,7 +371,6 @@ describe("UCS Comprehensive Test", () => {
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState
@@ -388,7 +384,6 @@ describe("UCS Comprehensive Test", () => {
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState
@@ -404,7 +399,6 @@ describe("UCS Comprehensive Test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         "new_mandate",
@@ -466,7 +460,6 @@ describe("UCS Comprehensive Test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        0,
         true,
         "automatic",
         "setup_mandate",
@@ -481,7 +474,6 @@ describe("UCS Comprehensive Test", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        7000,
         true,
         "automatic",
         globalState

@@ -134,6 +134,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Paysera => Ok(dirval!(WalletType = Paysera)),
             api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
+            api_enums::PaymentMethodType::Neteller => Ok(dirval!(WalletType = Neteller)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
             #[cfg(feature = "v2")]
@@ -383,6 +384,11 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Prop => Ok(dirval!(CardNetwork = Prop)),
             Self::PrivateLabel => Ok(dirval!(CardNetwork = PrivateLabel)),
             Self::Dinacard => Ok(dirval!(CardNetwork = Dinacard)),
+            Self::AirPlus => Ok(dirval!(CardNetwork = AirPlus)),
+            Self::Aurore => Ok(dirval!(CardNetwork = Aurore)),
+            Self::EftposAustralia => Ok(dirval!(CardNetwork = EftposAustralia)),
+            Self::GeCapital => Ok(dirval!(CardNetwork = GeCapital)),
+            Self::Uatp => Ok(dirval!(CardNetwork = Uatp)),
         }
     }
 }

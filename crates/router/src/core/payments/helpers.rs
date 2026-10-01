@@ -64,14 +64,12 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
-use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
 use rust_decimal::Decimal;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{serde_as, VecSkipError};
-use uuid::Uuid;
 use x509_parser::parse_x509_certificate;
 
 use super::{
@@ -903,7 +901,7 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token = Uuid::new_v4().to_string();
+    let token = common_utils::generate_uuid_v4().to_string();
     let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
@@ -1544,7 +1542,7 @@ pub async fn add_domain_task_to_pt<Op>(
 where
     Op: std::fmt::Debug,
 {
-    if check_if_operation_confirm(operation) {
+    if check_if_operation_adds_payment_sync_task(operation) {
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -2512,7 +2510,7 @@ pub fn decide_payment_method_retrieval_action(
 
 pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
+    db.find_config_by_key_unwrap_or(config_key, "false".to_string())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
@@ -2533,13 +2531,16 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
 #[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
     #[serde(default = "default_kill_switch_enabled")]
     pub kill_switch_enabled: bool,
     #[serde(default = "default_kill_switch_threshold")]
     pub kill_switch_threshold: u64,
+    /// Threshold for connector declines (UCS answered, the connector refused).
+    /// Unset means declines never trip the kill switch; other failures still use
+    /// `kill_switch_threshold`.
+    #[serde(default)]
+    pub connector_decline_threshold: Option<u64>,
 }
 
 fn default_kill_switch_enabled() -> bool {
@@ -2564,11 +2565,10 @@ impl Default for RolloutConfig {
     fn default() -> Self {
         Self {
             rollout_percent: 0.0,
-            http_url: None,
-            https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
         }
     }
 }
@@ -2583,6 +2583,28 @@ pub struct RolloutExecutionResult {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
+    /// See `RolloutConfig::connector_decline_threshold`.
+    pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate evaluated this config under, set by the gate rather than by
+    /// `From<RolloutConfig>`: the config value does not know which key it was read from.
+    /// `None` until the gate runs, and on paths no gate governs.
+    pub rollout_scope: Option<String>,
+}
+
+impl RolloutExecutionResult {
+    /// The gate-resolved values the failure path needs, so a failure counts against the same
+    /// scope and thresholds the gate used rather than recomputing either.
+    pub fn rollout_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
+        }
+    }
 }
 
 impl Default for RolloutExecutionResult {
@@ -2593,6 +2615,8 @@ impl Default for RolloutExecutionResult {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            rollout_scope: None,
         }
     }
 }
@@ -2603,36 +2627,31 @@ pub struct WebhookRolloutExecutionResult {
     pub webhook_flows: Vec<api::WebhookFlow>,
 }
 
-/// Validates a proxy URL, filtering out invalid ones and logging warnings
-fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
-    url.and_then(|url_str| {
-        if url_str.trim().is_empty() || url::Url::parse(&url_str).is_err() {
-            logger::warn!(
-                invalid_url = %url_str,
-                url_type = url_type,
-                "Invalid proxy URL in rollout config, ignoring"
-            );
-            None
-        } else {
-            Some(url_str)
-        }
-    })
+/// Validates a proxy URL, filtering out invalid (empty or unparseable) ones and logging warnings
+fn validate_proxy_url(url: String, url_type: &str) -> Option<String> {
+    if url.trim().is_empty() || url::Url::parse(&url).is_err() {
+        logger::warn!(
+            invalid_url = %url,
+            url_type = url_type,
+            "Invalid proxy URL in comparison service config, ignoring"
+        );
+        None
+    } else {
+        Some(url)
+    }
 }
 
 /// Creates proxy override with validated URLs and logging
-fn create_proxy_override(
-    http_url: Option<String>,
-    https_url: Option<String>,
-) -> Option<ProxyOverride> {
+fn create_proxy_override(http_url: String, https_url: String) -> Option<ProxyOverride> {
     let validated_http = validate_proxy_url(http_url, "HTTP");
     let validated_https = validate_proxy_url(https_url, "HTTPS");
 
     if validated_http.is_some() || validated_https.is_some() {
         if let Some(ref http_url) = validated_http {
-            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from rollout config");
+            logger::info!(http_url = %http_url, "Using validated HTTP proxy URL from comparison service config");
         }
         if let Some(ref https_url) = validated_https {
-            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from rollout config");
+            logger::info!(https_url = %https_url, "Using validated HTTPS proxy URL from comparison service config");
         }
         Some(ProxyOverride {
             http_url: validated_http,
@@ -2641,6 +2660,16 @@ fn create_proxy_override(
     } else {
         None
     }
+}
+
+/// Builds the rollout proxy override from the env-configured comparison service, rather than
+/// from the DB-backed rollout config.
+fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
+    let comparison_service = state.conf.comparison_service.as_ref()?;
+    create_proxy_override(
+        comparison_service.http_url.clone(),
+        comparison_service.https_url.clone(),
+    )
 }
 
 // Helper function to execute rollout logic or return default
@@ -2657,7 +2686,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                 Self::default()
             }
             true => {
-                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                let sampled_value: f64 = common_utils::generate_random_f64_unit();
                 let should_execute = sampled_value < config.rollout_percent;
 
                 logger::debug!(
@@ -2670,18 +2699,20 @@ impl From<RolloutConfig> for RolloutExecutionResult {
 
                 match should_execute {
                     true => {
-                        let proxy_override =
-                            create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
                             execution_mode = ?config.execution_mode,
-                            "Rollout will be executed with proxy override"
+                            "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            proxy_override,
                             execution_mode: config.execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            connector_decline_threshold: config.connector_decline_threshold,
+                            // Proxy override is sourced from the env-configured comparison
+                            // service, not from the DB rollout config — populated by the caller
+                            // after conversion.
+                            ..Default::default()
                         }
                     }
                     false => {
@@ -2718,38 +2749,35 @@ where
 {
     let db = state.store.as_ref();
 
-    match db.find_config_by_key(config_key).await {
-        Ok(rollout_config) => {
+    match db.find_config_by_key_optional(config_key).await {
+        Ok(Some(rollout_config)) => {
             // Parse as JSON - log error if it fails but don't propagate
-            Ok(serde_json::from_str::<C>(&rollout_config.config)
+            let parsed_rollout_config: Result<C, _> =
+                rollout_config.config.parse_struct("RolloutConfig");
+            Ok(parsed_rollout_config
                 .map(R::from)
                 .map_err(|err| {
                     logger::error!(
                         error = ?err,
-                        config = %rollout_config.config,
                         "Failed to parse rollout config as JSON. Defaulting to not execute and setting should_execute to false."
                     );
                     R::default()
                 })
                 .unwrap_or_default())
         }
+        // ValueNotFound may be an expected outcome when a rollout configuration has not
+        // been provisioned. Treat it as a warning to avoid generating misleading errors.
+        Ok(None) => {
+            logger::warn!(
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
+            Ok(R::default())
+        }
         Err(err) => {
-            // ValueNotFound may be an expected outcome when a rollout configuration has not
-            // been provisioned. Treat it as a warning to avoid generating misleading errors.
-            match err.current_context() {
-                errors::StorageError::ValueNotFound(_) => {
-                    logger::warn!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-                _ => {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
-                    );
-                }
-            }
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+            );
             Ok(R::default())
         }
     }
@@ -2764,8 +2792,9 @@ where
 /// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
 /// 4. `ucs_rollout_config_<org_id>`                                — org level
 ///
-/// Uses `find_config_by_key_unwrap_or` with a sentinel so absent keys are cached after
-/// the first DB miss — subsequent requests hit in-memory cache instead of the DB.
+/// Uses `find_config_by_key_unwrap_or` with a sentinel default; the key's absence
+/// (not the sentinel itself) is cached after the first DB miss, so subsequent
+/// requests still hit in-memory cache instead of the DB.
 /// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
 pub async fn should_execute_based_on_rollout_with_precedence(
     state: &SessionState,
@@ -2777,7 +2806,7 @@ pub async fn should_execute_based_on_rollout_with_precedence(
         // Box the future to avoid large stack frames from nested async in debug builds
         let result = Box::pin(state.store.find_config_by_key_unwrap_or(
             key,
-            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+            consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string(),
         ))
         .await
         .ok();
@@ -2790,17 +2819,22 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             }
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
-                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                let parsed_rollout_config: Result<RolloutConfig, _> =
+                    config.config.parse_struct("RolloutConfig");
+                let mut execution_result = parsed_rollout_config
                     .map(RolloutExecutionResult::from)
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,
-                            config = %config.config,
                             "Failed to parse rollout config as JSON. Defaulting to not execute."
                         );
                         RolloutExecutionResult::default()
                     })
-                    .unwrap_or_default());
+                    .unwrap_or_default();
+                if execution_result.should_execute {
+                    execution_result.proxy_override = build_rollout_proxy_override(state);
+                }
+                return Ok(execution_result);
             }
             None => {
                 // Unexpected DB error — skip and try next key
@@ -3951,11 +3985,24 @@ pub async fn store_payment_method_data_in_vault(
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
+    let should_store_google_pay_pan_only_for_three_ds = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| api_enums::Connector::from_str(connector).ok())
+        .is_some_and(|connector| {
+            connector.should_store_google_pay_pan_only_for_three_ds(
+                payment_method,
+                payment_attempt.authentication_type,
+                payment_method_data.is_google_pay_pan_only(),
+            )
+        });
+
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
     ) || payment_intent.request_external_three_ds_authentication == Some(true)
+        || should_store_google_pay_pan_only_for_three_ds
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
             state,
@@ -3973,6 +4020,7 @@ pub async fn store_payment_method_data_in_vault(
 
     Ok(None)
 }
+
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,
@@ -4385,7 +4433,7 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", Uuid::new_v4().simple());
+    let secret = format!("epk_{}", common_utils::generate_uuid_v4().simple());
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -4608,8 +4656,11 @@ pub fn hmac_sha512_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
-pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{operations:?}") == "PaymentConfirm"
+pub fn check_if_operation_adds_payment_sync_task<Op: std::fmt::Debug>(operations: Op) -> bool {
+    matches!(
+        format!("{operations:?}").as_str(),
+        "PaymentConfirm" | "PaymentCapture"
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5261,13 +5312,21 @@ pub async fn get_merchant_connector_account(
             };
 
             let db_fetch = || async {
-                db.find_config_by_key(cloned_key.as_str())
+                let config_optional = db
+                    .find_config_by_key_optional(cloned_key.as_str())
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                             id: cloned_key.to_owned(),
                         },
+                    )?;
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::from(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: cloned_key.to_owned(),
+                        },
                     )
+                })
             };
 
             let mca_config: String = redis_fetch()
@@ -5425,6 +5484,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payout_id: router_data.payout_id,
         connector_response: router_data.connector_response,
         integrity_check: Ok(()),
+        accept_amount_mismatch: router_data.accept_amount_mismatch,
         connector_wallets_details: router_data.connector_wallets_details,
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
@@ -5587,9 +5647,7 @@ fn validate_manual_retry_cutoff(
     intent_fulfillment_time: Option<i64>,
     is_token_based_retry: bool,
 ) -> bool {
-    let utc_current_time = time::OffsetDateTime::now_utc();
-    let primitive_utc_current_time =
-        time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
+    let primitive_utc_current_time = common_utils::date_time::now();
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
     // Token based retries (S2S) use the fulfillment window;
@@ -5761,6 +5819,7 @@ impl AttemptType {
             applied_offer_details: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            active_frm_id: None,
         }
     }
 
@@ -7411,6 +7470,13 @@ pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
     recipient_id: hyperswitch_masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
+    /// Tokenization type the merchant configured on its MCA. `INTERNAL_GATEWAY` tokens get the
+    /// additional `gatewayMerchantId` check after decryption; every other type keeps today's
+    /// behaviour.
+    tokenization_type: api_models::payments::GooglePayTokenizationType,
+    /// Hyperswitch merchant id that was sent to Google as `gateway_merchant_id`. Set for
+    /// `INTERNAL_GATEWAY` only, and checked against the decrypted token.
+    gateway_merchant_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -7473,7 +7539,7 @@ fn check_expiration_date_is_valid(
     let expiration_time =
         time::OffsetDateTime::from_unix_timestamp_nanos(expiration_ms * 1_000_000)
             .change_context(errors::GooglePayDecryptionError::InvalidExpirationTime)?;
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
 
     Ok(expiration_time > now)
 }
@@ -7518,6 +7584,8 @@ impl GooglePayTokenDecryptor {
         root_keys: hyperswitch_masking::Secret<String>,
         recipient_id: hyperswitch_masking::Secret<String>,
         private_key: hyperswitch_masking::Secret<String>,
+        tokenization_type: api_models::payments::GooglePayTokenizationType,
+        gateway_merchant_id: Option<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
@@ -7544,6 +7612,8 @@ impl GooglePayTokenDecryptor {
             root_signing_keys: filtered_root_signing_keys,
             recipient_id,
             private_key,
+            tokenization_type,
+            gateway_merchant_id,
         })
     }
 
@@ -7561,7 +7631,6 @@ impl GooglePayTokenDecryptor {
             .parse_struct("EncryptedData")
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
-        // verify the signature if required
         if should_verify_signature {
             self.verify_signature(&encrypted_data)?;
         }
@@ -7591,6 +7660,16 @@ impl GooglePayTokenDecryptor {
                 .parse_struct("GooglePayPredecryptDataInternal")
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
+        // `gatewayMerchantId` only exists once the message is decrypted, so this half of the
+        // INTERNAL_GATEWAY verification necessarily runs here rather than alongside the signature
+        // checks above.
+        if matches!(
+            self.tokenization_type,
+            api_models::payments::GooglePayTokenizationType::InternalGateway
+        ) {
+            self.verify_internal_gateway_merchant_id(&decrypted_data)?;
+        }
+
         // check the expiration date of the decrypted data
 
         if matches!(
@@ -7603,6 +7682,44 @@ impl GooglePayTokenDecryptor {
         }
     }
 
+    /// Check that the decrypted token was minted for the merchant now being paid.
+    ///
+    /// Under `INTERNAL_GATEWAY` every merchant's card is encrypted to the same gateway key, so the
+    /// key alone no longer separates one merchant from another. `gateway_merchant_id` is what
+    /// does: Google echoes back the Hyperswitch merchant id that was sent in the session response,
+    /// and a mismatch means the token belongs to a different merchant's payment.
+    fn verify_internal_gateway_merchant_id(
+        &self,
+        decrypted_data: &hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal,
+    ) -> CustomResult<(), errors::GooglePayDecryptionError> {
+        let expected_gateway_merchant_id = self
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "gateway merchant id is not set on the decryptor for an INTERNAL_GATEWAY token",
+            )?;
+
+        let token_gateway_merchant_id = decrypted_data
+            .gateway_merchant_id
+            .as_ref()
+            .ok_or(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+            .attach_printable(
+                "decrypted INTERNAL_GATEWAY token does not carry a gateway merchant id",
+            )?;
+
+        if token_gateway_merchant_id != expected_gateway_merchant_id {
+            logger::warn!(
+                expected_gateway_merchant_id,
+                token_gateway_merchant_id,
+                "gateway merchant id in the token does not match the merchant"
+            );
+            Err(errors::GooglePayDecryptionError::InvalidGatewayMerchantId)
+                .attach_printable("gateway merchant id in the token does not match the merchant")?;
+        }
+
+        Ok(())
+    }
     // Verify the signature of the token
     fn verify_signature(
         &self,
@@ -8137,7 +8254,30 @@ pub fn validate_payment_link_request(
             message: "return_url must be sent while creating a payment link".to_string(),
         });
     }
-    Ok(())
+
+    #[cfg(feature = "v1")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.theme_config.redirect_delay_seconds);
+
+    #[cfg(feature = "v2")]
+    let redirect_delay = request
+        .payment_link_config
+        .as_ref()
+        .and_then(|config| config.redirect_delay_seconds);
+
+    redirect_delay
+        .filter(|&delay| delay > common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS)
+        .map(|_| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "redirect_delay_seconds must not exceed {} seconds",
+                    common_utils::consts::MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS
+                ),
+            })
+        })
+        .unwrap_or(Ok(()))
 }
 
 /// Creates a lookup key for issuer error codes with network and code
@@ -8449,16 +8589,48 @@ pub fn add_connector_response_to_additional_payment_data(
                 authentication_data,
                 payment_checks,
                 auth_code,
+                processor_card_network,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                card_type,
+                issuer_name,
+                issuer_country,
                 ..
             },
-        ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
-            api_models::payments::AdditionalCardInfo {
-                payment_checks,
-                authentication_data,
-                auth_code,
-                ..*additional_card_data.clone()
-            },
-        )),
+        ) => {
+            let connector_issuing_country =
+                issuer_country.map(|issuer_country| issuer_country.to_string());
+
+            api_models::payments::AdditionalPaymentData::Card(Box::new(
+                api_models::payments::AdditionalCardInfo {
+                    payment_checks,
+                    authentication_data,
+                    auth_code,
+                    card_network: additional_card_data
+                        .card_network
+                        .clone()
+                        .or(processor_card_network),
+                    card_issuer: additional_card_data.card_issuer.clone().or(issuer_name),
+                    card_type: additional_card_data
+                        .card_type
+                        .clone()
+                        .or(card_type.map(|card_type| card_type.to_string())),
+                    card_subtype: additional_card_data.card_subtype.clone().or(card_subtype),
+                    card_segment_type: additional_card_data.card_segment_type.or(card_segment_type),
+                    funding_source: additional_card_data.funding_source.or(funding_source),
+                    card_issuing_country: additional_card_data
+                        .card_issuing_country
+                        .clone()
+                        .or(connector_issuing_country.clone()),
+                    card_issuing_country_code: additional_card_data
+                        .card_issuing_country_code
+                        .clone()
+                        .or(connector_issuing_country),
+                    ..*additional_card_data.clone()
+                },
+            ))
+        }
         (
             api_models::payments::AdditionalPaymentData::PayLater { .. },
             AdditionalPaymentMethodConnectorResponse::PayLater {
@@ -9187,6 +9359,7 @@ pub async fn fetch_active_surcharge_mca(
 pub fn check_integrity_based_on_flow<T, Request>(
     request: &Request,
     payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
+    accept_amount_mismatch: Option<common_types::primitive_wrappers::AcceptAmountMismatchBool>,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: FlowIntegrity,
@@ -9210,7 +9383,12 @@ where
         },
         Err(_) => &None,
     };
-    request.check_integrity(request, connector_transaction_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_transaction_id.to_owned(),
+        // `None` (not resolved for this router data) defaults to `false`: a strict check.
+        accept_amount_mismatch.unwrap_or_default(),
+    )
 }
 
 pub async fn config_skip_saving_wallet_at_connector(
@@ -9220,7 +9398,7 @@ pub async fn config_skip_saving_wallet_at_connector(
     let config = db
         .find_config_by_key_unwrap_or(
             &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            Some("[]".to_string()),
+            "[]".to_string(),
         )
         .await;
     Ok(match config {
@@ -9582,7 +9760,10 @@ pub fn validate_platform_request_for_marketplace(
 
 /// Returns `true` if either the org or merchant config is set to "true"
 ///
-/// Priority logic:
+/// Resolved from Superposition (`SHOULD_ENABLE_AUTHENTICATION_SERVICE`), falling back to the
+/// legacy DB config (`authentication_service_eligible_<id>`) when Superposition has no value.
+///
+/// Priority logic (DB fallback order, see `ShouldEnableAuthenticationService::db_keys`):
 /// 1. If org-level config exists (either "true" or "false"), that decision is final
 ///    - Org = "true" → returns true (authentication enabled)
 ///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
@@ -9595,35 +9776,19 @@ pub async fn is_merchant_eligible_authentication_service(
     processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = processor
-        .get_account()
-        .get_org_id()
-        .get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+            processor.get_account().get_id().clone(),
+        ))
+        .with_organization_id(processor.get_account().get_org_id().clone());
 
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = processor
-                .get_account()
-                .get_id()
-                .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_should_enable_authentication_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await)
 }
 
@@ -9718,7 +9883,14 @@ async fn get_payment_update_enabled_for_client_auth(
 ) -> bool {
     let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
     let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    let update_enabled =
+        db.find_config_by_key_optional(key.as_str())
+            .await
+            .and_then(|config_optional| {
+                config_optional.ok_or_else(|| {
+                    error_stack::Report::new(errors::StorageError::ValueNotFound(key.clone()))
+                })
+            });
 
     match update_enabled {
         Ok(conf) => conf.config.to_lowercase() == "true",
@@ -9767,6 +9939,25 @@ pub async fn get_merchant_connector_account_v2(
         })
         .attach_printable("merchant_connector_id is not provided"),
     }
+}
+
+#[cfg(feature = "v1")]
+pub fn is_off_session_mit_for_payment_method(
+    req: &api::PaymentsRequest,
+    payment_method_id: &str,
+) -> bool {
+    req.confirm == Some(true)
+        && req.off_session == Some(true)
+        && req
+            .recurring_details
+            .as_ref()
+            .is_some_and(|recurring_details| {
+                matches!(
+                    recurring_details,
+                    RecurringDetails::PaymentMethodId(recurring_payment_method_id)
+                        if recurring_payment_method_id.as_str() == payment_method_id
+                )
+            })
 }
 
 pub fn is_stored_credential(
@@ -9890,5 +10081,109 @@ pub fn update_request_data_with_mandate_id(
                 });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod connector_response_card_merge_tests {
+    use hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse;
+
+    use super::add_connector_response_to_additional_payment_data;
+
+    /// A connector that reports every card attribute it can, as Worldpay does when `<cardBin>` is
+    /// enabled on the account.
+    fn connector_card_response() -> AdditionalPaymentMethodConnectorResponse {
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: None,
+            card_network: None,
+            domestic_network: None,
+            auth_code: Some("123456".to_string()),
+            processor_card_network: Some(common_enums::CardNetwork::Visa),
+            card_subtype: Some("ELECTRON".to_string()),
+            card_segment_type: Some(common_enums::CardSegmentType::Commercial),
+            funding_source: Some(common_enums::FundingSource::Debit),
+            card_type: Some(common_enums::CardType::Debit),
+            issuer_name: Some("CONNECTOR ISSUER".to_string()),
+            issuer_country: Some(common_enums::CountryAlpha2::GB),
+        }
+    }
+
+    fn merge(
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> api_models::payments::AdditionalCardInfo {
+        let merged = add_connector_response_to_additional_payment_data(
+            api_models::payments::AdditionalPaymentData::Card(Box::new(additional_card_info)),
+            connector_card_response(),
+        );
+
+        match merged {
+            api_models::payments::AdditionalPaymentData::Card(card) => *card,
+            other => panic!("expected card additional payment data, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn connector_card_attributes_fill_an_empty_card_record() {
+        let card = merge(api_models::payments::AdditionalCardInfo {
+            card_isin: Some("444433".to_string()),
+            ..Default::default()
+        });
+
+        assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
+        assert_eq!(card.card_type.as_deref(), Some("DEBIT"));
+        assert_eq!(card.card_subtype.as_deref(), Some("ELECTRON"));
+        assert_eq!(
+            card.card_segment_type,
+            Some(common_enums::CardSegmentType::Commercial)
+        );
+        assert_eq!(
+            card.funding_source,
+            Some(common_enums::FundingSource::Debit)
+        );
+        assert_eq!(card.card_issuing_country.as_deref(), Some("GB"));
+        assert_eq!(card.card_issuing_country_code.as_deref(), Some("GB"));
+        assert_eq!(card.card_network, Some(common_enums::CardNetwork::Visa));
+        assert_eq!(card.auth_code.as_deref(), Some("123456"));
+        assert_eq!(card.card_isin.as_deref(), Some("444433"));
+    }
+
+    #[test]
+    fn resolved_values_win_and_the_connector_only_fills_the_gaps() {
+        let card = merge(api_models::payments::AdditionalCardInfo {
+            card_issuer: Some("CURATED ISSUER".to_string()),
+            card_type: Some("CREDIT".to_string()),
+            card_issuing_country: Some("IN".to_string()),
+            ..Default::default()
+        });
+
+        assert_eq!(card.card_issuer.as_deref(), Some("CURATED ISSUER"));
+        assert_eq!(card.card_type.as_deref(), Some("CREDIT"));
+        assert_eq!(card.card_issuing_country.as_deref(), Some("IN"));
+        // The columns the BIN record left null are filled from the connector rather than staying
+        // empty, which is the case that matters for BINs whose subtype is not recorded.
+        assert_eq!(card.card_subtype.as_deref(), Some("ELECTRON"));
+        assert_eq!(
+            card.funding_source,
+            Some(common_enums::FundingSource::Debit)
+        );
+        assert_eq!(
+            card.card_segment_type,
+            Some(common_enums::CardSegmentType::Commercial)
+        );
+        assert_eq!(card.auth_code.as_deref(), Some("123456"));
+    }
+
+    #[test]
+    fn a_cobadge_resolved_network_is_not_overwritten() {
+        let card = merge(api_models::payments::AdditionalCardInfo {
+            card_network: Some(common_enums::CardNetwork::RuPay),
+            ..Default::default()
+        });
+
+        // Debit routing selects the rail the payment authorizes on, so the connector's plain scheme
+        // network must not replace it.
+        assert_eq!(card.card_network, Some(common_enums::CardNetwork::RuPay));
+        assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
     }
 }

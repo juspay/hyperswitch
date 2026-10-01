@@ -849,6 +849,6 @@ impl ConnectorSpecifications for Razorpay {
             .merchant_reference_id
             .as_ref()
             .map(|id| id.get_string_repr().to_owned())
-            .unwrap_or_else(|| uuid::Uuid::now_v7().to_string())
+            .unwrap_or_else(|| common_utils::generate_uuid_v7().to_string())
     }
 }

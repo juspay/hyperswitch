@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
+use time::Duration;
 
 use crate::{
     types::{
@@ -273,7 +273,9 @@ pub struct WaitScreenData {
 
 pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, errors::ConnectorError>
 {
-    let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let current_time = common_utils::date_time::now()
+        .assume_utc()
+        .unix_timestamp_nanos();
     Ok(Some(serde_json::json!(WaitScreenData {
         display_from_timestamp: current_time,
         display_to_timestamp: Some(current_time + Duration::minutes(5).whole_nanoseconds()),

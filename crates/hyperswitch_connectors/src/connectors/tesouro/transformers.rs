@@ -774,7 +774,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Tesouro",
+                        connector: "Tesouro".into(),
                     })?
                 }
                 get_card_payment_method(card, item.router_data.request.is_mandate_payment())
@@ -818,8 +818,11 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                             })?;
                         Some(tesouro_metadata.activity_date)
                     } else {
-                        let now = chrono::Utc::now();
-                        Some(now.format("%Y-%m-%d").to_string())
+                        Some(
+                            common_utils::date_time::now()
+                                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        )
                     }
                 };
 
@@ -851,6 +854,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
