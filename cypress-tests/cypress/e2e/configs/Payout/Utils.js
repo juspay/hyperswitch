@@ -6,6 +6,7 @@ import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
+import { connectorDetails as santanderConnectorDetails } from "./Santander.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 
@@ -15,6 +16,7 @@ const connectorDetails = {
   commons: CommonConnectorDetails,
   gotyme_sanlam: gotymeSanlamConnectorDetails,
   nomupay: nomupayConnectorDetails,
+  santander: santanderConnectorDetails,
   truelayer: truelayerConnectorDetails,
   trustly: trustlyConnectorDetails,
   wise: wiseConnectorDetails,
@@ -115,6 +117,7 @@ export const CONNECTOR_LISTS = {
     BANK_TRANSFER_OPEN_BANKING_NO_BILLING: ["trustly"],
     BANK_TRANSFER_PAYSHAP: ["gotyme_sanlam"],
     BANK_TRANSFER_PAYSHAP_PROXY: ["gotyme_sanlam"],
+    BANK_TRANSFER_PIX: ["santander"],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
