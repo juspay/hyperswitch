@@ -80,7 +80,7 @@ macro_rules! fallback_reverse_lookup_not_found {
                     _=> return Err(err)
                 }
             }
-        };
+        }
     };
 }
 
@@ -440,7 +440,7 @@ macro_rules! type_name {
         std::any::type_name::<$type>()
             .rsplit("::")
             .nth(1)
-            .unwrap_or_default();
+            .unwrap_or_default()
     };
 }
 
@@ -855,5 +855,17 @@ mod tests {
         let deserialized_bad_data: TestEnum =
             serde_json::from_str(input_bad_data).expect("Deserialize bad data should succeed");
         assert_eq!(deserialized_bad_data, TestEnum::Invalid);
+    }
+}
+
+#[cfg(test)]
+mod expression_macro_tests {
+    #[test]
+    fn type_name_is_usable_as_an_expression() {
+        // `std::vec::Vec<u8>` prints as `alloc::vec::Vec<u8>`; the parent path
+        // segment is `vec`. A trailing semicolon in the macro body is denied in
+        // expression position (`semicolon_in_expressions_from_macros`).
+        let name = crate::type_name!(std::vec::Vec<u8>);
+        assert_eq!(name, "vec");
     }
 }
