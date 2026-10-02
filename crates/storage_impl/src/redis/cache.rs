@@ -895,7 +895,9 @@ where
 {
     let type_name = std::any::type_name::<T>();
     let key = key.as_ref();
-    let redis_val = redis.get_and_deserialize_key::<T>(&key.into(), type_name).await;
+    let redis_val = redis
+        .get_and_deserialize_key::<T>(&key.into(), type_name)
+        .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
         match ttl {
