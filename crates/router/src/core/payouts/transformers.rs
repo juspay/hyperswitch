@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
+use api_models::enums as api_enums;
 use common_utils::link_utils::EnabledPaymentMethod;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
@@ -122,13 +123,15 @@ impl
     ForeignFrom<(
         &PayoutRequiredFields,
         Vec<EnabledPaymentMethod>,
+        HashMap<(api_enums::PaymentMethod, api_enums::PaymentMethodType), Vec<String>>,
         api::RequiredFieldsOverrideRequest,
     )> for Vec<api::PayoutEnabledPaymentMethodsInfo>
 {
     fn foreign_from(
-        (payout_required_fields, enabled_payout_methods, value_overrides): (
+        (payout_required_fields, enabled_payout_methods, connector_per_pmt, value_overrides): (
             &PayoutRequiredFields,
             Vec<EnabledPaymentMethod>,
+            HashMap<(api_enums::PaymentMethod, api_enums::PaymentMethodType), Vec<String>>,
             api::RequiredFieldsOverrideRequest,
         ),
     ) -> Self {
@@ -141,42 +144,48 @@ impl
                 let payment_method_types_info = enabled_payout_method
                     .payment_method_types
                     .into_iter()
-                    .filter_map(|pmt| {
-                        payout_required_fields
+                    .map(|pmt| {
+                        let required_fields = payout_required_fields
                             .0
                             .get(&payment_method)
-                            .and_then(|pmt_info| {
-                                pmt_info.0.get(&pmt).map(|connector_fields| {
-                                    let mut required_fields = HashMap::new();
+                            .and_then(|pmt_info| pmt_info.0.get(&pmt))
+                            .map(|connector_fields| {
+                                let mut merged: HashMap<String, _> = HashMap::new();
+                                // Union required fields from all configured connectors for this PMT.
+                                // This ensures the SDK collects every field that any eligible
+                                // connector might need, regardless of which one routing picks.
+                                if let Some(connector_names) =
+                                    connector_per_pmt.get(&(payment_method, pmt))
+                                {
+                                    for name in connector_names {
+                                        if let Some(rff) = api_enums::Connector::from_str(name)
+                                            .ok()
+                                            .and_then(|c| connector_fields.fields.get(&c))
+                                        {
+                                            merged.extend(rff.common.clone());
+                                        }
+                                    }
+                                }
+                                for (key, value) in &value_overrides {
+                                    merged.entry(key.to_string()).and_modify(|rf| {
+                                        rf.value = Some(hyperswitch_masking::Secret::new(
+                                            value.to_string(),
+                                        ));
+                                    });
+                                }
+                                merged
+                            });
 
-                                    for required_field_final in connector_fields.fields.values() {
-                                        required_fields.extend(required_field_final.common.clone());
-                                    }
-
-                                    for (key, value) in &value_overrides {
-                                        required_fields.entry(key.to_string()).and_modify(
-                                            |required_field| {
-                                                required_field.value =
-                                                    Some(hyperswitch_masking::Secret::new(
-                                                        value.to_string(),
-                                                    ));
-                                            },
-                                        );
-                                    }
-                                    api::PaymentMethodTypeInfo {
-                                        payment_method_type: pmt,
-                                        required_fields: if required_fields.is_empty() {
-                                            None
-                                        } else {
-                                            Some(required_fields)
-                                        },
-                                    }
-                                })
-                            })
-                            .or(Some(api::PaymentMethodTypeInfo {
-                                payment_method_type: pmt,
-                                required_fields: None,
-                            }))
+                        api::PaymentMethodTypeInfo {
+                            payment_method_type: pmt,
+                            required_fields: required_fields.and_then(|f| {
+                                if f.is_empty() {
+                                    None
+                                } else {
+                                    Some(f)
+                                }
+                            }),
+                        }
                     })
                     .collect();
 
