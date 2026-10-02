@@ -552,13 +552,10 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
-/// Strips whitespace and escapes SQL string metacharacters so the value is
-/// safe inside a single-quoted SQL literal: `'<sanitized>'`.
+/// Escapes `\` and `'` so the value stays inside a single-quoted SQL literal.
+/// Spaces are kept so values match as stored.
 pub fn sanitize_sql_string_literal(raw: &str) -> String {
-    let sanitized = raw
-        .replace(' ', "")
-        .replace('\\', "\\\\")
-        .replace('\'', "''");
+    let sanitized = raw.replace('\\', "\\\\").replace('\'', "''");
     format!("'{sanitized}'")
 }
 
