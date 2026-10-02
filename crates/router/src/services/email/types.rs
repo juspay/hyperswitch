@@ -1,5 +1,5 @@
 use api_models::user::dashboard_metadata::ProdIntent;
-use common_enums::{EntityType, MerchantProductType};
+use common_enums::EntityType;
 use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
@@ -65,7 +65,7 @@ pub enum EmailBody {
         legal_business_name: String,
         business_location: String,
         business_website: String,
-        product_type: MerchantProductType,
+        product_type: String,
     },
     ReconActivation {
         user_name: String,
@@ -585,7 +585,7 @@ pub struct BizEmailProd {
     pub settings: std::sync::Arc<configs::Settings>,
     pub theme_id: Option<String>,
     pub theme_config: EmailThemeConfig,
-    pub product_type: MerchantProductType,
+    pub product_type: String,
 }
 
 impl BizEmailProd {
@@ -622,7 +622,17 @@ impl BizEmailProd {
                 .unwrap_or_default(),
             theme_id,
             theme_config,
-            product_type: data.product_type,
+            product_type: data
+                .product_types
+                .filter(|types| !types.is_empty())
+                .map(|types| {
+                    types
+                        .iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_else(|| data.product_type.to_string()),
         })
     }
 }
@@ -636,7 +646,7 @@ impl EmailData for BizEmailProd {
             legal_business_name: self.legal_business_name.clone(),
             business_location: self.business_location.clone(),
             business_website: self.business_website.clone(),
-            product_type: self.product_type,
+            product_type: self.product_type.clone(),
         });
 
         Ok(EmailContents {
