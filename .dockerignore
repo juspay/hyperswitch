@@ -138,7 +138,8 @@ fabric.properties
 
 ### macOS ###
 # General
-.DS_Store
+# Ignore macOS Finder metadata anywhere in the context (Docker requires glob for recursive match)
+**/.DS_Store
 .AppleDouble
 .LSOverride
 
