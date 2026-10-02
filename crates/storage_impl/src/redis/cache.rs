@@ -35,15 +35,15 @@ pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 /// healthy redis/DB round trip, well under redis's own command timeout.
 pub const DEFAULT_POPULATE_TIMEOUT_IN_SECS: u64 = 5;
 
-/// Largest fraction of a redis TTL that jitter may add on top, as a divisor: `10` -> 10%.
-const REDIS_TTL_JITTER_DIVISOR: i64 = 10;
+/// Largest percentage of a redis TTL that jitter may add on top: `10` -> up to 10% more.
+const REDIS_TTL_JITTER_MAX_PERCENT: u8 = 10;
 
 /// How many times its in-memory lifetime an entry is kept in redis.
 ///
 /// Redis sits behind moka, so it spares a database read only while it outlives it. A
 /// multiple of 1 would lapse moments after the moka entry it refills and sit empty until
 /// the next miss; doubling keeps it populated across the miss that matters.
-const REDIS_TTL_MULTIPLE: u64 = 2;
+const REDIS_TTL_MULTIPLE: u8 = 2;
 
 /// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
@@ -822,6 +822,50 @@ impl Cache {
         self.inner.policy().time_to_live()
     }
 
+    /// The redis lifetime that lets redis, rather than the database, absorb a miss from this
+    /// cache.
+    ///
+    /// Multiple and jitter both describe how the two layers sit relative to each other, so
+    /// they are stated here once and [`get_or_populate_redis`] honours whatever it is handed.
+    /// The jitter only adds, so redis outliving moka holds by construction.
+    ///
+    /// `None` when this cache has no TTL to scale or the product overflows, leaving the write
+    /// on the connection's configured `default_ttl`.
+    fn redis_ttl_for(&self, key: &str) -> Option<i64> {
+        let ttl = self.time_to_live()?.as_secs();
+        let ttl = i64::try_from(ttl.checked_mul(u64::from(REDIS_TTL_MULTIPLE))?).ok()?;
+
+        Some(Self::jittered_ttl(key, ttl))
+    }
+
+    /// Extends `ttl` by up to [`REDIS_TTL_JITTER_MAX_PERCENT`], by an amount derived from `key`.
+    ///
+    /// Entries populated together — after a deploy, a flush, or a cold redis — otherwise share
+    /// one expiry instant and fall through to the database as a herd.
+    ///
+    /// The offset comes from the key rather than an RNG: decorrelating *different* keys is the
+    /// property that matters, and a pure function of the key also holds the TTL steady across
+    /// nodes and reproducible under deja replay, where `ttl_seconds` is a recorded boundary
+    /// argument. Only ever added, so the entry outlives `ttl`. A `ttl` too small or too large
+    /// to jitter is returned unchanged.
+    ///
+    /// Associated rather than an instance method: it is a pure function of `key` and `ttl`,
+    /// not of any particular cache's state.
+    fn jittered_ttl(key: &str, ttl: i64) -> i64 {
+        let Some(scaled_by_percent) = ttl.checked_mul(i64::from(REDIS_TTL_JITTER_MAX_PERCENT))
+        else {
+            return ttl;
+        };
+        let Ok(spread) = u32::try_from(scaled_by_percent / 100) else {
+            return ttl;
+        };
+        let Some(buckets) = spread.checked_add(1) else {
+            return ttl;
+        };
+
+        ttl.saturating_add(i64::from(crc32fast::hash(key.as_bytes()) % buckets))
+    }
+
     /// Records everything moka exposes about this cache's occupancy.
     ///
     /// `entry_count` and `weighted_size` are the only runtime figures it publishes — there are
@@ -843,42 +887,6 @@ impl Cache {
             metrics::IN_MEMORY_CACHE_MAX_CAPACITY.record(max_capacity, attributes);
         }
     }
-}
-
-/// Extends `ttl` by up to [`REDIS_TTL_JITTER_DIVISOR`]%, by an amount derived from `key`.
-///
-/// Entries populated together — after a deploy, a flush, or a cold redis — otherwise share
-/// one expiry instant and fall through to the database as a herd.
-///
-/// The offset comes from the key rather than an RNG: decorrelating *different* keys is the
-/// property that matters, and a pure function of the key also holds the TTL steady across
-/// nodes and reproducible under deja replay, where `ttl_seconds` is a recorded boundary
-/// argument. Only ever added, so the entry outlives `ttl`. A `ttl` too small or too large
-/// to jitter is returned unchanged.
-fn jittered_ttl(key: &str, ttl: i64) -> i64 {
-    let Ok(spread) = u32::try_from(ttl / REDIS_TTL_JITTER_DIVISOR) else {
-        return ttl;
-    };
-    let Some(buckets) = spread.checked_add(1) else {
-        return ttl;
-    };
-
-    ttl.saturating_add(i64::from(crc32fast::hash(key.as_bytes()) % buckets))
-}
-
-/// The redis lifetime that lets redis, rather than the database, absorb a miss from `cache`.
-///
-/// Multiple and jitter both describe how the two layers sit relative to each other, so they
-/// are stated here once and [`get_or_populate_redis`] honours whatever it is handed. The
-/// jitter only adds, so redis outliving moka holds by construction.
-///
-/// `None` when `cache` has no TTL to scale or the product overflows, leaving the write on
-/// the connection's configured `default_ttl`.
-fn redis_ttl_for(cache: &Cache, key: &str) -> Option<i64> {
-    let ttl = cache.time_to_live()?.as_secs();
-    let ttl = i64::try_from(ttl.checked_mul(REDIS_TTL_MULTIPLE)?).ok()?;
-
-    Some(jittered_ttl(key, ttl))
 }
 
 #[instrument(skip_all)]
@@ -950,7 +958,7 @@ where
         prefix: store.cache_key_prefix().to_string(),
     };
     // Redis is the layer behind this one, so it is held past this cache's own lifetime.
-    let redis_ttl = redis_ttl_for(cache, key);
+    let redis_ttl = cache.redis_ttl_for(key);
 
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
@@ -1410,8 +1418,9 @@ mod cache_tests {
         let ttl_in_secs = 1800;
         let cache = Cache::new("test", ttl_in_secs, 600, None, time::Duration::from_secs(5));
 
-        let redis_ttl =
-            redis_ttl_for(&cache, "merchant_1").expect("a cache built with a ttl reports one");
+        let redis_ttl = cache
+            .redis_ttl_for("merchant_1")
+            .expect("a cache built with a ttl reports one");
 
         // Doubled, then jittered upward: 3600s plus up to a tenth of it.
         assert!(
@@ -1428,9 +1437,10 @@ mod cache_tests {
     fn jitter_stays_within_the_upper_decile() {
         let ttl = 300;
         for i in 0..1000 {
-            let jittered = jittered_ttl(&format!("merchant_{i}"), ttl);
+            let jittered = Cache::jittered_ttl(&format!("merchant_{i}"), ttl);
             assert!(
-                (ttl..=ttl + ttl / REDIS_TTL_JITTER_DIVISOR).contains(&jittered),
+                (ttl..=ttl + ttl * i64::from(REDIS_TTL_JITTER_MAX_PERCENT) / 100)
+                    .contains(&jittered),
                 "ttl {jittered} out of range for merchant_{i}"
             );
         }
@@ -1496,7 +1506,7 @@ mod cache_tests {
     fn jitter_spreads_keys_and_repeats_for_one_key() {
         let ttl = 300;
         let jittered = (0..1000)
-            .map(|i| jittered_ttl(&format!("merchant_{i}"), ttl))
+            .map(|i| Cache::jittered_ttl(&format!("merchant_{i}"), ttl))
             .collect::<std::collections::HashSet<_>>();
 
         // A 300s ttl offers 31 distinct expiries; 1000 keys should reach most of them.
@@ -1504,15 +1514,15 @@ mod cache_tests {
 
         // Same key, same ttl — this is what keeps a deja replay byte-identical.
         assert_eq!(
-            jittered_ttl("merchant_1", ttl),
-            jittered_ttl("merchant_1", ttl)
+            Cache::jittered_ttl("merchant_1", ttl),
+            Cache::jittered_ttl("merchant_1", ttl)
         );
     }
 
     #[test]
     fn ttl_too_small_or_negative_is_left_alone() {
         for ttl in [-1, 0, 1, 9] {
-            assert_eq!(jittered_ttl("key", ttl), ttl);
+            assert_eq!(Cache::jittered_ttl("key", ttl), ttl);
         }
     }
 
