@@ -905,15 +905,10 @@ where
                 redis
                     .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
                     .await
-                    .change_context(StorageError::KVError)?;
             }
-            None => {
-                redis
-                    .serialize_and_set_key(&key.into(), &data)
-                    .await
-                    .change_context(StorageError::KVError)?;
-            }
+            None => redis.serialize_and_set_key(&key.into(), &data).await,
         }
+        .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
