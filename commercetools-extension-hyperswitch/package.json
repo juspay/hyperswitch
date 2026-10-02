@@ -1,0 +1,36 @@
+{
+  "name": "commercetools-extension-hyperswitch",
+  "version": "1.0.0",
+  "description": "CommerceTools HTTP API extension for Hyperswitch payment processing",
+  "main": "src/extension.js",
+  "scripts": {
+    "start": "node src/extension.js",
+    "dev": "nodemon src/extension.js",
+    "test": "jest",
+    "lint": "eslint src/",
+    "build": "echo 'No build step required for Node.js'"
+  },
+  "keywords": [
+    "commercetools",
+    "hyperswitch",
+    "payment",
+    "extension",
+    "ecommerce"
+  ],
+  "author": "Hyperswitch Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2",
+    "https-proxy-agent": "^7.0.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "eslint": "^8.53.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
