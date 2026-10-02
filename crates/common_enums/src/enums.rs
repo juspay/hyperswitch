@@ -4135,6 +4135,57 @@ pub enum SplitTxnsEnabled {
     Skip,
 }
 
+/// Whether a payment whose requested capture method is not supported by the connector chosen
+/// for it falls back to automatic capture instead of being rejected.
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AutoFallbackCaptureMethod {
+    /// Fall back to automatic capture when the requested capture method is unsupported
+    Enabled,
+    /// Reject the payment when the requested capture method is unsupported
+    Disabled,
+}
+
+impl AutoFallbackCaptureMethod {
+    /// Capture method a payment falls back to when the requested one is not supported.
+    pub const FALLBACK: CaptureMethod = CaptureMethod::Automatic;
+
+    pub fn is_enabled(self) -> bool {
+        matches!(self, Self::Enabled)
+    }
+
+    /// Whether a payment requesting `requested` may fall back to [`Self::FALLBACK`].
+    ///
+    /// The fallback is one-directional: a payment that already requests automatic capture has
+    /// nothing to fall back to, and moving it to manual capture would leave it uncaptured.
+    pub fn can_fall_back_from(self, requested: CaptureMethod) -> bool {
+        self.is_enabled() && requested != Self::FALLBACK
+    }
+}
+
+impl From<bool> for AutoFallbackCaptureMethod {
+    fn from(enabled: bool) -> Self {
+        if enabled {
+            Self::Enabled
+        } else {
+            Self::Disabled
+        }
+    }
+}
+
 #[derive(
     Clone,
     Debug,
