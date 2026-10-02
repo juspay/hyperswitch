@@ -6,7 +6,10 @@ use router_env::{instrument, tracing, Flow, Tag};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{api_locking, refunds},
+    core::{
+        api_locking::{self, GetLockingInput},
+        refunds,
+    },
     logger, routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
@@ -34,6 +37,7 @@ pub async fn refund_create(
     let create_refund_req: refund_types::RefundRequest = payload.into();
 
     let flow = Flow::RefundsCreate;
+    let locking_action = create_refund_req.get_locking_input(flow.clone());
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -56,7 +60,7 @@ pub async fn refund_create(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
