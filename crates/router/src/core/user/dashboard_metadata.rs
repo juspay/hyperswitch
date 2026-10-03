@@ -126,6 +126,14 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::PaymentAdvancedViews(operation) => {
             Ok(types::MetaData::PaymentAdvancedViews(operation))
         }
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::RefundViews(operation) => {
+            Ok(types::MetaData::RefundViews(operation))
+        }
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::DisputeViews(operation) => {
+            Ok(types::MetaData::DisputeViews(operation))
+        }
     }
 }
 
@@ -159,6 +167,10 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::PaymentViews => DBEnum::PaymentViews,
         #[cfg(feature = "v1")]
         api::GetMetaDataRequest::PaymentAdvancedViews => DBEnum::PaymentAdvancedViews,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::RefundViews => DBEnum::RefundViews,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::DisputeViews => DBEnum::DisputeViews,
     }
 }
 
@@ -269,6 +281,20 @@ fn into_response(
             let resp: Option<types::PaymentAdvancedViewsValue> =
                 utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::PaymentAdvancedViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::RefundViews => {
+            let resp: Option<types::RefundViewsValue> = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::RefundViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::DisputeViews => {
+            let resp: Option<types::DisputeViewsValue> = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::DisputeViews(
                 resp.map(|d| d.views.into_iter().map(Into::into).collect()),
             ))
         }
@@ -697,9 +723,16 @@ async fn insert_metadata(
             utils::handle_saved_view_operations(state, user, metadata_key, *operation).await
         }
         #[cfg(feature = "v1")]
+        types::MetaData::RefundViews(operation) => {
+            utils::handle_view_operations(state, user, metadata_key, *operation).await
+        }
+        #[cfg(feature = "v1")]
+        types::MetaData::DisputeViews(operation) => {
+            utils::handle_view_operations(state, user, metadata_key, *operation).await
+        }
+        #[cfg(feature = "v1")]
         types::MetaData::PaymentAdvancedViews(operation) => {
-            utils::handle_payment_advanced_view_operations(state, user, metadata_key, *operation)
-                .await
+            utils::handle_view_operations(state, user, metadata_key, *operation).await
         }
     }
 }
