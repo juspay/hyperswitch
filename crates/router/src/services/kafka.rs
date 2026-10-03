@@ -167,6 +167,14 @@ pub struct KafkaSettings {
     revenue_recovery_topic: String,
     external_service_call_topic: String,
     account_updater_topic: String,
+    // Defaulted rather than left empty: deployments predating this topic would otherwise
+    // deserialize it as an empty string and publish microservice events to no topic.
+    #[serde(default = "default_microservice_logs_topic")]
+    microservice_logs_topic: String,
+}
+
+fn default_microservice_logs_topic() -> String {
+    "hyperswitch-microservice-api-log-events".to_string()
 }
 
 /// Base rdkafka client configuration for this deployment's Kafka cluster.
@@ -288,6 +296,12 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.microservice_logs_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Microservice Logs topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 
@@ -330,6 +344,7 @@ pub struct KafkaProducer {
     revenue_recovery_topic: String,
     external_service_call_topic: String,
     account_updater_topic: String,
+    microservice_logs_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -381,6 +396,7 @@ impl KafkaProducer {
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
             external_service_call_topic: conf.external_service_call_topic.clone(),
             account_updater_topic: conf.account_updater_topic.clone(),
+            microservice_logs_topic: conf.microservice_logs_topic.clone(),
         })
     }
 
@@ -722,6 +738,7 @@ impl KafkaProducer {
             EventType::RevenueRecovery => &self.revenue_recovery_topic,
             EventType::ExternalServiceCall => &self.external_service_call_topic,
             EventType::AccountUpdater => &self.account_updater_topic,
+            EventType::MicroserviceApiLogs => &self.microservice_logs_topic,
         }
     }
 }

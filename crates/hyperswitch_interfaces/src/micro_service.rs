@@ -63,4 +63,8 @@ pub trait MicroserviceClient {
     fn should_forward_tenant_header(&self) -> bool {
         true
     }
+    /// Logical service name, stamped on the API event emitted for each call.
+    fn service_name(&self) -> &'static str {
+        "microservice"
+    }
 }
