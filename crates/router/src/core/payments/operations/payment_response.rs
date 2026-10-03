@@ -70,6 +70,7 @@ use crate::{
     routes::{metrics, SessionState},
     types::{
         self, domain,
+        payment_methods::PaymentMethodIntegrationType,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse, ErrorResponse,
@@ -187,7 +188,10 @@ where
     );
 
     if is_eligible_pm {
-        let is_ptv = payments_helpers::is_ptv_payment_method(state, payment_data).await;
+        let should_defer_payment_method_id_update =
+            payment_methods::resolve_payment_method_integration_type(state, platform).await
+                == PaymentMethodIntegrationType::PayThenVault;
+
         // A volatile record with no customer is a guest flow: it is never promoted out of redis,
         // so there is nothing for the modular update to acknowledge.
         let is_guest_volatile_payment_method = payment_data
@@ -332,65 +336,44 @@ where
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
                     {
-                        if !is_ptv {
+                        if !should_defer_payment_method_id_update {
                             payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                         }
-                        let updated_pm_id = pm_id.clone();
-
-                        // Off-session saves are awaited by default so the next MIT can read the
-                        // connector token and NTI. The rollout flag opts them into the existing
-                        // detached path, including linking the attempt only after a successful save.
+                        // Await off-session saves and PtV updates before linking the PM to the attempt.
                         let is_off_session = matches!(
                             payment_data.payment_attempt.setup_future_usage_applied,
                             Some(common_enums::FutureUsage::OffSession)
                         );
-                        let should_detach_update = if is_off_session {
-                            let dimensions =
-                                crate::core::configs::dimension_state::Dimensions::new()
-                                    .with_provider_merchant_id(
-                                        platform.get_provider().get_provider_merchant_id(),
-                                    )
-                                    .with_organization_id(
-                                        platform.get_provider().get_account().get_org_id().clone(),
-                                    );
-                            dimensions
-                                .get_should_detach_modular_payment_method_update(
-                                    state.store.as_ref(),
-                                    state.superposition_service.as_ref(),
-                                    None,
-                                )
-                                .await
-                        } else {
-                            false
-                        };
 
-                        let update_state = state.clone();
+                        let state = state.clone();
                         let processor_merchant_id =
                             payment_data.payment_attempt.processor_merchant_id.clone();
                         let profile_id = payment_data.payment_attempt.profile_id.clone();
+                        let payment_method_id = pm_id.clone();
 
                         let update_payment_method = async move {
                             match call_modular_payment_method_update(
-                                &update_state,
+                                &state,
                                 &processor_merchant_id,
                                 &profile_id,
-                                &pm_id,
+                                &payment_method_id,
                                 payload,
                             )
                             .await
                             {
                                 Ok(_) => {
                                     logger::info!(
-                                        payment_method_id=%pm_id,
+                                        payment_method_id=%payment_method_id,
                                         "Successfully called modular payment method update"
                                     );
                                     true
                                 }
                                 Err(err) => {
-                                    // Saving a PM must not fail an otherwise successful payment.
+                                    // Non-fatal by design. A volatile PM is linked to the attempt
+                                    // only after this update succeeds.
                                     logger::error!(
                                         error=%err,
-                                        payment_method_id=%pm_id,
+                                        payment_method_id=%payment_method_id,
                                         merchant_id=%processor_merchant_id.get_string_repr(),
                                         profile_id=%profile_id.get_string_repr(),
                                         "Failed to call modular payment method update; the payment method may be stale"
@@ -400,45 +383,17 @@ where
                             }
                         };
 
-                        if is_off_session && !should_detach_update {
-                            if update_payment_method.await && is_ptv {
-                                payment_data.payment_attempt.payment_method_id =
-                                    Some(updated_pm_id);
+                        if is_off_session || should_defer_payment_method_id_update {
+                            if update_payment_method.await {
+                                if should_defer_payment_method_id_update {
+                                    payment_data.payment_attempt.payment_method_id = Some(pm_id);
+                                }
+                            } else if should_defer_payment_method_id_update {
+                                payment_data.payment_method_info = None;
                             }
                         } else {
-                            logger::info!(
-                                payment_method_id=%updated_pm_id,
-                                is_off_session,
-                                should_detach_update,
-                                "Detaching modular payment method update from payment response"
-                            );
-                            let state = state.clone();
-                            let platform = platform.clone();
-                            let payment_attempt = payment_data.payment_attempt.clone();
                             spawn_save_payment_method(async move {
-                                if update_payment_method.await && is_ptv {
-                                    let processor = platform.get_processor();
-                                    let update =
-                                        storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                            payment_method_id: Some(updated_pm_id),
-                                            updated_by: processor
-                                                .get_account()
-                                                .storage_scheme
-                                                .to_string(),
-                                        };
-                                    if let Err(error) = state
-                                        .store
-                                        .update_payment_attempt_with_attempt_id(
-                                            payment_attempt,
-                                            update,
-                                            processor.get_account().storage_scheme,
-                                            processor.get_key_store(),
-                                        )
-                                        .await
-                                    {
-                                        logger::error!(?error, "Failed to link saved PtV payment method to payment attempt");
-                                    }
-                                }
+                                update_payment_method.await;
                             });
                         }
                     } else {
@@ -1051,7 +1006,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -1062,7 +1017,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     {
         update_modular_pm_and_mandate_impl(
             state,
-            _platform,
+            platform,
             resp,
             request_payment_method_data,
             payment_data,
@@ -1394,7 +1349,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -1405,7 +1360,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     {
         update_modular_pm_and_mandate_impl(
             state,
-            _platform,
+            platform,
             resp,
             request_payment_method_data,
             payment_data,
@@ -2324,7 +2279,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -2335,7 +2290,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     {
         update_modular_pm_and_mandate_impl(
             state,
-            _platform,
+            platform,
             resp,
             request_payment_method_data,
             payment_data,
@@ -2499,7 +2454,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -2510,7 +2465,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     {
         update_modular_pm_and_mandate_impl(
             state,
-            _platform,
+            platform,
             resp,
             request_payment_method_data,
             payment_data,
@@ -4656,7 +4611,7 @@ impl
             types::ExternalVaultProxyPaymentsData,
             types::PaymentsResponseData,
         >,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<
             hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
         >,
@@ -4669,7 +4624,7 @@ impl
     {
         update_modular_pm_and_mandate_impl(
             state,
-            _platform,
+            platform,
             resp,
             request_payment_method_data,
             payment_data,

@@ -37,7 +37,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payment_methods::transformers as pm_transformers,
+        payment_methods::{self, transformers as pm_transformers},
         payments::{
             self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
             OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -52,6 +52,7 @@ use crate::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
+        payment_methods::PaymentMethodIntegrationType,
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -1623,14 +1624,16 @@ impl PaymentCreate {
             request.mandate_id.is_some(),
             request.is_stored_credential,
         );
-        let is_ptv = payment_method_info
-            .as_ref()
-            .is_some_and(|pm| pm.is_pm_volatile())
-            && crate::core::payment_methods::resolve_payment_method_integration_type(
-                state, platform,
-            )
-            .await
-                == types::payment_methods::PaymentMethodIntegrationType::PayThenVault;
+        let payment_method_id = match payment_method_info.as_ref() {
+            Some(payment_method)
+                if payment_methods::resolve_payment_method_integration_type(state, platform)
+                    .await
+                    == PaymentMethodIntegrationType::VaultThenPay =>
+            {
+                Some(payment_method.get_id().clone())
+            }
+            _ => None,
+        };
         Ok((
             PaymentAttempt {
                 payment_id: payment_id.to_owned(),
@@ -1670,10 +1673,7 @@ impl PaymentCreate {
                 connector: None,
                 error_message: None,
                 offer_amount: None,
-                payment_method_id: payment_method_info
-                    .as_ref()
-                    .filter(|_| !is_ptv)
-                    .map(|pm_info| pm_info.get_id().clone()),
+                payment_method_id,
                 cancellation_reason: None,
                 error_code: None,
                 connector_metadata: None,
