@@ -869,6 +869,7 @@ impl NewUser {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
                         last_password_modified_at,
+                        password_history: user_from_db.get_password_history(),
                     },
                 )
                 .await
@@ -1030,6 +1031,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
                 .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
             lineage_context: None,
             is_active: true,
+            password_history: None,
         })
     }
 }
@@ -1310,6 +1312,16 @@ impl UserFromStorage {
 
     pub fn get_recovery_codes(&self) -> Option<Vec<Secret<String>>> {
         self.0.totp_recovery_codes.clone()
+    }
+
+    pub fn get_password_history(&self) -> Option<Vec<Secret<String>>> {
+        self.0.password_history.clone()
+    }
+
+    /// The stored hash of the user's current password, which becomes the most recent entry in
+    /// `password_history` when the password is replaced.
+    pub fn get_password_hash(&self) -> Option<Secret<String>> {
+        self.0.password.clone()
     }
 
     pub fn is_active(&self) -> bool {
