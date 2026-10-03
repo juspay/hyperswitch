@@ -1,0 +1,117 @@
+name: Detecting Unwanted Cypress Modifiers
+
+on:
+  pull_request:
+    paths:
+      - '**/*.cy.js'
+      - '**/cypress/**'
+
+jobs:
+  cypress-modifiers-check:
+    runs-on: ubuntu-latest
+    name: Check for `.skip` and `.only` in Cypress code
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed Cypress files
+        id: changed-files
+        run: |
+          # Get the base branch (usually main or master)
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          
+          # Get changed files that match our patterns
+          CHANGED_FILES=$(git diff --name-only origin/$BASE_BRANCH...HEAD | grep -E '\.(cy\.js)$|cypress/' || true)
+          
+          if [[ -n "$CHANGED_FILES" ]]; then
+            echo "any_changed=true" >> $GITHUB_OUTPUT
+            echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "any_changed=false" >> $GITHUB_OUTPUT
+            echo "changed_files=" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Changed Cypress files:"
+          echo "$CHANGED_FILES"
+
+      - name: Check for .skip and .only in Cypress files
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Checking Cypress files for .skip and .only..."
+          
+          # Initialize flag
+          MODIFIERS_FOUND=false
+          
+          # Read changed files from the output
+          CHANGED_FILES="${{ steps.changed-files.outputs.changed_files }}"
+          
+          # Check each changed file
+          while IFS= read -r file; do
+            if [[ -n "$file" && -f "$file" ]]; then
+              echo "Checking file: $file"
+              
+              # Check for .skip (active, not commented, not this.skip())
+              SKIP_RESULTS=$(grep -n "\.skip" "$file" | grep -v "this\.skip" | grep -vE "^\s*[0-9]+:\s*//" || true)
+              if [[ -n "$SKIP_RESULTS" ]]; then
+                echo -e "\n⚠️ Found .skip in $file (active, not commented):"
+                echo "$SKIP_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                done
+                MODIFIERS_FOUND=true
+              fi
+
+              # Check for .skip (commented)
+              SKIP_COMMENTED_RESULTS=$(grep -nE "^\s*//.*\.skip" "$file" | grep -v "this\.skip" || true)
+              if [[ -n "$SKIP_COMMENTED_RESULTS" ]]; then
+                echo -e "\n⚠️ Found commented .skip in $file:"
+                echo "$SKIP_COMMENTED_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                done
+                # Optionally set MODIFIERS_FOUND=true if you want to fail on commented
+              fi
+
+              # Check for .only (active, not commented)
+              ONLY_RESULTS=$(grep -n "\.only" "$file" | grep -vE "^\s*[0-9]+:\s*//" || true)
+              if [[ -n "$ONLY_RESULTS" ]]; then
+                echo -e "\n⚠️ Found .only in $file (active, not commented):"
+                echo "$ONLY_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                done
+                MODIFIERS_FOUND=true
+              fi
+
+              # Check for .only (commented)
+              ONLY_COMMENTED_RESULTS=$(grep -nE "^\s*//.*\.only" "$file" || true)
+              if [[ -n "$ONLY_COMMENTED_RESULTS" ]]; then
+                echo -e "\n⚠️ Found commented .only in $file:"
+                echo "$ONLY_COMMENTED_RESULTS" | while read -r line; do
+                  echo "  Line $line"
+                done
+                # Optionally set MODIFIERS_FOUND=true if you want to fail on commented
+              fi
+            fi
+          done <<< "$CHANGED_FILES"
+          
+          # Show results and fail the job if modifiers found
+          if [[ "$MODIFIERS_FOUND" == "true" ]]; then
+            echo -e "\n📋 Modifiers found in the above files"
+            echo "::error::Cypress code contains .skip or .only modifiers"
+            echo "::error::Consider removing these before merging to main branch if applicable"
+            # Fail the job to show red cross
+            exit 1
+          else
+            echo "✅ No .skip or .only found in Cypress files"
+            echo "::notice::No unwanted cypress modifiers were found"
+          fi
+        id: modifiers-check
+
+      - name: No Cypress changes detected
+        if: steps.changed-files.outputs.any_changed == 'false'
+        run: |
+          echo "ℹ️ No Cypress files were changed in this PR"
+          echo "Skipping check"
