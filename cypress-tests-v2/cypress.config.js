@@ -19,6 +19,12 @@ module.exports = defineConfig({
         getGlobalState: () => {
           return globalState || {};
         },
+        resetCustomerId: () => {
+          if (globalState && "customerId" in globalState) {
+            delete globalState.customerId;
+          }
+          return null;
+        },
         cli_log: (message) => {
           console.log("Logging console message from task");
           console.log(message);
