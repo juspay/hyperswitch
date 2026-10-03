@@ -1027,9 +1027,6 @@ pub struct PaymentMethodResponse {
     /// The unique identifier of the customer.
     pub customer_id: Option<id_type::CustomerId>,
 
-    /// The unique identifier of the Payment method
-    pub payment_method_id: String,
-
     /// The type of payment method use for the payment.
     pub payment_method: Option<common_enums::PaymentMethod>,
 
@@ -1064,6 +1061,10 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 
     pub locker_fingerprint_id: Option<String>,
+
+    /// Reference of the payment method data in the vault. `None` when nothing was stored in the
+    /// vault. Internal only, not part of the API response.
+    pub locker_id: Option<String>,
 }
 
 /// Struct to hold Network Tokenization Data for a payment method. This struct contains optional fields for network token requestor reference ID, network token locker ID, and network token payment method data.
