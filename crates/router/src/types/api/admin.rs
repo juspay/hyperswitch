@@ -122,7 +122,12 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_details: item.merchant_details,
-            webhook_details: item.webhook_details.clone().map(ForeignInto::foreign_into),
+            webhook_details: item
+                .webhook_details
+                .clone()
+                .map(WebhookDetails::foreign_try_from)
+                .transpose()
+                .change_context(errors::ParsingError::UrlParsingError)?,
             routing_algorithm: item.routing_algorithm,
             sub_merchants_enabled: item.sub_merchants_enabled,
             parent_merchant_id: item.parent_merchant_id,
@@ -215,7 +220,11 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
+            webhook_details: item
+                .webhook_details
+                .map(WebhookDetails::foreign_try_from)
+                .transpose()
+                .change_context(errors::ParsingError::UrlParsingError)?,
             metadata: item.metadata,
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
@@ -335,7 +344,11 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
+            webhook_details: item
+                .webhook_details
+                .map(WebhookDetails::foreign_try_from)
+                .transpose()
+                .change_context(errors::ParsingError::UrlParsingError)?,
             metadata: item.metadata,
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),

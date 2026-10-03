@@ -881,8 +881,8 @@ pub struct WebhookDetails {
     pub webhook_password: Option<Secret<String>>,
 
     ///The url for the webhook endpoint
-    #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
-    pub webhook_url: Option<Secret<String>>,
+    #[schema(value_type = Option<String>, example = "https://www.ekart.com/webhooks")]
+    pub webhook_url: Option<Secret<common_utils::outbound_url::SafeOutboundUrl>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
     #[schema(example = true)]
@@ -923,6 +923,16 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
+    /// Reject a supplied webhook URL that would bypass the configured egress proxy.
+    pub fn validate_proxy_bypass_hosts(
+        &self,
+        bypass_proxy_hosts: Option<&str>,
+    ) -> CustomResult<(), errors::ValidationError> {
+        self.webhook_url.as_ref().map_or(Ok(()), |url| {
+            url.peek().validate_proxy_bypass_hosts(bypass_proxy_hosts)
+        })
+    }
+
     pub fn merge(self, other: Self) -> Self {
         Self {
             webhook_version: other.webhook_version.or(self.webhook_version),
@@ -3930,6 +3940,54 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn merchant_create_rejects_metadata_webhook_before_core_execution() {
+        let mut request = serde_json::json!({
+            "merchant_id": "merchant_ssrf_regression",
+            "merchant_name": "outbound_url_validation",
+            "webhook_details": {
+                "webhook_password": null,
+                "webhook_url": "https://merchant.example.com/hook"
+            }
+        });
+        assert!(serde_json::from_value::<MerchantAccountCreate>(request.clone()).is_ok());
+        request
+            .get_mut("webhook_details")
+            .expect("webhook details")
+            .as_object_mut()
+            .expect("details object")
+            .insert(
+                "webhook_url".to_string(),
+                serde_json::json!("https://169.254.169.254/latest/meta-data/"),
+            );
+        assert!(serde_json::from_value::<MerchantAccountCreate>(request).is_err());
+    }
+
+    #[test]
+    fn empty_webhook_url_clears_while_omission_preserves_the_destination() {
+        let existing: WebhookDetails = serde_json::from_value(serde_json::json!({
+            "webhook_url": "https://merchant.example.com/hook"
+        }))
+        .expect("configured webhook");
+        let clear: WebhookDetails = serde_json::from_value(serde_json::json!({
+            "webhook_url": ""
+        }))
+        .expect("empty webhook URL clears the destination");
+        let cleared = serde_json::to_value(existing.clone().merge(clear)).expect("cleared webhook");
+        assert_eq!(cleared.get("webhook_url"), Some(&serde_json::json!("")));
+
+        let omitted: WebhookDetails = serde_json::from_value(serde_json::json!({
+            "payment_succeeded_enabled": true
+        }))
+        .expect("partial webhook update");
+        let retained = serde_json::to_value(existing.merge(omitted)).expect("retained webhook");
+        assert_eq!(
+            retained.get("webhook_url"),
+            Some(&serde_json::json!("https://merchant.example.com/hook"))
+        );
+    }
 
     #[test]
     fn test_payment_link_config_request_validation() {

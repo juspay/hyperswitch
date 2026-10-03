@@ -50762,7 +50762,7 @@
           "webhook_url": {
             "type": "string",
             "description": "The url for the webhook endpoint",
-            "example": "www.ekart.com/webhooks",
+            "example": "https://www.ekart.com/webhooks",
             "nullable": true
           },
           "payment_created_enabled": {
