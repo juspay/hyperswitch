@@ -190,7 +190,7 @@ impl ApiKeyInterface for Store {
             cache::get_or_populate_in_memory(
                 self,
                 &_hashed_api_key.into_inner(),
-                find_call,
+                find_call(),
                 cache::CacheId::Accounts,
             )
             .await
@@ -533,7 +533,7 @@ mod tests {
                 merchant_id.get_string_repr(),
                 hashed_api_key.clone().into_inner()
             ),
-            find_call,
+            find_call(),
             cache::CacheId::Accounts,
         )
         .await

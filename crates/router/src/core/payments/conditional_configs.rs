@@ -51,7 +51,7 @@ pub async fn perform_decision_management(
     let interpreter = cache::get_or_populate_in_memory(
         db,
         &key,
-        find_key_from_db,
+        find_key_from_db(),
         cache::CacheId::DecisionManager,
     )
     .await

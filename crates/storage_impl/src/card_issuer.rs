@@ -92,7 +92,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
         cache::get_or_populate_in_memory(
             self,
             CARD_ISSUERS_LIST_CACHE_KEY,
-            fetch_func,
+            fetch_func(),
             cache::CacheId::Config,
         )
         .await

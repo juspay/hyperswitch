@@ -62,7 +62,7 @@ impl OrganizationInterface for Store {
             cache::get_or_populate_in_memory(
                 self,
                 org_id.get_string_repr(),
-                find_call,
+                find_call(),
                 cache::CacheId::Accounts,
             )
             .await

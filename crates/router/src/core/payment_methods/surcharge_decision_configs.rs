@@ -511,7 +511,7 @@ pub async fn ensure_algorithm_cached(
             .attach_printable("Error initializing DSL interpreter backend")
     };
     let interpreter =
-        cache::get_or_populate_in_memory(store, &key, value_to_cache, cache::CacheId::Surcharge)
+        cache::get_or_populate_in_memory(store, &key, value_to_cache(), cache::CacheId::Surcharge)
             .await
             .change_context(ConfigError::CacheMiss)
             .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
