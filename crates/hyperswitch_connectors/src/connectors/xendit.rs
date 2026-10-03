@@ -1075,7 +1075,8 @@ static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
-static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
+static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Xendit {
     fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
