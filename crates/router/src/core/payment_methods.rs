@@ -4456,6 +4456,56 @@ pub async fn list_payment_methods_for_session(
     ))
 }
 
+/// Resolves the `customer_id` path segment of the saved-payment-methods (v2) API. When
+/// `use_merchant_reference_id_as_customer_id` is enabled for the org and the path value is not
+/// already in the global customer id format, it is treated as the merchant-supplied
+/// `merchant_reference_id` and resolved to the customer's real global id.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn resolve_global_customer_id_from_path(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: id_type::GlobalCustomerId,
+) -> RouterResult<id_type::GlobalCustomerId> {
+    if crate::core::customers::is_global_customer_id_format(customer_id.get_string_repr()) {
+        return Ok(customer_id);
+    }
+
+    let merchant_reference_id =
+        id_type::CustomerId::try_from(Cow::from(customer_id.get_string_repr().to_owned()))
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "customer_id".into(),
+            })?;
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(provider.get_provider_merchant_id())
+        .with_organization_id(provider.get_account().organization_id.clone());
+
+    let use_merchant_reference_id = dimensions
+        .get_use_merchant_reference_id_as_customer_id(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&merchant_reference_id),
+        )
+        .await;
+
+    if !use_merchant_reference_id {
+        return Ok(customer_id);
+    }
+
+    let customer = state
+        .store
+        .find_customer_by_merchant_reference_id_merchant_id(
+            &merchant_reference_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    Ok(customer.get_id().clone())
+}
+
 #[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all)]
 pub async fn list_saved_payment_methods_for_customer(
@@ -4464,6 +4514,8 @@ pub async fn list_saved_payment_methods_for_customer(
     customer_id: id_type::GlobalCustomerId,
     include_new: bool,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
+    let customer_id = resolve_global_customer_id_from_path(&state, &provider, customer_id).await?;
+
     let customer_payment_methods =
         list_payment_methods_core(&state, &provider, &customer_id, include_new).await?;
 
