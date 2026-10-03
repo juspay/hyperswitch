@@ -7256,8 +7256,7 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 }
 
 /// Resolves the merchant's payment-method integration type, defaulting to `VaultThenPay`.
-#[cfg(feature = "v2")]
-async fn resolve_payment_method_integration_type(
+pub(crate) async fn resolve_payment_method_integration_type(
     state: &SessionState,
     platform: &domain::Platform,
 ) -> pm_types::PaymentMethodIntegrationType {
