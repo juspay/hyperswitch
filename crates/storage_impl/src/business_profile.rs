@@ -669,7 +669,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 Self {
                     profile_name,
                     modified_at: now,
-                    return_url,
+                    return_url: Some(return_url),
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
@@ -1729,7 +1729,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 Self {
                     profile_name,
                     modified_at: now,
-                    return_url,
+                    return_url: Some(return_url),
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
