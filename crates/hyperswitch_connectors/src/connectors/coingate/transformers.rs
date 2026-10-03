@@ -183,7 +183,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
                 redirection_data: Box::new(Some(RedirectForm::Form {
                     endpoint: item.response.payment_url.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "payment_url",
+                            field_name: "payment_url".into(),
                         },
                     )?,
                     method: Method::Get,
@@ -231,7 +231,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             .as_ref()
             .get_required_value("refund_connector_metadata")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "refund_connector_metadata",
+                field_name: "refund_connector_metadata".into(),
             })?
             .clone()
             .expose();
@@ -239,23 +239,23 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
         let address: Secret<String> = serde_json::from_value::<Secret<String>>(
             refund_metadata.get("address").cloned().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "address",
+                    field_name: "address".into(),
                 }
             })?,
         )
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "address",
+            field_name: "address".into(),
         })?;
 
         let email: pii::Email = serde_json::from_value::<pii::Email>(
             refund_metadata.get("email").cloned().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "email",
+                    field_name: "email".into(),
                 }
             })?,
         )
         .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "email",
+            field_name: "email".into(),
         })?;
 
         Ok(Self {
@@ -265,7 +265,7 @@ impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRe
             platform_id: metadata.platform_id,
             reason: item.router_data.request.reason.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "refund.reason",
+                    field_name: "refund.reason".into(),
                 },
             )?,
             email,

@@ -10,7 +10,11 @@ use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::types::{AccountUpdaterError, ResolvedAccountUpdaterConfig};
-use crate::types::{domain, transformers::ForeignFrom};
+use crate::{
+    core::payments::helpers as payment_helpers,
+    routes::SessionState,
+    types::{domain, transformers::ForeignFrom},
+};
 
 #[instrument(skip_all)]
 pub fn check_eligibility_and_build_payment_method(
@@ -30,6 +34,25 @@ pub fn check_eligibility_and_build_payment_method(
         ),
         _ => Err(report!(AccountUpdaterError::PaymentMethodNotACard)),
     }
+}
+
+#[instrument(skip_all)]
+pub async fn check_vault_eligibility(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+) -> CustomResult<(), AccountUpdaterError> {
+    when(state.conf.micro_services.use_legacy_locker, || {
+        Err(report!(AccountUpdaterError::LegacyLockerUnsupported))
+    })?;
+
+    let provider_profile = payment_helpers::resolve_provider_profile(state, platform, profile)
+        .await
+        .change_context(AccountUpdaterError::ProviderProfileUnresolved)?;
+
+    when(provider_profile.is_external_vault_enabled(), || {
+        Err(report!(AccountUpdaterError::ExternalVaultUnsupported))
+    })
 }
 
 fn check_stored_card_eligibility_and_build_payment_method(
@@ -64,9 +87,12 @@ fn build_refreshable_payment_method(
     let card_details: &CardDetail = match raw_payment_method_data {
         Some(RawPaymentMethodData::Card(card_details)) => Some(card_details),
         Some(RawPaymentMethodData::CardWithNT(details)) => Some(&details.card_details),
-        Some(RawPaymentMethodData::BankDebit(_) | RawPaymentMethodData::ProxyCard(_)) | None => {
-            None
-        }
+        Some(
+            RawPaymentMethodData::BankDebit(_)
+            | RawPaymentMethodData::Wallet(_)
+            | RawPaymentMethodData::ProxyCard(_),
+        )
+        | None => None,
     }
     .ok_or_else(|| report!(AccountUpdaterError::CardUnusable))
     .attach_printable("Unvaulted payment method data holds no card")?;

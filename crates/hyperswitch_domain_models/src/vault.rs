@@ -30,11 +30,17 @@ pub enum FingerprintData {
     BankRedirect(FingerprintBankRedirectData),
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
-pub struct FingerprintBankRedirectData {
-    account_number: Option<hyperswitch_masking::Secret<String>>,
-    sort_code: Option<hyperswitch_masking::Secret<String>>,
-    iban: Option<hyperswitch_masking::Secret<String>>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintBankRedirectData {
+    OpenBanking {
+        account_number: Option<hyperswitch_masking::Secret<String>>,
+        sort_code: Option<hyperswitch_masking::Secret<String>>,
+        iban: Option<hyperswitch_masking::Secret<String>>,
+    },
+    Trustly {
+        connector_instrument_id: hyperswitch_masking::Secret<String>,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -119,7 +125,9 @@ impl PaymentMethodVaultingData {
             Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
                 bank_debit.clone().into(),
             )),
-            Self::Wallet(_) => None,
+            Self::Wallet(wallet) => Some(payment_methods::RawPaymentMethodData::Wallet(
+                wallet.clone().into(),
+            )),
             Self::BankRedirect(_) => None,
         }
     }
@@ -233,6 +241,9 @@ impl PaymentMethodVaultingData {
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
                     saved_to_locker: false,
                     #[cfg(feature = "v1")]
                     co_badged_card_data: None,
@@ -264,13 +275,12 @@ impl PaymentMethodVaultingData {
                 };
                 payment_method_data::PaymentMethodsData::WalletDetails(wallet_info)
             }
-            Self::BankRedirect(bank_redirect) => {
-                let payment_method_data::BankRedirectDetail::OpenBanking {
+            Self::BankRedirect(bank_redirect) => match bank_redirect.clone() {
+                payment_method_data::BankRedirectDetail::OpenBanking {
                     iban,
                     account_number,
                     sort_code,
-                } = bank_redirect.clone();
-                payment_method_data::PaymentMethodsData::BankRedirect(
+                } => payment_method_data::PaymentMethodsData::BankRedirect(
                     payment_method_data::BankRedirectDetailsPaymentMethod::OpenBanking {
                         masked_iban: iban.map(|iban| {
                             common_utils::new_type::mask_sensitive_field(iban.peek(), 4)
@@ -284,8 +294,17 @@ impl PaymentMethodVaultingData {
                         account_holder_name: None,
                         bank_name: None,
                     },
-                )
-            }
+                ),
+                payment_method_data::BankRedirectDetail::Trustly { .. } => {
+                    payment_method_data::PaymentMethodsData::BankRedirect(
+                        payment_method_data::BankRedirectDetailsPaymentMethod::Trustly {
+                            bank_last_digits: None,
+                            account_holder_name: None,
+                            bank_name: None,
+                        },
+                    )
+                }
+            },
         }
     }
 
@@ -333,10 +352,15 @@ impl PaymentMethodVaultingData {
                     iban,
                     account_number,
                     sort_code,
-                } => FingerprintData::BankRedirect(FingerprintBankRedirectData {
+                } => FingerprintData::BankRedirect(FingerprintBankRedirectData::OpenBanking {
                     iban: iban.clone(),
                     account_number: account_number.clone(),
                     sort_code: sort_code.clone(),
+                }),
+                payment_method_data::BankRedirectDetail::Trustly {
+                    connector_instrument_id,
+                } => FingerprintData::BankRedirect(FingerprintBankRedirectData::Trustly {
+                    connector_instrument_id: connector_instrument_id.clone(),
                 }),
             },
         }
@@ -377,6 +401,9 @@ impl PaymentMethodVaultingData {
                 } => AuxiliaryFingerprintData::BankRedirect(
                     account_number.clone().or_else(|| iban.clone())?,
                 ),
+                payment_method_data::BankRedirectDetail::Trustly {
+                    connector_instrument_id,
+                } => AuxiliaryFingerprintData::BankRedirect(connector_instrument_id.clone()),
             },
         })
     }
@@ -514,12 +541,22 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
-            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
-                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
-                    message: "Wallet for PaymentMethodCreateData".to_string(),
-                }
-                .into(),
-            ),
+            payment_methods::PaymentMethodCreateData::Wallet(wallet) => match wallet {
+                payment_methods::WalletPaymentMethodData::ApplePayDecrypted(
+                    apple_pay_decrypted,
+                ) => Ok(Self::Wallet(From::from(apple_pay_decrypted.decrypted_data))),
+                payment_methods::WalletPaymentMethodData::GooglePayDecrypted(
+                    google_pay_decrypted,
+                ) => Ok(Self::Wallet(From::from(
+                    google_pay_decrypted.decrypted_data,
+                ))),
+                _ => Err(
+                    errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                        message: "Wallet for PaymentMethodCreateData".to_string(),
+                    }
+                    .into(),
+                ),
+            },
             payment_methods::PaymentMethodCreateData::BankRedirect(_) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "BankRedirect for PaymentMethodCreateData".to_string(),
@@ -633,6 +670,9 @@ impl From<payment_methods::Card> for PaymentMethodVaultingData {
             card_issuing_country: None,
             card_issuer: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
         })
     }
 }

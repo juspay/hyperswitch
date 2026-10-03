@@ -28,6 +28,7 @@ pub(crate) mod headers {
     pub(crate) const X_REQUEST_DATE: &str = "X-RequestDate";
     pub(crate) const X_VERSION: &str = "X-Version";
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
+    pub(crate) const X_API_VERSION: &str = "x-api-version";
     pub(crate) const CORRELATION_ID: &str = "Correlation-Id";
     pub(crate) const WP_API_VERSION: &str = "WP-Api-Version";
     pub(crate) const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";

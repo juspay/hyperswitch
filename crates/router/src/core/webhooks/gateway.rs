@@ -12,7 +12,6 @@ use hyperswitch_interfaces::webhooks::{
 };
 use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
-use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
 
 #[cfg(feature = "v1")]
@@ -179,6 +178,7 @@ pub async fn get_webhook_event_details_from_ucs(
     connector_name: &str,
     merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
     request: &IncomingWebhookRequestDetails<'_>,
+    execution_mode: ExecutionMode,
 ) -> (
     Option<payments_grpc::EventReference>,
     Option<IncomingWebhookEvent>,
@@ -195,7 +195,7 @@ pub async fn get_webhook_event_details_from_ucs(
         connector_name: connector_name.to_string(),
         merchant_connector_account: merchant_connector_account.cloned(),
         execution_path: ExecutionPath::Direct,
-        execution_mode: ExecutionMode::NotApplicable,
+        execution_mode,
         ucs_reference: None,
         ucs_event_type: None,
     };
@@ -215,7 +215,7 @@ pub async fn get_webhook_event_details_from_ucs(
         Err(_) => return (None, None),
     };
 
-    let parse_headers = build_ucs_headers_builder(&ctx, None, ExecutionMode::NotApplicable);
+    let parse_headers = build_ucs_headers_builder(&ctx, None, execution_mode);
 
     let parse_response = match unified_connector_service::ucs_webhook_logging_wrapper(
         state,
@@ -707,6 +707,11 @@ async fn report_shadow_diff(
         api_client::ApiClientWrapper, helpers::GetComparisonServiceConfig,
     };
     if let Some(config) = state.get_comparison_service_config() {
+        let webhook_flow_name = primary.event_type.map(|event_type| {
+            let flow: api_models::webhooks::WebhookFlow = event_type.into();
+            format!("webhook_{}", flow.to_string().to_lowercase())
+        });
+
         hyperswitch_interfaces::helpers::serialize_webhook_outcome_and_send_to_comparison_service(
             state,
             primary,
@@ -715,6 +720,7 @@ async fn report_shadow_diff(
             connector_name.to_string(),
             state.get_request_id_str(),
             merchant_id.as_ref(),
+            webhook_flow_name,
         )
         .await;
     }
@@ -768,7 +774,7 @@ pub(super) async fn verify_webhook_source_via_connector(
 
     let connector_enum = api_models::enums::Connector::from_str(&ctx.connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
+            field_name: "connector".into(),
         })
         .attach_printable_lazy(|| {
             format!("unable to parse connector name {:?}", ctx.connector_name)
@@ -885,6 +891,8 @@ fn build_ucs_headers_builder(
         .unwrap_or_else(|| consts::PROFILE_ID_UNAVAILABLE.clone());
     ctx.state
         .get_grpc_headers_ucs(mode)
+        .payment_method(None)
+        .payment_method_type(None)
         .lineage_ids(LineageIds::new(merchant_id, profile_id))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
@@ -900,7 +908,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
             .get_id()
             .get_string_repr(),
         ctx.connector_name,
-        OffsetDateTime::now_utc().unix_timestamp()
+        common_utils::date_time::now_unix_timestamp()
     )
 }
 
@@ -916,26 +924,28 @@ fn event_reference_to_object_ref(
 
     let out = match resource {
         Resource::Payment(payment) => {
-            if let Some(ctx_id) = payment.connector_transaction_id.as_ref() {
+            if let Some(merchant_txn_id) = payment.merchant_transaction_id.as_ref() {
                 Some(ObjectReferenceId::PaymentId(
-                    api_payments::PaymentIdType::ConnectorTransactionId(ctx_id.clone()),
+                    api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
                 ))
             } else {
-                payment.merchant_transaction_id.as_ref().map(|mref| {
-                    ObjectReferenceId::PaymentId(api_payments::PaymentIdType::PaymentAttemptId(
-                        mref.clone(),
-                    ))
+                payment.connector_transaction_id.as_ref().map(|ctx_id| {
+                    ObjectReferenceId::PaymentId(
+                        api_payments::PaymentIdType::ConnectorTransactionId(ctx_id.clone()),
+                    )
                 })
             }
         }
         Resource::Refund(refund) => {
-            if let Some(cr_id) = refund.connector_refund_id.as_ref() {
+            if let Some(merchant_refund_id) = refund.merchant_refund_id.as_ref() {
                 Some(ObjectReferenceId::RefundId(
-                    api_webhooks::RefundIdType::ConnectorRefundId(cr_id.clone()),
+                    api_webhooks::RefundIdType::RefundId(merchant_refund_id.clone()),
                 ))
             } else {
-                refund.merchant_refund_id.as_ref().map(|mid| {
-                    ObjectReferenceId::RefundId(api_webhooks::RefundIdType::RefundId(mid.clone()))
+                refund.connector_refund_id.as_ref().map(|cr_id| {
+                    ObjectReferenceId::RefundId(api_webhooks::RefundIdType::ConnectorRefundId(
+                        cr_id.clone(),
+                    ))
                 })
             }
         }
@@ -955,14 +965,14 @@ fn event_reference_to_object_ref(
         }),
         #[cfg(feature = "payouts")]
         Resource::Payout(payout) => {
-            if let Some(cid) = payout.connector_payout_id.as_ref() {
+            if let Some(merchant_payout_id) = payout.merchant_payout_id.as_ref() {
                 Some(ObjectReferenceId::PayoutId(
-                    api_webhooks::PayoutIdType::ConnectorPayoutId(cid.clone()),
+                    api_webhooks::PayoutIdType::PayoutAttemptId(merchant_payout_id.clone()),
                 ))
             } else {
-                payout.merchant_payout_id.as_ref().map(|mid| {
-                    ObjectReferenceId::PayoutId(api_webhooks::PayoutIdType::PayoutAttemptId(
-                        mid.clone(),
+                payout.connector_payout_id.as_ref().map(|cid| {
+                    ObjectReferenceId::PayoutId(api_webhooks::PayoutIdType::ConnectorPayoutId(
+                        cid.clone(),
                     ))
                 })
             }

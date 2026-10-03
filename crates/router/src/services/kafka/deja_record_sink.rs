@@ -392,6 +392,9 @@ mod tests {
             correlation_id: Some("c-123".to_string()),
             timestamp_ns: 1_000_000_000,
             recording_run_id: Some("run-abc".to_string()),
+            // Egress event, so no structural role. `role` skips serialization
+            // when `None`, which keeps the envelope shape this test asserts.
+            role: None,
             graph_node_id: None,
             tracing_span_id: None,
             task_id: None,

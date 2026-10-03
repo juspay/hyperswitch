@@ -271,7 +271,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                 {
                     Err(errors::ConnectorError::NotSupported {
                         message: "3DS flow".to_string(),
-                        connector: "Zift",
+                        connector: "Zift".into(),
                     }
                     .into())
                 }
@@ -286,7 +286,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         .authentication_data
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "authentication_data",
+                            field_name: "authentication_data".into(),
                         })?;
 
                     let authentication_status = AuthenticationStatus::try_from(auth_data)?;
@@ -337,12 +337,12 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     .additional_payment_method_data
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "additional_payment_method_data",
+                        field_name: "additional_payment_method_data".into(),
                     })? {
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
-                        connector: "Zift",
+                        connector: "Zift".into(),
                     })?,
                 };
                 let mandate_request = ZiftMandatePaymentRequest {
@@ -351,7 +351,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     account_type: AccountType::PaymentCard,
                     token: Secret::new(item.router_data.request.connector_mandate_id().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
+                            field_name: "connector_mandate_id".into(),
                         },
                     )?),
                     account_accessory: additional_card_details.get_expiry_date_as_mmyy()?,
@@ -509,7 +509,7 @@ impl<F>
 
             let transaction_id = item.response.transaction_id.ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "transaction_id",
+                    field_name: "transaction_id".into(),
                 }
             })?;
 
@@ -980,7 +980,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
                 ),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: "Only card supported for mandate setup".to_string(),
-                    connector: "Zift",
+                    connector: "Zift".into(),
                 })?,
             };
 
@@ -1025,7 +1025,7 @@ impl<F>
         if status != common_enums::AttemptStatus::Failure {
             let transaction_id = item.response.transaction_id.ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "transaction_id",
+                    field_name: "transaction_id".into(),
                 }
             })?;
 

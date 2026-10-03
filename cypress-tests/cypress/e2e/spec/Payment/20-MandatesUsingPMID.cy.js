@@ -3,15 +3,27 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let originalCustomerId;
 
 describe("Card - Mandates using Payment Method Id flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      originalCustomerId = globalState.get("customerId");
     });
   });
 
   afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  after("restore customerId", () => {
+    // Most tests in this spec intentionally continue using a customer
+    // created by an earlier test in the same file, so customerId can't be
+    // restored after every test. Restore it only once, after the whole
+    // spec finishes, so later specs don't inherit a customer scoped to
+    // this spec's own tests.
+    globalState.set("customerId", originalCustomerId);
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -59,7 +71,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             "new_mandate",
@@ -99,7 +110,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -161,7 +171,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "manual",
             "new_mandate",
@@ -217,7 +226,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -257,7 +265,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             "new_mandate",
@@ -297,7 +304,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -336,7 +342,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -376,7 +381,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "manual",
             "new_mandate",
@@ -432,7 +436,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "manual",
             globalState
@@ -487,7 +490,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "manual",
             globalState
@@ -563,7 +565,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           "new_mandate",
@@ -587,7 +588,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -640,7 +640,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             "new_mandate",
@@ -675,7 +674,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -711,7 +709,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             "new_mandate",
@@ -760,7 +757,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -783,7 +779,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -807,7 +802,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
-            6000,
             true,
             "manual",
             "new_mandate",
@@ -872,11 +866,104 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
           );
+        });
+      });
+    }
+  );
+
+  context(
+    "Card - NoThreeDS CIT and MIT with error_on_requires_action (connector_metadata.stripe)",
+    function () {
+      before("skip connectors other than Stripe", function () {
+        // `connector_metadata.stripe.error_on_requires_action` is honoured
+        // only by the Stripe connector, so this context runs only for Stripe.
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.ERROR_ON_REQUIRES_ACTION
+          )
+        ) {
+          this.skip();
+        }
+      });
+
+      it("Confirm No 3DS CIT -> retrieve-payment-call-test -> Confirm MIT with error_on_requires_action -> retrieve-payment-call-test", () => {
+        let shouldContinue = true;
+
+        cy.step("Confirm No 3DS CIT", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+          cy.citForMandatesCallTest(
+            fixtures.citConfirmBody,
+            data,
+            true,
+            "automatic",
+            "new_mandate",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Confirm MIT with error_on_requires_action", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Confirm MIT with error_on_requires_action"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCaptureWithErrorOnRequiresAction"];
+
+          cy.mitUsingPMId(
+            fixtures.pmIdConfirmBody,
+            data,
+            true,
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["MITAutoCaptureWithErrorOnRequiresAction"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
         });
       });
     }

@@ -25,7 +25,6 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 
 use crate::{
     types::ResponseRouterData,
@@ -269,6 +268,11 @@ pub enum CardNetworkLowercase {
     Prop,
     PrivateLabel,
     Dinacard,
+    AirPlus,
+    Aurore,
+    EftposAustralia,
+    GeCapital,
+    Uatp,
 }
 
 impl From<common_enums::CardNetwork> for CardNetworkLowercase {
@@ -292,6 +296,11 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
@@ -435,7 +444,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsCancelRouterData>> for Peachpayme
             amount: item.amount,
             currency_code: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 },
             )?,
             display_amount: None,
@@ -461,7 +470,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
         {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
-                connector: CONNECTOR,
+                connector: CONNECTOR.into(),
             }
             .into());
         }
@@ -507,7 +516,7 @@ impl
             scheme: Some(CardNetworkLowercase::from(
                 token_data.card_network.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_network",
+                        field_name: "card_network".into(),
                     },
                 )?,
             )),
@@ -557,7 +566,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             pan: req_card.card_number.clone(),
             cardholder_name: req_card.card_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 }
             })?,
             expiry_year: Some(req_card.get_card_expiry_year_2_digit()?),
@@ -632,7 +641,7 @@ impl
                 .card_holder_name
                 .clone()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 })?,
             expiry_year: card_with_limited_details.get_card_expiry_year_2_digit()?,
             expiry_month: card_with_limited_details.card_exp_month.clone(),
@@ -723,7 +732,7 @@ impl
             pan: card_details.card_number.clone(),
             cardholder_name: card_details.card_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 }
             })?,
             expiry_year: Some(card_details.get_card_expiry_year_2_digit()?),
@@ -796,7 +805,7 @@ impl
             scheme: Some(CardNetworkLowercase::from(
                 token_details.card_network.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_network",
+                        field_name: "card_network".into(),
                     },
                 )?,
             )),
@@ -906,7 +915,8 @@ fn get_transaction_operations(
 }
 
 fn get_send_date_time() -> Result<String, errors::ConnectorError> {
-    OffsetDateTime::now_utc()
+    common_utils::date_time::now()
+        .assume_utc()
         .format(&time::format_description::well_known::Iso8601::DEFAULT)
         .map_err(|_| errors::ConnectorError::RequestEncodingFailed)
 }

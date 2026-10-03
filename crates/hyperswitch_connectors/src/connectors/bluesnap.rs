@@ -1210,6 +1210,7 @@ impl IncomingWebhook for Bluesnap {
             connector_status: dispute_details.cb_status,
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 
@@ -1240,7 +1241,7 @@ impl ConnectorRedirectResponse for Bluesnap {
             PaymentAction::CompleteAuthorize => {
                 let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "json_payload",
+                        field_name: "json_payload".into(),
                     })?
                     .parse_value("BluesnapRedirectionResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

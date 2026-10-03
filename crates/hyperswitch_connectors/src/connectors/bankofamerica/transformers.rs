@@ -299,6 +299,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
@@ -570,7 +571,12 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -849,7 +855,7 @@ impl
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
+                connector: "BankOfAmerica".into(),
             })?
         };
 
@@ -1096,6 +1102,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::Neteller(_)
                         | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
@@ -1133,7 +1140,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         let connector_mandate_id =
                             item.router_data.request.connector_mandate_id().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "connector_mandate_id",
+                                    field_name: "connector_mandate_id".into(),
                                 },
                             )?;
                         Self::try_from((item, connector_mandate_id))
@@ -1771,6 +1778,13 @@ fn convert_to_additional_payment_method_connector_response(
         card_network: None,
         domestic_network: None,
         auth_code: None,
+        processor_card_network: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
+        card_type: None,
+        issuer_name: None,
+        issuer_country: None,
     }
 }
 
@@ -2041,7 +2055,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsCancelRouterData>> for BankOfAmer
                     total_amount: value.amount.to_owned(),
                     currency: value.router_data.request.currency.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "Currency",
+                            field_name: "Currency".into(),
                         },
                     )?,
                 },
@@ -2051,7 +2065,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsCancelRouterData>> for BankOfAmer
                     .cancellation_reason
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "Cancellation Reason",
+                        field_name: "Cancellation Reason".into(),
                     })?,
             },
             merchant_defined_information,
@@ -2402,7 +2416,7 @@ impl
         if item.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
+                connector: "BankOfAmerica".into(),
             })?
         };
 
@@ -2582,7 +2596,7 @@ impl TryFrom<&Box<ApplePayPredecryptData>> for PaymentInformation {
     fn try_from(apple_pay_data: &Box<ApplePayPredecryptData>) -> Result<Self, Self::Error> {
         let expiration_month = apple_pay_data.get_expiry_month().change_context(
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "expiration_month",
+                field_name: "expiration_month".into(),
             },
         )?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year();
@@ -2610,7 +2624,7 @@ impl TryFrom<&ApplePayWalletData> for PaymentInformation {
             .payment_data
             .get_encrypted_apple_pay_payment_data_mandatory()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay encrypted data",
+                field_name: "Apple pay encrypted data".into(),
             })?;
 
         Ok(Self::ApplePayToken(Box::new(
@@ -2638,7 +2652,7 @@ impl TryFrom<&GooglePayWalletData> for PaymentInformation {
                             .tokenization_data
                             .get_encrypted_google_pay_token()
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "gpay wallet_token",
+                                field_name: "gpay wallet_token".into(),
                             })?
                             .clone(),
                     ),

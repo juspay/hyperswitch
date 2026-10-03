@@ -29,7 +29,7 @@ api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "f9909673331a8f00a32da26e40573c1b0000043a", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "6cdfb232d597ecfb57e99d8fa32cbd2d1d1691a0", optional = true, default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_masking = "0.0.1"

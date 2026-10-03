@@ -211,7 +211,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for OrderR
                     currency_code: item.router_data.request.currency,
                     value: item.order_amount.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "order_amount",
+                            field_name: "order_amount".into(),
                         },
                     )?,
                 },
@@ -239,7 +239,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for OrderRequestAmo
                     currency_code: item.router_data.request.currency,
                     value: item.order_amount.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "order_amount",
+                            field_name: "order_amount".into(),
                         },
                     )?,
                 },
@@ -247,7 +247,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for OrderRequestAmo
                     currency_code: item.router_data.request.currency,
                     value: item.order_tax_amount.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "order_tax_amount",
+                            field_name: "order_tax_amount".into(),
                         },
                     )?,
                 }),
@@ -327,7 +327,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for ItemDe
                 currency_code: item.router_data.request.currency,
                 value: item.order_amount.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_amount",
+                        field_name: "order_amount".into(),
                     },
                 )?,
             },
@@ -349,7 +349,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for ItemDetails {
                 currency_code: item.router_data.request.currency,
                 value: item.order_amount.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_amount",
+                        field_name: "order_amount".into(),
                     },
                 )?,
             },
@@ -357,7 +357,7 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for ItemDetails {
                 currency_code: item.router_data.request.currency,
                 value: item.order_tax_amount.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_tax_amount",
+                        field_name: "order_tax_amount".into(),
                     },
                 )?,
             }),
@@ -1201,6 +1201,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -1270,7 +1271,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
 
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     },
                 )?;
 
@@ -1335,6 +1336,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::AmazonPay
                     | enums::PaymentMethodType::Paysera
                     | enums::PaymentMethodType::Skrill
+                    | enums::PaymentMethodType::Neteller
                     | enums::PaymentMethodType::ApplePay
                     | enums::PaymentMethodType::Atome
                     | enums::PaymentMethodType::Bacs
@@ -2169,28 +2171,6 @@ pub struct PaypalThreeDsResponse {
     links: Vec<PaypalLinks>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PaypalPreProcessingResponse {
-    PaypalLiabilityResponse(PaypalLiabilityResponse),
-    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
-}
-
-impl TryFrom<PaypalPreProcessingResponse> for PaymentsResponseData {
-    type Error = ErrorResponse;
-
-    fn try_from(response: PaypalPreProcessingResponse) -> Result<Self, Self::Error> {
-        match response {
-            PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
-                Ok(auth_success_response())
-            }
-            PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
-                validate_liability_response(liability_response).map_err(|e| *e)
-            }
-        }
-    }
-}
-
 fn auth_success_response() -> PaymentsResponseData {
     PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -3009,7 +2989,7 @@ fn paypal_threeds_link(
         redirect_url.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
     let complete_auth_url =
         complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "complete_authorize_url",
+            field_name: "complete_authorize_url".into(),
         })?;
     let mut form_fields = std::collections::HashMap::from_iter(
         redirect_url
@@ -3184,7 +3164,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                                 PaypalPayoutDataType::OtherType(paypal_id),
                             ),
                             _ => Err(errors::ConnectorError::MissingRequiredField {
-                                field_name: "receiver_data",
+                                field_name: "receiver_data".into(),
                             })?,
                         };
 
@@ -3197,7 +3177,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 WalletPayout::Venmo(data) => {
                     let receiver = PaypalPayoutDataType::OtherType(data.telephone_number.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "telephone_number",
+                            field_name: "telephone_number".into(),
                         },
                     )?);
                     PaypalPayoutMethodData {
@@ -3208,16 +3188,16 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 }
                 WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
-                    connector: "Paypal",
+                    connector: "Paypal".into(),
                 })?,
                 WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
-                    connector: "Paypal",
+                    connector: "Paypal".into(),
                 })?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
-                connector: "Paypal",
+                connector: "Paypal".into(),
             })?,
         };
 
@@ -4342,8 +4322,12 @@ fn get_headers(
     let header_value = header
         .get(key)
         .map(|value| value.to_str())
-        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: key })?
-        .change_context(errors::ConnectorError::InvalidDataFormat { field_name: key })?
+        .ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: key.into(),
+        })?
+        .change_context(errors::ConnectorError::InvalidDataFormat {
+            field_name: key.into(),
+        })?
         .to_owned();
     Ok(header_value)
 }

@@ -29,6 +29,8 @@ use hyperswitch_domain_models::payment_methods::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
+use hyperswitch_interfaces::consts::USER_AGENT;
+#[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use josekit::jwe;
@@ -589,6 +591,9 @@ pub fn mk_add_card_response_hs(
         card_issuer: card.card_issuer,
         card_network: card.card_network,
         card_type: card.card_type,
+        card_subtype: card.card_subtype,
+        card_segment_type: card.card_segment_type,
+        funding_source: card.funding_source,
         saved_to_locker: true,
     };
     domain::PaymentMethodResponse {
@@ -638,6 +643,9 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_network: card_create.card_network,
             card_issuer: card_create.card_issuer,
             card_type: card_create.card_type,
+            card_subtype: card_create.card_subtype,
+            card_segment_type: card_create.card_segment_type,
+            funding_source: card_create.funding_source,
             card_holder_name: update_card
                 .card_holder_name
                 .or(card_create.card_holder_name),
@@ -886,6 +894,9 @@ pub fn get_card_detail(
         issuer_country_code: None,
         card_network: None,
         card_type: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
         saved_to_locker: true,
     };
     Ok(card_detail)
@@ -913,6 +924,9 @@ pub fn get_card_detail(
         card_issuer: None,
         card_network: None,
         card_type: None,
+        card_subtype: None,
+        card_segment_type: None,
+        funding_source: None,
         saved_to_locker: true,
     };
     Ok(card_detail)
@@ -987,14 +1001,14 @@ impl
         let payment_method_subtype =
             item.payment_method_subtype
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".to_string(),
+                    field_name: "payment_method_subtype".into(),
                 })?;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
             item.payment_method_type
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_type".to_string(),
+                    field_name: "payment_method_type".into(),
                 })?;
 
         let payment_method_data = item
@@ -1060,7 +1074,7 @@ impl
                 .customer_id
                 .get_required_value("GlobalCustomerId")
                 .change_context(errors::ValidationError::MissingRequiredField {
-                    field_name: "customer_id".to_string(),
+                    field_name: "customer_id".into(),
                 })?,
             payment_method_type,
             payment_method_subtype,
@@ -1096,14 +1110,14 @@ impl
         let payment_method_subtype =
             item.payment_method_subtype
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".to_string(),
+                    field_name: "payment_method_subtype".into(),
                 })?;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
             item.payment_method_type
                 .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_type".to_string(),
+                    field_name: "payment_method_type".into(),
                 })?;
 
         let payment_method_data = item
@@ -1206,7 +1220,7 @@ impl
                 .customer_id
                 .get_required_value("GlobalCustomerId")
                 .change_context(errors::ValidationError::MissingRequiredField {
-                    field_name: "customer_id".to_string(),
+                    field_name: "customer_id".into(),
                 })?,
             payment_method_type,
             payment_method_subtype,
@@ -1708,14 +1722,18 @@ impl
     TryFrom<(
         payment_methods::types::RawPaymentMethodData,
         Option<domain::CardToken>,
+        Option<api_models::payment_methods::PaymentMethodDataWalletInfo>,
     )> for DomainPaymentMethodDataWrapper
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+    /// `stored_wallet_info` is the wallet display metadata kept with the payment method; it
+    /// completes the wallet payload rebuilt from the vaulted decrypted token.
     fn try_from(
-        (raw_data, card_token): (
+        (raw_data, card_token, stored_wallet_info): (
             payment_methods::types::RawPaymentMethodData,
             Option<domain::CardToken>,
+            Option<api_models::payment_methods::PaymentMethodDataWalletInfo>,
         ),
     ) -> Result<Self, Self::Error> {
         match raw_data {
@@ -1737,6 +1755,9 @@ impl
                         card_issuer: card_detail.card_issuer,
                         card_network: card_detail.card_network,
                         card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                        card_subtype: card_detail.card_subtype,
+                        card_segment_type: card_detail.card_segment_type,
+                        funding_source: card_detail.funding_source,
                         card_issuing_country: card_detail.card_issuing_country,
                         card_issuing_country_code: None,
                         bank_code: None,
@@ -1769,6 +1790,9 @@ impl
                                     .card_details
                                     .card_type
                                     .map(|card_type| card_type.to_string()),
+                                card_subtype: card_with_nt.card_details.card_subtype,
+                                card_segment_type: card_with_nt.card_details.card_segment_type,
+                                funding_source: card_with_nt.card_details.funding_source,
                                 card_issuing_country: card_with_nt.card_details.card_issuing_country,
                                 card_issuing_country_code: None,
                                 bank_code: None,
@@ -1820,6 +1844,77 @@ impl
                         },
                     ))),
                 }
+            }
+            payment_methods::types::RawPaymentMethodData::Wallet(wallet_detail) => {
+                // The vault holds only the decrypted device PAN and its expiry. The wallet payload
+                // is rebuilt around it: display metadata comes from the wallet info stored with
+                // the payment method, and whatever the vault never had (the one-time cryptogram,
+                // the transaction identifier) is left empty.
+                let (last4, card_network, card_type) = stored_wallet_info
+                    .map(|wallet_info| {
+                        (
+                            wallet_info.last4,
+                            wallet_info.card_network,
+                            wallet_info.card_type,
+                        )
+                    })
+                    .unwrap_or_default();
+                let last4 = last4.unwrap_or_default();
+                let card_network = card_network.unwrap_or_default();
+                let card_type = card_type.unwrap_or_default();
+
+                let wallet_data = match wallet_detail {
+                    api_models::payment_methods::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                        payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
+                            common_types::payments::ApplePayPredecryptData {
+                                application_primary_account_number,
+                                application_expiration_month: expiry_month,
+                                application_expiration_year: expiry_year,
+                                payment_data: common_types::payments::ApplePayCryptogramData {
+                                    online_payment_cryptogram: Secret::new(String::new()),
+                                    eci_indicator: None,
+                                },
+                                device_manufacturer_identifier: None,
+                            },
+                        ),
+                        payment_method: domain::ApplepayPaymentMethod {
+                            display_name: last4,
+                            network: card_network,
+                            pm_type: card_type,
+                        },
+                        transaction_identifier: String::new(),
+                    }),
+                    api_models::payment_methods::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                        pm_type: card_type,
+                        description: String::new(),
+                        info: domain::GooglePayPaymentMethodInfo {
+                            card_network,
+                            card_details: last4,
+                            assurance_details: None,
+                            card_funding_source: None,
+                        },
+                        tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
+                            common_types::payments::GPayPredecryptData {
+                                auth_method: None,
+                                card_exp_month: expiry_month,
+                                card_exp_year: expiry_year,
+                                application_primary_account_number,
+                                cryptogram: None,
+                                eci_indicator: None,
+                            },
+                        ),
+                    }),
+                };
+
+                Ok(Self(domain::PaymentMethodData::Wallet(wallet_data)))
             }
             payment_methods::types::RawPaymentMethodData::ProxyCard(_proxy_card_data) => {
                 // ProxyCard (vault token reference) should not be converted to domain PaymentMethodData.
@@ -1908,6 +2003,9 @@ impl<'a>
             card_issuer: card_data.card_issuer.clone(),
             card_network: card_data.card_network.clone(),
             card_type: card_data.card_type.clone(),
+            card_subtype: card_data.card_subtype.clone(),
+            card_segment_type: card_data.card_segment_type,
+            funding_source: card_data.funding_source,
             card_issuing_country: card_data.card_issuing_country.clone(),
             card_issuing_country_code: card_data.card_issuing_country_code.clone(),
             bank_code: card_data.bank_code.clone(),
@@ -1937,6 +2035,9 @@ impl<'a>
                 card_issuer: card_data.card_issuer.clone(),
                 card_network: card_data.card_network.clone(),
                 card_type: card_data.card_type.clone(),
+                card_subtype: card_data.card_subtype.clone(),
+                card_segment_type: card_data.card_segment_type,
+                funding_source: card_data.funding_source,
                 card_issuing_country: card_data.card_issuing_country.clone(),
                 card_issuing_country_code: card_data.card_issuing_country_code.clone(),
                 bank_code: card_data.bank_code.clone(),
@@ -1965,12 +2066,15 @@ pub async fn fetch_payment_method_from_modular_service(
     // the internal vault, so requesting raw detail yields an "Invalid Vault Response" error; the
     // external vault token reference is returned regardless. The normal confirm flow uses `true`.
     fetch_raw_detail: bool,
+    // Whether to have the modular service sync the stored card with the Account Updater first.
+    force_sync: bool,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
             payment_method_id: payment_method_id.to_owned(),
         },
         fetch_raw_detail,
+        force_sync,
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
 
@@ -2001,9 +2105,19 @@ pub async fn fetch_payment_method_from_modular_service(
         _ => (None, None),
     };
 
+    // The vault holds only a wallet's decrypted device PAN and expiry; the display metadata
+    // (network, card type, last4) stored with the payment method completes the wallet payload.
+    let stored_wallet_info = match &pm_response.payment_method_data {
+        Some(payment_methods::types::PaymentMethodResponseData::Wallet(
+            payment_methods::types::WalletPaymentMethodData::ApplePay(wallet_info)
+            | payment_methods::types::WalletPaymentMethodData::GooglePay(wallet_info),
+        )) => Some((**wallet_info).clone()),
+        _ => None,
+    };
+
     // Split raw data based on variant:
     // - ProxyCard → vault_payment_method_token_data (raw_payment_method_data stays None)
-    // - Card / CardWithNT / BankDebit → raw_payment_method_data (vault_payment_method_token_data stays None)
+    // - Card / CardWithNT / BankDebit / Wallet → raw_payment_method_data (vault_payment_method_token_data stays None)
     let (raw_payment_method_data, vault_payment_method_token_data) =
         match pm_response.raw_payment_method_data {
             Some(payment_methods::types::RawPaymentMethodData::ProxyCard(proxy_card)) => {
@@ -2015,9 +2129,12 @@ pub async fn fetch_payment_method_from_modular_service(
                 (None, Some(vault_data))
             }
             Some(other_raw) => {
-                let domain_wrapper =
-                    DomainPaymentMethodDataWrapper::try_from((other_raw, pmd_card_token))
-                        .attach_printable("Failed to convert raw payment method data")?;
+                let domain_wrapper = DomainPaymentMethodDataWrapper::try_from((
+                    other_raw,
+                    pmd_card_token,
+                    stored_wallet_info,
+                ))
+                .attach_printable("Failed to convert raw payment method data")?;
                 (Some(domain_wrapper.0), None)
             }
             None => (None, None),
@@ -2221,6 +2338,9 @@ struct VaultTokenDetailsResponse {
 /// targets `connectors.hyperswitch_vault.base_url` (which already includes the `/v2` prefix) and is
 /// authenticated as the merchant using the external vault connector account's credentials
 /// (`api-key` + profile id) — not the pay server's internal API key.
+///
+/// Traffic to the vault is routed through the router-wide `[proxy]` config (e.g. a Squid
+/// egress proxy required by self-hosted / non-PCI deployments), if configured.
 #[cfg(feature = "v1")]
 pub async fn get_permanent_pm_id_from_temporary_token(
     state: &routes::SessionState,
@@ -2247,6 +2367,10 @@ pub async fn get_permanent_pm_id_from_temporary_token(
             (
                 headers::X_PROFILE_ID.to_string(),
                 vault_profile_id.expose().into_masked(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                USER_AGENT.to_string().into(),
             ),
         ])
         .build();

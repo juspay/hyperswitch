@@ -1,4 +1,5 @@
 use common_utils::errors::CustomResult;
+use hyperswitch_interfaces::errors::not_supported_message;
 
 use crate::{core::errors, logger};
 
@@ -137,7 +138,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             }
             errors::ConnectorError::NotSupported { message, connector } => {
                 errors::ApiErrorResponse::NotSupported {
-                    message: format!("{message} is not supported by {connector}"),
+                    message: not_supported_message(message, connector),
                 }
                 .into()
             }
@@ -224,10 +225,10 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::PaymentAuthorizationFailed { data }
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField { field_name: field_name.clone() }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
-                    errors::ApiErrorResponse::MissingRequiredFields { field_names: field_names.to_vec() }
+                    errors::ApiErrorResponse::MissingRequiredFields { field_names: field_names.clone() }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
                     errors::ApiErrorResponse::NotImplemented {
@@ -239,7 +240,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::MismatchedPaymentData => {
                     errors::ApiErrorResponse::InvalidDataValue {
                         field_name:
-                            "payment_method_data, payment_method_type and payment_experience does not match",
+                            "payment_method_data, payment_method_type and payment_experience does not match".into(),
                     }
                 },
                 errors::ConnectorError::MandatePaymentDataMismatch {fields}=> {
@@ -248,7 +249,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     }
                 },
                 errors::ConnectorError::NotSupported { message, connector } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
+                    errors::ApiErrorResponse::NotSupported { message: not_supported_message(message, connector) }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -257,7 +258,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::MaxFieldLengthViolated { connector: connector.to_string(), field_name: field_name.to_string(), max_length: *max_length, received_length: *received_length }
                 },
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
-                    errors::ApiErrorResponse::InvalidDataValue { field_name }
+                    errors::ApiErrorResponse::InvalidDataValue { field_name: field_name.clone() }
                 },
                 errors::ConnectorError::CaptureMethodNotSupported => {
                     errors::ApiErrorResponse::NotSupported {
@@ -336,7 +337,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     }
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::FailedToObtainIntegrationUrl => {
                     errors::ApiErrorResponse::InvalidConnectorConfiguration {
@@ -436,11 +439,13 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::DisputeFailed { data }
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
                     errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: field_names.to_vec(),
+                        field_names: field_names.clone(),
                     }
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
@@ -468,11 +473,13 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::DisputeFailed { data }
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
                     errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: field_names.to_vec(),
+                        field_names: field_names.clone(),
                     }
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
@@ -501,16 +508,18 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::PayoutFailed { data }
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
                     errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: field_names.to_vec(),
+                        field_names: field_names.clone(),
                     }
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -524,7 +533,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     }
                 }
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
-                    errors::ApiErrorResponse::InvalidDataValue { field_name }
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: field_name.clone(),
+                    }
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
@@ -539,16 +550,18 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::ExternalVaultFailed
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
                     errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: field_names.to_vec(),
+                        field_names: field_names.clone(),
                     }
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -576,16 +589,18 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::ExternalVaultFailed
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
-                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: field_name.clone(),
+                    }
                 }
                 errors::ConnectorError::MissingRequiredFields { field_names } => {
                     errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: field_names.to_vec(),
+                        field_names: field_names.clone(),
                     }
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{message} by {connector}"),
+                        message: not_supported_message(message, connector),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {

@@ -70,7 +70,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Stax",
+                        connector: "Stax".into(),
                     })?
                 }
                 let pm_token = item.router_data.get_payment_method_token()?;
@@ -179,7 +179,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         if item.request.email.is_none() && item.request.name.is_none() {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "email or name",
+                field_name: "email or name".into(),
             }
             .into())
         } else {

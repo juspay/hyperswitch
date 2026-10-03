@@ -1574,6 +1574,7 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::SourceTransactionCreated
             | webhooks::IncomingWebhookEvent::RefundFailure
             | webhooks::IncomingWebhookEvent::RefundSuccess
+            | webhooks::IncomingWebhookEvent::RefundReview
             | webhooks::IncomingWebhookEvent::DisputeOpened
             | webhooks::IncomingWebhookEvent::DisputeExpired
             | webhooks::IncomingWebhookEvent::DisputeAccepted
@@ -1597,7 +1598,8 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PayoutExpired
             | webhooks::IncomingWebhookEvent::PayoutReversed
             | webhooks::IncomingWebhookEvent::InvoiceGenerated
-            | webhooks::IncomingWebhookEvent::SetupWebhook => {
+            | webhooks::IncomingWebhookEvent::SetupWebhook
+            | webhooks::IncomingWebhookEvent::PaymentAssociatedDataUpdate => {
                 common_types::payments::RecoveryAction::InvalidAction
             }
             webhooks::IncomingWebhookEvent::RecoveryPaymentFailure => match attempt_triggered_by {

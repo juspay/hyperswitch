@@ -56,12 +56,25 @@ pub struct MerchantConnectorAccount {
     pub version: common_enums::ApiVersion,
     pub id: Option<id_type::MerchantConnectorAccountId>,
     pub connector_webhook_registration_details: Option<serde_json::Value>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
+    }
+
+    /// Whether this account counts as enabled, mirroring the SQL `disabled = false` that
+    /// the merchant connector account list queries filter on.
+    ///
+    /// Deliberately `== Some(false)` rather than `!= Some(true)`: `disabled` is nullable,
+    /// and a SQL equality comparison never matches NULL, so a row with no `disabled` value
+    /// is not one those queries return. Callers filtering in memory rather than in SQL
+    /// must not start including it.
+    pub fn is_enabled(&self) -> bool {
+        self.disabled == Some(false)
     }
 }
 
@@ -107,6 +120,8 @@ pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     #[serde(default)]
     pub connector_webhook_registration_details: Option<serde_json::Value>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
 }
 
@@ -114,6 +129,17 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    /// Whether this account counts as enabled, mirroring the SQL `disabled = false` that
+    /// the merchant connector account list queries filter on.
+    ///
+    /// Deliberately `== Some(false)` rather than `!= Some(true)`: `disabled` is nullable,
+    /// and a SQL equality comparison never matches NULL, so a row with no `disabled` value
+    /// is not one those queries return. Callers filtering in memory rather than in SQL
+    /// must not start including it.
+    pub fn is_enabled(&self) -> bool {
+        self.disabled == Some(false)
     }
 }
 
@@ -206,6 +232,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_wallets_details: Option<Encryption>,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_webhook_registration_details: Option<serde_json::Value>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -230,6 +258,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_wallets_details: Option<Encryption>,
     pub additional_merchant_data: Option<Encryption>,
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -301,6 +331,8 @@ pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
     pub billing_connector_retry_threshold: u16,
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding  
     /// account reference IDs for each `billing connector`.

@@ -8,7 +8,8 @@ pub use api_models::payments::{
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
     PaymentRetrieveBodyWithCredentials, PaymentsEligibilityCheckRequest,
-    PaymentsEligibilityRequest,
+    PaymentsEligibilityRequest, PlatformPaymentListConstraints, PlatformPaymentListFilters,
+    PlatformPaymentListItem, PlatformPaymentListResponse,
 };
 pub use api_models::{
     feature_matrix::{
@@ -44,8 +45,8 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
     IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent, PaymentGetIntent,
     PaymentMethodToken, PaymentUpdateIntent, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
-    PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, RecordAttempt, Reject,
-    SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+    PostSessionTokens, PreAuthorizeVoid, PushNotification, RecordAttempt, Reject, SdkSessionUpdate,
+    Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
@@ -53,8 +54,8 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentPostCaptureVoid, PaymentPostCaptureVoidSync, PaymentPostSessionTokens, PaymentReject,
     PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdate,
     PaymentUpdateMetadata, PaymentVoid, PaymentsCompleteAuthorize, PaymentsCreateOrder,
-    PaymentsGenerateQr, PaymentsPostProcessing, PaymentsPreProcessing, PaymentsPushNotification,
-    SurchargeCalculation, SurchargeComplete, SurchargeRefund, TaxCalculation,
+    PaymentsGenerateQr, PaymentsPostProcessing, PaymentsPushNotification, SurchargeCalculation,
+    SurchargeComplete, SurchargeRefund, TaxCalculation,
 };
 pub use mandates::MandateTransactionType;
 
@@ -65,7 +66,7 @@ pub use super::payments_v2::{
     PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
     PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
     PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2, PaymentsPostProcessingV2,
-    PaymentsPreProcessingV2, PaymentsPushNotificationV2, TaxCalculationV2,
+    PaymentsPushNotificationV2, TaxCalculationV2,
 };
 use crate::core::errors;
 
@@ -91,7 +92,7 @@ impl PaymentIdTypeExt for PaymentIdType {
             Self::ConnectorTransactionId(_)
             | Self::PaymentAttemptId(_)
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
@@ -106,7 +107,7 @@ impl PaymentIdTypeExt for PaymentIdType {
             Self::ConnectorTransactionId(_)
             | Self::PaymentAttemptId(_)
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
@@ -155,6 +156,9 @@ mod payments_test {
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             nick_name: Some(hyperswitch_masking::Secret::new("nick_name".into())),
         }
     }
