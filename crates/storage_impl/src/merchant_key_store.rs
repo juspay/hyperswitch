@@ -139,7 +139,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             cache::get_or_populate_in_memory(
                 self,
                 &key_store_cache_key,
-                fetch_func,
+                fetch_func(),
                 CacheId::Accounts,
             )
             .await?

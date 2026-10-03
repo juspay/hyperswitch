@@ -279,7 +279,7 @@ mod merchant_connector_account_cache_tests {
                 merchant_id.get_string_repr(),
                 profile_id.get_string_repr(),
             ),
-            find_call,
+            find_call(),
             cache::CacheId::Accounts,
         )
         .await
@@ -460,7 +460,7 @@ mod merchant_connector_account_cache_tests {
                 merchant_id.clone().get_string_repr(),
                 profile_id.get_string_repr()
             ),
-            find_call,
+            find_call(),
             cache::CacheId::Accounts,
         )
         .await

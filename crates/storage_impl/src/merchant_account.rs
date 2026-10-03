@@ -207,7 +207,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             cache::get_or_populate_in_memory(
                 self,
                 merchant_id.get_string_repr(),
-                fetch_func,
+                fetch_func(),
                 CacheId::Accounts,
             )
             .await?
@@ -307,7 +307,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             merchant_account = cache::get_or_populate_in_memory(
                 self,
                 publishable_key,
-                fetch_by_pub_key_func,
+                fetch_by_pub_key_func(),
                 CacheId::Accounts,
             )
             .await?;
