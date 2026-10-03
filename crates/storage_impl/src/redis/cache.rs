@@ -1,4 +1,4 @@
-use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc, time::Duration};
+use std::{any::Any, borrow::Cow, fmt::Debug, num::NonZeroU64, sync::Arc, time::Duration};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -31,9 +31,14 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 /// Default time to idle 10 mins
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
-/// Default ceiling on how long a single populate attempt may run, 5 seconds — well above a
-/// healthy redis/DB round trip, well under redis's own command timeout.
-pub const DEFAULT_POPULATE_TIMEOUT_IN_SECS: u64 = 5;
+/// Ceiling on how long a single populate attempt may run, 5 seconds — well above a healthy
+/// redis/DB round trip, well under redis's own command timeout.
+///
+/// Not deployment-configurable: no `config/*.toml` has ever set the field this used to back,
+/// and unlike `ttl`/`tti` (genuine per-cache tradeoffs between staleness and load) this is a
+/// defensive plumbing constant, not a policy any deployment has reason to vary.
+pub const DEFAULT_POPULATE_TIMEOUT_IN_MS: NonZeroU64 =
+    NonZeroU64::new(5000).expect("5000 is nonzero");
 
 /// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
@@ -67,9 +72,6 @@ pub struct CacheSettings {
     /// Maximum number of entries the cache may hold. `0` makes it unbounded, and leaving it
     /// unset keeps the cache's own default.
     pub max_entries: Option<u64>,
-    /// Seconds a single populate attempt may run before it's treated as failed. `0` disables
-    /// coordination entirely.
-    pub populate_timeout_in_secs: Option<u64>,
 }
 
 impl CacheSettings {
@@ -79,13 +81,6 @@ impl CacheSettings {
 
     fn time_to_idle(&self) -> u64 {
         self.tti_in_secs.unwrap_or(DEFAULT_CACHE_TTI)
-    }
-
-    fn populate_timeout(&self) -> Duration {
-        Duration::from_secs(
-            self.populate_timeout_in_secs
-                .unwrap_or(DEFAULT_POPULATE_TIMEOUT_IN_SECS),
-        )
     }
 
     /// Resolves the ceiling this configuration asks for.
@@ -111,7 +106,7 @@ impl CacheSettings {
             self.time_to_live(),
             self.time_to_idle(),
             self.max_entries(default),
-            self.populate_timeout(),
+            Duration::from_millis(DEFAULT_POPULATE_TIMEOUT_IN_MS.get()),
         )
     }
 }
@@ -599,7 +594,8 @@ impl Cache {
     /// then-current state, so a failure or a timed-out attempt only ever affects the caller it
     /// happened to, never whoever's queued behind it. A single attempt is capped at
     /// `populate_timeout`; since a caller's turn ends the moment its future resolves, this
-    /// also bounds how long anyone queued behind it can be made to wait.
+    /// also bounds how long anyone queued behind it can be made to wait. Every attempt is
+    /// capped — there is no value of `populate_timeout` that opts out of the cap.
     pub async fn get_or_populate<T, Fut, E>(&self, key: CacheKey, populate: Fut) -> Result<T, E>
     where
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
@@ -608,12 +604,6 @@ impl Cache {
     {
         // Fast path: a hit never touches moka's entry API or its per-key lock at all.
         if let Some(val) = self.get_val::<T>(key.clone()).await {
-            return Ok(val);
-        }
-
-        if self.populate_timeout.is_zero() {
-            let val = populate.await?;
-            self.push(key, val.clone()).await;
             return Ok(val);
         }
 
@@ -1207,28 +1197,6 @@ mod cache_tests {
         }
         // Every key is distinct, so every one of them populates.
         assert_eq!(calls.load(Ordering::SeqCst), 8);
-    }
-
-    /// The negative control for `concurrent_misses_for_one_key_populate_once`.
-    ///
-    /// Without it that test could pass for the wrong reason — tasks simply not overlapping.
-    /// Here the coordination is switched off and the same shape produces one populate per
-    /// caller, so the two together show the coalescing is what causes the difference.
-    #[tokio::test]
-    async fn a_zero_timeout_disables_coordination() {
-        let cache = Arc::new(Cache::new("test", 1800, 1800, None, Duration::ZERO));
-        let calls = Arc::new(AtomicUsize::new(0));
-
-        let readers = (0..4).map(|_| {
-            let cache = Arc::clone(&cache);
-            let populate = counting_populate(&calls, Duration::from_millis(50), "val");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
-        });
-
-        for result in futures::future::join_all(readers).await {
-            assert_eq!(result.unwrap(), Ok("val".to_string()));
-        }
-        assert_eq!(calls.load(Ordering::SeqCst), 4);
     }
 
     /// The `[cache]` documentation in `config/*.toml` promises this syntax.
