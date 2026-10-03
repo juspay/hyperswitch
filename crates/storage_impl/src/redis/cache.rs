@@ -38,6 +38,16 @@ pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 pub const DEFAULT_POPULATE_TIMEOUT_IN_MS: NonZeroU64 =
     NonZeroU64::new(500).expect("500 is nonzero");
 
+/// Largest percentage of a redis TTL that jitter may add on top: `10` -> up to 10% more.
+const REDIS_TTL_JITTER_MAX_PERCENT: u8 = 10;
+
+/// How many times its in-memory lifetime an entry is kept in redis.
+///
+/// Redis sits behind moka, so it spares a database read only while it outlives it. A
+/// multiple of 1 would lapse moments after the moka entry it refills and sit empty until
+/// the next miss; doubling keeps it populated across the miss that matters.
+const REDIS_TTL_MULTIPLE: u8 = 2;
+
 /// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
 /// It was written as `30` and documented as megabytes, then multiplied by `1024 * 1024` on the
@@ -522,7 +532,7 @@ impl Cache {
         time_to_live: u64,
         time_to_idle: u64,
         max_entries: Option<u64>,
-        populate_timeout: Duration,
+        populate_timeout: time::Duration,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -535,8 +545,8 @@ impl Cache {
             );
         };
         let mut cache_builder = MokaCache::builder()
-            .time_to_live(Duration::from_secs(time_to_live))
-            .time_to_idle(Duration::from_secs(time_to_idle))
+            .time_to_live(time::Duration::from_secs(time_to_live))
+            .time_to_idle(time::Duration::from_secs(time_to_idle))
             .eviction_listener(eviction_listener);
 
         // No weigher is configured, so moka counts entries — which is what this number has
@@ -793,6 +803,59 @@ impl Cache {
         self.name
     }
 
+    /// The longest an entry can live here, when a time to live is configured.
+    ///
+    /// `time_to_live`, not `time_to_idle`: eviction takes whichever falls first, but the TTL
+    /// is the bound a layer behind this one has to outlast. Read from moka's own policy, so a
+    /// cache built from [`CacheSettings`] reports its configured lifetime.
+    fn time_to_live(&self) -> Option<time::Duration> {
+        self.inner.policy().time_to_live()
+    }
+
+    /// The redis lifetime that lets redis, rather than the database, absorb a miss from this
+    /// cache.
+    ///
+    /// Multiple and jitter both describe how the two layers sit relative to each other, so
+    /// they are stated here once and [`get_or_populate_redis`] honours whatever it is handed.
+    /// The jitter only adds, so redis outliving moka holds by construction.
+    ///
+    /// `None` when this cache has no TTL to scale or the product overflows, leaving the write
+    /// on the connection's configured `default_ttl`.
+    fn redis_ttl_for(&self, key: &str) -> Option<i64> {
+        let ttl = self.time_to_live()?.as_secs();
+        let ttl = i64::try_from(ttl.checked_mul(u64::from(REDIS_TTL_MULTIPLE))?).ok()?;
+
+        Some(Self::jittered_ttl(key, ttl))
+    }
+
+    /// Extends `ttl` by up to [`REDIS_TTL_JITTER_MAX_PERCENT`], by an amount derived from `key`.
+    ///
+    /// Entries populated together — after a deploy, a flush, or a cold redis — otherwise share
+    /// one expiry instant and fall through to the database as a herd.
+    ///
+    /// The offset comes from the key rather than an RNG: decorrelating *different* keys is the
+    /// property that matters, and a pure function of the key also holds the TTL steady across
+    /// nodes and reproducible under deja replay, where `ttl_seconds` is a recorded boundary
+    /// argument. Only ever added, so the entry outlives `ttl`. A `ttl` too small or too large
+    /// to jitter is returned unchanged.
+    ///
+    /// Associated rather than an instance method: it is a pure function of `key` and `ttl`,
+    /// not of any particular cache's state.
+    fn jittered_ttl(key: &str, ttl: i64) -> i64 {
+        let Some(scaled_by_percent) = ttl.checked_mul(i64::from(REDIS_TTL_JITTER_MAX_PERCENT))
+        else {
+            return ttl;
+        };
+        let Ok(spread) = u32::try_from(scaled_by_percent / 100) else {
+            return ttl;
+        };
+        let Some(buckets) = spread.checked_add(1) else {
+            return ttl;
+        };
+
+        ttl.saturating_add(i64::from(crc32fast::hash(key.as_bytes()) % buckets))
+    }
+
     /// Records everything moka exposes about this cache's occupancy.
     ///
     /// `entry_count` and `weighted_size` are the only runtime figures it publishes — there are
@@ -879,11 +942,12 @@ where
         key: key.to_string(),
         prefix: store.cache_key_prefix().to_string(),
     };
+    // Redis is the layer behind this one, so it is held past this cache's own lifetime.
+    let redis_ttl = cache.redis_ttl_for(key);
 
     // The redis connection is acquired only when this caller is the one populating, so an
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
-    // misses for one key cost a single redis round trip between them. The round trip also
-    // reports the payload size, so weighing the entry costs nothing extra.
+    // misses for one key cost a single redis round trip between them.
     cache
         .get_or_populate_in_memory(cache_key, async {
             let redis = store
@@ -892,7 +956,7 @@ where
                     RedisError::RedisConnectionError.into(),
                 ))
                 .attach_printable("Failed to get redis connection")?;
-            get_or_populate_redis(&redis, key, None, fun).await
+            get_or_populate_redis(&redis, key, redis_ttl, fun).await
         })
         .await
 }
@@ -993,7 +1057,7 @@ mod cache_tests {
 
     /// Long enough that a correctly coalescing test never trips it, short enough that a test
     /// asserting the cap does not drag.
-    const TEST_POPULATE_TIMEOUT: Duration = Duration::from_millis(500);
+    const TEST_POPULATE_TIMEOUT: time::Duration = time::Duration::from_millis(500);
 
     fn test_key(key: &str) -> CacheKey {
         CacheKey {
@@ -1006,7 +1070,7 @@ mod cache_tests {
     /// actually reached the backend.
     fn counting_populate(
         calls: &Arc<AtomicUsize>,
-        delay: Duration,
+        delay: time::Duration,
         value: impl Into<String>,
     ) -> futures::future::BoxFuture<'static, Result<String, String>> {
         let calls = Arc::clone(calls);
@@ -1021,7 +1085,7 @@ mod cache_tests {
     /// A populate that always fails, counting its own invocations the same way.
     fn failing_populate(
         calls: &Arc<AtomicUsize>,
-        delay: Duration,
+        delay: time::Duration,
         message: impl Into<String>,
     ) -> futures::future::BoxFuture<'static, Result<String, String>> {
         let calls = Arc::clone(calls);
@@ -1071,7 +1135,7 @@ mod cache_tests {
         };
 
         // Let the first caller take the write side before the second one arrives.
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        tokio::time::sleep(time::Duration::from_millis(20)).await;
 
         let reader = {
             let cache = Arc::clone(&cache);
@@ -1098,7 +1162,7 @@ mod cache_tests {
 
         // Far more concurrent readers than the runtime has worker threads: if the read side
         // serialized them, this could not finish well inside the wait budget.
-        let started = std::time::Instant::now();
+        let started = time::Instant::now();
         let readers = (0..200).map(|_| {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&calls, Duration::ZERO, "other");
@@ -1124,7 +1188,7 @@ mod cache_tests {
             1800,
             1800,
             None,
-            Duration::from_millis(50),
+            time::Duration::from_millis(50),
         ));
         let slow_calls = Arc::new(AtomicUsize::new(0));
         let queued_calls = Arc::new(AtomicUsize::new(0));
@@ -1140,7 +1204,7 @@ mod cache_tests {
         };
 
         // Let the first caller start (and be capped) before the second one arrives.
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        tokio::time::sleep(time::Duration::from_millis(20)).await;
 
         let queued = {
             let cache = Arc::clone(&cache);
@@ -1183,9 +1247,9 @@ mod cache_tests {
             })
         };
 
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        tokio::time::sleep(time::Duration::from_millis(20)).await;
 
-        let queued_started = std::time::Instant::now();
+        let queued_started = time::Instant::now();
         let queued = {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&queued_calls, Duration::ZERO, "own");
@@ -1202,7 +1266,7 @@ mod cache_tests {
         // Proves real queuing rather than lucky scheduling: the second caller's own populate
         // has no delay, so an uncontended run would resolve in well under 50ms.
         assert_eq!(queued.await.unwrap(), Ok("own".to_string()));
-        assert!(queued_started.elapsed() >= Duration::from_millis(50));
+        assert!(queued_started.elapsed() >= time::Duration::from_millis(50));
         assert_eq!(queued_calls.load(Ordering::SeqCst), 1);
     }
 
@@ -1213,8 +1277,11 @@ mod cache_tests {
 
         let populates = (0..8).map(|index| {
             let cache = Arc::clone(&cache);
-            let populate =
-                counting_populate(&calls, Duration::from_millis(50), format!("val{index}"));
+            let populate = counting_populate(
+                &calls,
+                time::Duration::from_millis(50),
+                format!("val{index}"),
+            );
             tokio::spawn(async move {
                 cache
                     .get_or_populate_in_memory(test_key(&format!("key{index}")), populate)
@@ -1308,6 +1375,156 @@ mod cache_tests {
         );
     }
 
+    /// The ceiling that ships must not evict where nothing evicted before, so pin it against
+    /// the number moka was actually being given before any of this — read from moka's own
+    /// policy rather than from our enum, so a mistake in the plumbing cannot hide here.
+    #[test]
+    fn every_cache_defaults_to_the_historical_entry_ceiling() {
+        // The `30` that was documented as megabytes, multiplied by 1024 * 1024 on the way in,
+        // and read by moka as a number of entries because no weigher was configured.
+        assert_eq!(DEFAULT_MAX_ENTRIES, 31_457_280);
+
+        let caches = Caches::default();
+        for cache in caches.all() {
+            let expected = if cache.name() == "CONFIG_CACHE" {
+                // The one cache that was built with no ceiling at all.
+                None
+            } else {
+                Some(DEFAULT_MAX_ENTRIES)
+            };
+
+            assert_eq!(
+                cache.inner.policy().max_capacity(),
+                expected,
+                "default ceiling for {} changed",
+                cache.name()
+            );
+        }
+    }
+
+    #[test]
+    fn redis_is_held_past_the_in_memory_lifetime() {
+        let ttl_in_secs = 1800;
+        let cache = Cache::new("test", ttl_in_secs, 600, None, time::Duration::from_secs(5));
+
+        let redis_ttl = cache
+            .redis_ttl_for("merchant_1")
+            .expect("a cache built with a ttl reports one");
+
+        // Doubled, then jittered upward: 3600s plus up to a tenth of it.
+        assert!(
+            (3600..=3960).contains(&redis_ttl),
+            "redis ttl {redis_ttl} outside the jittered band"
+        );
+
+        // The property the multiple exists for, stated where retuning either number breaks it.
+        let ttl_in_secs = i64::try_from(ttl_in_secs).expect("test ttl fits an i64");
+        assert!(redis_ttl > ttl_in_secs);
+    }
+
+    #[test]
+    fn jitter_stays_within_the_upper_decile() {
+        let ttl = 300;
+        for i in 0..1000 {
+            let jittered = Cache::jittered_ttl(&format!("merchant_{i}"), ttl);
+            assert!(
+                (ttl..=ttl + ttl * i64::from(REDIS_TTL_JITTER_MAX_PERCENT) / 100)
+                    .contains(&jittered),
+                "ttl {jittered} out of range for merchant_{i}"
+            );
+        }
+    }
+
+    #[test]
+    fn unset_settings_resolve_to_the_compiled_in_defaults() {
+        let settings = CacheSettings::default();
+
+        assert_eq!(settings.time_to_live(), DEFAULT_CACHE_TTL);
+        assert_eq!(settings.time_to_idle(), DEFAULT_CACHE_TTI);
+    }
+
+    #[test]
+    fn configured_settings_override_the_defaults() {
+        let settings = CacheSettings {
+            ttl_in_secs: Some(60),
+            tti_in_secs: Some(30),
+            max_entries: Some(500_000),
+            populate_timeout_in_secs: None,
+        };
+
+        assert_eq!(settings.time_to_live(), 60);
+        assert_eq!(settings.time_to_idle(), 30);
+        assert_eq!(settings.max_entries(None), Some(500_000));
+    }
+
+    #[test]
+    fn partially_configured_caches_deserialize_with_defaults_for_the_rest() {
+        let config: CacheConfig = serde_json::from_value(serde_json::json!({
+            "accounts": { "ttl_in_secs": 120 },
+        }))
+        .expect("failed to deserialize cache configuration");
+
+        assert_eq!(config.accounts.time_to_live(), 120);
+        assert_eq!(config.accounts.time_to_idle(), DEFAULT_CACHE_TTI);
+        assert_eq!(config.accounts.max_entries(Some(30)), Some(30));
+        assert_eq!(config.routing.time_to_live(), DEFAULT_CACHE_TTL);
+        assert_eq!(config.config.max_entries(None), None);
+    }
+
+    #[test]
+    fn an_unset_invalidation_channel_falls_back_to_the_default() {
+        let caches = Caches::default();
+
+        assert_eq!(caches.invalidation_channel, "hyperswitch_invalidate");
+    }
+
+    #[test]
+    fn a_cache_id_resolves_to_the_cache_it_names() {
+        let caches = Caches::default();
+
+        assert_eq!(caches.get(CacheId::Config).name(), "CONFIG_CACHE");
+        assert_eq!(caches.get(CacheId::Accounts).name(), "ACCOUNTS_CACHE");
+        assert_eq!(caches.get(CacheId::McaList).name(), "MCA_LIST_CACHE");
+        assert_eq!(
+            caches.get(CacheId::ContractBasedDynamicAlgorithm).name(),
+            "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE"
+        );
+    }
+
+    #[test]
+    fn jitter_spreads_keys_and_repeats_for_one_key() {
+        let ttl = 300;
+        let jittered = (0..1000)
+            .map(|i| Cache::jittered_ttl(&format!("merchant_{i}"), ttl))
+            .collect::<std::collections::HashSet<_>>();
+
+        // A 300s ttl offers 31 distinct expiries; 1000 keys should reach most of them.
+        assert!(jittered.len() > 25, "keys bunched onto {jittered:?}");
+
+        // Same key, same ttl — this is what keeps a deja replay byte-identical.
+        assert_eq!(
+            Cache::jittered_ttl("merchant_1", ttl),
+            Cache::jittered_ttl("merchant_1", ttl)
+        );
+    }
+
+    #[test]
+    fn ttl_too_small_or_negative_is_left_alone() {
+        for ttl in [-1, 0, 1, 9] {
+            assert_eq!(Cache::jittered_ttl("key", ttl), ttl);
+        }
+    }
+
+    #[test]
+    fn every_cache_is_reachable_from_all() {
+        let caches = Caches::default();
+        let names = caches.all().map(Cache::name);
+
+        assert_eq!(names.len(), 11);
+        assert!(names.contains(&"CONFIG_CACHE"));
+        assert!(names.contains(&"CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE"));
+    }
+
     #[tokio::test]
     async fn construct_and_get_cache() {
         let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT);
@@ -1397,7 +1614,7 @@ mod cache_tests {
                 "val".to_string(),
             )
             .await;
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        tokio::time::sleep(time::Duration::from_secs(3)).await;
         assert_eq!(
             cache
                 .get_val::<String>(CacheKey {
