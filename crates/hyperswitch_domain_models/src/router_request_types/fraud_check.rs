@@ -52,6 +52,11 @@ pub struct FraudCheckCheckoutData {
     /// shape the in-process connectors consume; UCS-backed providers need the
     /// domain type.
     pub payment_method_data_full: Option<PaymentMethodData>,
+    /// Id of the `fraud_check` row this evaluation belongs to, sent to the
+    /// provider as its transaction reference. A retry inherits the attempt's
+    /// `active_frm_id`, so this stays stable for the life of the risk check
+    /// while `attempt_id` does not.
+    pub frm_id: String,
 }
 
 #[derive(Debug, Clone)]
