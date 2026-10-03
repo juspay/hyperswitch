@@ -21,6 +21,8 @@ pub mod http_client;
 pub mod hubspot_proxy;
 pub mod managers;
 pub mod no_encryption;
+#[cfg(feature = "oci_kms")]
+pub mod oci_kms;
 #[cfg(feature = "superposition")]
 pub mod superposition;
 /// deserializers module_path
@@ -82,7 +84,7 @@ pub mod consts {
     pub(crate) const DEFAULT_UCS_TCP_KEEPALIVE_SECS: u64 = 60;
 
     /// General purpose base64 engine
-    #[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
+    #[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "oci_kms"))]
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
         base64::engine::general_purpose::STANDARD;
 
@@ -131,7 +133,7 @@ pub mod consts {
 }
 
 /// Metrics for interactions with external systems.
-#[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
+#[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "oci_kms"))]
 pub mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
@@ -156,6 +158,16 @@ pub mod metrics {
     histogram_metric_f64!(GCP_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for GCP KMS decryption time (in sec)
     #[cfg(feature = "gcp_kms")]
     histogram_metric_f64!(GCP_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for GCP KMS encryption time (in sec)
+
+    #[cfg(feature = "oci_kms")]
+    counter_metric!(OCI_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of OCI KMS Decryption failures
+    #[cfg(feature = "oci_kms")]
+    counter_metric!(OCI_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of OCI KMS Encryption failures
+
+    #[cfg(feature = "oci_kms")]
+    histogram_metric_f64!(OCI_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for OCI KMS decryption time (in sec)
+    #[cfg(feature = "oci_kms")]
+    histogram_metric_f64!(OCI_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for OCI KMS encryption time (in sec)
 }
 
 /// Metrics for config-related operations
