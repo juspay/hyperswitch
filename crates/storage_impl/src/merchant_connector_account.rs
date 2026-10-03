@@ -98,12 +98,12 @@ async fn list_all_by_merchant_id<T: DatabaseStore>(
 
     #[cfg(feature = "accounts_cache")]
     {
-        cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory(
             store,
             &list_cache::merchant_scope_key(merchant_id),
             find_call(),
             cache::CacheId::McaList,
-        )
+        ))
         .await
     }
 }
@@ -136,12 +136,12 @@ async fn list_all_by_merchant_id_profile_id<T: DatabaseStore>(
 
     #[cfg(feature = "accounts_cache")]
     {
-        cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory(
             store,
             &list_cache::merchant_profile_scope_key(merchant_id, profile_id),
             find_call(),
             cache::CacheId::McaList,
-        )
+        ))
         .await
     }
 }
@@ -453,12 +453,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 find_call(),
                 cache::CacheId::Accounts,
-            )
+            ))
             .await
             .async_and_then(|item| async {
                 item.convert(
@@ -509,12 +509,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", profile_id.get_string_repr(), connector_name),
                 find_call(),
                 cache::CacheId::Accounts,
-            )
+            ))
             .await
             .async_and_then(|item| async {
                 item.convert(
@@ -538,7 +538,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         connector_name: &str,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let accounts = list_all_by_merchant_id(self, merchant_id)
+        let accounts = Box::pin(list_all_by_merchant_id(self, merchant_id))
             .await?
             .into_iter()
             .filter(|account| account.connector_name == connector_name)
@@ -582,7 +582,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &format!(
                     "{}_{}",
@@ -591,7 +591,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 ),
                 find_call(),
                 cache::CacheId::Accounts,
-            )
+            ))
             .await?
             .convert(
                 self.get_keymanager_state()
@@ -706,11 +706,15 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, Self::Error> {
-        let accounts = list_all_by_merchant_id_profile_id(self, &key_store.merchant_id, profile_id)
-            .await?
-            .into_iter()
-            .filter(|account| account.is_enabled() && account.connector_type == connector_type)
-            .collect();
+        let accounts = Box::pin(list_all_by_merchant_id_profile_id(
+            self,
+            &key_store.merchant_id,
+            profile_id,
+        ))
+        .await?
+        .into_iter()
+        .filter(|account| account.is_enabled() && account.connector_type == connector_type)
+        .collect();
 
         decrypt_all(self, accounts, key_store).await
     }
@@ -722,7 +726,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         get_disabled: bool,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccounts, Self::Error> {
-        let accounts = list_all_by_merchant_id(self, merchant_id)
+        let accounts = Box::pin(list_all_by_merchant_id(self, merchant_id))
             .await?
             .into_iter()
             .filter(|account| get_disabled || account.is_enabled())
@@ -741,7 +745,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
     ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
-        let accounts = list_all_by_merchant_id(self, merchant_id)
+        let accounts = Box::pin(list_all_by_merchant_id(self, merchant_id))
             .await?
             .into_iter()
             .filter(|account| get_disabled || account.is_enabled());
@@ -762,9 +766,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
-        let accounts = list_all_by_merchant_id_profile_id(self, merchant_id, profile_id)
-            .await?
-            .into_iter();
+        let accounts = Box::pin(list_all_by_merchant_id_profile_id(
+            self,
+            merchant_id,
+            profile_id,
+        ))
+        .await?
+        .into_iter();
 
         let output = accounts
             .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
@@ -782,10 +790,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
-        let accounts = list_all_by_merchant_id_profile_id(self, merchant_id, profile_id)
-            .await?
-            .into_iter()
-            .filter(|account| account.is_enabled());
+        let accounts = Box::pin(list_all_by_merchant_id_profile_id(
+            self,
+            merchant_id,
+            profile_id,
+        ))
+        .await?
+        .into_iter()
+        .filter(|account| account.is_enabled());
 
         let output = accounts
             .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
