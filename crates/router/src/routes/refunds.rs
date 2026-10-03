@@ -8,6 +8,7 @@ use crate::core::refunds::*;
 use crate::core::refunds_v2::*;
 use crate::{
     core::api_locking,
+    routes::lock_utils,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
 };
@@ -55,11 +56,19 @@ pub async fn refunds_create(
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
+    let payload = json_payload.into_inner();
+    let locking_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payload.payment_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::Refunds,
+            override_lock_retries: None,
+        },
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_create_core(state, auth.platform, profile_id, req)
@@ -76,7 +85,7 @@ pub async fn refunds_create(
             },
             req.headers(),
         ),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -94,6 +103,14 @@ pub async fn refunds_create(
     let global_refund_id =
         common_utils::id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
     let payload = json_payload.into_inner();
+
+    let locking_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payload.payment_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::Refunds,
+            override_lock_retries: None,
+        },
+    };
 
     let internal_refund_create_payload =
         internal_payload_types::RefundsGenericRequestWithResourceId {
@@ -128,7 +145,7 @@ pub async fn refunds_create(
             refund_create_core(state, auth.platform, req.payload, global_refund_id.clone())
         },
         auth_type,
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
