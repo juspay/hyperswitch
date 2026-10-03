@@ -187,6 +187,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymePaymentsResponse, T, PaymentsRespo
                     http_code: item.http_code,
                 })
             }
+            PaymePaymentsResponse::Unknown(value) => {
+                router_env::logger::warn!(
+                    "Unknown PaymePaymentsResponse variant received: {:?}",
+                    value
+                );
+                Ok(item.data)
+            }
         }
     }
 }
@@ -937,6 +944,8 @@ pub enum SaleStatus {
     PartialVoid,
     Failed,
     Chargeback,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<SaleStatus> for enums::AttemptStatus {
@@ -949,6 +958,10 @@ impl From<SaleStatus> for enums::AttemptStatus {
             SaleStatus::Voided | SaleStatus::PartialVoid => Self::Voided,
             SaleStatus::Failed => Self::Failure,
             SaleStatus::Chargeback => Self::AutoRefunded,
+            SaleStatus::Unknown => {
+                router_env::logger::warn!("Unknown sale_status received from Payme");
+                Self::Pending
+            }
         }
     }
 }
@@ -958,6 +971,7 @@ impl From<SaleStatus> for enums::AttemptStatus {
 pub enum PaymePaymentsResponse {
     PaymePaySaleResponse(PaymePaySaleResponse),
     SaleQueryResponse(SaleQueryResponse),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -983,11 +997,6 @@ pub struct PaymePaySaleResponse {
     status_error_code: Option<u32>,
     sale_3ds: Option<bool>,
     redirect_url: Option<Url>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct PaymeMetadata {
-    payme_transaction_id: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, CaptureBuyerResponse, T, PaymentsResponseData>>
@@ -1066,6 +1075,10 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
             | SaleStatus::Voided
             | SaleStatus::PartialVoid
             | SaleStatus::Chargeback => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+            SaleStatus::Unknown => {
+                router_env::logger::warn!("Unknown sale_status received from Payme during refund");
+                Ok(Self::Pending)
+            }
         }
     }
 }
@@ -1288,6 +1301,8 @@ pub enum NotifyType {
     SaleFailure,
     SaleChargeback,
     SaleChargebackRefund,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1350,6 +1365,10 @@ impl From<NotifyType> for api_models::webhooks::IncomingWebhookEvent {
             NotifyType::SaleChargeback => Self::DisputeOpened,
             NotifyType::SaleChargebackRefund => Self::DisputeWon,
             NotifyType::SaleAuthorized => Self::EventNotSupported,
+            NotifyType::Unknown => {
+                router_env::logger::warn!("Unknown notify_type received from Payme webhook");
+                Self::EventNotSupported
+            }
         }
     }
 }
