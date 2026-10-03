@@ -22,7 +22,7 @@ global_meter!(GLOBAL_METER, "REDIS");
 histogram_metric_f64!(
     REDIS_CALL_TIME,
     GLOBAL_METER,
-    boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
+    boundaries: router_env::metrics::exponential_histogram_buckets(),
 );
 
 /// The Redis operation being performed. Used both as the `operation` metric

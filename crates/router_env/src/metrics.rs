@@ -168,30 +168,18 @@ macro_rules! metric_attributes {
     };
 }
 
-pub use helpers::{f64_histogram_buckets, latency_histogram_buckets_seconds};
+pub use helpers::{exponential_histogram_buckets, f64_histogram_buckets};
 
 mod helpers {
-    /// Returns finer boundaries for floating-point latency histograms, in seconds.
-    ///
-    /// Seven intervals per doubling provide approximately 10.4% spacing, from 100us to
-    /// 52.4288s. Values outside this range still contribute to the histogram, but have
-    /// no finer resolution below the first boundary or above the last boundary.
-    /// More boundaries increase aggregation memory and exported classic-histogram series.
+    /// 134 latency boundaries in seconds: 100us to 52.4288s, seven intervals per doubling.
     #[inline(always)]
-    pub fn latency_histogram_buckets_seconds() -> Vec<f64> {
-        let growth_factor = 2_f64.powf(1.0 / 7.0);
-        let mut boundary = 0.000_1;
-        let mut buckets = [0.0; 134];
-
-        for bucket in &mut buckets {
-            *bucket = boundary;
-            boundary *= growth_factor;
-        }
-
-        Vec::from(buckets)
+    pub fn exponential_histogram_buckets() -> Vec<f64> {
+        (0..134)
+            .map(|index| 0.000_1 * 2_f64.powf(f64::from(index) / 7.0))
+            .collect()
     }
 
-    /// Preserves the historical default boundaries for existing histograms.
+    /// Returns the buckets to be used for a f64 histogram
     #[inline(always)]
     pub fn f64_histogram_buckets() -> Vec<f64> {
         let mut init = 0.000_001;
@@ -207,22 +195,14 @@ mod helpers {
 
     #[cfg(test)]
     mod tests {
-        use super::{f64_histogram_buckets, latency_histogram_buckets_seconds};
+        use super::{exponential_histogram_buckets, f64_histogram_buckets};
 
         #[test]
-        fn latency_boundaries_cover_the_expected_range() {
-            let buckets = latency_histogram_buckets_seconds();
+        fn histogram_boundaries() {
+            let buckets = exponential_histogram_buckets();
             assert_eq!(buckets.len(), 134);
             assert!((buckets[0] - 0.000_1).abs() < 1e-12);
             assert!((buckets[133] - 52.4288).abs() < 1e-9);
-            assert!(buckets
-                .iter()
-                .all(|boundary| boundary.is_finite() && *boundary > 0.0));
-        }
-
-        #[test]
-        fn latency_boundaries_have_seven_intervals_per_doubling() {
-            let buckets = latency_histogram_buckets_seconds();
             for pair in buckets.windows(2) {
                 assert!(pair[1] > pair[0]);
                 assert!(pair[1] / pair[0] < 1.105);
@@ -230,10 +210,6 @@ mod helpers {
             for interval in buckets.windows(8) {
                 assert!((interval[7] / interval[0] - 2.0).abs() < 1e-12);
             }
-        }
-
-        #[test]
-        fn default_histograms_keep_the_original_boundaries() {
             let expected: Vec<f64> = (0..30).map(|index| 0.000_001 * 2_f64.powi(index)).collect();
             assert_eq!(f64_histogram_buckets(), expected);
         }

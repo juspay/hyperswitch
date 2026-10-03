@@ -326,7 +326,7 @@ pub(crate) mod metrics {
     histogram_metric_f64!(
         DATABASE_CALL_TIME,
         GLOBAL_METER,
-        boundaries: router_env::metrics::latency_histogram_buckets_seconds(),
+        boundaries: router_env::metrics::exponential_histogram_buckets(),
     );
 }
 
