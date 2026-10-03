@@ -1277,6 +1277,75 @@ export const connectorDetails = {
     },
     ClientSessionInvalidConfirm:
       commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
+    SurchargePercentagePaymentIntent: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    // InterPayments (surcharge_processor) computes the surcharge on this card at
+    // eligibility time. surcharge_percentage is supplied by the live connector, so
+    // only its presence/type is asserted, not an exact value.
+    SurchargePercentageEligibility: {
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "US",
+              first_name: "John",
+              last_name: "Doe",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          surcharge_details: {
+            surcharge_percentage: 0,
+          },
+        },
+      },
+    },
+    SurchargePercentageConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SurchargePercentageRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          surcharge_details: {
+            surcharge_percentage: 0,
+          },
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Ach: {
