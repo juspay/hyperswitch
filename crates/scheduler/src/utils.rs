@@ -520,8 +520,9 @@ mod tests {
         (attempts, elapsed)
     }
 
-    /// 15 retries are budgeted on top of the initial charge. The billing connector takes the first
-    /// and holds the last back for day 30, so the ladder covers the 14 in between and then stops.
+    /// The ladder is 15 attempts: the initial charge plus 14 retries, the last of them on
+    /// day 28. The billing connector owns the first two (the charge and its own first
+    /// retry), so 13 are left to us, clear of the day 30 attempt it holds back.
     #[test]
     fn test_pcr_retry_ladder_leaves_thirteen_retries_to_us_ending_on_day_twenty_eight() {
         const DAY: i32 = 24 * 60 * 60;
