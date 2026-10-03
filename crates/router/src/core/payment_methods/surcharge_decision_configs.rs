@@ -510,7 +510,7 @@ pub async fn ensure_algorithm_cached(
             .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
             .attach_printable("Error initializing DSL interpreter backend")
     };
-    let interpreter = Box::pin(cache::get_or_populate_in_memory(
+    let interpreter = Box::pin(cache::get_or_populate_in_memory_redis(
         store,
         &key,
         value_to_cache(),
