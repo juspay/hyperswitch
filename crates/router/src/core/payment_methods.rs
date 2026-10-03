@@ -379,12 +379,19 @@ pub async fn render_pm_collect_link(
                 })?;
                 // Fetch customer
 
+                let use_merchant_reference_id = crate::core::payments::helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                    &state,
+                    &provider,
+                    Some(&customer_id),
+                )
+                .await;
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
                         &customer_id,
                         &req.merchant_id,
                         provider.get_key_store(),
                         provider.get_account().storage_scheme,
+                        use_merchant_reference_id,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {

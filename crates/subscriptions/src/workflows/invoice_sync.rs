@@ -72,6 +72,7 @@ impl<'a> InvoiceSyncHandler<'a> {
                 merchant_account.get_id(),
                 &key_store,
                 merchant_account.storage_scheme,
+                false,
             )
             .await
             .attach_printable("Subscriptions: Failed to fetch Customer from DB")?;

@@ -143,6 +143,7 @@ pub async fn initiate_payout_link(
                     &req.merchant_id,
                     platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
+                    false,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
