@@ -62,5 +62,22 @@ pub const DUIT_NOW_BRAND_TEXT: &str = "MALAYSIA NATIONAL QR";
 pub(crate) const CANNOT_CONTINUE_AUTH: &str =
     "Cannot continue with Authorization due to failed Liability Shift.";
 
+pub(crate) const THREE_DS_AUTHENTICATION_FAILED_CODE: &str = "THREE_DS_AUTHENTICATION_FAILED";
+
+pub(crate) const THREE_DS_AUTHENTICATION_FAILED_MESSAGE: &str =
+    "Card authentication with the issuing bank failed, so the payment was not authorized. Try again or use another card.";
+
+pub(crate) const THREE_DS_AUTHENTICATION_UNAVAILABLE_CODE: &str =
+    "THREE_DS_AUTHENTICATION_UNAVAILABLE";
+
+pub(crate) const THREE_DS_AUTHENTICATION_UNAVAILABLE_MESSAGE: &str =
+    "Card authentication with the issuing bank could not be completed, so the payment was not authorized. Try again or use another card.";
+
+pub(crate) const THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_CODE: &str =
+    "THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE";
+
+pub(crate) const THREE_DS_LIABILITY_SHIFT_NOT_POSSIBLE_MESSAGE: &str =
+    "The card was authenticated but the issuer did not grant liability shift, so the payment was not authorized.";
+
 #[cfg(feature = "payouts")]
 pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
