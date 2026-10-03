@@ -219,7 +219,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &profile_cache_key(profile_id),
-                fetch_func,
+                fetch_func(),
                 CacheId::Accounts,
             ))
             .await?
@@ -267,7 +267,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &profile_cache_key(profile_id),
-                fetch_func,
+                fetch_func(),
                 CacheId::Accounts,
             ))
             .await?

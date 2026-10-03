@@ -602,18 +602,17 @@ impl Cache {
         );
     }
 
-    /// Reads `key`, and on a miss populates it by running `populate`.
+    /// Reads `key`, and on a miss populates it by awaiting `populate`.
     ///
     /// Concurrent callers for one key are serialized by moka's per-key lock
     /// (`and_try_compute_with`): each caller's own `populate` runs in turn against the
     /// then-current state, so a failure or a timed-out attempt only ever affects the caller it
     /// happened to, never whoever's queued behind it. A single attempt is capped at
-    /// `populate_timeout`; since a caller's turn ends the moment its closure returns, this
+    /// `populate_timeout`; since a caller's turn ends the moment its future resolves, this
     /// also bounds how long anyone queued behind it can be made to wait.
-    pub async fn get_or_populate<T, F, Fut, E>(&self, key: CacheKey, populate: F) -> Result<T, E>
+    pub async fn get_or_populate<T, Fut, E>(&self, key: CacheKey, populate: Fut) -> Result<T, E>
     where
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
-        F: FnOnce() -> Fut + Clone + Send,
         Fut: futures::Future<Output = Result<T, E>> + Send,
         E: From<StorageError> + Send + Sync + 'static,
     {
@@ -623,14 +622,13 @@ impl Cache {
         }
 
         if self.populate_timeout.is_zero() {
-            let val = populate().await?;
+            let val = populate.await?;
             self.push(key, val.clone()).await;
             return Ok(val);
         }
 
         let moka_key = in_memory_cache_key(key.clone());
         let populate_timeout = self.populate_timeout;
-        let populate_for_closure = populate.clone();
 
         // moka's `Op::Put` does the real insert; `record_populate_insert` below just mirrors
         // `push`'s deja boundary so the write is still recorded.
@@ -642,7 +640,7 @@ impl Cache {
                     return Ok(Op::Nop);
                 }
 
-                match tokio::time::timeout(populate_timeout, populate_for_closure()).await {
+                match tokio::time::timeout(populate_timeout, populate).await {
                     Ok(Ok(val)) => {
                         let val: Arc<dyn Cacheable> = Arc::new(val);
                         Ok(Op::Put(val))
@@ -890,15 +888,14 @@ impl Cache {
 }
 
 #[instrument(skip_all)]
-pub async fn get_or_populate_redis<T, F, Fut>(
+pub async fn get_or_populate_redis<T, Fut>(
     redis: &RedisConnectionWithContext,
     key: impl AsRef<str>,
     ttl: Option<i64>,
-    fun: F,
+    populate: Fut,
 ) -> CustomResult<T, StorageError>
 where
     T: serde::Serialize + serde::de::DeserializeOwned + Debug,
-    F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
@@ -906,23 +903,20 @@ where
     let redis_val = redis
         .get_and_deserialize_key::<T>(&key.into(), type_name)
         .await;
-    let get_data_set_redis = || async {
-        let data = fun().await?;
-        match ttl {
-            Some(ttl) => {
-                redis
-                    .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
-                    .await
-            }
-            None => redis.serialize_and_set_key(&key.into(), &data).await,
-        }
-        .change_context(StorageError::KVError)?;
-        Ok::<_, Report<StorageError>>(data)
-    };
     match redis_val {
         Err(err) => match err.current_context() {
             RedisError::NotFound | RedisError::JsonDeserializationFailed => {
-                get_data_set_redis().await
+                let data = populate.await?;
+                match ttl {
+                    Some(ttl) => {
+                        redis
+                            .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
+                            .await
+                    }
+                    None => redis.serialize_and_set_key(&key.into(), &data).await,
+                }
+                .change_context(StorageError::KVError)?;
+                Ok(data)
             }
             _ => Err(err
                 .change_context(StorageError::KVError)
@@ -940,15 +934,14 @@ fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
 }
 
 #[instrument(skip_all)]
-pub async fn get_or_populate_in_memory<T, F, Fut, S>(
+pub async fn get_or_populate_in_memory<T, Fut, S>(
     store: &S,
     key: &str,
-    fun: F,
+    fun: Fut,
     cache: CacheId,
 ) -> CustomResult<T, StorageError>
 where
     T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
-    F: FnOnce() -> Fut + Clone + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
     S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
@@ -964,7 +957,7 @@ where
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
     // misses for one key cost a single redis round trip between them.
     cache
-        .get_or_populate(cache_key, || async {
+        .get_or_populate(cache_key, async {
             let redis = store
                 .get_redis_conn()
                 .change_context(StorageError::RedisError(
@@ -1082,21 +1075,19 @@ mod cache_tests {
     }
 
     /// A populate that counts its own invocations, so a test can assert how many callers
-    /// actually reached the backend. `Clone` because `Cache::get_or_populate` requires it.
+    /// actually reached the backend.
     fn counting_populate(
         calls: &Arc<AtomicUsize>,
         delay: time::Duration,
         value: impl Into<String>,
-    ) -> impl FnOnce() -> futures::future::BoxFuture<'static, Result<String, String>> + Clone {
+    ) -> futures::future::BoxFuture<'static, Result<String, String>> {
         let calls = Arc::clone(calls);
         let value = value.into();
-        move || {
-            Box::pin(async move {
-                calls.fetch_add(1, Ordering::SeqCst);
-                tokio::time::sleep(delay).await;
-                Ok(value)
-            })
-        }
+        Box::pin(async move {
+            calls.fetch_add(1, Ordering::SeqCst);
+            tokio::time::sleep(delay).await;
+            Ok(value)
+        })
     }
 
     /// A populate that always fails, counting its own invocations the same way.
@@ -1104,16 +1095,14 @@ mod cache_tests {
         calls: &Arc<AtomicUsize>,
         delay: time::Duration,
         message: impl Into<String>,
-    ) -> impl FnOnce() -> futures::future::BoxFuture<'static, Result<String, String>> + Clone {
+    ) -> futures::future::BoxFuture<'static, Result<String, String>> {
         let calls = Arc::clone(calls);
         let message = message.into();
-        move || {
-            Box::pin(async move {
-                calls.fetch_add(1, Ordering::SeqCst);
-                tokio::time::sleep(delay).await;
-                Err(message)
-            })
-        }
+        Box::pin(async move {
+            calls.fetch_add(1, Ordering::SeqCst);
+            tokio::time::sleep(delay).await;
+            Err(message)
+        })
     }
 
     #[tokio::test]
