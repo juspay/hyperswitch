@@ -6117,7 +6117,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
-        let amount = payment_data.payment_attempt.get_total_amount();
+        // Void the amount still held on the attempt rather than the full payment amount
+        let amount = payment_data.payment_attempt.amount_capturable;
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;

@@ -3904,7 +3904,10 @@ where
     // Clone router_data before handler consumes it, so we can use it if the handler
     // returns a ConnectorError (which we convert to Ok(router_data) with Err(ErrorResponse))
     let router_data_clone = router_data.clone();
-    let grpc_header = grpc_header_builder.build();
+    // Set only for payment router data built with a resolved config (v1); otherwise no header is sent
+    let grpc_header = grpc_header_builder
+        .accept_amount_mismatch(router_data.accept_amount_mismatch.map(|value| *value))
+        .build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
@@ -4141,7 +4144,10 @@ where
     let payout_id = router_data.payout_id.clone();
     let payment_method = router_data.payment_method;
     let payment_method_type = router_data.payment_method_type;
-    let grpc_header = grpc_header_builder.build();
+    // Set only for payment router data built with a resolved config (v1); otherwise no header is sent
+    let grpc_header = grpc_header_builder
+        .accept_amount_mismatch(router_data.accept_amount_mismatch.map(|value| *value))
+        .build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
