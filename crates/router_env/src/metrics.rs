@@ -201,14 +201,18 @@ mod helpers {
         fn histogram_boundaries() {
             let buckets = exponential_histogram_buckets();
             assert_eq!(buckets.len(), 134);
-            assert!((buckets[0] - 0.000_1).abs() < 1e-12);
-            assert!((buckets[133] - 52.4288).abs() < 1e-9);
-            for pair in buckets.windows(2) {
-                assert!(pair[1] > pair[0]);
-                assert!(pair[1] / pair[0] < 1.105);
+            assert!(buckets
+                .first()
+                .is_some_and(|&value| (value - 0.000_1).abs() < 1e-12));
+            assert!(buckets
+                .last()
+                .is_some_and(|&value| (value - 52.4288).abs() < 1e-9));
+            for (&lower, &upper) in buckets.iter().zip(buckets.iter().skip(1)) {
+                assert!(upper > lower);
+                assert!(upper / lower < 1.105);
             }
-            for interval in buckets.windows(8) {
-                assert!((interval[7] / interval[0] - 2.0).abs() < 1e-12);
+            for (&lower, &upper) in buckets.iter().zip(buckets.iter().skip(7)) {
+                assert!((upper / lower - 2.0).abs() < 1e-12);
             }
             let expected: Vec<f64> = (0..30).map(|index| 0.000_001 * 2_f64.powi(index)).collect();
             assert_eq!(f64_histogram_buckets(), expected);
