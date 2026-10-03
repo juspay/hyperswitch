@@ -1,3 +1,4 @@
+import { standardBillingAddress } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -759,6 +760,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
+        billing: standardBillingAddress,
         mit_category: "installment",
         customer_acceptance: {
           acceptance_type: "offline",

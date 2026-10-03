@@ -3356,6 +3356,19 @@ function threeDsRedirection(
     return;
   }
 
+  // Xendit's Cardinal Commerce 3DS page throws benign JS errors (e.g. its
+  // logging script reads classList on null nodes) during page transitions —
+  // suppress them before the redirect/iframe handling begins so they don't
+  // fail the test.
+  if (connectorId === "xendit") {
+    cy.on("uncaught:exception", (err) => {
+      if (err.message.includes("classList")) {
+        return false; // Prevent test failure
+      }
+      return true;
+    });
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
@@ -3491,7 +3504,36 @@ function threeDsRedirection(
 
         case "nmi":
         case "noon":
+          cy.get("iframe", { timeout: constants.TIMEOUT })
+            .its("0.contentDocument.body")
+            .within(() => {
+              cy.get("iframe", { timeout: constants.TIMEOUT })
+                .its("0.contentDocument.body")
+                .within(() => {
+                  cy.get('form[name="cardholderInput"]', {
+                    timeout: constants.TIMEOUT,
+                  })
+                    .should("exist")
+                    .then(() => {
+                      cy.get('input[name="challengeDataEntry"]')
+                        .click()
+                        .type("1234");
+                      cy.get('input[value="SUBMIT"]').click();
+                    });
+                });
+            });
+          break;
+
         case "xendit":
+          // Suppress known benign JS errors from Xendit's Cardinal Commerce
+          // 3DS page (e.g. its logging script reads classList on null nodes)
+          cy.on("uncaught:exception", (err) => {
+            if (err.message.includes("classList")) {
+              return false; // Prevent test failure
+            }
+            return true;
+          });
+
           cy.get("iframe", { timeout: constants.TIMEOUT })
             .its("0.contentDocument.body")
             .within(() => {
