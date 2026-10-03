@@ -735,6 +735,26 @@ export const connectorDetails = {
         },
       },
     },
+    // Pay then vault save card flow: the payment carries the PM session
+    // token instead of payment_method_data, and the card is promoted to the
+    // vault only after the payment acknowledges it (system.payment_method_
+    // integration_type = "pay_then_vault")
+    PayThenVaultSaveCardOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        amount: 1200,
+        currency: "EUR",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
 
     SaveCardUse3DSAutoCaptureOffSession: {
       Request: {
