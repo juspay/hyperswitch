@@ -679,6 +679,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             &merchant_id,
             provider.get_key_store(),
             provider.get_account().storage_scheme,
+            false,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
