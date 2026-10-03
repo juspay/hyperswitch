@@ -842,6 +842,25 @@ impl
     }
 }
 
+/// Shape-validates a Shift4 3DS token (`tok_...`) lifted from the shopper's
+/// browser redirect before it is forwarded to UCS. There is nothing to
+/// cryptographically verify it against (Shift4 signs no callback), so this is
+/// the only check available: the documented `tok_` prefix, a non-empty
+/// remainder, a generous but finite length bound, and URL-safe id characters
+/// only (Shift4's own ids — `char_...`, `re_...` — are always plain
+/// alphanumeric).
+fn is_valid_shift4_threeds_token(token: &str) -> bool {
+    const MAX_LEN: usize = 64;
+    match token.strip_prefix("tok_") {
+        Some(rest) => {
+            !rest.is_empty()
+                && token.len() <= MAX_LEN
+                && rest.bytes().all(|b| b.is_ascii_alphanumeric())
+        }
+        None => false,
+    }
+}
+
 impl
     transformers::ForeignTryFrom<(
         &RouterData<
@@ -943,6 +962,67 @@ impl
                 })
                 .map(payments_grpc::AuthenticationData::foreign_try_from)
                 .transpose()?
+        } else {
+            authentication_data
+        };
+
+        // Shift4 has no separate Authenticate step: its ACS returns the browser to the
+        // merchant with the 3DS token (`tok_...`) as a `token` query parameter, and the
+        // settle Authorize needs it as `authentication_data.threeds_server_transaction_id`.
+        //
+        // This value comes straight from the shopper's browser redirect, so it is
+        // untrusted input. Shift4 signs nothing here (there is no callback signature
+        // to check — see the UCS-side webhook-verification note for the same
+        // limitation), so the only defense available is shape validation: a real
+        // Shift4 id is `tok_` followed by a non-empty run of URL-safe id characters,
+        // with a generous but finite length bound. Anything that doesn't match is
+        // rejected with a clear error instead of silently proceeding with `None` —
+        // UCS's own guard (`shift4/transformers.rs` G-ThreeDS-01) would eventually
+        // refuse a missing token anyway, but only after a wasted round trip and with
+        // an error message that doesn't point at the actual cause.
+        let authentication_data = if authentication_data.is_none()
+            && router_data.connector == "shift4"
+        {
+            let raw_token =
+                router_data
+                    .request
+                    .redirect_response
+                    .as_ref()
+                    .and_then(|redirect_response| {
+                        let from_payload = redirect_response.payload.as_ref().and_then(|payload| {
+                            payload
+                                .clone()
+                                .expose()
+                                .get("token")
+                                .and_then(|token| token.as_str().map(str::to_string))
+                        });
+                        from_payload.or_else(|| {
+                            redirect_response.params.as_ref().and_then(|params| {
+                                // Percent-decode properly rather than splitting the raw
+                                // query string on `&`/`=`, which mishandles an
+                                // encoded `&`, `=` or `+` inside the value.
+                                url::form_urlencoded::parse(params.clone().expose().as_bytes())
+                                    .find(|(key, _)| key == "token")
+                                    .map(|(_, value)| value.into_owned())
+                            })
+                        })
+                    });
+            let token = match raw_token {
+                Some(token) if is_valid_shift4_threeds_token(&token) => token,
+                Some(_) | None => {
+                    return Err(report!(UnifiedConnectorServiceError::RequestEncodingFailed)
+                        .attach_printable(
+                            "Shift4 3DS redirect did not carry a valid `token` \
+                             parameter (expected `tok_` followed by 1-64 URL-safe \
+                             id characters); refusing to continue authorization \
+                             without a verified 3DS result",
+                        ));
+                }
+            };
+            Some(payments_grpc::AuthenticationData {
+                threeds_server_transaction_id: Some(token),
+                ..Default::default()
+            })
         } else {
             authentication_data
         };

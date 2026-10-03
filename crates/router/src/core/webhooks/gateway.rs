@@ -422,7 +422,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         let merchant_event_id = build_merchant_event_id(ctx);
 
         let reference = match ctx.ucs_reference.as_ref() {
-            Some(r) => event_reference_to_object_ref(r)?,
+            Some(r) => event_reference_to_object_ref(r, &connector_name)?,
             None => None,
         };
         let event_type = ctx
@@ -914,6 +914,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext) -> String {
 
 fn event_reference_to_object_ref(
     reference: &payments_grpc::EventReference,
+    connector_name: &str,
 ) -> RouterResult<Option<ObjectReferenceId>> {
     use api_models::{payments as api_payments, webhooks as api_webhooks};
     use payments_grpc::event_reference::Resource;
@@ -949,15 +950,32 @@ fn event_reference_to_object_ref(
                 })
             }
         }
-        Resource::Dispute(dispute) => dispute
-            .connector_dispute_id
-            .as_ref()
-            .or(dispute.connector_transaction_id.as_ref())
-            .map(|id| {
+        // Precedence is connector_dispute_id-first for every connector except
+        // Shift4. Shift4's dispute webhook always carries the parent charge id
+        // as `connector_transaction_id` (`DisputeWebhookReference` in
+        // shift4/transformers.rs), and that charge id is what resolves a real
+        // payment attempt here; its dispute id would not. Other connectors'
+        // webhook payloads were not audited for this PR, so their existing
+        // (dispute-id-first) behavior is left unchanged rather than flipped
+        // globally on Shift4's evidence alone.
+        Resource::Dispute(dispute) => {
+            let (first, second) = if connector_name == "shift4" {
+                (
+                    dispute.connector_transaction_id.as_ref(),
+                    dispute.connector_dispute_id.as_ref(),
+                )
+            } else {
+                (
+                    dispute.connector_dispute_id.as_ref(),
+                    dispute.connector_transaction_id.as_ref(),
+                )
+            };
+            first.or(second).map(|id| {
                 ObjectReferenceId::PaymentId(api_payments::PaymentIdType::ConnectorTransactionId(
                     id.clone(),
                 ))
-            }),
+            })
+        }
         Resource::Mandate(mandate) => mandate.connector_mandate_id.as_ref().map(|id| {
             ObjectReferenceId::MandateId(api_webhooks::MandateIdType::ConnectorMandateId(
                 id.clone(),
