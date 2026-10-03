@@ -631,34 +631,6 @@ pub struct SepaBankTransferData {
     pub country: enums::CountryAlpha2,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum StripeCreditTransferSourceRequest {
-    AchBankTansfer(AchCreditTransferSourceRequest),
-    MultibancoBankTansfer(MultibancoCreditTransferSourceRequest),
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct AchCreditTransferSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripeCreditTransferTypes,
-    #[serde(flatten)]
-    pub payment_method_data: AchTransferData,
-    pub currency: enums::Currency,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct MultibancoCreditTransferSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripeCreditTransferTypes,
-    #[serde(flatten)]
-    pub payment_method_data: MultibancoTransferData,
-    pub currency: enums::Currency,
-    pub amount: Option<MinorUnit>,
-    #[serde(rename = "redirect[return_url]")]
-    pub return_url: Option<String>,
-}
-
 // Remove untagged when Deserialize is added
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
