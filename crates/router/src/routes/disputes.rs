@@ -130,6 +130,7 @@ pub async fn fetch_disputes(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::DisputesList))]
+#[cfg(feature = "v1")]
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,

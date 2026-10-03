@@ -558,6 +558,11 @@ pub enum PaymentIntentUpdate {
         amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
+    /// Records amounts that are no longer refundable.
+    StateMetadataUpdate {
+        state_metadata: PaymentIntentStateMetadata,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v1")]

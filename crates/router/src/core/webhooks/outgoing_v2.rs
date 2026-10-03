@@ -626,10 +626,11 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 payment_id: refund_response.payment_id.clone(),
                 refund_id: refund_response.id.clone(),
             },
-            webhooks::OutgoingWebhookContent::DisputeDetails(dispute_response) => {
-                //TODO: add support for dispute outgoing webhook
-                todo!()
-            }
+            webhooks::OutgoingWebhookContent::DisputeDetails(dispute_response) => Self::Dispute {
+                payment_id: dispute_response.payment_id.clone(),
+                attempt_id: dispute_response.attempt_id.get_string_repr().to_owned(),
+                dispute_id: dispute_response.dispute_id.clone(),
+            },
             webhooks::OutgoingWebhookContent::MandateDetails(mandate_response) => Self::Mandate {
                 payment_method_id: mandate_response.payment_method_id.clone(),
                 mandate_id: mandate_response.mandate_id.clone(),
