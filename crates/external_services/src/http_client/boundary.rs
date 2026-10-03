@@ -201,7 +201,24 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
             }
         }
     }
-    let http_response = builder.body(bytes::Bytes::from(raw_bytes)).ok()?;
+    let body_bytes = bytes::Bytes::from(raw_bytes);
+    let mut http_response = builder.body(body_bytes.clone()).ok()?;
+    // #14115: `response_result` reads the body out of this extension, not off the
+    // stream, so a reconstruction without it reports "response body not captured
+    // (missing extension)" and `capture(reconstruct(v)) != v` for every recorded
+    // response. `response_with_captured_body` inserts it when a LIVE body is first
+    // read; the replay path rebuilds from the tape and never went through it.
+    //
+    // No caller can reach that today, and the shape of the dispatch is why: on a
+    // replay hit the runtime returns `Reconstructed::Value(replayed)` straight to
+    // the caller, so the Substitute boundary never re-observes what it produced,
+    // and the Record and Execute paths both capture a live response. The codec
+    // should hold the round-trip property on its own rather than rest on no
+    // caller ever wanting it. `Bytes` is refcounted, so the clone is a pointer
+    // bump, not a second copy of the body.
+    http_response
+        .extensions_mut()
+        .insert(CapturedResponseBody(body_bytes));
     Some(reqwest::Response::from(http_response))
 }
 
@@ -282,6 +299,97 @@ mod tests {
             cookies,
             ["a=1", "b=2", "c=3"],
             "every set-cookie value must survive the round trip"
+        );
+    }
+
+    /// A response shaped like one that came off the wire: the body is present
+    /// AND carries `CapturedResponseBody`, which is what
+    /// `response_with_captured_body` inserts when a live body is first read.
+    ///
+    /// Building the fixture with `http::Response::builder()` alone is not
+    /// equivalent — the capture then records `captured: false`, so the tape has
+    /// no `raw_bytes` and a reconstruction from it is legitimately empty. The
+    /// round-trip property is only meaningful against a recording that has a
+    /// body in it.
+    fn live_response(status: u16, body: &'static [u8]) -> reqwest::Response {
+        let body_bytes = bytes::Bytes::from_static(body);
+        let mut http_response = http::Response::builder()
+            .status(status)
+            .header("content-type", "application/json")
+            .body(body_bytes.clone())
+            .expect("failed to build the test response");
+        http_response
+            .extensions_mut()
+            .insert(CapturedResponseBody(body_bytes));
+        reqwest::Response::from(http_response)
+    }
+
+    /// The round-trip property the codec is supposed to hold: capturing a
+    /// reconstructed response must report the body it was just built with.
+    ///
+    /// Before the extension was restored in `replay_response`, this reported
+    /// `response body not captured (missing extension)` instead of the body, so
+    /// `capture(reconstruct(v)) != v` for every recorded response.
+    #[test]
+    fn a_reconstructed_response_round_trips_through_the_codec() {
+        let source = live_response(200, br#"{"id":"pay_1"}"#);
+        let result: CustomResult<reqwest::Response, HttpClientError> = Ok(source);
+        let (captured, _) = response_result(&result);
+        let captured = captured.expose();
+
+        let reconstructed =
+            replay_response(&captured).expect("a captured response must reconstruct");
+        let recaptured: CustomResult<reqwest::Response, HttpClientError> = Ok(reconstructed);
+        let (recaptured, _) = response_result(&recaptured);
+
+        assert_eq!(
+            recaptured.expose(),
+            captured,
+            "capture(reconstruct(v)) must equal v"
+        );
+    }
+
+    /// The body specifically, so a failure names the defect rather than pointing
+    /// at a whole-payload diff.
+    #[test]
+    fn a_reconstructed_response_reports_its_body_not_a_missing_extension() {
+        let source = live_response(201, b"payload-bytes");
+        let result: CustomResult<reqwest::Response, HttpClientError> = Ok(source);
+        let (captured, _) = response_result(&result);
+
+        let reconstructed =
+            replay_response(&captured.expose()).expect("a captured response must reconstruct");
+        let body = captured_body_json(&reconstructed).expose();
+
+        assert_eq!(
+            body,
+            deja::http::body(&bytes::Bytes::from_static(b"payload-bytes")),
+            "the reconstructed response must carry the body it was built with"
+        );
+        assert_ne!(
+            body,
+            deja::http::missing_body("response body not captured (missing extension)"),
+            "the replay path must not report a missing extension"
+        );
+    }
+
+    /// An empty recorded body is still a body: it must round-trip as an empty
+    /// one rather than as "not captured", which is a different fact.
+    #[test]
+    fn an_empty_reconstructed_body_is_captured_as_empty() {
+        let recorded = serde_json::json!({
+            "status": 204,
+            "response_headers": { "content-type": ["application/json"] },
+            "response_body": { "raw_bytes": [] },
+        });
+        let reconstructed =
+            replay_response(&recorded).expect("an empty-bodied recording must reconstruct");
+        let body = captured_body_json(&reconstructed).expose();
+
+        assert_eq!(body, deja::http::body(&bytes::Bytes::new()));
+        assert_ne!(
+            body,
+            deja::http::missing_body("response body not captured (missing extension)")
         );
     }
 
