@@ -74,6 +74,8 @@ use crate::core::payment_methods::{
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(feature = "v1")]
+use crate::core::payments::helpers as payments_helpers;
+#[cfg(feature = "v1")]
 use crate::core::payments::tokenization;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
@@ -151,12 +153,20 @@ impl PaymentMethodsController for PmCards<'_> {
         initiator: Option<&domain::Initiator>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
+        let use_merchant_reference_id =
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                self.state,
+                self.provider,
+                Some(customer_id),
+            )
+            .await;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
                 self.provider.get_key_store(),
                 self.provider.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1263,12 +1273,20 @@ impl PaymentMethodsController for PmCards<'_> {
         let db = &*self.state.store;
         // check for the customer
         // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
+        let use_merchant_reference_id =
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                self.state,
+                self.provider,
+                Some(customer_id),
+            )
+            .await;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
                 self.provider.get_key_store(),
                 self.provider.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1701,12 +1719,20 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let customer_id = key.customer_id.clone().get_required_value("customer_id")?;
 
+        let use_merchant_reference_id =
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                self.state,
+                self.provider,
+                Some(&customer_id),
+            )
+            .await;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
                 &customer_id,
                 self.provider.get_account().get_id(),
                 self.provider.get_key_store(),
                 self.provider.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -1822,12 +1848,20 @@ impl PaymentMethodsController for PmCards<'_> {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        let use_merchant_reference_id =
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                self.state,
+                self.provider,
+                Some(&customer_id),
+            )
+            .await;
         let customer_obj = db
             .find_customer_by_customer_id_merchant_id(
                 &customer_id,
                 merchant_id,
                 self.provider.get_key_store(),
                 self.provider.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::CustomerNotFound)
@@ -2522,12 +2556,20 @@ pub async fn add_payment_method_data(
         .clone()
         .get_required_value("customer_id")?;
 
+    let use_merchant_reference_id =
+        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            &state,
+            &provider,
+            Some(&customer_id),
+        )
+        .await;
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             &customer_id,
             provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -5225,11 +5267,19 @@ pub async fn list_payment_methods(
             pi.customer_id
                 .as_ref()
                 .async_and_then(|cust| async {
+                    let use_merchant_reference_id =
+                        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                            &state,
+                            platform.get_provider(),
+                            Some(cust),
+                        )
+                        .await;
                     db.find_customer_by_customer_id_merchant_id(
                         cust,
                         &pi.merchant_id,
                         platform.get_provider().get_key_store(),
                         platform.get_provider().get_account().storage_scheme,
+                        use_merchant_reference_id,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -6256,12 +6306,20 @@ pub async fn list_customer_payment_method(
         })
         .unwrap_or(false);
 
+    let use_merchant_reference_id =
+        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            state,
+            platform.get_provider(),
+            Some(customer_id),
+        )
+        .await;
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             customer_id,
             platform.get_provider().get_account().get_id(),
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
