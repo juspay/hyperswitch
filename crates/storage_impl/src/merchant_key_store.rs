@@ -136,7 +136,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         {
             let key_store_cache_key =
                 format!("merchant_key_store_{}", merchant_id.get_string_repr());
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &key_store_cache_key,
                 fetch_func(),

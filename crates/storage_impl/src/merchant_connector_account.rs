@@ -98,7 +98,7 @@ async fn list_all_by_merchant_id<T: DatabaseStore>(
 
     #[cfg(feature = "accounts_cache")]
     {
-        Box::pin(cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory_redis(
             store,
             &list_cache::merchant_scope_key(merchant_id),
             find_call(),
@@ -136,7 +136,7 @@ async fn list_all_by_merchant_id_profile_id<T: DatabaseStore>(
 
     #[cfg(feature = "accounts_cache")]
     {
-        Box::pin(cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory_redis(
             store,
             &list_cache::merchant_profile_scope_key(merchant_id, profile_id),
             find_call(),
@@ -453,7 +453,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 find_call(),
@@ -509,7 +509,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &format!("{}_{}", profile_id.get_string_repr(), connector_name),
                 find_call(),
@@ -582,7 +582,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &format!(
                     "{}_{}",
@@ -634,7 +634,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            cache::get_or_populate_in_memory_redis(
                 self,
                 id.get_string_repr(),
                 find_call(),

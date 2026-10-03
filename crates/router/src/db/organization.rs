@@ -59,7 +59,7 @@ impl OrganizationInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 org_id.get_string_repr(),
                 find_call(),

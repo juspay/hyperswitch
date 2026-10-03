@@ -31,14 +31,12 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 /// Default time to idle 10 mins
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
-/// Ceiling on how long a single populate attempt may run, 5 seconds — well above a healthy
-/// redis/DB round trip, well under redis's own command timeout.
-///
-/// Not deployment-configurable: no `config/*.toml` has ever set the field this used to back,
-/// and unlike `ttl`/`tti` (genuine per-cache tradeoffs between staleness and load) this is a
-/// defensive plumbing constant, not a policy any deployment has reason to vary.
+/// Ceiling on how long a single populate attempt may run, 500ms — well above the worst-case
+/// chain of a redis read, a DB read, and a redis write (sub-millisecond, 3-5ms,
+/// sub-millisecond respectively). Not deployment-configurable: no `config/*.toml` has ever
+/// set the field this used to back.
 pub const DEFAULT_POPULATE_TIMEOUT_IN_MS: NonZeroU64 =
-    NonZeroU64::new(5000).expect("5000 is nonzero");
+    NonZeroU64::new(500).expect("500 is nonzero");
 
 /// Default entry ceiling, deliberately the number the caches have always been built with.
 ///
@@ -447,7 +445,7 @@ pub struct Cache {
     name: &'static str,
     inner: MokaCache<String, Arc<dyn Cacheable>>,
     /// How long a single populate attempt may run before it's treated as failed. See
-    /// [`Self::get_or_populate`].
+    /// [`Self::get_or_populate_in_memory`].
     populate_timeout: Duration,
 }
 
@@ -583,7 +581,7 @@ impl Cache {
             .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         logger::error!(
             cache_type = self.name,
-            "and_try_compute_with returned a CompResult variant get_or_populate never asks for"
+            "and_try_compute_with returned a CompResult variant get_or_populate_in_memory never asks for"
         );
     }
 
@@ -596,7 +594,11 @@ impl Cache {
     /// `populate_timeout`; since a caller's turn ends the moment its future resolves, this
     /// also bounds how long anyone queued behind it can be made to wait. Every attempt is
     /// capped — there is no value of `populate_timeout` that opts out of the cap.
-    pub async fn get_or_populate<T, Fut, E>(&self, key: CacheKey, populate: Fut) -> Result<T, E>
+    pub async fn get_or_populate_in_memory<T, Fut, E>(
+        &self,
+        key: CacheKey,
+        populate: Fut,
+    ) -> Result<T, E>
     where
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Clone,
         Fut: futures::Future<Output = Result<T, E>> + Send,
@@ -861,7 +863,7 @@ fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
 }
 
 #[instrument(skip_all)]
-pub async fn get_or_populate_in_memory<T, Fut, S>(
+pub async fn get_or_populate_in_memory_redis<T, Fut, S>(
     store: &S,
     key: &str,
     fun: Fut,
@@ -883,7 +885,7 @@ where
     // misses for one key cost a single redis round trip between them. The round trip also
     // reports the payload size, so weighing the entry costs nothing extra.
     cache
-        .get_or_populate(cache_key, async {
+        .get_or_populate_in_memory(cache_key, async {
             let redis = store
                 .get_redis_conn()
                 .change_context(StorageError::RedisError(
@@ -982,7 +984,7 @@ mod cache_tests {
 
     use super::*;
 
-    /// Satisfies `get_or_populate`'s `E: From<StorageError>` bound for these tests' `E = String`.
+    /// Satisfies `get_or_populate_in_memory`'s `E: From<StorageError>` bound for these tests' `E = String`.
     impl From<StorageError> for String {
         fn from(err: StorageError) -> Self {
             err.to_string()
@@ -1039,7 +1041,11 @@ mod cache_tests {
         let readers = (0..20).map(|_| {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&calls, Duration::from_millis(50), "val");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         });
 
         for result in futures::future::join_all(readers).await {
@@ -1057,7 +1063,11 @@ mod cache_tests {
         let populating = {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&populating_calls, Duration::from_millis(100), "val");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         };
 
         // Let the first caller take the write side before the second one arrives.
@@ -1066,7 +1076,11 @@ mod cache_tests {
         let reader = {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&reader_calls, Duration::ZERO, "other");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         };
 
         assert_eq!(populating.await.unwrap(), Ok("val".to_string()));
@@ -1088,7 +1102,11 @@ mod cache_tests {
         let readers = (0..200).map(|_| {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&calls, Duration::ZERO, "other");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         });
 
         for result in futures::future::join_all(readers).await {
@@ -1114,7 +1132,11 @@ mod cache_tests {
         let slow = {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&slow_calls, Duration::from_millis(600), "slow");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         };
 
         // Let the first caller start (and be capped) before the second one arrives.
@@ -1123,7 +1145,11 @@ mod cache_tests {
         let queued = {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&queued_calls, Duration::ZERO, "own");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         };
 
         // Cut off at the cap, no retry: invoked once despite never completing.
@@ -1150,7 +1176,11 @@ mod cache_tests {
             // Delayed, so the second caller below arrives while this is still the active
             // turn, not after it has already finished and freed the key.
             let populate = failing_populate(&failing_calls, Duration::from_millis(100), "boom");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         };
 
         tokio::time::sleep(Duration::from_millis(20)).await;
@@ -1159,7 +1189,11 @@ mod cache_tests {
         let queued = {
             let cache = Arc::clone(&cache);
             let populate = counting_populate(&queued_calls, Duration::ZERO, "own");
-            tokio::spawn(async move { cache.get_or_populate(test_key("key"), populate).await })
+            tokio::spawn(async move {
+                cache
+                    .get_or_populate_in_memory(test_key("key"), populate)
+                    .await
+            })
         };
 
         assert_eq!(failing.await.unwrap(), Err("boom".to_string()));
@@ -1183,7 +1217,7 @@ mod cache_tests {
                 counting_populate(&calls, Duration::from_millis(50), format!("val{index}"));
             tokio::spawn(async move {
                 cache
-                    .get_or_populate(test_key(&format!("key{index}")), populate)
+                    .get_or_populate_in_memory(test_key(&format!("key{index}")), populate)
                     .await
             })
         });
