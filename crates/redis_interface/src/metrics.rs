@@ -19,11 +19,7 @@ use router_env::{global_meter, histogram_metric_f64};
 global_meter!(GLOBAL_METER, "REDIS");
 
 #[cfg(feature = "metrics")]
-histogram_metric_f64!(
-    REDIS_CALL_TIME,
-    GLOBAL_METER,
-    boundaries: router_env::metrics::exponential_histogram_buckets(),
-);
+histogram_metric_f64!(REDIS_CALL_TIME, GLOBAL_METER);
 
 /// The Redis operation being performed. Used both as the `operation` metric
 /// label and as the `endpoint` field on the emitted `ExternalServiceCall`.
