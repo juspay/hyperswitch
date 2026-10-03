@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+use common_utils::errors::ParsingError;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     encryption::Encryption,
@@ -240,6 +242,22 @@ impl MerchantAccount {
             .map(|config| config.get_inner())
     }
 
+    #[cfg(feature = "v1")]
+    pub fn get_business_details_for_profile(
+        &self,
+        business_profile: &crate::business_profile::Profile,
+    ) -> CustomResult<Option<(common_enums::CountryAlpha2, String)>, ParsingError> {
+        let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = self
+            .primary_business_details
+            .clone()
+            .parse_value("PrimaryBusinessDetails")?;
+
+        Ok(get_business_details_for_profile_name(
+            &primary_business_details,
+            &business_profile.profile_name,
+        ))
+    }
+
     #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
@@ -421,4 +439,21 @@ pub trait MerchantAccountInterface {
         )>,
         Self::Error,
     >;
+}
+
+#[cfg(feature = "v1")]
+fn get_business_details_for_profile_name(
+    primary_business_details: &[api_models::admin::PrimaryBusinessDetails],
+    profile_name: &str,
+) -> Option<(common_enums::CountryAlpha2, String)> {
+    primary_business_details
+        .iter()
+        .find(|business_details| {
+            format!("{}_{}", business_details.country, business_details.business) == profile_name
+        })
+        .or(match primary_business_details {
+            [business_details] => Some(business_details),
+            _ => None,
+        })
+        .map(|business_details| (business_details.country, business_details.business.clone()))
 }
