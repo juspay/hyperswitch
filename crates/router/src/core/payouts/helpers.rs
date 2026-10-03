@@ -19,10 +19,10 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy
 use router_env::logger;
 
 use super::PayoutData;
-#[cfg(feature = "payouts")]
-use crate::core::payments::route_connector_v1_for_payouts;
 #[cfg(feature = "v1")]
 use crate::core::payments::helpers as payments_helpers;
+#[cfg(feature = "payouts")]
+use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
