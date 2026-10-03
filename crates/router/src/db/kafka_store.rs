@@ -46,7 +46,7 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::redis::{cache::CacheInterface, kv_store::RedisConnInterface};
 #[cfg(feature = "v2")]
 use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
@@ -2233,6 +2233,34 @@ impl PaymentIntentInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<
+        Vec<(
+            diesel_models::PaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .get_filtered_payment_intents_attempt_for_platform(platform_merchant_id, filters)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_payment_intents_attempt_count_for_platform(platform_merchant_id, filters)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v1"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -3918,6 +3946,16 @@ impl RedisConnInterface for KafkaStore {
         &self,
     ) -> CustomResult<redis_interface::RedisConnectionWithContext, RedisError> {
         self.diesel_store.get_redis_conn()
+    }
+}
+
+impl CacheInterface for KafkaStore {
+    fn caches(&self) -> &storage_impl::redis::cache::Caches {
+        self.diesel_store.caches()
+    }
+
+    fn cache_key_prefix(&self) -> &str {
+        self.diesel_store.cache_key_prefix()
     }
 }
 
