@@ -101,7 +101,7 @@ async fn list_all_by_merchant_id<T: DatabaseStore>(
         cache::get_or_populate_in_memory(
             store,
             &list_cache::merchant_scope_key(merchant_id),
-            find_call,
+            find_call(),
             cache::CacheId::McaList,
         )
         .await
@@ -139,7 +139,7 @@ async fn list_all_by_merchant_id_profile_id<T: DatabaseStore>(
         cache::get_or_populate_in_memory(
             store,
             &list_cache::merchant_profile_scope_key(merchant_id, profile_id),
-            find_call,
+            find_call(),
             cache::CacheId::McaList,
         )
         .await
@@ -456,7 +456,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", merchant_id.get_string_repr(), connector_label),
-                find_call,
+                find_call(),
                 cache::CacheId::Accounts,
             )
             .await
@@ -512,7 +512,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             cache::get_or_populate_in_memory(
                 self,
                 &format!("{}_{}", profile_id.get_string_repr(), connector_name),
-                find_call,
+                find_call(),
                 cache::CacheId::Accounts,
             )
             .await
@@ -589,7 +589,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     merchant_id.get_string_repr(),
                     merchant_connector_id.get_string_repr()
                 ),
-                find_call,
+                find_call(),
                 cache::CacheId::Accounts,
             )
             .await?
@@ -637,7 +637,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             cache::get_or_populate_in_memory(
                 self,
                 id.get_string_repr(),
-                find_call,
+                find_call(),
                 cache::CacheId::Accounts,
             )
             .await?
