@@ -382,7 +382,6 @@ impl Customer {
         .await
     }
 
-    #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_reference_id: &id_type::CustomerId,
