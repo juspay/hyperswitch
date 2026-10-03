@@ -17,6 +17,24 @@ describe("Account Create flow test", () => {
     cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
   });
 
+  it("set-merchant-offer-engine-config", () => {
+    cy.setMerchantOfferEngineConfig(globalState);
+  });
+
+  it("enable-offer-engine-for-merchant", () => {
+    // Scoped per merchant (processor_merchant_id), since the untargeted
+    // default is "none"/false for all three keys.
+    cy.createSuperpositionOverrides(
+      globalState,
+      {
+        "offer_engine.enabled": true,
+        "offer_engine.credential_source": "merchant",
+        "payments.should_perform_eligibility": true,
+      },
+      { processor_merchant_id: globalState.get("merchantId") }
+    );
+  });
+
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
