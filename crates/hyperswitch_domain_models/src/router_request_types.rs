@@ -707,6 +707,24 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     }
 }
 
+impl TryFrom<SetupMandateRequestData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_type: data.payment_method_type,
+            minor_amount: data.minor_amount,
+            currency: data.currency,
+            payment_method_data: Some(data.payment_method_data),
+            order_details: None,
+            webhook_url: data.webhook_url,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+        })
+    }
+}
+
 impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
@@ -1908,6 +1926,9 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    /// Connector order id from the CreateOrder pre-step, for connectors that require an order
+    /// to exist before the mandate setup call.
+    pub order_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

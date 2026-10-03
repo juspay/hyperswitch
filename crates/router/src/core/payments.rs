@@ -7556,6 +7556,28 @@ where
         payment_data.push_sessions_token(session_token);
     };
 
+    // Order-first connectors need the CreateOrder pre-step on the proxy path too,
+    // exactly as call_connector_service runs it.
+    let should_continue_further = match router_data
+        .create_order_at_connector(
+            &updated_state,
+            &connector,
+            should_continue_further,
+            &gateway_context,
+        )
+        .await?
+    {
+        Some(create_order_response) => {
+            if let Ok(order_id) = create_order_response.clone().create_order_result {
+                payment_data.set_connector_response_reference_id(Some(order_id.clone()))
+            }
+            router_data
+                .update_router_data_with_create_order_response(create_order_response.clone());
+            create_order_response.should_continue_further
+        }
+        None => should_continue_further,
+    };
+
     let (connector_request, should_continue_further) = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
         router_data

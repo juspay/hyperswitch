@@ -26,7 +26,10 @@ use hyperswitch_domain_models::{
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
 use hyperswitch_interfaces::{
-    unified_connector_service::get_payments_response_from_ucs_webhook_content,
+    unified_connector_service::{
+        get_dispute_payload_from_ucs_webhook_content,
+        get_payments_response_from_ucs_webhook_content,
+    },
     webhooks::{
         IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
         WebhookResourceData,
@@ -631,6 +634,7 @@ async fn process_webhook_business_logic(
                 source_verified,
                 connector,
                 request_details,
+                &content,
                 event_type,
                 webhook_resource_data,
             ))
@@ -2984,6 +2988,7 @@ async fn disputes_incoming_webhook_flow(
     source_verified: bool,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
+    content: &super::gateway::WebhookContent,
     event_type: webhooks::IncomingWebhookEvent,
     webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
@@ -3005,9 +3010,38 @@ async fn disputes_incoming_webhook_flow(
         let resource_data = WebhookResourceData::Payment {
             payment_attempt: payment_attempt.clone(),
         };
-        let dispute_details = connector
-            .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
-            .switch()?;
+        let dispute_details = match content {
+            super::gateway::WebhookContent::UnifiedConnectorService(bytes) => {
+                // UCS path: build the dispute payload from the UCS DisputesResponse instead of
+                // re-parsing the raw body with the connector's own dispute model.
+                let event_content: payments_grpc::EventContent = serde_json::from_slice(bytes)
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable(
+                        "Failed to deserialize unified connector service event content",
+                    )?;
+                match get_dispute_payload_from_ucs_webhook_content(event_content)
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable(
+                        "Failed to read the dispute payload from unified connector service event content",
+                    )? {
+                    Some(details) => details,
+                    None => {
+                        logger::warn!(
+                            "UCS dispute content has no dispute_amount; falling back to connector get_dispute_details"
+                        );
+                        connector
+                            .get_dispute_details(
+                                request_details,
+                                Some(&WebhookContext::from(&resource_data)),
+                            )
+                            .switch()?
+                    }
+                }
+            }
+            super::gateway::WebhookContent::Direct(_) => connector
+                .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
+                .switch()?,
+        };
 
         let option_dispute = db
             .find_by_processor_merchant_id_payment_id_connector_dispute_id(

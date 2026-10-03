@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::fp_utils;
+use error_stack::ResultExt;
 use hyperswitch_connectors::constants as connector_consts;
 use hyperswitch_domain_models::{
     mandates, payments as domain_payments, router_data,
@@ -587,6 +588,147 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             Ok((setup_mandate_router_data, should_continue_payment))
         } else {
             Ok((self, true))
+        }
+    }
+
+    async fn create_order_at_connector(
+        &mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Option<types::CreateOrderResult>> {
+        let is_order_create_bloated_connector = connector.connector.is_order_create_flow_required(
+            api_interface::CurrentFlowInfo::SetupMandate {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+            },
+        );
+        if (connector
+            .connector_name
+            .requires_order_creation_before_payment(self.payment_method)
+            || is_order_create_bloated_connector)
+            && should_continue_payment
+        {
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::CreateOrder,
+                types::CreateOrderRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+
+            let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
+
+            let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+                Err(types::ErrorResponse::default());
+
+            let createorder_router_data =
+                helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+                    self.clone(),
+                    request_data,
+                    response_data,
+                );
+
+            let order_create_response_router_data = gateway::execute_payment_gateway(
+                state,
+                connector_integration,
+                &createorder_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                gateway_context.clone(),
+            )
+            .await
+            .to_payment_failed_response()?;
+
+            let order_create_response = order_create_response_router_data.response.clone();
+
+            let create_order_resp = match &order_create_response {
+                Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    order_id,
+                    session_token,
+                }) => {
+                    let should_continue_further = if session_token.is_some() {
+                        // if SDK session token is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(order_id.clone()),
+                        should_continue_further,
+                    }
+                }
+                // Some connector return PreProcessingResponse and TransactionResponse response type
+                // Rest of the match statements are temporary fixes for satisfying current connector side response handling
+                // Create Order response must always be PaymentsResponseData::PaymentsCreateOrderResponse only
+                Ok(types::PaymentsResponseData::PreProcessingResponse {
+                    pre_processing_id,
+                    session_token,
+                    ..
+                }) => {
+                    let should_continue_further = if session_token.is_some() {
+                        // if SDK session token is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(pre_processing_id.get_string_repr().clone()),
+                        should_continue_further,
+                    }
+                }
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    ..
+                }) => {
+                    let order_id = resource_id
+                        .get_connector_transaction_id()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "unable to get connector_transaction_id during order create",
+                        )?;
+                    let should_continue_further = if redirection_data.is_some() {
+                        // if redirection_data is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
+                    types::CreateOrderResult {
+                        create_order_result: Ok(order_id),
+                        should_continue_further,
+                    }
+                }
+                Ok(res) => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InternalServerError
+                )
+                .attach_printable(format!(
+                    "Unexpected response format from connector: {res:?}",
+                )))?,
+                Err(error) => types::CreateOrderResult {
+                    create_order_result: Err(error.clone()),
+                    should_continue_further: false,
+                },
+            };
+            // persist order create response
+            *self = helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
+                order_create_response_router_data,
+                self.request.clone(),
+                order_create_response,
+            );
+            Ok(Some(create_order_resp))
+        } else {
+            // If the connector does not require order creation, return None
+            Ok(None)
+        }
+    }
+
+    fn update_router_data_with_create_order_response(
+        &mut self,
+        create_order_result: types::CreateOrderResult,
+    ) {
+        if let Ok(order_id) = create_order_result.create_order_result {
+            self.request.order_id = Some(order_id);
         }
     }
 
