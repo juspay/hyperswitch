@@ -4892,6 +4892,7 @@ dependencies = [
  "time 0.3.41",
  "url 2.5.4",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
