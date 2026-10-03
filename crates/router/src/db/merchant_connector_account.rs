@@ -272,7 +272,7 @@ mod merchant_connector_account_cache_tests {
             .await
             .change_context(errors::StorageError::DecryptionError)
         };
-        let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
+        let _: storage::MerchantConnectorAccount = Box::pin(cache::get_or_populate_in_memory(
             &db,
             &format!(
                 "{}_{}",
@@ -281,7 +281,7 @@ mod merchant_connector_account_cache_tests {
             ),
             find_call(),
             cache::CacheId::Accounts,
-        )
+        ))
         .await
         .unwrap();
 

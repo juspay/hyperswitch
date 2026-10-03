@@ -89,12 +89,12 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
-        cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory(
             self,
             CARD_ISSUERS_LIST_CACHE_KEY,
             fetch_func(),
             cache::CacheId::Config,
-        )
+        ))
         .await
     }
 

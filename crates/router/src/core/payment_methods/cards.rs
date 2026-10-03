@@ -5716,7 +5716,7 @@ pub async fn call_surcharge_decision_management(
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    let (surcharge_results, merchant_sucharge_configs) =
+    let (surcharge_results, merchant_sucharge_configs) = Box::pin(
         perform_surcharge_decision_management_for_payment_method_list(
             &state,
             algorithm_ref,
@@ -5724,10 +5724,11 @@ pub async fn call_surcharge_decision_management(
             &payment_intent,
             billing_address.as_ref().map(Into::into),
             response_payment_method_types,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
+        ),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(&state, business_profile)
@@ -5778,13 +5779,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     // TODO: Move to business profile surcharge column
-    let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
+    let surcharge_results = Box::pin(perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
         payment_attempt,
         &payment_intent,
         &mut customer_payment_method_response.customer_payment_methods,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing surcharge decision operation")?;

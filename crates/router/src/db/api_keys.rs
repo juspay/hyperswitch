@@ -187,12 +187,12 @@ impl ApiKeyInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(
+            Box::pin(cache::get_or_populate_in_memory(
                 self,
                 &_hashed_api_key.into_inner(),
                 find_call(),
                 cache::CacheId::Accounts,
-            )
+            ))
             .await
         }
     }
@@ -526,7 +526,7 @@ mod tests {
             db.find_api_key_by_hash_optional(hashed_api_key.clone())
                 .await
         };
-        let _: Option<storage::ApiKey> = cache::get_or_populate_in_memory(
+        let _: Option<storage::ApiKey> = Box::pin(cache::get_or_populate_in_memory(
             &db,
             &format!(
                 "{}_{}",
@@ -535,7 +535,7 @@ mod tests {
             ),
             find_call(),
             cache::CacheId::Accounts,
-        )
+        ))
         .await
         .unwrap();
 
