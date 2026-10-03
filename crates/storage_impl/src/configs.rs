@@ -124,7 +124,7 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
                 }
             }
         };
-        Box::pin(cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory_redis(
             self,
             key,
             find_config_by_key_from_db(),

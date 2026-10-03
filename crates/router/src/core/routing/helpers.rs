@@ -699,7 +699,7 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
-        cache::get_or_populate_in_memory(
+        cache::get_or_populate_in_memory_redis(
             &*state.store,
             key,
             func,
@@ -738,7 +738,7 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
-        cache::get_or_populate_in_memory(
+        cache::get_or_populate_in_memory_redis(
             &*state.store,
             key,
             func,
@@ -777,7 +777,7 @@ impl DynamicRoutingCache for routing_types::EliminationRoutingConfig {
         T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
-        cache::get_or_populate_in_memory(
+        cache::get_or_populate_in_memory_redis(
             &*state.store,
             key,
             func,
