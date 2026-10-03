@@ -3336,7 +3336,7 @@ pub async fn create_generic_volatile_payment_method(
 
     // Fingerprint only for a `PayThenVault` flow with a customer present and customer acceptance:
     // the acceptance reaches this workflow from session confirm under `PayThenVault` alone.
-    let mut vault_operation_failed = false;
+    let mut should_not_promote = false;
     let (payment_method_id, fingerprint_details) = match customer_id
         .as_ref()
         .filter(|_| customer_acceptance.is_some())
@@ -3358,10 +3358,10 @@ pub async fn create_generic_volatile_payment_method(
                         ?error,
                         "PtV fingerprint unavailable; retaining a temporary payment method"
                     );
-                    vault_operation_failed = true;
+                    should_not_promote = true;
                     (payment_method_id, None)
                 }
-                Err(error) => return Err(error),
+                Err(error) => Err(error)?,
                 Ok(PaymentMethodResolution::Get(existing_payment_method)) => (
                     existing_payment_method.id.clone(),
                     Some(FingerprintDetails {
@@ -3466,7 +3466,7 @@ pub async fn create_generic_volatile_payment_method(
                     &payment_method.get_id().get_string_repr().to_string().into(),
                     VolatilePaymentMethodRecord {
                         payment_method: payment_method.clone(),
-                        vault_operation_failed,
+                        should_not_promote,
                     },
                     consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
                 )
@@ -6448,7 +6448,7 @@ struct VolatilePaymentMethodRecord {
     #[serde(flatten)]
     payment_method: diesel_models::PaymentMethod,
     #[serde(default)]
-    vault_operation_failed: bool,
+    should_not_promote: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -6472,11 +6472,11 @@ async fn fetch_volatile_payment_method_record(
             message: "Payment method token either expired or does not exist".to_string(),
         })?;
 
-    if for_update && payment_method.vault_operation_failed {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method update is unavailable after a PtV vault failure".to_string(),
-        }));
-    }
+    when(for_update && payment_method.should_not_promote, || {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payment method cannot be promoted after fingerprinting failed".to_string(),
+        }))
+    })?;
 
     let keymanager_state = &state.into();
 
@@ -6925,7 +6925,7 @@ pub async fn update_payment_method_core(
             {
                 None
             }
-            Err(error) => return Err(error),
+            Err(error) => Err(error)?,
         }
         // The acceptance the record was written with is what marks it for promotion, and there
         // has to be a customer to attach the card to. Without either the card was only ever meant
@@ -7251,7 +7251,8 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 }
 
 /// Resolves the merchant's payment-method integration type, defaulting to `VaultThenPay`.
-pub(crate) async fn resolve_payment_method_integration_type(
+#[cfg(feature = "v2")]
+async fn resolve_payment_method_integration_type(
     state: &SessionState,
     platform: &domain::Platform,
 ) -> pm_types::PaymentMethodIntegrationType {

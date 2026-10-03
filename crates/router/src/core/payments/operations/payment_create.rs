@@ -1623,14 +1623,6 @@ impl PaymentCreate {
             request.mandate_id.is_some(),
             request.is_stored_credential,
         );
-        let is_ptv = payment_method_info
-            .as_ref()
-            .is_some_and(|pm| pm.is_pm_volatile())
-            && crate::core::payment_methods::resolve_payment_method_integration_type(
-                state, platform,
-            )
-            .await
-                == types::payment_methods::PaymentMethodIntegrationType::PayThenVault;
         Ok((
             PaymentAttempt {
                 payment_id: payment_id.to_owned(),
@@ -1672,7 +1664,6 @@ impl PaymentCreate {
                 offer_amount: None,
                 payment_method_id: payment_method_info
                     .as_ref()
-                    .filter(|_| !is_ptv)
                     .map(|pm_info| pm_info.get_id().clone()),
                 cancellation_reason: None,
                 error_code: None,

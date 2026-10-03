@@ -1265,7 +1265,6 @@ where
 
                     handle_pm_and_mandate_post_update(
                         state,
-                        false,
                         operation.as_ref(),
                         &router_data,
                         platform,
@@ -1330,20 +1329,6 @@ where
                         )
                         .await?;
                     }
-
-                    handle_pm_and_mandate_post_update(
-                        state,
-                        true,
-                        operation.as_ref(),
-                        &router_data_for_pm_mandate,
-                        platform,
-                        &mut payment_data,
-                        &business_profile,
-                        req.get_payment_method_data(),
-                        &feature_config,
-                        &dimensions.without_profile_id(),
-                    )
-                    .await?;
 
                     payment_data
                 }
@@ -1523,7 +1508,6 @@ where
 
                     handle_pm_and_mandate_post_update(
                         state,
-                        false,
                         operation.as_ref(),
                         &router_data,
                         platform,
@@ -1588,20 +1572,6 @@ where
                         )
                         .await?;
                     }
-
-                    handle_pm_and_mandate_post_update(
-                        state,
-                        true,
-                        operation.as_ref(),
-                        &router_data_for_pm_mandate,
-                        platform,
-                        &mut payment_data,
-                        &business_profile,
-                        req.get_payment_method_data(),
-                        &feature_config,
-                        &dimensions.without_profile_id(),
-                    )
-                    .await?;
 
                     payment_data
                 }
@@ -2987,7 +2957,6 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 #[allow(clippy::too_many_arguments)]
 async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     state: &SessionState,
-    after_tracker_update: bool,
     operation: &Op,
     router_data: &RouterData<F, R, router_types::PaymentsResponseData>,
     platform: &domain::Platform,
@@ -3003,16 +2972,6 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    // RedisKv writes whole attempt snapshots: finish tracker writes before a detached PtV save.
-    let defer_ptv_update = payment_data
-        .get_payment_attempt()
-        .setup_future_usage_applied
-        != Some(common_enums::FutureUsage::OffSession)
-        && helpers::is_ptv_payment_method(state, payment_data).await;
-    if defer_ptv_update != after_tracker_update {
-        return Ok(());
-    }
-
     // Log the inputs of the modular-vs-legacy decision so a wrong branch is diagnosable:
     // the feature flag, the payment method's version and the modular/legacy modification
     // timestamps are everything `should_use_modular_pm_path` looks at.
@@ -3522,7 +3481,6 @@ where
 
             handle_pm_and_mandate_post_update(
                 state,
-                false,
                 operation.as_ref(),
                 &router_data_for_pm_mandate,
                 &platform,
@@ -3565,20 +3523,6 @@ where
                 )
                 .await?;
             }
-
-            handle_pm_and_mandate_post_update(
-                state,
-                true,
-                operation.as_ref(),
-                &router_data_for_pm_mandate,
-                &platform,
-                &mut payment_data,
-                &business_profile,
-                req.get_payment_method_data(),
-                &feature_config,
-                &dimensions.without_profile_id(),
-            )
-            .await?;
 
             utils::trigger_payments_webhook(
                 &platform,
@@ -10023,7 +9967,7 @@ where
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
-                            helpers::make_modular_pm_data(state, payment_data).await?;
+                            helpers::make_modular_pm_data(payment_data)?;
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
 
@@ -10072,7 +10016,7 @@ where
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
-                            helpers::make_modular_pm_data(state, payment_data).await?;
+                            helpers::make_modular_pm_data(payment_data)?;
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
 
