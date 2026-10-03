@@ -773,6 +773,7 @@ pub enum TrackingStatus {
     Accepted,
     Pending,
     Credited,
+    Failed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -808,6 +809,7 @@ pub fn get_adyen_payout_webhook_event(
                     webhooks::IncomingWebhookEvent::PayoutSuccess
                 }
                 TrackingStatus::Pending => webhooks::IncomingWebhookEvent::PayoutProcessing,
+                TrackingStatus::Failed => webhooks::IncomingWebhookEvent::PayoutFailure,
             }
         }
         (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
