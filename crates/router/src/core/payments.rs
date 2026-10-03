@@ -7557,14 +7557,21 @@ where
     };
 
     let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(
-                &updated_state,
-                &connector,
-                call_connector_action.clone(),
-            )
-            .await?
+        // Check if the actual flow specific request can be built with available data only for
+        // direct gateway. On the UCS path the request is built by UCS; building the direct
+        // connector request here would fail for payment method data the direct integration
+        // does not implement (e.g. card + network transaction id MITs) before UCS is called.
+        if gateway_context.execution_path.is_direct_gateway() {
+            router_data
+                .build_flow_specific_connector_request(
+                    &updated_state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        } else {
+            (None, should_continue_further)
+        }
     } else {
         (None, false)
     };

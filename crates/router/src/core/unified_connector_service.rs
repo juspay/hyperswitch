@@ -4339,6 +4339,38 @@ where
     })
 }
 
+/// Redacts webhook values that can carry verification secrets before the UCS webhook
+/// gRPC request is logged: every `request_details.headers` value (connectors send
+/// shared-secret tokens and signatures as headers) and `webhook_secrets.secret` /
+/// `webhook_secrets.additional_secret`, which are plain strings on the gRPC type and
+/// therefore not masked by `masked_serialize`. Header names are kept for debugging.
+fn redact_ucs_webhook_request_for_logging(grpc_request_body: &mut serde_json::Value) {
+    const REDACTED: &str = "*** redacted ***";
+
+    if let Some(headers) = grpc_request_body
+        .pointer_mut("/request_details/headers")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        headers
+            .values_mut()
+            .for_each(|value| *value = serde_json::Value::from(REDACTED));
+    }
+
+    if let Some(webhook_secrets) = grpc_request_body
+        .get_mut("webhook_secrets")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["secret", "additional_secret"] {
+            if let Some(value) = webhook_secrets
+                .get_mut(key)
+                .filter(|value| !value.is_null())
+            {
+                *value = serde_json::Value::from(REDACTED);
+            }
+        }
+    }
+}
+
 /// UCS wrapper for webhook flows. It centralizes header building and handler
 /// invocation plus masked request/response logging, and takes no
 /// `RouterData` — incoming webhooks don't have one at the UCS call site. `flow` is
@@ -4363,14 +4395,15 @@ where
     tracing::Span::current().record("flow_type", flow);
 
     let grpc_header = grpc_header_builder.build();
-    let grpc_request_body =
-        hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+        .unwrap_or_else(|error| {
             logger::warn!(
                 ?error,
                 "Failed to mask-serialize UCS webhook gRPC request for logging"
             );
             serde_json::json!({"error": "failed_to_serialize_grpc_request"})
         });
+    redact_ucs_webhook_request_for_logging(&mut grpc_request_body);
     logger::info!(
         flow,
         ucs_webhook_grpc_request = ?grpc_request_body,
