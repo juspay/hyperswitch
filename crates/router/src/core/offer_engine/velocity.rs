@@ -4,10 +4,9 @@ use hyperswitch_masking::StrongSecret;
 
 use crate::{
     core::{
-        blocklist::{
-            transformers::generate_fingerprint_and_get_id, utils::get_merchant_fingerprint_secret,
-        },
+        blocklist::transformers::generate_fingerprint_and_get_id,
         errors::{self, RouterResult},
+        utils::get_merchant_fingerprint_secret,
     },
     routes::SessionState,
     types::domain,
