@@ -6372,11 +6372,10 @@ pub async fn fetch_payment_method_by_storage(
                 state,
                 provider.get_key_store(),
                 pm_id.get_string_repr(),
-                false,
             )
             .await
             .attach_printable("Failed to get volatile payment method record")?;
-            Ok((storage_type, volatile_payment_method))
+            Ok((storage_type, volatile_payment_method.payment_method))
         }
         common_enums::StorageType::Persistent => {
             logger::debug!("Fetching persistent payment method with fallback");
@@ -6413,9 +6412,9 @@ pub async fn fetch_payment_method_with_fallback(
         state,
         provider.get_key_store(),
         pm_id.get_string_repr(),
-        false,
     )
     .await
+    .map(|record| record.payment_method)
     .attach_printable("Failed to get volatile payment method record");
 
     match volatile_payment_method {
@@ -6444,9 +6443,9 @@ pub async fn fetch_payment_method_with_fallback(
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct VolatilePaymentMethodRecord {
+struct VolatilePaymentMethodRecord<T> {
     #[serde(flatten)]
-    payment_method: diesel_models::PaymentMethod,
+    payment_method: T,
     #[serde(default)]
     should_not_promote: bool,
 }
@@ -6456,8 +6455,7 @@ async fn fetch_volatile_payment_method_record(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     pm_id: &str,
-    for_update: bool,
-) -> RouterResult<domain::PaymentMethod> {
+) -> RouterResult<VolatilePaymentMethodRecord<domain::PaymentMethod>> {
     let redis_conn = state
         .store
         .get_redis_conn()
@@ -6465,18 +6463,15 @@ async fn fetch_volatile_payment_method_record(
         .attach_printable("Failed to get redis connection")?;
 
     let payment_method = redis_conn
-        .get_and_deserialize_key::<VolatilePaymentMethodRecord>(&pm_id.into(), "PaymentMethod")
+        .get_and_deserialize_key::<VolatilePaymentMethodRecord<diesel_models::PaymentMethod>>(
+            &pm_id.into(),
+            "PaymentMethod",
+        )
         .await
         .map_err(|e| error_stack::report!(storage_impl::StorageError::from(e)))
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Payment method token either expired or does not exist".to_string(),
         })?;
-
-    when(for_update && payment_method.should_not_promote, || {
-        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method cannot be promoted after fingerprinting failed".to_string(),
-        }))
-    })?;
 
     let keymanager_state = &state.into();
 
@@ -6490,7 +6485,10 @@ async fn fetch_volatile_payment_method_record(
     .change_context(errors::StorageError::EncryptionError)
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok(domain_payment_method)
+    Ok(VolatilePaymentMethodRecord {
+        payment_method: domain_payment_method,
+        should_not_promote: payment_method.should_not_promote,
+    })
 }
 
 #[cfg(feature = "v2")]
@@ -6912,11 +6910,18 @@ pub async fn update_payment_method_core(
             state,
             platform.get_provider().get_key_store(),
             payment_method_id.get_string_repr(),
-            true,
         )
         .await
         {
-            Ok(payment_method) => Some(payment_method),
+            Ok(payment_method) => {
+                when(payment_method.should_not_promote, || {
+                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Payment method cannot be promoted after fingerprinting failed"
+                            .to_string(),
+                    }))
+                })?;
+                Some(payment_method.payment_method)
+            }
             Err(error)
                 if matches!(
                     error.current_context(),
