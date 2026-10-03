@@ -3277,6 +3277,17 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
         expect(reqData.customer_id ?? null, "customer_id").to.equal(
           response.body.customer_id
         );
+        // Assert configured card fields when provided
+        if (resData?.body?.card?.card_isin) {
+          expect(response.body.card, "card.card_isin")
+            .to.have.property("card_isin")
+            .to.equal(resData.body.card.card_isin);
+        }
+        if (resData?.body?.card?.last4_digits) {
+          expect(response.body.card, "card.last4_digits")
+            .to.have.property("last4_digits")
+            .to.equal(resData.body.card.last4_digits);
+        }
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
         defaultErrorHandler(response, resData);
@@ -8733,7 +8744,7 @@ Cypress.Commands.add(
 // Blocklist and Eligibility API Commands
 Cypress.Commands.add(
   "blocklistCreateRule",
-  (requestBody, cardBin, globalState) => {
+  (requestBody, cardBin, globalState, type = "card_bin") => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const profileId = globalState.get("profileId");
@@ -8741,7 +8752,7 @@ Cypress.Commands.add(
 
     const body = {
       ...requestBody,
-      type: "card_bin",
+      type: type,
       data: cardBin,
     };
 
@@ -8763,9 +8774,7 @@ Cypress.Commands.add(
           expect(response.body)
             .to.have.property("fingerprint_id")
             .to.equal(cardBin);
-          expect(response.body)
-            .to.have.property("data_kind")
-            .to.equal("card_bin");
+          expect(response.body).to.have.property("data_kind").to.equal(type);
           expect(response.body).to.have.property("created_at").to.not.be.null;
           globalState.set("blocklistRuleId", response.body.fingerprint_id);
         } else {
@@ -8846,7 +8855,25 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
 
-        if (response.status === 200) {
+        if (resData?.status === 400) {
+          // Expected-error cases (malformed card_bin deserialization → 400 IR_06)
+          expect(response.status, "status").to.equal(resData.status);
+          expect(response.body, "error").to.have.property("error");
+          expect(response.body.error, "error.code")
+            .to.have.property("code")
+            .to.equal(resData.body.error.code);
+          if (resData.body.error.error_type) {
+            expect(response.body.error, "error.error_type")
+              .to.have.property("error_type")
+              .to.equal(resData.body.error.error_type);
+          }
+          if (resData.body.error.message) {
+            // column number shifts with client_secret; match the stable prefix
+            expect(response.body.error, "error.message")
+              .to.have.property("message")
+              .to.include(resData.body.error.message);
+          }
+        } else if (response.status === 200) {
           expect(response.body)
             .to.have.property("payment_id")
             .to.equal(paymentId);
@@ -8863,12 +8890,26 @@ Cypress.Commands.add(
             expect(response.body.sdk_next_action.next_action.deny)
               .to.have.property("message")
               .to.equal(resData.body.sdk_next_action.next_action.deny.message);
+            if (resData.body.sdk_next_action.next_action.deny.code) {
+              expect(response.body.sdk_next_action.next_action.deny)
+                .to.have.property("code")
+                .to.equal(resData.body.sdk_next_action.next_action.deny.code);
+            }
           } else {
             // For non-blocklisted cards, we expect no deny action
             if (response.body.sdk_next_action?.next_action?.deny) {
               throw new Error(
                 "Expected no deny action for non-blocklisted card"
               );
+            }
+            // assert the configured next_action (e.g. "confirm") when present
+            if (typeof resData.body.sdk_next_action?.next_action === "string") {
+              expect(
+                response.body.sdk_next_action,
+                "sdk_next_action.next_action"
+              )
+                .to.have.property("next_action")
+                .to.equal(resData.body.sdk_next_action.next_action);
             }
           }
         } else {
@@ -8880,6 +8921,65 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("paymentsClientListCallTest", (data, globalState) => {
+  const { Configs: configs = {}, Response: resData } = data || {};
+  execConfig(validateConfig(configs));
+
+  const publishableKey = globalState.get("publishableKey");
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const clientSecret = globalState.get("clientSecret");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/payments/${paymentId}/client`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": publishableKey,
+    },
+    qs: {
+      client_secret: clientSecret,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.status, "status").to.equal(resData.status);
+
+      expect(response.body)
+        .to.have.property("customer_payment_methods")
+        .to.be.an("array");
+      expect(response.body).to.have.property("payment_methods_enabled").to.not
+        .be.empty;
+
+      // Every card payment method in the list must carry its card_isin
+      for (const paymentMethod of response.body.customer_payment_methods) {
+        if (paymentMethod?.payment_method === "card") {
+          expect(
+            paymentMethod.payment_method_data?.card?.card_isin,
+            "card_isin"
+          ).to.be.a("string");
+        }
+      }
+
+      // assert the exact set of card isins returned for the customer
+      const actualCardIsins = response.body.customer_payment_methods
+        .map(
+          (paymentMethod) =>
+            paymentMethod?.payment_method_data?.card?.card_isin ?? null
+        )
+        .filter((cardIsin) => cardIsin !== null);
+
+      expect(
+        [...actualCardIsins].sort(),
+        "customer_payment_methods card_isin set"
+      ).to.deep.equal([...resData.body.expected_card_isins].sort());
+    });
+  });
+});
 
 // DDC Race Condition Test Commands
 Cypress.Commands.add(

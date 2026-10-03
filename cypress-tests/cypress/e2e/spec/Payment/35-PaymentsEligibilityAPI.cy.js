@@ -36,12 +36,8 @@ describe("Payments Eligibility API with Blocklist", () => {
       );
     });
 
-    it("should enable blocklist functionality using configs API", () => {
-      const merchantId = globalState.get("merchantId");
-      const key = `guard_blocklist_for_${merchantId}`;
-      const value = "true";
-
-      cy.setConfigs(globalState, key, value, "CREATE");
+    it("should enable blocklist functionality", () => {
+      cy.blocklistToggle(true, globalState);
     });
   });
 
