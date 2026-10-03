@@ -734,15 +734,16 @@ where
             .customer_id
             .as_ref()
             .async_map(|customer_id| async {
-                let use_merchant_reference_id = helpers::should_use_merchant_reference_id_as_customer_id(
-                    state,
-                    &dimensions
-                        .without_profile_id()
-                        .without_processor_merchant_id()
-                        .with_organization_id(provider.get_account().organization_id.clone()),
-                    Some(customer_id),
-                )
-                .await;
+                let use_merchant_reference_id =
+                    helpers::should_use_merchant_reference_id_as_customer_id(
+                        state,
+                        &dimensions
+                            .without_profile_id()
+                            .without_processor_merchant_id()
+                            .with_organization_id(provider.get_account().organization_id.clone()),
+                        Some(customer_id),
+                    )
+                    .await;
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
                     &merchant_key_store.merchant_id,
