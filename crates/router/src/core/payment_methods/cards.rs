@@ -1891,7 +1891,11 @@ impl PaymentMethodsController for PmCards<'_> {
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add PaymentMethod Failed"),
-                    _ => Ok(self.store_default_payment_method(req, customer_obj.get_id(), merchant_id)),
+                    _ => Ok(self.store_default_payment_method(
+                        req,
+                        customer_obj.get_id(),
+                        merchant_id,
+                    )),
                 }
             }
             api_enums::PaymentMethod::Card => match req.card.clone() {
