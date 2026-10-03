@@ -48,7 +48,7 @@ pub async fn perform_decision_management(
             .attach_printable("Error initializing DSL interpreter backend")
     };
 
-    let interpreter = Box::pin(cache::get_or_populate_in_memory(
+    let interpreter = Box::pin(cache::get_or_populate_in_memory_redis(
         db,
         &key,
         find_key_from_db(),
