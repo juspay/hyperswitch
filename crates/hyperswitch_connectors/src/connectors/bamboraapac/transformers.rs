@@ -172,7 +172,15 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
 
 fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<u8, Error> {
     match capture_method {
-        Some(enums::CaptureMethod::Automatic) | None => Ok(1),
+        // `SequentialAutomatic` is "effectively the same as `Automatic` for most
+        // connectors" (see the CaptureMethod docs), and Bambora Asia-Pacific has no
+        // separate transaction type for it: both are a single-message purchase, type 1.
+        // It is in this connector's `supported_capture_methods`, so `/feature_matrix`
+        // advertises it; without this arm the payment was rejected with
+        // `CaptureMethodNotSupported` (#14242).
+        Some(enums::CaptureMethod::Automatic)
+        | Some(enums::CaptureMethod::SequentialAutomatic)
+        | None => Ok(1),
         Some(enums::CaptureMethod::Manual) => Ok(2),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
@@ -243,7 +251,14 @@ fn get_attempt_status(
 ) -> enums::AttemptStatus {
     match response_code {
         0 => match capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => enums::AttemptStatus::Charged,
+            // Same grouping as `get_transaction_type`, and for the same reason: a
+            // `SequentialAutomatic` payment is sent as transaction type 1, so an
+            // approved response means the money is captured. Reading it through the
+            // `_` arm reported `Pending` for a settled payment — a silently wrong
+            // terminal state, which is worse than the rejected request in #14242.
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => enums::AttemptStatus::Charged,
             Some(enums::CaptureMethod::Manual) => enums::AttemptStatus::Authorized,
             _ => enums::AttemptStatus::Pending,
         },
@@ -1034,4 +1049,84 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraapacSyncResponse, RefundsData, Refu
 pub struct BamboraapacErrorResponse {
     pub declined_code: Option<String>,
     pub declined_message: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // #14242: `SequentialAutomatic` is declared in this connector's
+    // `supported_capture_methods`, so `/feature_matrix` advertises it, but both
+    // the request builder and the status mapper matched only `Automatic`. The
+    // builder rejected the payment; the status mapper would have reported a
+    // settled payment as `Pending`.
+
+    #[test]
+    fn sequential_automatic_builds_the_same_transaction_type_as_automatic() {
+        let automatic = get_transaction_type(Some(enums::CaptureMethod::Automatic)).unwrap();
+        let sequential =
+            get_transaction_type(Some(enums::CaptureMethod::SequentialAutomatic)).unwrap();
+        assert_eq!(sequential, automatic);
+        assert_eq!(sequential, 1);
+    }
+
+    #[test]
+    fn manual_and_unset_capture_methods_are_unchanged() {
+        assert_eq!(get_transaction_type(None).unwrap(), 1);
+        assert_eq!(
+            get_transaction_type(Some(enums::CaptureMethod::Manual)).unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn a_capture_method_this_connector_cannot_send_is_still_rejected() {
+        // The `_` arm has to keep rejecting, or widening it would trade a loud
+        // failure for a wrong transaction type.
+        assert!(get_transaction_type(Some(enums::CaptureMethod::ManualMultiple)).is_err());
+        assert!(get_transaction_type(Some(enums::CaptureMethod::Scheduled)).is_err());
+    }
+
+    #[test]
+    fn an_approved_sequential_automatic_payment_is_charged_not_pending() {
+        // The dangerous half: response code 0 is an approval, and the payment was
+        // sent as a purchase, so the money is captured.
+        assert_eq!(
+            get_attempt_status(0, Some(enums::CaptureMethod::SequentialAutomatic)),
+            enums::AttemptStatus::Charged
+        );
+        assert_eq!(
+            get_attempt_status(0, Some(enums::CaptureMethod::Automatic)),
+            get_attempt_status(0, Some(enums::CaptureMethod::SequentialAutomatic))
+        );
+    }
+
+    #[test]
+    fn manual_capture_still_authorizes_and_failures_still_fail() {
+        assert_eq!(
+            get_attempt_status(0, Some(enums::CaptureMethod::Manual)),
+            enums::AttemptStatus::Authorized
+        );
+        assert_eq!(
+            get_attempt_status(1, Some(enums::CaptureMethod::SequentialAutomatic)),
+            enums::AttemptStatus::Failure
+        );
+    }
+
+    #[test]
+    fn every_declared_capture_method_is_accepted_by_the_request_builder() {
+        // The invariant the issue is really about: what `/feature_matrix`
+        // advertises must be what the builder can send. Reading the declaration
+        // from the connector keeps this true if the list changes.
+        for method in [
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ] {
+            assert!(
+                get_transaction_type(Some(method)).is_ok(),
+                "{method:?} is declared as supported but the request builder rejects it"
+            );
+        }
+    }
 }
