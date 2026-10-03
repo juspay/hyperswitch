@@ -497,7 +497,8 @@ pub async fn save_payout_data_to_locker(
                 ),
                 payouts::PayoutMethodData::Card(_)
                 | payouts::PayoutMethodData::BankRedirect(_)
-                | payouts::PayoutMethodData::Passthrough(_) => {
+                | payouts::PayoutMethodData::Passthrough(_)
+                | payouts::PayoutMethodData::GiftCard(_) => {
                     Err(errors::ApiErrorResponse::InternalServerError)?
                 }
             }
@@ -1717,6 +1718,11 @@ pub async fn get_additional_payout_data(
         api::PayoutMethodData::Passthrough(passthrough) => {
             Some(payout_additional::AdditionalPayoutMethodData::Passthrough(
                 Box::new(passthrough.to_owned().into()),
+            ))
+        }
+        api::PayoutMethodData::GiftCard(gift_card_data) => {
+            Some(payout_additional::AdditionalPayoutMethodData::GiftCard(
+                Box::new(gift_card_data.to_owned().into()),
             ))
         }
     }

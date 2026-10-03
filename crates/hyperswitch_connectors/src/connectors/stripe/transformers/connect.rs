@@ -496,6 +496,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 }
                 .into())
             }
+            api_models::payouts::PayoutMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payouts via GiftCard are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into())
+            }
             api_models::payouts::PayoutMethodData::Bank(_) => {
                 Err(errors::ConnectorError::GenericError {
                     error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),

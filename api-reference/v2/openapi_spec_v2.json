@@ -28229,6 +28229,17 @@
                 "$ref": "#/components/schemas/BankTransfer"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardPayout"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -28419,7 +28430,8 @@
           "card",
           "bank",
           "wallet",
-          "bank_redirect"
+          "bank_redirect",
+          "gift_card"
         ]
       },
       "PayoutsBillingDescriptor": {

@@ -579,7 +579,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::Bank(_)
             | PayoutMethodData::BankRedirect(_)
-            | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+            | PayoutMethodData::Passthrough(_)
+            | PayoutMethodData::GiftCard(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Trustly"),
             ))?,
         }
@@ -766,7 +767,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
             | PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
-            | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
+            | PayoutMethodData::Passthrough(_)
+            | PayoutMethodData::GiftCard(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Trustly"),
             ))?,
         }

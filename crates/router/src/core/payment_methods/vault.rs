@@ -1508,6 +1508,7 @@ pub enum VaultPayoutMethod {
     Wallet(String),
     BankRedirect(String),
     Passthrough(String),
+    GiftCard(String),
 }
 
 #[cfg(feature = "payouts")]
@@ -1528,6 +1529,9 @@ impl Vaultable for api::PayoutMethodData {
             }
             Self::Passthrough(passthrough) => {
                 VaultPayoutMethod::Passthrough(passthrough.get_value1(customer_id)?)
+            }
+            Self::GiftCard(gift_card) => {
+                VaultPayoutMethod::GiftCard(gift_card.get_value1(customer_id)?)
             }
         };
 
@@ -1553,6 +1557,9 @@ impl Vaultable for api::PayoutMethodData {
             }
             Self::Passthrough(passthrough) => {
                 VaultPayoutMethod::Passthrough(passthrough.get_value2(customer_id)?)
+            }
+            Self::GiftCard(gift_card) => {
+                VaultPayoutMethod::GiftCard(gift_card.get_value2(customer_id)?)
             }
         };
 
@@ -1608,6 +1615,10 @@ impl Vaultable for api::PayoutMethodData {
                 let (passthrough, supp_data) =
                     api::PassthroughPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Passthrough(passthrough), supp_data))
+            }
+            (VaultPayoutMethod::GiftCard(mvalue1), VaultPayoutMethod::GiftCard(mvalue2)) => {
+                let (gift_card, supp_data) = api::GiftCardPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::GiftCard(gift_card), supp_data))
             }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported"),
@@ -1785,6 +1796,76 @@ pub struct TokenizedPassthroughSensitiveValues {
 pub struct TokenizedPassthroughInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
     pub token_type: PaymentMethodType,
+}
+
+#[cfg(feature = "payouts")]
+impl Vaultable for api::GiftCardPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = match self {
+            Self::PaySafeCard(paysafe_card) => TokenizedGiftCardSensitiveValues {
+                consumer_id: paysafe_card.consumer_id.clone(),
+                date_of_birth: paysafe_card.date_of_birth.clone(),
+            },
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode gift card data - TokenizedGiftCardSensitiveValues")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = TokenizedGiftCardInsensitiveValues { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode gift card data value2")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedGiftCardSensitiveValues = value1
+            .parse_struct("TokenizedGiftCardSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into gift card data value1")?;
+
+        let value2: TokenizedGiftCardInsensitiveValues = value2
+            .parse_struct("TokenizedGiftCardInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into gift card data value2")?;
+
+        let gift_card = Self::PaySafeCard(api::PaysafeCardPayout {
+            consumer_id: value1.consumer_id,
+            date_of_birth: value1.date_of_birth,
+        });
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((gift_card, supp_data))
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedGiftCardSensitiveValues {
+    pub consumer_id: Option<hyperswitch_masking::Secret<String>>,
+    pub date_of_birth: Option<hyperswitch_masking::Secret<String>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedGiftCardInsensitiveValues {
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
