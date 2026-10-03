@@ -1,6 +1,6 @@
 use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
-    payment_method_data::{CardRedirectData, PaymentMethodData},
+    payment_method_data::{BankTransferData, CardRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::ResponseId,
     router_response_types::PaymentsResponseData,
@@ -15,6 +15,11 @@ use crate::types::ResponseRouterData;
 /// Directa24's code for WebPay, Transbank's Chilean redirect method.
 /// D24 payment-method codes are an open set, not a documented enum.
 pub const WEBPAY_PAYMENT_METHOD: &str = "WP";
+
+/// Placeholder code for a local bank transfer. The real Directa24 code (MX: `SE`, `COD`,
+/// `BM`, `STS`, `AF`, `BQL`; BR: `IX`, `I`, `NU`, `ME`) is resolved by the Unified
+/// Connector Service from `bank_code` and the billing country.
+pub const LOCAL_BANK_TRANSFER_PAYMENT_METHOD: &str = "BANK_TRANSFER";
 
 pub struct D24RouterData<T> {
     /// D24 takes `amount` as a JSON number in major units. CLP is a zero-decimal
@@ -42,8 +47,8 @@ pub struct D24PaymentsRequest {
 impl TryFrom<&D24RouterData<&PaymentsAuthorizeRouterData>> for D24PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &D24RouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        // D24 is a UCS-only connector: the complete WebPay deposit request (payer,
-        // country, document, return URLs, HMAC headers) is assembled by the Unified
+        // D24 is a UCS-only connector: the complete deposit request (payer, country,
+        // document, bank code, return URLs, HMAC headers) is assembled by the Unified
         // Connector Service. This HS-side path exists only to satisfy the connector
         // trait surface and is never exercised in production.
         match &item.router_data.request.payment_method_data {
@@ -51,8 +56,20 @@ impl TryFrom<&D24RouterData<&PaymentsAuthorizeRouterData>> for D24PaymentsReques
                 amount: item.amount,
                 payment_method: WEBPAY_PAYMENT_METHOD,
             }),
+            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match bank_transfer_data.as_ref() {
+                    BankTransferData::LocalBankTransfer { .. } => Ok(Self {
+                        amount: item.amount,
+                        payment_method: LOCAL_BANK_TRANSFER_PAYMENT_METHOD,
+                    }),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank transfer type not supported by D24".to_string(),
+                    )
+                    .into()),
+                }
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method not supported by D24 WebPay".to_string(),
+                "Payment method not supported by D24".to_string(),
             )
             .into()),
         }

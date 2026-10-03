@@ -388,6 +388,22 @@ static D24_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
             // `NotSupported` every `POST /refunds` is rejected before the connector
             // is ever called.
             refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Local bank transfer (Mexico: SPEI, CoDi, Banamex, Santander SuperNet, Afirme,
+    // Banorte; Brazil: Pix, Itaú, Nubank, MercadoPago). The customer pushes the
+    // transfer from their own bank, so it is auto-capture only. Refunds are left
+    // unsupported: a D24 bank-account refund requires the customer's `bank_account`,
+    // which the unified connector service does not send.
+    d24_supported_payment_methods.add(
+        enums::PaymentMethod::BankTransfer,
+        enums::PaymentMethodType::LocalBankTransfer,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::NotSupported,
             supported_capture_methods,
             specific_features: None,
         },
@@ -398,7 +414,7 @@ static D24_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
 
 static D24_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "D24",
-    description: "Directa24 WebPay — Transbank's Chilean redirect payment method. The customer is redirected to Transbank's own page to enter card details, so no card data passes through Hyperswitch. Chile only, CLP and USD.",
+    description: "Directa24 — Latin American payments. WebPay, Transbank's Chilean card redirect (Chile only, CLP and USD), and local bank transfers in Mexico (MXN and USD) and Brazil (BRL and USD). No card data passes through Hyperswitch.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
