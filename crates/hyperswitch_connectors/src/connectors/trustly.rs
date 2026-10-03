@@ -899,7 +899,7 @@ static TRUSTLY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
     let mut trustly_supported_payment_methods = SupportedPaymentMethods::new();
     trustly_supported_payment_methods.add(
         enums::PaymentMethod::BankRedirect,
-        enums::PaymentMethodType::Trustly,
+        enums::PaymentMethodType::OpenBanking,
         PaymentMethodDetails {
             mandates: common_enums::FeatureStatus::NotSupported,
             refunds: common_enums::FeatureStatus::Supported,
