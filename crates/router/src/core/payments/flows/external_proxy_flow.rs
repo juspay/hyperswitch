@@ -529,10 +529,11 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct Payment Authorize Request")?;
+        // A vault alias accompanied by a network transaction ID is an MIT. `payment_authorize`
+        // carries no mandate reference, so it would drop the NTI and the connector would treat
+        // the payment as a fresh cardholder-present authorization; the recurring charge endpoint
+        // is the MIT shape. Mirrors the branch `authorize_gateway` takes for raw-card MIT.
+        let is_mit_payment = self.request.mandate_id.is_some();
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -572,7 +573,84 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
 
-        let (updated_router_data, _) = Box::pin(ucs_logging_wrapper(
+        let (updated_router_data, _) = match is_mit_payment {
+            true => {
+                logger::info!(
+                    "External vault proxy: detected MIT payment, calling UCS recurring_payment_charge endpoint"
+                );
+
+                let recurring_payment_charge_request =
+                    payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from(&*self)
+                        .change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to construct Recurring Payment Charge Request")?;
+
+                Box::pin(ucs_logging_wrapper(
+                    self.clone(),
+                    state,
+                    recurring_payment_charge_request,
+                    headers_builder,
+                    unified_connector_service_execution_mode,
+                    |mut router_data, recurring_payment_charge_request, grpc_headers| async move {
+                        let response = Box::pin(client.recurring_payment_charge(
+                            recurring_payment_charge_request,
+                            connector_auth_metadata,
+                            grpc_headers,
+                        ))
+                        .await
+                        .attach_printable("Failed to charge recurring payment")?;
+
+                        let recurring_payment_charge_response = response.into_inner();
+
+                        let ucs_data =
+                            unified_connector_service::handle_unified_connector_service_response_for_recurring_payment_charge(
+                                recurring_payment_charge_response.clone(),
+                                router_data.status,
+                            )
+                            .attach_printable("Failed to deserialize UCS response")?;
+
+                        let router_data_response = match ucs_data.router_data_response {
+                            Ok((response, status)) => {
+                                router_data.status = status;
+                                Ok(response)
+                            }
+                            Err(err) => {
+                                if let Some(attempt_status) = err.attempt_status {
+                                    router_data.status = attempt_status;
+                                }
+                                Err(err)
+                            }
+                        };
+                        router_data.response = router_data_response;
+                        router_data.amount_captured =
+                            recurring_payment_charge_response.captured_amount;
+                        router_data.minor_amount_captured = recurring_payment_charge_response
+                            .captured_amount
+                            .map(common_utils::types::MinorUnit::new);
+                        router_data.raw_connector_response = recurring_payment_charge_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                        router_data.connector_http_status_code = Some(ucs_data.status_code);
+
+                        ucs_data.connector_customer_id.map(|connector_customer_id| {
+                            router_data.connector_customer = Some(connector_customer_id);
+                        });
+                        ucs_data.connector_response.map(|connector_response| {
+                            router_data.connector_response = Some(connector_response);
+                        });
+
+                        Ok((router_data, (), recurring_payment_charge_response))
+                    },
+                ))
+                .await?
+            }
+            false => {
+                let payment_authorize_request =
+                    payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self)
+                        .change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to construct Payment Authorize Request")?;
+
+                Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
             payment_authorize_request.clone(),
@@ -619,7 +697,9 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
                 Ok((router_data, (), payment_authorize_response))
             }
-        )).await?;
+        )).await?
+            }
+        };
 
         *self = updated_router_data;
         Ok(())

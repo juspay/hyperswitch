@@ -2518,6 +2518,64 @@ pub fn build_unified_connector_service_payment_method(
     }
 }
 
+/// The MIT counterpart of [`build_unified_connector_service_payment_method_for_external_proxy`].
+///
+/// Emits `ProxyCardDetailsForNetworkTransactionId` rather than `CardProxy`: a merchant initiated
+/// transaction has no cardholder present, so no CVC is sent, and UCS routes this variant to the
+/// vault-token holder on its recurring charge flow so the alias is substituted at the proxy. The
+/// network transaction ID that authorizes the MIT travels separately, as the mandate reference on
+/// `connector_recurring_payment_id`.
+pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
+    payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method_type: Option<PaymentMethodType>,
+) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    match payment_method_data {
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+            external_vault_card,
+        ) => {
+            let card_network = external_vault_card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from);
+
+            // TEMP DEBUG — REMOVE BEFORE COMMIT.
+            router_env::logger::info!(
+                step = "5_proto_payment_method",
+                variant = "proxy_card_details_for_network_transaction_id",
+                card_network = ?external_vault_card.card_network,
+                "TEMP_FLOW: emitting the MIT vault-alias payment method to UCS"
+            );
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
+                    payments_grpc::ProxyCardDetailsForNetworkTransactionId {
+                        card_number: Some(external_vault_card.card_number.expose().into()),
+                        card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+                        card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+                        card_issuer: external_vault_card.card_issuer.clone(),
+                        card_network: card_network.map(|card_network| card_network.into()),
+                        card_type: external_vault_card.card_type.clone(),
+                        card_issuing_country: external_vault_card.card_issuing_country.clone(),
+                        bank_code: external_vault_card.bank_code.clone(),
+                        nick_name: external_vault_card
+                            .nick_name
+                            .map(|nick_name| nick_name.expose().into()),
+                        card_holder_name: external_vault_card
+                            .card_holder_name
+                            .map(|card_holder_name| card_holder_name.expose().into()),
+                    },
+                )),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+            Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into())
+        }
+    }
+}
+
 pub fn build_unified_connector_service_payment_method_for_external_proxy(
     payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
