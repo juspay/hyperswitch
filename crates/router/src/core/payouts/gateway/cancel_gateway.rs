@@ -59,6 +59,7 @@ where
         ConnectorError,
     > {
         let rollout_settings = context.rollout_settings();
+        let external_vault_proxy_metadata = context.payout_external_vault_proxy_metadata(state)?;
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
@@ -95,7 +96,7 @@ where
             .get_grpc_headers_ucs(rollout_settings.execution_mode)
             .payment_method(Some(router_data.payment_method))
             .payment_method_type(router_data.payment_method_type)
-            .external_vault_proxy_metadata(None)
+            .external_vault_proxy_metadata(external_vault_proxy_metadata)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);

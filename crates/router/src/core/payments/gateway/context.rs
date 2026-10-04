@@ -53,6 +53,10 @@ pub struct RouterGatewayContext {
     /// The scope the gate decided under. Carried so the flows that inherit this context
     /// without gating for themselves count against the scope that authorised them.
     pub rollout_scope: Option<String>,
+
+    /// Payout-only vault configuration. Tokens are carried separately in PayoutData.
+    #[cfg(all(feature = "payouts", feature = "v1"))]
+    pub payout_execution_context: crate::core::payouts::proxy::PayoutExecutionContext,
 }
 
 /// Implementation of GatewayContext trait for RouterGatewayContext
@@ -95,6 +99,8 @@ impl RouterGatewayContext {
             connector_decline_threshold: None,
             // The direct path is not gated, so no scope decided it.
             rollout_scope: None,
+            #[cfg(all(feature = "payouts", feature = "v1"))]
+            payout_execution_context: Default::default(),
         }
     }
 
@@ -117,6 +123,44 @@ impl RouterGatewayContext {
             ExecutionPath::Direct => GatewaySystem::Direct,
             ExecutionPath::UnifiedConnectorService => GatewaySystem::UnifiedConnectorService,
             ExecutionPath::ShadowUnifiedConnectorService => GatewaySystem::Direct,
+        }
+    }
+
+    /// Common metadata plumbing for all payout gateways. Fail closed until the token-aware
+    /// payout protobuf/mappings are available; never submit a normal CardPayout with vault config.
+    #[cfg(feature = "payouts")]
+    pub fn payout_external_vault_proxy_metadata(
+        &self,
+        _state: &crate::routes::SessionState,
+    ) -> common_utils::errors::CustomResult<
+        Option<String>,
+        hyperswitch_interfaces::errors::ConnectorError,
+    > {
+        #[cfg(feature = "v1")]
+        {
+            if !matches!(
+                self.payout_execution_context,
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal
+            ) {
+                return Err(
+                    hyperswitch_interfaces::errors::ConnectorError::NotImplemented(
+                        "External vault proxy payouts require the UCS CardProxyPayout contract"
+                            .to_owned(),
+                    )
+                    .into(),
+                );
+            }
+            self.payout_execution_context
+                .external_vault_proxy_metadata(_state)
+                .map_err(|err| {
+                    err.change_context(
+                        hyperswitch_interfaces::errors::ConnectorError::RequestEncodingFailed,
+                    )
+                })
+        }
+        #[cfg(feature = "v2")]
+        {
+            Ok(None)
         }
     }
 }

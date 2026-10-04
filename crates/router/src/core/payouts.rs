@@ -127,6 +127,11 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
+    /// Opaque vault tokens live only in the request context, never in raw payout method data.
+    #[cfg(feature = "v1")]
+    pub external_vault_pmd: Option<domain_models::payouts::proxy::ExternalVaultPayoutMethodData>,
+    #[cfg(feature = "v1")]
+    pub execution_context: proxy::PayoutExecutionContext,
     pub profile_id: id_type::ProfileId,
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
@@ -557,6 +562,7 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
@@ -604,7 +610,12 @@ pub async fn payouts_create_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // PR 2 will dispatch proxy execution here, before normal method resolution.
+    // Dispatch before normal validation, raw-card resolution, or any create side effect.
+    #[cfg(feature = "v1")]
+    if req.execution_kind == Some(api_enums::PayoutExecutionKind::ExternalVaultProxy) {
+        return Box::pin(proxy::payouts_proxy_core(&state, &platform, req)).await;
+    }
+    #[cfg(feature = "v2")]
     validator::validate_create_execution_kind(&req)?;
 
     let dimensions = dimension_state::Dimensions::new()
@@ -1464,6 +1475,7 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 
@@ -3497,6 +3509,7 @@ pub async fn payout_create_db_entries(
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
         || stored_payout_method_data.is_some()
+        || req.execution_kind == Some(api_enums::PayoutExecutionKind::ExternalVaultProxy)
     {
         match req.confirm {
             Some(true) => storage_enums::PayoutStatus::RequiresCreation,
@@ -3631,7 +3644,7 @@ pub async fn payout_create_db_entries(
         additional_source_bank_data,
         connector_request_reference_id: None,
         active_frm_id: None,
-        execution_kind: storage_enums::PayoutExecutionKind::Normal,
+        execution_kind: req.execution_kind.unwrap_or_default(),
     };
     let payout_attempt = db
         .insert_payout_attempt(
@@ -3658,6 +3671,8 @@ pub async fn payout_create_db_entries(
             .as_ref()
             .cloned()
             .or(stored_payout_method_data.cloned()),
+        external_vault_pmd: None,
+        execution_context: proxy::PayoutExecutionContext::Normal,
         should_terminate: false,
         profile_id: profile_id.to_owned(),
         payout_link,
@@ -3756,6 +3771,10 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    // The marker is authoritative even when no execution selector is supplied later.
+    // This must run before resolving billing, method tokens, or temporary locker data.
+    validator::validate_persisted_execution_kind(payout_attempt.execution_kind, req)?;
 
     let customer_id = payouts.customer_id.as_ref();
 
@@ -3880,6 +3899,13 @@ pub async fn make_payout_data(
                     }
                     None => (None, None, None),
                 }
+            }
+            // Read-only proxy retrieval must not recover any temporary locker values.
+            payouts::PayoutRequest::PayoutRetrieveRequest(_)
+                if payout_attempt.execution_kind
+                    == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
+            {
+                (None, None, None)
             }
             payouts::PayoutRequest::PayoutRetrieveRequest(_) => {
                 let requires_source_bank_data = payout_attempt
@@ -4012,6 +4038,8 @@ pub async fn make_payout_data(
         payouts,
         payout_attempt,
         payout_method_data: payout_method_data_req.to_owned(),
+        external_vault_pmd: None,
+        execution_context: proxy::PayoutExecutionContext::Normal,
         merchant_connector_account,
         should_terminate: false,
         profile_id,
@@ -4448,6 +4476,9 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
+    // A proxy marker must never participate in Direct/Shadow/kill-switch fallback.
+    // The token-aware UCS-primary branch is wired only with the PR3 client contract.
+    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
@@ -4511,6 +4542,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
         connector_decline_threshold: rollout_result.connector_decline_threshold,
         rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
+        payout_execution_context: payout_data.execution_context.clone(),
     };
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_payout_metadata(payout_data, gateway_context.get_gateway_system())?;

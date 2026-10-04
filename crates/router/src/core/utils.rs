@@ -188,6 +188,9 @@ pub async fn construct_payout_router_data<'a, F>(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    crate::core::payouts::validator::validate_normal_execution_kind(
+        payout_data.payout_attempt.execution_kind,
+    )?;
     let merchant_connector_account = payout_data
         .merchant_connector_account
         .clone()

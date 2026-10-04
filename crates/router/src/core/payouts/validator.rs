@@ -34,7 +34,8 @@ use crate::{
     utils::OptionExt,
 };
 
-/// Fail closed until PR 2 implements proxy dispatch before normal card retrieval.
+/// V2 has no proxy payout core. V1 dispatches the selector before normal validation.
+#[cfg(feature = "v2")]
 pub fn validate_create_execution_kind(req: &payouts::PayoutCreateRequest) -> RouterResult<()> {
     if req.execution_kind == Some(common_enums::PayoutExecutionKind::ExternalVaultProxy) {
         req.payout_id.as_ref().get_required_value("payout_id")?;
@@ -42,6 +43,40 @@ pub fn validate_create_execution_kind(req: &payouts::PayoutCreateRequest) -> Rou
             message: errors::NotImplementedMessage::Reason(
                 "external vault proxy payouts".to_owned(),
             ),
+        }));
+    }
+    Ok(())
+}
+
+/// Reject normal execution of persisted proxy attempts before any method/locker resolution.
+/// Read-only retrieval remains available; force-sync and all mutation/resume paths are deferred.
+pub fn validate_persisted_execution_kind(
+    execution_kind: common_enums::PayoutExecutionKind,
+    req: &payouts::PayoutRequest,
+) -> RouterResult<()> {
+    if execution_kind == common_enums::PayoutExecutionKind::ExternalVaultProxy
+        && !matches!(
+            req,
+            payouts::PayoutRequest::PayoutRetrieveRequest(retrieve)
+                if retrieve.force_sync != Some(true)
+        )
+    {
+        return Err(report!(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(
+                "external vault proxy payout mutation and force-sync".to_owned(),
+            ),
+        }));
+    }
+    Ok(())
+}
+
+/// Defense in depth for normal raw-card, locker, and retry entry points.
+pub fn validate_normal_execution_kind(
+    execution_kind: common_enums::PayoutExecutionKind,
+) -> RouterResult<()> {
+    if execution_kind != common_enums::PayoutExecutionKind::Normal {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "External vault proxy payouts cannot use normal payout execution".to_owned(),
         }));
     }
     Ok(())
@@ -116,53 +151,20 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
+    validate_normal_execution_kind(req.execution_kind.unwrap_or_default())?;
     if req.payout_method_id.is_some() && req.confirm != Some(true) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Confirm must be true for recurring payouts".to_string(),
         }));
     }
-    let merchant_id = platform.get_processor().get_account().get_id();
-
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
             validate_payout_link_request(req)?;
         }
     };
 
-    // Merchant ID
-    let predicate = req.merchant_id.as_ref().map(|mid| mid != merchant_id);
-    utils::when(predicate.unwrap_or(false), || {
-        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "merchant_id".into(),
-            expected_format: "merchant_id from merchant account".to_string(),
-        })
-        .attach_printable("invalid merchant_id in request"))
-    })?;
-
-    // Payout ID
+    let payout_id = validate_create_request_identity(state, platform, req).await?;
     let db: &dyn StorageInterface = &*state.store;
-    let payout_id = match req.payout_id.as_ref() {
-        Some(provided_payout_id) => provided_payout_id.clone(),
-        None => id_type::PayoutId::generate(),
-    };
-
-    match validate_uniqueness_of_payout_id_against_merchant_id(
-        db,
-        &payout_id,
-        merchant_id,
-        platform.get_processor().get_account().storage_scheme,
-    )
-    .await
-    .attach_printable_lazy(|| {
-        format!(
-            "Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}"
-        )
-    })? {
-        Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
-            payout_id: payout_id.clone()
-        })),
-        None => Ok(()),
-    }?;
 
     // Fetch customer details (merge of loose fields + customer object) and create DB entry
     let customer_in_request = helpers::get_customer_details_from_request(req);
@@ -284,6 +286,48 @@ pub async fn validate_create_request(
         customer,
         payment_method,
     ))
+}
+
+/// Shared merchant/ID checks. Does not fetch a method, create a customer, or touch a locker.
+#[cfg(feature = "v1")]
+pub(super) async fn validate_create_request_identity(
+    state: &SessionState,
+    platform: &domain::Platform,
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<id_type::PayoutId> {
+    let merchant_id = platform.get_processor().get_account().get_id();
+    utils::when(
+        req.merchant_id
+            .as_ref()
+            .is_some_and(|mid| mid != merchant_id),
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".into(),
+                expected_format: "merchant_id from merchant account".to_owned(),
+            })
+            .attach_printable("invalid merchant_id in request"))
+        },
+    )?;
+
+    let payout_id = req
+        .payout_id
+        .clone()
+        .unwrap_or_else(id_type::PayoutId::generate);
+    if validate_uniqueness_of_payout_id_against_merchant_id(
+        &*state.store,
+        &payout_id,
+        merchant_id,
+        platform.get_processor().get_account().storage_scheme,
+    )
+    .await
+    .attach_printable_lazy(|| {
+        format!("Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}")
+    })?
+    .is_some()
+    {
+        return Err(report!(errors::ApiErrorResponse::DuplicatePayout { payout_id }));
+    }
+    Ok(payout_id)
 }
 
 #[cfg(feature = "v1")]
