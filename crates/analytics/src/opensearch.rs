@@ -1136,16 +1136,41 @@ impl OpenSearchQueryBuilder {
             })
             .collect::<Vec<Value>>())
     }
-
     /// Args for the OpenSearch seam: everything about the query that a replay
     /// must reproduce, and nothing that moves on its own.
     ///
     /// Built field by field rather than from `Debug` on the builder, because the
     /// builder holds a `HashSet` whose rendering order is per-process random —
-    /// folding that into the args hash would move the key every run.
-    /// `search_params` is excluded: it carries auth scope, not query identity.
+    /// that would make the same query look different on each run.
     #[cfg(feature = "deja")]
     pub fn deja_args(&self) -> Value {
+        let mut auth_scope = self.build_auth_array();
+        // Auth fragments are alternatives and the IDs inside `terms` are sets.
+        // Canonicalize only the identity projection; leave the executable query alone.
+        for fragment in &mut auth_scope {
+            for field in [
+                "merchant_id.keyword",
+                "processor_merchant_id.keyword",
+                "profile_id.keyword",
+            ] {
+                if let Some(values) = fragment
+                    .pointer_mut("/bool/must")
+                    .and_then(Value::as_array_mut)
+                    .and_then(|clauses| {
+                        clauses.iter_mut().find_map(|clause| {
+                            clause
+                                .get_mut("terms")
+                                .and_then(|terms| terms.get_mut(field))
+                                .and_then(Value::as_array_mut)
+                        })
+                    })
+                {
+                    values.sort_by_cached_key(Value::to_string);
+                }
+            }
+        }
+        auth_scope.sort_by_cached_key(Value::to_string);
+
         serde_json::json!({
             "query": self.query,
             "indexes": format!("{:?}", self.query_type),
@@ -1155,6 +1180,7 @@ impl OpenSearchQueryBuilder {
             "time_range": format!("{:?}", self.time_range),
             "amount_range": format!("{:?}", self.amount_range),
             "order": format!("{:?}", self.order),
+            "auth_scope": auth_scope,
         })
     }
 }
