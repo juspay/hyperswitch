@@ -582,16 +582,22 @@ mod vault_card_recurring_details_tests {
             .expect("vault card recurring details should serialize");
 
         assert_eq!(
-            serialized["type"],
-            serde_json::json!("network_transaction_id_and_vault_card_details")
+            serialized
+                .pointer("/type")
+                .and_then(serde_json::Value::as_str),
+            Some("network_transaction_id_and_vault_card_details")
         );
         assert_eq!(
-            serialized["data"]["network_transaction_id"],
-            serde_json::json!("MCC12345678")
+            serialized
+                .pointer("/data/network_transaction_id")
+                .and_then(serde_json::Value::as_str),
+            Some("MCC12345678")
         );
         assert_eq!(
-            serialized["data"]["vault_card_data"]["card_number"],
-            serde_json::json!("tok_4242424242424242")
+            serialized
+                .pointer("/data/vault_card_data/card_number")
+                .and_then(serde_json::Value::as_str),
+            Some("tok_4242424242424242")
         );
     }
 

@@ -2982,7 +2982,6 @@ impl
             None => None,
         };
 
-
         Ok(Self {
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             connector_recurring_payment_id,
