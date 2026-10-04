@@ -46,6 +46,8 @@ pub struct PayoutAttempt {
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
+    #[serde(default)]
+    pub execution_kind: storage_enums::PayoutExecutionKind,
 }
 
 #[derive(
@@ -94,10 +96,15 @@ pub struct PayoutAttemptNew {
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
+    #[serde(default)]
+    pub execution_kind: storage_enums::PayoutExecutionKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PayoutAttemptUpdate {
+    ExecutionKindUpdate {
+        execution_kind: storage_enums::PayoutExecutionKind,
+    },
     StatusUpdate {
         connector_payout_id: Option<String>,
         status: storage_enums::PayoutStatus,
@@ -169,6 +176,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
+    pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -198,6 +206,7 @@ impl Default for PayoutAttemptUpdateInternal {
             connector_eligibility_reference_id: None,
             connector_request_reference_id: None,
             active_frm_id: None,
+            execution_kind: None,
         }
     }
 }
@@ -205,6 +214,10 @@ impl Default for PayoutAttemptUpdateInternal {
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
     fn from(payout_update: PayoutAttemptUpdate) -> Self {
         match payout_update {
+            PayoutAttemptUpdate::ExecutionKindUpdate { execution_kind } => Self {
+                execution_kind: Some(execution_kind),
+                ..Default::default()
+            },
             PayoutAttemptUpdate::PayoutTokenUpdate { payout_token } => Self {
                 payout_token: Some(payout_token),
                 ..Default::default()

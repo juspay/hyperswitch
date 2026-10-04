@@ -34,6 +34,31 @@ use crate::{
     utils::OptionExt,
 };
 
+/// Fail closed until PR 2 implements proxy dispatch before normal card retrieval.
+pub fn validate_create_execution_kind(req: &payouts::PayoutCreateRequest) -> RouterResult<()> {
+    if req.execution_kind == Some(common_enums::PayoutExecutionKind::ExternalVaultProxy) {
+        req.payout_id.as_ref().get_required_value("payout_id")?;
+        return Err(report!(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(
+                "external vault proxy payouts".to_owned(),
+            ),
+        }));
+    }
+    Ok(())
+}
+
+/// The shared runtime request also serves update and confirm, unlike their create-only schemas.
+pub fn validate_existing_payout_execution_kind(
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<()> {
+    if req.execution_kind.is_some() {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "execution_kind is only supported on payout create".to_owned(),
+        }));
+    }
+    Ok(())
+}
+
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,

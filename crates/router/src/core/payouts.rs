@@ -5,6 +5,8 @@ pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
+#[cfg(feature = "v1")]
+pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
 pub mod transformers;
@@ -602,6 +604,9 @@ pub async fn payouts_create_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    // PR 2 will dispatch proxy execution here, before normal method resolution.
+    validator::validate_create_execution_kind(&req)?;
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -674,6 +679,8 @@ pub async fn payouts_confirm_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    validator::validate_existing_payout_execution_kind(&req)?;
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -743,6 +750,8 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    validator::validate_existing_payout_execution_kind(&req)?;
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -3622,6 +3631,7 @@ pub async fn payout_create_db_entries(
         additional_source_bank_data,
         connector_request_reference_id: None,
         active_frm_id: None,
+        execution_kind: storage_enums::PayoutExecutionKind::Normal,
     };
     let payout_attempt = db
         .insert_payout_attempt(

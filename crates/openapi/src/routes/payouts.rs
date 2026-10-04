@@ -1,11 +1,53 @@
 /// Payouts - Create
+///
+/// Omit execution_kind or set it to normal to retain existing payout behavior.
+/// The external_vault_proxy mode is a single server-to-server create call using
+/// a saved payout_method_id, its owning customer, and a merchant-supplied payout_id.
+/// Reuse payout_id for retries; merchant_order_reference_id does not deduplicate.
+/// Once implemented, omitted proxy flags default to confirm=true,
+/// auto_fulfill=true, payout_type=card, and
+/// recurring=false; conflicting values, inline method data, payout_token, client
+/// secrets, and payout-link options are rejected only in that mode. No SDK or
+/// separate confirm call is required. Proxy mode without payout_id returns 400;
+/// otherwise it currently returns 501 before normal payment-method retrieval
+/// or payout creation.
 #[utoipa::path(
     post,
     path = "/payouts/create",
-    request_body=PayoutsCreateRequest,
+    request_body(
+        content = PayoutsCreateRequest,
+        examples(
+            (
+                "Normal payout" = (
+                    value = json!({"amount": 1000, "currency": "USD"})
+                )
+            ),
+            (
+                "External vault proxy payout (not yet implemented)" = (
+                    value = json!({
+                        "execution_kind": "external_vault_proxy",
+                        "payout_id": "payout_proxy_merchant_1001",
+                        "merchant_order_reference_id": "merchant_payout_1001",
+                        "amount": 1000,
+                        "currency": "USD",
+                        "customer_id": "cus_external_vault_123",
+                        "payout_method_id": "pm_external_vault_123",
+                        "profile_id": "pro_external_vault_123",
+                        "confirm": true,
+                        "auto_fulfill": true,
+                        "payout_type": "card",
+                        "recurring": false,
+                        "entity_type": "Individual",
+                        "connector": ["cybersource"]
+                    })
+                )
+            )
+        )
+    ),
     responses(
         (status = 200, description = "Payout created", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields or invalid request"),
+        (status = 501, description = "External-vault proxy payout execution is not implemented yet")
     ),
     tag = "Payouts",
     operation_id = "Create a Payout",
