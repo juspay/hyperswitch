@@ -178,6 +178,46 @@ unresponsive_timeout = 10
 unresponsive_check_interval = 2   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
 max_feed_count = 200
 
+# In-memory (moka) cache tuning, with per-cache granularity.
+#
+# Every key below is optional, and each default is the value the corresponding cache is built
+# with when this section is absent — so uncomment only what you want to change.
+#
+# [cache]
+# invalidation_channel = "hyperswitch_invalidate" # Redis pub/sub channel used to invalidate in-memory cache entries across instances; must be identical on every instance of a deployment
+#
+# Each of the caches below accepts the same keys:
+#   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
+#   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
+#   max_entries        # Maximum number of entries the cache may hold. `0` makes it unbounded.
+#                      #
+#                      # Default for every cache except `config`: 31457280. That is the ceiling these
+#                      # caches have always had — a `30` that was documented as megabytes but reached moka
+#                      # as an entry count, because no weigher was ever configured — kept so that enabling
+#                      # this section changes no eviction behaviour. It binds nothing in practice; pick a
+#                      # real ceiling per cache once you know the numbers involved. `config` defaults to
+#                      # unbounded, as before.
+#                      #
+#                      # As an environment variable:
+#                      #   ROUTER__CACHE__ACCOUNTS__MAX_ENTRIES=500000
+#
+# Note that `time_to_idle` is what bounds the resident set in normal operation — these caches are
+# keyed per merchant and profile, so an entry unread for its window is dropped. `max_entries` is a
+# backstop against runaway growth, and an eviction attributable to it shows up on
+# IN_MEMORY_CACHE_EVICTION_COUNT with removal_cause=Size.
+#
+# [cache.config]                              # CONFIG_CACHE, unbounded by default
+# [cache.accounts]                            # ACCOUNTS_CACHE
+# [cache.mca_list]                            # MCA_LIST_CACHE
+# [cache.routing]                             # ROUTING_CACHE
+# [cache.decision_manager]                    # DECISION_MANAGER_CACHE
+# [cache.surcharge]                           # SURCHARGE_CACHE
+# [cache.cgraph]                              # CGRAPH_CACHE
+# [cache.pm_filters_cgraph]                   # PM_FILTERS_CGRAPH_CACHE
+# [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.contract_based_dynamic_algorithm]    # CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+
 [key_manager]
 url = "http://localhost:5000"
 use_legacy_key_store_decryption = false
