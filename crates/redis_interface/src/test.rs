@@ -1517,6 +1517,110 @@ async fn test_stream_delete_entries() {
     assert!(is_success);
 }
 
+// Two-process regression for typed fred Substitute replay. Run with
+// `bash crates/redis_interface/fred-replay-smoke.sh`.
+#[cfg(feature = "deja")]
+#[tokio::test]
+#[ignore = "two-process smoke; requires a disposable Redis and DEJA_FRED_XDEL_* env"]
+async fn deja_fred_xdel_replay_smoke() {
+    use std::{path::PathBuf, sync::Arc, time::Duration};
+
+    let phase = std::env::var("DEJA_FRED_XDEL_PHASE").expect("set smoke phase");
+    let artifact =
+        PathBuf::from(std::env::var("DEJA_FRED_XDEL_ARTIFACT").expect("set artifact directory"));
+    let key = std::env::var("DEJA_FRED_XDEL_KEY").expect("set isolated Redis key");
+    match phase.as_str() {
+        "record" => {
+            let hook = deja::RecordingHook::new(&artifact).expect("record hook");
+            deja::set_global_runtime_hook(Some(deja::RuntimeHook::Recording(Arc::new(hook))))
+                .expect("install record hook");
+        }
+        "replay" => {
+            let hook = deja::ReplayHook::from_artifact_dir(&artifact).expect("replay hook");
+            deja::set_global_runtime_hook(Some(deja::RuntimeHook::Replay(hook)))
+                .expect("install replay hook");
+        }
+        _ => panic!("phase must be record or replay"),
+    }
+    let _correlation = deja::test_support::recording_correlation("fred-xdel-replay-smoke");
+    let settings = RedisSettings {
+        host: "127.0.0.1".to_owned(),
+        port: std::env::var("DEJA_FRED_XDEL_REDIS_PORT")
+            .expect("set disposable Redis port")
+            .parse()
+            .expect("valid Redis port"),
+        ..RedisSettings::default()
+    };
+    // Connect before the driver stops its disposable Redis for the replay call.
+    let pool = test_connection(&settings)
+        .await
+        .expect("connect disposable Redis");
+    let stream: RedisKey = key.into();
+    let id = "1800000000000-0";
+
+    if phase == "record" {
+        pool.stream_append_entry(
+            &stream,
+            &RedisEntryId::UserSpecifiedID {
+                milliseconds: "1800000000000".to_owned(),
+                sequence_number: "0".to_owned(),
+            },
+            vec![("f", "v")],
+        )
+        .await
+        .expect("append stream entry");
+    } else {
+        let ready = std::env::var("DEJA_FRED_XDEL_READY").expect("set ready marker");
+        let proceed = std::env::var("DEJA_FRED_XDEL_PROCEED").expect("set proceed marker");
+        std::fs::write(ready, "connected").expect("write connected marker");
+        for _ in 0..300 {
+            if std::path::Path::new(&proceed).exists() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        assert!(
+            std::path::Path::new(&proceed).exists(),
+            "driver must stop Redis and release replay"
+        );
+    }
+
+    // Keep this exact callsite and argument tuple common to both processes.
+    let deleted = pool
+        .stream_delete_entries(&stream, vec![id.to_owned()])
+        .await
+        .expect("stream deletion result");
+    assert_eq!(deleted, 1, "replay must return the recorded XDEL count");
+    if phase == "record" {
+        deja::flush_global_runtime_hook().expect("flush recording");
+        let recorded = std::fs::read_to_string(artifact.join("semantic-events.jsonl"))
+            .expect("read recorded event artifact");
+        let deletion = recorded
+            .lines()
+            .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("event JSON"))
+            .find(|event| {
+                event.get("method_name").and_then(serde_json::Value::as_str)
+                    == Some("stream_delete_entries")
+                    && event
+                        .get("correlation_id")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("fred-xdel-replay-smoke")
+            })
+            .expect("recorded stream_delete_entries event");
+        let result = deletion.get("result").expect("recorded result");
+        assert_eq!(
+            result.get("result").and_then(serde_json::Value::as_str),
+            Some("Ok"),
+            "recorded verdict"
+        );
+        assert_eq!(
+            result.get("value").and_then(serde_json::Value::as_u64),
+            Some(1),
+            "recorded numeric result"
+        );
+    }
+}
+
 #[tokio::test]
 async fn test_stream_trim_entries() {
     let is_success = tokio::task::spawn_blocking(move || {

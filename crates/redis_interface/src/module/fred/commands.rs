@@ -1043,6 +1043,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "increment_fields_in_hash",
+            codec = deja::codec::ResultCodec::<Vec<usize>, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1510,6 +1511,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_append_entry",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1561,6 +1563,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_delete_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1593,6 +1596,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_trim_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1627,6 +1631,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_acknowledge_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1849,6 +1854,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "append_elements_to_list",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1943,6 +1949,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "lpop_list_elements",
+            codec = deja::codec::ResultCodec::<Vec<String>, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1977,6 +1984,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_create",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2021,6 +2029,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_destroy",
+            codec = deja::codec::ResultCodec::<crate::types::ConsumerGroupDestroyReply, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2055,6 +2064,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_delete_consumer",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2091,6 +2101,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_set_last_id",
+            codec = deja::codec::ResultCodec::<String, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2122,47 +2133,34 @@ impl super::RedisConnectionWithContext {
         Ok(id_str)
     }
 
+    // Capture XCLAIM's concrete Redis wire reply at the boundary, then let the
+    // public method perform fred's generic `FromRedis` conversion. This keeps
+    // replay lossless without adding serde bounds to callers' `R`.
+    #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "consumer_group_set_message_owner",
-            args = {
-                serde_json::json!({
-                    "key": stream.as_str(),
-                    "command": "XCLAIM",
-                    "group": group,
-                    "consumer": consumer,
-                })
-            },
-            // Generic `R: FromRedis` is NOT `Debug`, so the default `result_debug`
-            // capture would not compile. Record only the ok/err verdict (record-only
-            // leaf — no replay reconstruction needed).
-            result = {
-                (
-                    match &__deja_result {
-                        Ok(_) => serde_json::json!({"ok": true}),
-                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
-                    },
-                    __deja_result.is_err(),
-                )
-            },
-        )
+    #[deja::redis(
+        replay = Substitute,
+        operation = "consumer_group_set_message_owner",
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
+        args = {
+            serde_json::json!({
+                "key": stream.as_str(),
+                "command": "XCLAIM",
+                "group": group,
+                "consumer": consumer,
+            })
+        },
     )]
-    pub async fn consumer_group_set_message_owner<R>(
+    async fn consumer_group_set_message_owner_raw(
         &self,
         stream: &RedisKey,
         group: &str,
         consumer: &str,
         min_idle_time: u64,
         ids: Vec<String>,
-    ) -> CustomResult<R, errors::RedisError>
-    where
-        R: FromRedis + Unpin + Send + 'static,
-    {
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
         let fred_ids: MultipleIDs = ids.into();
-        track_redis_call(
+        let value: RedisValue = track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupSetMessageOwner,
@@ -2180,35 +2178,95 @@ impl super::RedisConnectionWithContext {
             ),
         )
         .await
-        .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        .change_context(errors::RedisError::ConsumerGroupClaimFailed)?;
+        Ok(value.into())
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "evaluate_redis_script",
-            args = {
-                serde_json::json!({
-                    "command": "EVAL",
-                    "key_count": key.len(),
-                })
-            },
-            // Generic `T` is NOT `Debug`, so the default `result_debug` capture
-            // would not compile. Record only the ok/err verdict (record-only leaf —
-            // an EVAL result is never reconstructed without an explicit override).
-            result = {
-                (
-                    match &__deja_result {
-                        Ok(_) => serde_json::json!({"ok": true}),
-                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
-                    },
-                    __deja_result.is_err(),
-                )
-            },
-        )
+    pub async fn consumer_group_set_message_owner<R>(
+        &self,
+        stream: &RedisKey,
+        group: &str,
+        consumer: &str,
+        min_idle_time: u64,
+        ids: Vec<String>,
+    ) -> CustomResult<R, errors::RedisError>
+    where
+        R: FromRedis + Unpin + Send + 'static,
+    {
+        #[cfg(feature = "deja")]
+        {
+            let raw = self
+                .consumer_group_set_message_owner_raw(stream, group, consumer, min_idle_time, ids)
+                .await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::ConsumerGroupClaimFailed)
+            })?;
+            R::from_value(value).change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let fred_ids: MultipleIDs = ids.into();
+            track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::ConsumerGroupSetMessageOwner,
+                self.redis_conn.pool.xclaim(
+                    stream.tenant_aware_key(&self.redis_conn),
+                    group,
+                    consumer,
+                    min_idle_time,
+                    fred_ids,
+                    None,
+                    None,
+                    None,
+                    false,
+                    false,
+                ),
+            )
+            .await
+            .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        }
+    }
+
+    // EVAL has the same generic-reply shape: record the concrete Redis wire
+    // value and reconstruct `T` through fred only after substitution.
+    #[cfg(feature = "deja")]
+    #[instrument(level = "DEBUG", skip(self))]
+    #[deja::redis(
+        replay = Substitute,
+        operation = "evaluate_redis_script",
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
+        args = {
+            serde_json::json!({
+                "command": "EVAL",
+                "key_count": key.len(),
+            })
+        },
     )]
+    async fn evaluate_redis_script_raw<V>(
+        &self,
+        lua_script: &'static str,
+        key: Vec<String>,
+        values: V,
+    ) -> CustomResult<RedisWireValue, errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
+    {
+        let value: RedisValue = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::EvaluateRedisScript,
+            self.redis_conn.pool.eval(lua_script, key, values),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+        Ok(value.into())
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn evaluate_redis_script<V, T>(
         &self,
         lua_script: &'static str,
@@ -2220,15 +2278,29 @@ impl super::RedisConnectionWithContext {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
         T: serde::de::DeserializeOwned + FromRedis,
     {
-        let val: T = track_redis_call(
-            self.request_id.as_deref(),
-            self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::EvaluateRedisScript,
-            self.redis_conn.pool.eval(lua_script, key, values),
-        )
-        .await
-        .change_context(errors::RedisError::IncrementHashFieldFailed)?;
-        Ok(val)
+        #[cfg(feature = "deja")]
+        {
+            let raw = self
+                .evaluate_redis_script_raw(lua_script, key, values)
+                .await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::IncrementHashFieldFailed)
+            })?;
+            T::from_value(value).change_context(errors::RedisError::IncrementHashFieldFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let val: T = track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::EvaluateRedisScript,
+                self.redis_conn.pool.eval(lua_script, key, values),
+            )
+            .await
+            .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+            Ok(val)
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
