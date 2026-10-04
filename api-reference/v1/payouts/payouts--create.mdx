@@ -30,7 +30,7 @@ proxy requests. There is no SDK flow or separate confirm call.
 
 ```bash
 curl --request POST 'https://api.example.com/payouts/create' \
-  --header 'api-key: YOUR_SECRET_API_KEY' \
+  --header "api-key: ${HYPERSWITCH_API_KEY}" \
   --header 'Content-Type: application/json' \
   --data-raw '{
     "execution_kind": "external_vault_proxy",
