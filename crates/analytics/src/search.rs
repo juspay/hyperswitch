@@ -12,6 +12,73 @@ use crate::{
     opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
 
+#[cfg(all(test, feature = "deja"))]
+mod tests {
+    use api_models::analytics::search::SearchIndex;
+
+    use crate::{
+        enums::AuthInfo,
+        opensearch::{OpenSearchQuery, OpenSearchQueryBuilder},
+    };
+
+    fn org_scope(org_id: &str) -> AuthInfo {
+        AuthInfo::OrgLevel {
+            org_id: common_utils::id_type::OrganizationId::try_from(std::borrow::Cow::Owned(
+                org_id.to_owned(),
+            ))
+            .expect("valid organization id"),
+        }
+    }
+
+    fn builder(search_params: Vec<AuthInfo>) -> OpenSearchQueryBuilder {
+        OpenSearchQueryBuilder::new(
+            OpenSearchQuery::Search(SearchIndex::PaymentIntents),
+            "example".to_string(),
+            search_params,
+            None,
+        )
+    }
+
+    #[test]
+    fn query_args_include_stable_auth_scope_identity() {
+        let first = builder(vec![org_scope("org_a"), org_scope("org_b")]);
+        let same = builder(vec![org_scope("org_a"), org_scope("org_b")]);
+        let reversed = builder(vec![org_scope("org_b"), org_scope("org_a")]);
+        let different = builder(vec![org_scope("org_a"), org_scope("org_c")]);
+
+        let make_merchant_scope =
+            |merchant_ids: Vec<common_utils::id_type::MerchantId>| AuthInfo::MerchantLevel {
+                org_id: common_utils::id_type::OrganizationId::try_from(
+                    std::borrow::Cow::Borrowed("org_a"),
+                )
+                .expect("valid organization id"),
+                merchant_ids,
+                processor_merchant_ids: None,
+            };
+        let merchant_ids_reordered = builder(vec![make_merchant_scope(vec![
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_a"))
+                .expect("valid merchant id"),
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_b"))
+                .expect("valid merchant id"),
+        ])]);
+        let merchant_ids_sorted = builder(vec![make_merchant_scope(vec![
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_b"))
+                .expect("valid merchant id"),
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_a"))
+                .expect("valid merchant id"),
+        ])]);
+
+        assert_eq!(
+            merchant_ids_reordered.deja_args(),
+            merchant_ids_sorted.deja_args()
+        );
+        let expected = first.deja_args();
+        assert_eq!(expected, same.deja_args());
+        assert_eq!(expected, reversed.deja_args());
+        assert_ne!(expected, different.deja_args());
+    }
+}
+
 pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
     items.into_iter().map(|item| item.into()).collect()
 }

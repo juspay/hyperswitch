@@ -160,3 +160,10 @@ To view the data on the OpenSearch dashboard perform the following steps:
 - Save the index pattern
 
 Now, head on to `Discover` under the `OpenSearch Dashboards` tab, to select the newly created index pattern and query the data
+
+## Deja OpenSearch replay identity
+
+With Deja enabled, OpenSearch search boundaries key queries by their query
+arguments and canonical authorization scope. Recordings made before the auth
+scope was included do not match the updated identity; re-record them before
+replay. There is no fallback that ignores authorization scope.
