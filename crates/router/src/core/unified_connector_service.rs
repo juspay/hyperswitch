@@ -2538,14 +2538,6 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
 
-            // TEMP DEBUG — REMOVE BEFORE COMMIT.
-            router_env::logger::info!(
-                step = "5_proto_payment_method",
-                variant = "proxy_card_details_for_network_transaction_id",
-                card_network = ?external_vault_card.card_network,
-                "TEMP_FLOW: emitting the MIT vault-alias payment method to UCS"
-            );
-
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
                     payments_grpc::ProxyCardDetailsForNetworkTransactionId {
