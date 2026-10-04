@@ -65,6 +65,15 @@ pub struct RouterGatewayContext {
 /// the concrete structure of RouterGatewayContext.
 impl GatewayContext for RouterGatewayContext {
     fn execution_path(&self) -> ExecutionPath {
+        // Never let a proxy context select Direct or execute Direct as the shadow primary.
+        // The UCS gateway then rejects inconsistent context fields before building a request.
+        #[cfg(all(feature = "payouts", feature = "v1"))]
+        if !matches!(
+            self.payout_execution_context,
+            crate::core::payouts::proxy::PayoutExecutionContext::Normal
+        ) {
+            return ExecutionPath::UnifiedConnectorService;
+        }
         self.execution_path
     }
 
@@ -142,13 +151,21 @@ impl RouterGatewayContext {
                 self.payout_execution_context,
                 crate::core::payouts::proxy::PayoutExecutionContext::Normal
             ) {
-                return Err(
-                    hyperswitch_interfaces::errors::ConnectorError::NotImplemented(
-                        "External vault proxy payouts require the UCS CardProxyPayout contract"
-                            .to_owned(),
-                    )
-                    .into(),
-                );
+                if self.execution_path != ExecutionPath::UnifiedConnectorService
+                    || self.execution_mode != ExecutionMode::Primary
+                {
+                    return Err(
+                        hyperswitch_interfaces::errors::ConnectorError::RequestEncodingFailed
+                            .into(),
+                    );
+                }
+                crate::core::payouts::proxy::ensure_proxy_transport_available(_state).map_err(
+                    |err| {
+                        err.change_context(
+                            hyperswitch_interfaces::errors::ConnectorError::RequestEncodingFailed,
+                        )
+                    },
+                )?;
             }
             self.payout_execution_context
                 .external_vault_proxy_metadata(_state)

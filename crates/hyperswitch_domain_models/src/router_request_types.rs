@@ -1705,6 +1705,9 @@ pub struct PayoutsData {
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub connector_eligibility_reference_id: Option<String>,
+    /// Request-scoped opaque vault data; never serialize it into logs, events, or stored requests.
+    #[serde(skip)]
+    pub external_vault_pmd: Option<crate::payouts::proxy::ExternalVaultPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

@@ -1,26 +1,37 @@
 //! Isolated S2S payout preparation. Tokens never enter normal payout method data.
 
 use api_models::enums::VaultConnectors;
-use common_enums::{PaymentMethodStatus, PayoutType};
+use common_enums::{
+    ExecutionMode, ExecutionPath, PaymentMethodStatus, PayoutExecutionKind, PayoutStatus,
+    PayoutType,
+};
 use common_utils::id_type;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_methods::{PaymentMethod, PaymentMethodVaultSourceDetails, VaultPaymentMethodData},
+    payments::HeaderPayload,
     payouts::proxy::{ExternalVaultPayoutCardData, ExternalVaultPayoutMethodData},
 };
 use hyperswitch_masking::PeekInterface;
 
-use super::validator;
+use super::{validator, PayoutData};
 use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::transformers::fetch_payment_method_from_modular_service,
-        payments::helpers::{self as payment_helpers, MerchantConnectorAccountType},
+        payments::{
+            gateway::context::RouterGatewayContext,
+            helpers::{self as payment_helpers, MerchantConnectorAccountType},
+        },
         unified_connector_service, utils as core_utils,
     },
     routes::SessionState,
-    types::{api::payouts, domain},
+    types::{
+        self,
+        api::{self, payouts},
+        domain,
+    },
     utils::OptionExt,
 };
 
@@ -57,6 +68,181 @@ impl PayoutExecutionContext {
             }
         }
     }
+}
+
+/// One explicit enabling boundary: replace only after pinning PR3's published client AND
+/// implementing CardProxyPayout in payout_method_for_ucs. No token fetch or write precedes it.
+pub(in crate::core) fn ensure_proxy_transport_available(state: &SessionState) -> RouterResult<()> {
+    state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unified Connector Service is unavailable for proxy payouts")?;
+    Err(report!(errors::ApiErrorResponse::NotImplemented {
+        message: errors::NotImplementedMessage::Reason(
+            "external vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
+        ),
+    }))
+}
+
+fn validate_proxy_runtime(payout_data: &PayoutData) -> RouterResult<()> {
+    if payout_data.payout_attempt.execution_kind != PayoutExecutionKind::ExternalVaultProxy
+        || !matches!(
+            payout_data.execution_context,
+            PayoutExecutionContext::ExternalVaultProxy { .. }
+        )
+        || payout_data.external_vault_pmd.is_none()
+        || payout_data.payout_method_data.is_some()
+        || payout_data.payout_attempt.payout_token.is_some()
+        || payout_data.payout_attempt.source_bank_data_token.is_some()
+        || payout_data.source_bank_data.is_some()
+        || payout_data.payouts.confirm != Some(true)
+        || !payout_data.payouts.auto_fulfill
+        || payout_data.payouts.recurring
+        || payout_data.payouts.payout_type != Some(PayoutType::Card)
+    {
+        return Err(invalid_proxy_request(
+            "Invalid external vault payout execution context",
+        ));
+    }
+    let payment_method = payout_data
+        .payment_method
+        .as_ref()
+        .get_required_value("saved proxy payment method")?;
+    let PayoutExecutionContext::ExternalVaultProxy { external_vault_mca } =
+        &payout_data.execution_context
+    else {
+        return Err(invalid_proxy_request(
+            "Missing external vault execution context",
+        ));
+    };
+    let saved_source_matches = matches!(
+        &payment_method.vault_source_details,
+        PaymentMethodVaultSourceDetails::ExternalVault { external_vault_source }
+            if external_vault_mca.get_mca_id().as_ref() == Some(external_vault_source)
+    );
+    if payment_method.merchant_id != payout_data.payouts.merchant_id
+        || payment_method.customer_id != payout_data.payouts.customer_id
+        || payout_data.payouts.payout_method_id.as_ref() != Some(&payment_method.payment_method_id)
+        || payout_data.payout_attempt.merchant_id != payout_data.payouts.merchant_id
+        || payout_data.payout_attempt.customer_id != payout_data.payouts.customer_id
+        || payout_data.payout_attempt.payout_id != payout_data.payouts.payout_id
+        || payout_data.payout_attempt.profile_id != payout_data.profile_id
+        || payout_data.business_profile.get_id() != &payout_data.profile_id
+        || payment_method.status != PaymentMethodStatus::Active
+        || payment_method.payment_method != Some(common_enums::PaymentMethod::Card)
+        || !saved_source_matches
+    {
+        return Err(invalid_proxy_request(
+            "Inconsistent saved proxy payment method context",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_proxy_connector(connector_data: &api::ConnectorData) -> RouterResult<()> {
+    // Initial PR3 placeholder serialization is scoped to Cybersource. Never fall back to
+    // another connector from a retry list when the selected connector is unsupported.
+    if connector_data.connector_name != types::Connector::Cybersource {
+        return Err(invalid_proxy_request(
+            "External vault proxy payouts currently support only Cybersource",
+        ));
+    }
+    Ok(())
+}
+
+/// Force UCS-primary independently of rollout percentages, merchant gateway hints, shadow
+/// mode and Direct/kill-switch fallback. This runs before a payout request is constructed.
+pub(super) async fn proxy_gateway_context(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<RouterGatewayContext> {
+    validate_proxy_runtime(payout_data)?;
+    validate_proxy_connector(connector_data)?;
+    ensure_proxy_transport_available(state)?;
+    let merchant_connector_account = match payout_data.merchant_connector_account.clone() {
+        Some(mca) => mca,
+        None => {
+            super::get_mca_from_profile_id(
+                state,
+                platform,
+                &payout_data.profile_id,
+                &connector_data.connector_name.to_string(),
+                payout_data
+                    .payout_attempt
+                    .merchant_connector_id
+                    .as_ref()
+                    .or(connector_data.merchant_connector_id.as_ref()),
+            )
+            .await?
+        }
+    };
+    if merchant_connector_account.is_disabled() {
+        return Err(invalid_proxy_request(
+            "Payout connector account is disabled",
+        ));
+    }
+    let MerchantConnectorAccountType::DbVal(payout_mca) = &merchant_connector_account else {
+        return Err(invalid_proxy_request(
+            "Proxy payouts require a saved payout connector account",
+        ));
+    };
+    if payout_mca.merchant_id != *platform.get_processor().get_account().get_id()
+        || payout_data.payouts.merchant_id != payout_mca.merchant_id
+        || payout_mca.profile_id != payout_data.profile_id
+        || payout_mca.connector_name != connector_data.connector_name.to_string()
+        || payout_mca.connector_type != common_enums::ConnectorType::PayoutProcessor
+        || connector_data
+            .merchant_connector_id
+            .as_ref()
+            .is_some_and(|selected_id| selected_id != &payout_mca.get_id())
+    {
+        return Err(invalid_proxy_request(
+            "Payout connector account does not match proxy payout routing",
+        ));
+    }
+    Ok(RouterGatewayContext {
+        creds_identifier: None,
+        processor: platform.get_processor().clone(),
+        header_payload,
+        lineage_ids: external_services::grpc_client::LineageIds::new(
+            payout_data.payouts.merchant_id.clone(),
+            payout_data.profile_id.clone(),
+        ),
+        merchant_connector_account,
+        execution_path: ExecutionPath::UnifiedConnectorService,
+        execution_mode: ExecutionMode::Primary,
+        kill_switch_enabled: false,
+        kill_switch_threshold: 1,
+        connector_decline_threshold: None,
+        rollout_scope: None,
+        payout_execution_context: payout_data.execution_context.clone(),
+    })
+}
+
+/// Proxy-specific entry point to the shared non-PAN constructor. Context/path validation
+/// precedes request construction; normal PAN-bearing payout_method_data stays empty.
+pub(in crate::core) async fn construct_proxy_payout_router_data<F>(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    platform: &domain::Platform,
+    payout_data: &mut PayoutData,
+) -> RouterResult<types::PayoutsRouterData<F>> {
+    let context = proxy_gateway_context(
+        state,
+        platform,
+        HeaderPayload::default(),
+        connector_data,
+        payout_data,
+    )
+    .await?;
+    payout_data.merchant_connector_account = Some(context.merchant_connector_account);
+    core_utils::construct_payout_router_data_common(state, connector_data, platform, payout_data)
+        .await
 }
 
 /// Internal normalization only; the public create contract stays PayoutCreateRequest.
@@ -279,20 +465,26 @@ pub async fn fetch_external_vault_payout_method(
     )))
 }
 
-/// Dispatch target for POST /payouts/create. Until the UCS CardProxyPayout contract is published,
-/// perform only read-only preflight and stop before token fetching or persistent side effects.
-/// Do not remove this boundary until token-aware constructors and all card-consuming gateways
-/// are wired; normal CardPayout is not a valid representation of an opaque vault token.
-pub async fn payouts_proxy_core(
+/// Validated read-only input. No raw method or vault token is loaded during preflight.
+struct ProxyCreateInput {
+    request: payouts::PayoutCreateRequest,
+    payout_id: id_type::PayoutId,
+    profile: domain::Profile,
+    customer: domain::Customer,
+    payment_method: PaymentMethod,
+    execution_context: PayoutExecutionContext,
+}
+
+async fn validate_proxy_create_request(
     state: &SessionState,
     platform: &domain::Platform,
     req: payouts::PayoutCreateRequest,
-) -> RouterResponse<payouts::PayoutCreateResponse> {
+) -> RouterResult<ProxyCreateInput> {
     let req = normalize_proxy_create_request(req)?;
-    validator::validate_create_request_identity(state, platform, &req).await?;
+    let payout_id = validator::validate_create_request_identity(state, platform, &req).await?;
     let customer_id = req.get_customer_id().get_required_value("customer_id")?;
     let processor = platform.get_processor();
-    state
+    let customer = state
         .store
         .find_customer_optional_by_customer_id_merchant_id(
             customer_id,
@@ -338,11 +530,221 @@ pub async fn payouts_proxy_core(
             "External vault proxy payouts require PM modular service",
         ));
     }
+    validate_proxy_fraud_policy(state, &profile, &dimensions).await?;
     // Validate vault configuration without exposing the encoded credential-bearing header.
     execution_context.external_vault_proxy_metadata(state)?;
-    Err(report!(errors::ApiErrorResponse::NotImplemented {
-        message: errors::NotImplementedMessage::Reason(
-            "external vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
-        ),
-    }))
+    Ok(ProxyCreateInput {
+        request: req,
+        payout_id,
+        profile,
+        customer,
+        payment_method,
+        execution_context,
+    })
+}
+
+/// Existing FRM/blocklist flows may require PAN fingerprints or raw method data. Until
+/// metadata-only coverage is defined, reject configured protections instead of bypassing
+/// them or deriving a BIN/network/fingerprint from a vault token. Normal payouts are unchanged.
+async fn validate_proxy_fraud_policy(
+    state: &SessionState,
+    profile: &domain::Profile,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    let dimensions = dimensions.with_profile_id(profile.get_id().clone());
+    let payout_frm = dimensions
+        .get_payout_frm_call(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    let payout_blocklist = dimensions
+        .get_payout_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    let profile_card_blocking = profile
+        .payment_method_blocking
+        .as_ref()
+        .is_some_and(|blocking| blocking.card.is_some());
+    if payout_frm || payout_blocklist || profile_card_blocking {
+        return Err(report!(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(
+                "external vault proxy payouts with FRM or card blocklist require metadata-only protection support".to_owned(),
+            ),
+        }));
+    }
+    Ok(())
+}
+
+/// One-call S2S lifecycle. The transport guard is before PM-modular token retrieval, billing
+/// writes, payout insertion or connector work. PR3 publication must precede enabling this path.
+pub async fn payouts_proxy_core(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    req: payouts::PayoutCreateRequest,
+) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let input = validate_proxy_create_request(state, platform, req).await?;
+    ensure_proxy_transport_available(state)?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let external_vault_pmd = fetch_external_vault_payout_method(
+        state,
+        platform,
+        input.profile.get_id(),
+        &input.payment_method,
+    )
+    .await?;
+    let profile_dimensions = dimensions.with_profile_id(input.profile.get_id().clone());
+    let mut payout_data = Box::pin(super::payout_create_db_entries(
+        state,
+        platform,
+        &input.request,
+        &input.payout_id,
+        input.profile,
+        None,
+        &state.locale,
+        Some(&input.customer),
+        Some(input.payment_method),
+        &profile_dimensions,
+    ))
+    .await?;
+    payout_data.external_vault_pmd = Some(external_vault_pmd);
+    payout_data.execution_context = input.execution_context;
+
+    let connector_call_type = super::get_connector_choice(
+        state,
+        platform.get_processor(),
+        &profile_dimensions,
+        None,
+        input.request.routing,
+        &mut payout_data,
+        input.request.connector,
+    )
+    .await?;
+    let connector_data = match connector_call_type {
+        api::ConnectorCallType::PreDetermined(routing) => routing.connector_data,
+        api::ConnectorCallType::Retryable(routing) => {
+            super::get_next_connector(&mut routing.into_iter())?.connector_data
+        }
+        _ => {
+            return Err(invalid_proxy_request(
+                "Unsupported proxy payout connector routing",
+            ))
+        }
+    };
+    execute_proxy_payout(
+        state,
+        platform,
+        header_payload,
+        &connector_data,
+        &mut payout_data,
+        &dimensions,
+    )
+    .await?;
+    super::trigger_webhook_and_handle_response(state, platform, &payout_data).await
+}
+
+/// Reuse response/status persistence, but not normal raw-method resolution, FRM fail-open,
+/// source-bank lockers, GSM retries or asynchronous resume. Execute one selected connector.
+async fn execute_proxy_payout(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    validate_proxy_runtime(payout_data)?;
+    validate_proxy_fraud_policy(state, &payout_data.business_profile, dimensions).await?;
+    let context = proxy_gateway_context(
+        state,
+        platform,
+        header_payload.clone(),
+        connector_data,
+        payout_data,
+    )
+    .await?;
+    payout_data.payout_attempt.merchant_connector_id =
+        context.merchant_connector_account.get_mca_id();
+    payout_data.merchant_connector_account = Some(context.merchant_connector_account);
+    super::persist_payout_connector_routing(state, platform, connector_data, payout_data).await?;
+    Box::pin(super::complete_payout_eligibility(
+        state,
+        platform,
+        header_payload.clone(),
+        connector_data,
+        payout_data,
+    ))
+    .await?;
+    if payout_data.payout_attempt.is_eligible == Some(false) {
+        return Err(invalid_proxy_request("Payout method data is ineligible"));
+    }
+    Box::pin(super::complete_create_recipient(
+        state,
+        platform,
+        header_payload.clone(),
+        connector_data,
+        payout_data,
+    ))
+    .await?;
+    Box::pin(super::complete_create_recipient_disburse_account(
+        state,
+        platform,
+        header_payload.clone(),
+        connector_data,
+        payout_data,
+    ))
+    .await?;
+    Box::pin(super::complete_create_payout(
+        state,
+        platform,
+        header_payload.clone(),
+        connector_data,
+        payout_data,
+    ))
+    .await?;
+    if !payout_data.should_terminate
+        && payout_data.payout_attempt.status == PayoutStatus::RequiresFulfillment
+    {
+        execute_proxy_fulfill(
+            state,
+            platform,
+            header_payload,
+            connector_data,
+            payout_data,
+            dimensions,
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+/// Internal auto-fulfill only. A future public fulfill/resume dispatcher must reload the saved
+/// PM and provider vault context; persisted read-only PayoutData cannot satisfy these invariants.
+pub(super) async fn execute_proxy_fulfill(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<()> {
+    validate_proxy_runtime(payout_data)?;
+    validate_proxy_connector(connector_data)?;
+    ensure_proxy_transport_available(state)?;
+    Box::pin(super::fulfill_payout(
+        state,
+        platform,
+        header_payload,
+        connector_data,
+        payout_data,
+        dimensions,
+    ))
+    .await
 }

@@ -8668,6 +8668,25 @@ impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
 }
 
 #[cfg(feature = "payouts")]
+fn payout_method_for_ucs<F>(
+    router_data: &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
+) -> Result<Option<payments_grpc::PayoutMethod>, error_stack::Report<UnifiedConnectorServiceError>>
+{
+    if router_data.request.external_vault_pmd.is_some() {
+        // PR3 supplies CardProxyPayout. This is the single token-to-protobuf mapping boundary;
+        // never put a token through CardPayout/CardNumber or fall back to raw method data.
+        return Err(report!(UnifiedConnectorServiceError::NotImplemented(
+            "External vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
+        )));
+    }
+    router_data
+        .payout_method_data
+        .as_ref()
+        .map(transformers::ForeignTryFrom::foreign_try_from)
+        .transpose()
+}
+
+#[cfg(feature = "payouts")]
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -8716,13 +8735,7 @@ impl
             .clone()
             .map(|secret| Secret::new(secret.expose().to_string()));
 
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
 
         let address = Some(payments_grpc::PayoutAddress::foreign_try_from(
             router_data.address.clone(),
@@ -8841,13 +8854,7 @@ impl
                 })
                 .attach_printable("Missing customer details in Payout Eligibility Request"),
             )?;
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
         let source_bank_data = router_data
             .request
             .source_bank_data
@@ -8917,13 +8924,7 @@ impl
                 })
                 .attach_printable("Missing customer details in Payout Transfer Request"),
             )?;
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
         let browser_info = router_data
             .request
             .browser_info
@@ -9064,13 +9065,7 @@ impl
                 })
                 .attach_printable("Missing customer details in Payout Create Recipient Request"),
             )?;
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
         let source_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
         let amount = payments_grpc::Money {
@@ -9116,13 +9111,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let address =
             payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone()).ok();
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
 
         let source_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
