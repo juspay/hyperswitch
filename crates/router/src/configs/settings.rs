@@ -48,7 +48,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::Deserialize;
-use storage_impl::config::QueueStrategy;
+use storage_impl::{config::QueueStrategy, redis::cache::CacheConfig};
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
@@ -90,6 +90,9 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
+    /// Per-cache tuning for the in-memory caches. Anything left unset keeps the compiled-in
+    /// default for that cache.
+    pub cache: CacheConfig,
     pub log: Log,
     #[cfg(feature = "deja")]
     #[serde(default)]
@@ -505,6 +508,7 @@ impl TenantConfig {
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
+        caches: Arc<storage_impl::redis::cache::Caches>,
         testable: bool,
     ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
@@ -523,6 +527,7 @@ impl TenantConfig {
                     conf.master_database.clone().into_inner(),
                     conf.accounts_database_config(),
                     cache_store.clone(),
+                    caches.clone(),
                     testable,
                 ))
                 .await;
@@ -1476,7 +1481,12 @@ impl MerchantAdviceCodeLookupConfig {
             | common_enums::CardNetwork::Nyce
             | common_enums::CardNetwork::Prop
             | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => None,
+            | common_enums::CardNetwork::Dinacard
+            | common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => None,
         }
     }
 }

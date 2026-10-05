@@ -239,6 +239,11 @@ pub mod business_status {
     /// A task that reaches this status should not be retried (rescheduled for execution) later.
     pub const RETRIES_EXCEEDED: &str = "RETRIES_EXCEEDED";
 
+    /// A revenue recovery invoice reached the end of its grace window, so there is no legitimate
+    /// time left to schedule a retry at — whatever retry budget remains. Distinct from
+    /// `RETRIES_EXCEEDED`, which is the budget itself running out.
+    pub const GRACE_WINDOW_EXPIRED: &str = "GRACE_WINDOW_EXPIRED";
+
     /// The outgoing webhook was successfully delivered in the initial attempt.
     /// Further retries of the task are not required.
     pub const INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL: &str = "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL";
