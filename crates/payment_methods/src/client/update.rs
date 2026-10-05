@@ -41,7 +41,6 @@ pub struct UpdatePaymentMethodV1Payload {
     pub network_transaction_id: Option<Secret<String>>,
 
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
-    /// Acceptance supplied during payment confirmation, required to promote a volatile card.
     pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
@@ -56,7 +55,6 @@ pub struct ModularPMUpdateRequest {
     pub network_transaction_id: Option<Secret<String>>,
 
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
-    /// Acceptance supplied during payment confirmation, required to promote a volatile card.
     pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
