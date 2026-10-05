@@ -8,7 +8,10 @@ this crate implements what an SDK would otherwise hide:
 
 - **Authentication.** Inside Kubernetes, OKE Workload Identity: an ephemeral RSA key pair is
   generated in memory and the pod's service account token is exchanged for a short-lived OCI
-  session token. Nothing credential-bearing is written to disk. Outside Kubernetes (local
+  session token. Nothing credential-bearing is written to disk. The service account token and
+  cluster CA are read from kubelet's default mount paths; pods that project them elsewhere set
+  `OCI_KUBERNETES_SERVICE_ACCOUNT_TOKEN_PATH` and `OCI_KUBERNETES_SERVICE_ACCOUNT_CERT_PATH`
+  (the latter is the variable Oracle's SDKs read). Outside Kubernetes (local
   development, CI), the `oci` CLI's `~/.oci/config` (`OCI_CLI_CONFIG_FILE`, `OCI_CLI_PROFILE`).
 - **Request signing**, OCI Signature v1.
 - **Timeouts and retries**, with jittered exponential backoff on transport errors, 429 and 5xx.

@@ -6,6 +6,8 @@
 //! `x509FederationClientForOkeWorkloadIdentity`
 //! (`common/auth/federation_client_oke_workload_identity.go`).
 
+use std::{ffi::OsString, path::PathBuf};
+
 use base64::Engine;
 use rsa::pkcs8::EncodePublicKey;
 
@@ -18,20 +20,33 @@ use crate::{
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-/// Injected into every pod by kubelet. Proxymux answers on port 12250 at that same
-/// address — an Oracle-managed control-plane service, not a node-local agent and not
-/// anything deployed alongside this app.
+// Fixed by Kubernetes and OKE rather than by a deployment, so not configurable. Each matches
+// `oci-go-sdk` (`common/auth/resource_principal_key_provider.go`, `federation_client.go`),
+// which hard-codes the same values.
+
+/// The env var kubelet sets in every pod to the API server's address. The address itself is
+/// read at runtime. Proxymux, an Oracle-managed control-plane service, answers on
+/// [`PROXYMUX_PORT`] at that same address.
 const KUBERNETES_HOST_VAR: &str = "KUBERNETES_SERVICE_HOST";
 const PROXYMUX_PORT: u16 = 12250;
 const PROXYMUX_PATH: &str = "/resourcePrincipalSessionTokens";
-
-const SERVICE_ACCOUNT_TOKEN_PATH: &str = "/var/run/secrets/kubernetes.io/serviceaccount/token";
-const CLUSTER_CA_PATH: &str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 
 const SESSION_KEY_BITS: usize = 2048;
 
 /// Proxymux returns the token already prefixed, and the `keyId` re-adds it.
 const SECURITY_TOKEN_PREFIX: &str = "ST$";
+
+// Where kubelet mounts the pod's service account token and the cluster CA by default. Pods
+// that disable `automountServiceAccountToken` and project their own token elsewhere point
+// these env vars at it. The CA variable is the one Oracle's SDKs read; the token variable
+// follows its naming (the Go SDK offers that override only in code, via `WithSaTokenPath`).
+
+const SERVICE_ACCOUNT_TOKEN_PATH_VAR: &str = "OCI_KUBERNETES_SERVICE_ACCOUNT_TOKEN_PATH";
+const DEFAULT_SERVICE_ACCOUNT_TOKEN_PATH: &str =
+    "/var/run/secrets/kubernetes.io/serviceaccount/token";
+
+const CLUSTER_CA_PATH_VAR: &str = "OCI_KUBERNETES_SERVICE_ACCOUNT_CERT_PATH";
+const DEFAULT_CLUSTER_CA_PATH: &str = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
 
 pub(crate) fn in_kubernetes() -> bool {
     std::env::var_os(KUBERNETES_HOST_VAR).is_some()
@@ -55,16 +70,25 @@ pub(crate) async fn credentials(
         OciKmsError::CredentialsUnavailable(format!("{KUBERNETES_HOST_VAR} is unusable: {error}"))
     })?;
 
-    let service_account_token =
-        std::fs::read_to_string(SERVICE_ACCOUNT_TOKEN_PATH).map_err(|error| {
-            OciKmsError::CredentialsUnavailable(format!(
-                "failed to read the pod's Kubernetes service account token ({error}); the pod needs `automountServiceAccountToken: true`"
-            ))
-        })?;
-
-    let cluster_ca = std::fs::read(CLUSTER_CA_PATH).map_err(|error| {
+    let token_path = path_from_env(
+        std::env::var_os(SERVICE_ACCOUNT_TOKEN_PATH_VAR),
+        DEFAULT_SERVICE_ACCOUNT_TOKEN_PATH,
+    );
+    let service_account_token = std::fs::read_to_string(&token_path).map_err(|error| {
         OciKmsError::CredentialsUnavailable(format!(
-            "failed to read the Kubernetes cluster CA certificate: {error}"
+            "failed to read the pod's Kubernetes service account token at {} ({error}); mount it there with `automountServiceAccountToken: true`, or set {SERVICE_ACCOUNT_TOKEN_PATH_VAR} to where it is projected",
+            token_path.display()
+        ))
+    })?;
+
+    let ca_path = path_from_env(
+        std::env::var_os(CLUSTER_CA_PATH_VAR),
+        DEFAULT_CLUSTER_CA_PATH,
+    );
+    let cluster_ca = std::fs::read(&ca_path).map_err(|error| {
+        OciKmsError::CredentialsUnavailable(format!(
+            "failed to read the Kubernetes cluster CA certificate at {} ({error}); set {CLUSTER_CA_PATH_VAR} if it is mounted elsewhere",
+            ca_path.display()
         ))
     })?;
 
@@ -153,6 +177,13 @@ async fn request_session_token(
     }
 
     Ok(response_body)
+}
+
+/// The path an override env var names, or `default` when it's unset or empty.
+fn path_from_env(override_value: Option<OsString>, default: &str) -> PathBuf {
+    override_value
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| PathBuf::from(default), PathBuf::from)
 }
 
 /// `KUBERNETES_SERVICE_HOST` is a bare IP, so an IPv6 address needs brackets in a URL.
@@ -273,6 +304,33 @@ mod tests {
     #[test]
     fn parse_session_token_rejects_invalid_base64() {
         assert!(parse_session_token(r#""not base64!""#).is_err());
+    }
+
+    #[test]
+    fn path_from_env_defaults_when_unset() {
+        assert_eq!(
+            path_from_env(None, DEFAULT_SERVICE_ACCOUNT_TOKEN_PATH),
+            PathBuf::from("/var/run/secrets/kubernetes.io/serviceaccount/token")
+        );
+    }
+
+    #[test]
+    fn path_from_env_defaults_when_empty() {
+        assert_eq!(
+            path_from_env(Some(OsString::new()), DEFAULT_CLUSTER_CA_PATH),
+            PathBuf::from("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+        );
+    }
+
+    #[test]
+    fn path_from_env_uses_the_override() {
+        assert_eq!(
+            path_from_env(
+                Some(OsString::from("/var/run/secrets/tokens/oci-token")),
+                DEFAULT_SERVICE_ACCOUNT_TOKEN_PATH
+            ),
+            PathBuf::from("/var/run/secrets/tokens/oci-token")
+        );
     }
 
     #[test]
