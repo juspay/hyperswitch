@@ -93,17 +93,12 @@ pub fn get_client_builder(
                 .unwrap_or_default(),
         ));
 
-    // Empty entries would match root-dotted hostnames in reqwest's domain matcher.
-    let bypass_hosts = proxy_config
-        .bypass_proxy_hosts
-        .as_deref()
-        .unwrap_or_default()
-        .split(',')
-        .map(str::trim)
-        .filter(|host| !host.trim_matches('.').is_empty())
-        .collect::<Vec<_>>()
-        .join(",");
-    let proxy_exclusion_config = reqwest::NoProxy::from_string(&bypass_hosts);
+    let proxy_exclusion_config = reqwest::NoProxy::from_string(
+        proxy_config
+            .bypass_proxy_hosts
+            .as_deref()
+            .unwrap_or_default(),
+    );
 
     logger::debug!(
         "Proxy HTTP Proxy -> {:?} and HTTPS Proxy -> {:?}",
