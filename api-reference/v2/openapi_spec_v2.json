@@ -27655,7 +27655,7 @@
           },
           "payout_method_id": {
             "type": "string",
-            "description": "Saved Hyperswitch payment-method ID. Required for external-vault proxy creates and resolved internally to vault tokens; not a token supplied by the merchant.",
+            "description": "Saved payment-method identifier, resolved internally for normal payouts and to vault tokens for proxy payouts.",
             "nullable": true
           },
           "browser_info": {
