@@ -46,7 +46,7 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::redis::{cache::CacheInterface, kv_store::RedisConnInterface};
 #[cfg(feature = "v2")]
 use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
@@ -3946,6 +3946,16 @@ impl RedisConnInterface for KafkaStore {
         &self,
     ) -> CustomResult<redis_interface::RedisConnectionWithContext, RedisError> {
         self.diesel_store.get_redis_conn()
+    }
+}
+
+impl CacheInterface for KafkaStore {
+    fn caches(&self) -> &storage_impl::redis::cache::Caches {
+        self.diesel_store.caches()
+    }
+
+    fn cache_key_prefix(&self) -> &str {
+        self.diesel_store.cache_key_prefix()
     }
 }
 
