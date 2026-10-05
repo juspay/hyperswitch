@@ -937,9 +937,13 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         let as_str = |key: &str| value.get(key).and_then(|v| v.as_str()).map(str::to_owned);
         let acquirer_bin = as_str("acquirer_bin");
         let acquirer_merchant_id = as_str("acquirer_merchant_id");
+        // Acquirer config metadata stores this as an ISO 3166-1 numeric string (e.g. "840"),
+        // not an alpha-2 code name, so it needs the numeric -> alpha2 conversion first.
         let acquirer_country_code = as_str("acquirer_country_code")
-            .as_deref()
-            .and_then(payments_grpc::CountryAlpha2::from_str_name)
+            .and_then(|numeric_str| numeric_str.parse::<u32>().ok())
+            .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+            .map(common_enums::Country::to_alpha2)
+            .and_then(|alpha2| payments_grpc::CountryAlpha2::from_str_name(&alpha2.to_string()))
             .map(i32::from);
         (acquirer_bin.is_some()
             || acquirer_merchant_id.is_some()
