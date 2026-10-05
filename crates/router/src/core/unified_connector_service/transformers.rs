@@ -8998,18 +8998,16 @@ impl
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            billing_descriptor: router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(|billing_descriptor| payments_grpc::BillingDescriptor {
+            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(
+                |billing_descriptor| payments_grpc::BillingDescriptor {
                     name: None,
                     city: None,
                     phone: None,
                     statement_descriptor: billing_descriptor.statement_descriptor.clone(),
                     statement_descriptor_suffix: None,
                     reference: billing_descriptor.reference.clone(),
-                }),
+                },
+            ),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             connector_eligibility_reference_id: router_data
                 .request
@@ -9169,9 +9167,9 @@ fn convert_payout_vendor_account_details_to_grpc(
                 individual_details.individual_dob_month.as_ref(),
                 individual_details.individual_dob_day.as_ref(),
             ) {
-                (Some(year), Some(month), Some(day)) => Some(
-                    format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek()).into(),
-                ),
+                (Some(year), Some(month), Some(day)) => {
+                    Some(format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek()).into())
+                }
                 _ => None,
             },
             tos_acceptance_ip: individual_details
