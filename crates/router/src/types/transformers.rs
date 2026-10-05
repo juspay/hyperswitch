@@ -2585,17 +2585,23 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     }
 }
 
-impl ForeignFrom<api_models::admin::WebhookDetails>
+impl ForeignFrom<api_models::admin::WebhookDetailsRequest>
     for diesel_models::business_profile::WebhookDetails
 {
-    fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+    fn foreign_from(item: api_models::admin::WebhookDetailsRequest) -> Self {
+        api_models::admin::WebhookDetailsResponse::from(item).foreign_into()
+    }
+}
+
+impl ForeignFrom<api_models::admin::WebhookDetailsResponse>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetailsResponse) -> Self {
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            webhook_url: item
-                .webhook_url
-                .map(|url| Secret::new(url.expose().get_string_repr().to_owned())),
+            webhook_url: item.webhook_url,
             payment_created_enabled: item.payment_created_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
@@ -2610,29 +2616,15 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
     }
 }
 
-impl ForeignTryFrom<diesel_models::business_profile::WebhookDetails>
-    for api_models::admin::WebhookDetails
+impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
+    for api_models::admin::WebhookDetailsResponse
 {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-    fn foreign_try_from(
-        item: diesel_models::business_profile::WebhookDetails,
-    ) -> Result<Self, Self::Error> {
-        let webhook_url = item
-            .webhook_url
-            .map(|url| {
-                common_utils::outbound_url::SafeOutboundUrl::try_from(url.expose())
-                    .map(Secret::new)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Stored webhook_url is invalid")
-            })
-            .transpose()?;
-
-        Ok(Self {
+    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+        Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            webhook_url,
+            webhook_url: item.webhook_url,
             payment_created_enabled: item.payment_created_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
@@ -2642,7 +2634,7 @@ impl ForeignTryFrom<diesel_models::business_profile::WebhookDetails>
             dispute_statuses_enabled: item.dispute_statuses_enabled,
             mandate_statuses_enabled: item.mandate_statuses_enabled,
             invoice_statuses_enabled: item.invoice_statuses_enabled,
-        })
+        }
     }
 }
 

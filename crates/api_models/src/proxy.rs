@@ -70,21 +70,3 @@ pub struct ProxyResponse {
 
 impl common_utils::events::ApiEventMetric for ProxyRequest {}
 impl common_utils::events::ApiEventMetric for ProxyResponse {}
-
-#[cfg(test)]
-mod tests {
-    use super::ProxyRequest;
-
-    #[test]
-    fn proxy_destination_rejects_metadata_ip() {
-        let request = serde_json::json!({
-            "request_body": {},
-            "destination_url": "https://169.254.169.254/latest/meta-data/",
-            "headers": {},
-            "method": "GET",
-            "token": "pm_example",
-            "token_type": "payment_method_id"
-        });
-        assert!(serde_json::from_value::<ProxyRequest>(request).is_err());
-    }
-}

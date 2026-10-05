@@ -4145,26 +4145,18 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let webhook_details = self
             .webhook_details
             .map(|webhook_details| {
+                let webhook_details =
+                    api_models::admin::WebhookDetailsResponse::from(webhook_details);
                 let existing_webhook_details = business_profile
                     .webhook_details
                     .clone()
-                    .map(|mut stored| {
-                        if let Some(url) = webhook_details.webhook_url.as_ref() {
-                            stored.webhook_url =
-                                Some(Secret::new(url.peek().get_string_repr().to_owned()));
-                        }
-                        api_models::admin::WebhookDetails::foreign_try_from(stored)
-                    })
-                    .transpose()?;
+                    .map(api_models::admin::WebhookDetailsResponse::foreign_from);
 
-                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
-                    match existing_webhook_details {
-                        Some(existing_details) => existing_details.merge(webhook_details),
-                        None => webhook_details,
-                    },
-                )
+                match existing_webhook_details {
+                    Some(existing_details) => existing_details.merge(webhook_details),
+                    None => webhook_details,
+                }
             })
-            .transpose()?
             .map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
