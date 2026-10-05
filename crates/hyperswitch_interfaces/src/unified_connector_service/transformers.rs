@@ -797,6 +797,14 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 card_network: card_data.card_network,
                 domestic_network: card_data.domestic_network,
                 auth_code: card_data.auth_code,
+                // The gRPC contract carries no normalized card attributes yet
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 let upi_mode = upi_data
@@ -1876,6 +1884,112 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::Seb => Ok(Self::Seb),
             payments_grpc::BankNames::Swedbank => Ok(Self::Swedbank),
             payments_grpc::BankNames::MockUkPayments => Ok(Self::MockUkPayments),
+            payments_grpc::BankNames::Abanca => Ok(Self::Abanca),
+            payments_grpc::BankNames::AlmBrand => Ok(Self::AlmBrand),
+            payments_grpc::BankNames::AlphaFx => Ok(Self::AlphaFx),
+            payments_grpc::BankNames::ArbejdernesLandsbank => Ok(Self::ArbejdernesLandsbank),
+            payments_grpc::BankNames::ArbuthnotLatham => Ok(Self::ArbuthnotLatham),
+            payments_grpc::BankNames::BancoPopular => Ok(Self::BancoPopular),
+            payments_grpc::BankNames::BankPocztowy => Ok(Self::BankPocztowy),
+            payments_grpc::BankNames::Bankia => Ok(Self::Bankia),
+            payments_grpc::BankNames::BnBank => Ok(Self::BnBank),
+            payments_grpc::BankNames::CaterAllen => Ok(Self::CaterAllen),
+            payments_grpc::BankNames::ChelseaBuildingSociety => Ok(Self::ChelseaBuildingSociety),
+            payments_grpc::BankNames::Citadele => Ok(Self::Citadele),
+            payments_grpc::BankNames::CoopPank => Ok(Self::CoopPank),
+            payments_grpc::BankNames::CooperativeBank => Ok(Self::CooperativeBank),
+            payments_grpc::BankNames::Cumberland => Ok(Self::Cumberland),
+            payments_grpc::BankNames::DabBank => Ok(Self::DabBank),
+            payments_grpc::BankNames::DjurslandsBank => Ok(Self::DjurslandsBank),
+            payments_grpc::BankNames::Dnb => Ok(Self::Dnb),
+            payments_grpc::BankNames::EtneSparebank => Ok(Self::EtneSparebank),
+            payments_grpc::BankNames::FanaSparebank => Ok(Self::FanaSparebank),
+            payments_grpc::BankNames::FidorBank => Ok(Self::FidorBank),
+            payments_grpc::BankNames::FlekkefjordSparebank => Ok(Self::FlekkefjordSparebank),
+            payments_grpc::BankNames::ForexBank => Ok(Self::ForexBank),
+            payments_grpc::BankNames::HaugesundSparebank => Ok(Self::HaugesundSparebank),
+            payments_grpc::BankNames::HoareAndCo => Ok(Self::HoareAndCo),
+            payments_grpc::BankNames::IcaBanken => Ok(Self::IcaBanken),
+            payments_grpc::BankNames::JyskeBank => Ok(Self::JyskeBank),
+            payments_grpc::BankNames::KleinwortHambros => Ok(Self::KleinwortHambros),
+            payments_grpc::BankNames::KlpBanken => Ok(Self::KlpBanken),
+            payments_grpc::BankNames::Kreditbanken => Ok(Self::Kreditbanken),
+            payments_grpc::BankNames::LandkredittBank => Ok(Self::LandkredittBank),
+            payments_grpc::BankNames::Lansforsakringar => Ok(Self::Lansforsakringar),
+            payments_grpc::BankNames::LhvPank => Ok(Self::LhvPank),
+            payments_grpc::BankNames::LillesandsSparebank => Ok(Self::LillesandsSparebank),
+            payments_grpc::BankNames::Luminor => Ok(Self::Luminor),
+            payments_grpc::BankNames::LusterSparebank => Ok(Self::LusterSparebank),
+            payments_grpc::BankNames::MetroBank => Ok(Self::MetroBank),
+            payments_grpc::BankNames::NordfynsBank => Ok(Self::NordfynsBank),
+            payments_grpc::BankNames::NordjyskeBank => Ok(Self::NordjyskeBank),
+            payments_grpc::BankNames::Norisbank => Ok(Self::Norisbank),
+            payments_grpc::BankNames::NykreditBank => Ok(Self::NykreditBank),
+            payments_grpc::BankNames::ObosBanken => Ok(Self::ObosBanken),
+            payments_grpc::BankNames::OrangeFinanse => Ok(Self::OrangeFinanse),
+            payments_grpc::BankNames::ParetoBank => Ok(Self::ParetoBank),
+            payments_grpc::BankNames::PkoBankPolski => Ok(Self::PkoBankPolski),
+            payments_grpc::BankNames::RingkjobingLandbobank => Ok(Self::RingkjobingLandbobank),
+            payments_grpc::BankNames::Sbanken => Ok(Self::Sbanken),
+            payments_grpc::BankNames::SiauliuBankas => Ok(Self::SiauliuBankas),
+            payments_grpc::BankNames::SiliconValleyBank => Ok(Self::SiliconValleyBank),
+            payments_grpc::BankNames::Skandiabanken => Ok(Self::Skandiabanken),
+            payments_grpc::BankNames::SkjernBank => Ok(Self::SkjernBank),
+            payments_grpc::BankNames::SkudenesOgAakraSparebank => {
+                Ok(Self::SkudenesOgAakraSparebank)
+            }
+            payments_grpc::BankNames::SogneOgGreipstadSparebank => {
+                Ok(Self::SogneOgGreipstadSparebank)
+            }
+            payments_grpc::BankNames::SparNordBank => Ok(Self::SparNordBank),
+            payments_grpc::BankNames::SparbankenSyd => Ok(Self::SparbankenSyd),
+            payments_grpc::BankNames::SpardaBank => Ok(Self::SpardaBank),
+            payments_grpc::BankNames::SpareBank1 => Ok(Self::SpareBank1),
+            payments_grpc::BankNames::SparebankenMore => Ok(Self::SparebankenMore),
+            payments_grpc::BankNames::SparebankenOst => Ok(Self::SparebankenOst),
+            payments_grpc::BankNames::SparebankenSognOgFjordane => {
+                Ok(Self::SparebankenSognOgFjordane)
+            }
+            payments_grpc::BankNames::SparebankenSor => Ok(Self::SparebankenSor),
+            payments_grpc::BankNames::SparebankenVest => Ok(Self::SparebankenVest),
+            payments_grpc::BankNames::SparekassenDanmark => Ok(Self::SparekassenDanmark),
+            payments_grpc::BankNames::SparekassenSjaellandFyn => Ok(Self::SparekassenSjaellandFyn),
+            payments_grpc::BankNames::Spareskillingsbanken => Ok(Self::Spareskillingsbanken),
+            payments_grpc::BankNames::Sydbank => Ok(Self::Sydbank),
+            payments_grpc::BankNames::VanquisBank => Ok(Self::VanquisBank),
+            payments_grpc::BankNames::VestjyskBank => Ok(Self::VestjyskBank),
+            payments_grpc::BankNames::VossSparebank => Ok(Self::VossSparebank),
+            payments_grpc::BankNames::YorkshireBuildingSociety => {
+                Ok(Self::YorkshireBuildingSociety)
+            }
+            payments_grpc::BankNames::SpareBank1Gudbrandsdal => Ok(Self::SpareBank1Gudbrandsdal),
+            payments_grpc::BankNames::SpareBank1HallingdalValdres => {
+                Ok(Self::SpareBank1HallingdalValdres)
+            }
+            payments_grpc::BankNames::SpareBank1LomOgSkjak => Ok(Self::SpareBank1LomOgSkjak),
+            payments_grpc::BankNames::SpareBank1Modum => Ok(Self::SpareBank1Modum),
+            payments_grpc::BankNames::SpareBank1Nordmore => Ok(Self::SpareBank1Nordmore),
+            payments_grpc::BankNames::SpareBank1RingerikeHadeland => {
+                Ok(Self::SpareBank1RingerikeHadeland)
+            }
+            payments_grpc::BankNames::SpareBank1Smn => Ok(Self::SpareBank1Smn),
+            payments_grpc::BankNames::SpareBank1SrBank => Ok(Self::SpareBank1SrBank),
+            payments_grpc::BankNames::SpareBank1SoreSunnmore => Ok(Self::SpareBank1SoreSunnmore),
+            payments_grpc::BankNames::SpareBank1SorostNorgeBv => Ok(Self::SpareBank1SorostNorgeBv),
+            payments_grpc::BankNames::SpareBank1SorostNorgeTelemark => {
+                Ok(Self::SpareBank1SorostNorgeTelemark)
+            }
+            payments_grpc::BankNames::SpareBank1OstfoldAkershus => {
+                Ok(Self::SpareBank1OstfoldAkershus)
+            }
+            payments_grpc::BankNames::SpareBank1Ostlandet => Ok(Self::SpareBank1Ostlandet),
+            payments_grpc::BankNames::CitiHandlowy => Ok(Self::CitiHandlowy),
+            payments_grpc::BankNames::DeutscheBankPolska => Ok(Self::DeutscheBankPolska),
+            payments_grpc::BankNames::IngBankSlaski => Ok(Self::IngBankSlaski),
+            payments_grpc::BankNames::IngDiba => Ok(Self::IngDiba),
+            payments_grpc::BankNames::NordeaDirect => Ok(Self::NordeaDirect),
+            payments_grpc::BankNames::SantanderUk => Ok(Self::SantanderUk),
+            payments_grpc::BankNames::SwedbankSparbankerna => Ok(Self::SwedbankSparbankerna),
             payments_grpc::BankNames::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
