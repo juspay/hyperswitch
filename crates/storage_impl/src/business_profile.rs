@@ -12,9 +12,12 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "accounts_cache")]
+use crate::metrics;
+#[cfg(feature = "accounts_cache")]
 use crate::redis::{
     cache,
-    cache::{CacheKind, ACCOUNTS_CACHE},
+    cache::{CacheId, CacheInterface, CacheKind},
+    kv_store::RedisConnInterface,
 };
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
@@ -22,8 +25,6 @@ use crate::{
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
-#[cfg(feature = "accounts_cache")]
-use crate::{metrics, RedisConnInterface};
 
 /// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
 #[cfg(feature = "accounts_cache")]
@@ -38,10 +39,12 @@ fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
 /// invite a retry, without clearing the stale entry either way. The staleness is instead bounded by
 /// the cache TTLs, and the failure is logged and counted so it stays visible.
 #[cfg(feature = "accounts_cache")]
-async fn publish_and_redact_business_profile_cache(
-    store: &(dyn RedisConnInterface + Send + Sync),
+async fn publish_and_redact_business_profile_cache<S>(
+    store: &S,
     profile_id: &common_utils::id_type::ProfileId,
-) {
+) where
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
+{
     let redaction_result = cache::redact_from_redis_and_publish(
         store,
         [CacheKind::Accounts(profile_cache_key(profile_id).into())],
@@ -217,7 +220,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             ))
             .await?
             .convert(
@@ -265,7 +268,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             ))
             .await?
             .convert(

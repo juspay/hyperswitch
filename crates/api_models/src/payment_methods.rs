@@ -2549,6 +2549,8 @@ pub struct SurchargeDetailsResponse {
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
     pub display_total_surcharge_amount: f64,
+    /// Surcharge percentage returned by the external surcharge connector, if provided.
+    pub surcharge_percentage: Option<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
