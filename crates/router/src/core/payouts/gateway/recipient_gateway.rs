@@ -13,7 +13,7 @@ use hyperswitch_interfaces::{
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
-    core::{payments::gateway::context::RouterGatewayContext, unified_connector_service},
+    core::{payouts::gateway::context::RouterGatewayContext, unified_connector_service},
     routes::SessionState,
     services::logger,
     types::{self, transformers::ForeignTryFrom},

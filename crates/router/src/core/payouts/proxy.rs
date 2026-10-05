@@ -14,16 +14,13 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::PeekInterface;
 
-use super::{validator, PayoutData};
+use super::{gateway::context::RouterGatewayContext, validator, PayoutData};
 use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::transformers::fetch_payment_method_from_modular_service,
-        payments::{
-            gateway::context::RouterGatewayContext,
-            helpers::{self as payment_helpers, MerchantConnectorAccountType},
-        },
+        payments::helpers::{self as payment_helpers, MerchantConnectorAccountType},
         unified_connector_service, utils as core_utils,
     },
     routes::SessionState,

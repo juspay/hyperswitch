@@ -63,10 +63,8 @@ use crate::{
             self, get_frm_merchant_connector_account_and_routing_algorithm,
             get_payout_frm_applicability, types::PayoutFrmOutcome,
         },
-        payments::{
-            self, customers, gateway::context as gateway_context, helpers as payment_helpers,
-            HeaderPayload,
-        },
+        payments::{self, customers, helpers as payment_helpers, HeaderPayload},
+        payouts::gateway::context as gateway_context,
         unified_connector_service::should_call_unified_connector_service,
         utils as core_utils,
     },

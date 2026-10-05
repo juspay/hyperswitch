@@ -3791,8 +3791,6 @@ where
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
                         connector_decline_threshold: rollout_result.connector_decline_threshold,
                         rollout_scope: rollout_result.rollout_scope.clone(),
-                        #[cfg(all(feature = "payouts", feature = "v1"))]
-                        payout_execution_context: Default::default(),
                         execution_mode,
                     },
                 )
@@ -3815,8 +3813,6 @@ where
                 kill_switch_threshold: rollout_result.kill_switch_threshold,
                 connector_decline_threshold: rollout_result.connector_decline_threshold,
                 rollout_scope: rollout_result.rollout_scope.clone(),
-                #[cfg(all(feature = "payouts", feature = "v1"))]
-                payout_execution_context: Default::default(),
                 execution_mode,
             };
 
@@ -6591,8 +6587,6 @@ where
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
         rollout_scope: rollout_result.rollout_scope.clone(),
-        #[cfg(all(feature = "payouts", feature = "v1"))]
-        payout_execution_context: Default::default(),
         execution_mode,
     };
 
@@ -7188,8 +7182,6 @@ where
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
         rollout_scope: rollout_result.rollout_scope.clone(),
-        #[cfg(all(feature = "payouts", feature = "v1"))]
-        payout_execution_context: Default::default(),
         execution_mode,
     };
 
@@ -7326,8 +7318,6 @@ where
             kill_switch_threshold: rollout_result.kill_switch_threshold,
             connector_decline_threshold: rollout_result.connector_decline_threshold,
             rollout_scope: rollout_result.rollout_scope.clone(),
-            #[cfg(all(feature = "payouts", feature = "v1"))]
-            payout_execution_context: Default::default(),
             execution_mode,
         };
         let call_connector_service_response = call_connector_service(
@@ -7532,8 +7522,6 @@ where
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
         rollout_scope: rollout_result.rollout_scope.clone(),
-        #[cfg(all(feature = "payouts", feature = "v1"))]
-        payout_execution_context: Default::default(),
         execution_mode,
     };
 
@@ -8640,8 +8628,6 @@ where
         kill_switch_threshold: rollout_result.kill_switch_threshold,
         connector_decline_threshold: rollout_result.connector_decline_threshold,
         rollout_scope: rollout_result.rollout_scope.clone(),
-        #[cfg(all(feature = "payouts", feature = "v1"))]
-        payout_execution_context: Default::default(),
         execution_mode,
     };
 
