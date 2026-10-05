@@ -62,27 +62,31 @@ impl NonceSequence {
     /// Generate a random nonce sequence.
     //
     // deja: the AEAD nonce is the single source of ciphertext non-determinism.
-    // Recording it (Ok-only; the ring error type is non-serializable) and
-    // replaying it in call order makes `encode_message` reproduce byte-identical
-    // ciphertext for the same key+plaintext, so encrypted DB columns and HTTP
-    // bodies match the recording exactly. Real AES still runs; only the random
-    // nonce is substituted.
+    // Recording it and replaying it in call order makes `encode_message`
+    // reproduce byte-identical ciphertext for the same key+plaintext, so
+    // encrypted DB columns and HTTP bodies match the recording exactly. Real AES
+    // still runs; only the random nonce is substituted. The error side is
+    // `CryptoError` rather than ring's non-serializable `Unspecified`, so a
+    // recorded failure replays as that failure rather than as an
+    // unreconstructable sentinel -- and the caller already reported this exact
+    // variant, so nothing is lost by narrowing to it here.
     #[cfg_attr(
         feature = "deja",
         deja::id(
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
-            codec = ResultOkCodec,
+            codec = deja::codec::ResultCodec::<NonceSequence, errors::CryptoError>,
         )
     )]
-    fn new() -> Result<Self, ring::error::Unspecified> {
+    fn new() -> CustomResult<Self, errors::CryptoError> {
         use ring::rand::{SecureRandom, SystemRandom};
 
         let rng = SystemRandom::new();
 
         // 96-bit sequence number, stored in a 128-bit unsigned integer in big-endian order
         let mut sequence_number = [0_u8; 128 / 8];
-        rng.fill(&mut sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..])?;
+        rng.fill(&mut sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..])
+            .change_context(errors::CryptoError::EncodingFailed)?;
         let sequence_number = u128::from_be_bytes(sequence_number);
 
         Ok(Self(sequence_number))
@@ -335,8 +339,7 @@ impl EncodeMessage for GcmAes256 {
         secret: &[u8],
         msg: &[u8],
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        let nonce_sequence =
-            NonceSequence::new().change_context(errors::CryptoError::EncodingFailed)?;
+        let nonce_sequence = NonceSequence::new()?;
         let current_nonce = nonce_sequence.current();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .change_context(errors::CryptoError::EncodingFailed)?;
@@ -1457,5 +1460,60 @@ mod crypto_tests {
             .expect("Right signature verification result");
 
         assert!(right_verified);
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod deja_tests {
+    use super::NonceSequence;
+    use crate::errors;
+
+    fn reconstruct(
+        recorded: serde_json::Value,
+    ) -> Option<errors::CustomResult<NonceSequence, errors::CryptoError>> {
+        <deja::codec::ResultCodec<NonceSequence, errors::CryptoError> as deja::codec::ReplayCodec>::reconstruct(recorded)
+    }
+
+    /// A recorded nonce failure rebuilds as the same variant.
+    ///
+    /// The Ok-only codec this site used wrote an `Err` as
+    /// `{"deja_err": "<Debug>"}`, which names no variant and so cannot rebuild
+    /// one -- the second case is that document, and it must still refuse. The
+    /// third case is what makes the first mean anything: a `kind` that went
+    /// unread would accept any string at all.
+    #[test]
+    fn a_recorded_error_rebuilds_its_variant() {
+        let rebuilt = reconstruct(serde_json::json!({
+            "version": 1,
+            "result": "Err",
+            "kind": "EncodingFailed",
+            "message": "Failed to encode given message",
+        }))
+        .expect("a typed error must reconstruct");
+        let Err(report) = &rebuilt else {
+            panic!("a recorded error must rebuild as an error");
+        };
+        assert!(
+            matches!(
+                report.current_context(),
+                errors::CryptoError::EncodingFailed
+            ),
+            "the rebuilt error must carry the recorded variant"
+        );
+
+        assert!(
+            reconstruct(serde_json::json!({"deja_err": "Unspecified"})).is_none(),
+            "the Ok-only sentinel names no variant and must refuse"
+        );
+        assert!(
+            reconstruct(serde_json::json!({
+                "version": 1,
+                "result": "Err",
+                "kind": "NotAVariant",
+                "message": "",
+            }))
+            .is_none(),
+            "a kind naming no variant must refuse rather than fabricate one"
+        );
     }
 }

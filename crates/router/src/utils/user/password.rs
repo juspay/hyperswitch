@@ -15,7 +15,27 @@ use crate::core::errors::UserErrors;
 pub fn generate_password_hash(
     password: Secret<String>,
 ) -> CustomResult<Secret<String>, UserErrors> {
-    generate_password_hash_inner(password).map(Secret::new)
+    generate_password_hash_inner(password)
+        .map(Secret::new)
+        .change_context(UserErrors::InternalServerError)
+}
+
+/// The decision Argon2 reaches about a password, as something that can be
+/// recorded.
+///
+/// [`UserErrors`] cannot be: it derives neither `Serialize` nor `Deserialize`,
+/// and it carries payload-bearing variants that have nothing to do with this
+/// call. Every `hash_password` failure is reported as
+/// `UserErrors::InternalServerError`, which is all a caller can tell apart, so
+/// that is this one variant and nothing else crosses the boundary. The mapping
+/// back to the public error type stays in [`generate_password_hash`].
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
+)]
+enum PasswordHashOutcome {
+    /// Argon2 refused to hash the password.
+    #[error("failed to hash the password")]
+    HashFailed,
 }
 
 // deja: the Argon2 salt is random (OsRng), so the hash is non-deterministic. On
@@ -26,22 +46,26 @@ pub fn generate_password_hash(
 // serializes lossily to "***", which would record/replay a useless masked value;
 // the plain String records the real hash losslessly. The `password` arg still
 // masks to "***" in the recorded args — that's fine, it's consistent across
-// record/replay and avoids leaking the secret. Uses the Ok-only codec for the Result.
+// record/replay and avoids leaking the secret. The error side is its own narrow
+// outcome type so a recorded failure replays as that failure rather than as an
+// unreconstructable sentinel.
 #[cfg_attr(
     feature = "deja",
     deja::id(
         component = "router::user::password",
         operation = "generate_password_hash",
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<String, PasswordHashOutcome>,
     )
 )]
-fn generate_password_hash_inner(password: Secret<String>) -> CustomResult<String, UserErrors> {
+fn generate_password_hash_inner(
+    password: Secret<String>,
+) -> CustomResult<String, PasswordHashOutcome> {
     let salt = SaltString::generate(&mut OsRng);
 
     let argon2 = Argon2::default();
     let password_hash = argon2
         .hash_password(password.expose().as_bytes(), &salt)
-        .change_context(UserErrors::InternalServerError)?;
+        .change_context(PasswordHashOutcome::HashFailed)?;
     Ok(password_hash.to_string())
 }
 
@@ -112,4 +136,52 @@ fn get_temp_password_inner() -> String {
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
     )
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod deja_tests {
+    use super::PasswordHashOutcome;
+
+    fn reconstruct(
+        recorded: serde_json::Value,
+    ) -> Option<common_utils::errors::CustomResult<String, PasswordHashOutcome>> {
+        <deja::codec::ResultCodec<String, PasswordHashOutcome> as deja::codec::ReplayCodec>::reconstruct(recorded)
+    }
+
+    /// A recorded hashing failure rebuilds as the same variant.
+    ///
+    /// The Ok-only codec this site used wrote an `Err` as
+    /// `{"deja_err": "<Debug>"}`, which names no variant and so cannot rebuild
+    /// one -- the second case is that document, and it must still refuse. The
+    /// third case is what makes the first mean anything: a single-variant enum
+    /// whose `kind` went unread would accept any string at all.
+    #[test]
+    fn a_recorded_error_rebuilds_its_variant() {
+        let rebuilt = reconstruct(serde_json::json!({
+            "version": 1,
+            "result": "Err",
+            "kind": "HashFailed",
+            "message": "failed to hash the password",
+        }))
+        .expect("a typed error must reconstruct");
+        let Err(report) = &rebuilt else {
+            panic!("a recorded error must rebuild as an error");
+        };
+        assert_eq!(report.current_context(), &PasswordHashOutcome::HashFailed);
+
+        assert!(
+            reconstruct(serde_json::json!({"deja_err": "HashFailed"})).is_none(),
+            "the Ok-only sentinel names no variant and must refuse"
+        );
+        assert!(
+            reconstruct(serde_json::json!({
+                "version": 1,
+                "result": "Err",
+                "kind": "NotAVariant",
+                "message": "",
+            }))
+            .is_none(),
+            "a kind naming no variant must refuse rather than fabricate one"
+        );
+    }
 }

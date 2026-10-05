@@ -2194,7 +2194,8 @@ pub fn perform_dynamic_routing_volume_split(
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(hash);
         weighted_index.sample(&mut rng)
     } else {
-        sample_volume_split_index(&weights)?
+        sample_volume_split_index(&weights)
+            .change_context(errors::RoutingError::VolumeSplitFailed)?
     };
 
     let routing_choice = *splits
@@ -2205,12 +2206,33 @@ pub fn perform_dynamic_routing_volume_split(
     Ok(routing_choice)
 }
 
+/// The decision drawing a volume-split index reaches, as something that can be
+/// recorded.
+///
+/// [`errors::RoutingError`] cannot be: it derives neither `Serialize` nor
+/// `Deserialize`, and it carries payload-bearing variants that have nothing to
+/// do with this call. The only way this draw fails is a weight set
+/// `WeightedIndex` refuses, reported as `RoutingError::VolumeSplitFailed`, which
+/// is all a caller can tell apart, so that is this one variant and nothing else
+/// crosses the boundary. The mapping back to the public error type stays with
+/// the callers.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
+)]
+enum VolumeSplitOutcome {
+    /// The weights do not describe a distribution that can be sampled.
+    #[error("volume split failed")]
+    SplitFailed,
+}
+
 /// Draw the volume-split index for `weights`.
 ///
 /// deja: this draw decides which connector a payment is routed to, so it changes
 /// the outbound request. It is seamed at the index rather than at the chosen
 /// connector because a `usize` records losslessly and the weights key the call —
-/// a candidate that changed the split therefore still diverges on the args.
+/// a candidate that changed the split therefore still diverges on the args. The
+/// error side is its own narrow outcome type so a recorded failure replays as
+/// that failure rather than as an unreconstructable sentinel.
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
@@ -2218,12 +2240,14 @@ pub fn perform_dynamic_routing_volume_split(
         component = "router::routing",
         operation = "volume_split_index",
         on_miss = { use common_utils::synth_shape::Synthesize as _; Ok(__deja_miss.index(weights.len()).unwrap_or(0)) },
-        codec = ResultOkCodec,
+        codec = deja::codec::ResultCodec::<usize, VolumeSplitOutcome>,
     )
 )]
-fn sample_volume_split_index(weights: &[u8]) -> RoutingResult<usize> {
+fn sample_volume_split_index(
+    weights: &[u8],
+) -> oss_errors::CustomResult<usize, VolumeSplitOutcome> {
     let weighted_index = distributions::WeightedIndex::new(weights)
-        .change_context(errors::RoutingError::VolumeSplitFailed)
+        .change_context(VolumeSplitOutcome::SplitFailed)
         .attach_printable("Error creating weighted distribution for volume split")?;
 
     #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
@@ -2235,7 +2259,8 @@ pub fn perform_volume_split(
     mut splits: Vec<routing_types::ConnectorVolumeSplit>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
-    let idx = sample_volume_split_index(&weights)?;
+    let idx = sample_volume_split_index(&weights)
+        .change_context(errors::RoutingError::VolumeSplitFailed)?;
 
     splits
         .get(idx)
@@ -4486,5 +4511,53 @@ pub async fn get_active_mca_ids_for_session(
             );
             std::collections::HashSet::new()
         }
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod deja_tests {
+    use super::{oss_errors, VolumeSplitOutcome};
+
+    fn reconstruct(
+        recorded: serde_json::Value,
+    ) -> Option<oss_errors::CustomResult<usize, VolumeSplitOutcome>> {
+        <deja::codec::ResultCodec<usize, VolumeSplitOutcome> as deja::codec::ReplayCodec>::reconstruct(recorded)
+    }
+
+    /// A recorded split failure rebuilds as the same variant.
+    ///
+    /// The Ok-only codec this site used wrote an `Err` as
+    /// `{"deja_err": "<Debug>"}`, which names no variant and so cannot rebuild
+    /// one -- the second case is that document, and it must still refuse. The
+    /// third case is what makes the first mean anything: a single-variant enum
+    /// whose `kind` went unread would accept any string at all.
+    #[test]
+    fn a_recorded_error_rebuilds_its_variant() {
+        let rebuilt = reconstruct(serde_json::json!({
+            "version": 1,
+            "result": "Err",
+            "kind": "SplitFailed",
+            "message": "volume split failed",
+        }))
+        .expect("a typed error must reconstruct");
+        let Err(report) = &rebuilt else {
+            panic!("a recorded error must rebuild as an error");
+        };
+        assert_eq!(report.current_context(), &VolumeSplitOutcome::SplitFailed);
+
+        assert!(
+            reconstruct(serde_json::json!({"deja_err": "SplitFailed"})).is_none(),
+            "the Ok-only sentinel names no variant and must refuse"
+        );
+        assert!(
+            reconstruct(serde_json::json!({
+                "version": 1,
+                "result": "Err",
+                "kind": "NotAVariant",
+                "message": "",
+            }))
+            .is_none(),
+            "a kind naming no variant must refuse rather than fabricate one"
+        );
     }
 }
