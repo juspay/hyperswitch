@@ -8239,7 +8239,6 @@
           "Payouts"
         ],
         "summary": "Payouts - Create",
-        "description": "The provider business profile selects the execution flow; the request does not accept\nexecution_kind. When external vault is enabled, this is a single server-to-server call using\na saved payout_method_id, its owning customer, and a merchant-supplied payout_id.\nReuse payout_id for retries; merchant_order_reference_id does not deduplicate.\nOnce implemented, omitted proxy flags default to confirm=true,\nauto_fulfill=true, payout_type=card, and\nrecurring=false; conflicting values, inline method data, payout_token, source_bank_data,\nclient secrets, and payout-link options are rejected only in that mode. No SDK or\nseparate confirm call is required. Profile-based proxy dispatch and validation\nare implemented by the core follow-up, not this contract-only release; execution\nremains unavailable until the UCS CardProxyPayout contract is published and pinned.",
         "operationId": "Create a Payout",
         "requestBody": {
           "content": {
