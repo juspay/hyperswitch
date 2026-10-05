@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.30.0-hotfix1
+
+### Features
+
+- **router:** [Stripe] forward error_on_requires_action to UCS ([#14572](https://github.com/juspay/hyperswitch/pull/14572)) ([`d5e44e0`](https://github.com/juspay/hyperswitch/commit/d5e44e0197d5f67264930222c01ca7dc601a5d69))
+
+**Full Changelog:** [`2026.09.30.0...2026.09.30.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.09.30.0...2026.09.30.0-hotfix1)
+
+- - -
+
 ## 2026.09.30.0
 
 ### Features
