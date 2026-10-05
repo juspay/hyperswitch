@@ -24658,6 +24658,12 @@
             "maxLength": 64,
             "minLength": 32
           },
+          "merchant_customer_reference_id": {
+            "type": "string",
+            "description": "The customer reference supplied in the request path when merchant reference ID lookup is enabled.",
+            "example": "merchant_customer_123",
+            "nullable": true
+          },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },

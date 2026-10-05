@@ -84,7 +84,7 @@ use crate::routes::metrics;
 use crate::{
     configs::settings,
     core::{
-        account_updater,
+        account_updater, customers,
         payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
         tokenization as tokenization_core,
     },
@@ -4461,9 +4461,47 @@ pub async fn list_saved_payment_methods_for_customer(
     provider: domain::Provider,
     customer_id: id_type::GlobalCustomerId,
     include_new: bool,
+    api_key_type: enums::ApiKeyType,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
-    let customer_payment_methods =
-        list_payment_methods_core(&state, &provider, &customer_id, include_new).await?;
+    let request_customer_id = id_type::CustomerId::try_from(customer_id.clone()).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid customer ID supplied in the request path".to_string(),
+        },
+    )?;
+    let merchant_customer_reference_id =
+        customers::should_use_merchant_reference_id_as_customer_id(
+            &state,
+            &provider,
+            api_key_type,
+            &request_customer_id,
+        )
+        .await
+        .then_some(request_customer_id);
+
+    let customer_id = if let Some(merchant_reference_id) = merchant_customer_reference_id.as_ref() {
+        let customer = state
+            .store
+            .find_customer_by_merchant_reference_id_merchant_id(
+                merchant_reference_id,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        customer.id
+    } else {
+        customer_id
+    };
+
+    let customer_payment_methods = list_payment_methods_core(
+        &state,
+        &provider,
+        &customer_id,
+        merchant_customer_reference_id,
+        include_new,
+    )
+    .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -5896,6 +5934,7 @@ pub async fn list_payment_methods_core(
     state: &SessionState,
     provider: &domain::Provider,
     customer_id: &id_type::GlobalCustomerId,
+    merchant_customer_reference_id: Option<id_type::CustomerId>,
     include_new: bool,
 ) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -5937,6 +5976,7 @@ pub async fn list_payment_methods_core(
             payment_methods::PaymentMethodResponseItem::foreign_try_from((
                 pm,
                 default_payment_method_id.clone(),
+                merchant_customer_reference_id.clone(),
             ))
         })
         .collect::<Result<Vec<payment_methods::PaymentMethodResponseItem>, _>>()

@@ -26,7 +26,7 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method_by_record;
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "v2")]
 use crate::core::utils::create_encrypted_data;
@@ -662,6 +662,28 @@ pub async fn retrieve_customer_by_merchant_reference_id(
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
+}
+
+/// Whether a customer identifier supplied in the request should be interpreted as the
+/// merchant's customer reference instead of a Hyperswitch global customer ID.
+#[cfg(feature = "v2")]
+pub async fn should_use_merchant_reference_id_as_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    api_key_type: common_enums::ApiKeyType,
+    customer_id: &id_type::CustomerId,
+) -> bool {
+    match api_key_type {
+        common_enums::ApiKeyType::Internal => false,
+        common_enums::ApiKeyType::External => {
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                state,
+                provider,
+                Some(customer_id),
+            )
+            .await
+        }
+    }
 }
 
 #[instrument(skip(state))]
