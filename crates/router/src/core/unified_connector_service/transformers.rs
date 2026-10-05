@@ -84,7 +84,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
-            stripe: _,
+            stripe,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -105,6 +105,11 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                     payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
                 }
             }),
+            stripe: stripe
+                .as_ref()
+                .map(|data| payments_grpc::StripeAdditionalInformation {
+                    error_on_requires_action: data.error_on_requires_action,
+                }),
         }
     }
 }
@@ -534,6 +539,13 @@ impl
             .map(payments_grpc::SetupMandateDetails::foreign_try_from)
             .transpose()?;
 
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             split_payments: router_data
                 .request
@@ -581,6 +593,7 @@ impl
                 .access_token
                 .as_ref()
                 .map(ConnectorState::foreign_from),
+            browser_info,
         })
     }
 }
@@ -1329,13 +1342,14 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 _ => None,
             }
         });
-
         let connector_mandate_id = structured
             .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.request.connector_mandate_id.clone())
             .or_else(|| router_data.connector_mandate_request_reference_id.clone());
         let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
-        let connector_mandate_request_reference_id =
-            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+        let connector_mandate_request_reference_id = structured
+            .and_then(|r| r.get_connector_mandate_request_reference_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
 
         if connector_mandate_id.is_none()
             && payment_method_id.is_none()
@@ -1940,9 +1954,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            // New in the bumped client; the router does not populate it yet, so keep
-            // it absent — what UCS saw before the field existed.
-            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1990,6 +2001,11 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: None,
+            // Forward the order created by the preceding CreateOrder leg. Elavon PG's
+            // hosted-payment-page 3DS opens its payment session against that Order resource.
+            // This is the live path for card 3DS; setting only the external-vault variant
+            // below silently leaves the field None and the connector rejects the session.
+            connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
         })
     }
@@ -2046,9 +2062,6 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
-            // New in the bumped client; the router does not populate it yet, so keep
-            // it absent — what UCS saw before the field existed.
-            connector_order_id: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2096,6 +2109,9 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
             merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
+            // Forward the order created by the preceding CreateOrder leg. Elavon PG's
+            // hosted-payment-page 3DS opens its payment session against that Order resource.
+            connector_order_id: router_data.request.order_id.clone(),
             test_mode: router_data.test_mode,
         })
     }
@@ -2764,6 +2780,27 @@ impl
     }
 }
 
+/// Connectors whose connector-service SetupMandate builder accepts raw card data.
+///
+/// `build_unified_connector_service_payment_method` substitutes the connector token for
+/// *any* payment method, so a card SetupMandate reaches the connector service as a token
+/// and the card itself is lost -- the gRPC `PaymentMethod.payment_method` oneof is card
+/// XOR token, so it cannot carry both. Our own connectors do not behave that way: Stripe's
+/// SetupMandate builder consumes `payment_method_token` on the wallet arm and ignores it
+/// for cards, re-sending the card. Shadow validation sees the difference as UCS sending
+/// `payment_method=<pm_id>` where the direct call sends `payment_method_data[card][*]`,
+/// `payment_method_data[type]`, `payment_method_options[card][network]`,
+/// `[request_three_d_secure]` and `payment_method_types[0]`.
+///
+/// An allow-list rather than a deny-list on purpose: some connectors genuinely require a
+/// token on this flow and reject raw cards (billwerk's `source` must be a `ct_`/`ca_`
+/// token; stax resolves a mandate token or errors), so an unverified connector keeps
+/// today's behaviour. Extend one connector at a time, after confirming its
+/// connector-service SetupMandate builder handles `PaymentMethodData::Card`.
+fn setup_mandate_accepts_raw_card(connector: &str) -> bool {
+    matches!(connector, "stripe")
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
@@ -2775,11 +2812,23 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        // Drop the token ONLY for a raw card on an allow-listed connector. Everything else
+        // -- wallets, mandate payments, bank debits, anything the helper below has no arm
+        // for -- keeps today's behaviour, because the helper answers NotImplemented for
+        // variants it cannot build and the token short-circuit is what rescues them today.
+        let payment_method_token = match router_data.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+                if setup_mandate_accepts_raw_card(router_data.connector.as_str()) =>
+            {
+                None
+            }
+            _ => router_data.payment_method_token.as_ref(),
+        };
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-                router_data.payment_method_token.as_ref(),
+                payment_method_token,
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -2826,6 +2875,13 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Stripe's setup_intents needs this for on_behalf_of on a destination charge,
+            // and echoes the charge details back as mandate_reference.mandate_metadata.
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             test_mode: router_data.test_mode,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
@@ -4433,6 +4489,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
+            common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => Self::Unspecified,
         }
     }
 }
@@ -4619,6 +4680,11 @@ impl
     fn foreign_try_from(
         wallet_token_data: hyperswitch_domain_models::payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId,
     ) -> Result<Self, Self::Error> {
+        let card_network = wallet_token_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
         let decrypted_wallet_token_details = Self {
             decrypted_token: Some(
                 NetworkToken::from_str(&wallet_token_data.decrypted_token.get_card_no())
@@ -4634,6 +4700,7 @@ impl
                 .card_holder_name
                 .map(|name| name.expose().into()),
             eci: wallet_token_data.eci,
+            card_network: card_network.map(|card_network| card_network.into()),
             token_source: wallet_token_data
                 .token_source
                 .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
@@ -5930,6 +5997,108 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
             common_enums::BankNames::AfricanBank => Ok(Self::AfricanBank),
             common_enums::BankNames::AfricanBankBusiness => Ok(Self::AfricanBankBusiness),
+            common_enums::BankNames::Abanca => Ok(Self::Abanca),
+            common_enums::BankNames::AlmBrand => Ok(Self::AlmBrand),
+            common_enums::BankNames::AlphaFx => Ok(Self::AlphaFx),
+            common_enums::BankNames::ArbejdernesLandsbank => Ok(Self::ArbejdernesLandsbank),
+            common_enums::BankNames::ArbuthnotLatham => Ok(Self::ArbuthnotLatham),
+            common_enums::BankNames::BancoPopular => Ok(Self::BancoPopular),
+            common_enums::BankNames::BankPocztowy => Ok(Self::BankPocztowy),
+            common_enums::BankNames::Bankia => Ok(Self::Bankia),
+            common_enums::BankNames::BnBank => Ok(Self::BnBank),
+            common_enums::BankNames::CaterAllen => Ok(Self::CaterAllen),
+            common_enums::BankNames::ChelseaBuildingSociety => Ok(Self::ChelseaBuildingSociety),
+            common_enums::BankNames::Citadele => Ok(Self::Citadele),
+            common_enums::BankNames::CoopPank => Ok(Self::CoopPank),
+            common_enums::BankNames::CooperativeBank => Ok(Self::CooperativeBank),
+            common_enums::BankNames::Cumberland => Ok(Self::Cumberland),
+            common_enums::BankNames::DabBank => Ok(Self::DabBank),
+            common_enums::BankNames::DjurslandsBank => Ok(Self::DjurslandsBank),
+            common_enums::BankNames::Dnb => Ok(Self::Dnb),
+            common_enums::BankNames::EtneSparebank => Ok(Self::EtneSparebank),
+            common_enums::BankNames::FanaSparebank => Ok(Self::FanaSparebank),
+            common_enums::BankNames::FidorBank => Ok(Self::FidorBank),
+            common_enums::BankNames::FlekkefjordSparebank => Ok(Self::FlekkefjordSparebank),
+            common_enums::BankNames::ForexBank => Ok(Self::ForexBank),
+            common_enums::BankNames::HaugesundSparebank => Ok(Self::HaugesundSparebank),
+            common_enums::BankNames::HoareAndCo => Ok(Self::HoareAndCo),
+            common_enums::BankNames::IcaBanken => Ok(Self::IcaBanken),
+            common_enums::BankNames::JyskeBank => Ok(Self::JyskeBank),
+            common_enums::BankNames::KleinwortHambros => Ok(Self::KleinwortHambros),
+            common_enums::BankNames::KlpBanken => Ok(Self::KlpBanken),
+            common_enums::BankNames::Kreditbanken => Ok(Self::Kreditbanken),
+            common_enums::BankNames::LandkredittBank => Ok(Self::LandkredittBank),
+            common_enums::BankNames::Lansforsakringar => Ok(Self::Lansforsakringar),
+            common_enums::BankNames::LhvPank => Ok(Self::LhvPank),
+            common_enums::BankNames::LillesandsSparebank => Ok(Self::LillesandsSparebank),
+            common_enums::BankNames::Luminor => Ok(Self::Luminor),
+            common_enums::BankNames::LusterSparebank => Ok(Self::LusterSparebank),
+            common_enums::BankNames::MetroBank => Ok(Self::MetroBank),
+            common_enums::BankNames::NordfynsBank => Ok(Self::NordfynsBank),
+            common_enums::BankNames::NordjyskeBank => Ok(Self::NordjyskeBank),
+            common_enums::BankNames::Norisbank => Ok(Self::Norisbank),
+            common_enums::BankNames::NykreditBank => Ok(Self::NykreditBank),
+            common_enums::BankNames::ObosBanken => Ok(Self::ObosBanken),
+            common_enums::BankNames::OrangeFinanse => Ok(Self::OrangeFinanse),
+            common_enums::BankNames::ParetoBank => Ok(Self::ParetoBank),
+            common_enums::BankNames::PkoBankPolski => Ok(Self::PkoBankPolski),
+            common_enums::BankNames::RingkjobingLandbobank => Ok(Self::RingkjobingLandbobank),
+            common_enums::BankNames::Sbanken => Ok(Self::Sbanken),
+            common_enums::BankNames::SiauliuBankas => Ok(Self::SiauliuBankas),
+            common_enums::BankNames::SiliconValleyBank => Ok(Self::SiliconValleyBank),
+            common_enums::BankNames::Skandiabanken => Ok(Self::Skandiabanken),
+            common_enums::BankNames::SkjernBank => Ok(Self::SkjernBank),
+            common_enums::BankNames::SkudenesOgAakraSparebank => Ok(Self::SkudenesOgAakraSparebank),
+            common_enums::BankNames::SogneOgGreipstadSparebank => {
+                Ok(Self::SogneOgGreipstadSparebank)
+            }
+            common_enums::BankNames::SparNordBank => Ok(Self::SparNordBank),
+            common_enums::BankNames::SparbankenSyd => Ok(Self::SparbankenSyd),
+            common_enums::BankNames::SpardaBank => Ok(Self::SpardaBank),
+            common_enums::BankNames::SpareBank1 => Ok(Self::SpareBank1),
+            common_enums::BankNames::SparebankenMore => Ok(Self::SparebankenMore),
+            common_enums::BankNames::SparebankenOst => Ok(Self::SparebankenOst),
+            common_enums::BankNames::SparebankenSognOgFjordane => {
+                Ok(Self::SparebankenSognOgFjordane)
+            }
+            common_enums::BankNames::SparebankenSor => Ok(Self::SparebankenSor),
+            common_enums::BankNames::SparebankenVest => Ok(Self::SparebankenVest),
+            common_enums::BankNames::SparekassenDanmark => Ok(Self::SparekassenDanmark),
+            common_enums::BankNames::SparekassenSjaellandFyn => Ok(Self::SparekassenSjaellandFyn),
+            common_enums::BankNames::Spareskillingsbanken => Ok(Self::Spareskillingsbanken),
+            common_enums::BankNames::Sydbank => Ok(Self::Sydbank),
+            common_enums::BankNames::VanquisBank => Ok(Self::VanquisBank),
+            common_enums::BankNames::VestjyskBank => Ok(Self::VestjyskBank),
+            common_enums::BankNames::VossSparebank => Ok(Self::VossSparebank),
+            common_enums::BankNames::YorkshireBuildingSociety => Ok(Self::YorkshireBuildingSociety),
+            common_enums::BankNames::SpareBank1Gudbrandsdal => Ok(Self::SpareBank1Gudbrandsdal),
+            common_enums::BankNames::SpareBank1HallingdalValdres => {
+                Ok(Self::SpareBank1HallingdalValdres)
+            }
+            common_enums::BankNames::SpareBank1LomOgSkjak => Ok(Self::SpareBank1LomOgSkjak),
+            common_enums::BankNames::SpareBank1Modum => Ok(Self::SpareBank1Modum),
+            common_enums::BankNames::SpareBank1Nordmore => Ok(Self::SpareBank1Nordmore),
+            common_enums::BankNames::SpareBank1RingerikeHadeland => {
+                Ok(Self::SpareBank1RingerikeHadeland)
+            }
+            common_enums::BankNames::SpareBank1Smn => Ok(Self::SpareBank1Smn),
+            common_enums::BankNames::SpareBank1SrBank => Ok(Self::SpareBank1SrBank),
+            common_enums::BankNames::SpareBank1SoreSunnmore => Ok(Self::SpareBank1SoreSunnmore),
+            common_enums::BankNames::SpareBank1SorostNorgeBv => Ok(Self::SpareBank1SorostNorgeBv),
+            common_enums::BankNames::SpareBank1SorostNorgeTelemark => {
+                Ok(Self::SpareBank1SorostNorgeTelemark)
+            }
+            common_enums::BankNames::SpareBank1OstfoldAkershus => {
+                Ok(Self::SpareBank1OstfoldAkershus)
+            }
+            common_enums::BankNames::SpareBank1Ostlandet => Ok(Self::SpareBank1Ostlandet),
+            common_enums::BankNames::CitiHandlowy => Ok(Self::CitiHandlowy),
+            common_enums::BankNames::DeutscheBankPolska => Ok(Self::DeutscheBankPolska),
+            common_enums::BankNames::IngBankSlaski => Ok(Self::IngBankSlaski),
+            common_enums::BankNames::IngDiba => Ok(Self::IngDiba),
+            common_enums::BankNames::NordeaDirect => Ok(Self::NordeaDirect),
+            common_enums::BankNames::SantanderUk => Ok(Self::SantanderUk),
+            common_enums::BankNames::SwedbankSparbankerna => Ok(Self::SwedbankSparbankerna),
         }
     }
 }
@@ -8615,6 +8784,9 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_connector_metadata: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -8896,6 +9068,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_method_data: None,
+            test_mode: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
@@ -9065,6 +9241,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            payout_method_type: None,
         })
     }
 }

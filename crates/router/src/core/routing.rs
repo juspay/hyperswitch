@@ -2759,7 +2759,7 @@ pub async fn success_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -2865,7 +2865,7 @@ pub async fn elimination_routing_update_configs(
     )];
 
     cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -3137,7 +3137,7 @@ pub async fn contract_based_routing_update_configs(
         cache_key.into(),
     )];
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
