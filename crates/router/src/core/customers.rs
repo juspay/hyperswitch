@@ -664,6 +664,21 @@ pub async fn retrieve_customer_by_merchant_reference_id(
     ))
 }
 
+/// Whether a customer ID supplied by the merchant should be interpreted as a
+/// merchant reference ID rather than a Hyperswitch global customer ID.
+/// Keep the configuration decision and any future conditions in this helper.
+#[cfg(feature = "v2")]
+pub fn should_use_merchant_reference_id_as_customer_id(
+    api_key_type: common_enums::ApiKeyType,
+) -> bool {
+    if api_key_type == common_enums::ApiKeyType::Internal {
+        return false;
+    }
+
+    // TODO: Read `payments.use_merchant_reference_id_as_customer_id` from Superposition.
+    true
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
