@@ -2068,6 +2068,13 @@ pub async fn resolve_request_customer_id(
     )
     .await;
 
+    // Skip the customer-table lookup entirely for the (overwhelming) majority of merchants who
+    // don't have this config enabled: the request's `customer_id` is already correct for them, and
+    // this function sits on the hot path of every payment create/confirm.
+    if !use_merchant_reference_id {
+        return customer_id.clone();
+    }
+
     state
         .store
         .find_customer_optional_by_customer_id_merchant_id(
