@@ -1069,13 +1069,21 @@ pub enum WorldpayxmlSyncResponse {
     Payment(Box<PaymentService>),
 }
 
-impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for PaymentDetails {
+impl
+    TryFrom<(
+        &Card,
+        Option<enums::CaptureMethod>,
+        Option<Session>,
+        Option<Secret<String>>,
+    )> for PaymentDetails
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (card_data, capture_method, session): (
+        (card_data, capture_method, session, billing_full_name): (
             &Card,
             Option<enums::CaptureMethod>,
             Option<Session>,
+            Option<Secret<String>>,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -1094,8 +1102,9 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
                 },
                 card_holder_name: card_data
                     .card_holder_name
-                    .as_ref()
-                    .map(|name| normalize_cardholder_name(name.clone())),
+                    .clone()
+                    .or(billing_full_name)
+                    .map(normalize_cardholder_name),
                 cvc: Some(card_data.card_cvc.to_owned()),
             }),
             session,
@@ -2055,6 +2064,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 &req_card,
                 item.router_data.request.capture_method,
                 session,
+                item.router_data.get_optional_billing_full_name(),
             ))?,
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => PaymentDetails::try_from((
@@ -3079,6 +3089,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     &req_card,
                     item.router_data.request.capture_method,
                     session,
+                    item.router_data.get_optional_billing_full_name(),
                 ))?,
                 Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => {
                     let customer_name = item.router_data.get_billing_full_name()?;
