@@ -2557,6 +2557,15 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "payments.implicit_customer_update" = { value = false, schema = { type = "boolean" }, description = "Whether to implicitly update customer details on payment", change_reason = "Initial setup" }
 "payments.block_implicit_customer_creation" = { value = false, schema = { type = "boolean" }, description = "Whether payments must reject implicit creation of a missing customer for an organization", change_reason = "Decouple implicit customer creation from PM modular eligibility" }
 "webhooks.incoming_webhook_disabled_events" = { value = false, schema = { type = "boolean" }, description = "Whether a specific incoming webhook event is disabled for a given connector", change_reason = "Initial setup" }
+"webhooks.unverified_webhook_rate_limit_mode" = { value = "disabled", schema = { enum = [
+    "disabled",
+    "shadow",
+    "enforce",
+], type = "string" }, description = "How unverified incoming webhooks are rate limited: disabled, shadow (count and record only) or enforce (reject with 429)", change_reason = "Unverified webhook rate limiting" }
+"webhooks.unverified_webhook_rate_limit_window_in_secs" = { value = 60, schema = { maximum = 4294967295, minimum = 1, type = "integer" }, description = "Fixed window, in seconds, over which unverified incoming webhooks are counted", change_reason = "Unverified webhook rate limiting" }
+"webhooks.unverified_webhook_merchant_rate_limit" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum unverified incoming webhooks per merchant per window, 0 disables the merchant level", change_reason = "Unverified webhook rate limiting" }
+"webhooks.unverified_webhook_profile_rate_limit" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum unverified incoming webhooks per profile per window, 0 disables the profile level", change_reason = "Unverified webhook rate limiting" }
+"webhooks.unverified_webhook_merchant_connector_account_rate_limit" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum unverified incoming webhooks per merchant connector account per window, 0 disables the merchant connector account level", change_reason = "Unverified webhook rate limiting" }
 "payouts.max_auto_payout_retries" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)", change_reason = "Initial setup" }
 "payouts.payout_frm_call" = { value = false, schema = { type = "boolean" }, description = "Whether to call FRM for payouts", change_reason = "Initial setup" }
 "payouts.payout_blocklist_guard" = { value = false, schema = { type = "boolean" }, description = "Whether to check card payouts against the blocklist and the profile's card blocking rules", change_reason = "Initial setup" }
@@ -3289,6 +3298,7 @@ mandate_type = { position = 6, schema = { enum = [
     "mandate",
     "non_mandate",
 ], type = "string" }, type = "REGULAR" }
+merchant_connector_id = { position = 21, schema = { pattern = ".*", type = "string" }, type = "REGULAR", description = "Merchant connector account id", change_reason = "Unverified webhook rate limiting" }
 method = { position = 20, schema = { type = "string" }, type = "REGULAR", description = "HTTP request method (Deja recording sampler context)", change_reason = "Deja recording sampler" }
 organization_id = { position = 11, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 path = { position = 19, schema = { type = "string" }, type = "REGULAR", description = "HTTP request path (basis of the deja_dimension cohort)", change_reason = "Deja recording sampler" }

@@ -51,7 +51,7 @@ use crate::{
             types::UNIFIED_AUTHENTICATION_SERVICE, utils as uas_utils,
         },
         unified_connector_service, utils as core_utils,
-        webhooks::{network_tokenization_incoming, utils},
+        webhooks::{network_tokenization_incoming, unverified_rate_limit, utils},
     },
     logger,
     routes::{app::ReqState, lock_utils, SessionState},
@@ -523,6 +523,15 @@ async fn process_webhook_business_logic(
         // if webhook consumption is mandatory for connector, fail webhook
         // so that merchant can retrigger it after updating merchant_secret
         return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
+    } else {
+        // Unverified webhooks fall back to syncing with the connector, so cap how many of them
+        // each merchant, profile and merchant connector account can push through
+        unverified_rate_limit::check_unverified_webhook_rate_limit(
+            state,
+            platform,
+            &merchant_connector_account,
+        )
+        .await?;
     }
 
     logger::info!(source_verified=?source_verified);
@@ -753,6 +762,15 @@ fn handle_incoming_webhook_error(
     WebhookResponseTracker,
     common_utils::pii::SecretSerdeValue,
 )> {
+    // A rate limited webhook must reach the connector as a 429 so that it is retried later,
+    // never as an acknowledgement
+    if matches!(
+        error.current_context(),
+        errors::ApiErrorResponse::WebhookRateLimited
+    ) {
+        return Err(error);
+    }
+
     logger::error!(?error, "Incoming webhook flow failed");
 
     // fetch the connector enum from the connector name

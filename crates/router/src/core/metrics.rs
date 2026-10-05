@@ -44,6 +44,9 @@ counter_metric!(
 counter_metric!(WEBHOOK_INCOMING_COUNT, GLOBAL_METER);
 counter_metric!(WEBHOOK_INCOMING_FILTERED_COUNT, GLOBAL_METER);
 counter_metric!(WEBHOOK_SOURCE_VERIFIED_COUNT, GLOBAL_METER);
+counter_metric!(WEBHOOK_UNVERIFIED_RATE_LIMIT_CHECKED_COUNT, GLOBAL_METER); // No. of unverified incoming webhooks checked against the rate limits
+counter_metric!(WEBHOOK_UNVERIFIED_RATE_LIMITED_COUNT, GLOBAL_METER); // No. of unverified incoming webhooks over a rate limit, in shadow or enforce mode
+counter_metric!(WEBHOOK_UNVERIFIED_RATE_LIMITER_ERROR_COUNT, GLOBAL_METER); // No. of unverified incoming webhooks let through because the rate limit check failed
 counter_metric!(WEBHOOK_OUTGOING_COUNT, GLOBAL_METER);
 counter_metric!(WEBHOOK_OUTGOING_RECEIVED_COUNT, GLOBAL_METER);
 counter_metric!(WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT, GLOBAL_METER);

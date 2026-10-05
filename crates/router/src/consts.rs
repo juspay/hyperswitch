@@ -523,6 +523,21 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// Unverified webhook rate limiting mode: `"disabled"` (default), `"shadow"` or `"enforce"`
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_MODE: &str =
+        "webhooks.unverified_webhook_rate_limit_mode";
+    /// Fixed window, in seconds, over which unverified webhooks are counted
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS: &str =
+        "webhooks.unverified_webhook_rate_limit_window_in_secs";
+    /// Maximum unverified webhooks per merchant per window, `0` disables the merchant level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_rate_limit";
+    /// Maximum unverified webhooks per profile per window, `0` disables the profile level
+    pub const UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_profile_rate_limit";
+    /// Maximum unverified webhooks per merchant connector account per window, `0` disables the merchant connector account level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_CONNECTOR_ACCOUNT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// checkout sdk configuration
