@@ -3626,6 +3626,11 @@ pub struct PaymentMethodResponseItem {
     )]
     pub customer_id: id_type::GlobalCustomerId,
 
+    /// The customer reference supplied in the request path when merchant reference ID lookup is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, example = "merchant_customer_123")]
+    pub merchant_customer_ref_id: Option<id_type::CustomerId>,
+
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,

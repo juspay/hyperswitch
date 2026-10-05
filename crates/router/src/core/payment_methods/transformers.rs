@@ -1220,6 +1220,7 @@ impl
                 .change_context(errors::ValidationError::MissingRequiredField {
                     field_name: "customer_id".into(),
                 })?,
+            merchant_customer_ref_id: None,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,
