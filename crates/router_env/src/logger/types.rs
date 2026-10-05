@@ -216,6 +216,10 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    /// Aggregated payments list flow for a platform across its connected merchants.
+    PlatformPaymentsList,
+    /// Aggregated payments filter-values flow for a platform across its connected merchants.
+    PlatformPaymentsFilters,
     /// Payments filters flow
     PaymentsFilters,
     /// Payments aggregates flow
@@ -669,8 +673,11 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
-    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
+    /// Manually update payment status from dashboard (Review → Succeeded/Failed, or Conflicted →
+    /// one of the statuses eligible for its capture method/amounts)
     PaymentsManualStatusUpdate,
+    /// List the statuses a conflicted payment is currently eligible for a manual status update to
+    PaymentsManualStatusUpdateEligibleStatuses,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
