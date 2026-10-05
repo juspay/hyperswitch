@@ -2014,15 +2014,14 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     todo!()
 }
 
-/// Resolves the superposition flag that decides whether a v1 customer lookup keyed by
-/// `customer_id` should fall back to the `merchant_reference_id` of the customer when the id is
-/// not already in the global id format.
+/// Resolves the Superposition flag that decides whether a customer identifier supplied in a
+/// request should be interpreted as the customer's `merchant_reference_id`.
 ///
 /// Merchants creating customers via the v2 customers API get a global id as the `customer_id`, but
-/// keep sending their own `merchant_reference_id` as the `customer_id` in payments requests. This
-/// function only resolves the org-level config; the format check and the actual lookup branching
-/// both happen inside the storage layer (`CustomerInterface`), not here.
-#[cfg(feature = "v1")]
+/// can continue sending their own `merchant_reference_id` in request fields that historically
+/// accepted `customer_id`. This function only resolves the provider-merchant and organization
+/// scoped configuration; each caller remains responsible for applying it to its lookup flow.
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn should_use_merchant_reference_id_as_customer_id(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
@@ -2039,7 +2038,7 @@ pub async fn should_use_merchant_reference_id_as_customer_id(
 
 /// Convenience wrapper over [`should_use_merchant_reference_id_as_customer_id`] for the common
 /// case where only a `Provider` (and no additional dimensions) is available.
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn should_use_merchant_reference_id_as_customer_id_for_provider(
     state: &SessionState,
     provider: &domain::Provider,
