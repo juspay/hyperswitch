@@ -55,6 +55,40 @@ enum PasswordHashOutcome {
         component = "router::user::password",
         operation = "generate_password_hash",
         codec = deja::codec::ResultCodec::<String, PasswordHashOutcome>,
+        // The value has to be a PHC string, because `is_correct_password` hands
+        // it to `PasswordHash::new` and a string that does not parse there comes
+        // back as `InternalServerError` — a worse answer than the one below. So
+        // the synthesized hash is produced by Argon2 itself, over derived
+        // material and a derived salt, rather than assembled by hand: the format
+        // is then correct by construction and cannot drift from whatever
+        // parameters `Argon2::default()` encodes.
+        //
+        // What it costs: the hash is of the derived material and not of the
+        // password, so a later `is_correct_password` against it answers
+        // `Ok(false)` — "wrong password", a value the caller already handles —
+        // rather than erroring. A login in the same correlation as a synthesized
+        // signup therefore diverges, and that divergence is attributable to this
+        // substitution, which is the trade the fail-stop did not offer.
+        //
+        // The salt is drawn through `deja::synth::bytes` and the material
+        // through `alphanumeric`; the two use different domain separators, so
+        // neither is a projection of the other.
+        on_miss = {
+            use common_utils::synth_shape::Synthesize as _;
+            let material = __deja_miss.alphanumeric(32);
+            match SaltString::encode_b64(&deja::synth::bytes::<16>(&__deja_miss)).and_then(
+                |salt| {
+                    Argon2::default()
+                        .hash_password(material.as_bytes(), &salt)
+                        .map(|hash| hash.to_string())
+                },
+            ) {
+                Ok(hash) => Ok(hash),
+                // Unreachable for a well-formed 16-byte salt; here so the arm is
+                // total, the same way the uuid shape falls back to nil.
+                Err(_) => Err(PasswordHashOutcome::HashFailed.into()),
+            }
+        },
     )
 )]
 fn generate_password_hash_inner(

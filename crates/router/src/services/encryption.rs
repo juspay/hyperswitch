@@ -56,6 +56,57 @@ pub enum EncryptionAlgorithm {
             "payload_blake3": blake3::hash(payload).to_hex().as_str(),
             "payload_len": payload.len(),
         }),
+        // The load-bearing part of a JWE's shape is that it has FIVE
+        // dot-separated base64url segments: `mk_add_card_request_hs` and
+        // `mk_vault_req` split on `.` and index 0 through 4, and a shorter value
+        // is rejected as `RequestEncodingFailed` before it reaches the wire. So
+        // the five segments are built here, in josekit's order — protected
+        // header, encrypted key, IV, ciphertext, tag.
+        //
+        // The header is the one segment whose content is known, so it is the
+        // real header rather than noise. The other three are opaque: nothing in
+        // this process reads them, and the locker that could is itself a
+        // Substitute boundary that never runs on replay. Their lengths assume
+        // RSA-2048 (a 256-byte wrapped key) and AES-GCM's 12-byte IV and 16-byte
+        // tag, which is what the configured `RSA_OAEP_256` encrypter produces.
+        //
+        // One draw, carved. A shape method is a function of the miss, so calling
+        // `byte_vec` three times at one site returns three values that are
+        // prefixes of one another — the IV would be the first twelve bytes of
+        // the wrapped key.
+        on_miss = {
+            use base64::Engine as _;
+            use common_utils::synth_shape::Synthesize as _;
+
+            const WRAPPED_KEY_BYTES: usize = 256;
+            const GCM_IV_BYTES: usize = 12;
+            const GCM_TAG_BYTES: usize = 16;
+
+            let drawn = __deja_miss.byte_vec(
+                WRAPPED_KEY_BYTES + GCM_IV_BYTES + payload.len() + GCM_TAG_BYTES,
+            );
+            let (wrapped_key, drawn) = drawn.split_at(WRAPPED_KEY_BYTES);
+            let (iv, drawn) = drawn.split_at(GCM_IV_BYTES);
+            let (ciphertext, tag) = drawn.split_at(payload.len());
+
+            let mut header = serde_json::Map::new();
+            header.insert("alg".to_string(), "RSA-OAEP-256".into());
+            header.insert("enc".to_string(), algorithm.as_ref().into());
+            header.insert("typ".to_string(), "JWT".into());
+            if let Some(key_id) = key_id {
+                header.insert("kid".to_string(), key_id.into());
+            }
+
+            let engine = common_utils::consts::BASE64_ENGINE_URL_SAFE_NO_PAD;
+            Ok(format!(
+                "{}.{}.{}.{}.{}",
+                engine.encode(serde_json::Value::Object(header).to_string()),
+                engine.encode(wrapped_key),
+                engine.encode(iv),
+                engine.encode(ciphertext),
+                engine.encode(tag),
+            ))
+        },
     )
 )]
 pub async fn encrypt_jwe(

@@ -6256,8 +6256,26 @@ fn token_digest(token: &str) -> String {
 /// business-profile and decrypt calls that follow it, which are exactly the
 /// calls a replay exists to compare.
 ///
-/// A token absent from the recording does not decode silently: the substitute
-/// misses and the boundary fail-stops, the same as any other missed substitute.
+/// A token absent from the recording is decoded with expiry validation turned
+/// off. That is the one answer here that is neither a constant nor a lie about
+/// the claims: this seam exists because the clock `jsonwebtoken` reads is one
+/// deja cannot reach, so removing that clock is removing the entropy, not
+/// reintroducing it — the usual objection to answering a miss by running the
+/// real computation inverts at this site. Every other input stays as it was,
+/// `required_spec_claims` included, so a malformed or wrongly-signed token still
+/// comes back `Invalid`.
+///
+/// It does mean an expired token is accepted. The arm is the Substitute-miss
+/// branch of the replay lookup and nothing else reaches it: there is no lookup
+/// while recording and none when deja is inactive, so no deployment that serves
+/// real traffic can take this path.
+///
+/// The value is not derived from `__deja_miss`, which every other arm in this
+/// tree is. It does not need to be: the rule exists so two different misses
+/// cannot synthesize one value, and this value is a function of the token, which
+/// is what the miss is addressed by. A constant here would be
+/// `Err(JwtDecodeOutcome::Invalid)`, which answers every unrecorded token with a
+/// 401 and ends the request a few frames later than the fail-stop did.
 ///
 /// `pub` only so the boundary can be exercised from an integration test:
 /// `set_global_runtime_hook` is a one-shot `OnceLock`, so record and replay
@@ -6277,6 +6295,14 @@ fn token_digest(token: &str) -> String {
                 // claims, and their recorded shapes differ. Identity says which.
                 "claims_type": std::any::type_name::<T>(),
             })
+        },
+        on_miss = {
+            let mut without_the_clock = Validation::new(Algorithm::HS256);
+            without_the_clock.validate_exp = false;
+            let key = DecodingKey::from_secret(secret);
+            decode::<T>(token, &key, &without_the_clock)
+                .map(|decoded| decoded.claims)
+                .map_err(|_| report!(JwtDecodeOutcome::Invalid))
         },
     )
 )]
