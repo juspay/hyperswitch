@@ -105,6 +105,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                     payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
                 }
             }),
+            stripe: None,
         }
     }
 }
@@ -2969,6 +2970,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            split_payments: None,
         })
     }
 }
@@ -8756,6 +8758,7 @@ impl
                 .transpose()?,
             description: router_data.description.clone(),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            payout_connector_metadata: None,
         })
     }
 }
@@ -9032,6 +9035,8 @@ impl
             access_token: router_data.access_token.clone().map(|at| at.token),
             browser_info,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            payout_method_data: None,
+            test_mode: None,
         })
     }
 }
@@ -9096,6 +9101,7 @@ impl
                 ),
             ),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            vendor_account_details: None,
         })
     }
 }
@@ -9158,6 +9164,8 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            destination_currency: None,
+            vendor_account_details: None,
         })
     }
 }
@@ -9194,6 +9202,7 @@ impl
                 .transpose()?,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
             payout_method_type: None,
+            customer: None,
         })
     }
 }
