@@ -3509,6 +3509,16 @@ pub enum CardNetwork {
     PrivateLabel,
     #[serde(alias = "DINACARD")]
     Dinacard,
+    #[serde(alias = "AIRPLUS")]
+    AirPlus,
+    #[serde(alias = "AURORE")]
+    Aurore,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "GECAPITAL")]
+    GeCapital,
+    #[serde(alias = "UATP")]
+    Uatp,
 }
 
 #[derive(
@@ -3661,7 +3671,8 @@ impl CardNetwork {
             | Self::Pulse
             | Self::Accel
             | Self::Nyce
-            | Self::CartesBancaires => false,
+            | Self::CartesBancaires
+            | Self::EftposAustralia => false,
 
             Self::Visa
             | Self::Mastercard
@@ -3674,7 +3685,11 @@ impl CardNetwork {
             | Self::Maestro
             | Self::Prop
             | Self::PrivateLabel
-            | Self::Dinacard => true,
+            | Self::Dinacard
+            | Self::AirPlus
+            | Self::Aurore
+            | Self::GeCapital
+            | Self::Uatp => true,
         }
     }
 
@@ -3694,7 +3709,13 @@ impl CardNetwork {
             | Self::Maestro
             | Self::Prop
             | Self::PrivateLabel
-            | Self::Dinacard => false,
+            | Self::Dinacard
+            | Self::AirPlus
+            | Self::Aurore
+            // Domestic to Australia, not the US.
+            | Self::EftposAustralia
+            | Self::GeCapital
+            | Self::Uatp => false,
         }
     }
 
