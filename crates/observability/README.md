@@ -179,8 +179,8 @@ their markup and escaping. That is deliberate: the reference alerting service al
 summary in Slack `mrkdwn` for chat and a full per-alert list for email, and those are not the same
 message. `body` is **HTML**, because both email backends in `external_services` hardcode an HTML
 body and there is no plain-text path to reach. What a chat *alert* looks like — heading, marker,
-rail — is laid out here from its `alert` fields, and the provider client in `external_services`
-forwards the result without touching it.
+rail — is laid out here from its `alert` fields; the provider client in `external_services` only
+delivers it.
 
 A single `POST /notify/{destination}` over a channel-tagged body was considered and rejected: the
 destination already resolves the channel through configuration, so a tag in the body is a second

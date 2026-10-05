@@ -38,8 +38,8 @@
 //! would otherwise put both in the log stream. A hand-written `Debug` would do the same job until
 //! somebody adds a field and forgets; the type cannot forget.
 //!
-//! Nothing diagnostic is lost by redacting here: the chat client logs where each request went and
-//! whether it was threaded.
+//! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
+//! nothing diagnostic is lost by redacting here.
 //!
 //! ## The caller writes the words; chat alerts are laid out here
 //!
@@ -49,8 +49,7 @@
 //!
 //! A chat message that names an `alert` is laid out by this service: its heading, marker and
 //! severity rail are built from the alert's fields, with `text` as the body beneath. That keeps
-//! what an alert looks like the same for every caller and every provider, and leaves the provider
-//! client in `external_services` nothing to do but forward it.
+//! what an alert looks like the same for every caller and every provider.
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;

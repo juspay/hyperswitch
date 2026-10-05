@@ -1,23 +1,19 @@
-//! Building the provider message for a chat destination.
+//! Laying out an alert for a chat destination.
 //!
-//! Everything a Slack-compatible provider is sent is decided here; the client in
-//! `external_services` adds the channel and the thread and forwards it unchanged.
+//! The client in `external_services` sends `text`, with any attachments, as a Slack-compatible
+//! message. What an alert looks like is decided here.
 //!
-//! Two shapes:
-//!
-//! - **Plain** — the caller's text as the whole message, with markup on.
-//! - **Alert** — a bold heading built from the alert's domain data, and the caller's text as the
-//!   body inside a coloured attachment. The rules match what the R alerts service sends Xyne
-//!   directly (`xyne_body_payload`, `alert_heading`, `alert_state_marker`,
+//! - **Plain** — no alert: the caller's text is the whole message.
+//! - **Alert** — a bold heading built from the alert's domain data as the text, and the caller's
+//!   text as the body inside a coloured attachment. The rules match what the R alerts service sends
+//!   Xyne directly (`xyne_body_payload`, `alert_heading`, `alert_state_marker`,
 //!   `xyne_attachment_color`), so a message looks the same whichever path delivered it.
 
+use external_services::chat_service::{ChatMessage, MessageId};
 use hyperswitch_masking::PeekInterface;
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
 use super::{AlertSeverity, AlertState, ChatAlert};
-
-/// Appended to text that had to be cut down to fit a destination's limit.
-const TRUNCATION_MARKER: &str = "\n…(truncated)";
 
 /// Longest heading a section-style message carries. The heading is one line; anything longer is
 /// clipped, as the R direct sink clips it.
@@ -30,50 +26,51 @@ const CLIP_MARKER: &str = "...";
 /// a longer body is spread across several blocks.
 const SECTION_MAX_CHARS: usize = 3000;
 
-/// The provider message for `text`, as an alert message when `alert` is given.
+/// The message for `text`, laid out as an alert when `alert` is given, threaded under `reply_to`
+/// when one is given.
 ///
 /// `resolved` keeps the heading `alert` describes and turns the rail green: how an alert's
 /// original message is marked once the alert has cleared.
-pub(super) fn content(
+pub(super) fn build(
     text: &str,
     alert: Option<&ChatAlert>,
     resolved: bool,
-    max_message_chars: usize,
-) -> Map<String, Value> {
-    let text = truncate(text, max_message_chars);
+    reply_to: Option<MessageId>,
+) -> ChatMessage {
+    let (text, attachments) = content(text, alert, resolved);
+    let message = match reply_to {
+        Some(message_id) => ChatMessage::reply(text, message_id),
+        None => ChatMessage::new(text),
+    };
+    match attachments {
+        Some(attachments) => message.with_attachments(attachments),
+        None => message,
+    }
+}
 
-    let value = match alert {
-        None => json!({
-            "text": text,
-            // Slack treats markup as on by default, so this is redundant there. Xyne does not: its
-            // adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
-            // `*bold*` and backticks as literal characters.
-            "mrkdwn": true,
-        }),
-
-        // No top-level `mrkdwn`, and that is load-bearing. Xyne's adapter branches on that flag
-        // into a text-only path that never reads `attachments`, so an alert sent with it arrives
-        // with no rail and no body — and still answers `ok: true` with a message id. The body's
-        // markup is declared by each section block instead.
-        Some(alert) => json!({
-            "text": format!("*{}*", clip(&heading(alert), HEADING_MAX_CHARS)),
-            "attachments": [{
-                "color": colour(alert, resolved),
-                "blocks": sections(&text)
-                    .into_iter()
-                    .map(|section| json!({
-                        "type": "section",
-                        "text": { "type": "mrkdwn", "text": section },
-                    }))
-                    .collect::<Vec<_>>(),
-            }],
-        }),
+/// The message's text and attachments.
+fn content(text: &str, alert: Option<&ChatAlert>, resolved: bool) -> (String, Option<Vec<Value>>) {
+    let Some(alert) = alert else {
+        return (text.to_owned(), None);
     };
 
-    match value {
-        Value::Object(map) => map,
-        _ => Map::new(),
-    }
+    let blocks: Vec<Value> = sections(text)
+        .into_iter()
+        .map(|section| {
+            json!({
+                "type": "section",
+                "text": { "type": "mrkdwn", "text": section },
+            })
+        })
+        .collect();
+
+    (
+        format!("*{}*", clip(&heading(alert), HEADING_MAX_CHARS)),
+        Some(vec![json!({
+            "color": colour(alert, resolved),
+            "blocks": blocks,
+        })]),
+    )
 }
 
 /// `🔴 [eu-west-1] SEV1 · SR drop - connector (15m)`.
@@ -172,33 +169,12 @@ fn clip(text: &str, max_chars: usize) -> String {
     clipped
 }
 
-/// Cut `text` to `max_chars`, marking that it happened.
-///
-/// The API does not paginate, so an oversized message is rejected outright rather than split.
-fn truncate(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_owned();
-    }
-
-    // The marker is itself subject to the cap. Appending it whole to an empty remainder would
-    // return something *longer* than the limit this function exists to enforce, which the provider
-    // would then reject.
-    let marker: String = TRUNCATION_MARKER.chars().take(max_chars).collect();
-    let keep = max_chars.saturating_sub(marker.chars().count());
-
-    let mut truncated: String = text.chars().take(keep).collect();
-    truncated.push_str(&marker);
-    truncated
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use hyperswitch_masking::Secret;
 
     use super::*;
-
-    const CAP: usize = 40_000;
 
     fn alert(state: AlertState, severity: AlertSeverity) -> ChatAlert {
         ChatAlert {
@@ -209,8 +185,14 @@ mod tests {
         }
     }
 
-    fn sections_of(content: &Map<String, Value>) -> Vec<String> {
-        content["attachments"][0]["blocks"]
+    /// The laid-out message as one value, the way the provider receives text and attachments.
+    fn shaped(text: &str, alert: Option<&ChatAlert>, resolved: bool) -> Value {
+        let (text, attachments) = content(text, alert, resolved);
+        json!({ "text": text, "attachments": attachments })
+    }
+
+    fn sections_of(shaped: &Value) -> Vec<String> {
+        shaped["attachments"][0]["blocks"]
             .as_array()
             .unwrap()
             .iter()
@@ -223,24 +205,21 @@ mod tests {
     }
 
     #[test]
-    fn a_plain_message_is_the_text_with_markup_on() {
+    fn a_plain_message_is_the_text_alone() {
         assert_eq!(
-            Value::Object(content("*3 merchants*", None, false, CAP)),
-            json!({ "text": "*3 merchants*", "mrkdwn": true })
+            content("*3 merchants*", None, false),
+            ("*3 merchants*".to_owned(), None)
         );
     }
 
     #[test]
     fn a_firing_alert_is_a_heading_over_a_coloured_body() {
-        let built = content(
-            "SR fell to `42%`",
-            Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
-            false,
-            CAP,
-        );
-
         assert_eq!(
-            Value::Object(built),
+            shaped(
+                "SR fell to `42%`",
+                Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
+                false,
+            ),
             json!({
                 "text": "*🔴 SEV1 · SR drop - connector (15m)*",
                 "attachments": [{
@@ -254,24 +233,20 @@ mod tests {
         );
     }
 
-    /// The flag that makes Xyne drop the body. It must never ride on an alert message.
     #[test]
-    fn an_alert_message_never_carries_top_level_mrkdwn() {
-        for state in [
-            AlertState::Firing,
-            AlertState::Persistent,
-            AlertState::Resolved,
-        ] {
-            for resolved in [false, true] {
-                let built = content(
-                    "body",
-                    Some(&alert(state, AlertSeverity::Sev2)),
-                    resolved,
-                    CAP,
-                );
-                assert!(!built.contains_key("mrkdwn"), "{state:?} / {resolved}");
-            }
-        }
+    fn an_alert_is_built_as_a_threaded_message_with_its_heading() {
+        let message = build(
+            "body",
+            Some(&alert(AlertState::Persistent, AlertSeverity::Sev1)),
+            false,
+            Some(MessageId::ts("1.1")),
+        );
+
+        assert_eq!(
+            message.text(),
+            "*🔴 STILL FIRING · SR drop - connector (15m)*"
+        );
+        assert_eq!(message.reply_target(), Some(&MessageId::ts("1.1")));
     }
 
     #[test]
@@ -281,12 +256,7 @@ mod tests {
             (AlertSeverity::Sev2, "🟠", "SEV2", "#e65100"),
             (AlertSeverity::Sev3, "🟡", "SEV3", "#f9a825"),
         ] {
-            let built = content(
-                "body",
-                Some(&alert(AlertState::Firing, severity)),
-                false,
-                CAP,
-            );
+            let built = shaped("body", Some(&alert(AlertState::Firing, severity)), false);
             assert_eq!(
                 built["text"],
                 format!("*{marker} {lead} · SR drop - connector (15m)*")
@@ -297,11 +267,10 @@ mod tests {
 
     #[test]
     fn a_reminder_keeps_the_severity_rail_and_leads_with_still_firing() {
-        let built = content(
+        let built = shaped(
             "body",
             Some(&alert(AlertState::Persistent, AlertSeverity::Sev2)),
             false,
-            CAP,
         );
         assert_eq!(
             built["text"],
@@ -312,11 +281,10 @@ mod tests {
 
     #[test]
     fn a_resolved_message_is_green_whatever_the_severity() {
-        let built = content(
+        let built = shaped(
             "body",
             Some(&alert(AlertState::Resolved, AlertSeverity::Sev1)),
             false,
-            CAP,
         );
         assert_eq!(built["text"], "*🟢 RESOLVED · SR drop - connector (15m)*");
         assert_eq!(built["attachments"][0]["color"], "#2eb886");
@@ -326,11 +294,10 @@ mod tests {
     /// on a green rail.
     #[test]
     fn marking_resolved_keeps_the_original_heading_and_turns_the_rail_green() {
-        let built = content(
+        let built = shaped(
             "body",
             Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
             true,
-            CAP,
         );
         assert_eq!(built["text"], "*🔴 SEV1 · SR drop - connector (15m)*");
         assert_eq!(built["attachments"][0]["color"], "#2eb886");
@@ -341,13 +308,13 @@ mod tests {
         let mut with_region = alert(AlertState::Firing, AlertSeverity::Sev3);
         with_region.region = Some("eu-west-1".to_owned());
         assert_eq!(
-            content("body", Some(&with_region), false, CAP)["text"],
+            shaped("body", Some(&with_region), false)["text"],
             "*🟡 [eu-west-1] SEV3 · SR drop - connector (15m)*"
         );
 
         with_region.region = Some("  ".to_owned());
         assert_eq!(
-            content("body", Some(&with_region), false, CAP)["text"],
+            shaped("body", Some(&with_region), false)["text"],
             "*🟡 SEV3 · SR drop - connector (15m)*"
         );
     }
@@ -357,7 +324,7 @@ mod tests {
         let mut long = alert(AlertState::Firing, AlertSeverity::Sev1);
         long.title = Secret::new("t".repeat(400));
 
-        let text = content("body", Some(&long), false, CAP)["text"]
+        let text = shaped("body", Some(&long), false)["text"]
             .as_str()
             .unwrap()
             .to_owned();
@@ -371,13 +338,11 @@ mod tests {
         let line = format!("{}\n", "a".repeat(999));
         let body = line.repeat(7);
 
-        let built = content(
+        let sections = sections_of(&shaped(
             &body,
             Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
             false,
-            CAP,
-        );
-        let sections = sections_of(&built);
+        ));
 
         assert_eq!(sections.len(), 3);
         assert!(sections
@@ -389,56 +354,13 @@ mod tests {
     #[test]
     fn a_line_longer_than_a_section_is_split_mid_line() {
         let body = "b".repeat(SECTION_MAX_CHARS + 500);
-        let sections = sections_of(&content(
+        let sections = sections_of(&shaped(
             &body,
             Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
             false,
-            CAP,
         ));
 
         assert_eq!(sections.len(), 2);
         assert_eq!(sections.concat(), body);
-    }
-
-    #[test]
-    fn the_destination_cap_applies_to_both_shapes() {
-        let body = "x".repeat(500);
-
-        let plain = content(&body, None, false, 50);
-        assert_eq!(plain["text"].as_str().unwrap().chars().count(), 50);
-        assert!(plain["text"].as_str().unwrap().ends_with("(truncated)"));
-
-        let sections = sections_of(&content(
-            &body,
-            Some(&alert(AlertState::Firing, AlertSeverity::Sev1)),
-            false,
-            50,
-        ));
-        assert_eq!(sections.concat().chars().count(), 50);
-        assert!(sections.concat().ends_with("(truncated)"));
-    }
-
-    #[test]
-    fn truncate_leaves_short_text_alone() {
-        assert_eq!(truncate("hello", 40), "hello");
-    }
-
-    #[test]
-    fn truncate_counts_characters_not_bytes() {
-        // Byte slicing here would panic mid-codepoint.
-        let truncated = truncate(&"🚨".repeat(100), 20);
-        assert_eq!(truncated.chars().count(), 20);
-    }
-
-    #[test]
-    fn truncate_never_exceeds_a_cap_shorter_than_its_own_marker() {
-        for max_chars in 1..=TRUNCATION_MARKER.chars().count() {
-            let truncated = truncate(&"a".repeat(100), max_chars);
-            assert_eq!(
-                truncated.chars().count(),
-                max_chars,
-                "cap of {max_chars} was exceeded"
-            );
-        }
     }
 }

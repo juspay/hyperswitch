@@ -5,11 +5,6 @@
 //! front of the method and the credential differ, which is why [`Endpoint`] holds those three and
 //! the public clients are thin wrappers over it.
 //!
-//! The message body is the caller's. [`Endpoint`] adds the channel and the thread, and forwards
-//! everything else untouched — it does not decide whether markup is on, trim to a provider limit
-//! or add fields of its own. Those are decisions about what a message looks like, and the two
-//! providers do not agree on them.
-//!
 //! Everything here is private to [`crate::chat_service`]. The single most important reason is the
 //! envelope: this API reports failures **twice over**, once as a non-2xx status and once as HTTP
 //! 200 carrying `{"ok": false, "error": "..."}`. A caller that never sees the raw response cannot
@@ -36,6 +31,9 @@ const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
 /// Long enough that a slow provider is not mistaken for a dead one, short enough that a caller
 /// delivering a time-sensitive message is not held indefinitely.
 pub(super) const DEFAULT_TIMEOUT_SECONDS: u64 = 30;
+
+/// Appended to a message that had to be cut down to fit.
+const TRUNCATION_MARKER: &str = "\n…(truncated)";
 
 /// How much of an unexpected response body is worth carrying into the logs.
 const BODY_SNIPPET_CHARS: usize = 512;
@@ -76,6 +74,7 @@ pub(super) struct Endpoint {
     channel: String,
 
     timeout_seconds: u64,
+    max_message_chars: usize,
     proxy: Proxy,
 }
 
@@ -90,6 +89,7 @@ impl Endpoint {
         headers: EndpointHeaders,
         channel: String,
         timeout_seconds: u64,
+        max_message_chars: usize,
         proxy: Proxy,
     ) -> ChatResult<Self> {
         let channel = channel.trim().to_owned();
@@ -99,12 +99,19 @@ impl Endpoint {
             ))?
         }
 
+        if max_message_chars == 0 {
+            Err(ChatError::InvalidConfiguration(
+                "max message length must be greater than zero",
+            ))?
+        }
+
         Ok(Self {
             base_url,
             method_prefix,
             headers,
             channel,
             timeout_seconds,
+            max_message_chars,
             proxy,
         })
     }
@@ -130,15 +137,7 @@ impl Endpoint {
     /// duplicate alert costs far less than a dropped one, and every connector call in this
     /// workspace already carries the same retry.
     pub(super) async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId> {
-        let thread_ts = message
-            .reply_target()
-            .map(|message_id| {
-                message_id
-                    .as_ts()
-                    .map(str::to_owned)
-                    .ok_or(ChatError::IncompatibleReplyTarget)
-            })
-            .transpose()?;
+        let payload = self.build_payload(&message)?;
         let url = self.method_url(CHAT_POST_MESSAGE);
 
         // Without this, the only question that matters when no message arrives — did we try, where
@@ -146,15 +145,10 @@ impl Endpoint {
         logger::info!(
             tag = "chat_post_message",
             url = %url,
-            channel = %self.channel,
-            threaded = thread_ts.is_some(),
+            channel = %payload.channel,
+            threaded = payload.thread_ts.is_some(),
+            chars = payload.text.chars().count(),
         );
-
-        let mut payload = message.content().clone();
-        payload.insert("channel".to_owned(), self.channel.clone().into());
-        if let Some(thread_ts) = thread_ts {
-            payload.insert("thread_ts".to_owned(), thread_ts.into());
-        }
 
         self.send_message(&url, payload).await
     }
@@ -167,28 +161,26 @@ impl Endpoint {
     ) -> ChatResult<MessageId> {
         let ts = message_id
             .as_ts()
-            .ok_or(ChatError::IncompatibleReplyTarget)?;
+            .ok_or(ChatError::IncompatibleReplyTarget)?
+            .to_owned();
+        let mut payload = self.build_payload(&message)?;
+        // An edit names the message it replaces; it does not move it into a thread.
+        payload.thread_ts = None;
+        payload.ts = Some(ts);
         let url = self.method_url(CHAT_UPDATE);
 
         logger::info!(
             tag = "chat_update",
             url = %url,
-            channel = %self.channel,
+            channel = %payload.channel,
+            chars = payload.text.chars().count(),
         );
-
-        let mut payload = message.content().clone();
-        payload.insert("channel".to_owned(), self.channel.clone().into());
-        payload.insert("ts".to_owned(), ts.into());
 
         self.send_message(&url, payload).await
     }
 
     /// Send a message body and read the id out of the response envelope.
-    async fn send_message(
-        &self,
-        url: &str,
-        payload: serde_json::Map<String, serde_json::Value>,
-    ) -> ChatResult<MessageId> {
+    async fn send_message(&self, url: &str, payload: PostMessagePayload) -> ChatResult<MessageId> {
         let body = self
             .send(
                 url,
@@ -353,6 +345,27 @@ impl Endpoint {
         }
         Ok(body)
     }
+
+    fn build_payload(&self, message: &ChatMessage) -> ChatResult<PostMessagePayload> {
+        let thread_ts = message
+            .reply_target()
+            .map(|message_id| {
+                message_id
+                    .as_ts()
+                    .map(str::to_owned)
+                    .ok_or(ChatError::IncompatibleReplyTarget)
+            })
+            .transpose()?;
+
+        Ok(PostMessagePayload {
+            channel: self.channel.clone(),
+            text: truncate(message.text(), self.max_message_chars),
+            thread_ts,
+            ts: None,
+            mrkdwn: message.attachments.is_none().then_some(true),
+            attachments: message.attachments.clone(),
+        })
+    }
 }
 
 fn reject_if_needed(ok: bool, error: Option<SlackErrorCode>) -> ChatResult<()> {
@@ -417,7 +430,39 @@ struct CompletedFile {
     id: Option<String>,
 }
 
-/// The `chat.postMessage` and `chat.update` response, exactly as it arrives.
+/// The `chat.postMessage` and `chat.update` request body.
+#[derive(Debug, Serialize)]
+struct PostMessagePayload {
+    channel: String,
+    text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thread_ts: Option<String>,
+
+    /// The message an update replaces. Only on `chat.update`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ts: Option<String>,
+
+    /// `true` for a message that is text alone; omitted, never `false`, when it carries
+    /// attachments.
+    ///
+    /// Slack treats markup as enabled by default, so this is redundant there. Xyne does not:
+    /// its adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
+    /// `*bold*` and backticks as literal characters. Since the whole point of
+    /// [`ChatMessage::text`](super::ChatMessage::text) is markup, sending it explicitly is the
+    /// only spelling that behaves the same on both.
+    ///
+    /// But that same branch is text-only: Xyne never reads `attachments` on it, so a message sent
+    /// with both arrives with no attachment at all — and still answers `ok: true` with an id.
+    /// Attachments declare their own markup per block instead.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mrkdwn: Option<bool>,
+
+    /// Slack-compatible attachments, forwarded as the caller built them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attachments: Option<Vec<serde_json::Value>>,
+}
+
+/// The `chat.postMessage` response, exactly as it arrives.
 ///
 /// Faithful to the wire and nothing else. `ok` is a required field, so a body that carries no
 /// success marker fails to deserialize rather than being read as a success — which is the trap
@@ -526,6 +571,27 @@ impl From<SlackErrorCode> for ChatErrorReason {
     }
 }
 
+/// Cut `text` to `max_chars`, marking that it happened.
+///
+/// The API does not paginate, so oversized messages are rejected outright rather than split. This
+/// is a wire-level limit and belongs here; capping the *number of items* rendered into a message
+/// is the formatter's business, since this module never sees items.
+fn truncate(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_owned();
+    }
+
+    // The marker is itself subject to the cap. Appending it whole to an empty remainder would
+    // return something *longer* than the limit this function exists to enforce, which the provider
+    // would then reject.
+    let marker: String = TRUNCATION_MARKER.chars().take(max_chars).collect();
+    let keep = max_chars.saturating_sub(marker.chars().count());
+
+    let mut truncated: String = text.chars().take(keep).collect();
+    truncated.push_str(&marker);
+    truncated
+}
+
 fn snippet(body: &str, max_chars: usize) -> String {
     body.chars().take(max_chars).collect()
 }
@@ -542,6 +608,10 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// Any cap generous enough not to interfere; the per-backend defaults live with their
+    /// clients, since Slack and Xyne do not agree on one.
+    const TEST_MAX_MESSAGE_CHARS: usize = 40_000;
 
     /// Parse a body and run it through the conversion, exactly as `post_message` does.
     fn read(value: serde_json::Value) -> Result<ChatResult<MessageId>, serde_json::Error> {
@@ -625,6 +695,37 @@ mod tests {
     }
 
     #[test]
+    fn truncate_leaves_short_text_alone() {
+        assert_eq!(truncate("hello", 40), "hello");
+    }
+
+    #[test]
+    fn truncate_marks_what_it_cut_and_respects_the_limit() {
+        let truncated = truncate(&"a".repeat(100), 40);
+        assert_eq!(truncated.chars().count(), 40);
+        assert!(truncated.ends_with(TRUNCATION_MARKER));
+    }
+
+    #[test]
+    fn truncate_counts_characters_not_bytes() {
+        // Byte slicing here would panic mid-codepoint.
+        let truncated = truncate(&"🚨".repeat(100), 20);
+        assert_eq!(truncated.chars().count(), 20);
+    }
+
+    #[test]
+    fn truncate_never_exceeds_a_cap_shorter_than_its_own_marker() {
+        for max_chars in 1..=TRUNCATION_MARKER.chars().count() {
+            let truncated = truncate(&"a".repeat(100), max_chars);
+            assert_eq!(
+                truncated.chars().count(),
+                max_chars,
+                "cap of {max_chars} was exceeded"
+            );
+        }
+    }
+
+    #[test]
     fn error_codes_map_onto_neutral_reasons() {
         assert_eq!(
             reason("channel_not_found"),
@@ -673,6 +774,7 @@ mod tests {
             ),
             "C1".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
+            TEST_MAX_MESSAGE_CHARS,
             Proxy::default(),
         )
     }
@@ -689,9 +791,21 @@ mod tests {
             EndpointHeaders::new(Vec::new(), Vec::new()),
             "  ".to_owned(),
             DEFAULT_TIMEOUT_SECONDS,
+            TEST_MAX_MESSAGE_CHARS,
             Proxy::default(),
         );
         assert!(blank_channel.is_err());
+
+        let zero_cap = Endpoint::new(
+            Url::parse("https://example.com").unwrap(),
+            "/",
+            EndpointHeaders::new(Vec::new(), Vec::new()),
+            "C1".to_owned(),
+            DEFAULT_TIMEOUT_SECONDS,
+            0,
+            Proxy::default(),
+        );
+        assert!(zero_cap.is_err());
     }
 
     #[test]
@@ -708,5 +822,47 @@ mod tests {
     fn the_derived_debug_does_not_print_the_token() {
         let endpoint = endpoint("https://example.com", "/", "xoxb-super-secret").unwrap();
         assert!(!format!("{endpoint:?}").contains("super-secret"));
+    }
+
+    #[test]
+    fn a_reply_target_is_carried_as_thread_ts() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint
+            .build_payload(&ChatMessage::reply("hi", MessageId::ts("1.2")))
+            .unwrap();
+
+        assert_eq!(payload.thread_ts.as_deref(), Some("1.2"));
+        assert_eq!(payload.channel, "C1");
+    }
+
+    #[test]
+    fn a_text_message_turns_markup_on() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint.build_payload(&ChatMessage::new("*hi*")).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(payload).unwrap(),
+            json!({"channel": "C1", "text": "*hi*", "mrkdwn": true})
+        );
+    }
+
+    /// The flag that makes Xyne drop attachments must never ride with them.
+    #[test]
+    fn a_message_with_attachments_omits_mrkdwn_and_forwards_them_unchanged() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+        let attachments = vec![json!({"color": "#b71c1c", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "body"}}
+        ]})];
+
+        let payload = endpoint
+            .build_payload(&ChatMessage::new("*heading*").with_attachments(attachments.clone()))
+            .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(payload).unwrap(),
+            json!({"channel": "C1", "text": "*heading*", "attachments": attachments})
+        );
     }
 }

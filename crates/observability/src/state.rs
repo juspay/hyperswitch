@@ -183,17 +183,6 @@ fn build_chat_registry(
         HashMap::with_capacity(settings.destinations.len());
 
     for (id, destination) in &settings.destinations {
-        let zero_message_cap = match destination {
-            ChatDestination::Xyne(config) => config.max_message_chars == 0,
-            ChatDestination::Slack(config) => config.max_message_chars == 0,
-            ChatDestination::Log => false,
-        };
-        if zero_message_cap {
-            return Err(ConfigurationError::ConfigParsingError(format!(
-                "chat destination `{id}` is not usable: max message length must be greater than zero"
-            )));
-        }
-
         let notifier: Arc<dyn ChatNotifier> = match destination {
             ChatDestination::Xyne(config) => Arc::new(ChatClientNotifier::new(
                 id.clone(),
@@ -204,7 +193,6 @@ fn build_chat_registry(
                         ))
                     })?,
                 ),
-                config.max_message_chars,
             )),
             ChatDestination::Slack(config) => Arc::new(ChatClientNotifier::new(
                 id.clone(),
@@ -215,7 +203,6 @@ fn build_chat_registry(
                         ))
                     })?,
                 ),
-                config.max_message_chars,
             )),
             ChatDestination::Log => Arc::new(LogChatNotifier::new(id.clone())),
         };
@@ -326,26 +313,6 @@ mod tests {
         let config: external_services::chat_service::xyne::XyneConfig =
             serde_json::from_value(serde_json::json!({ "app_jwt": "jwt", "channel": "  " }))
                 .unwrap();
-
-        let settings = ChatSettings {
-            destinations: HashMap::from([("sr_alerts".to_owned(), ChatDestination::Xyne(config))]),
-            ..Default::default()
-        };
-
-        let error = build_chat_registry(&settings, &Proxy::default()).unwrap_err();
-        assert!(error.to_string().contains("sr_alerts"));
-    }
-
-    /// A zero cap would cut every message down to its truncation marker.
-    #[test]
-    fn a_chat_destination_with_a_zero_message_cap_fails_the_boot() {
-        let config: external_services::chat_service::xyne::XyneConfig =
-            serde_json::from_value(serde_json::json!({
-                "app_jwt": "jwt",
-                "channel": "C1",
-                "max_message_chars": 0
-            }))
-            .unwrap();
 
         let settings = ChatSettings {
             destinations: HashMap::from([("sr_alerts".to_owned(), ChatDestination::Xyne(config))]),

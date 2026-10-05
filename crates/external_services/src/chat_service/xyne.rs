@@ -71,9 +71,6 @@ pub struct XyneConfig {
     pub timeout_seconds: u64,
 
     /// Longest message body Xyne will accept, in characters.
-    ///
-    /// A fact about the destination for whoever builds the message. The client forwards content
-    /// unchanged and does not enforce it.
     #[serde(default = "default_max_message_chars")]
     pub max_message_chars: usize,
 }
@@ -103,6 +100,7 @@ impl XyneClient {
                 EndpointHeaders::new(authorization.clone(), authorization),
                 config.channel,
                 config.timeout_seconds,
+                config.max_message_chars,
                 proxy,
             )?,
         })
@@ -165,15 +163,6 @@ mod tests {
         .unwrap()
     }
 
-    fn content(value: serde_json::Value) -> serde_json::Map<String, serde_json::Value> {
-        value.as_object().unwrap().clone()
-    }
-
-    /// A plain text message, as the caller builds one.
-    fn hello() -> ChatMessage {
-        ChatMessage::new(content(json!({"text": "hello", "mrkdwn": true})))
-    }
-
     async fn mount(server: &MockServer, status: u16, body: serde_json::Value) {
         Mock::given(method("POST"))
             .and(path(METHOD_PATH))
@@ -199,7 +188,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let message_id = client_for(&server).post_message(hello()).await.unwrap();
+        let message_id = client_for(&server)
+            .post_message(ChatMessage::new("hello"))
+            .await
+            .unwrap();
 
         assert_eq!(message_id, MessageId::ts("1503435956.000247"));
     }
@@ -221,7 +213,7 @@ mod tests {
 
         let message_id = client_for(&server)
             .post_message(ChatMessage::reply(
-                content(json!({"text": "recovered", "mrkdwn": true})),
+                "recovered",
                 MessageId::ts("1503435956.000247"),
             ))
             .await
@@ -334,7 +326,10 @@ mod tests {
         .await;
 
         assert_eq!(
-            client_for(&server).post_message(hello()).await.unwrap(),
+            client_for(&server)
+                .post_message(ChatMessage::new("hello"))
+                .await
+                .unwrap(),
             MessageId::ts("1503435956.000247")
         );
     }
@@ -345,7 +340,10 @@ mod tests {
         let server = MockServer::start().await;
         mount(&server, 502, json!({"detail": "upstream is down"})).await;
 
-        let error = client_for(&server).post_message(hello()).await.unwrap_err();
+        let error = client_for(&server)
+            .post_message(ChatMessage::new("hello"))
+            .await
+            .unwrap_err();
 
         assert!(matches!(
             error.current_context(),
@@ -364,7 +362,10 @@ mod tests {
         )
         .await;
 
-        let error = client_for(&server).post_message(hello()).await.unwrap_err();
+        let error = client_for(&server)
+            .post_message(ChatMessage::new("hello"))
+            .await
+            .unwrap_err();
 
         assert!(matches!(
             error.current_context(),
@@ -391,7 +392,10 @@ mod tests {
             let server = MockServer::start().await;
             mount(&server, 200, json!({"ok": false, "error": code})).await;
 
-            let error = client_for(&server).post_message(hello()).await.unwrap_err();
+            let error = client_for(&server)
+                .post_message(ChatMessage::new("hello"))
+                .await
+                .unwrap_err();
 
             match error.current_context() {
                 ChatError::Rejected { reason } => assert_eq!(reason, &expected, "for code {code}"),
@@ -413,7 +417,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let error = client_for(&server).post_message(hello()).await.unwrap_err();
+        let error = client_for(&server)
+            .post_message(ChatMessage::new("hello"))
+            .await
+            .unwrap_err();
 
         assert!(matches!(
             error.current_context(),
@@ -430,7 +437,10 @@ mod tests {
         let server = MockServer::start().await;
         mount(&server, 200, json!({"ts": "1503435956.000247"})).await;
 
-        let error = client_for(&server).post_message(hello()).await.unwrap_err();
+        let error = client_for(&server)
+            .post_message(ChatMessage::new("hello"))
+            .await
+            .unwrap_err();
 
         assert!(matches!(
             error.current_context(),
@@ -443,7 +453,10 @@ mod tests {
         let server = MockServer::start().await;
         mount(&server, 200, json!({"ok": true})).await;
 
-        let error = client_for(&server).post_message(hello()).await.unwrap_err();
+        let error = client_for(&server)
+            .post_message(ChatMessage::new("hello"))
+            .await
+            .unwrap_err();
 
         assert!(matches!(
             error.current_context(),
@@ -451,35 +464,72 @@ mod tests {
         ));
     }
 
-    /// The client adds the channel and nothing else. In particular it must not add `mrkdwn`: Xyne
-    /// drops the attachments of a message that carries it and still answers `ok: true`.
     #[tokio::test]
-    async fn content_is_forwarded_exactly_as_built() {
+    async fn an_oversized_message_is_cut_down_rather_than_sent_whole() {
         let server = MockServer::start().await;
-        let built = json!({
-            "text": "*🔴 SEV1 · SR drop*",
-            "attachments": [{"color": "#b71c1c", "blocks": [
-                {"type": "section", "text": {"type": "mrkdwn", "text": "x".repeat(500)}}
-            ]}]
-        });
-        let mut expected = built.clone();
-        expected["channel"] = json!(CHANNEL);
         Mock::given(method("POST"))
             .and(path(METHOD_PATH))
-            .and(body_json(expected))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.1"})),
             )
             .mount(&server)
             .await;
 
-        assert_eq!(
-            client_for(&server)
-                .post_message(ChatMessage::new(content(built)))
-                .await
-                .unwrap(),
-            MessageId::ts("1.1")
-        );
+        let client = XyneClient::new(
+            XyneConfig {
+                base_url: Url::parse(&format!("{}/api/apps", server.uri())).unwrap(),
+                app_jwt: Secret::new(TOKEN.to_owned()),
+                channel: CHANNEL.to_owned(),
+                timeout_seconds: DEFAULT_TIMEOUT_SECONDS,
+                max_message_chars: 50,
+            },
+            Proxy::default(),
+        )
+        .unwrap();
+
+        client
+            .post_message(ChatMessage::new("x".repeat(500)))
+            .await
+            .unwrap();
+
+        let requests = server.received_requests().await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+        let text = body["text"].as_str().unwrap();
+        assert_eq!(text.chars().count(), 50);
+        assert!(text.ends_with("(truncated)"));
+    }
+
+    /// Xyne drops the attachments of a message carrying top-level `mrkdwn` and still answers
+    /// `ok: true`, so a message with attachments must go without it.
+    #[tokio::test]
+    async fn a_message_with_attachments_goes_without_mrkdwn() {
+        let server = MockServer::start().await;
+        let attachments = json!([{"color": "#b71c1c", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "body"}}
+        ]}]);
+        Mock::given(method("POST"))
+            .and(path(METHOD_PATH))
+            .and(body_json(json!({
+                "channel": CHANNEL,
+                "text": "*🔴 SEV1 · SR drop*",
+                "thread_ts": "1.1",
+                "attachments": attachments
+            })))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.2"})),
+            )
+            .mount(&server)
+            .await;
+
+        let message_id = client_for(&server)
+            .post_message(
+                ChatMessage::reply("*🔴 SEV1 · SR drop*", MessageId::ts("1.1"))
+                    .with_attachments(attachments.as_array().unwrap().clone()),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(message_id, MessageId::ts("1.2"));
     }
 
     #[tokio::test]
@@ -502,7 +552,7 @@ mod tests {
 
         assert_eq!(
             client_for(&server)
-                .update_message(&MessageId::ts("1.1"), hello())
+                .update_message(&MessageId::ts("1.1"), ChatMessage::new("hello"))
                 .await
                 .unwrap(),
             MessageId::ts("1.1")
@@ -522,7 +572,7 @@ mod tests {
             .await;
 
         let error = client_for(&server)
-            .update_message(&MessageId::ts("1.1"), hello())
+            .update_message(&MessageId::ts("1.1"), ChatMessage::new("hello"))
             .await
             .unwrap_err();
 

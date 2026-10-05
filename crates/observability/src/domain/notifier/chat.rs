@@ -8,7 +8,7 @@ use std::sync::{
 };
 
 use external_services::chat_service::{
-    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, MessageId,
+    ChatClient, ChatError, ChatErrorReason, ChatFile, ChatResult, MessageId,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Deserialize;
@@ -157,8 +157,6 @@ pub trait ChatNotifier: Send + Sync + std::fmt::Debug {
 pub struct ChatClientNotifier {
     destination: String,
     client: Arc<dyn ChatClient>,
-    /// The destination's limit on a message body, applied when the message is built.
-    max_message_chars: usize,
 }
 
 impl ChatClientNotifier {
@@ -166,11 +164,10 @@ impl ChatClientNotifier {
     ///
     /// The id is carried so failures can name it. With several destinations configured, "the chat
     /// provider is unreachable" is not an actionable sentence and "`sr_alerts` is" is.
-    pub fn new(destination: String, client: Arc<dyn ChatClient>, max_message_chars: usize) -> Self {
+    pub fn new(destination: String, client: Arc<dyn ChatClient>) -> Self {
         Self {
             destination,
             client,
-            max_message_chars,
         }
     }
 
@@ -205,31 +202,27 @@ impl ChatClientNotifier {
 #[async_trait::async_trait]
 impl ChatNotifier for ChatClientNotifier {
     async fn notify(&self, notification: ChatNotification) -> ObservabilityApiResult<ChatOutcome> {
-        let content = message::content(
+        let message = message::build(
             notification.text.peek(),
             notification.alert.as_ref(),
             false,
-            self.max_message_chars,
+            notification.reply_to.map(MessageId::ts),
         );
-        let message = match notification.reply_to {
-            Some(reply_to) => ChatMessage::reply(content, MessageId::ts(reply_to)),
-            None => ChatMessage::new(content),
-        };
 
         self.outcome(self.client.post_message(message).await)
     }
 
     async fn update(&self, update: ChatUpdate) -> ObservabilityApiResult<ChatOutcome> {
-        let content = message::content(
+        let message = message::build(
             update.text.peek(),
             update.alert.as_ref(),
             update.resolved,
-            self.max_message_chars,
+            None,
         );
 
         self.outcome(
             self.client
-                .update_message(&MessageId::ts(update.message_id), ChatMessage::new(content))
+                .update_message(&MessageId::ts(update.message_id), message)
                 .await,
         )
     }
