@@ -585,7 +585,7 @@ pub struct PaymentMethodUpdate {
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 
-    /// Acceptance from payment confirmation. Required to vault a PayThenVault payment method.
+    /// Customer's acceptance for vaulting a payment method.
     #[schema(value_type = Option<CustomerAcceptance>)]
     pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
@@ -4807,7 +4807,7 @@ pub struct PaymentMethodSessionConfirmRequest {
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
 
-    /// Customer acceptance for saving with VaultThenPay. PayThenVault uses acceptance from payments confirm.
+    /// Customer acceptance for mandate creation. Required for both single-use and multi-use tokenization flows.
     #[schema(value_type = Option<CustomerAcceptance>)]
     pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }

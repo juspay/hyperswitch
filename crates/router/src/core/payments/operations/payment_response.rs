@@ -351,8 +351,6 @@ where
                         network_transaction_id: network_transaction_id
                             .map(hyperswitch_masking::Secret::new),
                         acknowledgement_status,
-                        // Use the persisted attempt so sync/webhook completion carries the
-                        // same acceptance as the original payment confirmation.
                         customer_acceptance: payment_data
                             .payment_attempt
                             .customer_acceptance
