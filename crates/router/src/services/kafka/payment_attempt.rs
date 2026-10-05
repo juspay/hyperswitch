@@ -222,6 +222,9 @@ pub struct KafkaPaymentAttempt<'a> {
     pub network_decline_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    /// Standardised error code of a failed revenue recovery attempt, lifted out of
+    /// `feature_metadata` so that analytics can store it as its own column.
+    pub standardised_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -293,6 +296,11 @@ impl<'a> KafkaPaymentAttempt<'a> {
             .map(types::ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
+
+        let standardised_code = feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .and_then(|recovery_data| recovery_data.standardised_error_code);
 
         Self {
             payment_id,
@@ -382,6 +390,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             connector_request_reference_id: connector_request_reference_id.clone(),
+            standardised_code,
         }
     }
 }

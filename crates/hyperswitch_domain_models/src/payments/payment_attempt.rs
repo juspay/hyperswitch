@@ -1233,6 +1233,8 @@ impl PaymentAttempt {
                     // Populated later, when the payment is recorded back to the
                     // billing connector.
                     billing_connector_transaction_id: None,
+                    // Populated later, if the attempt fails.
+                    standardised_error_code: None,
                 }
             }),
         };
@@ -3046,6 +3048,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub charge_id: Option<String>,
     /// Transaction id returned by the billing connector at record-back time.
     pub billing_connector_transaction_id: Option<String>,
+    /// Standardised error code of this attempt, resolved from the GSM table when it fails.
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -3060,6 +3064,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id
                         .clone(),
+                    standardised_error_code: recovery_data.standardised_error_code,
                 });
         Self { revenue_recovery }
     }
@@ -3075,6 +3080,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id,
+                    standardised_error_code: recovery_data.standardised_error_code,
                 });
         Self { revenue_recovery }
     }
