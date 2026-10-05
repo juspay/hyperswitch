@@ -4431,28 +4431,34 @@ pub async fn list_saved_payment_methods_for_customer(
     include_new: bool,
     api_key_type: enums::ApiKeyType,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
-    let use_merchant_reference_id_as_customer_id =
-        customers::should_use_merchant_reference_id_as_customer_id(api_key_type);
-    let (customer_id, merchant_customer_ref_id) = if use_merchant_reference_id_as_customer_id {
-        let merchant_reference_id = id_type::CustomerId::try_from(customer_id).change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid merchant reference ID supplied as customer_id".to_string(),
-            },
-        )?;
+    let request_customer_id = id_type::CustomerId::try_from(customer_id.clone()).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid customer ID supplied in the request path".to_string(),
+        },
+    )?;
+    let merchant_customer_ref_id = customers::should_use_merchant_reference_id_as_customer_id(
+        &state,
+        &provider,
+        api_key_type,
+        &request_customer_id,
+    )
+    .await
+    .then_some(request_customer_id);
 
+    let customer_id = if let Some(merchant_reference_id) = merchant_customer_ref_id.as_ref() {
         let customer = state
             .store
             .find_customer_by_merchant_reference_id_merchant_id(
-                &merchant_reference_id,
+                merchant_reference_id,
                 provider.get_account().get_id(),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-        (customer.id, Some(merchant_reference_id))
+        customer.id
     } else {
-        (customer_id, None)
+        customer_id
     };
 
     let mut customer_payment_methods =
