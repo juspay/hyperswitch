@@ -9103,6 +9103,29 @@ impl
 }
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<api_models::payouts::PayoutAccountType>
+    for payments_grpc::payout_enums::PayoutAccountType
+{
+    fn foreign_from(account_type: api_models::payouts::PayoutAccountType) -> Self {
+        match account_type {
+            api_models::payouts::PayoutAccountType::Custom => Self::Custom,
+            api_models::payouts::PayoutAccountType::Express => Self::Express,
+            api_models::payouts::PayoutAccountType::Standard => Self::Standard,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<api_models::payouts::PayoutBusinessType> for payments_grpc::BankHolderType {
+    fn foreign_from(business_type: api_models::payouts::PayoutBusinessType) -> Self {
+        match business_type {
+            api_models::payouts::PayoutBusinessType::Company => Self::Business,
+            api_models::payouts::PayoutBusinessType::Individual => Self::Personal,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 fn convert_payout_vendor_account_details_to_grpc<F>(
     router_data: &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
 ) -> Option<payments_grpc::PayoutVendorAccountDetails> {
@@ -9122,12 +9145,12 @@ fn convert_payout_vendor_account_details_to_grpc<F>(
 
     Some(payments_grpc::PayoutVendorAccountDetails {
         vendor_details: Some(payments_grpc::VendorDetails {
-            account_type: match vendor_details.account_type.as_str() {
-                "custom" => Some(payments_grpc::payout_enums::PayoutAccountType::Custom as i32),
-                "express" => Some(payments_grpc::payout_enums::PayoutAccountType::Express as i32),
-                "standard" => Some(payments_grpc::payout_enums::PayoutAccountType::Standard as i32),
-                _ => None,
-            },
+            account_type: Some(
+                payments_grpc::payout_enums::PayoutAccountType::foreign_from(
+                    vendor_details.account_type,
+                )
+                .into(),
+            ),
             vendor_category_code: vendor_details
                 .business_profile_mcc
                 .map(|mcc| mcc.to_string()),
@@ -9138,11 +9161,9 @@ fn convert_payout_vendor_account_details_to_grpc<F>(
             vendor_name: business_profile_name.clone(),
             statement_descriptor: business_profile_name,
             owners_provided: vendor_details.company_owners_provided,
-            vendor_type: match vendor_details.business_type.as_str() {
-                "company" => Some(payments_grpc::BankHolderType::Business as i32),
-                "individual" => Some(payments_grpc::BankHolderType::Personal as i32),
-                _ => None,
-            },
+            vendor_type: Some(
+                payments_grpc::BankHolderType::foreign_from(vendor_details.business_type).into(),
+            ),
             card_payments_enabled: vendor_details.capabilities_card_payments,
             transfers_enabled: vendor_details.capabilities_transfers,
         }),
@@ -9181,14 +9202,10 @@ fn convert_payout_vendor_account_details_to_grpc<F>(
                 .tos_acceptance_ip
                 .as_ref()
                 .map(|ip| ip.peek().to_string().into()),
-            external_account_account_holder_type: match individual_details
+            external_account_account_holder_type: individual_details
                 .external_account_account_holder_type
-                .as_deref()
-            {
-                Some("individual") => Some(payments_grpc::BankHolderType::Personal as i32),
-                Some("company") => Some(payments_grpc::BankHolderType::Business as i32),
-                _ => None,
-            },
+                .map(payments_grpc::BankHolderType::foreign_from)
+                .map(i32::from),
             tos_acceptance_date: individual_details.tos_acceptance_date,
         }),
     })

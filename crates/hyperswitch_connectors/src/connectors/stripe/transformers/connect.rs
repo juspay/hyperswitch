@@ -1,3 +1,4 @@
+use api_models::payouts::{PayoutAccountType, PayoutBusinessType};
 use common_enums::{enums, Currency};
 use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
@@ -86,7 +87,7 @@ pub struct StripeConnectReversalResponse {
 #[derive(Clone, Debug, Serialize)]
 pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "type")]
-    account_type: String,
+    account_type: PayoutAccountType,
     country: Option<enums::CountryAlpha2>,
     email: Option<Email>,
     #[serde(rename = "capabilities[card_payments][requested]")]
@@ -97,7 +98,7 @@ pub struct StripeConnectRecipientCreateRequest {
     tos_acceptance_date: Option<i64>,
     #[serde(rename = "tos_acceptance[ip]")]
     tos_acceptance_ip: Option<Secret<String>>,
-    business_type: String,
+    business_type: PayoutBusinessType,
     #[serde(rename = "business_profile[mcc]")]
     business_profile_mcc: Option<i32>,
     #[serde(rename = "business_profile[url]")]
@@ -195,7 +196,7 @@ pub struct RecipientBankAccountRequest {
     #[serde(rename = "external_account[account_number]")]
     external_account_account_number: Secret<String>,
     #[serde(rename = "external_account[account_holder_type]")]
-    external_account_account_holder_type: String,
+    external_account_account_holder_type: PayoutBusinessType,
     #[serde(rename = "external_account[routing_number]")]
     external_account_routing_number: Secret<String>,
 }

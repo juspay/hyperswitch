@@ -1115,16 +1115,31 @@ pub struct PayoutActionRequest {
     pub payout_id: id_type::PayoutId,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutAccountType {
+    Custom,
+    Express,
+    Standard,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutBusinessType {
+    Company,
+    Individual,
+}
+
+#[derive(Debug, ToSchema, Clone, Serialize, Deserialize)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: PayoutVendorDetails,
     pub individual_details: PayoutIndividualDetails,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutVendorDetails {
-    pub account_type: String,
-    pub business_type: String,
+    pub account_type: PayoutAccountType,
+    pub business_type: PayoutBusinessType,
     pub business_profile_mcc: Option<i32>,
     pub business_profile_url: Option<String>,
     pub business_profile_name: Option<Secret<String>>,
@@ -1149,7 +1164,7 @@ pub struct PayoutIndividualDetails {
     pub individual_dob_year: Option<Secret<String>>,
     pub individual_id_number: Option<Secret<String>>,
     pub individual_ssn_last_4: Option<Secret<String>>,
-    pub external_account_account_holder_type: Option<String>,
+    pub external_account_account_holder_type: Option<PayoutBusinessType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
