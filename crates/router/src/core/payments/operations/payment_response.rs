@@ -3594,13 +3594,13 @@ async fn vault_deferred_payment_method<F: Clone>(
     )
     .await?;
 
-    tokenization::save_in_locker(
+    Box::pin(tokenization::save_in_locker(
         state,
         platform,
         payment_method_create_request,
         None,
         business_profile,
-    )
+    ))
     .await
     .map(Some)
 }
@@ -3759,14 +3759,14 @@ async fn create_deferred_payment_method<F: Clone>(
     let provider = platform.get_provider();
     let key_store = provider.get_key_store();
 
-    let vault_response = vault_deferred_payment_method(
+    let vault_response = Box::pin(vault_deferred_payment_method(
         state,
         payment_data,
         platform,
         business_profile,
         &customer_id,
         additional_payment_method_data,
-    )
+    ))
     .await?;
 
     let payment_method =
@@ -3844,14 +3844,14 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
     business_profile: &domain::Profile,
 ) -> RouterResult<()> {
     if payment_data.payment_attempt.payment_method_id.is_none() {
-        if let Err(error) = create_deferred_payment_method(
+        if let Err(error) = Box::pin(create_deferred_payment_method(
             state,
             payment_data,
             attempt_status,
             platform,
             business_profile,
             additional_payment_method_data,
-        )
+        ))
         .await
         {
             logger::error!(?error, "Failed to create deferred payment method");
@@ -3948,13 +3948,15 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
 
         let additional_data_update =
             if let Some(payment_method_data_update) = additional_payment_method_data {
-                payment_methods::cards::prepare_payment_method_update_from_connector_details(
-                    state,
-                    platform,
-                    &payment_method,
-                    merchant_connector_id,
-                    payment_method_data_update,
-                    business_profile,
+                Box::pin(
+                    payment_methods::cards::prepare_payment_method_update_from_connector_details(
+                        state,
+                        platform,
+                        &payment_method,
+                        merchant_connector_id,
+                        payment_method_data_update,
+                        business_profile,
+                    ),
                 )
                 .await
                 .inspect_err(|error| {

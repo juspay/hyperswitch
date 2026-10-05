@@ -2749,15 +2749,16 @@ async fn update_payment_method_associated_data(
 
     let payment_method_id = payment_method.get_id().clone();
 
-    let payment_method_update = cards::prepare_payment_method_update_from_connector_details(
-        state,
-        platform,
-        &payment_method,
-        merchant_connector_id,
-        &connector_disclosed_details,
-        business_profile,
-    )
-    .await?;
+    let payment_method_update =
+        Box::pin(cards::prepare_payment_method_update_from_connector_details(
+            state,
+            platform,
+            &payment_method,
+            merchant_connector_id,
+            &connector_disclosed_details,
+            business_profile,
+        ))
+        .await?;
 
     let compat_action = payment_methods::payment_method_modular_forward_compat_action(
         state,

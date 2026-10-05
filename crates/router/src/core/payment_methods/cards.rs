@@ -3149,14 +3149,14 @@ pub async fn prepare_payment_method_update_from_connector_details(
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
             bank_redirect_update,
         ) => {
-            prepare_bank_redirect_payment_method_update(
+            Box::pin(prepare_bank_redirect_payment_method_update(
                 state,
                 platform,
                 pm,
                 merchant_connector_id,
                 bank_redirect_update.clone(),
                 business_profile,
-            )
+            ))
             .await
         }
         _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
@@ -3240,13 +3240,13 @@ pub async fn prepare_bank_redirect_payment_method_update(
             .await?;
 
             // Vault the bank redirect data using save_in_locker (supports external vault routing)
-            let (vault_resp, _dup_check) = tokenization::save_in_locker(
+            let (vault_resp, _dup_check) = Box::pin(tokenization::save_in_locker(
                 state,
                 platform,
                 pm_create_req,
                 None, // card_detail not needed for bank redirect
                 business_profile,
-            )
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to vault bank redirect data")?;
