@@ -1,4 +1,4 @@
-//! Runtime-only external-vault payout data. Do not persist these tokens in payout records.
+//! Request-scoped vault tokens; never persist them in payout records.
 
 use common_enums::CardNetwork;
 use hyperswitch_masking::Secret;
@@ -8,8 +8,7 @@ pub enum ExternalVaultPayoutMethodData {
     Card(Box<ExternalVaultPayoutCardData>),
 }
 
-/// Opaque vault values used to construct a connector request template. The card
-/// number is a token, so it must not undergo PAN validation or local detokenization.
+/// Opaque vault tokens bypass PAN validation and local detokenization.
 #[derive(Clone, Debug)]
 pub struct ExternalVaultPayoutCardData {
     pub card_number: Secret<String>,

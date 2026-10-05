@@ -9055,10 +9055,8 @@ pub enum BrazilStatesAbbreviation {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutExecutionKind {
-    /// Existing payout execution; also the default for legacy stored attempts.
     #[default]
     Normal,
-    /// Card payout using internally resolved external-vault tokens through UCS.
     ExternalVaultProxy,
 }
 
