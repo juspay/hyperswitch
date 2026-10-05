@@ -7,6 +7,7 @@ use common_utils::{
     request::{self, RequestBuilder},
 };
 use error_stack::ResultExt;
+use external_services::http_client::outbound_destination;
 use hyperswitch_interfaces::types::Response;
 use serde_json::Value;
 
@@ -15,11 +16,14 @@ pub async fn proxy_core(
     platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
-    req.destination_url
-        .validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "destination_url is not valid".to_string(),
-        })?;
+    outbound_destination::validate_destination(
+        &req.destination_url,
+        state.conf.proxy.bypass_proxy_hosts.as_deref(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "destination_url is not valid".to_string(),
+    })?;
 
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
     let proxy_record = req_wrapper

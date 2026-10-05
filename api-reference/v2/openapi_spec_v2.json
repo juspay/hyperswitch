@@ -30384,8 +30384,9 @@
           },
           "destination_url": {
             "type": "string",
-            "description": "The HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.\nIP literals must be publicly routable.",
-            "example": "https://api.example.com/endpoint"
+            "description": "The non-empty HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.\nIP literals must be publicly routable.",
+            "example": "https://api.example.com/endpoint",
+            "minLength": 1
           },
           "headers": {
             "type": "object",
@@ -36568,7 +36569,7 @@
           },
           "webhook_url": {
             "type": "string",
-            "description": "The url for the webhook endpoint",
+            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses; an empty string clears it.",
             "example": "https://www.ekart.com/webhooks",
             "nullable": true
           },

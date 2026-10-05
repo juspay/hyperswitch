@@ -8,14 +8,16 @@ use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
-    fp_utils, id_type, pii, type_name,
+    fp_utils, id_type,
+    outbound_url::WebhookUrlUpdate,
+    pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
-use external_services::http_client::client;
+use external_services::http_client::{client, outbound_destination};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -317,14 +319,21 @@ pub async fn create_merchant_account(
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "v1")]
     {
-        req.webhook_details
+        if let Some(WebhookUrlUpdate::Set(url)) = req
+            .webhook_details
             .as_ref()
-            .map_or(Ok(()), |details| {
-                details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
-            })
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|update| update.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "webhook_url is not valid".to_string(),
             })?;
+        }
     }
 
     let db = state.store.as_ref();
@@ -1380,14 +1389,21 @@ pub async fn merchant_account_update(
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "v1")]
     {
-        req.webhook_details
+        if let Some(WebhookUrlUpdate::Set(url)) = req
+            .webhook_details
             .as_ref()
-            .map_or(Ok(()), |details| {
-                details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
-            })
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|update| update.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "webhook_url is not valid".to_string(),
             })?;
+        }
     }
 
     let db = state.store.as_ref();
@@ -3486,15 +3502,21 @@ pub async fn create_and_insert_business_profile(
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::Profile> {
-    request
+    if let Some(WebhookUrlUpdate::Set(url)) = request
         .webhook_details
         .as_ref()
-        .map_or(Ok(()), |details| {
-            details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
-        })
+        .and_then(|details| details.webhook_url.as_ref())
+        .map(|update| update.peek())
+    {
+        outbound_destination::validate_destination(
+            url,
+            state.conf.proxy.bypass_proxy_hosts.as_deref(),
+        )
+        .await
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "webhook_url is not valid".to_string(),
         })?;
+    }
 
     let business_profile_new =
         admin::create_profile_from_merchant_account(state, merchant_account, request, key_store)
@@ -3985,15 +4007,21 @@ pub async fn create_profile(
     request: api::ProfileCreate,
     processor: domain::Processor,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
-    request
+    if let Some(WebhookUrlUpdate::Set(url)) = request
         .webhook_details
         .as_ref()
-        .map_or(Ok(()), |details| {
-            details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
-        })
+        .and_then(|details| details.webhook_url.as_ref())
+        .map(|update| update.peek())
+    {
+        outbound_destination::validate_destination(
+            url,
+            state.conf.proxy.bypass_proxy_hosts.as_deref(),
+        )
+        .await
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "webhook_url is not valid".to_string(),
         })?;
+    }
 
     let db = state.store.as_ref();
 
@@ -4533,15 +4561,21 @@ pub async fn update_profile(
     request: api::ProfileUpdate,
     provider_merchant_id: Option<hyperswitch_domain_models::platform::ProviderMerchantId>,
 ) -> RouterResponse<api::ProfileResponse> {
-    request
+    if let Some(WebhookUrlUpdate::Set(url)) = request
         .webhook_details
         .as_ref()
-        .map_or(Ok(()), |details| {
-            details.validate_proxy_bypass_hosts(state.conf.proxy.bypass_proxy_hosts.as_deref())
-        })
+        .and_then(|details| details.webhook_url.as_ref())
+        .map(|update| update.peek())
+    {
+        outbound_destination::validate_destination(
+            url,
+            state.conf.proxy.bypass_proxy_hosts.as_deref(),
+        )
+        .await
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "webhook_url is not valid".to_string(),
         })?;
+    }
 
     let db = state.store.as_ref();
 

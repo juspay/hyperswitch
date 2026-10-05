@@ -50761,7 +50761,7 @@
           },
           "webhook_url": {
             "type": "string",
-            "description": "The url for the webhook endpoint",
+            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses; an empty string clears it.",
             "example": "https://www.ekart.com/webhooks",
             "nullable": true
           },

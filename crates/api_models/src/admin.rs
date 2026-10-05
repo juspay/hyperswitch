@@ -878,9 +878,9 @@ pub struct WebhookDetailsRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
     pub webhook_password: Option<Secret<String>>,
 
-    ///The url for the webhook endpoint
+    /// The HTTP or HTTPS webhook URL. DNS must resolve to public addresses; an empty string clears it.
     #[schema(value_type = Option<String>, example = "https://www.ekart.com/webhooks")]
-    pub webhook_url: Option<Secret<common_utils::outbound_url::SafeOutboundUrl>>,
+    pub webhook_url: Option<Secret<common_utils::outbound_url::WebhookUrlUpdate>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
     #[schema(example = true)]
@@ -985,7 +985,7 @@ impl From<WebhookDetailsRequest> for WebhookDetailsResponse {
             webhook_password: item.webhook_password,
             webhook_url: item
                 .webhook_url
-                .map(|url| Secret::new(url.expose().get_string_repr().to_owned())),
+                .map(|update| Secret::new(String::from(update.expose()))),
             payment_created_enabled: item.payment_created_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
@@ -1001,16 +1001,6 @@ impl From<WebhookDetailsRequest> for WebhookDetailsResponse {
 }
 
 impl WebhookDetailsRequest {
-    /// Reject a supplied webhook URL that would bypass the configured egress proxy.
-    pub fn validate_proxy_bypass_hosts(
-        &self,
-        bypass_proxy_hosts: Option<&str>,
-    ) -> CustomResult<(), errors::ValidationError> {
-        self.webhook_url.as_ref().map_or(Ok(()), |url| {
-            url.peek().validate_proxy_bypass_hosts(bypass_proxy_hosts)
-        })
-    }
-
     fn validate_statuses<T>(statuses: &HashSet<T>, status_type_name: &str) -> Result<(), String>
     where
         T: strum::IntoEnumIterator + Copy + Eq + std::hash::Hash + std::fmt::Debug,
