@@ -47,7 +47,7 @@ pub struct PayoutCreateRequest {
         max_length = 64,
         example = "payout_proxy_merchant_1001"
     )]
-    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
+    #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
     pub payout_id: Option<id_type::PayoutId>,
 
     /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**
@@ -92,7 +92,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<PayoutType>, example = "card")]
     pub payout_type: Option<api_enums::PayoutType>,
 
-    /// Inline payout method data for normal payouts; profile-selected external-vault proxy creates use payout_method_id instead.
+    /// The payout method information required for carrying out a payout
     #[schema(value_type = Option<PayoutMethodData>)]
     pub payout_method_data: Option<PayoutMethodData>,
 
@@ -208,7 +208,7 @@ pub struct PayoutCreateRequest {
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
 
-    /// Saved Hyperswitch payment-method ID. Required for external-vault proxy creates and resolved internally to vault tokens; not a token supplied by the merchant.
+    /// Saved payment-method identifier, resolved internally for normal payouts and to vault tokens for proxy payouts.
     pub payout_method_id: Option<String>,
 
     /// Additional details required by 3DS 2.0

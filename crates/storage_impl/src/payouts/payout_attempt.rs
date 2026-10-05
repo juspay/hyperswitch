@@ -836,9 +836,6 @@ impl DataModelExt for PayoutAttemptUpdate {
     type StorageModel = DieselPayoutAttemptUpdate;
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
-            Self::ExecutionKindUpdate { execution_kind } => {
-                DieselPayoutAttemptUpdate::ExecutionKindUpdate { execution_kind }
-            }
             Self::StatusUpdate {
                 connector_payout_id,
                 status,
