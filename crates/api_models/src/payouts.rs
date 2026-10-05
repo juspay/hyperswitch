@@ -43,9 +43,9 @@ pub struct PayoutCreateRequest {
     /// merchant_order_reference_id is not a deduplication key. Update and confirm use the path ID.
     #[schema(
         value_type = Option<String>,
-        min_length = 1,
-        max_length = 64,
-        example = "payout_proxy_merchant_1001"
+        min_length = 30,
+        max_length = 30,
+        example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
     #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
     pub payout_id: Option<id_type::PayoutId>,
@@ -121,7 +121,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, example = true, default = false)]
     pub auto_fulfill: Option<bool>,
 
-    /// The customer identifier. Supply this or customer.id for external-vault proxy creates; the customer must own payout_method_id. Normal payouts may generate it when omitted.
+    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id.
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
