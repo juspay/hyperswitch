@@ -10,7 +10,7 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{
     cache,
-    cache::{CacheKind, ACCOUNTS_CACHE},
+    cache::{CacheId, CacheKind},
 };
 use crate::{
     kv_router_store,
@@ -140,7 +140,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
                 self,
                 &key_store_cache_key,
                 fetch_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             )
             .await?
             .convert(state, key, merchant_id.clone().into())
