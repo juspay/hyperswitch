@@ -86,6 +86,8 @@ impl SafeOutboundUrl {
         Ok(Self(url))
     }
 
+    /// The URL's host, for callers that need to branch on literal vs. domain-name destinations
+    /// (e.g. to resolve a domain name's DNS records before using it as a destination).
     pub fn host(&self) -> Option<Host<&str>> {
         self.0.host()
     }
