@@ -3629,7 +3629,7 @@ pub struct PaymentMethodResponseItem {
     /// The customer reference supplied in the request path when merchant reference ID lookup is enabled.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<String>, example = "merchant_customer_123")]
-    pub merchant_customer_ref_id: Option<id_type::CustomerId>,
+    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
