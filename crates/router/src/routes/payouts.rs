@@ -53,7 +53,14 @@ pub async fn payouts_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_create_core_wrapper(state, auth.platform, header_payload.clone(), req)
+            payouts_create_core_wrapper(
+                state,
+                auth.platform,
+                #[cfg(feature = "v1")]
+                auth.profile,
+                header_payload.clone(),
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,

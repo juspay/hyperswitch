@@ -214,8 +214,7 @@ pub async fn construct_payout_router_data<'a, F>(
     }
 }
 
-/// Shared request construction after the execution-specific invariants have been validated.
-/// Proxy subtype information comes from saved metadata; opaque tokens stay in their own field.
+/// Execution-specific checks run before this shared request builder.
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub(super) async fn construct_payout_router_data_common<F>(
     state: &SessionState,

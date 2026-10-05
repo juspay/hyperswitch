@@ -8672,15 +8672,19 @@ fn payout_method_for_ucs<F>(
     router_data: &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
 ) -> Result<Option<payments_grpc::PayoutMethod>, error_stack::Report<UnifiedConnectorServiceError>>
 {
-    match router_data.request.external_vault_pmd.as_ref() {
-        // PR3 supplies CardProxyPayout. This is the single token-to-protobuf mapping boundary;
-        // never put a token through CardPayout/CardNumber or fall back to raw method data.
-        Some(_) => Err(report!(UnifiedConnectorServiceError::NotImplemented(
+    match (
+        router_data.request.external_vault_pmd.as_ref(),
+        router_data.payout_method_data.as_ref(),
+    ) {
+        (Some(_), Some(_)) => Err(report!(UnifiedConnectorServiceError::RequestEncodingFailed)
+            .attach_printable(
+                "Normal payout method data and external vault tokens are mutually exclusive",
+            )),
+        // CardProxyPayout support must be pinned before encoding opaque vault tokens.
+        (Some(_), None) => Err(report!(UnifiedConnectorServiceError::NotImplemented(
             "External vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
         ))),
-        None => router_data
-            .payout_method_data
-            .as_ref()
+        (None, payout_method_data) => payout_method_data
             .map(transformers::ForeignTryFrom::foreign_try_from)
             .transpose(),
     }

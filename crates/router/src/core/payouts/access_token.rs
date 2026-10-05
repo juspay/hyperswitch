@@ -16,9 +16,6 @@ use crate::{
     types::{self, api as api_types, domain, storage::enums},
 };
 
-/// After we get the access token, check if there was an error and if the flow should proceed further
-/// Everything is well, continue with the flow
-/// There was an error, cannot proceed further
 #[cfg(feature = "payouts")]
 pub async fn create_access_token<F: Clone + 'static>(
     state: &SessionState,

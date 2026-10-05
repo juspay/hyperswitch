@@ -1,6 +1,4 @@
-//! Gateway execution context owned by payout operations.
-//!
-//! Payout routing and vault configuration stay separate from payment gateway state.
+//! Payout-owned routing and vault context.
 
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
 use common_utils::errors::CustomResult;
@@ -12,43 +10,32 @@ use hyperswitch_interfaces::{api::gateway::GatewayContext, errors::ConnectorErro
 use crate::core::payouts::proxy::PayoutProxyMetadata;
 use crate::{core::unified_connector_service::kill_switch::RolloutSettings, routes::SessionState};
 
-/// Request-scoped routing and authentication information for payout gateways.
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
-    /// Credentials identifier for connector authentication.
     pub creds_identifier: Option<String>,
-    /// Processor information.
     pub processor: Processor,
-    /// HTTP header payload from the request.
     pub header_payload: HeaderPayload,
-    /// Lineage IDs for tracing and tracking.
     pub lineage_ids: LineageIds,
-    /// Merchant connector account details.
     #[cfg(feature = "v1")]
     pub merchant_connector_account: crate::core::payments::helpers::MerchantConnectorAccountType,
-    /// Merchant connector account details.
     #[cfg(feature = "v2")]
     pub merchant_connector_account:
         hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
-    /// Execution path (Direct, UCS, or Shadow UCS).
     pub execution_path: ExecutionPath,
-    /// Execution mode (Primary or Shadow).
     pub execution_mode: ExecutionMode,
-    /// Existing normal payout rollout settings, previously carried by the shared payment
-    /// context. Proxy payouts bypass rollout/fallback and set kill_switch_enabled=false.
+    /// Normal-payout rollout only; proxy payouts disable fallback.
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
     pub connector_decline_threshold: Option<u64>,
     pub rollout_scope: Option<String>,
-    /// Vault configuration only; opaque tokens are carried separately in PayoutData.
+    /// Vault configuration only; tokens remain in PayoutData.
     #[cfg(feature = "v1")]
     pub payout_execution_context: crate::core::payouts::proxy::PayoutExecutionContext,
 }
 
 impl GatewayContext for RouterGatewayContext {
     fn execution_path(&self) -> ExecutionPath {
-        // Proxy payouts must never select Direct, including the shadow primary path.
-        // The UCS gateway rejects inconsistent stored routing fields before encoding.
+        // Proxy payouts cannot select Direct, even as a shadow primary.
         #[cfg(feature = "v1")]
         {
             match self.payout_execution_context {
@@ -89,8 +76,6 @@ impl RouterGatewayContext {
         }
     }
 
-    /// Shared metadata plumbing for payout gateways. Fail closed until the token-aware
-    /// payout protobuf/mappings exist; never submit a normal CardPayout with vault config.
     pub fn payout_external_vault_proxy_metadata(
         &self,
         _state: &SessionState,
@@ -116,8 +101,7 @@ impl RouterGatewayContext {
     }
 }
 
-/// The shared, card-free authentication gateway has a payment-context implementation.
-/// Reuse only common routing/credential fields at that boundary, never payout vault state.
+/// Adapt shared OAuth fields without moving payout vault state into payment context.
 impl From<&RouterGatewayContext> for crate::core::payments::gateway::context::RouterGatewayContext {
     fn from(context: &RouterGatewayContext) -> Self {
         Self {

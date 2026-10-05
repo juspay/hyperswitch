@@ -34,8 +34,7 @@ use crate::{
     utils::OptionExt,
 };
 
-/// Reject normal execution of persisted proxy attempts before any method/locker resolution.
-/// Read-only retrieval remains available; force-sync and all mutation/resume paths are deferred.
+/// Proxy trackers allow read-only retrieval, but not normal mutation or force-sync.
 pub fn validate_persisted_execution_kind(
     execution_kind: common_enums::PayoutExecutionKind,
     req: &payouts::PayoutRequest,
@@ -56,8 +55,7 @@ pub fn validate_persisted_execution_kind(
     }
 }
 
-/// Allow normal execution (or an absent pre-create tracker), rejecting only persisted proxy
-/// attempts at raw-card, locker, retry and scheduler boundaries. Normal payouts never error here.
+/// Block proxy attempts at normal raw-card, locker, retry and scheduler boundaries.
 pub fn validate_normal_execution_kind(
     execution_kind: Option<common_enums::PayoutExecutionKind>,
 ) -> RouterResult<()> {
@@ -112,10 +110,7 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validates the request on below checks
-/// - merchant_id passed is same as the one in merchant_account table
-/// - payout_id is unique against merchant_id
-/// - payout_token provided is legitimate
+/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,

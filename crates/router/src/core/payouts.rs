@@ -129,7 +129,7 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
-    /// Opaque vault tokens live only in the request context, never in raw payout method data.
+    /// Request-only vault tokens; never treat them as raw payout data.
     #[cfg(feature = "v1")]
     pub external_vault_pmd: Option<domain_models::payouts::proxy::ExternalVaultPayoutMethodData>,
     #[cfg(feature = "v1")]
@@ -609,20 +609,38 @@ pub async fn payouts_core(
 pub async fn payouts_create_core_wrapper(
     state: SessionState,
     platform: domain::Platform,
+    #[cfg(feature = "v1")] auth_profile: Option<domain::Profile>,
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     #[cfg(feature = "v1")]
     {
-        // Resolve profile configuration before method retrieval or create side effects.
-        let profile = core_utils::get_profile_from_business_details(
-            req.business_country,
-            req.business_label.as_ref(),
-            platform.get_processor(),
-            req.profile_id.as_ref(),
-            &*state.store,
-        )
-        .await?;
+        let mut req = req;
+        let profile = match auth_profile {
+            Some(profile) => {
+                payout_utils::validate_payout_condition(
+                    profile.merchant_id != *platform.get_processor().get_account().get_id()
+                        || req
+                            .profile_id
+                            .as_ref()
+                            .is_some_and(|id| id != profile.get_id()),
+                    "Payout profile does not match the authenticated merchant and profile",
+                )?;
+                req.profile_id = Some(profile.get_id().clone());
+                profile
+            }
+            // V1 API-key authentication has no profile when X-Profile-Id is omitted.
+            None => {
+                core_utils::get_profile_from_business_details(
+                    req.business_country,
+                    req.business_label.as_ref(),
+                    platform.get_processor(),
+                    req.profile_id.as_ref(),
+                    &*state.store,
+                )
+                .await?
+            }
+        };
         let provider_profile =
             payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
         match provider_profile
@@ -1845,7 +1863,7 @@ pub async fn create_recipient(
                         )?;
                     }
 
-                    // Preserve the result, but proxy payouts never queue a normal resume path.
+                    // Proxy tokens are request-scoped, so defer asynchronous resume.
                     let status = recipient_create_data
                         .status
                         .unwrap_or(api_enums::PayoutStatus::RequiresVendorAccountCreation);
@@ -2817,16 +2835,6 @@ pub async fn create_recipient_disburse_account(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
 
-            match payout_data.payout_attempt.execution_kind {
-                api_enums::PayoutExecutionKind::ExternalVaultProxy => {
-                    // Carry the successful account reference into later subflows, not vault tokens.
-                    // The reference is already persisted on the attempt for operator recovery.
-                    payout_data.connector_transfer_method_id =
-                        payout_response_data.connector_payout_id.clone();
-                }
-                api_enums::PayoutExecutionKind::Normal => (),
-            }
-
             if let (
                 true,
                 Some(ref payout_method_data),
@@ -3164,8 +3172,7 @@ pub async fn fulfill_payout(
     let dimension_with_connector = dimensions.with_connector(connector_data.connector_name);
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
-            // Public force-sync/resume is deferred for proxy payouts. Do not enqueue a
-            // normal workflow that cannot reconstruct this request-scoped proxy context.
+            // Proxy tokens are request-scoped, so do not schedule normal sync.
             if payout_data.payout_attempt.execution_kind == api_enums::PayoutExecutionKind::Normal {
                 payout_sync::PayoutSyncWorkFlow::add_payout_sync_task_to_process_tracker(
                     &updated_state,
@@ -3835,8 +3842,7 @@ pub async fn make_payout_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
-    // The marker is authoritative even when no execution selector is supplied later.
-    // This must run before resolving billing, method tokens, or temporary locker data.
+    // Reject proxy mutations before normal method or locker resolution.
     validator::validate_persisted_execution_kind(payout_attempt.execution_kind, req)?;
 
     let customer_id = payouts.customer_id.as_ref();
