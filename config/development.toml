@@ -1688,7 +1688,7 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
-default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the mathmodel retries at when a cluster has no hour-of-day history
+default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history
 exploration_floor = 0.10 # minimum probability the systematic-k sampler gives every candidate day
 tie_tolerance = 1e-4     # day values within this distance count as tied and split their share equally
 

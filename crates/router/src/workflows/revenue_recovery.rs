@@ -1528,7 +1528,7 @@ pub fn add_random_delay_to_schedule_time(
 //
 // Given a cluster's day-of-week / day-of-month / hour-of-day success stats (`StatsDocument`), the
 // remaining retry budget, and the grace window, it returns the datetime to retry on. The caller
-// takes this time as it stands; the Superposition static schedule covers only the decisions this
+// takes this time as it stands; the MIT cascading ladder covers only the decisions this
 // declines.
 //
 // The DAY is produced by two independently selectable stages — see `RetryModelVariant`: a COMBINE
@@ -2174,7 +2174,7 @@ fn select_systematic_k_day(
 /// day inside the grace period); otherwise `Some`.
 /// V1 LIMITATION: a grace of 1 (today only) with retries still available is treated as "no retry"; a
 /// later version will handle that edge (e.g. a same-day retry after a delay). The caller takes the
-/// result as it stands, rather than bounding it by the static schedule.
+/// result as it stands, rather than bounding it by the cascading ladder.
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn compute_predicted_retry_time(

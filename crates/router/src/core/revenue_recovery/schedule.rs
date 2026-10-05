@@ -33,7 +33,8 @@ impl StaticLadderProgress {
         }
     }
 
-    /// Ladder position to query for this decision.
+    /// The next ladder position after those already consumed. Unused in production since the
+    /// static ladder was removed from the decision; kept with the inert counter.
     pub fn next_rung(&self) -> i32 {
         self.consumed_rungs + 1
     }

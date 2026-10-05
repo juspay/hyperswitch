@@ -1203,15 +1203,15 @@ pub async fn perform_calculate_workflow(
     Ok(())
 }
 
-/// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
+/// Finish the CALCULATE_WORKFLOW row, carrying any supplied ladder scheduling state.
 async fn finish_calculate_workflow_with_progress(
     db: &dyn StorageInterface,
     process: &storage::ProcessTracker,
     next_static_ladder_progress: Option<schedule::StaticLadderProgress>,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let pt_update = match next_static_ladder_progress {
-        // The adaptive path has a ladder position to carry, so the consumed rung and the finish
-        // go out in one write rather than leaving a window where one landed without the other.
+        // A ladder position was supplied, so it and the finish go out in one write rather than
+        // leaving a window where one landed without the other.
         Some(static_ladder_progress) => {
             let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
                 serde_json::from_value(process.tracking_data.clone())
