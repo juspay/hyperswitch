@@ -190,7 +190,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .insert_payment_method(
                 self.provider.get_key_store(),
                 domain::PaymentMethod {
-                    customer_id: Some(customer_id.to_owned()),
+                    customer_id: Some(customer.get_id().to_owned()),
                     merchant_id: merchant_id.to_owned(),
                     payment_method_id: payment_method_id.to_string(),
                     locker_id,
@@ -1891,7 +1891,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add PaymentMethod Failed"),
-                    _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
+                    _ => Ok(self.store_default_payment_method(req, customer_obj.get_id(), merchant_id)),
                 }
             }
             api_enums::PaymentMethod::Card => match req.card.clone() {
@@ -1916,7 +1916,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Add Card Failed")
                 }
-                _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
+                _ => Ok(self.store_default_payment_method(req, customer_obj.get_id(), merchant_id)),
             },
             api_enums::PaymentMethod::BankDebit => match req.payment_method_data.clone() {
                 Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
@@ -1939,7 +1939,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     message: "PaymentMethodData does not match PaymentMethod".to_string(),
                 })?,
             },
-            _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
+            _ => Ok(self.store_default_payment_method(req, customer_obj.get_id(), merchant_id)),
         };
 
         let (mut resp, duplication_check) = response?;
