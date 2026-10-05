@@ -1018,5 +1018,161 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        connector_metadata: {
+          checkout: {
+            purpose_of_payment: "wallet top-up",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "aft_processor_not_matched",
+          error_message: "aft_processor_not_matched",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: null,
+            santander: null,
+            worldpayxml: null,
+            checkout: {
+              purpose_of_payment: "wallet top-up",
+            },
+            stripe: null,
+          },
+          is_account_funded_transaction: true,
+        },
+      },
+    },
+    ConnectorIntentMetadataMissing: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        connector_metadata: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Missing required param: connector_metadata.checkout.purpose_of_payment",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataUnknownField: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        connector_metadata: {
+          checkout: {
+            purpose_of_payment: "wallet top-up",
+            unknown_field: "x",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: unknown field `unknown_field`, expected `purpose_of_payment`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
   },
 };

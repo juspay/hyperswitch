@@ -650,5 +650,271 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        description: "Test payment for AFT",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        business_country: "US",
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+            payment_purpose: "family_support",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "5",
+          error_message: "Pull from card transaction is not permitted",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: null,
+            santander: null,
+            worldpayxml: {
+              funding_transaction_type: "funds_transfer_me_to_me",
+              payment_purpose: "family_support",
+            },
+            checkout: null,
+            stripe: null,
+          },
+          is_account_funded_transaction: true,
+        },
+      },
+    },
+    ConnectorIntentMetadataMissing: {
+      Request: {
+        amount: 6000,
+        description: "Test payment for AFT",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        business_country: "US",
+        connector_metadata: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: connector_metadata.worldpayxml",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataMissingFundingTransactionType: {
+      Request: {
+        amount: 6000,
+        description: "Test payment for AFT",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        business_country: "US",
+        connector_metadata: {
+          worldpayxml: {
+            payment_purpose: "family_support",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Missing required param: connector_metadata.worldpayxml.funding_transaction_type",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataMissingPaymentPurpose: {
+      Request: {
+        amount: 6000,
+        description: "Test payment for AFT",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        business_country: "US",
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Missing required param: connector_metadata.worldpayxml.payment_purpose",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataUnknownField: {
+      Request: {
+        amount: 6000,
+        description: "Test payment for AFT",
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        recipient_details: {
+          account: {
+            type: "card",
+            card_number: "4111111111111111",
+          },
+          phone_number: "9123456789",
+          address: {
+            first_name: "Jane",
+            last_name: "Doe",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        business_country: "US",
+        connector_metadata: {
+          worldpayxml: {
+            funding_transaction_type: "funds_transfer_me_to_me",
+            payment_purpose: "family_support",
+            unknown_field: "x",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: unknown field `unknown_field`, expected `funding_transaction_type` or `payment_purpose`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
   },
 };
