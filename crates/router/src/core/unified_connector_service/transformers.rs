@@ -3015,7 +3015,6 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
-            split_payments: None,
         })
     }
 }
@@ -8811,7 +8810,6 @@ impl
                 .transpose()?,
             description: router_data.description.clone(),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            payout_connector_metadata: None,
         })
     }
 }
@@ -9092,8 +9090,6 @@ impl
             access_token: router_data.access_token.clone().map(|at| at.token),
             browser_info,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            payout_method_data: None,
-            test_mode: None,
         })
     }
 }
