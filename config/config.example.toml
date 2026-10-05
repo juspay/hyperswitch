@@ -1407,6 +1407,8 @@ file_storage_backend = "aws_s3" # File storage backend to be used
 [file_storage.aws_s3]
 region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1" # The AWS S3 bucket name for file storage
+# endpoint_url = "https://<namespace>.compat.objectstorage.<region>.oraclecloud.com" # Optional: endpoint of an S3-compatible store (OCI Object Storage, MinIO, ...) instead of AWS
+# force_path_style = false                                                         # Optional: address buckets as <endpoint>/<bucket>; required for OCI Object Storage
 
 [secrets_management]
 secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms | oci_kms)

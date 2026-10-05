@@ -121,6 +121,8 @@ file_storage_backend = "aws_s3" # File storage backend to be used
 [file_storage.aws_s3]
 region = "bucket_region" # The AWS region used by AWS S3 for file storage
 bucket_name = "bucket"   # The AWS S3 bucket name for file storage
+# endpoint_url = "https://s3.example.com" # Optional: endpoint of an S3-compatible store (e.g. OCI Object Storage) instead of AWS
+# force_path_style = false               # Optional: address buckets as <endpoint>/<bucket>; required for OCI Object Storage
 
 # This section provides configs for currency conversion api
 [forex_api]
@@ -465,6 +467,8 @@ file_storage_backend = "aws_s3" # Theme storage backend to be used
 [theme.storage.aws_s3]
 region = "bucket_region" # AWS region where the S3 bucket for theme storage is located
 bucket_name = "bucket"   # AWS S3 bucket name for theme storage
+# endpoint_url = "https://s3.example.com" # Optional: endpoint of an S3-compatible store (e.g. OCI Object Storage) instead of AWS
+# force_path_style = false               # Optional: address buckets as <endpoint>/<bucket>; required for OCI Object Storage
 
 [theme.email_config]
 entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
