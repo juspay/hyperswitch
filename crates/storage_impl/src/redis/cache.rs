@@ -532,7 +532,7 @@ impl Cache {
         time_to_live: u64,
         time_to_idle: u64,
         max_entries: Option<u64>,
-        populate_timeout: time::Duration,
+        populate_timeout: Duration,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -545,8 +545,8 @@ impl Cache {
             );
         };
         let mut cache_builder = MokaCache::builder()
-            .time_to_live(time::Duration::from_secs(time_to_live))
-            .time_to_idle(time::Duration::from_secs(time_to_idle))
+            .time_to_live(Duration::from_secs(time_to_live))
+            .time_to_idle(Duration::from_secs(time_to_idle))
             .eviction_listener(eviction_listener);
 
         // No weigher is configured, so moka counts entries — which is what this number has
@@ -808,7 +808,7 @@ impl Cache {
     /// `time_to_live`, not `time_to_idle`: eviction takes whichever falls first, but the TTL
     /// is the bound a layer behind this one has to outlast. Read from moka's own policy, so a
     /// cache built from [`CacheSettings`] reports its configured lifetime.
-    fn time_to_live(&self) -> Option<time::Duration> {
+    fn time_to_live(&self) -> Option<Duration> {
         self.inner.policy().time_to_live()
     }
 
@@ -1057,7 +1057,7 @@ mod cache_tests {
 
     /// Long enough that a correctly coalescing test never trips it, short enough that a test
     /// asserting the cap does not drag.
-    const TEST_POPULATE_TIMEOUT: time::Duration = time::Duration::from_millis(500);
+    const TEST_POPULATE_TIMEOUT: Duration = Duration::from_millis(500);
 
     fn test_key(key: &str) -> CacheKey {
         CacheKey {
@@ -1070,7 +1070,7 @@ mod cache_tests {
     /// actually reached the backend.
     fn counting_populate(
         calls: &Arc<AtomicUsize>,
-        delay: time::Duration,
+        delay: Duration,
         value: impl Into<String>,
     ) -> futures::future::BoxFuture<'static, Result<String, String>> {
         let calls = Arc::clone(calls);
@@ -1085,7 +1085,7 @@ mod cache_tests {
     /// A populate that always fails, counting its own invocations the same way.
     fn failing_populate(
         calls: &Arc<AtomicUsize>,
-        delay: time::Duration,
+        delay: Duration,
         message: impl Into<String>,
     ) -> futures::future::BoxFuture<'static, Result<String, String>> {
         let calls = Arc::clone(calls);
@@ -1135,7 +1135,7 @@ mod cache_tests {
         };
 
         // Let the first caller take the write side before the second one arrives.
-        tokio::time::sleep(time::Duration::from_millis(20)).await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
 
         let reader = {
             let cache = Arc::clone(&cache);
@@ -1188,7 +1188,7 @@ mod cache_tests {
             1800,
             1800,
             None,
-            time::Duration::from_millis(50),
+            Duration::from_millis(50),
         ));
         let slow_calls = Arc::new(AtomicUsize::new(0));
         let queued_calls = Arc::new(AtomicUsize::new(0));
@@ -1204,7 +1204,7 @@ mod cache_tests {
         };
 
         // Let the first caller start (and be capped) before the second one arrives.
-        tokio::time::sleep(time::Duration::from_millis(20)).await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
 
         let queued = {
             let cache = Arc::clone(&cache);
@@ -1247,7 +1247,7 @@ mod cache_tests {
             })
         };
 
-        tokio::time::sleep(time::Duration::from_millis(20)).await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
 
         let queued_started = time::Instant::now();
         let queued = {
@@ -1266,7 +1266,7 @@ mod cache_tests {
         // Proves real queuing rather than lucky scheduling: the second caller's own populate
         // has no delay, so an uncontended run would resolve in well under 50ms.
         assert_eq!(queued.await.unwrap(), Ok("own".to_string()));
-        assert!(queued_started.elapsed() >= time::Duration::from_millis(50));
+        assert!(queued_started.elapsed() >= Duration::from_millis(50));
         assert_eq!(queued_calls.load(Ordering::SeqCst), 1);
     }
 
@@ -1277,11 +1277,8 @@ mod cache_tests {
 
         let populates = (0..8).map(|index| {
             let cache = Arc::clone(&cache);
-            let populate = counting_populate(
-                &calls,
-                time::Duration::from_millis(50),
-                format!("val{index}"),
-            );
+            let populate =
+                counting_populate(&calls, Duration::from_millis(50), format!("val{index}"));
             tokio::spawn(async move {
                 cache
                     .get_or_populate_in_memory(test_key(&format!("key{index}")), populate)
@@ -1405,7 +1402,7 @@ mod cache_tests {
     #[test]
     fn redis_is_held_past_the_in_memory_lifetime() {
         let ttl_in_secs = 1800;
-        let cache = Cache::new("test", ttl_in_secs, 600, None, time::Duration::from_secs(5));
+        let cache = Cache::new("test", ttl_in_secs, 600, None, Duration::from_secs(5));
 
         let redis_ttl = cache
             .redis_ttl_for("merchant_1")
@@ -1614,7 +1611,7 @@ mod cache_tests {
                 "val".to_string(),
             )
             .await;
-        tokio::time::sleep(time::Duration::from_secs(3)).await;
+        tokio::time::sleep(Duration::from_secs(3)).await;
         assert_eq!(
             cache
                 .get_val::<String>(CacheKey {
