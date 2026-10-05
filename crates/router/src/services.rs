@@ -146,6 +146,13 @@ pub async fn get_cache_store(
         component = "router::services",
         operation = "generate_aes256_key",
         codec = deja::codec::ResultCodec::<[u8; 32], common_utils::errors::CryptoError>,
+        // 32 bytes, the AES-256 key length the body fills. Content is opaque to
+        // the service: the key is stored master-key-encrypted and then used to
+        // encrypt the merchant's own columns, so a synthesized key produces
+        // ciphertext that differs from the recording's. That difference is the
+        // point — it is attributable to this substitution, whereas a fail-stop
+        // here blinds every column encryption that follows.
+        on_miss = Ok(deja::synth::bytes::<32>(&__deja_miss)),
     )
 )]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {

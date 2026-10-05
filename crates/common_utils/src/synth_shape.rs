@@ -58,6 +58,18 @@ pub trait Synthesize {
     /// `prefix`, an underscore, then [`Self::alphanumeric`] of `length`.
     fn prefixed(&self, prefix: &str, length: usize) -> String;
 
+    /// `count` mutually distinct alphanumeric words of `length` characters.
+    ///
+    /// For a body that draws `count` INDEPENDENT values and returns them
+    /// together — recovery codes are the standing case. Every other shape here
+    /// answers with one value, and calling one of them `count` times would
+    /// answer with `count` copies of the same value, because a shape is a
+    /// function of the miss and the miss does not change between the draws. So
+    /// this makes ONE draw of `count * length` characters and carves it, which
+    /// also keeps the words from being prefixes of one another the way two
+    /// draws of different lengths at one site would be.
+    fn alphanumeric_words(&self, count: usize, length: usize) -> Vec<String>;
+
     /// `length` decimal digits, for the generators that promise only these.
     fn digits(&self, length: usize) -> String;
 
@@ -166,6 +178,21 @@ impl Synthesize for deja::SubstituteMiss {
 
     fn prefixed(&self, prefix: &str, length: usize) -> String {
         format!("{}_{}", prefix, self.alphanumeric(length))
+    }
+
+    fn alphanumeric_words(&self, count: usize, length: usize) -> Vec<String> {
+        if length == 0 {
+            return vec![String::new(); count];
+        }
+        let drawn = self.alphanumeric(count.saturating_mul(length));
+        // `alphanumeric` draws from a 62-symbol ASCII alphabet, so a byte chunk
+        // is a character chunk and the lossy conversion never substitutes.
+        drawn
+            .as_bytes()
+            .chunks(length)
+            .take(count)
+            .map(|chunk| String::from_utf8_lossy(chunk).into_owned())
+            .collect()
     }
 
     fn digits(&self, length: usize) -> String {
@@ -419,6 +446,24 @@ mod golden {
             "DDBnXeIlmxl2UqmnXe2EI"
         );
         assert_eq!(miss(0).alphanumeric(0), "");
+        assert_eq!(
+            miss(0).alphanumeric_words(4, 4),
+            ["77z9", "92CV", "QZxg", "68YZ"]
+        );
+        assert_eq!(miss(0).alphanumeric_words(0, 4), Vec::<String>::new());
+        assert_eq!(miss(0).alphanumeric_words(2, 0), ["", ""]);
+    }
+
+    /// The property the recovery-code arm depends on: the words differ from each
+    /// other. A shape called once per word would return one value repeated,
+    /// because the miss does not change between the calls — and eight identical
+    /// recovery codes are well-formed, deterministic and useless.
+    #[test]
+    fn the_words_differ_from_one_another() {
+        let words = miss(0).alphanumeric_words(8, 8);
+        let distinct: std::collections::BTreeSet<&String> = words.iter().collect();
+        assert_eq!(distinct.len(), words.len(), "words collapsed: {words:?}");
+        assert!(words.iter().all(|word| word.chars().count() == 8));
     }
 
     #[test]

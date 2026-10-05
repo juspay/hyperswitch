@@ -76,6 +76,16 @@ impl NonceSequence {
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
             codec = deja::codec::ResultCodec::<NonceSequence, errors::CryptoError>,
+            // The live body fills the LOW 96 bits of the u128 and leaves the top
+            // four bytes zero, which is what `current` then reads back out, so
+            // the synthesized nonce is built through `from_bytes` from exactly
+            // `NONCE_LEN` bytes rather than from a whole u128. Content is never
+            // inspected: AES-GCM takes the nonce as opaque input and the real
+            // cipher still runs over the candidate's own plaintext, so a changed
+            // message still diverges.
+            on_miss = Ok(Self::from_bytes(deja::synth::bytes::<{ aead::NONCE_LEN }>(
+                &__deja_miss,
+            ))),
         )
     )]
     fn new() -> CustomResult<Self, errors::CryptoError> {
@@ -656,6 +666,13 @@ impl EncodeMessage for TripleDesEde3CBC {
     deja::id(
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
+        // `rand::distributions::Alphanumeric` draws from the same 62 symbols as
+        // `consts::ALPHABETS` — `[A-Za-z0-9]`, no `-` and no `_` — and returns
+        // exactly `length` of them, which is what `alphanumeric` promises. The
+        // synthesized value is predictable by anyone holding the query, as
+        // everything in `deja::synth` is; that is a property of a replay and not
+        // of this function, and it is reached only on a replay lookup miss.
+        on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.alphanumeric(length) },
         codec = SerdeCodec,
     )
 )]
@@ -923,6 +940,11 @@ pub fn extract_rsa_public_key_components(
     deja::id(
         component = "common_utils::crypto",
         operation = "secure_random_bytes",
+        // `length` bytes, the length the caller asked for: `SeamedOsRng` turns a
+        // short vector into zeros via `try_into`, and the `rsa` crate reads this
+        // through that RNG. Same shape as the nonce above, and the same
+        // reasoning — the primitive still runs over the candidate's own input.
+        on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.byte_vec(length) },
         codec = SerdeCodec,
     )
 )]
