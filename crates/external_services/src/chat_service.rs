@@ -37,6 +37,15 @@ pub trait ChatClient: Send + Sync + std::fmt::Debug {
     /// Post a message, returning the id of the message that was created.
     async fn post_message(&self, message: ChatMessage) -> ChatResult<MessageId>;
 
+    /// Replace the content of an earlier message, returning its id.
+    ///
+    /// The message's reply target is not read: an edit stays wherever the original was posted.
+    async fn update_message(
+        &self,
+        message_id: &MessageId,
+        message: ChatMessage,
+    ) -> ChatResult<MessageId>;
+
     /// Upload a file and optionally share it under an existing message.
     async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId>;
 }
@@ -173,6 +182,7 @@ impl MessageId {
 pub struct ChatMessage {
     text: String,
     reply_to: Option<MessageId>,
+    attachments: Option<Vec<serde_json::Value>>,
 }
 
 impl ChatMessage {
@@ -185,6 +195,7 @@ impl ChatMessage {
         Self {
             text: text.into(),
             reply_to: None,
+            attachments: None,
         }
     }
 
@@ -199,7 +210,18 @@ impl ChatMessage {
         Self {
             text: text.into(),
             reply_to: Some(message_id),
+            attachments: None,
         }
+    }
+
+    /// Carry Slack-compatible `attachments` alongside `text`, delivered as-is.
+    ///
+    /// A builder rather than a third constructor, because it applies to a top-level message and a
+    /// reply alike. With attachments the message is sent without the top-level `mrkdwn` flag — see
+    /// the `chat.postMessage` payload in the Slack-compatible client.
+    pub fn with_attachments(mut self, attachments: Vec<serde_json::Value>) -> Self {
+        self.attachments = Some(attachments);
+        self
     }
 
     /// The message body.

@@ -12,8 +12,8 @@ use crate::{
     auth, core, services,
     state::AppState,
     types::{
-        ChatNotifyRequest, ChatNotifyResponse, ChatUploadForm, ChatUploadRequest,
-        ChatUploadResponse, EmailNotifyRequest, EmailNotifyResponse,
+        ChatNotifyRequest, ChatNotifyResponse, ChatUpdateRequest, ChatUploadForm,
+        ChatUploadRequest, ChatUploadResponse, EmailNotifyRequest, EmailNotifyResponse,
     },
 };
 
@@ -32,6 +32,29 @@ pub async fn chat(
         payload.into_inner(),
         |state, payload| async move {
             core::notifier::notify_chat(state, &destination, payload)
+                .await
+                .map(ChatNotifyResponse::from)
+        },
+        &auth::InternalApiKeyAuth,
+    )
+    .await
+}
+
+/// `POST /alerts/chat/update/{destination}`.
+pub async fn chat_update(
+    state: web::Data<AppState>,
+    request: HttpRequest,
+    destination: web::Path<String>,
+    payload: web::Json<ChatUpdateRequest>,
+) -> HttpResponse {
+    let destination = destination.into_inner();
+
+    services::server_wrap(
+        state.get_ref().clone(),
+        &request,
+        payload.into_inner(),
+        |state, payload| async move {
+            core::notifier::update_chat(state, &destination, payload)
                 .await
                 .map(ChatNotifyResponse::from)
         },
