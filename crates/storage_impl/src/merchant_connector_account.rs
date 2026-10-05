@@ -634,12 +634,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory_redis(
+            Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 id.get_string_repr(),
                 find_call(),
                 cache::CacheId::Accounts,
-            )
+            ))
             .await?
             .convert(
                 self.get_keymanager_state()
