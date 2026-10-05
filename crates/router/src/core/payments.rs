@@ -681,6 +681,113 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): one armed seam per on-miss strategy, none of which
+    // a recorded payment path calls, so replay misses each at every rank. The
+    // request depends on every value: an arm that answers outside the shape its
+    // caller was promised fails the request here, naming the seam. Values are
+    // logged, not returned, so a new body field cannot read as a mismatch.
+    let deja_fixture = |what: String| {
+        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("FIXTURE: {what}"))
+    };
+    // instant: an RFC 7231 date.
+    let date = common_utils::date_time::now_rfc7231_http_date()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("FIXTURE: now_rfc7231_http_date did not format")?;
+    if !date.ends_with(" GMT") || date.len() != 29 {
+        return Err(deja_fixture(format!("now_rfc7231_http_date gave {date}")));
+    }
+    // The second-resolution clock, read TWICE at one site. Nothing is asserted
+    // about the pair: live, two reads inside one request share a second and are
+    // equal, which is correct. On replay they come from the occurrence counter,
+    // so they must DIFFER — equal values there mean the arm is not advancing.
+    // That is the distinguishable property, and it is read off this log line
+    // rather than asserted, because the assertion would be false while recording.
+    let ts_a = common_utils::date_time::now_unix_timestamp();
+    let ts_b = common_utils::date_time::now_unix_timestamp();
+    // over(ALPHABETS): 12 alphanumeric characters.
+    let alnum = common_utils::generate_random_alphanumeric_string(12);
+    if alnum.len() != 12 || !alnum.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(deja_fixture(format!(
+            "generate_random_alphanumeric_string(12) gave {alnum}"
+        )));
+    }
+    // over(DIGITS): 6 decimal digits.
+    let digits = common_utils::generate_random_numeric_string(6);
+    if digits.len() != 6 || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return Err(deja_fixture(format!(
+            "generate_random_numeric_string(6) gave {digits}"
+        )));
+    }
+    // prefixed: the caller's prefix, an underscore, then its length.
+    let prefixed = common_utils::generate_id(10, "fixpfx");
+    if !prefixed.starts_with("fixpfx_") || prefixed.len() != "fixpfx_".len() + 10 {
+        return Err(deja_fixture(format!("generate_id(10, fixpfx) gave {prefixed}")));
+    }
+    // in_range: inclusive bounds.
+    let in_range = common_utils::generate_random_number_in_range(10, 20);
+    if !(10..=20).contains(&in_range) {
+        return Err(deja_fixture(format!(
+            "generate_random_number_in_range(10, 20) gave {in_range}"
+        )));
+    }
+    // index: Some(i) with i < length.
+    let index = common_utils::generate_random_index(5);
+    if !index.is_some_and(|i| i < 5) {
+        return Err(deja_fixture(format!(
+            "generate_random_index(5) gave {index:?}"
+        )));
+    }
+    // unit_f64: the range is half-open, so 1.0 is a failure, not a boundary.
+    let unit = common_utils::generate_random_f64_unit();
+    if !(0.0..1.0).contains(&unit) {
+        return Err(deja_fixture(format!(
+            "generate_random_f64_unit gave {unit}"
+        )));
+    }
+    // permutation: every index of 0..8 exactly once, not eight independent draws.
+    let perm = common_utils::generate_random_permutation(8);
+    let mut seen = perm.clone();
+    seen.sort_unstable();
+    if seen != (0..8).collect::<Vec<usize>>() {
+        return Err(deja_fixture(format!(
+            "generate_random_permutation(8) gave {perm:?}"
+        )));
+    }
+    // byte_vec: exactly the requested length.
+    let bytes = common_utils::generate_random_bytes(16);
+    if bytes.len() != 16 {
+        return Err(deja_fixture(format!(
+            "generate_random_bytes(16) gave {} bytes",
+            bytes.len()
+        )));
+    }
+    // uuid: must not be nil (the arm's fallback). The version is logged, not
+    // asserted: the arm synthesizes a v8 where the seam promises a v7.
+    let uuid = common_utils::generate_uuid_v7();
+    if uuid.is_nil() {
+        return Err(deja_fixture(
+            "generate_uuid_v7 gave the nil uuid".to_string(),
+        ));
+    }
+    logger::info!(
+        date = %date,
+        ts_a,
+        ts_b,
+        ts_distinct = ts_a != ts_b,
+        alnum = %alnum,
+        digits = %digits,
+        prefixed = %prefixed,
+        in_range,
+        index = ?index,
+        unit,
+        perm = ?perm,
+        bytes = bytes.len(),
+        uuid = %uuid,
+        uuid_version = uuid.get_version_num(),
+        "FIXTURE: request continued on these values"
+    );
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
