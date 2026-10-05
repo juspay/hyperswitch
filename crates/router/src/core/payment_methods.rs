@@ -84,7 +84,7 @@ use crate::routes::metrics;
 use crate::{
     configs::settings,
     core::{
-        account_updater,
+        account_updater, customers,
         payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
         tokenization as tokenization_core,
     },
@@ -4461,9 +4461,38 @@ pub async fn list_saved_payment_methods_for_customer(
     provider: domain::Provider,
     customer_id: id_type::GlobalCustomerId,
     include_new: bool,
+    api_key_type: enums::ApiKeyType,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
-    let customer_payment_methods =
+    let use_merchant_reference_id_as_customer_id =
+        customers::should_use_merchant_reference_id_as_customer_id(api_key_type);
+    let (customer_id, merchant_customer_ref_id) = if use_merchant_reference_id_as_customer_id {
+        let merchant_reference_id = id_type::CustomerId::try_from(customer_id).change_context(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid merchant reference ID supplied as customer_id".to_string(),
+            },
+        )?;
+
+        let customer = state
+            .store
+            .find_customer_by_merchant_reference_id_merchant_id(
+                &merchant_reference_id,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        (customer.id, Some(merchant_reference_id))
+    } else {
+        (customer_id, None)
+    };
+
+    let mut customer_payment_methods =
         list_payment_methods_core(&state, &provider, &customer_id, include_new).await?;
+
+    for payment_method in &mut customer_payment_methods.customer_payment_methods {
+        payment_method.merchant_customer_ref_id = merchant_customer_ref_id.clone();
+    }
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
