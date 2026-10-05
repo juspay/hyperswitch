@@ -1200,6 +1200,35 @@ impl super::RedisConnectionWithContext {
                     "members": members_captured,
                 })
             },
+            // A novel SADD answers with "every member was newly added", counted
+            // off the `members` array in the identity above — so the value is a
+            // function of the miss, and reading it there rather than from
+            // `members` avoids a second use of a binding the real call moves.
+            //
+            // This is NOT the honest absence `Cache::get_val` answers a miss
+            // with. The replay Redis is SEEDED, not cold, so "no member was
+            // already present" is a claim and not a fact: it is wrong exactly
+            // when the candidate's novel insert would have collided with
+            // something already in the set, which is the one thing a replay
+            // cannot know. `check_for_constraints` is a collision detector — it
+            // requires the count to equal the number of constraints offered —
+            // so a synthesized reply makes a duplicate the candidate introduced
+            // pass the pre-check.
+            //
+            // Bounded, and worth it. The INSERT that pre-check guards is itself
+            // a seamed boundary, so a duplicate that gets past here still has
+            // to get past the write, and the lookup has already emitted the
+            // novel-call divergence. The alternative is a fail-stop that blinds
+            // every call after it in the request.
+            on_miss = Ok(SaddReply::KeySet(
+                __deja_miss
+                    .args
+                    .get("members")
+                    .and_then(serde_json::Value::as_array)
+                    .map(Vec::len)
+                    .and_then(|count| i64::try_from(count).ok())
+                    .unwrap_or(0),
+            )),
         )
     )]
     #[instrument(level = "DEBUG", skip(self))]

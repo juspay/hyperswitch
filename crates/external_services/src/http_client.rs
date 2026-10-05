@@ -87,6 +87,35 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
         // network. A recorded value this build cannot reconstruct fail-stops the
         // request; it is not a silent fallback to a live call.
         codec = boundary::HttpResponseCodec,
+        // An outbound call the recording never made answers with a transport
+        // failure, not with a response. That distinction is the whole of the
+        // argument: a fabricated status would claim a third party answered when
+        // none did, which is what the in-memory-cache seam refuses to do for
+        // egress; `RequestNotSent` claims NOBODY answered, which is true. So
+        // this satisfies that rule rather than overriding it.
+        //
+        // It is also the only safe direction here. This value decides a payment
+        // outcome — a synthesized 200 would make a replay report a capture that
+        // never happened, and no ledger mark undoes a reader believing it. A
+        // send failure is a state the connector flow already handles: it
+        // produces a technical error, updates the attempt and returns a
+        // response, so the request runs to the end and everything after this
+        // call stays observable.
+        //
+        // The url is read out of the recorded args image rather than off
+        // `request`, which the real call moves.
+        on_miss = Err(HttpClientError::RequestNotSent(
+            format!(
+                "deja: no recorded response for this outbound call (url {}, occurrence {})",
+                __deja_miss
+                    .args
+                    .get("url")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown"),
+                __deja_miss.occurrence,
+            ),
+        )
+        .into()),
     )
 )]
 #[instrument(skip_all)]
