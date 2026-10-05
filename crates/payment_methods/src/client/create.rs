@@ -73,7 +73,9 @@ pub struct CardDetail {
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    ApplePayDecrypted(Box<api_models::payment_methods::ApplePayDecryptedInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    GooglePayDecrypted(Box<api_models::payment_methods::GooglePayDecryptedInfo>),
     PayPal(Box<payments::PaypalRedirection>),
 }
 
@@ -244,9 +246,20 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         auth_code: None,
                         email: None,
                     };
-                    Ok(Self::Wallet(WalletPaymentMethodData::ApplePay(Box::new(
-                        wallet_info,
-                    ))))
+
+                    match apple_pay.payment_data {
+                        common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                            Ok(Self::Wallet(WalletPaymentMethodData::ApplePayDecrypted(
+                                Box::new(api_models::payment_methods::ApplePayDecryptedInfo {
+                                    decrypted_data,
+                                    wallet_info,
+                                }),
+                            )))
+                        }
+                        common_types::payments::ApplePayPaymentData::Encrypted(_) => Ok(
+                            Self::Wallet(WalletPaymentMethodData::ApplePay(Box::new(wallet_info))),
+                        ),
+                    }
                 }
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                     google_pay,
@@ -260,9 +273,20 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         auth_code: None,
                         email: None,
                     };
-                    Ok(Self::Wallet(WalletPaymentMethodData::GooglePay(Box::new(
-                        wallet_info,
-                    ))))
+
+                    match google_pay.tokenization_data {
+                        common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+                            Ok(Self::Wallet(WalletPaymentMethodData::GooglePayDecrypted(
+                                Box::new(api_models::payment_methods::GooglePayDecryptedInfo {
+                                    decrypted_data,
+                                    wallet_info,
+                                }),
+                            )))
+                        }
+                        common_types::payments::GpayTokenizationData::Encrypted(_) => Ok(
+                            Self::Wallet(WalletPaymentMethodData::GooglePay(Box::new(wallet_info))),
+                        ),
+                    }
                 }
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
                     paypal,
