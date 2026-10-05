@@ -1287,6 +1287,8 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             let amount = request.amount.get_required_value("amount")?;
             helpers::validate_platform_request_for_marketplace(
                 amount,
+                request.shipping_cost,
+                request.order_tax_amount,
                 request.split_payments.clone(),
             )?;
         };

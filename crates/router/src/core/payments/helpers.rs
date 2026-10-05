@@ -9553,6 +9553,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
 
 pub fn validate_platform_request_for_marketplace(
     amount: api::Amount,
+    shipping_cost: Option<MinorUnit>,
+    order_tax_amount: Option<MinorUnit>,
     split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match split_payments {
@@ -9741,15 +9743,15 @@ pub fn validate_platform_request_for_marketplace(
                 .map(|split_item| split_item.amount.get_amount_as_i64())
                 .sum();
 
-            let total_amount: i64 = match amount {
-                api::Amount::Zero => 0,
-                api::Amount::Value(amount) => amount.into(),
-            };
+            // Payload is charged the full order total, so the ledger has to cover the shipping
+            // cost and order tax as well, otherwise Payload rejects the payment.
+            let total_amount: i64 = MinorUnit::from(amount).get_amount_as_i64()
+                + shipping_cost.unwrap_or_default().get_amount_as_i64()
+                + order_tax_amount.unwrap_or_default().get_amount_as_i64();
 
-            if total_ledger_amount > total_amount {
+            if !payload_split_payment.ledger.is_empty() && total_ledger_amount != total_amount {
                 return Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "The sum of split amounts should not exceed the total amount"
-                        .to_string(),
+                    message: "Sum of split amounts should be equal to the total amount".to_string(),
                 });
             }
         }
@@ -10185,5 +10187,88 @@ mod connector_response_card_merge_tests {
         // network must not replace it.
         assert_eq!(card.card_network, Some(common_enums::CardNetwork::RuPay));
         assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
+    }
+}
+
+#[cfg(test)]
+mod payload_split_payment_validation_tests {
+    use common_types::payments::{
+        PayloadLedgerItem, PayloadSplitPaymentRequest, SplitPaymentsRequest,
+    };
+    use common_utils::types::MinorUnit;
+
+    use super::{api, errors, validate_platform_request_for_marketplace};
+
+    fn payload_split(ledger_amounts: &[i64]) -> Option<SplitPaymentsRequest> {
+        Some(SplitPaymentsRequest::PayloadSplitPayment(
+            PayloadSplitPaymentRequest {
+                ledger: ledger_amounts
+                    .iter()
+                    .enumerate()
+                    .map(|(index, amount)| PayloadLedgerItem {
+                        amount: MinorUnit::new(*amount),
+                        receiver_id: format!("acct_receiver_{index}"),
+                    })
+                    .collect(),
+            },
+        ))
+    }
+
+    fn validate(
+        amount: i64,
+        shipping_cost: Option<i64>,
+        order_tax_amount: Option<i64>,
+        ledger_amounts: &[i64],
+    ) -> Result<(), errors::ApiErrorResponse> {
+        validate_platform_request_for_marketplace(
+            api::Amount::from(MinorUnit::new(amount)),
+            shipping_cost.map(MinorUnit::new),
+            order_tax_amount.map(MinorUnit::new),
+            payload_split(ledger_amounts),
+        )
+    }
+
+    #[test]
+    fn accepts_ledger_equal_to_amount() {
+        assert!(validate(10900, None, None, &[10000, 900]).is_ok());
+    }
+
+    #[test]
+    fn rejects_ledger_less_than_amount() {
+        assert!(matches!(
+            validate(10900, None, None, &[8000, 1000]),
+            Err(errors::ApiErrorResponse::PreconditionFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_ledger_greater_than_amount() {
+        assert!(matches!(
+            validate(10900, None, None, &[10000, 1000]),
+            Err(errors::ApiErrorResponse::PreconditionFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn ledger_must_cover_shipping_cost_and_order_tax() {
+        assert!(validate(6000, Some(50), Some(25), &[5000, 1075]).is_ok());
+        assert!(matches!(
+            validate(6000, Some(50), Some(25), &[5000, 1000]),
+            Err(errors::ApiErrorResponse::PreconditionFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn zero_amount_requires_zero_ledger() {
+        assert!(validate(0, None, None, &[0]).is_ok());
+        assert!(matches!(
+            validate(0, None, None, &[100]),
+            Err(errors::ApiErrorResponse::PreconditionFailed { .. })
+        ));
+    }
+
+    #[test]
+    fn accepts_empty_ledger() {
+        assert!(validate(10900, None, None, &[]).is_ok());
     }
 }
