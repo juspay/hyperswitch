@@ -411,10 +411,27 @@ fn reconstruct_from_recorded(
 ) -> deja::__private::Reconstructed<Result<http::Response<TonicBody>, BoxError>> {
     match input {
         deja::__private::ReconstructInput::Hit(recorded) => reconstruct_hit(recorded),
-        // Transport PRESENT: a miss may be a genuine novel call, so this keeps
-        // the default substitute-miss fail-stop. `NoValue` is how a site now
-        // declines to answer a miss; it used to be the absence of an `on_miss`.
-        deja::__private::ReconstructInput::Miss(_) => deja::__private::Reconstructed::NoValue,
+        // Transport PRESENT and the call is novel: answer with the transport
+        // failure it is, rather than stopping the request.
+        //
+        // Same reasoning as `http_client::send_request`, in this boundary's own
+        // type. An `Err` on the transport says no peer answered, which is true
+        // of a call the recording never made, so it does not claim a third
+        // party responded — the thing a fabricated gRPC response would do, and
+        // the thing the in-memory-cache seam's rule exists to forbid. tonic
+        // surfaces it to the caller as a transport error, which the routing and
+        // UCS flows already handle, so the request continues and the calls
+        // after this one stay observable instead of becoming a pruned subtree.
+        //
+        // The message names the miss so the failure is attributable in a log
+        // without having to pair it against the ledger by hand.
+        deja::__private::ReconstructInput::Miss(miss) => {
+            deja::__private::Reconstructed::Synthesized(Err(format!(
+                "deja: no recorded gRPC response for {}::{} (occurrence {})",
+                miss.component, miss.method, miss.occurrence,
+            )
+            .into()))
+        }
     }
 }
 

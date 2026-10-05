@@ -183,12 +183,20 @@ where
 // Deja: the one seam every keymanager operation crosses. Substituted on replay
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
-// No `on_miss`. A live call is the honest arm and a miss arm cannot make one —
-// the reconstruct closure is sync and this is async (juspay/deja#195). Anything
-// synthesized claims the key manager answered when it did not, and every
-// decryption downstream consumes it as recorded truth. The in-memory cache reads
-// declare `on_miss` because "not in this process's cache" is true on replay;
-// that is not true here.
+// A miss answers with a transport failure, not with a response body. Nothing on
+// the Ok side is constructible — `R` is only `DeserializeOwned`, and a
+// synthesized ciphertext or plaintext would claim the key manager answered when
+// it did not, which every decryption downstream would then consume as recorded
+// truth. The Err side is concrete, and it is the true statement: no key manager
+// answered a call the recording never made.
+//
+// Both callers already handle it, which is what makes this safe at the generic
+// seam rather than needing one arm per typed call site. `encrypt_via_api` logs,
+// counts the failure and falls back to application encryption — a real code
+// path, whose own AES nonce is separately seamed — so the request continues on
+// locally-encrypted bytes that differ from the recording's, attributably.
+// `decrypt_via_api` maps it to `CryptoError::DecodingFailed` and the caller's
+// error path runs instead of the process unwinding with no response at all.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -206,6 +214,11 @@ where
             "endpoint": endpoint,
             "request": request_body.wire_image(),
         }),
+        on_miss = Err(errors::KeyManagerClientError::RequestNotSent(format!(
+            "deja: no recorded key manager response for {endpoint} (occurrence {})",
+            __deja_miss.occurrence,
+        ))
+        .into()),
     )
 )]
 pub async fn call_encryption_service<T, R>(
