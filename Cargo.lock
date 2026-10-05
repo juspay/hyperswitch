@@ -3586,21 +3586,19 @@ dependencies = [
  "hyperswitch_interfaces",
  "hyperswitch_masking",
  "lettre",
+ "oci_kms",
  "once_cell",
  "open-feature",
  "prost 0.14.3",
  "prost-reflect",
  "prost-types 0.14.3",
  "quick-xml",
- "rand 0.8.5",
  "reqwest 0.11.27",
  "router_env",
- "rsa",
  "rust-grpc-client",
  "serde",
  "serde_json",
  "serde_urlencoded",
- "sha2",
  "superposition_provider",
  "superposition_sdk",
  "superposition_types",
@@ -6486,6 +6484,25 @@ dependencies = [
  "sha2",
  "thiserror 1.0.69",
  "url 2.5.4",
+]
+
+[[package]]
+name = "oci_kms"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "rand 0.8.5",
+ "reqwest 0.12.7",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "time 0.3.41",
+ "tokio 1.48.0",
+ "tracing",
+ "url 2.5.4",
+ "zeroize",
 ]
 
 [[package]]

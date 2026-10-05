@@ -84,7 +84,7 @@ pub mod consts {
     pub(crate) const DEFAULT_UCS_TCP_KEEPALIVE_SECS: u64 = 60;
 
     /// General purpose base64 engine
-    #[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "oci_kms"))]
+    #[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
         base64::engine::general_purpose::STANDARD;
 

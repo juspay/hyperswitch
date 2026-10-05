@@ -6,8 +6,6 @@
 //! the only one this backend needs since Encrypt/Decrypt are both POSTs.
 
 use base64::Engine;
-use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
 use rsa::{
     pkcs1v15::SigningKey,
     sha2::{Digest, Sha256},
@@ -15,7 +13,7 @@ use rsa::{
     RsaPrivateKey,
 };
 
-use super::core::OciKmsError;
+use crate::{environment::Environment, error::OciKmsError};
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -23,6 +21,11 @@ const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_pu
 /// `headers` field — matches Oracle's POST-signing example verbatim.
 const SIGNED_HEADERS: &str =
     "date (request-target) host content-length content-type x-content-sha256";
+
+/// RFC 7231 IMF-fixdate, the form OCI requires in the signed `date` header.
+const HTTP_DATE_FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
+    "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT"
+);
 
 /// Header values to attach to a signed request. `x_content_sha256` must be sent as a
 /// literal header too, not just folded into the signature — OCI independently checks
@@ -37,15 +40,14 @@ pub(crate) struct SignedHeaders {
 /// (`ST$<session-token>` for Workload Identity). `path` includes any query string;
 /// `host` is the request's Host header value (no scheme).
 pub(crate) fn sign_post_request(
+    environment: &dyn Environment,
     key_id: &str,
     private_key: &RsaPrivateKey,
     host: &str,
     path: &str,
     body: &[u8],
-) -> CustomResult<SignedHeaders, OciKmsError> {
-    let date = common_utils::date_time::now_rfc7231_http_date()
-        .change_context(OciKmsError::SigningFailed)
-        .attach_printable("Failed to format the request date")?;
+) -> Result<SignedHeaders, OciKmsError> {
+    let date = http_date(environment.now_unix_timestamp())?;
 
     Ok(sign_post_request_at(
         date,
@@ -55,6 +57,13 @@ pub(crate) fn sign_post_request(
         path,
         body,
     ))
+}
+
+fn http_date(unix_timestamp: i64) -> Result<String, OciKmsError> {
+    time::OffsetDateTime::from_unix_timestamp(unix_timestamp)
+        .map_err(|error| OciKmsError::SigningFailed(format!("invalid clock reading: {error}")))?
+        .format(HTTP_DATE_FORMAT)
+        .map_err(|error| OciKmsError::SigningFailed(format!("failed to format the date: {error}")))
 }
 
 /// [`sign_post_request`] with the `date` header value supplied, so output is reproducible.
@@ -186,5 +195,14 @@ mod tests {
             &signature,
         );
         assert!(verified.is_err());
+    }
+
+    #[test]
+    fn http_date_is_rfc_7231_in_gmt() {
+        // 2014-01-02 09:05:07 UTC, a Thursday.
+        assert_eq!(
+            http_date(1_388_653_507).expect("valid timestamp"),
+            "Thu, 02 Jan 2014 09:05:07 GMT"
+        );
     }
 }

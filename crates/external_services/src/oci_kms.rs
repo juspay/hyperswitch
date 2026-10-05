@@ -1,9 +1,4 @@
-//! Interactions with the OCI Vault KMS crypto endpoint
+//! OCI Vault KMS backend, built on the shared `oci_kms` client crate
 
-mod config_file;
 pub mod core;
-mod credentials;
 pub mod implementers;
-mod signing;
-mod transport;
-mod workload_identity;

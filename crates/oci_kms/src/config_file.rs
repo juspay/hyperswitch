@@ -8,13 +8,11 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use common_utils::errors::CustomResult;
-use error_stack::{report, ResultExt};
 use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey};
 
-use super::{
-    core::OciKmsError,
+use crate::{
     credentials::{soft_expiry, OciCredentials},
+    error::OciKmsError,
 };
 
 const CONFIG_PATH_VAR: &str = "OCI_CLI_CONFIG_FILE";
@@ -22,22 +20,22 @@ const PROFILE_VAR: &str = "OCI_CLI_PROFILE";
 const DEFAULT_CONFIG_PATH: &str = "~/.oci/config";
 const DEFAULT_PROFILE: &str = "DEFAULT";
 
-pub(super) fn credentials() -> CustomResult<OciCredentials, OciKmsError> {
+pub(crate) fn credentials() -> Result<OciCredentials, OciKmsError> {
     let config_path =
         std::env::var(CONFIG_PATH_VAR).unwrap_or_else(|_| DEFAULT_CONFIG_PATH.to_owned());
     let profile_name = std::env::var(PROFILE_VAR).unwrap_or_else(|_| DEFAULT_PROFILE.to_owned());
 
-    let config = std::fs::read_to_string(expand_home(&config_path))
-        .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable_lazy(|| {
-            format!(
-                "Not running in Kubernetes, and no OCI config file at {config_path}. Run `oci session authenticate`, or set {CONFIG_PATH_VAR}"
-            )
-        })?;
+    let config = std::fs::read_to_string(expand_home(&config_path)).map_err(|error| {
+        OciKmsError::CredentialsUnavailable(format!(
+            "not running in Kubernetes, and no OCI config file at {config_path} ({error}); run `oci session authenticate`, or set {CONFIG_PATH_VAR}"
+        ))
+    })?;
 
-    let profile = parse_profile(&config, &profile_name)
-        .ok_or_else(|| report!(OciKmsError::CredentialsUnavailable))
-        .attach_printable_lazy(|| format!("No profile named [{profile_name}] in {config_path}"))?;
+    let profile = parse_profile(&config, &profile_name).ok_or_else(|| {
+        OciKmsError::CredentialsUnavailable(format!(
+            "no profile named [{profile_name}] in {config_path}"
+        ))
+    })?;
 
     let private_key = load_private_key(required(&profile, "key_file")?)?;
 
@@ -57,8 +55,11 @@ pub(super) fn credentials() -> CustomResult<OciCredentials, OciKmsError> {
         None => {
             let token_path = required(&profile, "security_token_file")?;
             let token = std::fs::read_to_string(expand_home(token_path))
-                .change_context(OciKmsError::CredentialsUnavailable)
-                .attach_printable("Failed to read the OCI session token file")?
+                .map_err(|error| {
+                    OciKmsError::CredentialsUnavailable(format!(
+                        "failed to read the OCI session token file: {error}"
+                    ))
+                })?
                 .trim()
                 .to_owned();
 
@@ -99,24 +100,27 @@ fn parse_profile(config: &str, profile_name: &str) -> Option<HashMap<String, Str
 fn required<'a>(
     profile: &'a HashMap<String, String>,
     key: &'static str,
-) -> CustomResult<&'a str, OciKmsError> {
-    profile
-        .get(key)
-        .map(String::as_str)
-        .ok_or_else(|| report!(OciKmsError::CredentialsUnavailable))
-        .attach_printable_lazy(|| format!("OCI config profile is missing `{key}`"))
+) -> Result<&'a str, OciKmsError> {
+    profile.get(key).map(String::as_str).ok_or_else(|| {
+        OciKmsError::CredentialsUnavailable(format!("OCI config profile is missing `{key}`"))
+    })
 }
 
-fn load_private_key(path: &str) -> CustomResult<rsa::RsaPrivateKey, OciKmsError> {
-    let contents = std::fs::read_to_string(expand_home(path))
-        .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable_lazy(|| format!("Failed to read the OCI private key at {path}"))?;
+fn load_private_key(path: &str) -> Result<rsa::RsaPrivateKey, OciKmsError> {
+    let contents = std::fs::read_to_string(expand_home(path)).map_err(|error| {
+        OciKmsError::CredentialsUnavailable(format!(
+            "failed to read the OCI private key at {path}: {error}"
+        ))
+    })?;
     let pem = pem_block(&contents);
 
     rsa::RsaPrivateKey::from_pkcs8_pem(&pem)
         .or_else(|_| rsa::RsaPrivateKey::from_pkcs1_pem(&pem))
-        .change_context(OciKmsError::CredentialsUnavailable)
-        .attach_printable_lazy(|| format!("Failed to parse the OCI private key at {path}"))
+        .map_err(|error| {
+            OciKmsError::CredentialsUnavailable(format!(
+                "failed to parse the OCI private key at {path}: {error}"
+            ))
+        })
 }
 
 /// The `oci` CLI appends an `OCI_API_KEY` label line after the PEM footer, which strict

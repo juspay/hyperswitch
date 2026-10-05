@@ -1,122 +1,30 @@
-//! Interactions with the OCI Vault KMS crypto endpoint
+//! Hyperswitch adapter over the shared [`oci_kms`](::oci_kms) client.
+//!
+//! The client itself (authentication, request signing, timeouts and retries) lives in the
+//! standalone `oci_kms` crate so other services can share it. This adapter routes its clock
+//! and entropy reads through `common_utils`, and adds Hyperswitch's logging and metrics.
 
 use std::{sync::Arc, time::Instant};
 
-use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
+pub use oci_kms::OciKmsConfig;
 use router_env::logger;
-use serde::{Deserialize, Serialize};
 
-use super::{
-    credentials::CredentialCache,
-    signing,
-    transport::{self, AttemptError},
-};
-use crate::{consts, metrics};
+use crate::metrics;
 
-/// Configuration parameters required for constructing an [`OciKmsClient`].
-#[derive(Clone, Debug, Default, serde::Deserialize)]
-#[serde(default)]
-pub struct OciKmsConfig {
-    /// The vault's crypto endpoint (e.g. `https://<vault>-crypto.kms.<region>.oci.oraclecloud.com`),
-    /// obtained once when the vault is created; doesn't change afterward.
-    pub vault_crypto_endpoint: String,
-
-    /// The full OCID of the KMS key used to encrypt/decrypt data.
-    pub key_id: String,
-}
-
-impl OciKmsConfig {
-    /// Verifies that the [`OciKmsClient`] configuration is usable.
-    pub fn validate(&self) -> Result<(), &'static str> {
-        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
-
-        when(self.vault_crypto_endpoint.is_default_or_empty(), || {
-            Err("OCI KMS vault crypto endpoint must not be empty")
-        })?;
-
-        when(self.key_id.is_default_or_empty(), || {
-            Err("OCI KMS key ID must not be empty")
-        })
-    }
-}
-
-#[derive(Serialize)]
-struct EncryptDataDetails<'a> {
-    #[serde(rename = "keyId")]
-    key_id: &'a str,
-    plaintext: String,
-    #[serde(rename = "encryptionAlgorithm")]
-    encryption_algorithm: &'static str,
-}
-
-#[derive(Serialize)]
-struct DecryptDataDetails<'a> {
-    #[serde(rename = "keyId")]
-    key_id: &'a str,
-    ciphertext: &'a str,
-    #[serde(rename = "encryptionAlgorithm")]
-    encryption_algorithm: &'static str,
-}
-
-#[derive(Deserialize)]
-struct EncryptedData {
-    ciphertext: String,
-}
-
-#[derive(Deserialize)]
-struct DecryptedData {
-    plaintext: String,
-}
-
-const ENCRYPTION_ALGORITHM: &str = "AES_256_GCM";
-
-/// Client for OCI Vault KMS crypto operations; see `workload_identity` for auth.
-#[derive(Clone)]
+/// Client for OCI Vault KMS crypto operations.
+#[derive(Clone, Debug)]
 pub struct OciKmsClient {
-    http_client: reqwest::Client,
-    vault_crypto_endpoint: String,
-    host: String,
-    key_id: String,
-    credentials: Arc<CredentialCache>,
-}
-
-impl std::fmt::Debug for OciKmsClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("OciKmsClient")
-            .field("vault_crypto_endpoint", &self.vault_crypto_endpoint)
-            .field("key_id", &self.key_id)
-            .finish()
-    }
+    inner: oci_kms::OciKmsClient,
 }
 
 impl OciKmsClient {
     /// Constructs a new client; credentials are resolved lazily per call, not eagerly.
     pub async fn new(config: &OciKmsConfig) -> CustomResult<Self, OciKmsError> {
-        let host = url::Url::parse(&config.vault_crypto_endpoint)
-            .change_context(OciKmsError::ClientCreationFailed)
-            .attach_printable("Invalid OCI KMS vault crypto endpoint URL")?
-            .host_str()
-            .ok_or_else(|| report!(OciKmsError::ClientCreationFailed))
-            .attach_printable("OCI KMS vault crypto endpoint URL has no host")?
-            .to_owned();
-
-        let http_client = transport::client_builder()
-            .build()
-            .change_context(OciKmsError::ClientCreationFailed)
-            .attach_printable("Failed to build the OCI KMS HTTP client")?;
-
-        Ok(Self {
-            http_client,
-            vault_crypto_endpoint: config
-                .vault_crypto_endpoint
-                .trim_end_matches('/')
-                .to_owned(),
-            host,
-            key_id: config.key_id.clone(),
-            credentials: Arc::new(CredentialCache::default()),
-        })
+        let inner = oci_kms::OciKmsClient::with_environment(config, Arc::new(CommonUtilsSeams))
+            .map_err(|error| report!(error).change_context(OciKmsError::ClientCreationFailed))?;
+        Ok(Self { inner })
     }
 
     /// Decrypts base64-encoded ciphertext via OCI Vault KMS.
@@ -126,24 +34,11 @@ impl OciKmsClient {
             .change_context(OciKmsError::Utf8DecodingFailed)
             .attach_printable("Ciphertext input is not valid UTF-8")?;
 
-        let request = DecryptDataDetails {
-            key_id: &self.key_id,
-            ciphertext,
-            encryption_algorithm: ENCRYPTION_ALGORITHM,
-        };
-
-        let response: DecryptedData = self
-            .call("/20180608/decrypt", &request)
-            .await
-            .inspect_err(|error| {
-                logger::error!(oci_kms_error=?error, "Failed to OCI KMS decrypt data");
-                metrics::OCI_KMS_DECRYPTION_FAILURES.add(1, &[]);
-            })
-            .change_context(OciKmsError::DecryptionFailed)?;
-
-        let plaintext = consts::BASE64_ENGINE
-            .decode(response.plaintext)
-            .change_context(OciKmsError::Base64DecodingFailed)?;
+        let plaintext = self.inner.decrypt(ciphertext).await.map_err(|error| {
+            logger::error!(oci_kms_error = %error, "Failed to OCI KMS decrypt data");
+            metrics::OCI_KMS_DECRYPTION_FAILURES.add(1, &[]);
+            report!(error).change_context(OciKmsError::DecryptionFailed)
+        })?;
         let output =
             String::from_utf8(plaintext).change_context(OciKmsError::Utf8DecodingFailed)?;
 
@@ -155,109 +50,41 @@ impl OciKmsClient {
     /// Encrypts data via OCI Vault KMS, returning base64-encoded ciphertext.
     pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, OciKmsError> {
         let start = Instant::now();
-        let plaintext = consts::BASE64_ENGINE.encode(data.as_ref());
 
-        let request = EncryptDataDetails {
-            key_id: &self.key_id,
-            plaintext,
-            encryption_algorithm: ENCRYPTION_ALGORITHM,
-        };
-
-        let response: EncryptedData = self
-            .call("/20180608/encrypt", &request)
-            .await
-            .inspect_err(|error| {
-                logger::error!(oci_kms_error=?error, "Failed to OCI KMS encrypt data");
-                metrics::OCI_KMS_ENCRYPTION_FAILURES.add(1, &[]);
-            })
-            .change_context(OciKmsError::EncryptionFailed)?;
+        let ciphertext = self.inner.encrypt(data.as_ref()).await.map_err(|error| {
+            logger::error!(oci_kms_error = %error, "Failed to OCI KMS encrypt data");
+            metrics::OCI_KMS_ENCRYPTION_FAILURES.add(1, &[]);
+            report!(error).change_context(OciKmsError::EncryptionFailed)
+        })?;
 
         metrics::OCI_KMS_ENCRYPT_TIME.record(start.elapsed().as_secs_f64(), &[]);
 
-        Ok(response.ciphertext)
+        Ok(ciphertext)
+    }
+}
+
+/// Routes the client's clock and entropy reads through `common_utils`, so `deja` can replay
+/// them.
+#[derive(Debug)]
+struct CommonUtilsSeams;
+
+impl oci_kms::Environment for CommonUtilsSeams {
+    fn now_unix_timestamp(&self) -> i64 {
+        common_utils::date_time::now_unix_timestamp()
     }
 
-    async fn call<Request, Response>(
-        &self,
-        path: &str,
-        request: &Request,
-    ) -> CustomResult<Response, OciKmsError>
-    where
-        Request: Serialize,
-        Response: serde::de::DeserializeOwned,
-    {
-        let body = serde_json::to_vec(request)
-            .change_context(OciKmsError::SerializationFailed)
-            .attach_printable("Failed to serialize OCI KMS request body")?;
-
-        let response_body =
-            transport::with_retries("oci_kms_crypto", || self.send_once(path, &body)).await?;
-
-        serde_json::from_str(&response_body)
-            .change_context(OciKmsError::RequestFailed)
-            .attach_printable("Failed to parse OCI KMS response body")
+    fn random_f64_unit(&self) -> f64 {
+        common_utils::generate_random_f64_unit()
     }
 
-    /// One signed attempt. Signed afresh on every call, since the signature covers `date`.
-    async fn send_once(&self, path: &str, body: &[u8]) -> Result<String, AttemptError> {
-        // Credential resolution retries on its own; a failure surfacing here is final.
-        let credentials = self
-            .credentials
-            .current()
-            .await
-            .map_err(AttemptError::Fatal)?;
-
-        let signed = signing::sign_post_request(
-            &credentials.key_id,
-            &credentials.private_key,
-            &self.host,
-            path,
-            body,
-        )
-        .map_err(AttemptError::Fatal)?;
-
-        let response = self
-            .http_client
-            .post(format!("{}{path}", self.vault_crypto_endpoint))
-            .header("date", signed.date)
-            .header("authorization", signed.authorization)
-            .header("content-type", "application/json")
-            .header("x-content-sha256", signed.x_content_sha256)
-            .body(body.to_vec())
-            .send()
-            .await
-            .change_context(OciKmsError::RequestFailed)
-            .attach_printable("Failed to send OCI KMS request")
-            .map_err(AttemptError::Retryable)?;
-
-        let status = response.status();
-        let response_body = response
-            .text()
-            .await
-            .change_context(OciKmsError::RequestFailed)
-            .attach_printable("Failed to read OCI KMS response body")
-            .map_err(AttemptError::Retryable)?;
-
-        if !status.is_success() {
-            return Err(AttemptError::from_status(
-                status,
-                report!(OciKmsError::RequestFailed).attach_printable(format!(
-                    "OCI KMS request failed with status {status}: {response_body}"
-                )),
-            ));
-        }
-
-        Ok(response_body)
+    fn random_bytes(&self, len: usize) -> Vec<u8> {
+        common_utils::generate_random_bytes(len)
     }
 }
 
 /// Errors that could occur during OCI Vault KMS operations.
 #[derive(Debug, thiserror::Error)]
 pub enum OciKmsError {
-    /// An error occurred when base64 decoding input data.
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-
     /// An error occurred UTF-8 decoding input or output data.
     #[error("Failed UTF-8 decode of OCI KMS input/output data")]
     Utf8DecodingFailed,
@@ -270,23 +97,6 @@ pub enum OciKmsError {
     #[error("Failed to OCI KMS encrypt input data")]
     EncryptionFailed,
 
-    /// Constructing the OCI Signature v1 `Authorization` header failed.
-    #[error("Failed to sign OCI KMS request")]
-    SigningFailed,
-
-    /// Signing credentials couldn't be obtained, from OKE Workload Identity inside
-    /// Kubernetes or from the `oci` CLI config file outside it.
-    #[error("OCI signing credentials unavailable")]
-    CredentialsUnavailable,
-
-    /// The crypto-endpoint request body couldn't be serialized.
-    #[error("Failed to serialize OCI KMS request")]
-    SerializationFailed,
-
-    /// The crypto-endpoint request failed, returned a non-success status, or its response body couldn't be parsed.
-    #[error("OCI KMS request failed")]
-    RequestFailed,
-
     /// Failed while creating the OCI KMS client.
     #[error("Failed to create OCI KMS client")]
     ClientCreationFailed,
@@ -294,180 +104,34 @@ pub enum OciKmsError {
 
 #[cfg(test)]
 mod tests {
+    use hyperswitch_interfaces::secrets_interface::SecretManagementInterface;
+    use hyperswitch_masking::{PeekInterface, Secret};
+
     use super::*;
 
-    fn config() -> OciKmsConfig {
-        OciKmsConfig {
-            vault_crypto_endpoint: "https://abc-crypto.kms.ap-mumbai-1.oraclecloud.com".to_string(),
-            key_id: "ocid1.key.oc1.ap-mumbai-1.test".to_string(),
-        }
+    fn env(name: &str) -> String {
+        std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set for live tests"))
     }
 
-    #[test]
-    fn validate_succeeds_when_all_fields_are_set() {
-        assert!(config().validate().is_ok());
-    }
-
-    #[test]
-    fn validate_fails_when_vault_crypto_endpoint_is_empty() {
-        let config = OciKmsConfig {
-            vault_crypto_endpoint: String::new(),
-            ..config()
-        };
-        assert!(config.validate().is_err());
-    }
-
-    #[test]
-    fn validate_fails_when_key_id_is_empty() {
-        let config = OciKmsConfig {
-            key_id: String::new(),
-            ..config()
-        };
-        assert!(config.validate().is_err());
-    }
-
+    /// The call Hyperswitch makes at startup for every secret in its config, through this
+    /// adapter and its `common_utils` seams. Skipped by default; the `oci_kms` crate's `live`
+    /// tests document the environment variables.
     #[tokio::test]
-    async fn new_extracts_host_and_trims_trailing_slash() {
+    #[ignore = "calls a real OCI Vault"]
+    async fn get_secret_decrypts_a_config_secret() {
         let client = OciKmsClient::new(&OciKmsConfig {
-            vault_crypto_endpoint: "https://abc-crypto.kms.ap-mumbai-1.oraclecloud.com/"
-                .to_string(),
-            ..config()
+            vault_crypto_endpoint: env("OCI_KMS_TEST_CRYPTO_ENDPOINT"),
+            key_id: env("OCI_KMS_TEST_KEY_ID"),
         })
         .await
-        .expect("client should build from a valid endpoint");
+        .expect("client builds");
 
-        assert_eq!(client.host, "abc-crypto.kms.ap-mumbai-1.oraclecloud.com");
-        assert_eq!(
-            client.vault_crypto_endpoint,
-            "https://abc-crypto.kms.ap-mumbai-1.oraclecloud.com"
-        );
-    }
-
-    #[tokio::test]
-    async fn new_rejects_an_invalid_endpoint() {
-        let result = OciKmsClient::new(&OciKmsConfig {
-            vault_crypto_endpoint: "not a url".to_string(),
-            ..config()
-        })
-        .await;
-        assert!(result.is_err());
-    }
-
-    /// Tests against a real OCI Vault. Skipped by default; run with:
-    ///
-    /// ```text
-    /// OCI_KMS_TEST_CRYPTO_ENDPOINT=https://<vault>-crypto.kms.<region>.oci.oraclecloud.com \
-    /// OCI_KMS_TEST_KEY_ID=ocid1.key.oc1... \
-    /// OCI_KMS_TEST_CLI_CIPHERTEXT=<output of `oci kms crypto encrypt`> \
-    /// OCI_KMS_TEST_CLI_PLAINTEXT=<the plaintext that was encrypted> \
-    /// cargo test -p external_services --features oci_kms,v1 --lib oci_kms::core::tests::live -- --ignored
-    /// ```
-    ///
-    /// Outside Kubernetes, credentials come from `~/.oci/config` (`OCI_CLI_PROFILE` to pick one).
-    mod live {
-        use std::time::Instant;
-
-        use hyperswitch_interfaces::secrets_interface::SecretManagementInterface;
-        use hyperswitch_masking::{PeekInterface, Secret};
-
-        use super::*;
-
-        fn env(name: &str) -> String {
-            std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set for live tests"))
-        }
-
-        fn live_config() -> OciKmsConfig {
-            OciKmsConfig {
-                vault_crypto_endpoint: env("OCI_KMS_TEST_CRYPTO_ENDPOINT"),
-                key_id: env("OCI_KMS_TEST_KEY_ID"),
-            }
-        }
-
-        async fn live_client() -> OciKmsClient {
-            OciKmsClient::new(&live_config())
-                .await
-                .expect("client should build from the live config")
-        }
-
-        #[tokio::test]
-        #[ignore = "calls a real OCI Vault"]
-        async fn encrypt_then_decrypt_round_trips() {
-            let client = live_client().await;
-
-            let ciphertext = client.encrypt("s3cr3t!").await.expect("encrypt succeeds");
-            assert_ne!(ciphertext, "s3cr3t!");
-            // Printed so the OCI CLI can confirm it decrypts our ciphertext too.
-            println!("OCI_KMS_LIVE_CIPHERTEXT={ciphertext}");
-
-            let plaintext = client.decrypt(&ciphertext).await.expect("decrypt succeeds");
-            assert_eq!(plaintext, "s3cr3t!");
-        }
-
-        #[tokio::test]
-        #[ignore = "calls a real OCI Vault"]
-        async fn decrypts_ciphertext_made_by_the_oci_cli() {
-            let plaintext = live_client()
-                .await
-                .decrypt(env("OCI_KMS_TEST_CLI_CIPHERTEXT"))
-                .await
-                .expect("decrypt succeeds");
-            assert_eq!(plaintext, env("OCI_KMS_TEST_CLI_PLAINTEXT"));
-        }
-
-        /// The call Hyperswitch makes at startup for every secret in its config.
-        #[tokio::test]
-        #[ignore = "calls a real OCI Vault"]
-        async fn get_secret_decrypts_a_config_secret() {
-            let client = live_client().await;
-            let secret = SecretManagementInterface::get_secret(
-                &client,
-                Secret::new(env("OCI_KMS_TEST_CLI_CIPHERTEXT")),
-            )
-            .await
-            .expect("get_secret succeeds");
-            assert_eq!(secret.peek(), &env("OCI_KMS_TEST_CLI_PLAINTEXT"));
-        }
-
-        #[tokio::test]
-        #[ignore = "calls a real OCI Vault"]
-        async fn decrypt_with_a_nonexistent_key_fails_without_retrying() {
-            let mut config = live_config();
-            config.key_id = format!("{}x", config.key_id);
-            let client = OciKmsClient::new(&config).await.expect("client builds");
-
-            let start = Instant::now();
-            let result = client.decrypt(env("OCI_KMS_TEST_CLI_CIPHERTEXT")).await;
-
-            assert!(result.is_err());
-            println!("nonexistent key failed after {:?}", start.elapsed());
-        }
-
-        #[tokio::test]
-        #[ignore = "needs OCI credentials; takes ~25s"]
-        async fn unreachable_endpoint_times_out_and_retries() {
-            let client = OciKmsClient::new(&OciKmsConfig {
-                // TEST-NET-1 (RFC 5737): guaranteed unroutable, so every connect times out.
-                vault_crypto_endpoint: "https://192.0.2.1".to_string(),
-                key_id: env("OCI_KMS_TEST_KEY_ID"),
-            })
-            .await
-            .expect("client builds");
-
-            let start = Instant::now();
-            let result = client.decrypt("ignored").await;
-            let elapsed = start.elapsed();
-
-            assert!(result.is_err());
-            // Four attempts, each bounded by the 5s connect timeout.
-            assert!(
-                elapsed >= std::time::Duration::from_secs(15),
-                "expected retries, failed after {elapsed:?}"
-            );
-            assert!(
-                elapsed <= std::time::Duration::from_secs(40),
-                "expected timeouts, took {elapsed:?}"
-            );
-            println!("unreachable endpoint failed after {elapsed:?}");
-        }
+        let secret = SecretManagementInterface::get_secret(
+            &client,
+            Secret::new(env("OCI_KMS_TEST_CLI_CIPHERTEXT")),
+        )
+        .await
+        .expect("get_secret succeeds");
+        assert_eq!(secret.peek(), &env("OCI_KMS_TEST_CLI_PLAINTEXT"));
     }
 }

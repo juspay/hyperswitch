@@ -6,10 +6,7 @@
 
 use std::{future::Future, time::Duration};
 
-use error_stack::Report;
-use router_env::logger;
-
-use super::core::OciKmsError;
+use crate::{environment::Environment, error::OciKmsError};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -19,27 +16,37 @@ const BASE_BACKOFF: Duration = Duration::from_millis(250);
 const MAX_BACKOFF: Duration = Duration::from_secs(5);
 
 /// A `reqwest` client builder with this backend's connect and request timeouts applied.
-pub(super) fn client_builder() -> reqwest::ClientBuilder {
+pub(crate) fn client_builder() -> reqwest::ClientBuilder {
     reqwest::Client::builder()
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
 }
 
+/// A fresh `opc-request-id`: 32 lowercase hex characters, which OCI echoes in its logs and
+/// error responses so a failed call can be traced.
+pub(crate) fn request_id(environment: &dyn Environment) -> String {
+    environment
+        .random_bytes(16)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
 /// Why a single attempt failed, and whether trying again could help.
-pub(super) enum AttemptError {
+pub(crate) enum AttemptError {
     /// Transport failure, timeout, throttling or a server-side error.
-    Retryable(Report<OciKmsError>),
+    Retryable(OciKmsError),
     /// Bad request, auth failure, or anything else a retry would only repeat.
-    Fatal(Report<OciKmsError>),
+    Fatal(OciKmsError),
 }
 
 impl AttemptError {
     /// Classifies a non-success HTTP response.
-    pub(super) fn from_status(status: reqwest::StatusCode, report: Report<OciKmsError>) -> Self {
+    pub(crate) fn from_status(status: reqwest::StatusCode, error: OciKmsError) -> Self {
         if is_retryable_status(status) {
-            Self::Retryable(report)
+            Self::Retryable(error)
         } else {
-            Self::Fatal(report)
+            Self::Fatal(error)
         }
     }
 }
@@ -51,10 +58,11 @@ fn is_retryable_status(status: reqwest::StatusCode) -> bool {
 /// Runs `attempt` up to [`MAX_ATTEMPTS`] times, backing off between retryable failures.
 /// Each call to `attempt` must build its request afresh: OCI signatures cover the `date`
 /// header, so a replayed request would be rejected.
-pub(super) async fn with_retries<T, F, Fut>(
+pub(crate) async fn with_retries<T, F, Fut>(
+    environment: &dyn Environment,
     operation: &'static str,
     mut attempt: F,
-) -> Result<T, Report<OciKmsError>>
+) -> Result<T, OciKmsError>
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = Result<T, AttemptError>>,
@@ -64,12 +72,12 @@ where
         match attempt().await {
             Ok(value) => return Ok(value),
             Err(AttemptError::Retryable(error)) if attempt_number < MAX_ATTEMPTS => {
-                let delay = backoff(attempt_number);
-                logger::warn!(
+                let delay = backoff(environment, attempt_number);
+                tracing::warn!(
                     operation,
                     attempt = attempt_number,
                     ?delay,
-                    ?error,
+                    %error,
                     "Retrying OCI request"
                 );
                 tokio::time::sleep(delay).await;
@@ -82,8 +90,8 @@ where
 
 /// Exponential backoff with full jitter: uniform over `[0, min(MAX, BASE * 2^(n-1))]`, so
 /// pods started together by a scale-up don't retry in lockstep.
-fn backoff(attempt_number: u32) -> Duration {
-    backoff_ceiling(attempt_number).mul_f64(common_utils::generate_random_f64_unit())
+fn backoff(environment: &dyn Environment, attempt_number: u32) -> Duration {
+    backoff_ceiling(attempt_number).mul_f64(environment.random_f64_unit())
 }
 
 fn backoff_ceiling(attempt_number: u32) -> Duration {
@@ -96,9 +104,21 @@ fn backoff_ceiling(attempt_number: u32) -> Duration {
 mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    use error_stack::report;
-
     use super::*;
+    use crate::environment::SystemEnvironment;
+
+    fn failure() -> OciKmsError {
+        OciKmsError::RequestFailed("test".to_owned())
+    }
+
+    #[test]
+    fn request_id_is_32_hex_characters() {
+        let id = request_id(&SystemEnvironment);
+        assert_eq!(id.len(), 32);
+        assert!(id
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    }
 
     #[test]
     fn throttling_and_server_errors_are_retryable() {
@@ -131,16 +151,16 @@ mod tests {
     #[test]
     fn backoff_stays_within_ceiling() {
         for attempt_number in 1..=MAX_ATTEMPTS {
-            assert!(backoff(attempt_number) <= backoff_ceiling(attempt_number));
+            assert!(backoff(&SystemEnvironment, attempt_number) <= backoff_ceiling(attempt_number));
         }
     }
 
     #[tokio::test]
     async fn retryable_failures_are_retried_until_success() {
         let attempts = AtomicU32::new(0);
-        let result = with_retries("test", || async {
+        let result = with_retries(&SystemEnvironment, "test", || async {
             if attempts.fetch_add(1, Ordering::SeqCst) < 2 {
-                Err(AttemptError::Retryable(report!(OciKmsError::RequestFailed)))
+                Err(AttemptError::Retryable(failure()))
             } else {
                 Ok("ok")
             }
@@ -154,9 +174,9 @@ mod tests {
     #[tokio::test]
     async fn fatal_failures_are_not_retried() {
         let attempts = AtomicU32::new(0);
-        let result: Result<(), _> = with_retries("test", || async {
+        let result: Result<(), _> = with_retries(&SystemEnvironment, "test", || async {
             attempts.fetch_add(1, Ordering::SeqCst);
-            Err(AttemptError::Fatal(report!(OciKmsError::RequestFailed)))
+            Err(AttemptError::Fatal(failure()))
         })
         .await;
 
@@ -167,9 +187,9 @@ mod tests {
     #[tokio::test]
     async fn retries_stop_after_max_attempts() {
         let attempts = AtomicU32::new(0);
-        let result: Result<(), _> = with_retries("test", || async {
+        let result: Result<(), _> = with_retries(&SystemEnvironment, "test", || async {
             attempts.fetch_add(1, Ordering::SeqCst);
-            Err(AttemptError::Retryable(report!(OciKmsError::RequestFailed)))
+            Err(AttemptError::Retryable(failure()))
         })
         .await;
 
