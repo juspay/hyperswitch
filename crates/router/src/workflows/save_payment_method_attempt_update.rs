@@ -112,9 +112,14 @@ async fn reconcile(
         .await
     {
         Ok(_) => Ok(Outcome::Updated),
-        // PaymentMethodDetailsUpdate is an atomic compare-and-set: a not-found result after the
-        // preceding read means another writer populated payment_method_id first.
-        Err(err) if err.current_context().is_db_not_found() => Ok(Outcome::AlreadySet),
+        // PaymentMethodDetailsUpdate is an atomic compare-and-set. Postgres reports a missing row
+        // and Redis reports a duplicate when another writer populated payment_method_id first.
+        Err(err)
+            if err.current_context().is_db_not_found()
+                || err.current_context().is_db_unique_violation() =>
+        {
+            Ok(Outcome::AlreadySet)
+        }
         Err(err) => Err(err)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment attempt with payment_method_id"),

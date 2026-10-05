@@ -99,12 +99,15 @@ const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_ENQUEUE_RETRY_DELAY: std::time::Duratio
 const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TASK: &str = "SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE";
 #[cfg(feature = "v1")]
 const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TAG: &str = "SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE";
+#[cfg(feature = "v1")]
+const SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TASK_ID_SUFFIX_LENGTH: usize = 16;
 
 #[cfg(feature = "v1")]
 fn save_payment_method_attempt_update_process_id(
     attempt_id: &str,
     payment_id: &common_utils::id_type::PaymentId,
     processor_merchant_id: &common_utils::id_type::MerchantId,
+    suffix: &str,
 ) -> String {
     let mut hasher = blake3::Hasher::new();
     for value in [
@@ -116,7 +119,8 @@ fn save_payment_method_attempt_update_process_id(
         hasher.update(value.as_bytes());
     }
 
-    format!("spm_attempt_update_{}", hasher.finalize().to_hex())
+    let digest = hasher.finalize().to_hex();
+    format!("spm_attempt_update_{}_{}", &digest[..32], suffix)
 }
 
 /// Enqueues a `ProcessTracker` retry for the `payment_attempt.payment_method_id` DB write that
@@ -134,13 +138,17 @@ async fn enqueue_save_payment_method_attempt_update_task(
     let runner = storage::ProcessTrackerRunner::SavePaymentMethodAttemptUpdateWorkflow;
     let task = SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TASK;
     let tag = [SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TAG];
-    // The process_tracker primary key is varchar(127), while the component IDs may each be 64
-    // characters. Hash all parts into a deterministic, bounded id so duplicate enqueue attempts
-    // remain idempotent without exceeding the column limit.
+    // Finished process-tracker rows are retained, so each independent repair request needs a new
+    // id. Generate the suffix once and reuse the same entry for all insert retries: a duplicate
+    // then only means this invocation's earlier insert committed despite an ambiguous response.
+    let process_tracker_id_suffix = common_utils::generate_id_with_len(
+        SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_TASK_ID_SUFFIX_LENGTH,
+    );
     let process_tracker_id = save_payment_method_attempt_update_process_id(
         &attempt_id,
         &payment_id,
         &processor_merchant_id,
+        &process_tracker_id_suffix,
     );
     let schedule_time = common_utils::date_time::now();
 
@@ -176,8 +184,8 @@ async fn enqueue_save_payment_method_attempt_update_task(
             .await
         {
             Ok(_) => return Ok(()),
-            // A prior attempt may have committed even if its response was lost. The deterministic
-            // process id makes a duplicate-key response equivalent to success.
+            // The same randomly suffixed id is reused only within this invocation, so a duplicate
+            // means a prior retry committed even if its response was lost.
             Err(err) if err.current_context().is_db_unique_violation() => return Ok(()),
             Err(err) => {
                 last_error = Some(err);

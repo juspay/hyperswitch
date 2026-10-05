@@ -1014,6 +1014,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
+                let payment_method_id_must_be_null = matches!(
+                    &payment_attempt,
+                    PaymentAttemptUpdate::PaymentMethodDetailsUpdate { .. }
+                );
                 let key_str = key.to_string();
                 let old_connector_transaction_id = &this.get_connector_payment_id();
                 let old_preprocessing_id = &this.preprocessing_step_id;
@@ -1111,15 +1115,41 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .change_context(errors::StorageError::KVError)
                     .attach_printable("Failed to generate payment attempt update query")?;
 
-                Box::pin(kv_wrapper::<(), _, _>(
-                    self,
-                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), drainer_query),
-                    key,
-                ))
-                .await
-                .change_context(errors::StorageError::KVError)?
-                .try_into_hset()
-                .change_context(errors::StorageError::KVError)?;
+                if payment_method_id_must_be_null {
+                    let was_updated = Box::pin(kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::HsetIfJsonFieldNull::<DieselPaymentAttempt>(
+                            (&field, redis_value, "payment_method_id"),
+                            drainer_query,
+                        ),
+                        key,
+                    ))
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hsetifjsonfieldnull()
+                    .change_context(errors::StorageError::KVError)?;
+
+                    if !was_updated {
+                        return Err(errors::StorageError::DuplicateValue {
+                            entity: "payment_attempt.payment_method_id",
+                            key: Some(this.attempt_id.clone()),
+                        }
+                        .into());
+                    }
+                } else {
+                    Box::pin(kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<DieselPaymentAttempt>(
+                            (&field, redis_value),
+                            drainer_query,
+                        ),
+                        key,
+                    ))
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
+                    .change_context(errors::StorageError::KVError)?;
+                }
 
                 Ok(updated_attempt)
             }
