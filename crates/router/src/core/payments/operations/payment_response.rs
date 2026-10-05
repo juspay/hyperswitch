@@ -1291,7 +1291,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.connector_returned_payment_method_details.as_ref(),
         );
 
-        update_payment_method_status_ntid_and_additional_data(
+        Box::pin(update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
             payment_data,
@@ -1304,7 +1304,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data.payment_attempt.merchant_connector_id.clone(),
             platform,
             business_profile,
-        )
+        ))
         .await?;
         Ok(())
     }
@@ -2375,7 +2375,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
         )?;
 
-        update_payment_method_status_ntid_and_additional_data(
+        Box::pin(update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
             payment_data,
@@ -2388,7 +2388,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             None,
             platform,
             _business_profile,
-        )
+        ))
         .await?;
         Ok(())
     }
