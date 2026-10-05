@@ -25024,6 +25024,14 @@
               }
             ],
             "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
           }
         }
       },
