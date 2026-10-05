@@ -4468,16 +4468,17 @@ pub async fn list_saved_payment_methods_for_customer(
             message: "Invalid customer ID supplied in the request path".to_string(),
         },
     )?;
-    let merchant_customer_ref_id = customers::should_use_merchant_reference_id_as_customer_id(
-        &state,
-        &provider,
-        api_key_type,
-        &request_customer_id,
-    )
-    .await
-    .then_some(request_customer_id);
+    let merchant_customer_reference_id =
+        customers::should_use_merchant_reference_id_as_customer_id(
+            &state,
+            &provider,
+            api_key_type,
+            &request_customer_id,
+        )
+        .await
+        .then_some(request_customer_id);
 
-    let customer_id = if let Some(merchant_reference_id) = merchant_customer_ref_id.as_ref() {
+    let customer_id = if let Some(merchant_reference_id) = merchant_customer_reference_id.as_ref() {
         let customer = state
             .store
             .find_customer_by_merchant_reference_id_merchant_id(
@@ -4493,12 +4494,14 @@ pub async fn list_saved_payment_methods_for_customer(
         customer_id
     };
 
-    let mut customer_payment_methods =
-        list_payment_methods_core(&state, &provider, &customer_id, include_new).await?;
-
-    for payment_method in &mut customer_payment_methods.customer_payment_methods {
-        payment_method.merchant_customer_ref_id = merchant_customer_ref_id.clone();
-    }
+    let customer_payment_methods = list_payment_methods_core(
+        &state,
+        &provider,
+        &customer_id,
+        merchant_customer_reference_id,
+        include_new,
+    )
+    .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -5931,6 +5934,7 @@ pub async fn list_payment_methods_core(
     state: &SessionState,
     provider: &domain::Provider,
     customer_id: &id_type::GlobalCustomerId,
+    merchant_customer_reference_id: Option<id_type::CustomerId>,
     include_new: bool,
 ) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -5972,6 +5976,7 @@ pub async fn list_payment_methods_core(
             payment_methods::PaymentMethodResponseItem::foreign_try_from((
                 pm,
                 default_payment_method_id.clone(),
+                merchant_customer_reference_id.clone(),
             ))
         })
         .collect::<Result<Vec<payment_methods::PaymentMethodResponseItem>, _>>()
