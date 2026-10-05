@@ -92,6 +92,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .and_then(|value| value.as_str().map(ToString::to_string))
         }
         Self {
+            stripe: None,
             checkout: checkout
                 .as_ref()
                 .map(|data| payments_grpc::CheckoutAdditionalInformation {
@@ -535,6 +536,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            browser_info: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -2827,6 +2829,11 @@ impl
 
         Ok(Self {
             test_mode: router_data.test_mode,
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
@@ -4630,6 +4637,7 @@ impl
             ),
             token_exp_month: Some(wallet_token_data.token_exp_month.expose().into()),
             token_exp_year: Some(wallet_token_data.token_exp_year.expose().into()),
+            card_network: None,
             card_holder_name: wallet_token_data
                 .card_holder_name
                 .map(|name| name.expose().into()),
@@ -8622,6 +8630,11 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
+            payout_connector_metadata: router_data
+                .request
+                .payout_connector_metadata
+                .clone()
+                .map(|secret| Secret::new(secret.expose().to_string())),
             payout_method_data,
             connector_quote_id: router_data.quote_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
@@ -8826,6 +8839,18 @@ impl
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|billing_descriptor| payments_grpc::BillingDescriptor {
+                    name: None,
+                    city: None,
+                    phone: None,
+                    statement_descriptor: billing_descriptor.statement_descriptor.clone(),
+                    statement_descriptor_suffix: None,
+                    reference: billing_descriptor.reference.clone(),
+                }),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             connector_eligibility_reference_id: router_data
                 .request
@@ -8913,10 +8938,16 @@ impl
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
+            payout_method_data: router_data
+                .payout_method_data
+                .as_ref()
+                .map(payments_grpc::PayoutMethod::foreign_try_from)
+                .transpose()?,
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             browser_info,
+            test_mode: router_data.test_mode,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
@@ -8934,15 +8965,20 @@ fn convert_payout_vendor_account_details_to_grpc(
 
     payments_grpc::PayoutVendorAccountDetails {
         vendor_details: Some(payments_grpc::VendorDetails {
-            account_type: Some(vendor_details.account_type.clone()),
-            business_profile_mcc: vendor_details
+            account_type: match vendor_details.account_type.as_str() {
+                "custom" => Some(payments_grpc::payout_enums::PayoutAccountType::Custom as i32),
+                "express" => Some(payments_grpc::payout_enums::PayoutAccountType::Express as i32),
+                "standard" => Some(payments_grpc::payout_enums::PayoutAccountType::Standard as i32),
+                _ => None,
+            },
+            vendor_category_code: vendor_details
                 .business_profile_mcc
                 .map(|mcc| mcc.to_string()),
-            business_profile_url: vendor_details
+            vendor_url: vendor_details
                 .business_profile_url
                 .as_ref()
                 .map(|url| url.clone().into()),
-            business_profile_name: vendor_details
+            vendor_name: vendor_details
                 .business_profile_name
                 .as_ref()
                 .map(|name| name.peek().to_string().into()),
@@ -8950,10 +8986,14 @@ fn convert_payout_vendor_account_details_to_grpc(
                 .business_profile_name
                 .as_ref()
                 .map(|name| name.peek().to_string().into()),
-            company_owners_provided: vendor_details.company_owners_provided,
-            business_type: Some(vendor_details.business_type.clone()),
-            capabilities_card_payments: vendor_details.capabilities_card_payments,
-            capabilities_transfers: vendor_details.capabilities_transfers,
+            owners_provided: vendor_details.company_owners_provided,
+            vendor_type: match vendor_details.business_type.as_str() {
+                "company" => Some(payments_grpc::BankHolderType::Business as i32),
+                "individual" => Some(payments_grpc::BankHolderType::Personal as i32),
+                _ => None,
+            },
+            card_payments_enabled: vendor_details.capabilities_card_payments,
+            transfers_enabled: vendor_details.capabilities_transfers,
         }),
         individual_details: Some(payments_grpc::IndividualDetails {
             first_name,
@@ -8967,25 +9007,28 @@ fn convert_payout_vendor_account_details_to_grpc(
                 .individual_id_number
                 .as_ref()
                 .map(|id_number| id_number.peek().to_string().into()),
-            dob_day: individual_details
-                .individual_dob_day
-                .as_ref()
-                .map(|day| day.peek().to_string().into()),
-            dob_month: individual_details
-                .individual_dob_month
-                .as_ref()
-                .map(|month| month.peek().to_string().into()),
-            dob_year: individual_details
-                .individual_dob_year
-                .as_ref()
-                .map(|year| year.peek().to_string().into()),
+            date_of_birth: match (
+                individual_details.individual_dob_year.as_ref(),
+                individual_details.individual_dob_month.as_ref(),
+                individual_details.individual_dob_day.as_ref(),
+            ) {
+                (Some(year), Some(month), Some(day)) => Some(
+                    format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek()).into(),
+                ),
+                _ => None,
+            },
             tos_acceptance_ip: individual_details
                 .tos_acceptance_ip
                 .as_ref()
                 .map(|ip| ip.peek().to_string().into()),
-            external_account_account_holder_type: individual_details
+            external_account_account_holder_type: match individual_details
                 .external_account_account_holder_type
-                .clone(),
+                .as_deref()
+            {
+                Some("individual") => Some(payments_grpc::BankHolderType::Personal as i32),
+                Some("company") => Some(payments_grpc::BankHolderType::Business as i32),
+                _ => None,
+            },
             tos_acceptance_date: individual_details.tos_acceptance_date,
         }),
     }
@@ -9174,12 +9217,11 @@ impl
             address,
             payout_method_data,
             amount: Some(money),
-            customer: Some(customer),
+            customer: Some(payments_grpc::Customer {
+                connector_customer_id: router_data.connector_customer.clone(),
+                ..customer
+            }),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            connector_payout_id: router_data
-                .connector_customer
-                .clone()
-                .or_else(|| router_data.request.connector_payout_id.clone()),
             vendor_account_details,
             destination_currency: Some(destination_currency.into()),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
@@ -9210,10 +9252,7 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            connector_payout_method_id: router_data
-                .connector_customer
-                .clone()
-                .or_else(|| router_data.request.connector_transfer_method_id.clone()),
+            payout_method_type: None,
             customer: Some(payments_grpc::Customer {
                 connector_customer_id: router_data.connector_customer.clone(),
                 ..router_data
