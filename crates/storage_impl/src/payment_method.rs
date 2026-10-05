@@ -1,10 +1,10 @@
 #[cfg(feature = "v1")]
-use diesel_models::errors::DatabaseError;
-#[cfg(feature = "v1")]
 use std::collections::HashSet;
 
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type};
+#[cfg(feature = "v1")]
+use diesel_models::errors::DatabaseError;
 pub use diesel_models::payment_method::PaymentMethod;
 use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
 use error_stack::ResultExt;
