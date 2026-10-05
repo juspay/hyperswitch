@@ -4,6 +4,55 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.02.0.fix1
+
+### Features
+
+- **metrics:** Squash storage and pool instrumentation ([#13963](https://github.com/juspay/hyperswitch/pull/13963)) ([`75a0c1c`](https://github.com/juspay/hyperswitch/commit/75a0c1ca03e852a6d8ead26425806b75e3dc448a))
+- **payment-methods:** Squash merchant-scoped batched fingerprinting ([`4d52276`](https://github.com/juspay/hyperswitch/commit/4d52276e03acbfba62e9a8f70c244698b309c93b))
+- **payments:**
+  - Gate detached modular PM updates with Superposition ([`45973c1`](https://github.com/juspay/hyperswitch/commit/45973c1fa945241ba99313a7e2b3265ee090ba13))
+  - Preserve PM update detachment flag for benchmarking ([`31dd2fc`](https://github.com/juspay/hyperswitch/commit/31dd2fccccd5972d52fd0e9fc0ee9469d5b1f780))
+
+### Bug Fixes
+
+- **db:** Squash RDS failover recovery and configurable TCP settings ([#13629](https://github.com/juspay/hyperswitch/pull/13629)) ([`2046a77`](https://github.com/juspay/hyperswitch/commit/2046a775bcc6e9f8db39e7df0d3efe26a09c6ad2))
+- **encryption:** Squash local encryption prefix collision fix ([#14561](https://github.com/juspay/hyperswitch/pull/14561)) ([`9f6621e`](https://github.com/juspay/hyperswitch/commit/9f6621eb39c89120acf8288d2782fc7fe2d8d435))
+- **logging:** Prevent tracing subscriber re-entrancy deadlocks ([`fe8d1e4`](https://github.com/juspay/hyperswitch/commit/fe8d1e44426e854c0a31ff50b61a8897755d8c61))
+- **payment-methods:**
+  - Avoid 5xx during session confirm ([`f14d9d7`](https://github.com/juspay/hyperswitch/commit/f14d9d747ae10174e66745c4a89f395e0ecc9ff7))
+  - Squash PtV vault reliability with batched fingerprints ([#14568](https://github.com/juspay/hyperswitch/pull/14568)) ([`e60e74d`](https://github.com/juspay/hyperswitch/commit/e60e74df92f05cb472b3d6dd759de7f11fb29fde))
+- **storage:** Defer database connection acquisition ([`ab8b0ae`](https://github.com/juspay/hyperswitch/commit/ab8b0aee251f89b08bc79482a168b57bb2c01573))
+- Store payment_method_id in payment attempt only after PM promotion for PtV ([`25e41f2`](https://github.com/juspay/hyperswitch/commit/25e41f23d41201bbff8a299679d8be3cbe19ba94))
+
+### Performance
+
+- **cache:** Squash Redis TTL jitter and cache population coordination ([`c5434ec`](https://github.com/juspay/hyperswitch/commit/c5434ecf30f70b1c6cf89e618af341b8baebc297))
+
+### Refactors
+
+- **metrics:**
+  - Squash finer DB and Redis histogram buckets ([#14569](https://github.com/juspay/hyperswitch/pull/14569)) ([`06bdca4`](https://github.com/juspay/hyperswitch/commit/06bdca47ef34ccff49ed0a35e2059a584437756b))
+  - Use refined histogram buckets only for API latency ([`7fa5bb4`](https://github.com/juspay/hyperswitch/commit/7fa5bb4dca5a78d45d2060e90905711560787157))
+- Remove redundant changes ([`5b658fb`](https://github.com/juspay/hyperswitch/commit/5b658fba7c8319228fe8419d387cfb09707cf9c4))
+- Remove redundant params ([`dabe2b5`](https://github.com/juspay/hyperswitch/commit/dabe2b5a8c266f48e1cab93104303a7abeaabcca))
+
+### Testing
+
+- **config:** Allow StripeTest off-session card mandates ([`5094566`](https://github.com/juspay/hyperswitch/commit/5094566198b210fe00a23b1d11e64f85c061d46f))
+
+### Miscellaneous Tasks
+
+- Fix clippy and use batched fp by default ([`9443013`](https://github.com/juspay/hyperswitch/commit/9443013d8c1512f621ce05aca30a02d091e85a91))
+
+### Build System / Dependencies
+
+- Pin Deja compatibility revision for Diesel 2.3 ([`58bde19`](https://github.com/juspay/hyperswitch/commit/58bde198faf1b96d94369bd7c9858723788a7e3c))
+
+**Full Changelog:** [`2026.10.02.0...2026.10.02.0.fix1`](https://github.com/juspay/hyperswitch/compare/2026.10.02.0...2026.10.02.0.fix1)
+
+- - -
+
 ## 2026.10.02.0
 
 ### Features
