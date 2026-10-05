@@ -2792,7 +2792,12 @@ fn build_connector_auth_metadata(
                     api_secret: None,
                     auth_key_map: None,
                     merchant_id: Secret::new(merchant_id.to_string()),
-                    connector_config: None,
+                    // The typed `X-Connector-Config` header is independent of auth_type/auth
+                    // credentials (it carries merchant_configuration_id/three_ds_requestor_id/
+                    // three_ds_requestor_name from Netcetera's MCA metadata) — dropping it here
+                    // silently forces UCS onto the legacy-header fallback, which has no slot for
+                    // those fields, causing netcetera to reject the request as missing them.
+                    connector_config,
                 })
             } else {
                 Ok(ConnectorAuthMetadata {
