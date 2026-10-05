@@ -8749,9 +8749,9 @@ impl
             .as_ref()
             .map(payments_grpc::Customer::foreign_try_from)
             .transpose()?
-            .map(|mut customer| {
-                customer.connector_customer_id = router_data.connector_customer.clone();
-                customer
+            .map(|customer| payments_grpc::Customer {
+                connector_customer_id: router_data.connector_customer.clone(),
+                ..customer
             });
 
         let priority = router_data
@@ -8801,10 +8801,7 @@ impl
             destination_currency: destination_currency.into(),
             customer,
             priority,
-            connector_payout_method_id: router_data
-                .connector_customer
-                .clone()
-                .or_else(|| router_data.request.connector_transfer_method_id.clone()),
+            connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             access_token,
@@ -9020,10 +9017,7 @@ impl
                 .priority
                 .map(payments_grpc::payout_enums::PayoutPriority::foreign_from)
                 .map(i32::from),
-            connector_payout_method_id: router_data
-                .connector_customer
-                .clone()
-                .or_else(|| router_data.request.connector_transfer_method_id.clone()),
+            connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             source_bank_data: router_data
@@ -9109,16 +9103,24 @@ impl
 }
 
 #[cfg(feature = "payouts")]
-fn convert_payout_vendor_account_details_to_grpc(
-    vendor_account_details: &api_models::payouts::PayoutVendorAccountDetails,
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
-    phone: Option<Secret<String>>,
-) -> payments_grpc::PayoutVendorAccountDetails {
+fn convert_payout_vendor_account_details_to_grpc<F>(
+    router_data: &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
+) -> Option<payments_grpc::PayoutVendorAccountDetails> {
+    let vendor_account_details = router_data.request.vendor_details.as_ref()?;
     let vendor_details = &vendor_account_details.vendor_details;
     let individual_details = &vendor_account_details.individual_details;
 
-    payments_grpc::PayoutVendorAccountDetails {
+    let billing_details = router_data
+        .address
+        .get_payment_method_billing()
+        .and_then(|billing_address| billing_address.address.as_ref());
+
+    let business_profile_name = vendor_details
+        .business_profile_name
+        .as_ref()
+        .map(|name| name.peek().to_string().into());
+
+    Some(payments_grpc::PayoutVendorAccountDetails {
         vendor_details: Some(payments_grpc::VendorDetails {
             account_type: match vendor_details.account_type.as_str() {
                 "custom" => Some(payments_grpc::payout_enums::PayoutAccountType::Custom as i32),
@@ -9133,14 +9135,8 @@ fn convert_payout_vendor_account_details_to_grpc(
                 .business_profile_url
                 .as_ref()
                 .map(|url| url.clone().into()),
-            vendor_name: vendor_details
-                .business_profile_name
-                .as_ref()
-                .map(|name| name.peek().to_string().into()),
-            statement_descriptor: vendor_details
-                .business_profile_name
-                .as_ref()
-                .map(|name| name.peek().to_string().into()),
+            vendor_name: business_profile_name.clone(),
+            statement_descriptor: business_profile_name,
             owners_provided: vendor_details.company_owners_provided,
             vendor_type: match vendor_details.business_type.as_str() {
                 "company" => Some(payments_grpc::BankHolderType::Business as i32),
@@ -9151,9 +9147,18 @@ fn convert_payout_vendor_account_details_to_grpc(
             transfers_enabled: vendor_details.capabilities_transfers,
         }),
         individual_details: Some(payments_grpc::IndividualDetails {
-            first_name,
-            last_name,
-            phone,
+            first_name: billing_details
+                .and_then(|billing_details| billing_details.first_name.as_ref())
+                .map(|first_name| first_name.peek().to_string().into()),
+            last_name: billing_details
+                .and_then(|billing_details| billing_details.last_name.as_ref())
+                .map(|last_name| last_name.peek().to_string().into()),
+            phone: router_data
+                .request
+                .customer_details
+                .as_ref()
+                .and_then(|customer_details| customer_details.phone.as_ref())
+                .map(|phone| phone.peek().to_string().into()),
             ssn_last_4: individual_details
                 .individual_ssn_last_4
                 .as_ref()
@@ -9186,7 +9191,7 @@ fn convert_payout_vendor_account_details_to_grpc(
             },
             tos_acceptance_date: individual_details.tos_acceptance_date,
         }),
-    }
+    })
 }
 
 #[cfg(feature = "payouts")]
@@ -9236,35 +9241,7 @@ impl
             currency: source_currency.into(),
         };
 
-        let billing_address = router_data.address.get_payment_method_billing();
-        let billing_details = billing_address.and_then(|a| a.address.as_ref());
-
-        let first_name = billing_details
-            .and_then(|d| d.first_name.as_ref())
-            .map(|s| s.peek().to_string().into());
-        let last_name = billing_details
-            .and_then(|d| d.last_name.as_ref())
-            .map(|s| s.peek().to_string().into());
-        let phone = router_data
-            .request
-            .customer_details
-            .as_ref()
-            .and_then(|customer_details| customer_details.phone.as_ref())
-            .map(|p| p.peek().to_string().into());
-
-        let vendor_account_details =
-            router_data
-                .request
-                .vendor_details
-                .as_ref()
-                .map(|vendor_account_details| {
-                    convert_payout_vendor_account_details_to_grpc(
-                        vendor_account_details,
-                        first_name,
-                        last_name,
-                        phone,
-                    )
-                });
+        let vendor_account_details = convert_payout_vendor_account_details_to_grpc(router_data);
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
@@ -9334,35 +9311,7 @@ impl
                 ),
             )?;
 
-        let billing_address = router_data.address.get_payment_method_billing();
-        let billing_details = billing_address.and_then(|a| a.address.as_ref());
-
-        let first_name = billing_details
-            .and_then(|d| d.first_name.as_ref())
-            .map(|s| s.peek().to_string().into());
-        let last_name = billing_details
-            .and_then(|d| d.last_name.as_ref())
-            .map(|s| s.peek().to_string().into());
-        let phone = router_data
-            .request
-            .customer_details
-            .as_ref()
-            .and_then(|customer_details| customer_details.phone.as_ref())
-            .map(|p| p.peek().to_string().into());
-
-        let vendor_account_details =
-            router_data
-                .request
-                .vendor_details
-                .as_ref()
-                .map(|vendor_account_details| {
-                    convert_payout_vendor_account_details_to_grpc(
-                        vendor_account_details,
-                        first_name,
-                        last_name,
-                        phone,
-                    )
-                });
+        let vendor_account_details = convert_payout_vendor_account_details_to_grpc(router_data);
 
         let destination_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.destination_currency)?;
