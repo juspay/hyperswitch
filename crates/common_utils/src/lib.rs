@@ -696,38 +696,20 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
 pub fn generate_id_with_len(length: usize) -> String {
     nanoid::nanoid!(length, &consts::ALPHABETS)
 }
-/// Seconds of idle time before the OS starts sending TCP keepalive probes on a
-/// database connection. Left to the OS this is commonly ~2 hours on Linux, far
-/// too slow to notice a connection silently killed by a managed-Postgres
+/// OS default is ~2 hours, far too slow to notice a connection killed by a managed-Postgres
 /// (Aurora/RDS/AlloyDB) failover.
 pub const DEFAULT_DB_KEEPALIVES_IDLE_SECS: u64 = 5;
 
-/// Seconds between successive TCP keepalive probes when one goes unanswered.
-/// The OS default is ~75s, which would make detection minutes-slow.
+/// OS default is ~75s, which would make detection minutes-slow.
 pub const DEFAULT_DB_KEEPALIVES_INTERVAL_SECS: u64 = 2;
 
-/// Unanswered TCP keepalive probes tolerated before the OS declares a database
-/// connection dead. With the two values above, a connection that dies while
-/// idle is detected in ~idle + interval*count = ~11s instead of hanging
+/// With the two values above, a dead idle connection is detected in ~11s instead of hanging
 /// indefinitely.
 pub const DEFAULT_DB_KEEPALIVES_COUNT: u32 = 3;
 
-/// Milliseconds of unacknowledged *transmitted* data tolerated before the OS
-/// forcibly closes a database connection. This bounds how long a connection
-/// checkout's health-check ping (`bb8`'s `is_valid()`, a `SELECT 1`) can hang
-/// against a peer that went silent without ever sending a TCP RST/FIN --
-/// exactly what managed-Postgres failover does to connections left open
-/// against the old writer. Without this, such a checkout hangs indefinitely,
-/// since that in-flight write is governed by ordinary TCP retransmission
-/// timers rather than the keepalive mechanism above.
-///
-/// Must stay comfortably below the pool's `connection_timeout` (10s by
-/// default): `connection_timeout` wraps the entire checkout, including this
-/// ping. If the outer timeout wins that race, the pool's own "mark connection
-/// invalid" path never runs, and the dead connection is returned to the idle
-/// queue looking healthy. Measured against a real failover with an all-idle
-/// pool: at 10_000ms (equal to `connection_timeout`) one checkout hard-failed
-/// at 10.002s; at 5_000ms there were no failures and recovery was faster.
+/// Bounds how long a checkout's health-check ping can hang against a peer that went silent
+/// without a TCP RST/FIN -- what managed-Postgres failover does. Must stay below
+/// `connection_timeout` (10s), or a hung ping masks the dead connection as healthy.
 pub const DEFAULT_DB_TCP_USER_TIMEOUT_MS: u64 = 5_000;
 
 #[allow(missing_docs)]
