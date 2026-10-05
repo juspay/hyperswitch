@@ -3,7 +3,7 @@
 /// Configuration parameters required for constructing an [`OciKmsClient`](crate::OciKmsClient).
 ///
 /// Holds no credentials: those come from the environment (see the crate docs).
-#[derive(Clone, Debug, Default, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
 #[serde(default)]
 pub struct OciKmsConfig {
     /// The vault's crypto endpoint (e.g. `https://<vault>-crypto.kms.<region>.oci.oraclecloud.com`),
