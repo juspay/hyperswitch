@@ -47,7 +47,7 @@ pub struct PayoutAttempt {
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
     #[serde(default)]
-    pub execution_kind: storage_enums::PayoutExecutionKind,
+    pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 
 #[derive(
@@ -97,7 +97,7 @@ pub struct PayoutAttemptNew {
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
     #[serde(default)]
-    pub execution_kind: storage_enums::PayoutExecutionKind,
+    pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

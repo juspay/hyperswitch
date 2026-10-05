@@ -710,7 +710,7 @@ impl DataModelExt for PayoutAttempt {
             connector_eligibility_reference_id: self.connector_eligibility_reference_id,
             connector_request_reference_id: self.connector_request_reference_id,
             active_frm_id: self.active_frm_id,
-            execution_kind: self.execution_kind,
+            execution_kind: Some(self.execution_kind),
         }
     }
 
@@ -749,7 +749,7 @@ impl DataModelExt for PayoutAttempt {
             connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
             connector_request_reference_id: storage_model.connector_request_reference_id,
             active_frm_id: storage_model.active_frm_id,
-            execution_kind: storage_model.execution_kind,
+            execution_kind: storage_model.execution_kind.unwrap_or_default(),
         }
     }
 }
@@ -789,7 +789,7 @@ impl DataModelExt for PayoutAttemptNew {
             connector_eligibility_reference_id: self.connector_eligibility_reference_id,
             connector_request_reference_id: self.connector_request_reference_id,
             active_frm_id: self.active_frm_id,
-            execution_kind: self.execution_kind,
+            execution_kind: Some(self.execution_kind),
         }
     }
 
@@ -828,7 +828,7 @@ impl DataModelExt for PayoutAttemptNew {
             connector_eligibility_reference_id: storage_model.connector_eligibility_reference_id,
             connector_request_reference_id: storage_model.connector_request_reference_id,
             active_frm_id: storage_model.active_frm_id,
-            execution_kind: storage_model.execution_kind,
+            execution_kind: storage_model.execution_kind.unwrap_or_default(),
         }
     }
 }

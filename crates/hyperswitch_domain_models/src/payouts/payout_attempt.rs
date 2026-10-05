@@ -80,6 +80,7 @@ pub struct PayoutListFilters {
     pub payout_method: Vec<storage_enums::PayoutType>,
 }
 
+#[serde_with::serde_as]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
@@ -116,6 +117,7 @@ pub struct PayoutAttempt {
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
     #[serde(default)]
+    #[serde_as(as = "serde_with::DefaultOnNull")]
     pub execution_kind: storage_enums::PayoutExecutionKind,
 }
 
