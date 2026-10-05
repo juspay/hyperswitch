@@ -432,12 +432,29 @@ pub async fn perform_execute_payment(
                 )
                 .await;
 
+            // Same dimensions calculate resolves the flag on
+            let ab_enabled = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_organization_id(payment_intent.organization_id.clone())
+                .with_profile_id(payment_intent.profile_id.clone())
+                .get_revenue_recovery_ab_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            // Calculate schedules the invoice's own token on both the A/B and adaptive paths, and
+            // hands the invoice to the decider only when neither is on.
+            let smart_retry_uses_invoice_token = ab_enabled || adaptive_retry_enabled;
+
             let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
                 state,
                 &connector_customer_id,
                 tracking_data.revenue_recovery_retry,
                 last_token_used.as_deref(),
-                adaptive_retry_enabled,
+                smart_retry_uses_invoice_token,
             )
             .await
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
