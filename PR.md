@@ -18,7 +18,7 @@ Fixes [#13972](https://github.com/juspay/hyperswitch/issues/13972), whose commen
 
 ## How did you test it?
 
-Not run yet. This change only updates a test comment; the local environment currently has no Rust toolchain installed.
+`cargo test -p scheduler --features v1,storage_impl/accounts_cache,external_services/v1 test_pcr_retry_ladder_leaves_thirteen_retries_to_us_ending_on_day_twenty_eight` passed (1 test). `git diff --check` also passed. This change only updates a test comment.
 
 ## Checklist
 
