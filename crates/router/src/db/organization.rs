@@ -3,7 +3,7 @@ use diesel_models::{organization as storage, organization::OrganizationBridge};
 use error_stack::report;
 use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
+use storage_impl::redis::cache::{self, CacheKind};
 
 use crate::{connection, core::errors, services::Store};
 
@@ -63,7 +63,7 @@ impl OrganizationInterface for Store {
                 self,
                 org_id.get_string_repr(),
                 find_call,
-                &ACCOUNTS_CACHE,
+                cache::CacheId::Accounts,
             )
             .await
         }

@@ -104,7 +104,7 @@ mod merchant_connector_account_cache_tests {
     use storage_impl::{
         behaviour::Conversion,
         redis::{
-            cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
+            cache::{self, CacheInterface, CacheKey, CacheKind},
             kv_store::RedisConnInterface,
             pub_sub::PubSubInterface,
         },
@@ -161,7 +161,7 @@ mod merchant_connector_account_cache_tests {
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
         redis_conn
-            .subscribe("hyperswitch_invalidate")
+            .subscribe(&db.caches().invalidation_channel, Arc::clone(&db.caches))
             .await
             .unwrap();
 
@@ -280,7 +280,7 @@ mod merchant_connector_account_cache_tests {
                 profile_id.get_string_repr(),
             ),
             find_call,
-            &ACCOUNTS_CACHE,
+            cache::CacheId::Accounts,
         )
         .await
         .unwrap();
@@ -306,7 +306,9 @@ mod merchant_connector_account_cache_tests {
         .await
         .unwrap();
 
-        assert!(ACCOUNTS_CACHE
+        assert!(db
+            .caches()
+            .accounts
             .get_val::<domain::MerchantConnectorAccount>(CacheKey {
                 key: format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 prefix: String::default(),
@@ -346,7 +348,7 @@ mod merchant_connector_account_cache_tests {
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
         redis_conn
-            .subscribe("hyperswitch_invalidate")
+            .subscribe(&db.caches().invalidation_channel, Arc::clone(&db.caches))
             .await
             .unwrap();
 
@@ -459,7 +461,7 @@ mod merchant_connector_account_cache_tests {
                 profile_id.get_string_repr()
             ),
             find_call,
-            &ACCOUNTS_CACHE,
+            cache::CacheId::Accounts,
         )
         .await
         .unwrap();
@@ -476,7 +478,9 @@ mod merchant_connector_account_cache_tests {
         .await
         .unwrap();
 
-        assert!(ACCOUNTS_CACHE
+        assert!(db
+            .caches()
+            .accounts
             .get_val::<domain::MerchantConnectorAccount>(CacheKey {
                 key: format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 prefix: String::default(),

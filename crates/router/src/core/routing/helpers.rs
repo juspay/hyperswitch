@@ -219,7 +219,7 @@ pub async fn update_merchant_active_algorithm_ref(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
-    cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [config_key])
+    cache::redact_from_redis_and_publish(db, [config_key])
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate the config cache")?;
@@ -278,7 +278,7 @@ pub async fn update_profile_active_algorithm_ref(
             .into(),
         );
 
-        cache::redact_from_redis_and_publish(db.get_cache_store().as_ref(), [routing_cache_key])
+        cache::redact_from_redis_and_publish(db, [routing_cache_key])
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to invalidate routing cache")?;
@@ -680,7 +680,10 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
         state: &SessionState,
         key: &str,
     ) -> Option<Arc<Self>> {
-        cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+        state
+            .store
+            .caches()
+            .success_based_dynamic_algorithm
             .get_val::<Arc<Self>>(cache::CacheKey {
                 key: key.to_string(),
                 prefix: state.tenant.redis_key_prefix.clone(),
@@ -699,10 +702,10 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
         cache::get_or_populate_in_memory(
-            state.store.get_cache_store().as_ref(),
+            &*state.store,
             key,
             func,
-            &cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE,
+            cache::CacheId::SuccessBasedDynamicAlgorithm,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -717,7 +720,10 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
         state: &SessionState,
         key: &str,
     ) -> Option<Arc<Self>> {
-        cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+        state
+            .store
+            .caches()
+            .contract_based_dynamic_algorithm
             .get_val::<Arc<Self>>(cache::CacheKey {
                 key: key.to_string(),
                 prefix: state.tenant.redis_key_prefix.clone(),
@@ -736,10 +742,10 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
         cache::get_or_populate_in_memory(
-            state.store.get_cache_store().as_ref(),
+            &*state.store,
             key,
             func,
-            &cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE,
+            cache::CacheId::ContractBasedDynamicAlgorithm,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -754,7 +760,10 @@ impl DynamicRoutingCache for routing_types::EliminationRoutingConfig {
         state: &SessionState,
         key: &str,
     ) -> Option<Arc<Self>> {
-        cache::ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+        state
+            .store
+            .caches()
+            .elimination_based_dynamic_algorithm
             .get_val::<Arc<Self>>(cache::CacheKey {
                 key: key.to_string(),
                 prefix: state.tenant.redis_key_prefix.clone(),
@@ -773,10 +782,10 @@ impl DynamicRoutingCache for routing_types::EliminationRoutingConfig {
         Fut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>> + Send,
     {
         cache::get_or_populate_in_memory(
-            state.store.get_cache_store().as_ref(),
+            &*state.store,
             key,
             func,
-            &cache::ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE,
+            cache::CacheId::EliminationBasedDynamicAlgorithm,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1987,7 +1996,7 @@ pub async fn disable_dynamic_routing_algorithm(
 
     // redact cache for dynamic routing config
     let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         cache_entries_to_redact,
     )
     .await
@@ -2916,13 +2925,10 @@ pub async fn redact_cgraph_cache(
 
     let config_payouts_key = cache::CacheKind::CGraph(cgraph_payouts_key.clone().into());
     let config_payments_key = cache::CacheKind::CGraph(cgraph_payments_key.clone().into());
-    cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
-        [config_payouts_key, config_payments_key],
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to invalidate the cgraph cache")?;
+    cache::redact_from_redis_and_publish(&*state.store, [config_payouts_key, config_payments_key])
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate the cgraph cache")?;
 
     Ok(())
 }
@@ -2948,7 +2954,7 @@ pub async fn redact_routing_cache(
     // this key lives in ROUTING_CACHE. (Redis deletion is by key, so only other pods were affected.)
     let routing_payments_cache_key = cache::CacheKind::Routing(routing_payments_key.clone().into());
     cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
+        &*state.store,
         [routing_payouts_cache_key, routing_payments_cache_key],
     )
     .await

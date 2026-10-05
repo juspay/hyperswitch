@@ -9,7 +9,7 @@ use router_env::instrument;
 use crate::{
     errors::StorageError,
     kv_router_store::KVRouterStore,
-    redis::cache::{self, CacheKind, CONFIG_CACHE},
+    redis::cache::{self, CacheKind},
     utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
@@ -93,7 +93,7 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
             self,
             CARD_ISSUERS_LIST_CACHE_KEY,
             fetch_func,
-            &CONFIG_CACHE,
+            cache::CacheId::Config,
         )
         .await
     }

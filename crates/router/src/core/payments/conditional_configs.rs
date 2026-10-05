@@ -3,7 +3,7 @@ use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use euclid::backend::{self, inputs as dsl_inputs, EuclidBackend};
 use router_env::instrument;
-use storage_impl::redis::cache::{self, DECISION_MANAGER_CACHE};
+use storage_impl::redis::cache;
 
 use super::routing::make_dsl_input;
 #[cfg(feature = "v2")]
@@ -49,10 +49,10 @@ pub async fn perform_decision_management(
     };
 
     let interpreter = cache::get_or_populate_in_memory(
-        db.get_cache_store().as_ref(),
+        db,
         &key,
         find_key_from_db,
-        &DECISION_MANAGER_CACHE,
+        cache::CacheId::DecisionManager,
     )
     .await
     .change_context(ConfigError::DslCachePoisoned)?;

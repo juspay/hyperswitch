@@ -1,7 +1,7 @@
 use error_stack::report;
 use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
+use storage_impl::redis::cache::{self, CacheKind};
 
 use super::{MockDb, Store};
 use crate::{
@@ -191,7 +191,7 @@ impl ApiKeyInterface for Store {
                 self,
                 &_hashed_api_key.into_inner(),
                 find_call,
-                &ACCOUNTS_CACHE,
+                cache::CacheId::Accounts,
             )
             .await
         }
@@ -374,11 +374,11 @@ impl ApiKeyInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use std::{borrow::Cow, sync::Arc};
 
     use common_utils::types::keymanager::KeyManagerState;
     use storage_impl::redis::{
-        cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
+        cache::{self, CacheInterface, CacheKey, CacheKind},
         kv_store::RedisConnInterface,
         pub_sub::PubSubInterface,
     };
@@ -501,7 +501,7 @@ mod tests {
 
         let redis_conn = db.get_redis_conn().unwrap();
         redis_conn
-            .subscribe("hyperswitch_invalidate")
+            .subscribe(&db.caches().invalidation_channel, Arc::clone(&db.caches))
             .await
             .unwrap();
 
@@ -534,7 +534,7 @@ mod tests {
                 hashed_api_key.clone().into_inner()
             ),
             find_call,
-            &ACCOUNTS_CACHE,
+            cache::CacheId::Accounts,
         )
         .await
         .unwrap();
@@ -556,7 +556,9 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(ACCOUNTS_CACHE
+        assert!(db
+            .caches()
+            .accounts
             .get_val::<storage::ApiKey>(CacheKey {
                 key: format!(
                     "{}_{}",

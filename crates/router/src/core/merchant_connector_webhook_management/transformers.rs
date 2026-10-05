@@ -59,8 +59,8 @@ pub async fn construct_webhook_register_router_data(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_webhook_register_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_webhook_register_router_data(
+    state: &SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<ConnectorWebhookRegisterRouterData> {
@@ -122,6 +122,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -143,8 +144,8 @@ pub async fn construct_webhook_register_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_generate_secret_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_generate_secret_router_data(
+    state: &SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_id: String,
 ) -> RouterResult<ConnectorWebhookGenerateSecretRouterData> {
@@ -203,6 +204,7 @@ pub async fn construct_generate_secret_router_data<'a>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,

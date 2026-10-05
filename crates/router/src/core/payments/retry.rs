@@ -41,7 +41,7 @@ fn accumulate_external_latency(total: Option<u128>, attempt: Option<u128>) -> Op
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
-pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
+pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,

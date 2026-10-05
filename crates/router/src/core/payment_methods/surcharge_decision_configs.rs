@@ -17,7 +17,7 @@ use euclid::{
 };
 use router_env::{instrument, logger};
 use serde::{Deserialize, Serialize};
-use storage_impl::redis::cache::{self, SURCHARGE_CACHE};
+use storage_impl::redis::cache;
 
 use crate::{
     core::{
@@ -510,15 +510,11 @@ pub async fn ensure_algorithm_cached(
             .change_context(errors::StorageError::ValueNotFound("Program".to_string()))
             .attach_printable("Error initializing DSL interpreter backend")
     };
-    let interpreter = cache::get_or_populate_in_memory(
-        store.get_cache_store().as_ref(),
-        &key,
-        value_to_cache,
-        &SURCHARGE_CACHE,
-    )
-    .await
-    .change_context(ConfigError::CacheMiss)
-    .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
+    let interpreter =
+        cache::get_or_populate_in_memory(store, &key, value_to_cache, cache::CacheId::Surcharge)
+            .await
+            .change_context(ConfigError::CacheMiss)
+            .attach_printable("Unable to retrieve cached routing algorithm even after refresh")?;
     Ok(interpreter)
 }
 

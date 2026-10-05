@@ -15,10 +15,10 @@ use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{
     cache,
-    cache::{CacheKind, ACCOUNTS_CACHE},
+    cache::{CacheId, CacheInterface, CacheKind},
+    kv_store::RedisConnInterface,
 };
 #[cfg(feature = "accounts_cache")]
-use crate::RedisConnInterface;
 use crate::{
     behaviour::{Conversion, ForeignFrom, ForeignInto, ReverseConversion},
     kv_router_store,
@@ -208,7 +208,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                 self,
                 merchant_id.get_string_repr(),
                 fetch_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             )
             .await?
             .convert(
@@ -308,7 +308,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                 self,
                 publishable_key,
                 fetch_by_pub_key_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             )
             .await?;
         }
@@ -806,10 +806,13 @@ impl MerchantAccountInterface for MockDb {
 }
 
 #[cfg(feature = "accounts_cache")]
-async fn publish_and_redact_merchant_account_cache(
-    store: &(dyn RedisConnInterface + Send + Sync),
+async fn publish_and_redact_merchant_account_cache<S>(
+    store: &S,
     merchant_account: &storage::MerchantAccount,
-) -> CustomResult<(), StorageError> {
+) -> CustomResult<(), StorageError>
+where
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
+{
     let publishable_key = merchant_account
         .publishable_key
         .as_ref()
@@ -843,10 +846,13 @@ async fn publish_and_redact_merchant_account_cache(
 }
 
 #[cfg(feature = "accounts_cache")]
-async fn publish_and_redact_all_merchant_account_cache(
-    cache: &(dyn RedisConnInterface + Send + Sync),
+async fn publish_and_redact_all_merchant_account_cache<S>(
+    cache: &S,
     merchant_accounts: &[storage::MerchantAccount],
-) -> CustomResult<(), StorageError> {
+) -> CustomResult<(), StorageError>
+where
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
+{
     let merchant_ids = merchant_accounts
         .iter()
         .map(|merchant_account| merchant_account.get_id().get_string_repr().to_string());

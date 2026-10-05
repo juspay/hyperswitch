@@ -80,6 +80,7 @@ use crate::{
             revenue_recovery as pcr_storage_types,
             revenue_recovery_redis_operation::PaymentProcessorTokenDetails,
         },
+        transformers::ForeignFrom,
     },
 };
 use crate::{routes::SessionState, types::storage};
@@ -645,6 +646,10 @@ pub enum PaymentProcessorTokenResponse {
     /// The configured retry ladder has no slot left for this invoice
     RetriesExhausted,
 
+    /// The invoice is past the end of its recovery grace window, so there is no legitimate time
+    /// left to retry at — whatever retry budget remains.
+    GraceWindowExpired,
+
     /// No retry info available / nothing to do yet
     None,
 }
@@ -726,6 +731,123 @@ async fn get_adaptive_retry_allowances(
     Ok((remaining_grace_days, remaining_budget))
 }
 
+/// The adaptive model's retry time for an invoice, or `None` when the model cannot be consulted.
+#[cfg(feature = "v2")]
+async fn get_adaptive_retry_time_for_error_code(
+    state: &SessionState,
+    algorithm: common_enums::RevenueRecoveryABAlgorithm,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    remaining_grace_days: u32,
+    remaining_budget: u32,
+) -> Option<time::PrimitiveDateTime> {
+    let Some(error_code) = prev_attempt_error_code else {
+        crate::routes::metrics::REVENUE_RECOVERY_AB_MISSING_ERROR_CODE.add(
+            1,
+            router_env::metric_attributes!(("algorithm", algorithm.to_string())),
+        );
+        return None;
+    };
+
+    compute_adaptive_retry_time(state, error_code, remaining_grace_days, remaining_budget)
+        .await
+        .map(common_utils::date_time::convert_to_pdt)
+}
+
+/// Picks the retry time for an invoice enrolled in A/B routing, then finds a token for it.
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+async fn get_token_with_schedule_time_for_ab_routing(
+    state: &SessionState,
+    connector_customer_id: &str,
+    payment_intent: &PaymentIntent,
+    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
+    remaining_grace_days: u32,
+    remaining_budget: u32,
+    // Both needed only to assign an implementation to an invoice that arrives without one
+    revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
+    ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+    let algorithm = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
+        .and_then(|revenue_recovery_metadata| {
+            revenue_recovery_metadata.revenue_recovery_ab_routing
+        });
+
+    logger::info!(
+        payment_id = %payment_intent.id.get_string_repr(),
+        ?algorithm,
+        "A/B routing read the retry implementation assigned to this invoice"
+    );
+
+    let schedule_time = match algorithm {
+        Some(assigned_algorithm @ common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry) => {
+            let adaptive_time = get_adaptive_retry_time_for_error_code(
+                state,
+                assigned_algorithm,
+                tracking_data.prev_attempt_error_code,
+                remaining_grace_days,
+                remaining_budget,
+            )
+            .await;
+
+            logger::info!(
+                error_code = ?tracking_data.prev_attempt_error_code,
+                remaining_grace_days = remaining_grace_days,
+                remaining_budget = remaining_budget,
+                schedule_time = ?adaptive_time,
+                "Adaptive retry decision"
+            );
+
+            adaptive_time
+        }
+        None => {
+            crate::routes::metrics::REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM.add(1, &[]);
+
+            let assigned_algorithm = pcr::assign_and_record_ab_routing(
+                state,
+                &payment_intent.id,
+                payment_intent
+                    .feature_metadata
+                    .as_ref()
+                    .map(api_models::payments::FeatureMetadata::foreign_from),
+                revenue_recovery_payment_data,
+                ab_dimensions,
+            )
+            .await;
+
+            get_adaptive_retry_time_for_error_code(
+                state,
+                assigned_algorithm,
+                tracking_data.prev_attempt_error_code,
+                remaining_grace_days,
+                remaining_budget,
+            )
+            .await
+        }
+    };
+
+    let schedule_time = schedule_time.ok_or_else(|| {
+        logger::error!(
+            payment_id = %payment_intent.id.get_string_repr(),
+            ?algorithm,
+            error_code = ?tracking_data.prev_attempt_error_code,
+            "No retry time available — the assigned algorithm produced none and this path has no \
+             ladder to fall back on"
+        );
+        errors::ProcessTrackerError::EApiErrorResponse
+    })?;
+
+    get_token_availability_for_schedule_time(
+        state,
+        connector_customer_id,
+        payment_intent,
+        schedule_time,
+    )
+    .await
+}
+
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -738,6 +860,12 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
     max_retry_count: u16,
+    // Needed only to resolve the A/B gate
+    provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
+    remaining_grace_days: u32,
+    remaining_budget: u32,
+    // Needed only to assign an implementation to an invoice that arrives without one
+    revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
 ) -> CustomResult<
     (
         PaymentProcessorTokenResponse,
@@ -796,7 +924,33 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 )
                 .await;
 
-            if adaptive_retry_enabled {
+            let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(provider_merchant_id)
+                .with_organization_id(payment_intent.organization_id.clone())
+                .with_profile_id(payment_intent.profile_id.clone());
+
+            let ab_enabled = ab_dimensions
+                .get_revenue_recovery_ab_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            if ab_enabled {
+                payment_processor_token_response = get_token_with_schedule_time_for_ab_routing(
+                    state,
+                    connector_customer_id,
+                    payment_intent,
+                    tracking_data,
+                    remaining_grace_days,
+                    remaining_budget,
+                    revenue_recovery_payment_data,
+                    &ab_dimensions,
+                )
+                .await?;
+            } else if adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on
                 // the token. The only additions are the adaptive candidate and the choice
                 // between the two.
@@ -938,6 +1092,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
         PaymentProcessorTokenResponse::RetriesExhausted => {
             logger::debug!("Retry ladder exhausted");
+        }
+
+        PaymentProcessorTokenResponse::GraceWindowExpired => {
+            logger::debug!("Grace window expired");
         }
 
         PaymentProcessorTokenResponse::None => {
