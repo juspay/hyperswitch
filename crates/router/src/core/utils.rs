@@ -900,6 +900,22 @@ pub fn get_split_refunds(
                 (_, _) => (None, None),
             };
 
+            // Destination charges are created on the platform account, so a refund issued
+            // against the payment intent already reaches the right account with no split refund
+            // data; only direct charges need it, because only they carry the `Stripe-Account`
+            // header. Keeping the old `None` for destination also keeps the merchant-facing
+            // validation below off a path that used to work without `split_refunds`.
+            if charge_id_option.is_none()
+                && !matches!(
+                    stripe_payment.charge_type,
+                    api_models::enums::PaymentChargeType::Stripe(
+                        api_models::enums::StripeChargeType::Direct
+                    )
+                )
+            {
+                return Ok(None);
+            }
+
             let options = refunds_validator::validate_stripe_charge_refund(
                 charge_type_option,
                 &split_refund_input.refund_request,

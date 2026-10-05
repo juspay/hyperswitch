@@ -1892,16 +1892,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             req.request.currency,
         )?;
         let request_body = match req.request.split_refunds.as_ref() {
-            // With no charge id the refund is issued against the payment intent instead; the
-            // `Stripe-Account` header added in `get_headers` still routes it to the connected
-            // account, which is what makes the refund resolvable at all.
-            Some(SplitRefundsRequest::StripeSplitRefund(stripe_split_refund))
-                if stripe_split_refund.charge_id.is_some() =>
-            {
-                RequestContent::FormUrlEncoded(Box::new(stripe::ChargeRefundRequest::try_from(
-                    req,
-                )?))
-            }
+            // `ChargeRefundRequest` falls back to `payment_intent` when the charge id is unknown;
+            // the `Stripe-Account` header added in `get_headers` is what routes either shape to
+            // the connected account, which is what makes the refund resolvable at all.
+            Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
+                Box::new(stripe::ChargeRefundRequest::try_from(req)?),
+            ),
             _ => RequestContent::FormUrlEncoded(Box::new(stripe::RefundRequest::try_from((
                 req,
                 refund_amount,

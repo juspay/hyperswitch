@@ -4362,7 +4362,11 @@ impl<F> TryFrom<(&RefundsRouterData<F>, MinorUnit)> for RefundRequest {
 
 #[derive(Debug, Serialize)]
 pub struct ChargeRefundRequest {
-    pub charge: String,
+    /// Stripe's Create Refund API accepts either identifier. `charge` is used when it is known,
+    /// otherwise the refund is issued against `payment_intent` - which keeps `reverse_transfer`
+    /// and `refund_application_fee` on the request either way.
+    pub charge: Option<String>,
+    pub payment_intent: Option<String>,
     pub refund_application_fee: Option<bool>,
     pub reverse_transfer: Option<bool>,
     pub amount: Option<MinorUnit>, //amount in cents, hence passed as integer
@@ -4392,12 +4396,14 @@ impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
                         }) => (Some(*revert_platform_fee), Some(*revert_transfer)),
                     };
 
+                    let charge = stripe_refund.charge_id.clone();
+                    let payment_intent = charge
+                        .is_none()
+                        .then(|| item.request.connector_transaction_id.clone());
+
                     Ok(Self {
-                        charge: stripe_refund.charge_id.clone().ok_or(
-                            ConnectorError::MissingRequiredField {
-                                field_name: "charge_id".into(),
-                            },
-                        )?,
+                        charge,
+                        payment_intent,
                         refund_application_fee,
                         reverse_transfer,
                         amount: Some(amount),

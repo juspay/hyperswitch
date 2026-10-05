@@ -10135,17 +10135,11 @@ impl ForeignFrom<&router_request_types::SplitRefundsRequest>
 {
     fn foreign_from(split_refunds: &router_request_types::SplitRefundsRequest) -> Self {
         let split_refund_type = match split_refunds {
-            // `StripeSplitRefundData.charge_id` is a required proto string, so a split refund
-            // with no charge id cannot be represented over gRPC; omit it rather than forward an
-            // empty charge id. Needs a `optional string charge_id` follow-up in
-            // connector-service before the UCS path can match the native one here.
-            router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => {
-                stripe.charge_id.as_ref().map(|_| {
-                    payments_grpc::split_refunds_details::SplitRefundType::StripeSplitRefund(
-                        payments_grpc::StripeSplitRefundData::foreign_from(stripe),
-                    )
-                })
-            }
+            router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => Some(
+                payments_grpc::split_refunds_details::SplitRefundType::StripeSplitRefund(
+                    payments_grpc::StripeSplitRefundData::foreign_from(stripe),
+                ),
+            ),
             router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen) => Some(
                 payments_grpc::split_refunds_details::SplitRefundType::AdyenSplitRefund(
                     payments_grpc::AdyenSplitData::foreign_from(adyen),
@@ -10162,8 +10156,10 @@ impl ForeignFrom<&router_request_types::StripeSplitRefund>
 {
     fn foreign_from(stripe: &router_request_types::StripeSplitRefund) -> Self {
         Self {
-            // unreachable with an empty value: the caller above only maps this when the charge
-            // id is present.
+            // `charge_id` is a plain proto3 string, so prost leaves an empty value off the wire
+            // entirely - which is how an unresolved charge id reaches connector-service as an
+            // absent field. Requires the connector-service side to read it as optional
+            // (juspay/connector-service `optional string charge_id`), so that deploys first.
             charge_id: stripe.charge_id.clone().unwrap_or_default(),
             transfer_account_id: stripe.transfer_account_id.clone(),
             charge_type: payments_grpc::PaymentChargeType::foreign_from(&stripe.charge_type).into(),
