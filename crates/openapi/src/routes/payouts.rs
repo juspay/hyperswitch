@@ -6,11 +6,11 @@
 /// Reuse payout_id for retries; merchant_order_reference_id does not deduplicate.
 /// Once implemented, omitted proxy flags default to confirm=true,
 /// auto_fulfill=true, payout_type=card, and
-/// recurring=false; conflicting values, inline method data, payout_token, client
-/// secrets, and payout-link options are rejected only in that mode. No SDK or
-/// separate confirm call is required. Proxy mode without payout_id returns 400;
-/// otherwise it currently returns 501 before normal payment-method retrieval
-/// or payout creation.
+/// recurring=false; conflicting values, inline method data, payout_token, source_bank_data,
+/// client secrets, and payout-link options are rejected only in that mode. No SDK or
+/// separate confirm call is required. Profile-based proxy dispatch and validation
+/// are implemented by the core follow-up, not this contract-only release; execution
+/// remains unavailable until the UCS CardProxyPayout contract is published and pinned.
 #[utoipa::path(
     post,
     path = "/payouts/create",

@@ -34,6 +34,7 @@ use crate::{
     utils::OptionExt,
 };
 
+/// Provider-profile vault configuration, separate from payout connector credentials and tokens.
 #[derive(Clone, Debug, Default)]
 pub enum PayoutExecutionContext {
     #[default]
