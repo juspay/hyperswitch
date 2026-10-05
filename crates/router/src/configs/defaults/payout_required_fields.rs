@@ -105,6 +105,7 @@ impl Default for PayoutRequiredFields {
     }
 }
 
+#[cfg(feature = "v1")]
 fn connectors(
     connectors: Vec<(PayoutConnectors, RequiredFieldFinal)>,
 ) -> ConnectorFields {
@@ -116,6 +117,7 @@ fn connectors(
     }
 }
 
+#[cfg(feature = "v1")]
 fn fields(
     mandate: Vec<(String, RequiredFieldInfo)>,
     non_mandate: Vec<(String, RequiredFieldInfo)>,
@@ -128,6 +130,7 @@ fn fields(
     }
 }
 
+#[cfg(feature = "v1")]
 fn card_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![
         (
@@ -169,6 +172,7 @@ fn card_fields() -> Vec<(String, RequiredFieldInfo)> {
     ]
 }
 
+#[cfg(feature = "v1")]
 fn bacs_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![
         (
@@ -192,6 +196,7 @@ fn bacs_fields() -> Vec<(String, RequiredFieldInfo)> {
     ]
 }
 
+#[cfg(feature = "v1")]
 fn pix_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![
         (
@@ -215,6 +220,7 @@ fn pix_fields() -> Vec<(String, RequiredFieldInfo)> {
     ]
 }
 
+#[cfg(feature = "v1")]
 fn sepa_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![
         (
@@ -238,6 +244,7 @@ fn sepa_fields() -> Vec<(String, RequiredFieldInfo)> {
     ]
 }
 
+#[cfg(feature = "v1")]
 fn sepa_deutschebank_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![
         (
@@ -261,6 +268,7 @@ fn sepa_deutschebank_fields() -> Vec<(String, RequiredFieldInfo)> {
     ]
 }
 
+#[cfg(feature = "v1")]
 fn paypal_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![(
         "payout_method_data.wallet.telephone_number".to_string(),
@@ -273,6 +281,7 @@ fn paypal_fields() -> Vec<(String, RequiredFieldInfo)> {
     )]
 }
 
+#[cfg(feature = "v1")]
 fn interac_fields() -> Vec<(String, RequiredFieldInfo)> {
     vec![(
         "payout_method_data.bank_redirect.email".to_string(),
@@ -285,6 +294,7 @@ fn interac_fields() -> Vec<(String, RequiredFieldInfo)> {
     )]
 }
 
+#[cfg(feature = "v1")]
 fn adyen_billing_fields(
     payment_method_type: PaymentMethodType,
     mut extra: Vec<(String, RequiredFieldInfo)>,
@@ -349,6 +359,7 @@ fn adyen_billing_fields(
     fields
 }
 
+#[cfg(feature = "v1")]
 fn wise_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(String, RequiredFieldInfo)> {
     let mut fields = vec![
         (
@@ -412,6 +423,7 @@ fn wise_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(Stri
     fields
 }
 
+#[cfg(feature = "v1")]
 fn gigadat_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(String, RequiredFieldInfo)> {
     let mut fields = vec![
         (
@@ -455,6 +467,7 @@ fn gigadat_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(S
     fields
 }
 
+#[cfg(feature = "v1")]
 fn loonio_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(String, RequiredFieldInfo)> {
     let mut fields = vec![
         (
@@ -480,6 +493,7 @@ fn loonio_billing_fields(mut extra: Vec<(String, RequiredFieldInfo)>) -> Vec<(St
     fields
 }
 
+#[cfg(feature = "v1")]
 fn adyen_countries() -> Vec<CountryAlpha2> {
     vec![
         CountryAlpha2::ES,
