@@ -53,7 +53,7 @@ pub async fn payouts_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_create_core(state, auth.platform, header_payload.clone(), req)
+            payouts_create_core_wrapper(state, auth.platform, header_payload.clone(), req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -129,10 +129,6 @@ pub async fn payouts_update(
     let payout_id = path.into_inner();
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
-
-    if let Err(err) = validator::validate_existing_payout_execution_kind(&payout_update_payload) {
-        return api::log_and_return_error_response(err);
-    }
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -228,8 +224,6 @@ fn validate_payout_confirm_request(
     payload: &payout_types::PayoutCreateRequest,
     auth_flow: api::AuthFlow,
 ) -> RouterResult<()> {
-    validator::validate_existing_payout_execution_kind(payload)?;
-
     if auth_flow == api::AuthFlow::Merchant {
         return Ok(());
     }

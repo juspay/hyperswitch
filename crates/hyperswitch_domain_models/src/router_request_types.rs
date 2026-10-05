@@ -1705,7 +1705,8 @@ pub struct PayoutsData {
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub connector_eligibility_reference_id: Option<String>,
-    /// Request-scoped opaque vault data; never serialize it into logs, events, or stored requests.
+    /// Request-scoped opaque vault data. This internal tracker implements Serialize for
+    /// comparison tooling, so explicitly exclude replayable tokens from that representation.
     #[serde(skip)]
     pub external_vault_pmd: Option<crate::payouts::proxy::ExternalVaultPayoutMethodData>,
 }

@@ -188,33 +188,32 @@ pub async fn construct_payout_router_data<'a, F>(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    if payout_data.payout_attempt.execution_kind
-        == common_enums::PayoutExecutionKind::ExternalVaultProxy
-    {
-        return Box::pin(
-            crate::core::payouts::proxy::construct_proxy_payout_router_data(
-                state,
-                connector_data,
-                platform,
-                payout_data,
-            ),
-        )
-        .await;
+    match payout_data.payout_attempt.execution_kind {
+        common_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            Box::pin(
+                crate::core::payouts::proxy::construct_proxy_payout_router_data(
+                    state,
+                    connector_data,
+                    platform,
+                    payout_data,
+                ),
+            )
+            .await
+        }
+        common_enums::PayoutExecutionKind::Normal => match payout_data.external_vault_pmd.is_some()
+            || !matches!(
+                payout_data.execution_context,
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal
+            ) {
+            true => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Normal payouts cannot carry external vault execution data".to_owned(),
+            })),
+            false => {
+                construct_payout_router_data_common(state, connector_data, platform, payout_data)
+                    .await
+            }
+        },
     }
-    crate::core::payouts::validator::validate_normal_execution_kind(
-        payout_data.payout_attempt.execution_kind,
-    )?;
-    if payout_data.external_vault_pmd.is_some()
-        || !matches!(
-            payout_data.execution_context,
-            crate::core::payouts::proxy::PayoutExecutionContext::Normal
-        )
-    {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Normal payouts cannot carry external vault execution data".to_owned(),
-        }));
-    }
-    construct_payout_router_data_common(state, connector_data, platform, payout_data).await
 }
 
 /// Shared request construction after the execution-specific invariants have been validated.

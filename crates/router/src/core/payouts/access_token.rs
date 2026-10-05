@@ -163,21 +163,6 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    // Authentication is a shared, card-free gateway operation. Adapt only its routing
-    // and credential fields; keep payout vault state owned by the payout context.
-    let access_token_context = payments::gateway::context::RouterGatewayContext {
-        creds_identifier: gateway_context.creds_identifier.clone(),
-        processor: gateway_context.processor.clone(),
-        header_payload: gateway_context.header_payload.clone(),
-        lineage_ids: gateway_context.lineage_ids.clone(),
-        merchant_connector_account: gateway_context.merchant_connector_account.clone(),
-        execution_path: gateway::GatewayContext::execution_path(gateway_context),
-        execution_mode: gateway_context.execution_mode,
-        kill_switch_enabled: gateway_context.kill_switch_enabled,
-        kill_switch_threshold: gateway_context.kill_switch_threshold,
-        connector_decline_threshold: gateway_context.connector_decline_threshold,
-        rollout_scope: gateway_context.rollout_scope.clone(),
-    };
     let access_token_router_data_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
@@ -185,7 +170,7 @@ pub async fn refresh_connector_auth(
         payments::CallConnectorAction::Trigger,
         None,
         None,
-        access_token_context,
+        gateway_context.into(),
     )
     .await;
 

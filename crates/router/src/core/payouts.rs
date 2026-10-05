@@ -560,7 +560,7 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
+    validator::validate_normal_execution_kind(Some(payout_data.payout_attempt.execution_kind))?;
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
@@ -602,32 +602,72 @@ pub async fn payouts_core(
 }
 
 #[instrument(skip_all)]
-pub async fn payouts_create_core(
+pub async fn payouts_create_core_wrapper(
     state: SessionState,
     platform: domain::Platform,
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // Dispatch before normal validation, raw-card resolution, or any create side effect.
     #[cfg(feature = "v1")]
-    if req.execution_kind == Some(api_enums::PayoutExecutionKind::ExternalVaultProxy) {
-        return Box::pin(proxy::payouts_proxy_core(
-            &state,
-            &platform,
-            header_payload,
-            req,
-        ))
-        .await;
+    {
+        // Resolve profile configuration before method retrieval or create side effects.
+        let profile = core_utils::get_profile_from_business_details(
+            req.business_country,
+            req.business_label.as_ref(),
+            platform.get_processor(),
+            req.profile_id.as_ref(),
+            &*state.store,
+        )
+        .await?;
+        let provider_profile =
+            payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
+        match provider_profile
+            .external_vault_details
+            .is_external_vault_enabled()
+        {
+            true => {
+                Box::pin(proxy::payouts_proxy_core(
+                    &state,
+                    &platform,
+                    header_payload,
+                    req,
+                    profile,
+                    provider_profile,
+                ))
+                .await
+            }
+            false => {
+                Box::pin(payouts_create_core(
+                    state,
+                    platform,
+                    header_payload,
+                    req,
+                    Some(profile),
+                ))
+                .await
+            }
+        }
     }
     #[cfg(feature = "v2")]
-    validator::validate_create_execution_kind(&req)?;
+    {
+        payouts_create_core(state, platform, header_payload, req, None).await
+    }
+}
 
+#[instrument(skip_all)]
+pub async fn payouts_create_core(
+    state: SessionState,
+    platform: domain::Platform,
+    header_payload: HeaderPayload,
+    req: payouts::PayoutCreateRequest,
+    business_profile: Option<domain::Profile>,
+) -> RouterResponse<payouts::PayoutCreateResponse> {
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     // Validate create request
     let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
-        validator::validate_create_request(&state, &platform, &req, &dimensions),
+        validator::validate_create_request(&state, &platform, &req, &dimensions, business_profile),
     )
     .await?;
 
@@ -644,6 +684,7 @@ pub async fn payouts_create_core(
         customer.as_ref(),
         payment_method.clone(),
         &dimensions,
+        api_enums::PayoutExecutionKind::Normal,
     ))
     .await?;
 
@@ -694,8 +735,6 @@ pub async fn payouts_confirm_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    validator::validate_existing_payout_execution_kind(&req)?;
-
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -765,8 +804,6 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    validator::validate_existing_payout_execution_kind(&req)?;
-
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -1471,42 +1508,6 @@ fn should_update_payout_attempt_routing(payout_attempt: &storage::PayoutAttempt)
         || payout_attempt.active_frm_id.is_some()
 }
 
-/// Shared routing/reference persistence before connector work; no method or locker access.
-async fn persist_payout_connector_routing(
-    state: &SessionState,
-    platform: &domain::Platform,
-    connector_data: &api::ConnectorData,
-    payout_data: &mut PayoutData,
-) -> RouterResult<()> {
-    let connector_request_reference_id = core_utils::get_payout_connector_request_reference_id(
-        connector_data,
-        &payout_data.payout_attempt,
-    );
-    if should_update_payout_attempt_routing(&payout_data.payout_attempt) {
-        let connector_name = connector_data.connector_name.to_string();
-        payout_data.payout_attempt.connector = Some(connector_name.clone());
-        let update = storage::PayoutAttemptUpdate::UpdateRouting {
-            connector: connector_name,
-            routing_info: payout_data.payout_attempt.routing_info.clone(),
-            merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
-            connector_request_reference_id,
-            active_frm_id: payout_data.payout_attempt.active_frm_id.clone(),
-        };
-        payout_data.payout_attempt = state
-            .store
-            .update_payout_attempt(
-                &payout_data.payout_attempt,
-                update,
-                &payout_data.payouts,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating routing info in payout_attempt")?;
-    }
-    Ok(())
-}
-
 pub async fn call_connector_payout(
     state: &SessionState,
     platform: &domain::Platform,
@@ -1515,8 +1516,9 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
+    validator::validate_normal_execution_kind(Some(payout_data.payout_attempt.execution_kind))?;
     let payout_attempt = &payout_data.payout_attempt.to_owned();
+    let payouts = &payout_data.payouts.to_owned();
 
     // fetch merchant connector account if not present
     if payout_data.merchant_connector_account.is_none()
@@ -1538,7 +1540,34 @@ pub async fn call_connector_payout(
         payout_data.merchant_connector_account = Some(merchant_connector_account);
     }
 
-    persist_payout_connector_routing(state, platform, connector_data, payout_data).await?;
+    let connector_request_reference_id = core_utils::get_payout_connector_request_reference_id(
+        connector_data,
+        &payout_data.payout_attempt,
+    );
+    let connector_name = connector_data.connector_name.to_string();
+
+    // Update routing and persist the request reference ID before calling the connector.
+    if should_update_payout_attempt_routing(&payout_data.payout_attempt) {
+        payout_data.payout_attempt.connector = Some(connector_name.clone());
+        let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
+            connector: connector_name,
+            routing_info: payout_data.payout_attempt.routing_info.clone(),
+            merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
+            connector_request_reference_id,
+            active_frm_id: payout_data.payout_attempt.active_frm_id.clone(),
+        };
+        let db = &*state.store;
+        payout_data.payout_attempt = db
+            .update_payout_attempt(
+                &payout_data.payout_attempt,
+                updated_payout_attempt,
+                payouts,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating routing info in payout_attempt")?;
+    };
 
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
@@ -2790,13 +2819,14 @@ pub async fn create_recipient_disburse_account(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
 
-            if payout_data.payout_attempt.execution_kind
-                == api_enums::PayoutExecutionKind::ExternalVaultProxy
-            {
-                // Carry the successful account reference into later subflows, not vault tokens.
-                // The reference is already persisted on the attempt for operator recovery.
-                payout_data.connector_transfer_method_id =
-                    payout_response_data.connector_payout_id.clone();
+            match payout_data.payout_attempt.execution_kind {
+                api_enums::PayoutExecutionKind::ExternalVaultProxy => {
+                    // Carry the successful account reference into later subflows, not vault tokens.
+                    // The reference is already persisted on the attempt for operator recovery.
+                    payout_data.connector_transfer_method_id =
+                        payout_response_data.connector_payout_id.clone();
+                }
+                api_enums::PayoutExecutionKind::Normal => (),
             }
 
             if let (
@@ -3445,6 +3475,7 @@ pub async fn payout_create_db_entries(
     _customer: Option<&domain::Customer>,
     _payment_method: Option<PaymentMethod>,
     _dimesnions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    _execution_kind: api_enums::PayoutExecutionKind,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
@@ -3463,6 +3494,7 @@ pub async fn payout_create_db_entries(
     customer: Option<&domain::Customer>,
     payment_method: Option<PaymentMethod>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    execution_kind: api_enums::PayoutExecutionKind,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3542,7 +3574,7 @@ pub async fn payout_create_db_entries(
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
         || stored_payout_method_data.is_some()
-        || req.execution_kind == Some(api_enums::PayoutExecutionKind::ExternalVaultProxy)
+        || execution_kind == api_enums::PayoutExecutionKind::ExternalVaultProxy
     {
         match req.confirm {
             Some(true) => storage_enums::PayoutStatus::RequiresCreation,
@@ -3677,7 +3709,7 @@ pub async fn payout_create_db_entries(
         additional_source_bank_data,
         connector_request_reference_id: None,
         active_frm_id: None,
-        execution_kind: req.execution_kind.unwrap_or_default(),
+        execution_kind,
     };
     let payout_attempt = db
         .insert_payout_attempt(
@@ -4509,25 +4541,45 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
-    if payout_data.payout_attempt.execution_kind
-        == api_enums::PayoutExecutionKind::ExternalVaultProxy
-    {
-        let context = proxy::proxy_gateway_context(
-            state,
-            platform,
-            header_payload,
-            connector_data,
-            payout_data,
-        )
-        .await?;
-        update_gateway_system_in_payout_metadata(
-            payout_data,
-            common_enums::GatewaySystem::UnifiedConnectorService,
-        )?;
-        return Ok((context, state.clone()));
+    match payout_data.payout_attempt.execution_kind {
+        api_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            let context = proxy::proxy_gateway_context(
+                state,
+                platform,
+                header_payload,
+                connector_data,
+                payout_data,
+            )
+            .await?;
+            update_gateway_system_in_payout_metadata(
+                payout_data,
+                common_enums::GatewaySystem::UnifiedConnectorService,
+            )?;
+            Ok((context, state.clone()))
+        }
+        api_enums::PayoutExecutionKind::Normal => {
+            decide_normal_payout_gateway(
+                state,
+                platform,
+                header_payload,
+                router_data,
+                connector_data,
+                payout_data,
+            )
+            .await
+        }
     }
-    // A proxy marker must never participate in Direct/Shadow/kill-switch fallback.
-    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
+}
+
+#[cfg(feature = "v1")]
+async fn decide_normal_payout_gateway<F: Clone>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 

@@ -24,7 +24,8 @@ pub struct RouterGatewayContext {
         hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
     pub execution_path: ExecutionPath,
     pub execution_mode: ExecutionMode,
-    /// Preserve the rollout decision for normal payout calls and logging.
+    /// Existing normal payout rollout settings, previously carried by the shared payment
+    /// context. Proxy payouts bypass rollout/fallback and set kill_switch_enabled=false.
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
     pub connector_decline_threshold: Option<u64>,
@@ -39,13 +40,18 @@ impl GatewayContext for RouterGatewayContext {
         // Proxy payouts must never select Direct, including the shadow primary path.
         // The UCS gateway rejects inconsistent stored routing fields before encoding.
         #[cfg(feature = "v1")]
-        if !matches!(
-            self.payout_execution_context,
-            crate::core::payouts::proxy::PayoutExecutionContext::Normal
-        ) {
-            return ExecutionPath::UnifiedConnectorService;
+        {
+            match self.payout_execution_context {
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal => self.execution_path,
+                crate::core::payouts::proxy::PayoutExecutionContext::ExternalVaultProxy {
+                    ..
+                } => ExecutionPath::UnifiedConnectorService,
+            }
         }
-        self.execution_path
+        #[cfg(feature = "v2")]
+        {
+            self.execution_path
+        }
     }
 
     fn execution_mode(&self) -> ExecutionMode {
@@ -81,25 +87,41 @@ impl RouterGatewayContext {
     ) -> CustomResult<Option<String>, ConnectorError> {
         #[cfg(feature = "v1")]
         {
-            if !matches!(
-                self.payout_execution_context,
-                crate::core::payouts::proxy::PayoutExecutionContext::Normal
-            ) {
-                if self.execution_path != ExecutionPath::UnifiedConnectorService
-                    || self.execution_mode != ExecutionMode::Primary
-                {
-                    return Err(ConnectorError::RequestEncodingFailed.into());
+            match &self.payout_execution_context {
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal => Ok(None),
+                context @ crate::core::payouts::proxy::PayoutExecutionContext::ExternalVaultProxy { .. } => {
+                    match (self.execution_path, self.execution_mode) {
+                        (ExecutionPath::UnifiedConnectorService, ExecutionMode::Primary) => context
+                            .external_vault_proxy_metadata(_state)
+                            .map_err(|err| err.change_context(ConnectorError::RequestEncodingFailed)),
+                        _ => Err(ConnectorError::RequestEncodingFailed.into()),
+                    }
                 }
-                crate::core::payouts::proxy::ensure_proxy_transport_available(_state)
-                    .map_err(|err| err.change_context(ConnectorError::RequestEncodingFailed))?;
             }
-            self.payout_execution_context
-                .external_vault_proxy_metadata(_state)
-                .map_err(|err| err.change_context(ConnectorError::RequestEncodingFailed))
         }
         #[cfg(feature = "v2")]
         {
             Ok(None)
+        }
+    }
+}
+
+/// The shared, card-free authentication gateway has a payment-context implementation.
+/// Reuse only common routing/credential fields at that boundary, never payout vault state.
+impl From<&RouterGatewayContext> for crate::core::payments::gateway::context::RouterGatewayContext {
+    fn from(context: &RouterGatewayContext) -> Self {
+        Self {
+            creds_identifier: context.creds_identifier.clone(),
+            processor: context.processor.clone(),
+            header_payload: context.header_payload.clone(),
+            lineage_ids: context.lineage_ids.clone(),
+            merchant_connector_account: context.merchant_connector_account.clone(),
+            execution_path: context.execution_path(),
+            execution_mode: context.execution_mode,
+            kill_switch_enabled: context.kill_switch_enabled,
+            kill_switch_threshold: context.kill_switch_threshold,
+            connector_decline_threshold: context.connector_decline_threshold,
+            rollout_scope: context.rollout_scope.clone(),
         }
     }
 }
