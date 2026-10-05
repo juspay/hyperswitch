@@ -114,6 +114,50 @@ struct ProxyCreateInput {
     execution_context: PayoutExecutionContext,
 }
 
+trait PayoutProxyData {
+    fn set_proxy_execution(
+        &mut self,
+        external_vault_pmd: ExternalVaultPayoutMethodData,
+        execution_context: PayoutExecutionContext,
+    );
+
+    fn set_proxy_connector(
+        &mut self,
+        merchant_connector_account: MerchantConnectorAccountType,
+        connector_data: &api::ConnectorData,
+    ) -> api::ConnectorData;
+
+    fn set_proxy_transfer_method_id(&mut self, transfer_method_id: Option<String>);
+}
+
+impl PayoutProxyData for PayoutData {
+    fn set_proxy_execution(
+        &mut self,
+        external_vault_pmd: ExternalVaultPayoutMethodData,
+        execution_context: PayoutExecutionContext,
+    ) {
+        self.external_vault_pmd = Some(external_vault_pmd);
+        self.execution_context = execution_context;
+    }
+
+    fn set_proxy_connector(
+        &mut self,
+        merchant_connector_account: MerchantConnectorAccountType,
+        connector_data: &api::ConnectorData,
+    ) -> api::ConnectorData {
+        self.payout_attempt.merchant_connector_id = merchant_connector_account.get_mca_id();
+        self.merchant_connector_account = Some(merchant_connector_account);
+        let mut selected_connector = connector_data.clone();
+        selected_connector.merchant_connector_id =
+            self.payout_attempt.merchant_connector_id.clone();
+        selected_connector
+    }
+
+    fn set_proxy_transfer_method_id(&mut self, transfer_method_id: Option<String>) {
+        self.connector_transfer_method_id = transfer_method_id;
+    }
+}
+
 trait PayoutProxyPreparation {
     fn ensure_proxy_transport_available(&self) -> RouterResult<()>;
 
@@ -163,6 +207,20 @@ trait PayoutProxyPreparation {
         &self,
         connector_data: &api::ConnectorData,
         payout_data: &mut PayoutData,
+    ) -> RouterResult<()>;
+
+    fn validate_proxy_recipient_account(
+        &self,
+        connector_data: &api::ConnectorData,
+        payout_data: &PayoutData,
+    ) -> RouterResult<()>;
+
+    async fn complete_proxy_fulfill(
+        &self,
+        header_payload: HeaderPayload,
+        connector_data: &api::ConnectorData,
+        payout_data: &mut PayoutData,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<()>;
 
     /// Execute one connector; request-scoped tokens cannot enter normal retries or resume.
@@ -259,10 +317,11 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         let context = self
             .proxy_gateway_context(HeaderPayload::default(), connector_data, payout_data)
             .await?;
-        payout_data.merchant_connector_account = Some(context.merchant_connector_account);
+        let connector_data =
+            payout_data.set_proxy_connector(context.merchant_connector_account, connector_data);
         core_utils::construct_payout_router_data_common(
             state,
-            connector_data,
+            &connector_data,
             platform,
             payout_data,
         )
@@ -283,11 +342,11 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         self.ensure_proxy_transport_available()?;
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(input.profile.get_id().clone());
         let external_vault_pmd = self
             .fetch_external_vault_payout_method(input.profile.get_id(), &input.payment_method)
             .await?;
-        let profile_dimensions = dimensions.with_profile_id(input.profile.get_id().clone());
         let mut payout_data = Box::pin(super::payout_create_db_entries(
             state,
             platform,
@@ -298,17 +357,16 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
             &state.locale,
             Some(&input.customer),
             Some(input.payment_method),
-            &profile_dimensions,
+            &dimensions,
             PayoutExecutionKind::ExternalVaultProxy,
         ))
         .await?;
-        payout_data.external_vault_pmd = Some(external_vault_pmd);
-        payout_data.execution_context = input.execution_context;
+        payout_data.set_proxy_execution(external_vault_pmd, input.execution_context);
 
         let connector_call_type = super::get_connector_choice(
             state,
             platform.get_processor(),
-            &profile_dimensions,
+            &dimensions,
             None,
             input.request.routing,
             &mut payout_data,
@@ -318,6 +376,7 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         let connector_data = match connector_call_type {
             api::ConnectorCallType::PreDetermined(routing) => Ok(routing.connector_data),
             api::ConnectorCallType::Retryable(routing) => {
+                // Proxy retries are unsupported; execute only the first routed connector.
                 super::get_next_connector(&mut routing.into_iter())
                     .map(|routing| routing.connector_data)
             }
@@ -329,7 +388,7 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
             header_payload,
             &connector_data,
             &mut payout_data,
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
         super::trigger_webhook_and_handle_response(state, platform, &payout_data).await
@@ -757,27 +816,11 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
         }
     }
 
-    async fn execute_proxy_payout(
+    fn validate_proxy_recipient_account(
         &self,
-        header_payload: HeaderPayload,
         connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        payout_data: &PayoutData,
     ) -> RouterResult<()> {
-        let state = self.state;
-        let platform = self.platform;
-        let context = self
-            .proxy_gateway_context(header_payload.clone(), connector_data, payout_data)
-            .await?;
-        payout_data.payout_attempt.merchant_connector_id =
-            context.merchant_connector_account.get_mca_id();
-        payout_data.merchant_connector_account = Some(context.merchant_connector_account);
-        let mut selected_connector = connector_data.clone();
-        selected_connector.merchant_connector_id =
-            payout_data.payout_attempt.merchant_connector_id.clone();
-        let connector_data = &selected_connector;
-        payout_data.connector_transfer_method_id =
-            super::helpers::should_create_connector_transfer_method(payout_data, connector_data)?;
         match (
             connector_data
                 .connector_name
@@ -791,7 +834,46 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
                 ),
             })),
             _ => Ok(()),
-        }?;
+        }
+    }
+
+    async fn complete_proxy_fulfill(
+        &self,
+        header_payload: HeaderPayload,
+        connector_data: &api::ConnectorData,
+        payout_data: &mut PayoutData,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    ) -> RouterResult<()> {
+        match !payout_data.should_terminate
+            && payout_data.payout_attempt.status == PayoutStatus::RequiresFulfillment
+        {
+            true => {
+                self.execute_proxy_fulfill(header_payload, connector_data, payout_data, dimensions)
+                    .await
+            }
+            false => Ok(()),
+        }
+    }
+
+    async fn execute_proxy_payout(
+        &self,
+        header_payload: HeaderPayload,
+        connector_data: &api::ConnectorData,
+        payout_data: &mut PayoutData,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    ) -> RouterResult<()> {
+        let state = self.state;
+        let platform = self.platform;
+        let context = self
+            .proxy_gateway_context(header_payload.clone(), connector_data, payout_data)
+            .await?;
+        let selected_connector =
+            payout_data.set_proxy_connector(context.merchant_connector_account, connector_data);
+        let connector_data = &selected_connector;
+        payout_data.set_proxy_transfer_method_id(
+            super::helpers::should_create_connector_transfer_method(payout_data, connector_data)?,
+        );
+        self.validate_proxy_recipient_account(connector_data, payout_data)?;
         self.persist_proxy_connector_routing(connector_data, payout_data)
             .await?;
         Box::pin(super::complete_payout_eligibility(
@@ -830,15 +912,8 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
             payout_data,
         ))
         .await?;
-        match !payout_data.should_terminate
-            && payout_data.payout_attempt.status == PayoutStatus::RequiresFulfillment
-        {
-            true => {
-                self.execute_proxy_fulfill(header_payload, connector_data, payout_data, dimensions)
-                    .await
-            }
-            false => Ok(()),
-        }
+        self.complete_proxy_fulfill(header_payload, connector_data, payout_data, dimensions)
+            .await
     }
 
     async fn validate_proxy_create_identity(
