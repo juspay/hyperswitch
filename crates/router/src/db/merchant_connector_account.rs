@@ -454,18 +454,19 @@ mod merchant_connector_account_cache_tests {
                 .change_context(errors::StorageError::DecryptionError)
         };
 
-        let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory_redis(
-            &db,
-            &format!(
-                "{}_{}",
-                merchant_id.clone().get_string_repr(),
-                profile_id.get_string_repr()
-            ),
-            find_call(),
-            cache::CacheId::Accounts,
-        )
-        .await
-        .unwrap();
+        let _: storage::MerchantConnectorAccount =
+            Box::pin(cache::get_or_populate_in_memory_redis(
+                &db,
+                &format!(
+                    "{}_{}",
+                    merchant_id.clone().get_string_repr(),
+                    profile_id.get_string_repr()
+                ),
+                find_call(),
+                cache::CacheId::Accounts,
+            ))
+            .await
+            .unwrap();
 
         let delete_call = || async { db.delete_merchant_connector_account_by_id(&id).await };
 
