@@ -1062,7 +1062,81 @@ export const payment_methods_enabled = [
   },
 ];
 
+// Shared expected responses for the platform refund list and filter APIs.
+// These assertions are connector-agnostic (identical for every connector),
+// so they are centralized here instead of being inlined in the spec.
+
+// Auth negative: connected-merchant api key (or platform key with the
+// x-connected-merchant-id header) on a platform-level refunds endpoint
+export const platformRefundsConnectedAccountOperationError = {
+  status: 400,
+  error: {
+    type: "invalid_request",
+    code: "IR_49",
+    message: "API does not support connected account operation",
+  },
+};
+
+// Auth negative: standard merchant key or missing api key on a
+// platform-level refunds endpoint
+export const platformRefundsInvalidApiKeyError = {
+  status: 401,
+  error: {
+    type: "invalid_request",
+    code: "IR_01",
+    message: "API key not provided or invalid API key used",
+  },
+};
+
+// Query validation negatives for the platform refund list
+export const platformRefundsListLimitZeroError = {
+  status: 400,
+  rawError:
+    "Query deserialize error: list limit 0 is invalid, it must be between 1 and 100",
+};
+
+export const platformRefundsListLimitAboveMaxError = {
+  status: 400,
+  rawError:
+    "Query deserialize error: list limit 1000 is invalid, it must be between 1 and 100",
+};
+
+export const platformRefundsListInvalidOffsetError = {
+  status: 400,
+  rawError:
+    "Query deserialize error: list offset 999999 is invalid, it must be at most 20000",
+};
+
+// Maps the refund object status (RefundResponse.status:
+// succeeded/failed/pending/review) to the platform refund list filter
+// variant (the refund_status query param and the list item's refund_status
+// field: success/failure/pending/manual_review)
+export const refundStatusFilterMap = {
+  succeeded: "success",
+  failed: "failure",
+  pending: "pending",
+  review: "manual_review",
+};
+
 export const connectorDetails = {
+  customer: {
+    CreateInvalidPhoneCountryCode: {
+      Request: {
+        phone_country_code: "United States",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              'Invalid value provided:phone_country_code must be a valid country calling code (e.g. "+1"), got "United States"',
+            code: "IR_07",
+          },
+        },
+      },
+    },
+  },
   bank_transfer_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -1220,7 +1294,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1250,7 +1324,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1276,7 +1350,7 @@ export const connectorDetails = {
         },
       }),
       MandateSingleUseAutoCapture: getCustomExchange({
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -1469,7 +1543,7 @@ export const connectorDetails = {
         Configs: {
           TRIGGER_SKIP: true,
         },
-        Request: {},
+        Request: { amount: 6540 },
         Response: {
           status: 200,
           body: {
@@ -2851,6 +2925,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2861,6 +2936,7 @@ export const connectorDetails = {
     }),
     MandateSingleUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2871,6 +2947,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2881,6 +2958,7 @@ export const connectorDetails = {
     }),
     MandateMultiUseNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2911,6 +2989,7 @@ export const connectorDetails = {
     }),
     ZeroAuthMandate: getCustomExchange({
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -2929,6 +3008,7 @@ export const connectorDetails = {
     }),
     ZeroAuthConfirmPayment: getCustomExchange({
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -2940,6 +3020,7 @@ export const connectorDetails = {
     }),
     ZeroAuthConfirmPaymentManual: getCustomExchange({
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -3049,6 +3130,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -3060,6 +3142,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -3071,6 +3154,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -3083,6 +3167,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -3426,7 +3511,7 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: getCustomExchange({
-      Request: {},
+      Request: { amount: 6000 },
       Response: {
         status: 200,
         body: {
@@ -3446,6 +3531,7 @@ export const connectorDetails = {
     }),
     MITWithoutBillingAddress: getCustomExchange({
       Request: {
+        amount: 6000,
         billing: null,
       },
       Response: {
@@ -3457,6 +3543,7 @@ export const connectorDetails = {
     }),
     MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
       Request: {
+        amount: 6000,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -3485,6 +3572,19 @@ export const connectorDetails = {
     }),
     MITWithLimitedCardData: getCustomExchange({
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    // MIT whose amount exceeds the single use mandate amount, used to assert
+    // the mandate validation failure response
+    MITExceedingMandateAmount: getCustomExchange({
+      Request: {
+        amount: 60000,
+      },
       Response: {
         status: 200,
         body: {
@@ -4000,6 +4100,111 @@ export const connectorDetails = {
         status: 200,
         body: {
           attempt_status: "pending",
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCaptured: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 2500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 2500,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedExceedsAmount: getCustomExchange({
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 6001,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_captured should be less than or equal to amount",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedBoundary: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 6000,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    // Current-API-actual behaviour: zero amount_captured is accepted (200) —
+    // no zero guard exists upstream (crates/router/src/core/payments.rs:14025-14032).
+    ManualPaymentUpdateAmountCapturedZero: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 0,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "charged",
+          amount_captured: 0,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedWithoutStatus: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+      },
+      Request: {
+        amount_captured: 2500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "payment_method_awaited",
+          amount_captured: 2500,
+          amount_capturable: 6000,
+        },
+      },
+    }),
+    ManualPaymentUpdateAmountCapturedInvalidType: getCustomExchange({
+      Request: {
+        attempt_status: "charged",
+        amount_captured: 25.5,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            // The trailing " at line 1 column N" of the live message is
+            // omitted — the column depends on the serialized request body,
+            // and defaultErrorHandler matches deserialize errors by substring.
+            message:
+              "Json deserialize error: invalid type: floating point `25.5`, expected i64",
+            code: "IR_06",
+          },
         },
       },
     }),

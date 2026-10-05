@@ -27,18 +27,20 @@ tracing = { workspace = true }
 
 # Exactly one backend must be active at compile time
 redis = { version = "1.2.0", optional = true, features = [
-    "tokio-comp", "cluster-async", "streams", "script", "connection-manager"
+    "tokio-comp", "cluster-async", "streams", "script", "connection-manager", "tokio-rustls-comp"
 ]}
 fred = { version = "8.0.6", optional = true, features = [
-    "metrics", "partial-tracing", "subscriber-client"
+    "metrics", "partial-tracing", "subscriber-client", "enable-rustls"
 ]}
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
-deja = { git = "https://github.com/juspay/deja", rev = "de0a42a42248fc22722bc5a385d9fa6a39449e91", optional = true, default-features = false, features = ["error-stack"] }
+deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true, default-features = false, features = ["error-stack"] }
+hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", optional = true }
 
 [dev-dependencies]
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 
 [lints]

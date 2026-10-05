@@ -266,6 +266,10 @@ pub fn mk_app(
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
         }
+        #[cfg(all(feature = "olap", feature = "v1"))]
+        {
+            server_app = server_app.service(routes::HierarchicalResources::server(state.clone()));
+        }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
@@ -405,6 +409,18 @@ pub async fn start_server(
         errors::ApplicationError::ApiClientError(error.current_context().clone())
     })?);
     let state = Box::pin(AppState::new(conf, tx, api_client, service_name)).await;
+
+    // Spawn a thread for collecting metrics at fixed intervals. It has to run against the
+    // caches the state built, not a set of its own.
+    routes::metrics::bg_metrics_collector::spawn_metrics_collector(
+        state
+            .conf
+            .log
+            .telemetry
+            .bg_metrics_collection_interval_in_secs,
+        std::sync::Arc::clone(&state.caches),
+    );
+
     let request_body_limit = server.request_body_limit;
 
     let server_builder =

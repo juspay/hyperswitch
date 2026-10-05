@@ -46,7 +46,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -66,7 +65,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6000,
           true,
           "manual",
           globalState
@@ -89,7 +87,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -112,7 +109,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -136,7 +132,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
-            6000,
             true,
             "manual",
             globalState
@@ -175,7 +170,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
-            6000,
             true,
             "manual",
             globalState
@@ -215,7 +209,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -238,7 +231,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
-            6000,
             true,
             "automatic",
             globalState
@@ -259,7 +251,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState

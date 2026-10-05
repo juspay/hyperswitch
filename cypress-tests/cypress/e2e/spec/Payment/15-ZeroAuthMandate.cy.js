@@ -50,6 +50,10 @@ describe("Card - SingleUse Mandates flow test", () => {
       }
     });
 
+    it("Create Customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
     it("Create No 3DS Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -125,6 +129,10 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       cy.retrievePaymentCallTest({ globalState, data });
     });
+
+    it("Customer delete call", () => {
+      cy.customerDeleteCall(globalState);
+    });
   });
 
   context(
@@ -186,7 +194,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -209,7 +216,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           data,
-          6000,
           true,
           "automatic",
           globalState
@@ -222,6 +228,10 @@ describe("Card - SingleUse Mandates flow test", () => {
         ]["MITAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      it("Customer delete call", () => {
+        cy.customerDeleteCall(globalState);
       });
     }
   );
@@ -247,7 +257,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
         data,
-        0,
         true,
         "automatic",
         "setup_mandate",
@@ -273,7 +282,6 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.mitUsingPMId(
         fixtures.pmIdConfirmBody,
         data,
-        6000,
         true,
         "automatic",
         globalState
@@ -287,6 +295,12 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       cy.retrievePaymentCallTest({ globalState, data });
     });
+
+    // No "Customer delete call" here: the CIT above uses payment_type
+    // "setup_mandate", which creates a Mandate record that stays Active.
+    // delete_customer refuses to delete a customer with an active mandate
+    // (crates/router/src/core/customers.rs), so this customer can't be
+    // cleaned up this way.
   });
 
   context(
@@ -330,7 +344,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
-          0,
           true,
           "manual",
           "setup_mandate",
@@ -375,7 +388,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
           data,
-          6000,
           true,
           "manual",
           globalState
@@ -418,6 +430,12 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      // No "Customer delete call" here: the CIT above uses payment_type
+      // "setup_mandate", which creates a Mandate record that stays Active.
+      // delete_customer refuses to delete a customer with an active mandate
+      // (crates/router/src/core/customers.rs), so this customer can't be
+      // cleaned up this way.
     }
   );
 });

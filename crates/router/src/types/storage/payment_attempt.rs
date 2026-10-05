@@ -99,6 +99,10 @@ impl PaymentAttemptExt for PaymentAttempt {
                 |surcharge_amount| api_models::payments::RequestSurchargeDetails {
                     surcharge_amount,
                     tax_amount: self.net_amount.get_tax_on_surcharge(),
+                    surcharge_percentage: self
+                        .external_surcharge_details
+                        .as_ref()
+                        .and_then(|details| details.surcharge_percentage_as_f64()),
                 },
             )
     }
@@ -262,6 +266,7 @@ mod tests {
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
             payment_account_reference: Default::default(),
+            active_frm_id: Default::default(),
         };
 
         let store = state
@@ -389,6 +394,7 @@ mod tests {
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
             payment_account_reference: Default::default(),
+            active_frm_id: Default::default(),
         };
         let store = state
             .stores
@@ -530,6 +536,7 @@ mod tests {
             external_surcharge_details: Default::default(),
             sender_payment_instrument_id: Default::default(),
             payment_account_reference: Default::default(),
+            active_frm_id: Default::default(),
         };
         let store = state
             .stores

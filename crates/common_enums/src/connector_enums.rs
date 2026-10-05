@@ -98,6 +98,7 @@ pub enum Connector {
     CtpVisa,
     Cybersource,
     Cybersourcedecisionmanager,
+    D24,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
@@ -107,6 +108,7 @@ pub enum Connector {
     Envoy,
     Elavon,
     Etisalat,
+    ElavonPg,
     Facilitapay,
     Finix,
     Fiserv,
@@ -119,6 +121,7 @@ pub enum Connector {
     Gigadat,
     Givepayments,
     Globalpay,
+    GlobalpaymentsHeartland,
     Globepay,
     Gocardless,
     GotymeSanlam,
@@ -135,10 +138,12 @@ pub enum Connector {
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    JpmorganOrbital,
     Juspay,
     Juspaythreedsserver,
     Klarna,
     Loonio,
+    Merchante,
     Mifinity,
     Mollie,
     Moneris,
@@ -155,9 +160,11 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     Paybox,
+    Paydotcom,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payload,
     Payme,
+    Paynearme,
     Payone,
     Paypal,
     Paysafe,
@@ -177,6 +184,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
+    Saferpay,
     Santander,
     Shift4,
     Silverflow,
@@ -210,6 +218,7 @@ pub enum Connector {
     Worldpayxml,
     Worldpaymodular,
     Signifyd,
+    Nsure,
     Plaid,
     Riskified,
     SanlamPayshield,
@@ -240,11 +249,16 @@ impl Connector {
         )
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
-        matches!(
-            (self, payout_method),
-            (_, Some(PayoutType::Bank)) | (Self::Trustly, _)
-        )
+    pub fn supports_create_recipient(
+        self,
+        payout_method: Option<PayoutType>,
+        is_passthrough: bool,
+    ) -> bool {
+        if matches!(self, Self::Trustly) {
+            !is_passthrough
+        } else {
+            matches!(payout_method, Some(PayoutType::Bank))
+        }
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
@@ -369,6 +383,7 @@ impl Connector {
             | Self::Ebanx
             | Self::Elavon
             | Self::Etisalat
+            | Self::ElavonPg
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
@@ -395,6 +410,7 @@ impl Connector {
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
+            | Self::Merchante
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
@@ -406,8 +422,10 @@ impl Connector {
             | Self::Novalnet
             | Self::Opennode
             | Self::Paybox
+            | Self::Paydotcom
             | Self::Payload
             | Self::Payme
+            | Self::Paynearme
             | Self::Payone
             | Self::Paypal
             | Self::Paysafe
@@ -421,6 +439,7 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
+            | Self::Saferpay
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -452,6 +471,7 @@ impl Connector {
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
+            | Self::Nsure
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified
@@ -468,15 +488,20 @@ impl Connector {
             | Self::Paytm
             | Self::Payconex
             | Self::Citigate
+            | Self::D24
             | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
-            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml => true,
+            Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml
+            // Portico cannot authenticate: its Secure3D block only carries results computed
+            // by a separate authentication connector, so external 3DS is its only 3DS mode.
+            | Self::GlobalpaymentsHeartland => true,
         }
     }
 

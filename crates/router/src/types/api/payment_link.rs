@@ -23,11 +23,13 @@ impl PaymentLinkResponseExt for RetrievePaymentLinkResponse {
         Ok(Self {
             link_to_pay: payment_link.link_to_pay,
             payment_link_id: payment_link.payment_link_id,
+            payment_id: payment_link.payment_id,
             amount: payment_link.amount,
             description: payment_link.description,
             created_at: payment_link.created_at,
             merchant_id: payment_link.merchant_id,
             processor_merchant_id: payment_link.processor_merchant_id,
+            profile_id: payment_link.profile_id,
             expiry: payment_link.fulfilment_time,
             currency: payment_link.currency,
             status,

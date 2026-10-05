@@ -1,5 +1,7 @@
 pub mod fraud_check_post;
 pub mod fraud_check_pre;
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub mod fraud_check_pre_payout;
 use async_trait::async_trait;
 use common_enums::FrmSuggestion;
 use error_stack::{report, ResultExt};

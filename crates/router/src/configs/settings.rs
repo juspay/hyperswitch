@@ -48,7 +48,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
 use serde::Deserialize;
-use storage_impl::config::QueueStrategy;
+use storage_impl::{config::QueueStrategy, redis::cache::CacheConfig};
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
@@ -90,6 +90,9 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
+    /// Per-cache tuning for the in-memory caches. Anything left unset keeps the compiled-in
+    /// default for that cache.
+    pub cache: CacheConfig,
     pub log: Log,
     #[cfg(feature = "deja")]
     #[serde(default)]
@@ -425,13 +428,6 @@ pub struct DebitRoutingConfig {
 pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
-    /// Shadow-evaluate static routing on the Decision Engine for profiles that are NOT cut
-    /// over, logging DE-vs-HS diffs and feeding the diff kill switch while the Hyperswitch
-    /// result keeps serving traffic. Requires `static_routing_enabled`.
-    #[serde(default)]
-    pub shadow_routing_enabled: bool,
-    #[serde(default)]
-    pub diff_kill_switch: DecisionEngineDiffKillSwitch,
     pub url: String,
     /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
     #[serde(default)]
@@ -442,24 +438,6 @@ pub struct OpenRouter {
     /// enabled; empty disables the header.
     #[serde(default)]
     pub admin_secret: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct DecisionEngineDiffKillSwitch {
-    pub enabled: bool,
-    /// Lifetime non-volume diff count per profile that trips the cutover back to Hyperswitch
-    /// routing. The counter does not expire; clear it via the diff-counter reset API.
-    pub diff_count_threshold: u64,
-}
-
-impl Default for DecisionEngineDiffKillSwitch {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            diff_count_threshold: 100,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -530,6 +508,7 @@ impl TenantConfig {
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
+        caches: Arc<storage_impl::redis::cache::Caches>,
         testable: bool,
     ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
@@ -548,6 +527,7 @@ impl TenantConfig {
                     conf.master_database.clone().into_inner(),
                     conf.accounts_database_config(),
                     cache_store.clone(),
+                    caches.clone(),
                     testable,
                 ))
                 .await;
@@ -1151,6 +1131,8 @@ pub struct Locker {
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
     pub create_entity_on_merchant_create: bool,
+    #[cfg(feature = "v2")]
+    pub plain_fingerprint_response: bool,
 }
 
 impl Locker {
@@ -1499,7 +1481,12 @@ impl MerchantAdviceCodeLookupConfig {
             | common_enums::CardNetwork::Nyce
             | common_enums::CardNetwork::Prop
             | common_enums::CardNetwork::PrivateLabel
-            | common_enums::CardNetwork::Dinacard => None,
+            | common_enums::CardNetwork::Dinacard
+            | common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => None,
         }
     }
 }

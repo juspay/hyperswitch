@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
@@ -163,16 +163,23 @@ pub struct BatchBlocklistUploadResponse {
 pub struct BatchBlocklistJobStatusResponse {
     pub job_id: String,
     pub merchant_id: String,
-    /// Whether this job imported entries or exported them.
+    /// The profile that owns this job; for a clone job, the profile whose entries are copied.
+    #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// Whether this job imported, exported, or cloned entries.
     #[schema(value_type = BatchBlocklistJobType)]
     pub job_type: enums::BatchBlocklistJobType,
-    /// The file the merchant uploaded, or the name the export downloads as.
+    /// The file the merchant uploaded, or the name the export downloads as. Clone jobs return
+    /// `null`.
     pub file_name: Option<String>,
     #[schema(value_type = BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
     pub total_rows: u32,
     pub succeeded_rows: u32,
     pub failed_rows: u32,
+    /// Per-target status and row progress of a profile-clone job. Upload and export jobs return
+    /// `null`.
+    pub metadata: Option<ProfileCloneJobMetadata>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -200,7 +207,7 @@ pub struct ListBatchBlocklistJobsQuery {
     /// The starting point within a list of objects
     #[serde(default)]
     pub offset: common_utils::types::list::PageOffset,
-    /// Restricts the listing to one kind of job. Both uploads and exports are returned when omitted.
+    /// Restricts the listing to one kind of job. All kinds are returned when omitted.
     #[schema(value_type = Option<BatchBlocklistJobType>)]
     pub job_type: Option<enums::BatchBlocklistJobType>,
 }
@@ -231,3 +238,60 @@ impl ApiEventMetric for BatchBlocklistJobStatusResponse {}
 impl ApiEventMetric for ListBatchBlocklistJobsQuery {}
 impl ApiEventMetric for ListBatchBlocklistJobsResponse {}
 impl ApiEventMetric for BlocklistExportResponse {}
+
+/// Progress of a profile-clone job across its target profiles.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ProfileCloneJobMetadata {
+    pub targets: Vec<ProfileCloneTargetMetadata>,
+}
+
+/// Progress of one target profile within a profile-clone job.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ProfileCloneTargetMetadata {
+    #[schema(value_type = String, example = "pro_abcdefghijklmnop")]
+    pub profile_id: common_utils::id_type::ProfileId,
+    #[schema(value_type = BatchBlocklistJobStatus)]
+    pub status: enums::BatchBlocklistJobStatus,
+    /// Source entries handled so far for this target.
+    pub processed_rows: u32,
+    /// Present when this target's clone failed.
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CloneBlocklistEntriesRequest {
+    #[schema(value_type = Vec<String>)]
+    pub target_profile_ids: HashSet<common_utils::id_type::ProfileId>,
+}
+
+impl CloneBlocklistEntriesRequest {
+    /// The checks that need nothing but the request and its source; whether each profile belongs
+    /// to the merchant is settled later, against the merchant's profiles.
+    pub fn validate(
+        &self,
+        source_profile_id: &common_utils::id_type::ProfileId,
+    ) -> Result<(), String> {
+        (!self.target_profile_ids.is_empty())
+            .then_some(())
+            .ok_or_else(|| "target_profile_ids must contain at least one profile".to_string())?;
+
+        (!self.target_profile_ids.contains(source_profile_id))
+            .then_some(())
+            .ok_or_else(|| "target_profile_ids must not contain the source profile".to_string())
+    }
+}
+
+/// Response for `POST /blocklist/clone`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct CloneBlocklistEntriesResponse {
+    #[schema(value_type = String, example = "pro_abcdefghijklmnop")]
+    pub source_profile_id: common_utils::id_type::ProfileId,
+    pub job_id: String,
+    #[schema(value_type = BatchBlocklistJobStatus)]
+    pub status: enums::BatchBlocklistJobStatus,
+    #[schema(value_type = Vec<String>)]
+    pub target_profile_ids: Vec<common_utils::id_type::ProfileId>,
+}
+
+impl ApiEventMetric for CloneBlocklistEntriesRequest {}
+impl ApiEventMetric for CloneBlocklistEntriesResponse {}

@@ -1754,6 +1754,99 @@ async fn test_consumer_group_set_last_id() {
     assert!(is_success);
 }
 
+/// Characterises the `XREADGROUP` behaviour that the scheduler consumer fix
+/// (juspay/hyperswitch#13628) relies on: `XREADGROUP` registers its consumer in the group
+/// as a side effect of the read, even when there are no new entries to deliver, and Redis
+/// never expires these registrations on its own. A caller that generates a fresh consumer
+/// name on every poll therefore grows the consumer group without bound, while one that
+/// reuses a stable name does not.
+///
+/// This pins Redis' behaviour, not the scheduler change itself — it passes with or without
+/// the `crates/scheduler` fix. Both halves are asserted so it cannot go vacuous: were a
+/// future Redis to stop registering consumers on an empty read, the rotating-name case
+/// would drop to 0 and fail here rather than silently making the stable case trivial.
+#[tokio::test]
+async fn test_xreadgroup_consumer_registration_tracks_consumer_name() {
+    let (stable_consumers, rotating_consumers) = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let pool = test_connection(&RedisSettings::default())
+                .await
+                .expect("failed to create redis connection pool");
+            let uid = unique_test_id();
+            let stream_name = format!("test_consumer_registration_{uid}");
+            let stream: RedisKey = stream_name.clone().into();
+            let stable_group = format!("test_stable_group_{uid}");
+            let rotating_group = format!("test_rotating_group_{uid}");
+
+            // `xgroup_create_mkstream` underneath creates the stream, so it need not exist yet.
+            for group in [&stable_group, &rotating_group] {
+                pool.consumer_group_create(
+                    &stream,
+                    group,
+                    &RedisEntryId::UserSpecifiedID {
+                        milliseconds: "0".to_string(),
+                        sequence_number: "0".to_string(),
+                    },
+                )
+                .await
+                .expect("failed to create group");
+            }
+
+            // Five reads under one stable consumer name, as the scheduler now does.
+            let stable_consumer = format!("test_stable_consumer_name_{uid}");
+            for _ in 0..5 {
+                let _ = pool
+                    .stream_read_with_options(
+                        std::slice::from_ref(&stream),
+                        vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
+                        Some(10),
+                        None,
+                        Some((stable_group.as_str(), stable_consumer.as_str())),
+                    )
+                    .await;
+            }
+
+            // Five reads under a fresh consumer name each time, as it did before the fix.
+            for i in 0..5 {
+                let rotating_consumer = format!("test_rotating_consumer_name_{uid}_{i}");
+                let _ = pool
+                    .stream_read_with_options(
+                        std::slice::from_ref(&stream),
+                        vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
+                        Some(10),
+                        None,
+                        Some((rotating_group.as_str(), rotating_consumer.as_str())),
+                    )
+                    .await;
+            }
+
+            const COUNT_CONSUMERS: &str =
+                r#"return #redis.call("XINFO", "CONSUMERS", KEYS[1], ARGV[1])"#;
+            let stable: i64 = pool
+                .evaluate_redis_script(COUNT_CONSUMERS, vec![stream_name.clone()], stable_group)
+                .await
+                .expect("failed to inspect consumer group via XINFO CONSUMERS");
+            let rotating: i64 = pool
+                .evaluate_redis_script(COUNT_CONSUMERS, vec![stream_name], rotating_group)
+                .await
+                .expect("failed to inspect consumer group via XINFO CONSUMERS");
+
+            (stable, rotating)
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert_eq!(
+        stable_consumers, 1,
+        "reusing one consumer name across five reads must register exactly one consumer"
+    );
+    assert_eq!(
+        rotating_consumers, 5,
+        "a fresh consumer name per read must register one consumer per read — this is the leak"
+    );
+}
+
 // ─── List Commands ────────────────────────────────────────────────────────────
 
 #[tokio::test]
@@ -2268,6 +2361,334 @@ async fn test_cluster_scan() {
                     .iter()
                     .any(|k| k.contains(&format!("test_cluster_scan_{uid}"))),
                 Err(_) => false,
+            }
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+// ─── Authenticated connections (Redis ACL / AUTH) ─────────────────────────────
+//
+// These tests run only when an authenticated Redis endpoint is configured via
+// environment variables (they skip otherwise, mirroring the cluster tests):
+//
+//   TEST_REDIS_AUTH_PASSWORD  (required to enable)
+//   TEST_REDIS_AUTH_USERNAME  (optional — ACL user; omit for the default user)
+//   TEST_REDIS_AUTH_HOST      (optional, default 127.0.0.1)
+//   TEST_REDIS_AUTH_PORT      (optional, default 6379)
+//
+// Local example:
+//   docker run -d -p 6380:6379 redis:7 redis-server --requirepass s3cret
+//   TEST_REDIS_AUTH_PASSWORD=s3cret TEST_REDIS_AUTH_PORT=6380 \
+//       cargo test -p redis_interface auth
+//
+// Redis Cloud example:
+//   TEST_REDIS_AUTH_HOST=redis-12345.c8.us-east-1-2.ec2.redns.redis-cloud.com \
+//   TEST_REDIS_AUTH_PORT=12345 TEST_REDIS_AUTH_PASSWORD=<db password> \
+//       cargo test -p redis_interface auth
+
+fn auth_settings_from_env() -> Option<RedisSettings> {
+    let password = std::env::var("TEST_REDIS_AUTH_PASSWORD").ok()?;
+    if password.is_empty() {
+        return None;
+    }
+
+    let host = std::env::var("TEST_REDIS_AUTH_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("TEST_REDIS_AUTH_PORT")
+        .ok()
+        .and_then(|port| port.parse::<u16>().ok())
+        .unwrap_or(6379);
+    let username = std::env::var("TEST_REDIS_AUTH_USERNAME")
+        .ok()
+        .filter(|username| !username.is_empty());
+
+    Some(RedisSettings {
+        host,
+        port,
+        username,
+        password: Some(password.into()),
+        ..RedisSettings::default()
+    })
+}
+
+async fn get_auth_pool_or_skip() -> Option<RedisConnectionWithContext> {
+    let settings = auth_settings_from_env()?;
+    settings
+        .validate()
+        .expect("authenticated redis settings failed validation");
+    Some(
+        test_connection(&settings)
+            .await
+            .expect("failed to connect to authenticated redis"),
+    )
+}
+
+#[tokio::test]
+async fn test_authenticated_connection_set_get() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let Some(pool) = get_auth_pool_or_skip().await else {
+                tracing::warn!("SKIP: auth test skipped — set TEST_REDIS_AUTH_PASSWORD to enable");
+                return true;
+            };
+
+            let key: RedisKey = format!("test_auth_set_get_{}", unique_test_id()).into();
+            let value = "authenticated_value".to_string();
+
+            let set_result = pool.set_key_with_expiry(&key, value.clone(), 60).await;
+            let get_result: Result<String, _> = pool.get_key(&key).await;
+            let del_result = pool.delete_key(&key).await;
+
+            set_result.is_ok()
+                && matches!(get_result, Ok(retrieved) if retrieved == value)
+                && del_result.is_ok()
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+#[tokio::test]
+async fn test_authenticated_connection_pubsub() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let Some(pool) = get_auth_pool_or_skip().await else {
+                tracing::warn!("SKIP: auth test skipped — set TEST_REDIS_AUTH_PASSWORD to enable");
+                return true;
+            };
+
+            let channel = format!("test_auth_pubsub_{}", unique_test_id());
+            let test_message = "authenticated_message";
+
+            pool.redis_conn
+                .subscriber
+                .subscribe(&channel)
+                .await
+                .expect("failed to subscribe on authenticated connection");
+
+            let mut receiver = pool.redis_conn.subscriber.message_rx();
+
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+            pool.redis_conn
+                .publisher
+                .publish(&channel, RedisValue::from_string(test_message.to_string()))
+                .await
+                .expect("failed to publish on authenticated connection");
+
+            let received =
+                tokio::time::timeout(std::time::Duration::from_secs(5), receiver.recv()).await;
+
+            match received {
+                Ok(Ok(msg)) => {
+                    let value_str = redis_value_to_option_string(&msg.value);
+                    msg.channel == channel && value_str.as_deref() == Some(test_message)
+                }
+                _ => false,
+            }
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+#[tokio::test]
+async fn test_authenticated_connection_wrong_password_fails() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let Some(mut settings) = auth_settings_from_env() else {
+                tracing::warn!("SKIP: auth test skipped — set TEST_REDIS_AUTH_PASSWORD to enable");
+                return true;
+            };
+
+            settings.password = Some("definitely_the_wrong_password".to_string().into());
+
+            test_connection(&settings).await.is_err()
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+// ─── TLS connections (`rediss://`) ────────────────────────────────────────────
+//
+// These tests run only when a TLS-terminated Redis endpoint is configured via
+// environment variables (they skip otherwise, mirroring the auth tests):
+//
+//   TEST_REDIS_TLS_PORT      (required to enable)
+//   TEST_REDIS_TLS_HOST      (optional, default 127.0.0.1)
+//   TEST_REDIS_TLS_PASSWORD  (optional — for servers that also require AUTH)
+//   TEST_REDIS_TLS_USERNAME  (optional — ACL user; omit for the default user)
+//   TEST_REDIS_TLS_CA_PATH   (optional — PEM file with the server's CA, for
+//                             servers not signed by a platform-trusted CA;
+//                             maps to the `tls_ca_certificate_path` setting)
+//
+// Local example (self-signed CA):
+//   openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+//       -keyout ca.key -out ca.crt -subj "/CN=redis-test-ca"
+//   openssl req -newkey rsa:2048 -nodes -keyout redis.key -out redis.csr -subj "/CN=localhost"
+//   openssl x509 -req -in redis.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 2 \
+//       -out redis.crt -extfile <(printf "subjectAltName=DNS:localhost,IP:127.0.0.1")
+//   docker run -d -p 6390:6390 -v "$PWD":/certs redis:7 redis-server \
+//       --port 0 --tls-port 6390 --tls-cert-file /certs/redis.crt \
+//       --tls-key-file /certs/redis.key --tls-ca-cert-file /certs/ca.crt \
+//       --tls-auth-clients no --requirepass s3cret
+//   TEST_REDIS_TLS_CA_PATH="$PWD/ca.crt" TEST_REDIS_TLS_PORT=6390 TEST_REDIS_TLS_PASSWORD=s3cret \
+//       cargo test -p redis_interface tls
+//
+// Redis Cloud example (TLS-enabled database):
+//   TEST_REDIS_TLS_CA_PATH=<path to the Redis Cloud CA bundle (redis_ca.pem)> \
+//   TEST_REDIS_TLS_HOST=redis-12345.c8.us-east-1-2.ec2.redns.redis-cloud.com \
+//   TEST_REDIS_TLS_PORT=12345 TEST_REDIS_TLS_PASSWORD=<db password> \
+//       cargo test -p redis_interface tls
+
+fn tls_settings_from_env() -> Option<RedisSettings> {
+    let port = std::env::var("TEST_REDIS_TLS_PORT")
+        .ok()?
+        .parse::<u16>()
+        .ok()?;
+
+    let host = std::env::var("TEST_REDIS_TLS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let password = std::env::var("TEST_REDIS_TLS_PASSWORD")
+        .ok()
+        .filter(|password| !password.is_empty());
+    let username = std::env::var("TEST_REDIS_TLS_USERNAME")
+        .ok()
+        .filter(|username| !username.is_empty());
+    let tls_ca_certificate_path = std::env::var("TEST_REDIS_TLS_CA_PATH")
+        .ok()
+        .filter(|path| !path.is_empty());
+
+    Some(RedisSettings {
+        host,
+        port,
+        username,
+        password: password.map(Into::into),
+        tls_enabled: true,
+        tls_ca_certificate_path,
+        ..RedisSettings::default()
+    })
+}
+
+async fn get_tls_pool_or_skip() -> Option<RedisConnectionWithContext> {
+    let settings = tls_settings_from_env()?;
+    settings
+        .validate()
+        .expect("TLS redis settings failed validation");
+    Some(
+        test_connection(&settings)
+            .await
+            .expect("failed to connect to redis over TLS"),
+    )
+}
+
+#[tokio::test]
+async fn test_tls_connection_set_get() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let Some(pool) = get_tls_pool_or_skip().await else {
+                tracing::warn!("SKIP: TLS test skipped — set TEST_REDIS_TLS_PORT to enable");
+                return true;
+            };
+
+            let key: RedisKey = format!("test_tls_set_get_{}", unique_test_id()).into();
+            let value = "tls_value".to_string();
+
+            let set_result = pool.set_key_with_expiry(&key, value.clone(), 60).await;
+            let get_result: Result<String, _> = pool.get_key(&key).await;
+            let del_result = pool.delete_key(&key).await;
+
+            set_result.is_ok()
+                && matches!(get_result, Ok(retrieved) if retrieved == value)
+                && del_result.is_ok()
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+#[tokio::test]
+async fn test_tls_connection_pubsub() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let Some(pool) = get_tls_pool_or_skip().await else {
+                tracing::warn!("SKIP: TLS test skipped — set TEST_REDIS_TLS_PORT to enable");
+                return true;
+            };
+
+            let channel = format!("test_tls_pubsub_{}", unique_test_id());
+            let test_message = "tls_message";
+
+            pool.redis_conn
+                .subscriber
+                .subscribe(&channel)
+                .await
+                .expect("failed to subscribe on TLS connection");
+
+            let mut receiver = pool.redis_conn.subscriber.message_rx();
+
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+            pool.redis_conn
+                .publisher
+                .publish(&channel, RedisValue::from_string(test_message.to_string()))
+                .await
+                .expect("failed to publish on TLS connection");
+
+            let received =
+                tokio::time::timeout(std::time::Duration::from_secs(5), receiver.recv()).await;
+
+            match received {
+                Ok(Ok(msg)) => {
+                    let value_str = redis_value_to_option_string(&msg.value);
+                    msg.channel == channel && value_str.as_deref() == Some(test_message)
+                }
+                _ => false,
+            }
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+#[tokio::test]
+async fn test_tls_disabled_against_tls_port_fails() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let Some(mut settings) = tls_settings_from_env() else {
+                tracing::warn!("SKIP: TLS test skipped — set TEST_REDIS_TLS_PORT to enable");
+                return true;
+            };
+
+            // A plaintext handshake against a TLS-only port must be rejected.
+            settings.tls_enabled = false;
+            settings.tls_ca_certificate_path = None;
+
+            match test_connection(&settings).await {
+                Err(_) => true,
+                // Some client stacks consider the pool "connected" once the
+                // TCP connection is accepted, before the server has rejected
+                // the plaintext handshake; in that case an actual command
+                // round trip must still fail.
+                Ok(pool) => {
+                    let key: RedisKey = format!("test_tls_disabled_{}", unique_test_id()).into();
+                    pool.set_key_with_expiry(&key, "value".to_string(), 60)
+                        .await
+                        .is_err()
+                }
             }
         })
     })
