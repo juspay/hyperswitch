@@ -11,7 +11,6 @@ use api_models::{
 };
 use common_enums::{FrmSuggestion, PreFrmFailureMode};
 use common_utils::pii::SecretSerdeValue;
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 #[cfg(all(feature = "payouts", feature = "v1"))]
 use hyperswitch_domain_models::{
     address::Address as PayoutAddress, customer::Customer, payouts::payout_attempt::PayoutAttempt,
@@ -22,6 +21,11 @@ pub use hyperswitch_domain_models::{
         Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
     },
     types::OrderDetailsWithAmount,
+};
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+    router_data::PaymentMethodToken,
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::configs::MerchantConnectorAccountType;
@@ -76,6 +80,11 @@ pub struct FrmData {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub refund: Option<RefundResponse>,
     pub frm_metadata: Option<SecretSerdeValue>,
+    /// The instrument being scored, carried from payment data so UCS-backed
+    /// providers see the full card details rather than the attempt's
+    /// `AdditionalPaymentData` summary.
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_token: Option<PaymentMethodToken>,
 }
 
 #[derive(Debug)]
@@ -100,6 +109,8 @@ pub struct PaymentToFrmData {
     pub connector_details: ConnectorDetailsCore,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub frm_metadata: Option<SecretSerdeValue>,
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub payment_method_token: Option<PaymentMethodToken>,
 }
 
 #[cfg(all(feature = "payouts", feature = "v1"))]

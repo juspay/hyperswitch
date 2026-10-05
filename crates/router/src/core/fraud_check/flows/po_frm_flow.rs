@@ -122,6 +122,7 @@ impl ConstructFlowSpecificData<frm_api::PoFrm, FraudCheckPayoutData, FraudCheckR
             minor_amount_capturable: None,
             authorized_amount: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,
@@ -147,6 +148,8 @@ impl FeatureFrm<frm_api::PoFrm, FraudCheckPayoutData> for PoFrmRouterData {
         connector: &FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
+        // No UCS equivalent for payout FRM; always direct.
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }

@@ -1542,7 +1542,7 @@ pub async fn add_domain_task_to_pt<Op>(
 where
     Op: std::fmt::Debug,
 {
-    if check_if_operation_confirm(operation) {
+    if check_if_operation_adds_payment_sync_task(operation) {
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -2536,6 +2536,21 @@ pub struct RolloutConfig {
     pub kill_switch_enabled: bool,
     #[serde(default = "default_kill_switch_threshold")]
     pub kill_switch_threshold: u64,
+    /// Threshold for connector declines (UCS answered, the connector refused).
+    /// Unset means declines never trip the kill switch; other failures still use
+    /// `kill_switch_threshold`.
+    #[serde(default)]
+    pub connector_decline_threshold: Option<u64>,
+    /// Share of total traffic to mirror through UCS in shadow mode, independent of
+    /// `rollout_percent`, which only ever controls primary traffic.
+    ///
+    /// - `execution_mode: primary`: this share is carved out of the traffic that
+    ///   `rollout_percent` did not send to primary, capped at `1.0 - rollout_percent`.
+    /// - `execution_mode: shadow`: primary is impossible whatever `rollout_percent` says, and
+    ///   this share is the whole shadow rollout.
+    /// - Unset or invalid means no shadow; ignored for `not_applicable`.
+    #[serde(default)]
+    pub shadow_rollout_percent: Option<f64>,
 }
 
 fn default_kill_switch_enabled() -> bool {
@@ -2563,6 +2578,8 @@ impl Default for RolloutConfig {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            shadow_rollout_percent: None,
         }
     }
 }
@@ -2577,6 +2594,28 @@ pub struct RolloutExecutionResult {
     pub execution_mode: ExecutionMode,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
+    /// See `RolloutConfig::connector_decline_threshold`.
+    pub connector_decline_threshold: Option<u64>,
+    /// The scope the gate evaluated this config under, set by the gate rather than by
+    /// `From<RolloutConfig>`: the config value does not know which key it was read from.
+    /// `None` until the gate runs, and on paths no gate governs.
+    pub rollout_scope: Option<String>,
+}
+
+impl RolloutExecutionResult {
+    /// The gate-resolved values the failure path needs, so a failure counts against the same
+    /// scope and thresholds the gate used rather than recomputing either.
+    pub fn rollout_settings(
+        &self,
+    ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
+        crate::core::unified_connector_service::kill_switch::RolloutSettings {
+            execution_mode: self.execution_mode,
+            kill_switch_enabled: self.kill_switch_enabled,
+            kill_switch_threshold: self.kill_switch_threshold,
+            connector_decline_threshold: self.connector_decline_threshold,
+            rollout_scope: self.rollout_scope.clone(),
+        }
+    }
 }
 
 impl Default for RolloutExecutionResult {
@@ -2587,6 +2626,8 @@ impl Default for RolloutExecutionResult {
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
+            connector_decline_threshold: None,
+            rollout_scope: None,
         }
     }
 }
@@ -2645,46 +2686,77 @@ fn build_rollout_proxy_override(state: &SessionState) -> Option<ProxyOverride> {
 // Helper function to execute rollout logic or return default
 impl From<RolloutConfig> for RolloutExecutionResult {
     fn from(config: RolloutConfig) -> Self {
-        let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        let is_valid_primary_rollout_percent = (0.0..=1.0).contains(&config.rollout_percent);
+        // An unset shadow percent is valid: it simply means no shadow.
+        let is_valid_shadow_rollout_percent = config
+            .shadow_rollout_percent
+            .is_none_or(|shadow_rollout_percent| (0.0..=1.0).contains(&shadow_rollout_percent));
 
-        match is_valid_percent {
+        match is_valid_primary_rollout_percent {
             false => {
                 logger::warn!(
-                    is_valid_percent = is_valid_percent,
+                    is_valid_primary_rollout_percent = is_valid_primary_rollout_percent,
                     "Invalid rollout percent in rollout config. Defaulting to should_execute false."
                 );
                 Self::default()
             }
             true => {
+                // rollout_percent only ever controls primary traffic.
+                let primary_percent = match config.execution_mode {
+                    ExecutionMode::Primary => config.rollout_percent,
+                    ExecutionMode::Shadow | ExecutionMode::NotApplicable => 0.0,
+                };
+
+                if !is_valid_shadow_rollout_percent {
+                    logger::warn!("Invalid shadow_rollout_percent in rollout config, ignoring");
+                }
+                let shadow_percent = match config.shadow_rollout_percent {
+                    Some(shadow_rollout_percent)
+                        if is_valid_shadow_rollout_percent
+                            && config.execution_mode != ExecutionMode::NotApplicable =>
+                    {
+                        shadow_rollout_percent.min(1.0 - primary_percent)
+                    }
+                    _ => 0.0,
+                };
+
                 let sampled_value: f64 = common_utils::generate_random_f64_unit();
-                let should_execute = sampled_value < config.rollout_percent;
+                let rollout_execution_mode = if sampled_value < primary_percent {
+                    Some(ExecutionMode::Primary)
+                } else if sampled_value < primary_percent + shadow_percent {
+                    Some(ExecutionMode::Shadow)
+                } else {
+                    None
+                };
 
                 logger::debug!(
                     rollout_percent = config.rollout_percent,
                     sampled_value = sampled_value,
-                    should_execute = should_execute,
+                    shadow_rollout_percent = ?config.shadow_rollout_percent,
+                    should_execute = rollout_execution_mode.is_some(),
                     execution_mode = ?config.execution_mode,
                     "Rollout execution decision made"
                 );
 
-                match should_execute {
-                    true => {
+                match rollout_execution_mode {
+                    Some(execution_mode) => {
                         logger::info!(
-                            execution_mode = ?config.execution_mode,
+                            execution_mode = ?execution_mode,
                             "Rollout will be executed"
                         );
                         Self {
                             should_execute: true,
-                            execution_mode: config.execution_mode,
+                            execution_mode,
                             kill_switch_enabled: config.kill_switch_enabled,
                             kill_switch_threshold: config.kill_switch_threshold,
+                            connector_decline_threshold: config.connector_decline_threshold,
                             // Proxy override is sourced from the env-configured comparison
                             // service, not from the DB rollout config — populated by the caller
                             // after conversion.
                             ..Default::default()
                         }
                     }
-                    false => {
+                    None => {
                         logger::info!(
                             execution_mode = ?config.execution_mode,
                             "Rollout will not be executed"
@@ -4625,8 +4697,11 @@ pub fn hmac_sha512_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
-pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{operations:?}") == "PaymentConfirm"
+pub fn check_if_operation_adds_payment_sync_task<Op: std::fmt::Debug>(operations: Op) -> bool {
+    matches!(
+        format!("{operations:?}").as_str(),
+        "PaymentConfirm" | "PaymentCapture"
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5450,6 +5525,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payout_id: router_data.payout_id,
         connector_response: router_data.connector_response,
         integrity_check: Ok(()),
+        accept_amount_mismatch: router_data.accept_amount_mismatch,
         connector_wallets_details: router_data.connector_wallets_details,
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
@@ -8554,16 +8630,48 @@ pub fn add_connector_response_to_additional_payment_data(
                 authentication_data,
                 payment_checks,
                 auth_code,
+                processor_card_network,
+                card_subtype,
+                card_segment_type,
+                funding_source,
+                card_type,
+                issuer_name,
+                issuer_country,
                 ..
             },
-        ) => api_models::payments::AdditionalPaymentData::Card(Box::new(
-            api_models::payments::AdditionalCardInfo {
-                payment_checks,
-                authentication_data,
-                auth_code,
-                ..*additional_card_data.clone()
-            },
-        )),
+        ) => {
+            let connector_issuing_country =
+                issuer_country.map(|issuer_country| issuer_country.to_string());
+
+            api_models::payments::AdditionalPaymentData::Card(Box::new(
+                api_models::payments::AdditionalCardInfo {
+                    payment_checks,
+                    authentication_data,
+                    auth_code,
+                    card_network: additional_card_data
+                        .card_network
+                        .clone()
+                        .or(processor_card_network),
+                    card_issuer: additional_card_data.card_issuer.clone().or(issuer_name),
+                    card_type: additional_card_data
+                        .card_type
+                        .clone()
+                        .or(card_type.map(|card_type| card_type.to_string())),
+                    card_subtype: additional_card_data.card_subtype.clone().or(card_subtype),
+                    card_segment_type: additional_card_data.card_segment_type.or(card_segment_type),
+                    funding_source: additional_card_data.funding_source.or(funding_source),
+                    card_issuing_country: additional_card_data
+                        .card_issuing_country
+                        .clone()
+                        .or(connector_issuing_country.clone()),
+                    card_issuing_country_code: additional_card_data
+                        .card_issuing_country_code
+                        .clone()
+                        .or(connector_issuing_country),
+                    ..*additional_card_data.clone()
+                },
+            ))
+        }
         (
             api_models::payments::AdditionalPaymentData::PayLater { .. },
             AdditionalPaymentMethodConnectorResponse::PayLater {
@@ -9292,6 +9400,7 @@ pub async fn fetch_active_surcharge_mca(
 pub fn check_integrity_based_on_flow<T, Request>(
     request: &Request,
     payment_response_data: &Result<PaymentsResponseData, ErrorResponse>,
+    accept_amount_mismatch: Option<common_types::primitive_wrappers::AcceptAmountMismatchBool>,
 ) -> Result<(), common_utils::errors::IntegrityCheckError>
 where
     T: FlowIntegrity,
@@ -9315,7 +9424,12 @@ where
         },
         Err(_) => &None,
     };
-    request.check_integrity(request, connector_transaction_id.to_owned())
+    request.check_integrity(
+        request,
+        connector_transaction_id.to_owned(),
+        // `None` (not resolved for this router data) defaults to `false`: a strict check.
+        accept_amount_mismatch.unwrap_or_default(),
+    )
 }
 
 pub async fn config_skip_saving_wallet_at_connector(
@@ -10008,5 +10122,109 @@ pub fn update_request_data_with_mandate_id(
                 });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod connector_response_card_merge_tests {
+    use hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse;
+
+    use super::add_connector_response_to_additional_payment_data;
+
+    /// A connector that reports every card attribute it can, as Worldpay does when `<cardBin>` is
+    /// enabled on the account.
+    fn connector_card_response() -> AdditionalPaymentMethodConnectorResponse {
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: None,
+            card_network: None,
+            domestic_network: None,
+            auth_code: Some("123456".to_string()),
+            processor_card_network: Some(common_enums::CardNetwork::Visa),
+            card_subtype: Some("ELECTRON".to_string()),
+            card_segment_type: Some(common_enums::CardSegmentType::Commercial),
+            funding_source: Some(common_enums::FundingSource::Debit),
+            card_type: Some(common_enums::CardType::Debit),
+            issuer_name: Some("CONNECTOR ISSUER".to_string()),
+            issuer_country: Some(common_enums::CountryAlpha2::GB),
+        }
+    }
+
+    fn merge(
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> api_models::payments::AdditionalCardInfo {
+        let merged = add_connector_response_to_additional_payment_data(
+            api_models::payments::AdditionalPaymentData::Card(Box::new(additional_card_info)),
+            connector_card_response(),
+        );
+
+        match merged {
+            api_models::payments::AdditionalPaymentData::Card(card) => *card,
+            other => panic!("expected card additional payment data, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn connector_card_attributes_fill_an_empty_card_record() {
+        let card = merge(api_models::payments::AdditionalCardInfo {
+            card_isin: Some("444433".to_string()),
+            ..Default::default()
+        });
+
+        assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
+        assert_eq!(card.card_type.as_deref(), Some("DEBIT"));
+        assert_eq!(card.card_subtype.as_deref(), Some("ELECTRON"));
+        assert_eq!(
+            card.card_segment_type,
+            Some(common_enums::CardSegmentType::Commercial)
+        );
+        assert_eq!(
+            card.funding_source,
+            Some(common_enums::FundingSource::Debit)
+        );
+        assert_eq!(card.card_issuing_country.as_deref(), Some("GB"));
+        assert_eq!(card.card_issuing_country_code.as_deref(), Some("GB"));
+        assert_eq!(card.card_network, Some(common_enums::CardNetwork::Visa));
+        assert_eq!(card.auth_code.as_deref(), Some("123456"));
+        assert_eq!(card.card_isin.as_deref(), Some("444433"));
+    }
+
+    #[test]
+    fn resolved_values_win_and_the_connector_only_fills_the_gaps() {
+        let card = merge(api_models::payments::AdditionalCardInfo {
+            card_issuer: Some("CURATED ISSUER".to_string()),
+            card_type: Some("CREDIT".to_string()),
+            card_issuing_country: Some("IN".to_string()),
+            ..Default::default()
+        });
+
+        assert_eq!(card.card_issuer.as_deref(), Some("CURATED ISSUER"));
+        assert_eq!(card.card_type.as_deref(), Some("CREDIT"));
+        assert_eq!(card.card_issuing_country.as_deref(), Some("IN"));
+        // The columns the BIN record left null are filled from the connector rather than staying
+        // empty, which is the case that matters for BINs whose subtype is not recorded.
+        assert_eq!(card.card_subtype.as_deref(), Some("ELECTRON"));
+        assert_eq!(
+            card.funding_source,
+            Some(common_enums::FundingSource::Debit)
+        );
+        assert_eq!(
+            card.card_segment_type,
+            Some(common_enums::CardSegmentType::Commercial)
+        );
+        assert_eq!(card.auth_code.as_deref(), Some("123456"));
+    }
+
+    #[test]
+    fn a_cobadge_resolved_network_is_not_overwritten() {
+        let card = merge(api_models::payments::AdditionalCardInfo {
+            card_network: Some(common_enums::CardNetwork::RuPay),
+            ..Default::default()
+        });
+
+        // Debit routing selects the rail the payment authorizes on, so the connector's plain scheme
+        // network must not replace it.
+        assert_eq!(card.card_network, Some(common_enums::CardNetwork::RuPay));
+        assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
     }
 }
