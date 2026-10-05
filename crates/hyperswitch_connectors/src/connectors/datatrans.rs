@@ -851,7 +851,7 @@ static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: common_enums::enums::FeatureStatus::Supported,
                 refunds: common_enums::enums::FeatureStatus::Supported,
-                supported_capture_methods,
+                supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
@@ -861,6 +861,28 @@ static DATATRANS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         }
                     }),
                 ),
+            },
+        );
+
+        datatrans_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: common_enums::enums::FeatureStatus::Supported,
+                refunds: common_enums::enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        datatrans_supported_payment_methods.add(
+            PaymentMethod::Wallet,
+            PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: common_enums::enums::FeatureStatus::Supported,
+                refunds: common_enums::enums::FeatureStatus::Supported,
+                supported_capture_methods,
+                specific_features: None,
             },
         );
 

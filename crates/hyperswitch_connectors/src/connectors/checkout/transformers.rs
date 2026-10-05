@@ -451,7 +451,7 @@ fn get_checkout_recipient_account_number(
     let unsupported = |identifier: &str| {
         error_stack::report!(errors::ConnectorError::NotSupported {
             message: format!("{identifier} as a recipient account identifier"),
-            connector: "checkout",
+            connector: "checkout".into(),
         })
     };
 
@@ -2800,6 +2800,13 @@ fn convert_to_additional_payment_method_connector_response(
                 card_network: None,
                 domestic_network: None,
                 auth_code,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             })
         }
     }

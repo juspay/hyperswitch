@@ -513,6 +513,7 @@ impl super::RedisConnectionWithContext {
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+
         value_bytes
             .parse_struct(type_name)
             .change_context(errors::RedisError::JsonDeserializationFailed)

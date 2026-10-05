@@ -1,7 +1,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
-    gsm as gsm_api_types, payment_methods,
+    gsm as gsm_api_types, offer_engine as offer_engine_api, payment_methods,
     payments::{self, CustomerDetails},
     routing::ConnectorSelection,
 };
@@ -25,7 +25,7 @@ use crate::core::webhooks::utils::redact_header_values;
 #[cfg(feature = "v2")]
 use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
-    core::errors,
+    core::{errors, offer_engine},
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -757,6 +757,40 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             merchant_connector_id: dispute.merchant_connector_id,
             is_already_refunded: false,
             additional_details: dispute.additional_details,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<storage::Dispute> for api_models::disputes::PlatformDisputeListItem {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            merchant_id: dispute.merchant_id,
+            processor_merchant_id: dispute.processor_merchant_id,
+            amount: dispute.amount,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
+            dispute_stage: dispute.dispute_stage,
+            dispute_status: dispute.dispute_status,
+            connector: dispute.connector,
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+            profile_id: dispute.profile_id,
+            merchant_connector_id: dispute.merchant_connector_id,
         }
     }
 }
@@ -2947,5 +2981,17 @@ impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerRespon
             id: from.id,
             issuer_name,
         })
+    }
+}
+
+impl ForeignFrom<offer_engine::OfferEngineCredentialSource>
+    for offer_engine_api::OfferEngineCredentialSource
+{
+    fn foreign_from(from: offer_engine::OfferEngineCredentialSource) -> Self {
+        match from {
+            offer_engine::OfferEngineCredentialSource::None => Self::None,
+            offer_engine::OfferEngineCredentialSource::Application => Self::Application,
+            offer_engine::OfferEngineCredentialSource::Merchant => Self::Merchant,
+        }
     }
 }
