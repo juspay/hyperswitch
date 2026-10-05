@@ -37,6 +37,8 @@ impl RouterClient {
         }
         Ok(Self {
             client: builder
+                // Public Router ingress requires a User-Agent on service-to-service requests.
+                .user_agent("hyperswitch-observability")
                 .timeout(Duration::from_secs(3))
                 .build()
                 .map_err(|_| RouterError::Unavailable)?,
@@ -93,6 +95,10 @@ mod tests {
                 let calls = calls.clone();
                 async move {
                     calls.fetch_add(1, Ordering::SeqCst);
+                    assert_eq!(
+                        request.headers().get("user-agent").unwrap(),
+                        "hyperswitch-observability"
+                    );
                     assert!(request.headers().get("cookie").is_none());
                     match request.uri().path() {
                         "/api/user/internal/authorize" => {
@@ -154,6 +160,10 @@ mod tests {
                     assert_eq!(
                         request.headers().get("authorization").unwrap(),
                         "Bearer signed.token.value"
+                    );
+                    assert_eq!(
+                        request.headers().get("user-agent").unwrap(),
+                        "hyperswitch-observability"
                     );
                     assert!(request.headers().get("cookie").is_none());
                     HttpResponse::Ok().json(serde_json::json!({"email": "user@example.com"}))
