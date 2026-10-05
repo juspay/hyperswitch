@@ -227,6 +227,7 @@ impl TryFrom<&hyperswitch_domain_models::router_request_types::AuthenticationDat
             | Some(common_enums::TransactionStatus::Failure)
             | Some(common_enums::TransactionStatus::ChallengeRequired)
             | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            | Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired)
             | None => Self::Unavailable,
         };
         Ok(authentication_status)
