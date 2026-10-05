@@ -673,16 +673,17 @@ pub async fn should_use_merchant_reference_id_as_customer_id(
     api_key_type: common_enums::ApiKeyType,
     customer_id: &id_type::CustomerId,
 ) -> bool {
-    if api_key_type == common_enums::ApiKeyType::Internal {
-        return false;
+    match api_key_type {
+        common_enums::ApiKeyType::Internal => false,
+        common_enums::ApiKeyType::External => {
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                state,
+                provider,
+                Some(customer_id),
+            )
+            .await
+        }
     }
-
-    payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
-        state,
-        provider,
-        Some(customer_id),
-    )
-    .await
 }
 
 #[instrument(skip(state))]
