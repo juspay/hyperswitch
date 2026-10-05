@@ -246,8 +246,8 @@ rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff
 
 # TEMPORARY: pinned to the UCS branch carrying the typed 3DS contract
 # (juspay/hyperswitch-prism#2267). Replace with the release tag once cut.
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "d9501da93e", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "d9501da93e", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", branch = "feat/netcetera-typed-3ds-auth-contract", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", branch = "feat/netcetera-typed-3ds-auth-contract", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",
