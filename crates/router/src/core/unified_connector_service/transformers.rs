@@ -84,7 +84,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
-            stripe: _,
+            stripe,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -105,7 +105,11 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                     payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
                 }
             }),
-            stripe: None,
+            stripe: stripe
+                .as_ref()
+                .map(|data| payments_grpc::StripeAdditionalInformation {
+                    error_on_requires_action: data.error_on_requires_action,
+                }),
         }
     }
 }
@@ -1338,13 +1342,14 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 _ => None,
             }
         });
-
         let connector_mandate_id = structured
             .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.request.connector_mandate_id.clone())
             .or_else(|| router_data.connector_mandate_request_reference_id.clone());
         let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
-        let connector_mandate_request_reference_id =
-            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+        let connector_mandate_request_reference_id = structured
+            .and_then(|r| r.get_connector_mandate_request_reference_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
 
         if connector_mandate_id.is_none()
             && payment_method_id.is_none()
@@ -2775,6 +2780,27 @@ impl
     }
 }
 
+/// Connectors whose connector-service SetupMandate builder accepts raw card data.
+///
+/// `build_unified_connector_service_payment_method` substitutes the connector token for
+/// *any* payment method, so a card SetupMandate reaches the connector service as a token
+/// and the card itself is lost -- the gRPC `PaymentMethod.payment_method` oneof is card
+/// XOR token, so it cannot carry both. Our own connectors do not behave that way: Stripe's
+/// SetupMandate builder consumes `payment_method_token` on the wallet arm and ignores it
+/// for cards, re-sending the card. Shadow validation sees the difference as UCS sending
+/// `payment_method=<pm_id>` where the direct call sends `payment_method_data[card][*]`,
+/// `payment_method_data[type]`, `payment_method_options[card][network]`,
+/// `[request_three_d_secure]` and `payment_method_types[0]`.
+///
+/// An allow-list rather than a deny-list on purpose: some connectors genuinely require a
+/// token on this flow and reject raw cards (billwerk's `source` must be a `ct_`/`ca_`
+/// token; stax resolves a mandate token or errors), so an unverified connector keeps
+/// today's behaviour. Extend one connector at a time, after confirming its
+/// connector-service SetupMandate builder handles `PaymentMethodData::Card`.
+fn setup_mandate_accepts_raw_card(connector: &str) -> bool {
+    matches!(connector, "stripe")
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
@@ -2786,11 +2812,23 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        // Drop the token ONLY for a raw card on an allow-listed connector. Everything else
+        // -- wallets, mandate payments, bank debits, anything the helper below has no arm
+        // for -- keeps today's behaviour, because the helper answers NotImplemented for
+        // variants it cannot build and the token short-circuit is what rescues them today.
+        let payment_method_token = match router_data.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+                if setup_mandate_accepts_raw_card(router_data.connector.as_str()) =>
+            {
+                None
+            }
+            _ => router_data.payment_method_token.as_ref(),
+        };
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-                router_data.payment_method_token.as_ref(),
+                payment_method_token,
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -2837,6 +2875,13 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Stripe's setup_intents needs this for on_behalf_of on a destination charge,
+            // and echoes the charge details back as mandate_reference.mandate_metadata.
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             test_mode: router_data.test_mode,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
@@ -8741,6 +8786,9 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_connector_metadata: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -9032,6 +9080,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_method_data: None,
+            test_mode: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
