@@ -342,10 +342,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     Some(mandate_reference_id),
                     Some(payment_method_recurring_details),
                 ),
-                // A card held in an external vault has no domain payment method data form: the
-                // alias is non-PCI and travels as `ExternalVaultPaymentMethodData` through the
-                // external vault proxy core. It still authorizes on its network transaction ID,
-                // so carry that mandate reference on its own.
+                // A vault alias has no domain payment method data form, but still carries a
+                // network transaction ID as its mandate reference.
                 None => (
                     domain_recurring_details
                         .as_ref()

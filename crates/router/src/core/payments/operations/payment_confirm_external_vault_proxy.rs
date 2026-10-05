@@ -49,6 +49,19 @@ pub(crate) fn build_external_vault_payment_method_data(
 ) -> RouterResult<
     Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
 > {
+    // An MIT driven by `recurring_details` carries no `payment_method_data`: the card sits in the
+    // external vault behind an alias and authorizes on the network transaction ID.
+    let recurring_details_external_vault_pmd = || {
+        request
+            .recurring_details
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
+            .and_then(|recurring_details| {
+                recurring_details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            })
+            .map(|(_mandate_reference_id, external_vault_pmd)| external_vault_pmd)
+    };
+
     let external_vault_pmd = match request
         .payment_method_data
         .as_ref()
@@ -103,26 +116,11 @@ pub(crate) fn build_external_vault_payment_method_data(
                         ),
                     )
                 }
-                None => None,
+                None => recurring_details_external_vault_pmd(),
             }
         }
-        _ => None,
+        _ => recurring_details_external_vault_pmd(),
     };
-
-    // An MIT driven by `recurring_details` carries no `payment_method_data`: the card sits in the
-    // external vault behind an alias, and the network transaction ID supplies the mandate
-    // reference. This mirrors the raw-card MIT flow, which derives its payment method data from
-    // the recurring details in the same way, only through the plain proxy core.
-    let external_vault_pmd = external_vault_pmd.or_else(|| {
-        request
-            .recurring_details
-            .clone()
-            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
-            .and_then(|recurring_details| {
-                recurring_details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
-            })
-            .map(|(_mandate_reference_id, external_vault_pmd)| external_vault_pmd)
-    });
 
     Ok(external_vault_pmd)
 }

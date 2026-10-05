@@ -2883,15 +2883,9 @@ impl
     }
 }
 
-/// An MIT against a card held in an external vault.
-///
-/// `PaymentServiceAuthorizeRequest` carries no mandate reference — only `setup_mandate_details`,
-/// which is CIT setup — so authorizing a vault alias through it would drop the network
-/// transaction ID and the connector would treat the payment as a fresh cardholder-present
-/// authorization. The recurring charge request is the MIT shape: it pairs
-/// `connector_recurring_payment_id` with an optional payment method, which its proto documents as
-/// being there "for network transaction flows". This mirrors what `authorize_gateway` already does
-/// for the raw-card MIT flow, with the card payload in its non-PCI external vault form.
+/// An MIT against a card held in an external vault. `PaymentServiceAuthorizeRequest` carries no
+/// mandate reference, so it would drop the network transaction ID; the recurring charge request is
+/// the MIT shape.
 impl
     transformers::ForeignTryFrom<
         &RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,

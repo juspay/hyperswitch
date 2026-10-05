@@ -189,8 +189,8 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct VaultCardDetails {
-    /// The vault alias which refers to the card number, not the card number itself
-    pub card_number: Secret<String>,
+    /// The vault alias standing in for the card number, not the card number itself
+    pub vault_card_token: Secret<String>,
 
     /// The card's expiry month
     pub card_exp_month: Secret<String>,
@@ -971,7 +971,7 @@ impl From<VaultCardDetails> for ExternalVaultCard {
     /// alongside the vault alias, not on the CVC.
     fn from(vault_card_details: VaultCardDetails) -> Self {
         Self {
-            card_number: vault_card_details.card_number,
+            card_number: vault_card_details.vault_card_token,
             card_exp_month: vault_card_details.card_exp_month,
             card_exp_year: vault_card_details.card_exp_year,
             card_cvc: Secret::new(String::new()),
@@ -4928,7 +4928,7 @@ impl From<api_mandates::NetworkTransactionIdAndNetworkTokenDetails>
 impl From<api_mandates::VaultCardData> for VaultCardDetails {
     fn from(value: api_mandates::VaultCardData) -> Self {
         Self {
-            card_number: value.card_number,
+            vault_card_token: value.card_number,
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             card_holder_name: value.card_holder_name,
@@ -5011,9 +5011,7 @@ impl RecurringDetails {
             Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
                 Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
-            // Vault card details are authorized through the external vault proxy core, which
-            // builds its own non-PCI payment method data, so there is nothing to hand the
-            // plain proxy core here.
+            // Vault card details are authorized through the external vault proxy core instead.
             Self::NetworkTransactionIdAndVaultCardDetails(_)
             | Self::PaymentMethodId(_)
             | Self::MandateId(_)
@@ -5063,7 +5061,7 @@ mod vault_card_recurring_details_tests {
                 assert_eq!(details.transaction_link_id.as_deref(), Some("TLID-99"));
 
                 let card = details.vault_card_data;
-                assert_eq!(card.card_number.peek(), "tok_4242424242424242");
+                assert_eq!(card.vault_card_token.peek(), "tok_4242424242424242");
                 assert_eq!(card.card_exp_month.peek(), "03");
                 assert_eq!(card.card_exp_year.peek(), "30");
                 assert_eq!(
