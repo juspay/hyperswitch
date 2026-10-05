@@ -8,21 +8,31 @@ use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::{api::gateway::GatewayContext, errors::ConnectorError};
 
+#[cfg(feature = "v1")]
+use crate::core::payouts::proxy::PayoutProxyMetadata;
 use crate::{core::unified_connector_service::kill_switch::RolloutSettings, routes::SessionState};
 
 /// Request-scoped routing and authentication information for payout gateways.
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
+    /// Credentials identifier for connector authentication.
     pub creds_identifier: Option<String>,
+    /// Processor information.
     pub processor: Processor,
+    /// HTTP header payload from the request.
     pub header_payload: HeaderPayload,
+    /// Lineage IDs for tracing and tracking.
     pub lineage_ids: LineageIds,
+    /// Merchant connector account details.
     #[cfg(feature = "v1")]
     pub merchant_connector_account: crate::core::payments::helpers::MerchantConnectorAccountType,
+    /// Merchant connector account details.
     #[cfg(feature = "v2")]
     pub merchant_connector_account:
         hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    /// Execution path (Direct, UCS, or Shadow UCS).
     pub execution_path: ExecutionPath,
+    /// Execution mode (Primary or Shadow).
     pub execution_mode: ExecutionMode,
     /// Existing normal payout rollout settings, previously carried by the shared payment
     /// context. Proxy payouts bypass rollout/fallback and set kill_switch_enabled=false.

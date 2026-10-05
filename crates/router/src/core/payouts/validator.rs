@@ -102,7 +102,6 @@ pub async fn validate_create_request(
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
     _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    _business_profile: Option<domain::Profile>,
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
@@ -123,7 +122,6 @@ pub async fn validate_create_request(
     platform: &domain::Platform,
     req: &payouts::PayoutCreateRequest,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    business_profile: Option<domain::Profile>,
 ) -> RouterResult<(
     id_type::PayoutId,
     Option<payouts::PayoutMethodData>,
@@ -136,14 +134,48 @@ pub async fn validate_create_request(
             message: "Confirm must be true for recurring payouts".to_string(),
         }));
     }
+    let merchant_id = platform.get_processor().get_account().get_id();
+
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
             validate_payout_link_request(req)?;
         }
     };
 
-    let payout_id = validate_create_request_identity(state, platform, req).await?;
+    // Merchant ID
+    let predicate = req.merchant_id.as_ref().map(|mid| mid != merchant_id);
+    utils::when(predicate.unwrap_or(false), || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "merchant_id".into(),
+            expected_format: "merchant_id from merchant account".to_string(),
+        })
+        .attach_printable("invalid merchant_id in request"))
+    })?;
+
+    // Payout ID
     let db: &dyn StorageInterface = &*state.store;
+    let payout_id = match req.payout_id.as_ref() {
+        Some(provided_payout_id) => provided_payout_id.clone(),
+        None => id_type::PayoutId::generate(),
+    };
+
+    match validate_uniqueness_of_payout_id_against_merchant_id(
+        db,
+        &payout_id,
+        merchant_id,
+        platform.get_processor().get_account().storage_scheme,
+    )
+    .await
+    .attach_printable_lazy(|| {
+        format!(
+            "Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}"
+        )
+    })? {
+        Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
+            payout_id: payout_id.clone()
+        })),
+        None => Ok(()),
+    }?;
 
     // Fetch customer details (merge of loose fields + customer object) and create DB entry
     let customer_in_request = helpers::get_customer_details_from_request(req);
@@ -160,19 +192,14 @@ pub async fn validate_create_request(
     };
 
     // Fetch the profile once and hand it back, so payout creation doesn't fetch it again
-    let business_profile = match business_profile {
-        Some(profile) => profile,
-        None => {
-            core_utils::get_profile_from_business_details(
-                req.business_country,
-                req.business_label.as_ref(),
-                platform.get_processor(),
-                req.profile_id.as_ref(),
-                &*state.store,
-            )
-            .await?
-        }
-    };
+    let business_profile = core_utils::get_profile_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        platform.get_processor(),
+        req.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await?;
     let profile_id = business_profile.get_id().to_owned();
 
     let payment_method: Option<PaymentMethod> =
@@ -270,46 +297,6 @@ pub async fn validate_create_request(
         customer,
         payment_method,
     ))
-}
-
-/// Shared merchant/ID checks. Does not fetch a method, create a customer, or touch a locker.
-#[cfg(feature = "v1")]
-pub(super) async fn validate_create_request_identity(
-    state: &SessionState,
-    platform: &domain::Platform,
-    req: &payouts::PayoutCreateRequest,
-) -> RouterResult<id_type::PayoutId> {
-    let merchant_id = platform.get_processor().get_account().get_id();
-    utils::when(
-        req.merchant_id
-            .as_ref()
-            .is_some_and(|mid| mid != merchant_id),
-        || {
-            Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".into(),
-                expected_format: "merchant_id from merchant account".to_owned(),
-            })
-            .attach_printable("invalid merchant_id in request"))
-        },
-    )?;
-
-    let payout_id = req
-        .payout_id
-        .clone()
-        .unwrap_or_else(id_type::PayoutId::generate);
-    match validate_uniqueness_of_payout_id_against_merchant_id(
-        &*state.store,
-        &payout_id,
-        merchant_id,
-        platform.get_processor().get_account().storage_scheme,
-    )
-    .await
-    .attach_printable_lazy(|| {
-        format!("Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}")
-    })? {
-        Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout { payout_id })),
-        None => Ok(payout_id),
-    }
 }
 
 #[cfg(feature = "v1")]

@@ -6,6 +6,8 @@ pub mod gateway;
 pub mod guards;
 pub mod helpers;
 #[cfg(feature = "v1")]
+pub mod payout_utils;
+#[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -43,6 +45,8 @@ use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
 use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use proxy::PayoutProxyOperation;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
@@ -626,31 +630,26 @@ pub async fn payouts_create_core_wrapper(
             .is_external_vault_enabled()
         {
             true => {
-                Box::pin(proxy::payouts_proxy_core(
-                    &state,
-                    &platform,
-                    header_payload,
-                    req,
-                    profile,
-                    provider_profile,
-                ))
+                Box::pin(
+                    proxy::ExternalVaultPayout {
+                        state: &state,
+                        platform: &platform,
+                    }
+                    .payouts_proxy_core(
+                        header_payload,
+                        req,
+                        profile,
+                        provider_profile,
+                    ),
+                )
                 .await
             }
-            false => {
-                Box::pin(payouts_create_core(
-                    state,
-                    platform,
-                    header_payload,
-                    req,
-                    Some(profile),
-                ))
-                .await
-            }
+            false => Box::pin(payouts_create_core(state, platform, header_payload, req)).await,
         }
     }
     #[cfg(feature = "v2")]
     {
-        payouts_create_core(state, platform, header_payload, req, None).await
+        payouts_create_core(state, platform, header_payload, req).await
     }
 }
 
@@ -660,14 +659,13 @@ pub async fn payouts_create_core(
     platform: domain::Platform,
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
-    business_profile: Option<domain::Profile>,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     // Validate create request
     let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
-        validator::validate_create_request(&state, &platform, &req, &dimensions, business_profile),
+        validator::validate_create_request(&state, &platform, &req, &dimensions),
     )
     .await?;
 
@@ -4543,14 +4541,9 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
 ) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
     match payout_data.payout_attempt.execution_kind {
         api_enums::PayoutExecutionKind::ExternalVaultProxy => {
-            let context = proxy::proxy_gateway_context(
-                state,
-                platform,
-                header_payload,
-                connector_data,
-                payout_data,
-            )
-            .await?;
+            let context = proxy::ExternalVaultPayout { state, platform }
+                .proxy_gateway_context(header_payload, connector_data, payout_data)
+                .await?;
             update_gateway_system_in_payout_metadata(
                 payout_data,
                 common_enums::GatewaySystem::UnifiedConnectorService,
