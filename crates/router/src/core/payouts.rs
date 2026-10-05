@@ -605,69 +605,58 @@ pub async fn payouts_core(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payouts_create_core_wrapper(
     state: SessionState,
     platform: domain::Platform,
-    #[cfg(feature = "v1")] auth_profile: Option<domain::Profile>,
+    auth_profile: Option<domain::Profile>,
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    #[cfg(feature = "v1")]
-    {
-        let mut req = req;
-        let profile = match auth_profile {
-            Some(profile) => {
-                payout_utils::validate_payout_condition(
-                    profile.merchant_id != *platform.get_processor().get_account().get_id()
-                        || req
-                            .profile_id
-                            .as_ref()
-                            .is_some_and(|id| id != profile.get_id()),
-                    "Payout profile does not match the authenticated merchant and profile",
-                )?;
-                req.profile_id = Some(profile.get_id().clone());
-                profile
-            }
-            // V1 API-key authentication has no profile when X-Profile-Id is omitted.
-            None => {
-                core_utils::get_profile_from_business_details(
-                    req.business_country,
-                    req.business_label.as_ref(),
-                    platform.get_processor(),
-                    req.profile_id.as_ref(),
-                    &*state.store,
-                )
-                .await?
-            }
-        };
-        let provider_profile =
-            payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
-        match provider_profile
-            .external_vault_details
-            .is_external_vault_enabled()
-        {
-            true => {
-                Box::pin(
-                    proxy::ExternalVaultPayout {
-                        state: &state,
-                        platform: &platform,
-                    }
-                    .payouts_proxy_core(
-                        header_payload,
-                        req,
-                        profile,
-                        provider_profile,
-                    ),
-                )
-                .await
-            }
-            false => Box::pin(payouts_create_core(state, platform, header_payload, req)).await,
+    let mut req = req;
+    let profile = match auth_profile {
+        Some(profile) => {
+            payout_utils::validate_payout_condition(
+                profile.merchant_id != *platform.get_processor().get_account().get_id()
+                    || req
+                        .profile_id
+                        .as_ref()
+                        .is_some_and(|id| id != profile.get_id()),
+                "Payout profile does not match the authenticated merchant and profile",
+            )?;
+            req.profile_id = Some(profile.get_id().clone());
+            profile
         }
-    }
-    #[cfg(feature = "v2")]
+        // V1 API-key authentication has no profile when X-Profile-Id is omitted.
+        None => {
+            core_utils::get_profile_from_business_details(
+                req.business_country,
+                req.business_label.as_ref(),
+                platform.get_processor(),
+                req.profile_id.as_ref(),
+                &*state.store,
+            )
+            .await?
+        }
+    };
+    let provider_profile =
+        payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
+    match provider_profile
+        .external_vault_details
+        .is_external_vault_enabled()
     {
-        payouts_create_core(state, platform, header_payload, req).await
+        true => {
+            Box::pin(
+                proxy::ExternalVaultPayout {
+                    state: &state,
+                    platform: &platform,
+                }
+                .payouts_proxy_core(header_payload, req, profile, provider_profile),
+            )
+            .await
+        }
+        false => Box::pin(payouts_create_core(state, platform, header_payload, req)).await,
     }
 }
 

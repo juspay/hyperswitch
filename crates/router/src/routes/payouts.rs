@@ -28,6 +28,7 @@ use crate::{
 };
 
 /// Payouts - Create
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
 pub async fn payouts_create(
     state: web::Data<AppState>,
@@ -56,7 +57,6 @@ pub async fn payouts_create(
             payouts_create_core_wrapper(
                 state,
                 auth.platform,
-                #[cfg(feature = "v1")]
                 auth.profile,
                 header_payload.clone(),
                 req,
