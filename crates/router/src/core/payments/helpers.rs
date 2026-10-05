@@ -2071,29 +2071,29 @@ pub async fn resolve_request_customer_id(
     // Skip the customer-table lookup entirely for the (overwhelming) majority of merchants who
     // don't have this config enabled: the request's `customer_id` is already correct for them, and
     // this function sits on the hot path of every payment create/confirm.
-    if !use_merchant_reference_id {
-        return customer_id.clone();
-    }
-
-    state
-        .store
-        .find_customer_optional_by_customer_id_merchant_id(
-            customer_id,
-            provider.get_account().get_id(),
-            provider.get_key_store(),
-            provider.get_account().storage_scheme,
-            use_merchant_reference_id,
-        )
-        .await
-        .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to resolve the customer using the merchant reference id"
+    if use_merchant_reference_id {
+        state
+            .store
+            .find_customer_optional_by_customer_id_merchant_id(
+                customer_id,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
-        })
-        .ok()
-        .flatten()
-        .map_or_else(|| customer_id.clone(), |customer| customer.get_id().clone())
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to resolve the customer using the merchant reference id"
+                )
+            })
+            .ok()
+            .flatten()
+            .map_or_else(|| customer_id.clone(), |customer| customer.get_id().clone())
+    } else {
+        customer_id.clone()
+    }
 }
 
 #[cfg(feature = "v1")]
