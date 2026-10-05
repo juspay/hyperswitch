@@ -9036,6 +9036,7 @@ pub enum BrazilStatesAbbreviation {
     Tocantins,
 }
 
+/// Internal execution marker; not a merchant-supplied payout request selector.
 #[derive(
     Clone,
     Copy,
@@ -9044,7 +9045,6 @@ pub enum BrazilStatesAbbreviation {
     Eq,
     Hash,
     PartialEq,
-    ToSchema,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,

@@ -2,10 +2,8 @@
 
 use crate::core::payments::helpers::MerchantConnectorAccountType;
 
-/// Runtime execution configuration, separate from the payout connector MCA and
-/// from token-bearing method data. Resolve the vault MCA through the provider's
-/// business profile, as payments do; never accept it from merchant metadata.
-#[derive(Clone, Default)]
+/// Provider-profile vault configuration, separate from payout connector credentials and tokens.
+#[derive(Clone, Debug, Default)]
 pub enum PayoutExecutionContext {
     #[default]
     Normal,

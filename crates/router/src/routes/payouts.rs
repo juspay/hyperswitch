@@ -130,10 +130,6 @@ pub async fn payouts_update(
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
 
-    if let Err(err) = validator::validate_existing_payout_execution_kind(&payout_update_payload) {
-        return api::log_and_return_error_response(err);
-    }
-
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => return api::log_and_return_error_response(err),
@@ -193,8 +189,10 @@ pub async fn payouts_confirm(
         }
     };
 
-    if let Err(err) = validate_payout_confirm_request(&payload, auth_flow) {
-        return api::log_and_return_error_response(err);
+    if auth_flow == api::AuthFlow::Client {
+        if let Err(err) = validate_client_payout_confirm_request(&payload) {
+            return api::log_and_return_error_response(err);
+        }
     }
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
@@ -224,16 +222,9 @@ pub async fn payouts_confirm(
     .await
 }
 
-fn validate_payout_confirm_request(
+fn validate_client_payout_confirm_request(
     payload: &payout_types::PayoutCreateRequest,
-    auth_flow: api::AuthFlow,
 ) -> RouterResult<()> {
-    validator::validate_existing_payout_execution_kind(payload)?;
-
-    if auth_flow == api::AuthFlow::Merchant {
-        return Ok(());
-    }
-
     let merchant_owned_fields = [
         payload.amount.is_some().then_some("amount"),
         payload.auto_fulfill.is_some().then_some("auto_fulfill"),

@@ -604,9 +604,6 @@ pub async fn payouts_create_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    // PR 2 will dispatch proxy execution here, before normal method resolution.
-    validator::validate_create_execution_kind(&req)?;
-
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -679,8 +676,6 @@ pub async fn payouts_confirm_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    validator::validate_existing_payout_execution_kind(&req)?;
-
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -750,8 +745,6 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    validator::validate_existing_payout_execution_kind(&req)?;
-
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());

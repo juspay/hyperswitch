@@ -1,16 +1,16 @@
 /// Payouts - Create
 ///
-/// Omit execution_kind or set it to normal to retain existing payout behavior.
-/// The external_vault_proxy mode is a single server-to-server create call using
+/// The provider business profile selects the execution flow; the request does not accept
+/// execution_kind. When external vault is enabled, this is a single server-to-server call using
 /// a saved payout_method_id, its owning customer, and a merchant-supplied payout_id.
 /// Reuse payout_id for retries; merchant_order_reference_id does not deduplicate.
 /// Once implemented, omitted proxy flags default to confirm=true,
 /// auto_fulfill=true, payout_type=card, and
-/// recurring=false; conflicting values, inline method data, payout_token, client
-/// secrets, and payout-link options are rejected only in that mode. No SDK or
-/// separate confirm call is required. Proxy mode without payout_id returns 400;
-/// otherwise it currently returns 501 before normal payment-method retrieval
-/// or payout creation.
+/// recurring=false; conflicting values, inline method data, payout_token, source_bank_data,
+/// client secrets, and payout-link options are rejected only in that mode. No SDK or
+/// separate confirm call is required. Profile-based proxy dispatch and validation
+/// are implemented by the core follow-up, not this contract-only release; execution
+/// remains unavailable until the UCS CardProxyPayout contract is published and pinned.
 #[utoipa::path(
     post,
     path = "/payouts/create",
@@ -25,7 +25,6 @@
             (
                 "External vault proxy payout (not yet implemented)" = (
                     value = json!({
-                        "execution_kind": "external_vault_proxy",
                         "payout_id": "payout_proxy_merchant_1001",
                         "merchant_order_reference_id": "merchant_payout_1001",
                         "amount": 1000,

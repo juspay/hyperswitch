@@ -839,7 +839,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PayoutSendPriority,
         api_models::enums::PayoutStatus,
         api_models::enums::PayoutType,
-        api_models::enums::PayoutExecutionKind,
         api_models::enums::TransactionType,
         api_models::enums::PresenceOfCustomerDuringPayment,
         api_models::enums::MitExemptionRequest,
