@@ -482,6 +482,31 @@ pub struct CustomerRequestData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BillingAgreementStruct {
     billing_agreement_id: Secret<String>,
+    payment_initiator: PaymentInitiator,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInitiator {
+    Customer,
+    Merchant,
+}
+
+impl From<Option<bool>> for PaymentInitiator {
+    fn from(off_session: Option<bool>) -> Self {
+        match off_session {
+            Some(true) => Self::Merchant,
+            Some(false) | None => Self::Customer,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalVaultRequest {
+    vault_id: Secret<String>,
+    payment_initiator: PaymentInitiator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attributes: Option<VaultRequestAttributes>,
 }
 
 impl BillingAgreementStruct {
@@ -557,8 +582,30 @@ pub enum ShippingPreference {
 #[serde(untagged)]
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
-    PaypalVaultStruct(VaultStruct),
+    PaypalVaultStruct(PaypalVaultRequest),
     BillingAgreementStruct(BillingAgreementStruct),
+}
+
+impl PaypalRedirectionRequest {
+    fn from_mandate_id(
+        source_payment_instrument_id: String,
+        attributes: Option<VaultRequestAttributes>,
+        off_session: Option<bool>,
+    ) -> Self {
+        let payment_initiator = PaymentInitiator::from(off_session);
+        if BillingAgreementStruct::is_billing_agreement_id(&source_payment_instrument_id) {
+            Self::BillingAgreementStruct(BillingAgreementStruct {
+                billing_agreement_id: source_payment_instrument_id.into(),
+                payment_initiator,
+            })
+        } else {
+            Self::PaypalVaultStruct(PaypalVaultRequest {
+                vault_id: source_payment_instrument_id.into(),
+                payment_initiator,
+                attributes,
+            })
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -1305,26 +1352,17 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                         }),
                     ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
-                        if BillingAgreementStruct::is_billing_agreement_id(&connector_mandate_id) {
-                            PaypalRedirectionRequest::BillingAgreementStruct(
-                                BillingAgreementStruct {
-                                    billing_agreement_id: connector_mandate_id.into(),
-                                },
-                            )
-                        } else {
-                            PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
-                                vault_id: connector_mandate_id.into(),
-                                attributes: item
-                                    .router_data
-                                    .get_optional_customer_id()
-                                    .as_ref()
-                                    .map(|customer_id| VaultRequestAttributes {
-                                        customer: Some(CustomerRequestData {
-                                            merchant_customer_id: Some(customer_id.clone()),
-                                        }),
+                        PaypalRedirectionRequest::from_mandate_id(
+                            connector_mandate_id,
+                            item.router_data.get_optional_customer_id().as_ref().map(
+                                |customer_id| VaultRequestAttributes {
+                                    customer: Some(CustomerRequestData {
+                                        merchant_customer_id: Some(customer_id.clone()),
                                     }),
-                            })
-                        },
+                                },
+                            ),
+                            item.router_data.request.off_session,
+                        ),
                     ))),
                     enums::PaymentMethodType::Ach
                     | enums::PaymentMethodType::Affirm
@@ -4537,5 +4575,55 @@ fn get_paypal_error_message(error_code: &str) -> Option<&str> {
         "PPVE" | "RESPONSE_PPVE" => Some("VALIDATION_ERROR."),
         "PPVT" | "RESPONSE_PPVT" => Some("VIRTUAL_TERMINAL_UNSUPPORTED."),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod saved_wallet_tests {
+    use super::*;
+
+    #[test]
+    fn saved_paypal_wallet_serializes_vault_id_and_payment_initiator() {
+        for (off_session, expected_initiator) in [
+            (None, "CUSTOMER"),
+            (Some(false), "CUSTOMER"),
+            (Some(true), "MERCHANT"),
+        ] {
+            let payment_source =
+                PaymentSourceItem::Paypal(PaypalRedirectionRequest::from_mandate_id(
+                    "saved_paypal_instrument".to_string(),
+                    None,
+                    off_session,
+                ));
+
+            assert_eq!(
+                serde_json::to_value(payment_source).unwrap(),
+                serde_json::json!({
+                    "paypal": {
+                        "vault_id": "saved_paypal_instrument",
+                        "payment_initiator": expected_initiator,
+                    }
+                }),
+            );
+        }
+    }
+
+    #[test]
+    fn saved_paypal_billing_agreement_preserves_credential_namespace() {
+        let payment_source = PaymentSourceItem::Paypal(PaypalRedirectionRequest::from_mandate_id(
+            "B-saved_agreement".to_string(),
+            None,
+            Some(true),
+        ));
+
+        assert_eq!(
+            serde_json::to_value(payment_source).unwrap(),
+            serde_json::json!({
+                "paypal": {
+                    "billing_agreement_id": "B-saved_agreement",
+                    "payment_initiator": "MERCHANT",
+                }
+            }),
+        );
     }
 }
