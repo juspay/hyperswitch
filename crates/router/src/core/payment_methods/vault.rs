@@ -20,6 +20,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v2")]
+use hyperswitch_masking::Secret;
+#[cfg(feature = "v2")]
 use payment_methods::controller::DeleteCardResp;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
@@ -2366,32 +2368,38 @@ pub async fn get_fingerprints_for_payment_method(
 
     let additional = auxiliary_data.map(|data| {
         let merchant =
-            merchant_fingerprint_secret.map(|key| pm_types::AdditionalVaultFingerprint {
+            merchant_fingerprint_secret.map(|key| pm_types::VaultBatchFingerprintEntry {
                 label: consts::MERCHANT_FINGERPRINT_LABEL.to_string(),
-                data: data.clone(),
-                key,
+                data: Secret::new(data.clone()),
+                key: Secret::new(key),
             });
 
-        std::iter::once(pm_types::AdditionalVaultFingerprint {
+        std::iter::once(pm_types::VaultBatchFingerprintEntry {
             label: consts::AUXILIARY_FINGERPRINT_LABEL.to_string(),
-            data,
-            key: customer_id.clone(),
+            data: Secret::new(data),
+            key: Secret::new(customer_id.clone()),
         })
         .chain(merchant)
         .collect::<Vec<_>>()
     });
 
-    let pm_types::VaultFingerprintResponse {
-        fingerprint_id,
-        additional,
-    } = call_vault_for_fingerprints(state, locker_data, customer_id, additional).await?;
-
-    let additional = additional.unwrap_or_default();
+    let fingerprints = std::iter::once(pm_types::VaultBatchFingerprintEntry {
+        label: "vault".to_string(),
+        data: Secret::new(locker_data),
+        key: Secret::new(customer_id),
+    })
+    .chain(additional.unwrap_or_default())
+    .collect();
+    let mut fingerprint_ids = call_vault_for_fingerprints(state, fingerprints).await?;
+    let fingerprint_id = fingerprint_ids
+        .remove("vault")
+        .ok_or(errors::VaultError::GenerateFingerprintFailed)
+        .attach_printable("Vault did not return the requested vault fingerprint")?;
 
     Ok(PaymentMethodFingerprints {
         locker_fingerprint_id: fingerprint_id,
-        auxiliary_fingerprint_id: additional.get(consts::AUXILIARY_FINGERPRINT_LABEL).cloned(),
-        merchant_fingerprint_id: additional.get(consts::MERCHANT_FINGERPRINT_LABEL).cloned(),
+        auxiliary_fingerprint_id: fingerprint_ids.remove(consts::AUXILIARY_FINGERPRINT_LABEL),
+        merchant_fingerprint_id: fingerprint_ids.remove(consts::MERCHANT_FINGERPRINT_LABEL),
     })
 }
 
@@ -2399,18 +2407,14 @@ pub async fn get_fingerprints_for_payment_method(
 #[instrument(skip_all)]
 async fn call_vault_for_fingerprints(
     state: &routes::SessionState,
-    data: String,
-    key: String,
-    additional: Option<Vec<pm_types::AdditionalVaultFingerprint>>,
-) -> CustomResult<pm_types::VaultFingerprintResponse, errors::VaultError> {
-    let payload = pm_types::VaultFingerprintRequestNew {
-        key,
-        data,
-        additional,
+    fingerprints: Vec<pm_types::VaultBatchFingerprintEntry>,
+) -> CustomResult<HashMap<String, String>, errors::VaultError> {
+    let payload = pm_types::VaultBatchFingerprintRequest {
+        batch_data: fingerprints,
     }
     .encode_to_vec()
     .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
+    .attach_printable("Failed to encode VaultBatchFingerprintRequest")?;
 
     let additional_headers = state.conf.locker.plain_fingerprint_response.then(|| {
         HashMap::from([(
@@ -2419,13 +2423,16 @@ async fn call_vault_for_fingerprints(
         )])
     });
 
-    call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, additional_headers)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?
-        .parse_struct("VaultFingerprintResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultFingerprintResponse")
+    let response: pm_types::VaultBatchFingerprintResponse =
+        call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, additional_headers)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?
+            .parse_struct("VaultBatchFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into VaultBatchFingerprintResponse")?;
+
+    Ok(response.fingerprints)
 }
 
 #[cfg(feature = "v2")]
@@ -2439,9 +2446,23 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
 
-    Ok(call_vault_for_fingerprints(state, data, key, None)
-        .await?
-        .fingerprint_id)
+    let payload = pm_types::VaultFingerprintRequestNew { data, key }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let additional_headers = state.conf.locker.plain_fingerprint_response.then(|| {
+        HashMap::from([(
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
+        )])
+    });
+    let response: pm_types::VaultFingerprintResponse =
+        call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, additional_headers)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)?
+            .parse_struct("VaultFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+
+    Ok(response.fingerprint_id)
 }
 
 #[cfg(feature = "v2")]
