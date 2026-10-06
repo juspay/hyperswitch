@@ -1770,7 +1770,7 @@ pub async fn perform_hybrid_routing_if_enabled(
                 key_store,
                 fallback_config,
                 &routing::TransactionData::Payment(payment_dsl_input.clone()),
-                business_profile.get_id(),
+                business_profile,
             )
             .await
             .inspect_err(|error| {
@@ -2643,11 +2643,12 @@ pub async fn filter_fallback_based_on_eligibility(
     key_store: &domain::MerchantKeyStore,
     fallback_config: &[routing_types::RoutableConnectorChoice],
     transaction_data: &routing::TransactionData<'_>,
-    profile_id: &common_utils::id_type::ProfileId,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let active_mca_ids = get_active_merchant_connector_accounts(state, key_store, profile_id)
-        .await?
-        .get_ids();
+    let active_mca_ids =
+        get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
+            .await?
+            .get_ids();
 
     perform_eligibility_analysis(
         state,
@@ -2655,8 +2656,8 @@ pub async fn filter_fallback_based_on_eligibility(
         fallback_config.to_vec(),
         transaction_data,
         None,
-        profile_id,
         &active_mca_ids,
+        business_profile,
     )
     .await
 }
