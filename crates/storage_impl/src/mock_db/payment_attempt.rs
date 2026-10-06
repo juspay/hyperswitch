@@ -256,6 +256,7 @@ impl PaymentAttemptInterface for MockDb {
             installment_data: payment_attempt.installment_data,
             external_surcharge_details: payment_attempt.external_surcharge_details,
             applied_offer_details: payment_attempt.applied_offer_details,
+            applied_overrides: payment_attempt.applied_overrides,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
             payment_account_reference: payment_attempt.payment_account_reference,
             active_frm_id: payment_attempt.active_frm_id,
