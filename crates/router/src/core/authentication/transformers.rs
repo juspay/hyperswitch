@@ -115,6 +115,7 @@ pub fn construct_post_authentication_router_data(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn construct_pre_authentication_router_data<F: Clone>(
     state: &SessionState,
     authentication_connector: String,

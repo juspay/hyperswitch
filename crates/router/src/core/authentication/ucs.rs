@@ -185,8 +185,7 @@ pub async fn call_unified_connector_service_pre_authentication(
         ucs_headers(state, router_data, context),
         context.rollout_settings(),
         |mut router_data, request, grpc_headers| async move {
-            let response = client
-                .payment_pre_authenticate(request, auth_metadata, grpc_headers)
+            let response = Box::pin(client.payment_pre_authenticate(request, auth_metadata, grpc_headers))
                 .await
                 .attach_printable("Failed to pre authenticate")?
                 .into_inner();
@@ -239,8 +238,7 @@ pub async fn call_unified_connector_service_authentication(
         ucs_headers(state, router_data, context),
         context.rollout_settings(),
         |mut router_data, request, grpc_headers| async move {
-            let response = client
-                .payment_authenticate(request, auth_metadata, grpc_headers)
+            let response = Box::pin(client.payment_authenticate(request, auth_metadata, grpc_headers))
                 .await
                 .attach_printable("Failed to authenticate")?
                 .into_inner();
@@ -296,8 +294,7 @@ pub async fn call_unified_connector_service_post_authentication(
         ucs_headers(state, router_data, context),
         context.rollout_settings(),
         |mut router_data, request, grpc_headers| async move {
-            let response = client
-                .payment_post_authenticate(request, auth_metadata, grpc_headers)
+            let response = Box::pin(client.payment_post_authenticate(request, auth_metadata, grpc_headers))
                 .await
                 .attach_printable("Failed to post authenticate")?
                 .into_inner();
