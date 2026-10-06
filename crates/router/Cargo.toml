@@ -59,6 +59,7 @@ frm = [
 ]
 stripe = []
 gcp_kms = ["external_services/gcp_kms"]
+oci_kms = ["external_services/oci_kms"]
 release = [
     "stripe",
     "email",
@@ -67,6 +68,7 @@ release = [
     "vergen",
     "external_services/aws_kms",
     "gcp_kms",
+    "oci_kms",
     "external_services/aws_s3",
     "keymanager_mtls",
     "keymanager_create",
