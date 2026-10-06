@@ -7559,50 +7559,56 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState, data) => {
 });
 
 // User API calls
-Cypress.Commands.add("signupUserWithMerchant", (namePrefix, globalState) => {
-  const baseUrl = globalState.get("baseUrl");
-  // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
-  // (available in the browser) to avoid modulo bias.
-  const randomBuf = new Uint32Array(1);
-  const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
-  let randomWord;
-  do {
-    crypto.getRandomValues(randomBuf);
-    randomWord = randomBuf[0];
-  } while (randomWord >= maxUnbiased);
-  const randomPart = randomWord % 10000;
-  const uniqueSuffix = `${Date.now()}${randomPart}`;
-  const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
-  const password = `Cypress@${uniqueSuffix}`;
+// organizationType (optional): merged into the signup body when provided
+// (e.g. "platform" to create a platform organization via signup)
+Cypress.Commands.add(
+  "signupUserWithMerchant",
+  (namePrefix, globalState, organizationType) => {
+    const baseUrl = globalState.get("baseUrl");
+    // crypto.randomInt is Node-only; use rejection sampling over getRandomValues
+    // (available in the browser) to avoid modulo bias.
+    const randomBuf = new Uint32Array(1);
+    const maxUnbiased = Math.floor(0xffffffff / 10000) * 10000;
+    let randomWord;
+    do {
+      crypto.getRandomValues(randomBuf);
+      randomWord = randomBuf[0];
+    } while (randomWord >= maxUnbiased);
+    const randomPart = randomWord % 10000;
+    const uniqueSuffix = `${Date.now()}${randomPart}`;
+    const email = `cypress_${namePrefix.toLowerCase()}_${uniqueSuffix}@cypresstest.in`;
+    const password = `Cypress@${uniqueSuffix}`;
 
-  cy.request({
-    method: "POST",
-    url: `${baseUrl}/user/signup_with_merchant_id`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    body: {
-      email,
-      password,
-      company_name: `${namePrefix}${uniqueSuffix}`,
-      name: namePrefix,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/user/signup_with_merchant_id`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: {
+        email,
+        password,
+        company_name: `${namePrefix}${uniqueSuffix}`,
+        name: namePrefix,
+        ...(organizationType ? { organization_type: organizationType } : {}),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-    cy.wrap(response).then(() => {
-      if (response.status !== 200) {
-        throw new Error(
-          `signup_with_merchant_id failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
-        );
-      }
-      globalState.set("email", email);
-      globalState.set("password", password);
+      cy.wrap(response).then(() => {
+        if (response.status !== 200) {
+          throw new Error(
+            `signup_with_merchant_id failed with status: "${response.status}" and message: "${JSON.stringify(response.body)}"`
+          );
+        }
+        globalState.set("email", email);
+        globalState.set("password", password);
+      });
     });
-  });
-});
+  }
+);
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
@@ -7725,6 +7731,214 @@ Cypress.Commands.add("userInfo", (globalState) => {
     });
   });
 });
+
+// Platform payment list API calls (dashboard JWT auth)
+Cypress.Commands.add(
+  "platformPaymentListCallTest",
+  (queryParams, globalState, options = {}) => {
+    const {
+      token = null, // explicit bearer token; falls back to userInfoToken
+      noAuth = false, // omit the Authorization header entirely
+      expectedStatus = 200,
+      expectedCount = null,
+      expectedTotalCount = null,
+      expectedError = null, // { type, message, code } for JSON error bodies
+      expectedBodyIncludes = null, // substring for plain-text error bodies
+      expectedMerchantId = null, // every listed payment must have this merchant_id
+      expectedProcessorMerchantId = null, // every listed payment must have this processor_merchant_id
+      expectedProcessorMerchantIds = null, // every listed payment's processor_merchant_id must be in this array
+      expectedPaymentId = null, // list must contain exactly this payment
+      expectedPaymentIds = null, // list must contain exactly these payments
+      expectAmountAscending = false, // data must be sorted by amount ascending
+    } = options;
+
+    const baseUrl = globalState.get("baseUrl");
+    const queryString = queryParams
+      ? Object.entries(queryParams)
+          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+          .join("&")
+      : "";
+    const url = `${baseUrl}/payments/platform/list${queryString ? `?${queryString}` : ""}`;
+
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+    if (!noAuth) {
+      headers.Authorization = `Bearer ${token || globalState.get("userInfoToken")}`;
+    }
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedError) {
+            defaultErrorHandler(response, {
+              status: expectedStatus,
+              body: { error: expectedError },
+            });
+          } else if (expectedBodyIncludes) {
+            expect(response.body).to.include(expectedBodyIncludes);
+          }
+          return;
+        }
+
+        expect(response.body).to.have.property("count");
+        expect(response.body).to.have.property("total_count");
+        expect(response.body.data).to.be.an("array");
+
+        if (expectedCount !== null) {
+          expect(response.body.count, "count").to.equal(expectedCount);
+        }
+        if (expectedTotalCount !== null) {
+          expect(response.body.total_count, "total_count").to.equal(
+            expectedTotalCount
+          );
+        }
+
+        for (const payment of response.body.data) {
+          expect(payment).to.have.property("payment_id");
+          expect(payment).to.have.property("merchant_id");
+          expect(payment).to.have.property("processor_merchant_id");
+          expect(payment).to.have.property("status");
+          expect(payment).to.have.property("amount");
+          expect(payment).to.have.property("currency");
+
+          if (expectedMerchantId) {
+            expect(payment.merchant_id, "merchant_id").to.equal(
+              expectedMerchantId
+            );
+          }
+          if (expectedProcessorMerchantId) {
+            expect(
+              payment.processor_merchant_id,
+              "processor_merchant_id"
+            ).to.equal(expectedProcessorMerchantId);
+          }
+          if (expectedProcessorMerchantIds) {
+            expect(
+              expectedProcessorMerchantIds,
+              "processor_merchant_id"
+            ).to.include(payment.processor_merchant_id);
+          }
+        }
+
+        if (expectedPaymentId) {
+          expect(response.body.count, "count").to.equal(1);
+          expect(response.body.data[0].payment_id, "payment_id").to.equal(
+            expectedPaymentId
+          );
+        }
+
+        if (expectedPaymentIds) {
+          expect(response.body.count, "count").to.equal(
+            expectedPaymentIds.length
+          );
+          const actualPaymentIds = response.body.data
+            .map((payment) => payment.payment_id)
+            .sort();
+          expect(actualPaymentIds, "payment_ids").to.deep.equal(
+            [...expectedPaymentIds].sort()
+          );
+        }
+
+        if (expectAmountAscending) {
+          const amounts = response.body.data.map((payment) => payment.amount);
+          expect(amounts, "amounts_ascending").to.deep.equal(
+            [...amounts].sort((a, b) => a - b)
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "platformPaymentFilterCallTest",
+  (globalState, options = {}) => {
+    const {
+      token = null, // explicit bearer token; falls back to userInfoToken
+      noAuth = false,
+      expectedStatus = 200,
+      expectedError = null, // { type, message, code } for JSON error bodies
+      expectedConnectorName = null, // connector map must contain this key
+      expectedMerchantConnectorIds = null, // merchant_connector_ids expected in the connector map
+    } = options;
+
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payments/platform/filter`;
+
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+    if (!noAuth) {
+      headers.Authorization = `Bearer ${token || globalState.get("userInfoToken")}`;
+    }
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedError) {
+            defaultErrorHandler(response, {
+              status: expectedStatus,
+              body: { error: expectedError },
+            });
+          }
+          return;
+        }
+
+        expect(response.body).to.have.property("connector");
+        expect(response.body).to.have.property("currency");
+        expect(response.body).to.have.property("status");
+        expect(response.body).to.have.property("payment_method");
+        expect(response.body).to.have.property("authentication_type");
+        expect(response.body).to.have.property("card_network");
+        expect(response.body).to.have.property("card_discovery");
+
+        if (expectedConnectorName) {
+          expect(response.body.connector, "connector").to.have.property(
+            expectedConnectorName
+          );
+          expect(response.body.connector[expectedConnectorName]).to.be.an(
+            "array"
+          ).and.to.not.be.empty;
+        }
+
+        if (expectedMerchantConnectorIds) {
+          const listedMerchantConnectorIds = Object.values(
+            response.body.connector
+          )
+            .flat()
+            .map((connector) => connector.merchant_connector_id);
+          for (const merchantConnectorId of expectedMerchantConnectorIds) {
+            expect(
+              listedMerchantConnectorIds,
+              "merchant_connector_ids"
+            ).to.include(merchantConnectorId);
+          }
+        }
+      });
+    });
+  }
+);
 
 // Specific to routing tests
 Cypress.Commands.add("ListMcaByMid", (globalState) => {
