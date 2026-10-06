@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.30.0-hotfix2
+
+### Features
+
+- **core:** Add surcharge_percentage in surcharge_details in eligibility response ([#14620](https://github.com/juspay/hyperswitch/pull/14620)) ([`607339e`](https://github.com/juspay/hyperswitch/commit/607339ed696a0dfd637957a2b2f07cc05d1164d1))
+- **redis_interface:** Add TLS connection support for redis cache ([#14623](https://github.com/juspay/hyperswitch/pull/14623)) ([`fb8f386`](https://github.com/juspay/hyperswitch/commit/fb8f3869dab96c1937bb907aa5656d83de4c266e))
+
+### Bug Fixes
+
+- **connector:** [worldpayxml] enable webhook source verification ([#14619](https://github.com/juspay/hyperswitch/pull/14619)) ([`3552e13`](https://github.com/juspay/hyperswitch/commit/3552e13cfb07bee4811310953b803feba8195e91))
+- **payouts:** Restrict client confirm fields ([#14621](https://github.com/juspay/hyperswitch/pull/14621)) ([`14c5a2a`](https://github.com/juspay/hyperswitch/commit/14c5a2a0f798483e3007471bc67ac2a7dc3a95a1))
+
+**Full Changelog:** [`2026.09.30.0-hotfix1...2026.09.30.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.09.30.0-hotfix1...2026.09.30.0-hotfix2)
+
+- - -
+
 ## 2026.09.30.0-hotfix1
 
 ### Features
