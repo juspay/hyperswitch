@@ -104,6 +104,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::PayshapProxy => {
                 Ok(dirval!(BankTransferType = PayshapProxy))
             }
+            global_enums::PaymentMethodType::Ted => Ok(dirval!(BankTransferType = Ted)),
             global_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             global_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
             global_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
