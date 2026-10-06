@@ -1044,7 +1044,10 @@ where
 
 #[cfg(test)]
 mod cache_tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::{
+        sync::atomic::{AtomicUsize, Ordering},
+        time,
+    };
 
     use super::*;
 
@@ -1446,7 +1449,6 @@ mod cache_tests {
             ttl_in_secs: Some(60),
             tti_in_secs: Some(30),
             max_entries: Some(500_000),
-            populate_timeout_in_secs: None,
         };
 
         assert_eq!(settings.time_to_live(), 60);
