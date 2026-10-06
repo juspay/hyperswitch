@@ -16947,6 +16947,22 @@
           }
         }
       },
+      "GiftCardPayout": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "$ref": "#/components/schemas/PaysafeCardPayout"
+              }
+            }
+          }
+        ],
+        "description": "The brand of gift card being paid out, mirroring the payment-side\n`GiftCardData` enumeration so each issuer can carry its own payout fields"
+      },
       "GiftCardResponse": {
         "allOf": [
           {
@@ -28684,6 +28700,19 @@
             "description": "Unique identifier of the payer in PayPal",
             "example": "7DY7FRMPQ8CT6",
             "nullable": true
+          }
+        }
+      },
+      "PaysafeCardPayout": {
+        "type": "object",
+        "description": "The consumer's details for a Paysafe card gift card",
+        "required": [
+          "paysafecard_id"
+        ],
+        "properties": {
+          "paysafecard_id": {
+            "type": "string",
+            "example": "1234567890"
           }
         }
       },
