@@ -1,6 +1,15 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import {
+  platformPaymentsInvalidJwtError,
+  platformPaymentsListInvalidStatusError,
+  platformPaymentsListLimitAboveMaxError,
+  platformPaymentsListLimitZeroError,
+  platformPaymentsListOffsetAboveMaxError,
+  platformPaymentsMissingAuthorizationError,
+  platformPaymentsStandardMerchantJwtError,
+} from "../../configs/Platform/Commons";
 
 let globalState;
 let savedState;
@@ -63,7 +72,7 @@ describe("Platform Payment List", () => {
       globalState.set("merchantConnectorId", savedMerchantConnectorId);
     });
 
-    it("platform-creates-obo-payment-for-cm1", () => {
+    it("platform-creates-payment-on-behalf-of-cm1", () => {
       globalState.set("apiKey", globalState.get("platformApiKey"));
       globalState.set("profileId", globalState.get("profileIdCm1"));
       globalState.set("customerId", globalState.get("customerIdCm1Created"));
@@ -83,14 +92,17 @@ describe("Platform Payment List", () => {
       );
 
       cy.then(() => {
+        // The platform merchant creates this payment on behalf of connected
+        // merchant 1 via the x-connected-merchant-id header; the org roll-up
+        // makes it visible in the platform list
         globalState.set(
-          "paymentListOboPaymentId1",
+          "paymentListOnBehalfOfCm1PaymentId",
           globalState.get("paymentID")
         );
       });
     });
 
-    it("platform-creates-obo-payment-for-cm2", () => {
+    it("platform-creates-payment-on-behalf-of-cm2", () => {
       globalState.set("apiKey", globalState.get("platformApiKey"));
       globalState.set("profileId", globalState.get("profileIdCm2"));
       globalState.set("customerId", globalState.get("customerIdCm1Created"));
@@ -110,8 +122,11 @@ describe("Platform Payment List", () => {
       );
 
       cy.then(() => {
+        // The platform merchant creates this payment on behalf of connected
+        // merchant 2 via the x-connected-merchant-id header; the org roll-up
+        // makes it visible in the platform list
         globalState.set(
-          "paymentListOboPaymentId2",
+          "paymentListOnBehalfOfCm2PaymentId",
           globalState.get("paymentID")
         );
       });
@@ -148,24 +163,16 @@ describe("Platform Payment List", () => {
     it("list-without-auth-header-returns-400", () => {
       cy.platformPaymentListCallTest(null, globalState, {
         noAuth: true,
-        expectedStatus: 400,
-        expectedError: {
-          type: "invalid_request",
-          message: "Missing required param: Authorization",
-          code: "IR_04",
-        },
+        expectedStatus: platformPaymentsMissingAuthorizationError.status,
+        expectedError: platformPaymentsMissingAuthorizationError.error,
       });
     });
 
     it("list-with-invalid-jwt-returns-401", () => {
       cy.platformPaymentListCallTest(null, globalState, {
         token: "invalid.platform.list.jwt.token",
-        expectedStatus: 401,
-        expectedError: {
-          type: "invalid_request",
-          message: "Access forbidden, invalid JWT token was used",
-          code: "IR_17",
-        },
+        expectedStatus: platformPaymentsInvalidJwtError.status,
+        expectedError: platformPaymentsInvalidJwtError.error,
       });
     });
   });
@@ -229,12 +236,8 @@ describe("Platform Payment List", () => {
     it("list-with-standard-merchant-jwt-returns-401", () => {
       cy.platformPaymentListCallTest(null, globalState, {
         token: globalState.get("paymentListStdUserInfoToken"),
-        expectedStatus: 401,
-        expectedError: {
-          type: "invalid_request",
-          message: "API key not provided or invalid API key used",
-          code: "IR_01",
-        },
+        expectedStatus: platformPaymentsStandardMerchantJwtError.status,
+        expectedError: platformPaymentsStandardMerchantJwtError.error,
       });
     });
   });
@@ -250,8 +253,8 @@ describe("Platform Payment List", () => {
           globalState.get("connectedMerchantId2"),
         ],
         expectedContainsPaymentIds: [
-          globalState.get("paymentListOboPaymentId1"),
-          globalState.get("paymentListOboPaymentId2"),
+          globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+          globalState.get("paymentListOnBehalfOfCm2PaymentId"),
           globalState.get("paymentListCm1OwnPaymentId"),
         ],
       });
@@ -267,16 +270,18 @@ describe("Platform Payment List", () => {
   });
 
   context("Platform Payment List Filters", () => {
-    it("list-payment-id-filter-returns-obo-payment", () => {
+    it("list-payment-id-filter-returns-on-behalf-of-payment", () => {
       cy.platformPaymentListCallTest(
-        { payment_id: globalState.get("paymentListOboPaymentId1") },
+        { payment_id: globalState.get("paymentListOnBehalfOfCm1PaymentId") },
         globalState,
         {
           token: globalState.get("paymentListUserInfoToken"),
           expectedStatus: 200,
           expectedCount: 1,
           expectedTotalCount: 1,
-          expectedPaymentId: globalState.get("paymentListOboPaymentId1"),
+          expectedPaymentId: globalState.get(
+            "paymentListOnBehalfOfCm1PaymentId"
+          ),
         }
       );
     });
@@ -308,7 +313,7 @@ describe("Platform Payment List", () => {
           expectedStatus: 200,
           expectedProcessorMerchantId: globalState.get("connectedMerchantId1"),
           expectedContainsPaymentIds: [
-            globalState.get("paymentListOboPaymentId1"),
+            globalState.get("paymentListOnBehalfOfCm1PaymentId"),
             globalState.get("paymentListCm1OwnPaymentId"),
           ],
         }
@@ -339,7 +344,9 @@ describe("Platform Payment List", () => {
           expectedStatus: 200,
           expectedCount: 1,
           expectedTotalCount: 1,
-          expectedPaymentId: globalState.get("paymentListOboPaymentId1"),
+          expectedPaymentId: globalState.get(
+            "paymentListOnBehalfOfCm1PaymentId"
+          ),
         }
       );
     });
@@ -362,7 +369,7 @@ describe("Platform Payment List", () => {
           expectedStatus: 200,
           expectedPaymentStatus: "succeeded",
           expectedContainsPaymentIds: [
-            globalState.get("paymentListOboPaymentId1"),
+            globalState.get("paymentListOnBehalfOfCm1PaymentId"),
           ],
         }
       );
@@ -389,8 +396,8 @@ describe("Platform Payment List", () => {
           token: globalState.get("paymentListUserInfoToken"),
           expectedStatus: 200,
           expectedContainsPaymentIds: [
-            globalState.get("paymentListOboPaymentId1"),
-            globalState.get("paymentListOboPaymentId2"),
+            globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+            globalState.get("paymentListOnBehalfOfCm2PaymentId"),
             globalState.get("paymentListCm1OwnPaymentId"),
           ],
         }
@@ -405,8 +412,8 @@ describe("Platform Payment List", () => {
           token: globalState.get("paymentListUserInfoToken"),
           expectedStatus: 200,
           expectedContainsPaymentIds: [
-            globalState.get("paymentListOboPaymentId1"),
-            globalState.get("paymentListOboPaymentId2"),
+            globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+            globalState.get("paymentListOnBehalfOfCm2PaymentId"),
             globalState.get("paymentListCm1OwnPaymentId"),
           ],
         }
@@ -422,8 +429,8 @@ describe("Platform Payment List", () => {
           expectedStatus: 200,
           expectAmountAscending: true,
           expectedContainsPaymentIds: [
-            globalState.get("paymentListOboPaymentId1"),
-            globalState.get("paymentListOboPaymentId2"),
+            globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+            globalState.get("paymentListOnBehalfOfCm2PaymentId"),
             globalState.get("paymentListCm1OwnPaymentId"),
           ],
         }
@@ -438,8 +445,8 @@ describe("Platform Payment List", () => {
           token: globalState.get("paymentListUserInfoToken"),
           expectedStatus: 200,
           expectedContainsPaymentIds: [
-            globalState.get("paymentListOboPaymentId1"),
-            globalState.get("paymentListOboPaymentId2"),
+            globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+            globalState.get("paymentListOnBehalfOfCm2PaymentId"),
             globalState.get("paymentListCm1OwnPaymentId"),
           ],
         }
@@ -451,36 +458,32 @@ describe("Platform Payment List", () => {
     it("list-limit-0-returns-400", () => {
       cy.platformPaymentListCallTest({ limit: 0 }, globalState, {
         token: globalState.get("paymentListUserInfoToken"),
-        expectedStatus: 400,
-        expectedBodyIncludes:
-          "Query deserialize error: list limit 0 is invalid, it must be between 1 and 100",
+        expectedStatus: platformPaymentsListLimitZeroError.status,
+        expectedBodyIncludes: platformPaymentsListLimitZeroError.rawError,
       });
     });
 
     it("list-limit-101-returns-400", () => {
       cy.platformPaymentListCallTest({ limit: 101 }, globalState, {
         token: globalState.get("paymentListUserInfoToken"),
-        expectedStatus: 400,
-        expectedBodyIncludes:
-          "Query deserialize error: list limit 101 is invalid, it must be between 1 and 100",
+        expectedStatus: platformPaymentsListLimitAboveMaxError.status,
+        expectedBodyIncludes: platformPaymentsListLimitAboveMaxError.rawError,
       });
     });
 
     it("list-offset-20001-returns-400", () => {
       cy.platformPaymentListCallTest({ offset: 20001 }, globalState, {
         token: globalState.get("paymentListUserInfoToken"),
-        expectedStatus: 400,
-        expectedBodyIncludes:
-          "Query deserialize error: list offset 20001 is invalid, it must be at most 20000",
+        expectedStatus: platformPaymentsListOffsetAboveMaxError.status,
+        expectedBodyIncludes: platformPaymentsListOffsetAboveMaxError.rawError,
       });
     });
 
     it("list-status-invalid-enum-returns-400", () => {
       cy.platformPaymentListCallTest({ status: "not_a_status" }, globalState, {
         token: globalState.get("paymentListUserInfoToken"),
-        expectedStatus: 400,
-        expectedBodyIncludes:
-          "Query deserialize error: Invalid value 'not_a_status': Matching variant not found",
+        expectedStatus: platformPaymentsListInvalidStatusError.status,
+        expectedBodyIncludes: platformPaymentsListInvalidStatusError.rawError,
       });
     });
   });
@@ -503,12 +506,8 @@ describe("Platform Payment List", () => {
     it("filter-with-invalid-jwt-returns-401", () => {
       cy.platformPaymentFilterCallTest(globalState, {
         token: "invalid.platform.list.jwt.token",
-        expectedStatus: 401,
-        expectedError: {
-          type: "invalid_request",
-          message: "Access forbidden, invalid JWT token was used",
-          code: "IR_17",
-        },
+        expectedStatus: platformPaymentsInvalidJwtError.status,
+        expectedError: platformPaymentsInvalidJwtError.error,
       });
     });
   });
@@ -524,8 +523,8 @@ describe("Platform Payment List", () => {
           globalState.get("connectedMerchantId2"),
         ],
         expectedContainsPaymentIds: [
-          globalState.get("paymentListOboPaymentId1"),
-          globalState.get("paymentListOboPaymentId2"),
+          globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+          globalState.get("paymentListOnBehalfOfCm2PaymentId"),
           globalState.get("paymentListCm1OwnPaymentId"),
         ],
       });
@@ -541,8 +540,8 @@ describe("Platform Payment List", () => {
           globalState.get("connectedMerchantId2"),
         ],
         expectedContainsPaymentIds: [
-          globalState.get("paymentListOboPaymentId1"),
-          globalState.get("paymentListOboPaymentId2"),
+          globalState.get("paymentListOnBehalfOfCm1PaymentId"),
+          globalState.get("paymentListOnBehalfOfCm2PaymentId"),
           globalState.get("paymentListCm1OwnPaymentId"),
         ],
       });
