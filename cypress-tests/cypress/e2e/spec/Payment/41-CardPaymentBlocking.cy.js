@@ -4,24 +4,62 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
+const blocklistContext = () => ({
+  processor_merchant_id: globalState.get("merchantId"),
+  provider_merchant_id: globalState.get("merchantId"),
+});
+
 describe("Business Profile Payment Method Blocking", () => {
+  let specShouldSkip = false;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      if (
+        !globalState.get("superpositionBaseUrl") ||
+        !globalState.get("superpositionSecret") ||
+        !globalState.get("superpositionAuthToken")
+      ) {
+        cy.task(
+          "cli_log",
+          "Superposition credentials not set — skipping blocklist spec"
+        );
+        specShouldSkip = true;
+        return;
+      }
+      expect(globalState.get("merchantId"), "merchant ID")
+        .to.be.a("string")
+        .and.not.be.empty;
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.guard_blocklist",
+        true,
+        blocklistContext()
+      );
     });
   });
 
-  after("flush global state", () => {
+  beforeEach(function () {
+    if (specShouldSkip) {
+      this.skip();
+    }
+  });
+
+  after("cleanup superposition config + flush global state", () => {
+    if (!specShouldSkip && globalState?.get("merchantId")) {
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.guard_blocklist",
+        false,
+        blocklistContext()
+      );
+    }
     cy.task("setGlobalState", globalState.data);
   });
 
   context("Card Issuing Country Blocking", () => {
     it("should block payment when card issuing country is blocked", () => {
       let shouldContinue = true;
-
-      cy.step("Enable blocklist", () => {
-        cy.blocklistToggle("true", globalState);
-      });
 
       cy.step("Update business profile to block issuing country", () => {
         const updateBusinessProfileBody = {
@@ -266,10 +304,6 @@ describe("Business Profile Payment Method Blocking", () => {
           );
         }
       );
-
-      cy.step("Disable blocklist", () => {
-        cy.blocklistToggle("false", globalState);
-      });
     });
   });
 });
