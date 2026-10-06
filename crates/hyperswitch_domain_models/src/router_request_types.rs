@@ -23,6 +23,8 @@ use serde_with::serde_as;
 
 use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{
     address,
     errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
@@ -1705,6 +1707,9 @@ pub struct PayoutsData {
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub connector_eligibility_reference_id: Option<String>,
+    /// Exclude replayable vault tokens from serialized router comparisons.
+    #[serde(skip)]
+    pub external_vault_pmd: Option<payouts::proxy::ExternalVaultPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
