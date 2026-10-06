@@ -3766,6 +3766,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
+            auto_fallback_capture_method: self
+                .auto_fallback_capture_method
+                .map(common_enums::AutoFallbackCaptureMethod::from),
             always_enable_overcapture: self.always_enable_overcapture,
             external_vault_details: domain::ExternalVaultDetails::try_from((
                 self.is_external_vault_enabled,
@@ -4387,6 +4390,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
                 is_manual_retry_enabled: self.is_manual_retry_enabled,
+                auto_fallback_capture_method: self
+                    .auto_fallback_capture_method
+                    .map(common_enums::AutoFallbackCaptureMethod::from),
                 always_enable_overcapture: self.always_enable_overcapture,
                 is_external_vault_enabled: self.is_external_vault_enabled,
                 external_vault_connector_details: self

@@ -2566,6 +2566,12 @@ pub struct ProfileCreate {
     /// Indicates if manual retry for payment is enabled or not
     pub is_manual_retry_enabled: Option<bool>,
 
+    /// When `true`, a payment whose requested `capture_method` is not supported by the
+    /// connector chosen for it is processed with `automatic` capture instead of being rejected,
+    /// and the payment method list does not hide payment methods based on `capture_method`.
+    #[schema(example = true)]
+    pub auto_fallback_capture_method: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -2956,6 +2962,12 @@ pub struct ProfileResponse {
     /// Indicates if manual retry for payment is enabled or not
     pub is_manual_retry_enabled: Option<bool>,
 
+    /// When `true`, a payment whose requested `capture_method` is not supported by the
+    /// connector chosen for it is processed with `automatic` capture instead of being rejected,
+    /// and the payment method list does not hide payment methods based on `capture_method`.
+    #[schema(example = true)]
+    pub auto_fallback_capture_method: Option<bool>,
+
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
@@ -3344,6 +3356,12 @@ pub struct ProfileUpdate {
 
     /// Indicates if manual retry for payment is enabled or not
     pub is_manual_retry_enabled: Option<bool>,
+
+    /// When `true`, a payment whose requested `capture_method` is not supported by the
+    /// connector chosen for it is processed with `automatic` capture instead of being rejected,
+    /// and the payment method list does not hide payment methods based on `capture_method`.
+    #[schema(example = true)]
+    pub auto_fallback_capture_method: Option<bool>,
 
     /// Bool indicating if overcapture  must be requested for all payments
     #[schema(value_type = Option<bool>)]
