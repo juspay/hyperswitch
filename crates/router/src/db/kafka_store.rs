@@ -366,6 +366,7 @@ impl CustomerInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         self.diesel_store
             .find_customer_optional_by_customer_id_merchant_id(
@@ -373,6 +374,7 @@ impl CustomerInterface for KafkaStore {
                 merchant_id,
                 key_store,
                 storage_scheme,
+                use_merchant_reference_id_lookup,
             )
             .await
     }
@@ -384,6 +386,7 @@ impl CustomerInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         self.diesel_store
             .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
@@ -391,11 +394,11 @@ impl CustomerInterface for KafkaStore {
                 merchant_id,
                 key_store,
                 storage_scheme,
+                use_merchant_reference_id_lookup,
             )
             .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -501,6 +504,7 @@ impl CustomerInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
+        use_merchant_reference_id_lookup: bool,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
             .find_customer_by_customer_id_merchant_id(
@@ -508,11 +512,11 @@ impl CustomerInterface for KafkaStore {
                 merchant_id,
                 key_store,
                 storage_scheme,
+                use_merchant_reference_id_lookup,
             )
             .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         merchant_reference_id: &id_type::CustomerId,

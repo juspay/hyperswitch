@@ -13415,21 +13415,31 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )?;
 
     let optional_customer = match &payment_intent.customer_id {
-        Some(customer_id) => Some(
-            state
-                .store
-                .find_customer_by_customer_id_merchant_id(
-                    customer_id,
-                    platform.get_provider().get_account().get_id(),
-                    platform.get_provider().get_key_store(),
-                    platform.get_provider().get_account().storage_scheme,
+        Some(customer_id) => {
+            let use_merchant_reference_id =
+                helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                    &state,
+                    platform.get_provider(),
+                    Some(customer_id),
                 )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!("error while finding customer with customer_id {customer_id:?}")
-                })?,
-        ),
+                .await;
+            Some(
+                state
+                    .store
+                    .find_customer_by_customer_id_merchant_id(
+                        customer_id,
+                        platform.get_provider().get_account().get_id(),
+                        platform.get_provider().get_key_store(),
+                        platform.get_provider().get_account().storage_scheme,
+                        use_merchant_reference_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!("error while finding customer with customer_id {customer_id:?}")
+                    })?,
+            )
+        }
         None => None,
     };
 
