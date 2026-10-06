@@ -681,6 +681,86 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): force a miss at the key manager seam, and then read
+    // back which side answered.
+    //
+    // This is the one arm here that is interesting for what happens AFTER it.
+    // `call_encryption_service` answers a miss with `RequestNotSent`, and
+    // `encrypt_via_api` handles that by logging, counting the failure and
+    // falling back to application encryption — so the request continues on
+    // locally encrypted bytes. That fallback's own AES nonce is itself one of the
+    // seams this branch armed, and the recording has no event for a nonce drawn
+    // on a path the recorder never took, so a single encrypt here can reach two
+    // arms in sequence.
+    //
+    // Getting the first miss is the work. The seam is not a pure boundary, so the
+    // moved-arguments serve covers it: a plaintext the recording never carried is
+    // not a miss, it is a serve of another encrypt's recorded ciphertext flagged
+    // `arg_divergent`. One identity covers every key manager operation, so there
+    // is one args-free sequence per correlation, and the only address the
+    // recording has nothing at is one past its end. Hence the loop.
+    //
+    // What makes the two sides readable from inside the request, rather than only
+    // from the ledger, is where the ciphertext came from. The encryption service
+    // returns a value carrying a `v<n>:` version prefix, which is what
+    // `split_version_prefix` looks for on the way back in; application encryption
+    // returns raw AES-GCM bytes, which begin with the nonce. So a result whose
+    // first byte is not `v` is one that took the fallback, and the count of those
+    // is the count of calls that reached the arm.
+    {
+        const FIXTURE_KEYMANAGER_CALLS: usize = 48;
+
+        let key_manager_state = &state.into();
+        let key_store = platform.get_processor().get_key_store();
+        let key = key_store.key.get_inner().peek();
+        let identifier =
+            common_utils::types::keymanager::Identifier::Merchant(key_store.merchant_id.clone());
+
+        let mut locally_encrypted = 0_usize;
+        let mut refused = 0_usize;
+        for index in 0..FIXTURE_KEYMANAGER_CALLS {
+            let plaintext = Secret::new(format!("deja-fixture-keymanager-{index}"));
+            match domain::types::crypto_operation::<String, hyperswitch_masking::WithType>(
+                key_manager_state,
+                "deja_fixture",
+                domain::types::CryptoOperation::Encrypt(plaintext),
+                identifier.clone(),
+                key,
+            )
+            .await
+            .and_then(|output| output.try_into_operation())
+            {
+                Ok(encrypted) => {
+                    let bytes = encrypted.into_encrypted();
+                    let version_prefixed = bytes.peek().first() == Some(&b'v');
+                    if !version_prefixed {
+                        locally_encrypted += 1;
+                    }
+                    logger::info!(
+                        index,
+                        version_prefixed,
+                        bytes = bytes.peek().len(),
+                        "FIXTURE: the key manager seam answered"
+                    );
+                }
+                Err(error) => {
+                    refused += 1;
+                    logger::info!(
+                        index,
+                        error = ?error,
+                        "FIXTURE: the encrypt failed rather than falling back"
+                    );
+                }
+            }
+        }
+        logger::info!(
+            calls = FIXTURE_KEYMANAGER_CALLS,
+            locally_encrypted,
+            refused,
+            "FIXTURE: key manager encrypts, and how many took the local fallback"
+        );
+    }
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
