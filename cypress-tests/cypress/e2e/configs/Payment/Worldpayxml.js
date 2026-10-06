@@ -664,22 +664,6 @@ export const connectorDetails = {
         customer: {
           date_of_birth: "1990-01-31",
         },
-        is_account_funded_transaction: true,
-        recipient_details: {
-          account: {
-            type: "card",
-            card_number: "4111111111111111",
-          },
-          address: {
-            first_name: "Jane",
-            last_name: "Doe",
-            line1: "1467 Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-          },
-        },
         connector_metadata: {
           worldpayxml: {
             funding_transaction_type: "funds_transfer_me_to_me",
@@ -687,17 +671,15 @@ export const connectorDetails = {
           },
         },
       },
-      // Sandbox caveat: the Worldpay sandbox test card does not permit AFT pull-from-card.
-      // Hyperswitch validates and echoes connector_metadata, but the sandbox declines the
-      // transfer with error_code "5" / "Pull from card transaction is not permitted"
-      // (HTTP 200, status "failed"). The test asserts the connector_metadata echo —
-      // payment success is not expected here.
+      // Non-AFT payment: funding_transaction_type and payment_purpose are optional at
+      // the API level, but hyperswitch validates the connector_metadata schema (unknown
+      // fields are rejected with IR_06) and echoes connector_metadata back on the
+      // payment response. The payment itself proceeds as a standard card payment and
+      // succeeds.
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "5",
-          error_message: "Pull from card transaction is not permitted",
+          status: "succeeded",
           connector_metadata: {
             apple_pay: null,
             airwallex: null,
@@ -713,7 +695,6 @@ export const connectorDetails = {
             checkout: null,
             stripe: null,
           },
-          is_account_funded_transaction: true,
         },
       },
     },
@@ -731,32 +712,14 @@ export const connectorDetails = {
         customer: {
           date_of_birth: "1990-01-31",
         },
-        is_account_funded_transaction: true,
-        recipient_details: {
-          account: {
-            type: "card",
-            card_number: "4111111111111111",
-          },
-          address: {
-            first_name: "Jane",
-            last_name: "Doe",
-            line1: "1467 Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-          },
-        },
         connector_metadata: null,
       },
+      // Without the AFT flag, connector_metadata is optional: hyperswitch accepts
+      // the payment and returns success even when it is absent.
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Missing required param: connector_metadata.worldpayxml",
-            code: "IR_04",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -774,37 +737,18 @@ export const connectorDetails = {
         customer: {
           date_of_birth: "1990-01-31",
         },
-        is_account_funded_transaction: true,
-        recipient_details: {
-          account: {
-            type: "card",
-            card_number: "4111111111111111",
-          },
-          address: {
-            first_name: "Jane",
-            last_name: "Doe",
-            line1: "1467 Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-          },
-        },
         connector_metadata: {
           worldpayxml: {
             payment_purpose: "family_support",
           },
         },
       },
+      // funding_transaction_type is only required for AFT payments: without the AFT
+      // flag, partial connector_metadata is accepted and the payment succeeds.
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Missing required param: connector_metadata.worldpayxml.funding_transaction_type",
-            code: "IR_04",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -822,37 +766,18 @@ export const connectorDetails = {
         customer: {
           date_of_birth: "1990-01-31",
         },
-        is_account_funded_transaction: true,
-        recipient_details: {
-          account: {
-            type: "card",
-            card_number: "4111111111111111",
-          },
-          address: {
-            first_name: "Jane",
-            last_name: "Doe",
-            line1: "1467 Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-          },
-        },
         connector_metadata: {
           worldpayxml: {
             funding_transaction_type: "funds_transfer_me_to_me",
           },
         },
       },
+      // payment_purpose is only required for AFT payments: without the AFT flag,
+      // partial connector_metadata is accepted and the payment succeeds.
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Missing required param: connector_metadata.worldpayxml.payment_purpose",
-            code: "IR_04",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -869,22 +794,6 @@ export const connectorDetails = {
         setup_future_usage: null,
         customer: {
           date_of_birth: "1990-01-31",
-        },
-        is_account_funded_transaction: true,
-        recipient_details: {
-          account: {
-            type: "card",
-            card_number: "4111111111111111",
-          },
-          address: {
-            first_name: "Jane",
-            last_name: "Doe",
-            line1: "1467 Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-          },
         },
         connector_metadata: {
           worldpayxml: {

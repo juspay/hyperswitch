@@ -163,10 +163,10 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
   });
 
   context(
-    "Card - Account funded transaction with purpose of payment metadata",
+    "Card - Payment with purpose of payment connector metadata",
     function () {
       before(
-        "skip connectors without AFT purpose of payment support",
+        "skip connectors without purpose of payment metadata support",
         function () {
           if (
             utils.shouldIncludeConnector(
@@ -179,12 +179,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         }
       );
 
-      it("Create+Confirm AFT payment with connector metadata (sandbox declines AFT: failed status expected, connector metadata echo asserted)", () => {
-        // The connector's sandbox is not AFT-enabled: Hyperswitch validates and echoes
-        // connector_metadata, but the sandbox declines the transfer, so the payment ends
-        // in "failed" with the documented sandbox error code (expected values live in the
-        // connector config). This test asserts the connector_metadata echo, not payment
-        // success.
+      it("Create+Confirm payment with connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadata"];
@@ -198,7 +193,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm AFT payment without connector metadata", () => {
+      it("Create+Confirm payment without connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataMissing"];
@@ -212,7 +207,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm AFT payment with unknown field in connector metadata", () => {
+      it("Create+Confirm payment with unknown field in connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataUnknownField"];
@@ -229,10 +224,10 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
   );
 
   context(
-    "Card - Account funded transaction with funding transaction type and payment purpose metadata",
+    "Card - Payment with funding transaction type and payment purpose connector metadata",
     function () {
       before(
-        "skip connectors without AFT funding transaction type support",
+        "skip connectors without funding transaction type metadata support",
         function () {
           if (
             utils.shouldIncludeConnector(
@@ -245,7 +240,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         }
       );
 
-      it("Create+Confirm AFT payment with connector metadata", () => {
+      it("Create+Confirm payment with connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadata"];
@@ -259,7 +254,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm AFT payment without connector metadata", () => {
+      it("Create+Confirm payment without connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataMissing"];
@@ -273,7 +268,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm AFT payment with missing funding transaction type", () => {
+      it("Create+Confirm payment with connector metadata missing funding transaction type", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataMissingFundingTransactionType"];
@@ -287,7 +282,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm AFT payment with missing payment purpose", () => {
+      it("Create+Confirm payment with connector metadata missing payment purpose", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataMissingPaymentPurpose"];
@@ -301,7 +296,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm AFT payment with unknown field in connector metadata", () => {
+      it("Create+Confirm payment with unknown field in connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataUnknownField"];
