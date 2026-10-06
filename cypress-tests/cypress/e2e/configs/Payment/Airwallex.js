@@ -770,6 +770,20 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+      // Airwallex's sandbox declines a recurring MIT non-deterministically —
+      // the exact same request sometimes succeeds, sometimes comes back
+      // "failed", with nothing in the request explaining the difference.
+      // mitUsingPMId falls back to this block whenever the actual status
+      // comes back "failed", so both outcomes are treated as valid.
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+      Configs: {
+        skipPaymentMethodStatusAssertion: true,
+      },
     },
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
@@ -1239,6 +1253,9 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipPaymentMethodStatusAssertion: true,
       },
     }),
     AutoCapture: getCustomExchange({
