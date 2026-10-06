@@ -217,8 +217,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "15",
-          error_message: "No such issuer (invalid IIN)",
+          error_code: "91",
+          error_message: "Issuer is unavailable",
         },
       },
     },
