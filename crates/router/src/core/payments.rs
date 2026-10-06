@@ -681,6 +681,112 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): a novel outgoing HTTP call and a novel gRPC call,
+    // the two seams whose miss arms this branch added and which answer with a
+    // transport failure rather than a response. Neither arm can be reached by a
+    // call whose address the recording holds, and the two seams need different
+    // work to get there, which is the whole content of this fixture.
+    //
+    // The gRPC side is novel by identity. That seam is addressed by the
+    // component and the method, a payment correlation holds only the connector
+    // service's own methods, and the health check's method is not one of them —
+    // so neither the exact table nor the args-free one has an entry at any rank
+    // and the call misses at occurrence zero.
+    //
+    // The HTTP side cannot be made novel that way: every outbound call in the
+    // tree crosses one operation, `send_request`, so the identity is shared and
+    // the args-free sequence is one sequence per correlation. The seam is not a
+    // pure boundary either, so the moved-arguments serve covers a differing url
+    // and would hand the first calls here a recorded connector response and flag
+    // them `arg_divergent` instead of missing. The only address the recording
+    // genuinely has nothing at is one past the end of that sequence, so the
+    // calls are made in a loop long enough to run off the end of it, and the
+    // index of each is logged so the run shows where the serve stops and the arm
+    // starts.
+    //
+    // That has a consequence worth stating rather than discovering: the payment's
+    // own connector call is numbered into the same sequence, after these, so it
+    // misses too and is answered `RequestNotSent`. That is deliberate. It is also
+    // the arm's own claim under test — a send failure is a state the connector
+    // flow already handles, so it becomes a technical error, the attempt is
+    // updated and a response is returned, and every call after it stays
+    // observable instead of becoming a pruned subtree.
+    {
+        use common_utils::request::{Method, RequestBuilder};
+
+        const FIXTURE_OUTGOING_CALLS: usize = 12;
+
+        let request_id = state.request_id.as_ref().map(ToString::to_string);
+        let mut not_sent = 0_usize;
+        for index in 0..FIXTURE_OUTGOING_CALLS {
+            // A url nothing answers, so the one case where this fixture reaches
+            // the network at all — a build with the seam compiled out — fails
+            // immediately and locally instead of calling a third party.
+            let url = format!("http://127.0.0.1:1/deja-fixture/{index}");
+            let mut builder = RequestBuilder::new()
+                .method(Method::Get)
+                .url(&url)
+                .attach_default_headers();
+            // Carried so the call is addressed inside the correlation under
+            // replay rather than in the unattributed partition, which would
+            // miss for an uninteresting reason and tell the ledger nothing.
+            if let Some(request_id) = &request_id {
+                builder = builder.header(common_utils::consts::X_REQUEST_ID, request_id);
+            }
+
+            match external_services::http_client::send_request(
+                &state.conf.proxy,
+                builder.build(),
+                Some(1),
+            )
+            .await
+            {
+                Ok(response) => logger::info!(
+                    index,
+                    status = response.status().as_u16(),
+                    "FIXTURE: the outgoing seam answered with a response"
+                ),
+                Err(error) => {
+                    not_sent += 1;
+                    logger::info!(
+                        index,
+                        error = ?error,
+                        "FIXTURE: the outgoing seam answered with a transport failure"
+                    );
+                }
+            }
+        }
+        logger::info!(
+            calls = FIXTURE_OUTGOING_CALLS,
+            not_sent,
+            "FIXTURE: outgoing calls made, and how many were not sent"
+        );
+    }
+
+    // The gRPC half. One health check, which crosses the same transport every
+    // connector-service call crosses, under a method no payment correlation
+    // records. The result is logged and not asserted: a transport error is what
+    // the arm answers and also what an absent health client answers, and the two
+    // are told apart by the ledger's synthesized outcome rather than from here.
+    #[cfg(feature = "dynamic_routing")]
+    {
+        let health = state
+            .grpc_client
+            .health_client
+            .perform_health_check(&state.conf.grpc_client)
+            .await;
+        match health {
+            Ok(statuses) => logger::info!(
+                statuses = ?statuses,
+                "FIXTURE: the grpc health check returned"
+            ),
+            Err(error) => logger::info!(
+                error = ?error,
+                "FIXTURE: the grpc transport answered a novel method with a failure"
+            ),
+        }
+    }
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
