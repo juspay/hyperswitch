@@ -6795,7 +6795,69 @@ pub async fn update_payment_method_status_internal(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
 
+    if status == enums::PaymentMethodStatus::Active {
+        inactivate_payment_methods_with_same_auxiliary_fingerprint(
+            state,
+            key_store,
+            storage_scheme,
+            &updated_pm,
+            initiator,
+        )
+        .await?;
+    }
+
     Ok(updated_pm)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn inactivate_payment_methods_with_same_auxiliary_fingerprint(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    activated_payment_method: &domain::PaymentMethod,
+    initiator: Option<&domain::Initiator>,
+) -> RouterResult<()> {
+    let db = &*state.store;
+
+    let (Some(customer_id), Some(auxiliary_fingerprint_id)) = (
+        activated_payment_method.customer_id.as_ref(),
+        activated_payment_method.auxiliary_fingerprint_id.as_deref(),
+    ) else {
+        return Ok(());
+    };
+
+    let superseded_payment_methods = db
+        .find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+            key_store,
+            customer_id,
+            &activated_payment_method.merchant_id,
+            auxiliary_fingerprint_id,
+            enums::PaymentMethodStatus::Active,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to find payment methods with same auxiliary fingerprint")?
+        .into_iter()
+        .filter(|payment_method| payment_method.id != activated_payment_method.id);
+
+    for payment_method in superseded_payment_methods {
+        let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+            status: Some(enums::PaymentMethodStatus::Inactive),
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
+        };
+
+        db.update_payment_method(key_store, payment_method, pm_update, storage_scheme, None)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to inactivate payment method with same auxiliary fingerprint",
+            )?;
+    }
+
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
@@ -6840,7 +6902,8 @@ pub async fn update_payment_method_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     // `PayThenVault` defers vaulting to the acknowledgement, so this update is what writes the
     // card to the vault and the database. Both update endpoints reach this point.
-    let volatile_payment_method = if request.status == Some(enums::PaymentMethodStatus::Active)
+    let is_activation = request.status == Some(enums::PaymentMethodStatus::Active);
+    let volatile_payment_method = if is_activation
         && resolve_payment_method_integration_type(state, platform).await
             == pm_types::PaymentMethodIntegrationType::PayThenVault
     {
@@ -6948,6 +7011,17 @@ pub async fn update_payment_method_core(
                 if let Err(error) = deleted {
                     logger::warn!(?error, "Failed to delete the volatile payment method copy");
                 }
+            }
+
+            if is_activation {
+                inactivate_payment_methods_with_same_auxiliary_fingerprint(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    platform.get_provider().get_account().storage_scheme,
+                    &payment_method,
+                    platform.get_initiator(),
+                )
+                .await?;
             }
 
             Ok((response, payment_method))

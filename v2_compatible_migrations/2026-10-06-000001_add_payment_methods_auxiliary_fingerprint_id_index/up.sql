@@ -1,0 +1,3 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS payment_methods_customer_id_merchant_id_auxiliary_fingerprint_id_index
+ON payment_methods (customer_id, merchant_id, auxiliary_fingerprint_id)
+WHERE auxiliary_fingerprint_id IS NOT NULL;
