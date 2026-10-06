@@ -1078,14 +1078,22 @@ export const connectorDetails = {
         customer: {
           date_of_birth: "1990-01-31",
         },
+        is_account_funded_transaction: true,
         connector_metadata: null,
       },
-      // Without the AFT flag, connector_metadata is optional: hyperswitch accepts
-      // the payment and returns success even when it is absent.
+      // With the AFT flag set, connector_metadata.checkout.purpose_of_payment
+      // becomes a required field: hyperswitch rejects the payment with IR_04
+      // before the recipient_details validation is reached, so this negative
+      // is asserted without recipient_details.
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "Missing required param: connector_metadata.checkout.purpose_of_payment",
+            code: "IR_04",
+          },
         },
       },
     },

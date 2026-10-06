@@ -193,7 +193,7 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         );
       });
 
-      it("Create+Confirm payment without connector metadata", () => {
+      it("Create+Confirm AFT payment without connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadataMissing"];
