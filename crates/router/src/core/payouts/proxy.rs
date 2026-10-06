@@ -22,7 +22,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::transformers::fetch_payment_method_from_modular_service,
-        payments::helpers::MerchantConnectorAccountType,
+        payments::helpers,
         unified_connector_service, utils as core_utils,
     },
     routes::SessionState,
@@ -40,7 +40,7 @@ pub enum PayoutExecutionContext {
     #[default]
     Normal,
     ExternalVaultProxy {
-        external_vault_mca: MerchantConnectorAccountType,
+        external_vault_mca: helpers::MerchantConnectorAccountType,
     },
 }
 
@@ -124,7 +124,7 @@ trait PayoutProxyData {
 
     fn set_proxy_connector(
         &mut self,
-        merchant_connector_account: MerchantConnectorAccountType,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
         connector_data: &api::ConnectorData,
     ) -> api::ConnectorData;
 
@@ -143,7 +143,7 @@ impl PayoutProxyData for PayoutData {
 
     fn set_proxy_connector(
         &mut self,
-        merchant_connector_account: MerchantConnectorAccountType,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
         connector_data: &api::ConnectorData,
     ) -> api::ConnectorData {
         self.payout_attempt.merchant_connector_id = merchant_connector_account.get_mca_id();
@@ -270,8 +270,8 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
             "Payout connector account is disabled",
         )?;
         let payout_mca = match &merchant_connector_account {
-            MerchantConnectorAccountType::DbVal(payout_mca) => Ok(payout_mca),
-            MerchantConnectorAccountType::CacheVal(_) => Err(invalid_payout_request(
+            helpers::MerchantConnectorAccountType::DbVal(payout_mca) => Ok(payout_mca),
+            helpers::MerchantConnectorAccountType::CacheVal(_) => Err(invalid_payout_request(
                 "Proxy payouts require a saved payout connector account",
             )),
         }?;
@@ -604,7 +604,7 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
         match VaultConnectors::try_from(external_vault_mca.connector_name.clone()) {
             Ok(VaultConnectors::HyperswitchVault | VaultConnectors::Vgs) => {
                 Ok(PayoutExecutionContext::ExternalVaultProxy {
-                    external_vault_mca: MerchantConnectorAccountType::DbVal(Box::new(
+                    external_vault_mca: helpers::MerchantConnectorAccountType::DbVal(Box::new(
                         external_vault_mca,
                     )),
                 })

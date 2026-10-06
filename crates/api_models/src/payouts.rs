@@ -118,7 +118,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, example = true, default = false)]
     pub auto_fulfill: Option<bool>,
 
-    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id.
+    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 

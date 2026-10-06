@@ -46,7 +46,6 @@ pub struct PayoutAttempt {
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
-    #[serde(default)]
     pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 
@@ -96,7 +95,6 @@ pub struct PayoutAttemptNew {
     pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub active_frm_id: Option<String>,
-    #[serde(default)]
     pub execution_kind: Option<storage_enums::PayoutExecutionKind>,
 }
 

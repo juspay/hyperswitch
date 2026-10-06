@@ -9051,7 +9051,7 @@ pub enum BrazilStatesAbbreviation {
     strum::EnumIter,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutExecutionKind {
