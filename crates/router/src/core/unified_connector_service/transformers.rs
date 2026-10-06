@@ -9296,7 +9296,6 @@ impl
             payout_method_type: router_data
                 .payment_method_type
                 .map(|pmt| payments_grpc::PaymentMethodType::foreign_from(pmt).into()),
-            customer: None,
         })
     }
 }
