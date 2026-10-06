@@ -28121,7 +28121,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -28597,7 +28597,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsResponse"
               }
             ],
             "nullable": true
@@ -28749,7 +28749,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -43002,7 +43002,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsRequest"
               }
             ],
             "nullable": true
@@ -43381,7 +43381,7 @@
           "webhook_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/WebhookDetails"
+                "$ref": "#/components/schemas/WebhookDetailsResponse"
               }
             ],
             "nullable": true
@@ -50928,7 +50928,134 @@
           "manual_retry"
         ]
       },
-      "WebhookDetails": {
+      "WebhookDetailsRequest": {
+        "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
+        "properties": {
+          "webhook_version": {
+            "type": "string",
+            "description": "The version for Webhook",
+            "example": "1.0.2",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_username": {
+            "type": "string",
+            "description": "The user name for Webhook login",
+            "example": "ekart_retail",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_password": {
+            "type": "string",
+            "description": "The password for Webhook login",
+            "example": "ekart@123",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses. Must not be empty;\nomit this field entirely to leave an existing stored webhook URL unchanged.",
+            "example": "https://www.ekart.com/webhooks",
+            "nullable": true,
+            "minLength": 1
+          },
+          "payment_created_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a new payment is created",
+            "example": true,
+            "nullable": true
+          },
+          "payment_succeeded_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment is successful",
+            "example": true,
+            "nullable": true
+          },
+          "payment_failed_enabled": {
+            "type": "boolean",
+            "description": "If this property is true, a webhook message is posted whenever a payment fails",
+            "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "dispute_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisputeStatus"
+            },
+            "description": "List of dispute statuses that trigger outgoing webhooks for disputes",
+            "example": [
+              "dispute_opened",
+              "dispute_won"
+            ],
+            "nullable": true
+          },
+          "mandate_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MandateStatus"
+            },
+            "description": "List of mandate statuses that trigger outgoing webhooks for mandates",
+            "example": [
+              "active",
+              "inactive"
+            ],
+            "nullable": true
+          },
+          "invoice_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceStatus"
+            },
+            "description": "List of invoice statuses that trigger outgoing webhooks for subscriptions",
+            "example": [
+              "invoice_paid"
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebhookDetailsResponse": {
         "type": "object",
         "required": [
           "payment_statuses_enabled",
@@ -50959,7 +51086,7 @@
           "webhook_url": {
             "type": "string",
             "description": "The url for the webhook endpoint",
-            "example": "www.ekart.com/webhooks",
+            "example": "https://www.ekart.com/webhooks",
             "nullable": true
           },
           "payment_created_enabled": {
