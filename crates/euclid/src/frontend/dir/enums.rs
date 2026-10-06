@@ -231,6 +231,7 @@ pub enum BankTransferType {
     PixAutomaticoQr,
     Payshap,
     PayshapProxy,
+    Ted,
     Pse,
     LocalBankTransfer,
     InstantBankTransfer,
