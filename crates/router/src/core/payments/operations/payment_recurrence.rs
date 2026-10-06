@@ -7,7 +7,7 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};

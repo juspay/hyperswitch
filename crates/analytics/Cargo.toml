@@ -11,6 +11,7 @@ v1 = ["api_models/v1", "diesel_models/v1", "storage_impl/v1", "common_utils/v1"]
 v2 = ["api_models/v2", "diesel_models/v2", "storage_impl/v2", "common_utils/v2"]
 
 [dependencies]
+tracing = { workspace = true }
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_enums = { version = "0.1.0", path = "../common_enums" }

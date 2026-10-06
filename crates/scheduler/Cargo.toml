@@ -16,6 +16,7 @@ fred     = ["redis_interface/fred",     "storage_impl/fred"]
 redis-rs = ["redis_interface/redis-rs", "storage_impl/redis-rs"]
 
 [dependencies]
+tracing = { workspace = true }
 # Third party crates
 async-trait = "0.1.88"
 error-stack = "0.4.1"

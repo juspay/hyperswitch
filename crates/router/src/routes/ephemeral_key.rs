@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::AppState;
 #[cfg(feature = "v2")]

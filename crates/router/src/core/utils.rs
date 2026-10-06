@@ -45,7 +45,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::StorageError;
 
 use super::payments::helpers;
@@ -182,7 +182,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn construct_payout_router_data<'a, F>(
+pub async fn construct_payout_router_data<F>(
     state: &SessionState,
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
@@ -1015,107 +1015,6 @@ pub fn get_split_refunds(
         _ => Ok(None),
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validate_id_length_constraint() {
-        let payment_id =
-            "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnopsjkdnfjsknfkjsdnfspoig".to_string(); //length = 65
-
-        let result = validate_id(payment_id, "payment_id");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn validate_id_proper_response() {
-        let payment_id = "abcdefghijlkmnopqrstjhbjhjhkhbhgcxdfxvmhb".to_string();
-
-        let result = validate_id(payment_id.clone(), "payment_id");
-        assert!(result.is_ok());
-        let result = result.unwrap_or_default();
-        assert_eq!(result, payment_id);
-    }
-
-    #[test]
-    fn test_generate_id() {
-        let generated_id = generate_id(consts::ID_LENGTH, "ref");
-        assert_eq!(generated_id.len(), consts::ID_LENGTH + 4)
-    }
-
-    #[test]
-    fn test_filter_objects_based_on_profile_id_list() {
-        #[derive(PartialEq, Debug, Clone)]
-        struct Object {
-            profile_id: Option<common_utils::id_type::ProfileId>,
-        }
-
-        impl Object {
-            pub fn new(profile_id: &'static str) -> Self {
-                Self {
-                    profile_id: Some(
-                        common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(
-                            profile_id,
-                        ))
-                        .expect("invalid profile ID"),
-                    ),
-                }
-            }
-        }
-
-        impl GetProfileId for Object {
-            fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-                self.profile_id.as_ref()
-            }
-        }
-
-        fn new_profile_id(profile_id: &'static str) -> common_utils::id_type::ProfileId {
-            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id))
-                .expect("invalid profile ID")
-        }
-
-        // non empty object_list and profile_id_list
-        let object_list = vec![
-            Object::new("p1"),
-            Object::new("p2"),
-            Object::new("p2"),
-            Object::new("p4"),
-            Object::new("p5"),
-        ];
-        let profile_id_list = vec![
-            new_profile_id("p1"),
-            new_profile_id("p2"),
-            new_profile_id("p3"),
-        ];
-        let filtered_list =
-            filter_objects_based_on_profile_id_list(Some(profile_id_list), object_list.clone());
-        let expected_result = vec![Object::new("p1"), Object::new("p2"), Object::new("p2")];
-        assert_eq!(filtered_list, expected_result);
-
-        // non empty object_list and empty profile_id_list
-        let empty_profile_id_list = vec![];
-        let filtered_list = filter_objects_based_on_profile_id_list(
-            Some(empty_profile_id_list),
-            object_list.clone(),
-        );
-        let expected_result = vec![];
-        assert_eq!(filtered_list, expected_result);
-
-        // non empty object_list and None profile_id_list
-        let profile_id_list_as_none = None;
-        let filtered_list =
-            filter_objects_based_on_profile_id_list(profile_id_list_as_none, object_list);
-        let expected_result = vec![
-            Object::new("p1"),
-            Object::new("p2"),
-            Object::new("p2"),
-            Object::new("p4"),
-            Object::new("p5"),
-        ];
-        assert_eq!(filtered_list, expected_result);
-    }
-}
 
 // Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration -> Arbitration -> DisputeReversal
 pub fn validate_dispute_stage(
@@ -1548,8 +1447,8 @@ pub async fn construct_upload_file_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_dispute_list_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_dispute_list_router_data(
+    state: &SessionState,
     merchant_connector_account: MerchantConnectorAccount,
     req: types::FetchDisputesRequestData,
 ) -> RouterResult<types::FetchDisputesRouterData> {
@@ -2004,8 +1903,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn construct_retrieve_file_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_retrieve_file_router_data(
+    state: &SessionState,
     processor: &domain::Processor,
     file_metadata: &diesel_models::file::FileMetadata,
     dispute: Option<storage::Dispute>,
@@ -3350,5 +3249,107 @@ pub async fn pin_value(
             );
             candidate
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_id_length_constraint() {
+        let payment_id =
+            "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnopsjkdnfjsknfkjsdnfspoig".to_string(); //length = 65
+
+        let result = validate_id(payment_id, "payment_id");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_id_proper_response() {
+        let payment_id = "abcdefghijlkmnopqrstjhbjhjhkhbhgcxdfxvmhb".to_string();
+
+        let result = validate_id(payment_id.clone(), "payment_id");
+        assert!(result.is_ok());
+        let result = result.unwrap_or_default();
+        assert_eq!(result, payment_id);
+    }
+
+    #[test]
+    fn test_generate_id() {
+        let generated_id = generate_id(consts::ID_LENGTH, "ref");
+        assert_eq!(generated_id.len(), consts::ID_LENGTH + 4)
+    }
+
+    #[test]
+    fn test_filter_objects_based_on_profile_id_list() {
+        #[derive(PartialEq, Debug, Clone)]
+        struct Object {
+            profile_id: Option<common_utils::id_type::ProfileId>,
+        }
+
+        impl Object {
+            pub fn new(profile_id: &'static str) -> Self {
+                Self {
+                    profile_id: Some(
+                        common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(
+                            profile_id,
+                        ))
+                        .expect("invalid profile ID"),
+                    ),
+                }
+            }
+        }
+
+        impl GetProfileId for Object {
+            fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+                self.profile_id.as_ref()
+            }
+        }
+
+        fn new_profile_id(profile_id: &'static str) -> common_utils::id_type::ProfileId {
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id))
+                .expect("invalid profile ID")
+        }
+
+        // non empty object_list and profile_id_list
+        let object_list = vec![
+            Object::new("p1"),
+            Object::new("p2"),
+            Object::new("p2"),
+            Object::new("p4"),
+            Object::new("p5"),
+        ];
+        let profile_id_list = vec![
+            new_profile_id("p1"),
+            new_profile_id("p2"),
+            new_profile_id("p3"),
+        ];
+        let filtered_list =
+            filter_objects_based_on_profile_id_list(Some(profile_id_list), object_list.clone());
+        let expected_result = vec![Object::new("p1"), Object::new("p2"), Object::new("p2")];
+        assert_eq!(filtered_list, expected_result);
+
+        // non empty object_list and empty profile_id_list
+        let empty_profile_id_list = vec![];
+        let filtered_list = filter_objects_based_on_profile_id_list(
+            Some(empty_profile_id_list),
+            object_list.clone(),
+        );
+        let expected_result = vec![];
+        assert_eq!(filtered_list, expected_result);
+
+        // non empty object_list and None profile_id_list
+        let profile_id_list_as_none = None;
+        let filtered_list =
+            filter_objects_based_on_profile_id_list(profile_id_list_as_none, object_list);
+        let expected_result = vec![
+            Object::new("p1"),
+            Object::new("p2"),
+            Object::new("p2"),
+            Object::new("p4"),
+            Object::new("p5"),
+        ];
+        assert_eq!(filtered_list, expected_result);
     }
 }

@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     mandates::MandateTransactionType, payment_methods::VaultPaymentMethodData,
 };
 use hyperswitch_masking::{ExposeInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

@@ -2,7 +2,7 @@ use common_enums::{connector_enums::Connector, ExecutionMode};
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use unified_connector_service_client::payments::{
     self as payments_grpc, refresh_result, CardRefreshOutcome as Outcome,
 };

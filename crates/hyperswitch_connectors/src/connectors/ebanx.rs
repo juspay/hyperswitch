@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
 #[cfg(feature = "payouts")]
 use hyperswitch_masking::Maskable;
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as ebanx;
 
 #[cfg(feature = "payouts")]

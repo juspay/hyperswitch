@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 use hyperswitch_masking::ExposeInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     consts,

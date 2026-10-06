@@ -9,7 +9,7 @@ pub use hyperswitch_domain_models::{
         SubscriptionUpdate as DomainSubscriptionUpdate,
     },
 };
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     connection, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb,

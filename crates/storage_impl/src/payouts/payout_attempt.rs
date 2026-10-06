@@ -20,7 +20,7 @@ use hyperswitch_domain_models::payouts::{
     payouts::Payouts,
 };
 use redis_interface::HsetnxReply;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::{
     diesel_error_to_data_error, errors,

@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     connection,

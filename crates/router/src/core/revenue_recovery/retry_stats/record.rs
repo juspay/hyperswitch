@@ -5,7 +5,7 @@ use hyperswitch_domain_models::revenue_recovery::{
     retry_stats_cluster_key::RetryStatsClusterKey, retry_stats_document::StatsDocument,
 };
 use redis_interface::SetnxReply;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use storage_impl::{
     errors::StorageError, revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface,
 };

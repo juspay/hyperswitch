@@ -779,7 +779,7 @@ async fn restore_pre_call_state<F, D>(
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
-pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
+pub async fn payments_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
     platform: &domain::Platform,
@@ -9290,8 +9290,8 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_profile_id_and_get_mca<'a, F, D>(
-    state: &'a SessionState,
+pub async fn construct_profile_id_and_get_mca<F, D>(
+    state: &SessionState,
     processor: &domain::Processor,
     payment_data: &D,
     connector_name: &str,

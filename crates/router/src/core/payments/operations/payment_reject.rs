@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsCancelRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{

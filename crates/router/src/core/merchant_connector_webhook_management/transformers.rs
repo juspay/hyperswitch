@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, Secret};
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 
 use crate::{
     consts,
@@ -59,8 +59,8 @@ pub async fn construct_webhook_register_router_data(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_webhook_register_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_webhook_register_router_data(
+    state: &SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<ConnectorWebhookRegisterRouterData> {
@@ -144,8 +144,8 @@ pub async fn construct_webhook_register_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_generate_secret_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_generate_secret_router_data(
+    state: &SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_id: String,
 ) -> RouterResult<ConnectorWebhookGenerateSecretRouterData> {

@@ -7,7 +7,7 @@ pub mod types;
 use api_models::payment_methods::RawPaymentMethodData;
 use common_utils::errors::CustomResult;
 use error_stack::report;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 pub use self::store::apply_card_refresh_result;
 use self::{

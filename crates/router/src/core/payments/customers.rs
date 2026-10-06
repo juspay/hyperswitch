@@ -1,7 +1,7 @@
 pub use hyperswitch_domain_models::customer::update_connector_customer_in_customers;
 use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "v2")]
 use crate::types::domain;

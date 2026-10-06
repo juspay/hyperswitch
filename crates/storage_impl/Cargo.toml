@@ -24,6 +24,7 @@ fred     = ["redis_interface/fred"]
 redis-rs = ["redis_interface/redis-rs"]
 
 [dependencies]
+tracing = { workspace = true }
 # First Party dependencies
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }

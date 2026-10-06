@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
@@ -1263,13 +1263,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_method,
+                request.payment_method,
                 &request
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.clone()),
-                &request.payment_method_type,
-                &mandate_type,
+                request.payment_method_type,
+                mandate_type,
                 &request.payment_token,
                 &request.ctp_service_details,
             )?;

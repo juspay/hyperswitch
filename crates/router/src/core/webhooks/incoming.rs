@@ -83,7 +83,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let (webhook_response, webhooks_response_tracker, serialized_req) =
-        Box::pin(incoming_webhooks_core::<W>(
+        Box::pin(incoming_webhooks_core(
             state.clone(),
             req_state,
             req,
@@ -131,7 +131,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     };
 
     let (webhook_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
-        network_token_incoming_webhooks_core::<W>(&state, request_details),
+        network_token_incoming_webhooks_core(&state, request_details),
     )
     .await?;
 
@@ -172,7 +172,7 @@ fn confirm_path_for_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn incoming_webhooks_core(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -806,7 +806,7 @@ fn handle_incoming_webhook_error(
 
 #[instrument(skip_all)]
 #[cfg(feature = "v1")]
-async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn network_token_incoming_webhooks_core(
     state: &SessionState,
     request_details: IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<(

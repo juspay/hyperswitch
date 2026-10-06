@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata,
 };
 use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorSpecifications};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 use strum::IntoEnumIterator;
 
 use crate::{

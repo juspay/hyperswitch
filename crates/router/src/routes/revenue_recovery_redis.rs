@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_data_backfill::GetRedisDataQuery;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     core::{api_locking, revenue_recovery_data_backfill},

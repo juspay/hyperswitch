@@ -17,6 +17,7 @@ revenue_recovery = []
 ext_services_latency = []
 
 [dependencies]
+tracing = { workspace = true }
 actix-web = "4.11.0"
 async-trait = "0.1.88"
 bytes = "1.10.1"

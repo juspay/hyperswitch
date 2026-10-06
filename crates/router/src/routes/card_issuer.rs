@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::card_issuer as api_types;
 use common_utils::id_type;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{

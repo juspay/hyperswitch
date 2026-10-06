@@ -9,7 +9,7 @@ use api_models::customers::migrate::{
 use common_enums::ApiVersion;
 use common_utils::id_type;
 use error_stack::{report, ResultExt};
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use crate::{
     core::{api_locking, customers, errors},

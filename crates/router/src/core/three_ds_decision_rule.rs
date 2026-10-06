@@ -8,7 +8,7 @@ use euclid::{
     frontend::ast,
 };
 use hyperswitch_domain_models::platform::Platform;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::{
     core::{

@@ -15,10 +15,7 @@ use router::{
     services::{self, api},
     workflows,
 };
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
     workflows::ProcessTrackerWorkflows, SchedulerSessionState,

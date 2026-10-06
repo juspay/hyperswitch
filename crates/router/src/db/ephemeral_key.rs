@@ -64,7 +64,7 @@ mod storage {
     #[cfg(feature = "v2")]
     use redis_interface::errors::RedisError;
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::RedisConnInterface;
     use time::ext::NumericalDuration;
 

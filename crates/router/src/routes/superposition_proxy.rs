@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use external_services::superposition::{ContextPutRequest, ResolveConfigBody};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{

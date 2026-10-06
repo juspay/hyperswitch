@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -677,13 +677,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
+            request.payment_method,
             &request
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone()),
-            &request.payment_method_type,
-            &mandate_type,
+            request.payment_method_type,
+            mandate_type,
             &token,
             &request.ctp_service_details,
         )?;

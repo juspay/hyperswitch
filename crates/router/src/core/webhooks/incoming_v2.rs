@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
