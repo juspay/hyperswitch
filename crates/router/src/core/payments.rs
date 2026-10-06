@@ -13577,7 +13577,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .attach_printable("missing payment_method_details")?;
         Box::pin(authentication_core::perform_authentication(
             &state,
-            business_profile.merchant_id,
+            platform.get_processor(),
+            &business_profile,
+            business_profile.merchant_id.clone(),
             authentication_connector,
             payment_method_details.0,
             payment_method_details.1,

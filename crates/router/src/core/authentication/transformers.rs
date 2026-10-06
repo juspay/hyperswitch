@@ -99,6 +99,8 @@ pub fn construct_post_authentication_router_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_request = types::authentication::ConnectorPostAuthenticationRequestData {
         threeds_server_transaction_id,
+        amount: authentication_data.amount,
+        currency: authentication_data.currency,
     };
     construct_router_data(
         state,
@@ -120,6 +122,8 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<common_enums::Currency>,
 ) -> RouterResult<
     types::RouterData<
         F,
@@ -127,7 +131,11 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
         types::authentication::AuthenticationResponseData,
     >,
 > {
-    let router_request = types::authentication::PreAuthNRequestData { card };
+    let router_request = types::authentication::PreAuthNRequestData {
+        card,
+        amount,
+        currency,
+    };
     construct_router_data(
         state,
         authentication_connector,
