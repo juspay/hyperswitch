@@ -47,7 +47,7 @@ utoipa = { version = "4.2.3", features = [
 ] }
 nutype = { version = "0.4.3", features = ["serde"] }
 deserialize_form_style_query_parameter = "0.2.2"
-superposition_types = "0.115.5"
+superposition_types = "0.117.0"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }

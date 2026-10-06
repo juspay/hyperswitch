@@ -13,7 +13,7 @@ superposition:
 scenario:
   # merchant_path: non_modular or modular
   merchant_path: modular
-  # name: guest, cit_on_session, cit_off_session, or cit_metadata_changed
+  # name: guest, guest_customer, cit_on_session, cit_off_session, or cit_metadata_changed
   name: cit_off_session
 
 load:

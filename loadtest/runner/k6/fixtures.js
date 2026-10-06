@@ -15,6 +15,7 @@ const maxDurationSeconds = Math.max(
 );
 
 export const options = {
+  setupTimeout: `${Math.max(60, Math.ceil(input.request_timeout_ms / 1000) * 4)}s`,
   scenarios: {
     fixtures: {
       executor: "shared-iterations",
@@ -40,6 +41,14 @@ function post(url, body, headers) {
   });
 }
 
+function get(url, headers) {
+  return http.get(url, {
+    headers,
+    timeout: `${input.request_timeout_ms}ms`,
+    redirects: 0,
+  });
+}
+
 function recordFailure(index, operation, response) {
   failed.add(1, {
     fixture_index: String(index),
@@ -55,7 +64,7 @@ function customerAcceptance() {
   };
 }
 
-function createPayment(routerUrl, customerId, description) {
+function createPayment(routerUrl, customerId, description, setupFutureUsage = input.plan.setupFutureUsage) {
   return post(`${routerUrl}/payments`, {
     amount: Number(input.fixture_config.amount || 1000),
     currency: input.fixture_config.currency || "USD",
@@ -65,8 +74,30 @@ function createPayment(routerUrl, customerId, description) {
     session_expiry: Number(input.fixture_config.session_expiry || 900),
     description,
     ...(customerId ? { customer_id: customerId } : {}),
-    ...(input.plan.setupFutureUsage ? { setup_future_usage: input.plan.setupFutureUsage } : {}),
+    ...(setupFutureUsage ? { setup_future_usage: setupFutureUsage } : {}),
   }, apiKeyHeaders(input));
+}
+
+function createCustomer(modularUrl, reference) {
+  return post(`${modularUrl}/customers`, {
+    merchant_reference_id: reference,
+    name: "Loadtest User",
+    phone: "6168205362",
+    email: `${reference}@example.com`,
+    phone_country_code: "+1",
+  }, modularHeaders(input));
+}
+
+function createPmSession(modularUrl, customerId, storageType = input.plan.storageType) {
+  return post(`${modularUrl}/payment-method-sessions`, {
+    ...(customerId ? { customer_id: customerId } : {}),
+    expires_in: Number(input.fixture_config.session_expiry || 900),
+    storage_type: storageType,
+  }, modularHeaders(input));
+}
+
+function extractToken(value) {
+  return typeof value === "object" && value !== null ? value.data : value;
 }
 
 function findSavedPaymentMethod(routerUrl, paymentId) {
@@ -85,21 +116,87 @@ function findSavedPaymentMethod(routerUrl, paymentId) {
   return null;
 }
 
-export function createFixture() {
+export function setup() {
+  if (!input.plan.sharedCustomer) return null;
+
+  const routerUrl = input.services.router.replace(/\/$/, "");
+  const modularUrl = input.services["modular-pm"].replace(/\/$/, "");
+  const reference = `customer_loadtest_shared_${input.run_id}`;
+  const customerResponse = createCustomer(modularUrl, reference);
+  const customer = json(customerResponse);
+  const customerId = customer.id || customer.customer_id;
+  if (customerResponse.status < 200 || customerResponse.status >= 300 || !customerId) {
+    throw new Error(`shared customer creation failed: status=${customerResponse.status}`);
+  }
+
+  const sessionResponse = createPmSession(modularUrl, customerId, "persistent");
+  const session = json(sessionResponse);
+  if (
+    sessionResponse.status < 200
+    || sessionResponse.status >= 300
+    || !session.id
+    || !session.client_secret
+  ) {
+    throw new Error(`shared card session creation failed: status=${sessionResponse.status}`);
+  }
+
+  const sessionConfirmResponse = post(
+    `${modularUrl}/payment-method-sessions/${session.id}/confirm`,
+    {
+      payment_method_data: { card: input.card },
+      payment_method_type: "card",
+      payment_method_subtype: "credit",
+      customer_acceptance: customerAcceptance(),
+    },
+    modularHeaders(input, session.client_secret),
+  );
+  const sessionConfirm = json(sessionConfirmResponse);
+  const token = extractToken(sessionConfirm.associated_payment_methods?.[0]?.payment_method_token);
+  if (sessionConfirmResponse.status < 200 || sessionConfirmResponse.status >= 300 || !token) {
+    throw new Error(`shared card session confirmation failed: status=${sessionConfirmResponse.status}`);
+  }
+
+  const baselinePaymentResponse = createPayment(
+    routerUrl,
+    customerId,
+    `Loadtest shared-card baseline ${input.plan.id}`,
+    "off_session",
+  );
+  const baselinePayment = json(baselinePaymentResponse);
+  if (baselinePaymentResponse.status < 200 || baselinePaymentResponse.status >= 300 || !baselinePayment.payment_id) {
+    throw new Error(`shared card baseline payment creation failed: status=${baselinePaymentResponse.status}`);
+  }
+
+  const baselineConfirmResponse = post(`${routerUrl}/payments/${baselinePayment.payment_id}/confirm`, {
+    payment_token: token,
+    payment_method: "card",
+    payment_method_type: "credit",
+    setup_future_usage: "off_session",
+    customer_acceptance: customerAcceptance(),
+  }, apiKeyHeaders(input));
+  const baselineConfirm = json(baselineConfirmResponse);
+  const savedPaymentMethodId = baselineConfirm.payment_method_id
+    || findSavedPaymentMethod(routerUrl, baselinePayment.payment_id);
+  if (
+    baselineConfirmResponse.status < 200
+    || baselineConfirmResponse.status >= 300
+    || !savedPaymentMethodId
+  ) {
+    throw new Error(`shared card baseline confirmation failed: status=${baselineConfirmResponse.status}`);
+  }
+
+  return { customer_id: customerId, saved_payment_method_id: savedPaymentMethodId };
+}
+
+export function createFixture(shared) {
   const index = exec.scenario.iterationInTest;
   const fixtureId = `fixture_${String(index).padStart(8, "0")}_${input.run_id}`;
   const reference = `customer_loadtest_${input.run_id}_${index}`;
   const routerUrl = input.services.router.replace(/\/$/, "");
   const modularUrl = input.services["modular-pm"]?.replace(/\/$/, "");
-  let customerId = null;
-  if (input.plan.requiresCustomer) {
-    const response = post(`${modularUrl}/customers`, {
-      merchant_reference_id: reference,
-      name: "Loadtest User",
-      phone: "6168205362",
-      email: `${reference}@example.com`,
-      phone_country_code: "+1",
-    }, modularHeaders(input));
+  let customerId = shared?.customer_id || null;
+  if (input.plan.requiresCustomer && !customerId) {
+    const response = createCustomer(modularUrl, reference);
     const body = json(response);
     customerId = body.id || body.customer_id;
     if (response.status < 200 || response.status >= 300 || !customerId) {
@@ -110,11 +207,7 @@ export function createFixture() {
   let pmSessionId = null;
   let pmSessionClientSecret = null;
   if (input.plan.usesPmService) {
-    const response = post(`${modularUrl}/payment-method-sessions`, {
-      ...(customerId ? { customer_id: customerId } : {}),
-      expires_in: Number(input.fixture_config.session_expiry || 900),
-      storage_type: input.plan.storageType,
-    }, modularHeaders(input));
+    const response = createPmSession(modularUrl, customerId);
     const body = json(response);
     pmSessionId = body.id;
     pmSessionClientSecret = body.client_secret;
@@ -123,8 +216,8 @@ export function createFixture() {
       return;
     }
   }
-  let savedPaymentMethodId = null;
-  if (input.plan.requiresSavedCard) {
+  let savedPaymentMethodId = shared?.saved_payment_method_id || null;
+  if (input.plan.requiresSavedCard && !input.plan.sharedCustomer) {
     const baselinePaymentResponse = createPayment(routerUrl, customerId, `Loadtest baseline ${input.plan.id}`);
     const baselinePayment = json(baselinePaymentResponse);
     if (baselinePaymentResponse.status < 200 || baselinePaymentResponse.status >= 300 || !baselinePayment.payment_id) {
@@ -151,6 +244,22 @@ export function createFixture() {
       return;
     }
   }
+  let paymentToken = null;
+  if (input.plan.listsSavedPaymentMethods) {
+    const response = get(
+      `${modularUrl}/payment-method-sessions/${pmSessionId}/list-payment-methods`,
+      modularHeaders(input, pmSessionClientSecret),
+    );
+    const body = json(response);
+    const savedCard = body.customer_payment_methods?.find(
+      (paymentMethod) => paymentMethod.payment_method_type === "card",
+    );
+    paymentToken = extractToken(savedCard?.payment_method_token);
+    if (response.status < 200 || response.status >= 300 || !paymentToken) {
+      recordFailure(index, "list_saved_payment_methods", response);
+      return;
+    }
+  }
   const paymentResponse = createPayment(routerUrl, customerId, `Loadtest automation ${input.plan.id}`);
   const payment = json(paymentResponse);
   if (paymentResponse.status < 200 || paymentResponse.status >= 300 || !payment.payment_id) {
@@ -164,5 +273,6 @@ export function createFixture() {
     pm_session_id: pmSessionId || "",
     pm_session_client_secret: pmSessionClientSecret || "",
     saved_payment_method_id: savedPaymentMethodId || "",
+    payment_token: paymentToken || "",
   });
 }

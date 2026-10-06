@@ -698,18 +698,24 @@ impl SuperpositionClient {
     ) -> CustomResult<Self, SuperpositionError> {
         let token_value = config.token.expose();
 
-        let refresh_strategy = superposition_provider::RefreshStrategy::Polling(
-            superposition_provider::PollingStrategy {
-                interval: config.polling_interval,
-                timeout: config.request_timeout,
-            },
+        // 0.117.0 moved these to milliseconds; the seconds-based `interval`/`timeout`
+        // fields still work but are deprecated. Config keeps declaring seconds, so
+        // convert here rather than changing the config contract.
+        let polling_strategy = superposition_provider::PollingStrategy::new(
+            config.polling_interval.saturating_mul(1000),
         );
+        let polling_strategy = match config.request_timeout {
+            Some(timeout_secs) => polling_strategy.with_timeout(timeout_secs.saturating_mul(1000)),
+            None => polling_strategy,
+        };
+        let refresh_strategy = superposition_provider::RefreshStrategy::Polling(polling_strategy);
 
         // --- Build HTTP (primary) data source ---
         let http_source = superposition_provider::data_source::http::HttpDataSource::new(
             superposition_provider::types::SuperpositionOptions::new(
                 config.endpoint.clone(),
-                token_value.clone(),
+                // 0.117.0 replaced the bare token string with an AuthMethod enum.
+                superposition_provider::types::AuthMethod::Token(token_value.clone()),
                 config.org_id.clone(),
                 config.workspace_id.clone(),
             ),
@@ -958,7 +964,14 @@ impl SuperpositionClient {
                     use superposition_provider::data_source::SuperpositionDataSource;
                     let response = self
                         .provider
-                        .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                        .fetch_filtered_config(
+                            dimension_filter,
+                            prefix_filter,
+                            None,
+                            // `if_modified_since`, added in 0.117.0. `None` always fetches
+                            // the current config, matching the previous behaviour.
+                            None,
+                        )
                         .await
                         .map_err(|e| {
                             report!(SuperpositionError::ProviderError(format!(
@@ -984,7 +997,14 @@ impl SuperpositionClient {
             use superposition_provider::data_source::SuperpositionDataSource;
             let response = self
                 .provider
-                .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                .fetch_filtered_config(
+                    dimension_filter,
+                    prefix_filter,
+                    None,
+                    // `if_modified_since`, added in 0.117.0. `None` always fetches
+                    // the current config, matching the previous behaviour.
+                    None,
+                )
                 .await
                 .map_err(|e| {
                     report!(SuperpositionError::ProviderError(format!(

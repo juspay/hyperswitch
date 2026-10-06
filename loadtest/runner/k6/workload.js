@@ -118,7 +118,13 @@ export function confirmPayment() {
   let token = null;
   let pmResponse = null;
   let pmMs = 0;
-  if (input.plan.usesPmService) {
+  if (input.plan.listsSavedPaymentMethods) {
+    token = fixture.payment_token;
+    if (!token) {
+      emitResult(fixture, "failed", "saved_card_token_missing", null, null, 0, 0);
+      return;
+    }
+  } else if (input.plan.usesPmService) {
     const pmSessionConfirmBody = {
       payment_method_data: { card: input.card },
       payment_method_type: "card",
@@ -146,6 +152,9 @@ export function confirmPayment() {
   const body = input.plan.usesPmService
     ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
     : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard() } };
+  if (input.plan.listsSavedPaymentMethods) {
+    body.payment_method_data = { card_token: { card_cvc: input.card.card_cvc } };
+  }
   if (input.plan.setupFutureUsage) {
     body.setup_future_usage = input.plan.setupFutureUsage;
     body.customer_acceptance = customerAcceptance();

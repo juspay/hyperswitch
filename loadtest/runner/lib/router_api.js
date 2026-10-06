@@ -185,6 +185,9 @@ async function setupMerchant(state, merchantPath, fresh, data) {
   const body = plan.usesPmService
     ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
     : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card } };
+  if (plan.listsSavedPaymentMethods) {
+    body.payment_method_data = { card_token: { card_cvc: card.card_cvc } };
+  }
   if (plan.setupFutureUsage) {
     body.setup_future_usage = plan.setupFutureUsage;
     body.customer_acceptance = customerAcceptance();
@@ -287,6 +290,7 @@ function remainingFixtureWaitSeconds(run, fixtures) {
           pm_session_id: tags.pm_session_id || null,
           pm_session_client_secret: tags.pm_session_client_secret || null,
           saved_payment_method_id: tags.saved_payment_method_id || null,
+          payment_token: tags.payment_token || null,
           state: "ready",
         });
       } else if (point.metric === "loadtest_fixture_failed") {

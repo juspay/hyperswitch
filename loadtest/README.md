@@ -116,8 +116,10 @@ For modular cloud runs, combined latency is PM-session-confirm latency plus the 
 | Scenario | Behavior |
 | --- | --- |
 | `guest` | No customer and no saved card; modular PM session uses volatile storage. |
+| `guest_customer` | Customer-backed one-time card flow; no save-card fields and modular PM session uses volatile storage. |
 | `cit_on_session` | Customer-initiated save-card flow with `setup_future_usage: on_session`. |
 | `cit_off_session` | Customer-initiated save-card flow with `setup_future_usage: off_session`. |
+| `saved_card` | Modular returning-customer flow: save one shared card, then create a fresh PM session, list saved methods, and confirm each payment using the listed token plus CVC. Fixture setup performs session creation/listing; the measured phase contains only payment-confirm. |
 | `cit_metadata_changed` | Non-modular CIT flow that saves a card during fixture setup and changes its metadata during measured confirm. |
 
 Select a flow in `runner/config.yaml`:

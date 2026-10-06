@@ -8,6 +8,11 @@ const SCENARIOS = Object.freeze({
     setupFutureUsage: null,
     storageType: "volatile",
   }),
+  guest_customer: Object.freeze({
+    requiresCustomer: true,
+    setupFutureUsage: null,
+    storageType: "volatile",
+  }),
   cit_on_session: Object.freeze({
     requiresCustomer: true,
     setupFutureUsage: "on_session",
@@ -17,6 +22,15 @@ const SCENARIOS = Object.freeze({
     requiresCustomer: true,
     setupFutureUsage: "off_session",
     storageType: "persistent",
+  }),
+  saved_card: Object.freeze({
+    requiresCustomer: true,
+    requiresSavedCard: true,
+    sharedCustomer: true,
+    listsSavedPaymentMethods: true,
+    setupFutureUsage: null,
+    storageType: "persistent",
+    modularOnly: true,
   }),
   // Payment to Vault: the session is created volatile, so the card lives only
   // in redis at confirm. Acceptance is still sent (setupFutureUsage is set), so

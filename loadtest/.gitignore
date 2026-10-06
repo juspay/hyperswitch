@@ -6,6 +6,7 @@ runner/config.yaml
 runner/config.cloud.yaml
 runner/config.cloud.cit_on_session.yaml
 runner/config.cloud.cit_off_session.yaml
+runner/config.cloud.saved_card.yaml
 runner/config.cloud.non_modular_guest.yaml
 runner/exports/
 runner/state/

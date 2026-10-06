@@ -21,7 +21,7 @@ const {
 const { buildPlan } = require("../lib/scenarios");
 
 const paths = ["non_modular", "modular"];
-const scenarios = ["guest", "cit_on_session", "cit_off_session"];
+const scenarios = ["guest", "guest_customer", "cit_on_session", "cit_off_session"];
 
 for (const merchantPath of paths) {
   for (const name of scenarios) {
@@ -50,8 +50,32 @@ test("metadata-change CIT requires a pre-existing saved card", () => {
   assert.equal(plan.setupFutureUsage, "off_session");
 });
 
+test("saved-card return flow shares one customer and lists a fresh token per payment", () => {
+  const plan = buildPlan({ merchant_path: "modular", name: "saved_card" });
+  const body = buildPaymentConfirmBody(plan, { card_cvc: "123" }, "token_123");
+  assert.equal(plan.sharedCustomer, true);
+  assert.equal(plan.requiresSavedCard, true);
+  assert.equal(plan.listsSavedPaymentMethods, true);
+  assert.equal(body.payment_token, "token_123");
+  assert.deepEqual(body.payment_method_data, { card_token: { card_cvc: "123" } });
+  assert.equal(body.setup_future_usage, undefined);
+  assert.throws(
+    () => buildPlan({ merchant_path: "non_modular", name: "saved_card" }),
+    /only the modular merchant path/,
+  );
+});
+
 test("one-time confirms do not contain save-card fields", () => {
   const body = buildPaymentConfirmBody(buildPlan({ merchant_path: "non_modular", name: "guest" }), {}, null);
+  assert.equal(body.setup_future_usage, undefined);
+  assert.equal(body.customer_acceptance, undefined);
+});
+
+test("guest-customer confirms remain one-time while requiring customer fixtures", () => {
+  const plan = buildPlan({ merchant_path: "non_modular", name: "guest_customer" });
+  const body = buildPaymentConfirmBody(plan, {}, null);
+  assert.equal(plan.requiresCustomer, true);
+  assert.equal(plan.storageType, "volatile");
   assert.equal(body.setup_future_usage, undefined);
   assert.equal(body.customer_acceptance, undefined);
 });
@@ -65,6 +89,13 @@ test("CIT confirms contain setup future usage and customer acceptance", () => {
 test("modular CIT session confirmation includes customer acceptance", () => {
   const source = fs.readFileSync(require.resolve("../k6/workload.js"), "utf8");
   assert.match(source, /if \(input\.plan\.setupFutureUsage\) \{\s*pmSessionConfirmBody\.customer_acceptance = customerAcceptance\(\);/);
+});
+
+test("saved-card fixtures list PM methods while workload measures only payment confirm", () => {
+  const fixtureSource = fs.readFileSync(require.resolve("../k6/fixtures.js"), "utf8");
+  const workloadSource = fs.readFileSync(require.resolve("../k6/workload.js"), "utf8");
+  assert.match(fixtureSource, /payment-method-sessions\/\$\{pmSessionId\}\/list-payment-methods/);
+  assert.match(workloadSource, /body\.payment_method_data = \{ card_token: \{ card_cvc: input\.card\.card_cvc \} \}/);
 });
 
 test("load phases ramp once and own their request count", () => {
@@ -162,6 +193,10 @@ test("configured secrets can be sourced from the environment", () => {
 
 test("required targets follow fixture and measured flow requirements", () => {
   assert.deepEqual(requiredTargetNames(buildPlan({ merchant_path: "non_modular", name: "guest" }), "disabled"), ["router"]);
+  assert.deepEqual(
+    requiredTargetNames(buildPlan({ merchant_path: "non_modular", name: "guest_customer" }), "preconfigured"),
+    ["router", "modular-pm"],
+  );
   assert.deepEqual(
     requiredTargetNames(buildPlan({ merchant_path: "non_modular", name: "cit_off_session" }), "preconfigured"),
     ["router", "modular-pm"],
