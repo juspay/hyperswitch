@@ -3709,14 +3709,47 @@ where
     )
 }
 
+/// Whether the merchant has clear-PAN retries enabled on the profile that ran the network token leg.
+///
+/// A profile that cannot be read is treated as disabled: the fallback re-authorizes a declined
+/// payment on a second credential, so it should not happen on an unverified switch.
+#[cfg(feature = "v1")]
+async fn is_clear_pan_retry_enabled_for_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    network_token_response: &payments_api::PaymentsResponse,
+) -> bool {
+    match network_token_response.profile_id.as_ref() {
+        Some(profile_id) => state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+            .await
+            .map(|business_profile| business_profile.is_clear_pan_retries_enabled)
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "could not read the profile to check is_clear_pan_retries_enabled; treating the vault card fallback as disabled"
+                );
+            })
+            .unwrap_or(false),
+        None => false,
+    }
+}
+
 /// Decides whether a declined network-token leg is eligible to be re-run against the vault card.
 ///
-/// The rule mirrors the clear-PAN condition used by auto retries: the connector's decline must map
-/// to a GSM record that both decides `Retry` and sets `clear_pan_possible`. A non-failure status,
-/// a missing connector, or no matching GSM row all leave the network token response as final.
+/// The rule mirrors the clear-PAN condition used by auto retries: the merchant must have
+/// `is_clear_pan_retries_enabled` on the profile, and the connector's decline must map to a GSM
+/// record that both decides `Retry` and sets `clear_pan_possible`. A non-failure status, a missing
+/// connector, a disabled profile switch, or no matching GSM row all leave the network token
+/// response as final.
 #[cfg(feature = "v1")]
 async fn is_vault_card_fallback_eligible(
     state: &SessionState,
+    platform: &domain::Platform,
     network_token_response: &payments_api::PaymentsResponse,
 ) -> bool {
     let issuer_details = network_token_response
@@ -3728,27 +3761,33 @@ async fn is_vault_card_fallback_eligible(
         network_token_response.status,
         network_token_response.connector.clone(),
     ) {
-        (enums::IntentStatus::Failed, Some(connector)) => helpers::get_gsm_record(
-            state,
-            connector,
-            consts::PAYMENT_FLOW_STR,
-            &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
-            network_token_response.error_code.clone(),
-            network_token_response.error_message.clone(),
-            issuer_details.and_then(|details| details.code.clone()),
-            issuer_details
-                .and_then(|details| details.network_details.as_ref())
-                .and_then(|network_details| network_details.name.clone()),
-        )
-        .await
-        .and_then(|gsm| gsm.feature_data.get_retry_feature_data())
-        .map(|retry_feature_data| {
-            // Auto retries require the decision as well as the flag, so a row that permits a
-            // clear-PAN retry but decides `DoDefault` must not trigger the fallback either.
-            retry_feature_data.get_decision() == common_enums::GsmDecision::Retry
-                && retry_feature_data.is_clear_pan_possible()
-        })
-        .unwrap_or(false),
+        // The merchant-level switch gates this exactly as it gates the clear-PAN auto retry in
+        // `retry.rs`, so a merchant that turned clear-PAN retries off does not get the fallback
+        // either. Checked first, so a disabled profile costs no GSM lookup.
+        (enums::IntentStatus::Failed, Some(connector)) => {
+            is_clear_pan_retry_enabled_for_profile(state, platform, network_token_response).await
+                && helpers::get_gsm_record(
+                    state,
+                    connector,
+                    consts::PAYMENT_FLOW_STR,
+                    &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
+                    network_token_response.error_code.clone(),
+                    network_token_response.error_message.clone(),
+                    issuer_details.and_then(|details| details.code.clone()),
+                    issuer_details
+                        .and_then(|details| details.network_details.as_ref())
+                        .and_then(|network_details| network_details.name.clone()),
+                )
+                .await
+                .and_then(|gsm| gsm.feature_data.get_retry_feature_data())
+                .map(|retry_feature_data| {
+                    // Auto retries require the decision as well as the flag, so a row that permits a
+                    // clear-PAN retry but decides `DoDefault` must not trigger the fallback either.
+                    retry_feature_data.get_decision() == common_enums::GsmDecision::Retry
+                        && retry_feature_data.is_clear_pan_possible()
+                })
+                .unwrap_or(false)
+        }
         _ => false,
     }
 }
@@ -3823,10 +3862,12 @@ where
     let network_token_response = payment_response_from_application_response(&network_token_outcome);
 
     let fallback_target = match network_token_response {
-        Some(response) => match is_vault_card_fallback_eligible(&state, response).await {
-            true => Some(response.payment_id.clone()),
-            false => None,
-        },
+        Some(response) => {
+            match is_vault_card_fallback_eligible(&state, &platform, response).await {
+                true => Some(response.payment_id.clone()),
+                false => None,
+            }
+        }
         None => None,
     };
 
