@@ -680,7 +680,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             domain_data: None,
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(|mit_category| mit_category.into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -4734,8 +4738,10 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                     ),
                 )?;
                 Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
-                    // New in the bumped client; not populated by the router yet.
-                    merchant_token_identifier: None,
+                    merchant_token_identifier: decrypted_data
+                        .merchant_token_identifier
+                        .as_deref()
+                        .map(str::to_owned),
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -4969,6 +4975,12 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         .clone()
                         .map(|cryptogram| cryptogram.expose().into()),
                     eci_indicator: decrypted_data.eci_indicator.clone(),
+                    auth_method: decrypted_data.auth_method.map(|method| match method {
+                        common_enums::GooglePayAuthMethod::PanOnly => "PAN_ONLY".to_owned(),
+                        common_enums::GooglePayAuthMethod::Cryptogram => {
+                            "CRYPTOGRAM_3DS".to_owned()
+                        }
+                    }),
                 }))
             }
         }

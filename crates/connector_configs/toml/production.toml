@@ -2640,6 +2640,10 @@ payment_method_type = "Discover"
 payment_method_type = "UnionPay"
 [[jpmorgan.debit]]
 payment_method_type = "Visa"
+[[jpmorgan.wallet]]
+  payment_method_type = "apple_pay"
+[[jpmorgan.wallet]]
+  payment_method_type = "google_pay"
 [jpmorgan.connector_auth.BodyKey]
 api_key = "Access Token"
 key1 = "Client Secret"
