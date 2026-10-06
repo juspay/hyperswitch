@@ -2629,6 +2629,26 @@ impl PaymentMethodInterface for KafkaStore {
             .find_payment_method_by_fingerprint_id(key_store, fingerprint_id)
             .await
     }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+                key_store,
+                customer_id,
+                merchant_id,
+                auxiliary_fingerprint_id,
+                status,
+            )
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]
