@@ -13624,7 +13624,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
                 |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
-                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
                     }
                     common_enums::TransactionStatus::Success => {
