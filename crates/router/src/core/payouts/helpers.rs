@@ -63,7 +63,8 @@ pub async fn make_payout_method_data(
     super::validator::validate_normal_execution_kind(
         payout_data
             .as_ref()
-            .map(|data| data.payout_attempt.execution_kind),
+            .map(|data| data.payout_attempt.execution_kind)
+            .unwrap_or_default(),
     )?;
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
@@ -331,9 +332,7 @@ pub async fn fetch_payout_method_data(
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
-    super::validator::validate_normal_execution_kind(Some(
-        payout_data.payout_attempt.execution_kind,
-    ))?;
+    super::validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let connector_transfer_method_id =
         should_create_connector_transfer_method(payout_data, connector_data)?;
 
@@ -380,9 +379,7 @@ pub async fn save_payout_data_to_locker(
     connector_mandate_details: Option<serde_json::Value>,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
-    super::validator::validate_normal_execution_kind(Some(
-        payout_data.payout_attempt.execution_kind,
-    ))?;
+    super::validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let mut pm_id: Option<String> = None;
     let payouts = &payout_data.payouts;
     let key_manager_state = state.into();

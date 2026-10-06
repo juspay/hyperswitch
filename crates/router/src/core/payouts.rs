@@ -45,8 +45,6 @@ use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
 use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-#[cfg(feature = "v1")]
-use proxy::PayoutProxyOperation;
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
@@ -564,7 +562,7 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    validator::validate_normal_execution_kind(Some(payout_data.payout_attempt.execution_kind))?;
+    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
@@ -1521,7 +1519,7 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    validator::validate_normal_execution_kind(Some(payout_data.payout_attempt.execution_kind))?;
+    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 

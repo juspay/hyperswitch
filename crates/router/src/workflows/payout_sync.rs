@@ -148,9 +148,9 @@ impl PayoutSyncWorkFlow {
         application_source: common_enums::ApplicationSource,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     ) -> common_utils::errors::CustomResult<(), core_errors::ApiErrorResponse> {
-        payouts::validator::validate_normal_execution_kind(Some(
+        payouts::validator::validate_normal_execution_kind(
             payout_data.payout_attempt.execution_kind,
-        ))?;
+        )?;
         let db = &*state.store;
         let scheduled_time = Self::get_payout_sync_process_schedule_time(
             state,

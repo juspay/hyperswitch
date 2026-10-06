@@ -188,7 +188,7 @@ pub async fn construct_payout_router_data<'a, F>(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    use crate::core::payouts::proxy::{ExternalVaultPayout, PayoutProxyOperation};
+    use crate::core::payouts::proxy::ExternalVaultPayout;
 
     match payout_data.payout_attempt.execution_kind {
         common_enums::PayoutExecutionKind::ExternalVaultProxy => {

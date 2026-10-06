@@ -44,13 +44,12 @@ pub enum PayoutExecutionContext {
     },
 }
 
-pub(super) trait PayoutProxyMetadata {
+impl PayoutExecutionContext {
     /// Encoded vault credentials must not be logged or persisted.
-    fn external_vault_proxy_metadata(&self, state: &SessionState) -> RouterResult<Option<String>>;
-}
-
-impl PayoutProxyMetadata for PayoutExecutionContext {
-    fn external_vault_proxy_metadata(&self, state: &SessionState) -> RouterResult<Option<String>> {
+    pub(super) fn external_vault_proxy_metadata(
+        &self,
+        state: &SessionState,
+    ) -> RouterResult<Option<String>> {
         match self {
             Self::Normal => Ok(None),
             Self::ExternalVaultProxy { external_vault_mca } => {
@@ -72,40 +71,6 @@ pub(in crate::core) struct ExternalVaultPayout<'a> {
     pub platform: &'a domain::Platform,
 }
 
-pub(in crate::core) trait PayoutProxyOperation {
-    /// Proxy payouts force UCS Primary without rollout or Direct fallback.
-    async fn proxy_gateway_context(
-        &self,
-        header_payload: HeaderPayload,
-        connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-    ) -> RouterResult<RouterGatewayContext>;
-
-    async fn construct_proxy_payout_router_data<F>(
-        &self,
-        connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-    ) -> RouterResult<types::PayoutsRouterData<F>>;
-
-    /// The transport gate precedes token retrieval and all payout writes.
-    async fn payouts_proxy_core(
-        &self,
-        header_payload: HeaderPayload,
-        req: payouts::PayoutCreateRequest,
-        profile: domain::Profile,
-        provider_profile: domain::Profile,
-    ) -> RouterResponse<payouts::PayoutCreateResponse>;
-
-    /// Public resume must reload vault tokens; only in-request auto-fulfill is supported.
-    async fn execute_proxy_fulfill(
-        &self,
-        header_payload: HeaderPayload,
-        connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    ) -> RouterResult<()>;
-}
-
 struct ProxyCreateInput {
     request: payouts::PayoutCreateRequest,
     payout_id: id_type::PayoutId,
@@ -115,23 +80,7 @@ struct ProxyCreateInput {
     execution_context: PayoutExecutionContext,
 }
 
-trait PayoutProxyData {
-    fn set_proxy_execution(
-        &mut self,
-        external_vault_pmd: ExternalVaultPayoutMethodData,
-        execution_context: PayoutExecutionContext,
-    );
-
-    fn set_proxy_connector(
-        &mut self,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
-        connector_data: &api::ConnectorData,
-    ) -> api::ConnectorData;
-
-    fn set_proxy_transfer_method_id(&mut self, transfer_method_id: Option<String>);
-}
-
-impl PayoutProxyData for PayoutData {
+impl PayoutData {
     fn set_proxy_execution(
         &mut self,
         external_vault_pmd: ExternalVaultPayoutMethodData,
@@ -159,88 +108,9 @@ impl PayoutProxyData for PayoutData {
     }
 }
 
-trait PayoutProxyPreparation {
-    fn ensure_proxy_transport_available(&self) -> RouterResult<()>;
-
-    fn validate_proxy_runtime(&self, payout_data: &PayoutData) -> RouterResult<()>;
-
-    /// Default omitted S2S flags but reject conflicting values.
-    fn normalize_proxy_create_request(
-        &self,
-        req: payouts::PayoutCreateRequest,
-    ) -> RouterResult<payouts::PayoutCreateRequest>;
-
-    fn validate_proxy_payment_method<'a>(
-        &self,
-        payment_method: &'a PaymentMethod,
-        customer_id: &id_type::CustomerId,
-    ) -> RouterResult<&'a id_type::MerchantConnectorAccountId>;
-
-    /// Vault configuration belongs to the provider, not the payout processor.
-    async fn resolve_external_vault_execution_context(
-        &self,
-        provider_profile: &domain::Profile,
-        saved_vault_source: &id_type::MerchantConnectorAccountId,
-    ) -> RouterResult<PayoutExecutionContext>;
-
-    /// Fetch opaque tokens without raw-card retrieval or Account Updater sync.
-    async fn fetch_external_vault_payout_method(
-        &self,
-        profile_id: &id_type::ProfileId,
-        saved_payment_method: &PaymentMethod,
-    ) -> RouterResult<ExternalVaultPayoutMethodData>;
-
-    async fn validate_proxy_create_request(
-        &self,
-        req: payouts::PayoutCreateRequest,
-        profile: domain::Profile,
-        provider_profile: domain::Profile,
-    ) -> RouterResult<ProxyCreateInput>;
-
-    /// Block PAN-dependent protection configurations until metadata-only support exists.
-    async fn validate_proxy_fraud_policy(
-        &self,
-        profile: &domain::Profile,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    ) -> RouterResult<()>;
-
-    async fn persist_proxy_connector_routing(
-        &self,
-        connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-    ) -> RouterResult<()>;
-
-    fn validate_proxy_recipient_account(
-        &self,
-        connector_data: &api::ConnectorData,
-        payout_data: &PayoutData,
-    ) -> RouterResult<()>;
-
-    async fn complete_proxy_fulfill(
-        &self,
-        header_payload: HeaderPayload,
-        connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    ) -> RouterResult<()>;
-
-    /// Execute one connector; request-scoped tokens cannot enter normal retries or resume.
-    async fn execute_proxy_payout(
-        &self,
-        header_payload: HeaderPayload,
-        connector_data: &api::ConnectorData,
-        payout_data: &mut PayoutData,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    ) -> RouterResult<()>;
-
-    async fn validate_proxy_create_identity(
-        &self,
-        req: &payouts::PayoutCreateRequest,
-    ) -> RouterResult<id_type::PayoutId>;
-}
-
-impl PayoutProxyOperation for ExternalVaultPayout<'_> {
-    async fn proxy_gateway_context(
+impl ExternalVaultPayout<'_> {
+    /// Proxy payouts force UCS Primary without rollout or Direct fallback.
+    pub(super) async fn proxy_gateway_context(
         &self,
         header_payload: HeaderPayload,
         connector_data: &api::ConnectorData,
@@ -306,7 +176,7 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         })
     }
 
-    async fn construct_proxy_payout_router_data<F>(
+    pub(in crate::core) async fn construct_proxy_payout_router_data<F>(
         &self,
         connector_data: &api::ConnectorData,
         payout_data: &mut PayoutData,
@@ -329,7 +199,8 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         .await
     }
 
-    async fn payouts_proxy_core(
+    /// The transport gate precedes token retrieval and all payout writes.
+    pub(super) async fn payouts_proxy_core(
         &self,
         header_payload: HeaderPayload,
         req: payouts::PayoutCreateRequest,
@@ -395,6 +266,7 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         super::trigger_webhook_and_handle_response(state, platform, &payout_data).await
     }
 
+    /// Public resume must reload vault tokens; only in-request auto-fulfill is supported.
     async fn execute_proxy_fulfill(
         &self,
         header_payload: HeaderPayload,
@@ -414,9 +286,7 @@ impl PayoutProxyOperation for ExternalVaultPayout<'_> {
         ))
         .await
     }
-}
 
-impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
     fn ensure_proxy_transport_available(&self) -> RouterResult<()> {
         let state = self.state;
         match state.grpc_client.unified_connector_service_client.as_ref() {
@@ -484,6 +354,7 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
         )
     }
 
+    /// Default omitted S2S flags but reject conflicting values.
     fn normalize_proxy_create_request(
         &self,
         mut req: payouts::PayoutCreateRequest,
@@ -564,6 +435,7 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
         }
     }
 
+    /// Vault configuration belongs to the provider, not the payout processor.
     async fn resolve_external_vault_execution_context(
         &self,
         provider_profile: &domain::Profile,
@@ -615,6 +487,7 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
         }
     }
 
+    /// Fetch opaque tokens without raw-card retrieval or Account Updater sync.
     async fn fetch_external_vault_payout_method(
         &self,
         profile_id: &id_type::ProfileId,
@@ -742,6 +615,7 @@ impl PayoutProxyPreparation for ExternalVaultPayout<'_> {
         })
     }
 
+    /// Block PAN-dependent protection configurations until metadata-only support exists.
     async fn validate_proxy_fraud_policy(
         &self,
         profile: &domain::Profile,

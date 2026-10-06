@@ -234,9 +234,7 @@ pub async fn modify_trackers(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    super::validator::validate_normal_execution_kind(Some(
-        payout_data.payout_attempt.execution_kind,
-    ))?;
+    super::validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
     let new_attempt_count = payout_data.payouts.attempt_count + 1;
 
     let db = &*state.store;

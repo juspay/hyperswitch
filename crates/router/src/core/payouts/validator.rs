@@ -57,11 +57,11 @@ pub fn validate_persisted_execution_kind(
 
 /// Block proxy attempts at normal raw-card, locker, retry and scheduler boundaries.
 pub fn validate_normal_execution_kind(
-    execution_kind: Option<common_enums::PayoutExecutionKind>,
+    execution_kind: common_enums::PayoutExecutionKind,
 ) -> RouterResult<()> {
     match execution_kind {
-        None | Some(common_enums::PayoutExecutionKind::Normal) => Ok(()),
-        Some(common_enums::PayoutExecutionKind::ExternalVaultProxy) => {
+        common_enums::PayoutExecutionKind::Normal => Ok(()),
+        common_enums::PayoutExecutionKind::ExternalVaultProxy => {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "External vault proxy payouts cannot use normal payout execution"
                     .to_owned(),

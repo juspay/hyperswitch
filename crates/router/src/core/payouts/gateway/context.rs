@@ -6,8 +6,6 @@ use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::{api::gateway::GatewayContext, errors::ConnectorError};
 
-#[cfg(feature = "v1")]
-use crate::core::payouts::proxy::PayoutProxyMetadata;
 use crate::{core::unified_connector_service::kill_switch::RolloutSettings, routes::SessionState};
 
 #[derive(Clone, Debug)]
