@@ -14462,11 +14462,7 @@ impl EligibilityHandler {
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
         let should_run = check
-            .should_run(
-                &self.state,
-                &self.platform,
-                self.business_profile.get_id(),
-            )
+            .should_run(&self.state, &self.platform, self.business_profile.get_id())
             .await?;
         Ok(match should_run {
             true => check
