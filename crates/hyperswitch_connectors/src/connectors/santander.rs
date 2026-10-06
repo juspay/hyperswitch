@@ -2072,12 +2072,8 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Santander source verification is handled by MTLS at the transport layer.
-        // In non-production, treat it as verified so local/sandbox webhook flows can proceed.
-        Ok(!matches!(
-            router_env::env::which(),
-            router_env::Env::Production
-        ))
+        // Source verification for Santander is MTLS which is handled at the transport layer. No additional verification is needed here in application side
+        Ok(true)
     }
 
     fn get_webhook_object_reference_id(
