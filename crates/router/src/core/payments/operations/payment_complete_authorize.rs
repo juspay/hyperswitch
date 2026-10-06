@@ -18,6 +18,7 @@ use crate::{
             self, helpers, operations, CustomerDetails, OperationSessionGetters, PaymentAddress,
             PaymentData,
         },
+        utils::get_feature_config,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -117,8 +118,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let feature_config =
-            crate::core::utils::get_feature_config(state, platform, dimensions).await;
+        let feature_config = get_feature_config(state, platform, dimensions).await;
 
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
@@ -144,8 +144,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request,
             mandate_type.to_owned(),
             platform,
-            // Modular callbacks restore card data from the existing temporary token.
-            // Do not send their PM ID to the helper's legacy-storage fallback.
+            // Modular callbacks use cached tokens; skip legacy PM lookup.
             if feature_config.is_payment_method_modular_allowed {
                 None
             } else {
