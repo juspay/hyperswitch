@@ -407,11 +407,11 @@ pub async fn create_profile_from_merchant_account(
 
     let current_time = common_utils::date_time::now();
 
-    if let Some(common_utils::outbound_url::WebhookUrlUpdate::Set(url)) = request
+    if let Some(url) = request
         .webhook_details
         .as_ref()
         .and_then(|details| details.webhook_url.as_ref())
-        .map(|update| update.peek())
+        .map(|secret| secret.peek())
     {
         external_services::http_client::outbound_destination::validate_destination(
             url,

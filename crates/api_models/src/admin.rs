@@ -878,9 +878,10 @@ pub struct WebhookDetailsRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "ekart@123")]
     pub webhook_password: Option<Secret<String>>,
 
-    /// The HTTP or HTTPS webhook URL. DNS must resolve to public addresses; an empty string clears it.
-    #[schema(value_type = Option<String>, example = "https://www.ekart.com/webhooks")]
-    pub webhook_url: Option<Secret<common_utils::outbound_url::WebhookUrlUpdate>>,
+    /// The HTTP or HTTPS webhook URL. DNS must resolve to public addresses. Must not be empty;
+    /// omit this field entirely to leave an existing stored webhook URL unchanged.
+    #[schema(value_type = Option<String>, min_length = 1, example = "https://www.ekart.com/webhooks")]
+    pub webhook_url: Option<Secret<common_utils::outbound_url::SafeOutboundUrl>>,
 
     /// If this property is true, a webhook message is posted whenever a new payment is created
     #[schema(example = true)]
@@ -985,7 +986,7 @@ impl From<WebhookDetailsRequest> for WebhookDetailsResponse {
             webhook_password: item.webhook_password,
             webhook_url: item
                 .webhook_url
-                .map(|update| Secret::new(String::from(update.expose()))),
+                .map(|url| Secret::new(url.expose().get_string_repr().to_owned())),
             payment_created_enabled: item.payment_created_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
@@ -4012,18 +4013,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn empty_webhook_url_clears_while_omission_preserves_the_destination() {
+    fn empty_webhook_url_fails_validation_while_omission_preserves_the_destination() {
         let existing: WebhookDetailsResponse = serde_json::from_value(serde_json::json!({
             "webhook_url": "https://merchant.example.com/hook"
         }))
         .expect("configured webhook");
-        let clear: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
-            "webhook_url": ""
-        }))
-        .expect("empty webhook URL clears the destination");
-        let cleared =
-            serde_json::to_value(existing.clone().merge(clear.into())).expect("cleared webhook");
-        assert_eq!(cleared.get("webhook_url"), Some(&serde_json::json!("")));
+
+        assert!(
+            serde_json::from_value::<WebhookDetailsRequest>(serde_json::json!({
+                "webhook_url": ""
+            }))
+            .is_err()
+        );
 
         let omitted: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
             "payment_succeeded_enabled": true

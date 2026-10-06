@@ -36569,9 +36569,10 @@
           },
           "webhook_url": {
             "type": "string",
-            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses; an empty string clears it.",
+            "description": "The HTTP or HTTPS webhook URL. DNS must resolve to public addresses. Must not be empty;\nomit this field entirely to leave an existing stored webhook URL unchanged.",
             "example": "https://www.ekart.com/webhooks",
-            "nullable": true
+            "nullable": true,
+            "minLength": 1
           },
           "payment_created_enabled": {
             "type": "boolean",

@@ -8,9 +8,7 @@ use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
-    fp_utils, id_type,
-    outbound_url::WebhookUrlUpdate,
-    pii, type_name,
+    fp_utils, id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 use diesel_models::payment_method;
@@ -442,11 +440,11 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        if let Some(WebhookUrlUpdate::Set(url)) = self
+        if let Some(url) = self
             .webhook_details
             .as_ref()
             .and_then(|details| details.webhook_url.as_ref())
-            .map(|update| update.peek())
+            .map(|secret| secret.peek())
         {
             outbound_destination::validate_destination(
                 url,
@@ -1176,11 +1174,11 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             },
         )?;
 
-        if let Some(WebhookUrlUpdate::Set(url)) = self
+        if let Some(url) = self
             .webhook_details
             .as_ref()
             .and_then(|details| details.webhook_url.as_ref())
-            .map(|update| update.peek())
+            .map(|secret| secret.peek())
         {
             outbound_destination::validate_destination(
                 url,
@@ -3568,11 +3566,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
 
         let current_time = date_time::now();
 
-        if let Some(WebhookUrlUpdate::Set(url)) = self
+        if let Some(url) = self
             .webhook_details
             .as_ref()
             .and_then(|details| details.webhook_url.as_ref())
-            .map(|update| update.peek())
+            .map(|secret| secret.peek())
         {
             outbound_destination::validate_destination(
                 url,
@@ -3805,11 +3803,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
 
         let current_time = date_time::now();
 
-        if let Some(WebhookUrlUpdate::Set(url)) = self
+        if let Some(url) = self
             .webhook_details
             .as_ref()
             .and_then(|details| details.webhook_url.as_ref())
-            .map(|update| update.peek())
+            .map(|secret| secret.peek())
         {
             outbound_destination::validate_destination(
                 url,
@@ -4164,11 +4162,11 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
         }
 
-        if let Some(WebhookUrlUpdate::Set(url)) = self
+        if let Some(url) = self
             .webhook_details
             .as_ref()
             .and_then(|details| details.webhook_url.as_ref())
-            .map(|update| update.peek())
+            .map(|secret| secret.peek())
         {
             outbound_destination::validate_destination(
                 url,
@@ -4421,11 +4419,11 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
-        if let Some(WebhookUrlUpdate::Set(url)) = self
+        if let Some(url) = self
             .webhook_details
             .as_ref()
             .and_then(|details| details.webhook_url.as_ref())
-            .map(|update| update.peek())
+            .map(|secret| secret.peek())
         {
             outbound_destination::validate_destination(
                 url,

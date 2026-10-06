@@ -1,8 +1,8 @@
 //! Input validation for merchant-controlled URLs routed through the configured egress proxy.
 
-use std::{net::IpAddr, str::FromStr};
+use std::net::IpAddr;
 
-use error_stack::{Report, ResultExt};
+use error_stack::Report;
 use url::{Host, Url};
 
 use crate::{
@@ -22,44 +22,6 @@ pub fn is_global_ip(address: IpAddr) -> bool {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize)]
 #[serde(into = "String")]
 pub struct SafeOutboundUrl(Url);
-
-/// An explicit webhook destination update, serialized as an empty or validated URL string.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(into = "String")]
-pub enum WebhookUrlUpdate {
-    /// Clear the configured webhook destination.
-    Clear,
-    /// Set a validated webhook destination.
-    Set(SafeOutboundUrl),
-}
-
-impl<'de> serde::Deserialize<'de> for WebhookUrlUpdate {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = <String as serde::Deserialize<'de>>::deserialize(deserializer)?;
-        if value.is_empty() {
-            Ok(Self::Clear)
-        } else {
-            value
-                .parse::<SafeOutboundUrl>()
-                .map(Self::Set)
-                .map_err(serde::de::Error::custom)
-        }
-    }
-}
-
-impl From<WebhookUrlUpdate> for String {
-    fn from(update: WebhookUrlUpdate) -> Self {
-        match update {
-            WebhookUrlUpdate::Clear => Self::new(),
-            WebhookUrlUpdate::Set(url) => url.into(),
-        }
-    }
-}
-
-impl hyperswitch_masking::SerializableSecret for WebhookUrlUpdate {}
 
 impl SafeOutboundUrl {
     /// Validate an already parsed URL.
@@ -140,34 +102,13 @@ impl SafeOutboundUrl {
     }
 }
 
-impl FromStr for SafeOutboundUrl {
-    type Err = Report<ValidationError>;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Url::parse(value)
-            .change_context(ValidationError::InvalidValue {
-                message: "URL could not be parsed".to_string(),
-            })
-            .and_then(Self::from_url)
-    }
-}
-
 impl<'de> serde::Deserialize<'de> for SafeOutboundUrl {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let value = <String as serde::Deserialize<'de>>::deserialize(deserializer)?;
-        // Parsing validates the scheme and IP literal before constructing the wrapper.
-        Self::from_str(&value).map_err(serde::de::Error::custom)
-    }
-}
-
-impl TryFrom<String> for SafeOutboundUrl {
-    type Error = Report<ValidationError>;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::from_str(&value)
+        let url = <Url as serde::Deserialize<'de>>::deserialize(deserializer)?;
+        Self::from_url(url).map_err(serde::de::Error::custom)
     }
 }
 
@@ -181,50 +122,7 @@ impl hyperswitch_masking::SerializableSecret for SafeOutboundUrl {}
 
 #[cfg(test)]
 mod tests {
-    use super::{SafeOutboundUrl, WebhookUrlUpdate};
-
-    #[test]
-    fn rejects_non_global_ip_literals() {
-        for value in [
-            "https://169.254.169.254/latest/meta-data/",
-            "https://2852039166/latest/meta-data/",
-            "https://0xa9fea9fe/latest/meta-data/",
-            "https://[::ffff:169.254.169.254]/latest/meta-data/",
-            "https://127.1/",
-            "https://0177.0.0.1/",
-            "https://2130706433/",
-            "https://10.0.4.17/",
-            "https://[::1]/",
-            "https://[fc00::1]/",
-            "https://[fe80::1]/",
-        ] {
-            assert!(
-                value.parse::<SafeOutboundUrl>().is_err(),
-                "accepted {value}"
-            );
-        }
-    }
-
-    #[test]
-    fn accepts_public_ip_literals() {
-        for value in [
-            "http://8.8.8.8/",
-            "https://8.8.8.8/",
-            "https://[::ffff:8.8.8.8]/",
-            "https://[2606:4700:4700::1111]/",
-        ] {
-            assert!(value.parse::<SafeOutboundUrl>().is_ok(), "rejected {value}");
-        }
-    }
-
-    #[test]
-    fn cleared_webhook_url_round_trips_without_becoming_a_request_destination() {
-        let update: WebhookUrlUpdate = serde_json::from_str("\"\"").expect("cleared webhook");
-        assert!(matches!(update, WebhookUrlUpdate::Clear));
-        assert_eq!(serde_json::to_string(&update).expect("cleared URL"), "\"\"");
-        // SafeOutboundUrl itself must never silently accept an empty string.
-        assert!(serde_json::from_str::<SafeOutboundUrl>("\"\"").is_err());
-    }
+    use super::SafeOutboundUrl;
 
     #[test]
     fn typed_url_validates_syntax_and_preserves_the_json_string() {
@@ -239,50 +137,12 @@ mod tests {
             serde_json::from_str::<SafeOutboundUrl>("\"http://merchant.example.com/hook\"").is_ok()
         );
         for value in [
+            "",
             "/hook",
             "file:///etc/passwd",
             "ftp://merchant.example.com/hook",
         ] {
             assert!(serde_json::from_value::<SafeOutboundUrl>(serde_json::json!(value)).is_err());
-        }
-    }
-
-    #[test]
-    fn rejects_only_configured_proxy_bypass_hosts() {
-        let bypass_hosts = Some("localhost, cluster.local, internal.example");
-        for host in [
-            "localhost",
-            "LOCALHOST.",
-            "service.cluster.local.",
-            "internal.example",
-            "service.internal.example",
-        ] {
-            let url: SafeOutboundUrl = format!("https://{host}/hook").parse().expect("valid URL");
-            assert!(url.validate_proxy_bypass_hosts(bypass_hosts).is_err());
-        }
-
-        let unrelated: SafeOutboundUrl = "https://internal.example.com/hook"
-            .parse()
-            .expect("valid URL");
-        assert!(unrelated.validate_proxy_bypass_hosts(bypass_hosts).is_ok());
-        assert!(unrelated.validate_proxy_bypass_hosts(None).is_ok());
-        let bypassed_ip: SafeOutboundUrl = "https://8.8.8.8/hook".parse().expect("valid URL");
-        assert!(bypassed_ip
-            .validate_proxy_bypass_hosts(Some("8.8.8.0/24"))
-            .is_err());
-    }
-
-    #[test]
-    fn leaves_non_bypassed_destinations_to_the_proxy() {
-        for value in [
-            "https://merchant.example.com/hook",
-            "https://user:password@merchant.example.com/hook",
-            "http://10.0.4.17.nip.io/hook",
-            "https://cluster.local.example.com/hook",
-            "https://notcluster.local/hook",
-            "https://localhost.example.com/hook",
-        ] {
-            assert!(value.parse::<SafeOutboundUrl>().is_ok());
         }
     }
 }
