@@ -27,9 +27,8 @@ describe("Business Profile Payment Method Blocking", () => {
         specShouldSkip = true;
         return;
       }
-      expect(globalState.get("merchantId"), "merchant ID")
-        .to.be.a("string")
-        .and.not.be.empty;
+      expect(globalState.get("merchantId"), "merchant ID").to.be.a("string").and
+        .not.be.empty;
       cy.setSuperpositionConfig(
         globalState,
         "payments.guard_blocklist",

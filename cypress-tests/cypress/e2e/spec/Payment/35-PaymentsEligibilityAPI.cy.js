@@ -27,9 +27,8 @@ describe("Payments Eligibility API with Blocklist", () => {
         specShouldSkip = true;
         return;
       }
-      expect(globalState.get("merchantId"), "merchant ID")
-        .to.be.a("string")
-        .and.not.be.empty;
+      expect(globalState.get("merchantId"), "merchant ID").to.be.a("string").and
+        .not.be.empty;
     });
   });
 
