@@ -421,13 +421,13 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         let connector_name = ctx.connector_name.clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
+        let event_type = ctx
+            .ucs_event_type
+            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
         let reference = match ctx.ucs_reference.as_ref() {
             Some(r) => event_reference_to_object_ref(r)?,
             None => None,
         };
-        let event_type = ctx
-            .ucs_event_type
-            .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
@@ -928,6 +928,10 @@ fn event_reference_to_object_ref(
                 Some(ObjectReferenceId::PaymentId(
                     api_payments::PaymentIdType::PaymentAttemptId(merchant_txn_id.clone()),
                 ))
+            } else if let Some(preprocessing_id) = payment.connector_preprocessing_id.as_ref() {
+                Some(ObjectReferenceId::PaymentId(
+                    api_payments::PaymentIdType::PreprocessingId(preprocessing_id.clone()),
+                ))
             } else {
                 payment.connector_transaction_id.as_ref().map(|ctx_id| {
                     ObjectReferenceId::PaymentId(
@@ -1042,5 +1046,54 @@ fn ucs_ack_to_webhook_response(
     match String::from_utf8(body.clone()) {
         Ok(text) => WebhookResponse::TextPlain(text),
         Err(_) => WebhookResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn payment_reference(
+        connector_transaction_id: Option<&str>,
+        merchant_transaction_id: Option<&str>,
+        connector_preprocessing_id: Option<&str>,
+    ) -> payments_grpc::EventReference {
+        payments_grpc::EventReference {
+            resource: Some(payments_grpc::event_reference::Resource::Payment(
+                payments_grpc::PaymentEventReference {
+                    connector_transaction_id: connector_transaction_id.map(str::to_string),
+                    merchant_transaction_id: merchant_transaction_id.map(str::to_string),
+                    connector_preprocessing_id: connector_preprocessing_id.map(str::to_string),
+                },
+            )),
+        }
+    }
+
+    #[test]
+    fn payment_reference_uses_preprocessing_id_when_merchant_id_is_absent() {
+        let reference = payment_reference(None, None, Some("src_123"));
+
+        let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
+
+        match object_ref {
+            ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::PreprocessingId(
+                id,
+            )) => assert_eq!(id, "src_123"),
+            other => panic!("expected preprocessing id, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn normal_payment_reference_prefers_merchant_transaction_id() {
+        let reference = payment_reference(Some("pi_123"), Some("order_123"), Some("src_123"));
+
+        let object_ref = event_reference_to_object_ref(&reference).unwrap().unwrap();
+
+        match object_ref {
+            ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(id),
+            ) => assert_eq!(id, "order_123"),
+            other => panic!("expected payment attempt id, got {other:?}"),
+        }
     }
 }
