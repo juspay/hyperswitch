@@ -391,8 +391,16 @@ pub enum RevenueRecoveryAlgorithmType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryABAlgorithm {
-    /// Adaptive Retry algorithm.
+    /// Adaptive Retry algorithm. The pairing production ran before systematic sampling existed:
+    /// the weekday and month-day signals are softmaxed before the max, and the day is drawn by the
+    /// per-day walk. Kept as the control arm, and kept stable because invoices already carry it.
     AdaptiveRetry,
+    /// Control's combine, drawn instead by systematic sampling. Differs from `AdaptiveRetry` in the
+    /// sampler alone, so a difference between the two is attributable to the draw.
+    SystematicKMaxAtSoftmax,
+    /// Systematic sampling over the max of the raw scores. Differs from `SystematicKMaxAtSoftmax`
+    /// in the combine alone, so a difference between those two is attributable to the combine.
+    SystematicKMaxAtScore,
 }
 
 #[derive(
@@ -2683,6 +2691,7 @@ pub enum PaymentMethodType {
     NetworkToken,
     Payshap,
     PayshapProxy,
+    Ted,
 }
 
 /// Indicates whether a wallet token is decrypted .
@@ -2838,6 +2847,7 @@ impl PaymentMethodType {
             Self::NetworkToken => "Network Token",
             Self::Payshap => "PayShap",
             Self::PayshapProxy => "PayShap Proxy",
+            Self::Ted => "TED",
         };
         display_name.to_string()
     }
@@ -4133,6 +4143,57 @@ pub enum SplitTxnsEnabled {
     Enable,
     #[default]
     Skip,
+}
+
+/// Whether a payment whose requested capture method is not supported by the connector chosen
+/// for it falls back to automatic capture instead of being rejected.
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AutoFallbackCaptureMethod {
+    /// Fall back to automatic capture when the requested capture method is unsupported
+    Enabled,
+    /// Reject the payment when the requested capture method is unsupported
+    Disabled,
+}
+
+impl AutoFallbackCaptureMethod {
+    /// Capture method a payment falls back to when the requested one is not supported.
+    pub const FALLBACK: CaptureMethod = CaptureMethod::Automatic;
+
+    pub fn is_enabled(self) -> bool {
+        matches!(self, Self::Enabled)
+    }
+
+    /// Whether a payment requesting `requested` may fall back to [`Self::FALLBACK`].
+    ///
+    /// The fallback is one-directional: a payment that already requests automatic capture has
+    /// nothing to fall back to, and moving it to manual capture would leave it uncaptured.
+    pub fn can_fall_back_from(self, requested: CaptureMethod) -> bool {
+        self.is_enabled() && requested != Self::FALLBACK
+    }
+}
+
+impl From<bool> for AutoFallbackCaptureMethod {
+    fn from(enabled: bool) -> Self {
+        if enabled {
+            Self::Enabled
+        } else {
+            Self::Disabled
+        }
+    }
 }
 
 #[derive(
