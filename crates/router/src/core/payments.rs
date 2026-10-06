@@ -681,6 +681,82 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): a novel SADD, which is the one store arm this branch
+    // added that answers with a value rather than with a failure.
+    //
+    // The arm answers that every member offered was newly added, counted off the
+    // `members` array already in the call's identity. So the readable property is
+    // the count: five members are offered, under a key no recording carries, and
+    // a reply of `KeySet(5)` is the arm answering while a lower count is a real
+    // or served reply from some other call. No caller in the tree offers five
+    // unique constraints, which is why five.
+    //
+    // The miss has to be arranged, because SADD is not a pure boundary. The
+    // moved-arguments serve covers it, so a novel key and novel members are not a
+    // miss on their own — they are a serve of another SADD's recorded reply,
+    // flagged `arg_divergent`. One identity covers every SADD in the tree, so
+    // there is one args-free sequence per correlation and the only address with
+    // nothing at it is one past the end. A payment correlation records a handful
+    // of constraint checks, so the loop runs well past that.
+    //
+    // The consequence is bounded and worth naming. `check_for_constraints` is a
+    // collision detector, and these inserts land in a set no constraint check
+    // reads, under keys prefixed for this fixture; the sequence they advance is
+    // shared, though, so a constraint check later in the same correlation can be
+    // answered by the arm instead of by the store. That is the arm's documented
+    // trade — the insert the check guards is itself a seamed boundary, and the
+    // lookup has already emitted the novel-call divergence.
+    {
+        const FIXTURE_SADD_CALLS: usize = 24;
+        const FIXTURE_SADD_MEMBERS: usize = 5;
+
+        match state.store.get_redis_conn() {
+            Ok(redis_conn) => {
+                let mut all_new = 0_usize;
+                let mut failed = 0_usize;
+                for index in 0..FIXTURE_SADD_CALLS {
+                    let members: Vec<String> = (0..FIXTURE_SADD_MEMBERS)
+                        .map(|member| format!("deja-fixture-member-{index}-{member}"))
+                        .collect();
+                    match redis_conn
+                        .sadd(
+                            &format!("deja-fixture:unique_constraint:{index}").into(),
+                            members,
+                        )
+                        .await
+                    {
+                        Ok(reply) => {
+                            let count = match reply {
+                                redis_interface::SaddReply::KeySet(count) => count,
+                                redis_interface::SaddReply::KeyNotSet => -1,
+                            };
+                            if count == i64::try_from(FIXTURE_SADD_MEMBERS).unwrap_or(-1) {
+                                all_new += 1;
+                            }
+                            logger::info!(index, count, "FIXTURE: the sadd seam answered");
+                        }
+                        Err(error) => {
+                            failed += 1;
+                            logger::info!(index, error = ?error, "FIXTURE: the sadd seam refused");
+                        }
+                    }
+                }
+                logger::info!(
+                    calls = FIXTURE_SADD_CALLS,
+                    all_new,
+                    failed,
+                    "FIXTURE: sadds made, and how many reported every member newly added"
+                );
+            }
+            // Loud rather than skipped: a fixture that made no calls has to say
+            // so, otherwise an empty result reads as an arm that did not fire.
+            Err(error) => logger::error!(
+                error = ?error,
+                "FIXTURE: no redis connection, so the sadd arm was never reached"
+            ),
+        }
+    }
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
