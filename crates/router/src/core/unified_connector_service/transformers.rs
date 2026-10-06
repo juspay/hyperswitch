@@ -1666,65 +1666,73 @@ fn ucs_merchant_details(
     })
 }
 
-fn ucs_message_category(
-    message_category: &router_request_types::authentication::MessageCategory,
-) -> i32 {
-    i32::from(match message_category {
-        router_request_types::authentication::MessageCategory::Payment => {
-            payments_grpc::ThreeDsMessageCategory::PaymentAuthentication
+impl ForeignFrom<&router_request_types::authentication::MessageCategory>
+    for payments_grpc::ThreeDsMessageCategory
+{
+    fn foreign_from(
+        message_category: &router_request_types::authentication::MessageCategory,
+    ) -> Self {
+        match message_category {
+            router_request_types::authentication::MessageCategory::Payment => {
+                Self::PaymentAuthentication
+            }
+            router_request_types::authentication::MessageCategory::NonPayment => {
+                Self::NonPaymentAuthentication
+            }
         }
-        router_request_types::authentication::MessageCategory::NonPayment => {
-            payments_grpc::ThreeDsMessageCategory::NonPaymentAuthentication
-        }
-    })
+    }
 }
 
 /// The acquirer country is persisted as either an alpha-2 code or an ISO 3166-1 numeric string.
-fn ucs_acquirer_details(
-    pre_authentication_data: &router_request_types::authentication::PreAuthenticationData,
-) -> Option<payments_grpc::AcquirerDetails> {
-    let acquirer_country_code = pre_authentication_data
-        .acquirer_country_code
-        .as_deref()
-        .and_then(|code| {
-            payments_grpc::CountryAlpha2::from_str_name(code).or_else(|| {
-                code.parse::<u32>()
-                    .ok()
-                    .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
-                    .map(common_enums::Country::to_alpha2)
-                    .and_then(|alpha2| {
-                        payments_grpc::CountryAlpha2::from_str_name(&alpha2.to_string())
-                    })
+impl ForeignFrom<&router_request_types::authentication::PreAuthenticationData>
+    for payments_grpc::AcquirerDetails
+{
+    fn foreign_from(
+        pre_authentication_data: &router_request_types::authentication::PreAuthenticationData,
+    ) -> Self {
+        let acquirer_country_code = pre_authentication_data
+            .acquirer_country_code
+            .as_deref()
+            .and_then(|code| {
+                payments_grpc::CountryAlpha2::from_str_name(code).or_else(|| {
+                    code.parse::<u32>()
+                        .ok()
+                        .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+                        .map(common_enums::Country::to_alpha2)
+                        .and_then(|alpha2| {
+                            payments_grpc::CountryAlpha2::from_str_name(&alpha2.to_string())
+                        })
+                })
             })
-        })
-        .map(i32::from);
-
-    (pre_authentication_data.acquirer_bin.is_some()
-        || pre_authentication_data.acquirer_merchant_id.is_some()
-        || acquirer_country_code.is_some())
-    .then(|| payments_grpc::AcquirerDetails {
-        acquirer_bin: pre_authentication_data.acquirer_bin.clone(),
-        acquirer_merchant_id: pre_authentication_data.acquirer_merchant_id.clone(),
-        acquirer_country_code,
-    })
+            .map(i32::from);
+        Self {
+            acquirer_bin: pre_authentication_data.acquirer_bin.clone(),
+            acquirer_merchant_id: pre_authentication_data.acquirer_merchant_id.clone(),
+            acquirer_country_code,
+        }
+    }
 }
 
-fn ucs_money(
-    amount: Option<i64>,
-    currency: Option<common_enums::Currency>,
-) -> Result<payments_grpc::Money, error_stack::Report<UnifiedConnectorServiceError>> {
-    let minor_amount = amount.ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-        field_name: "amount".into(),
-    })?;
-    let currency: payments_grpc::Currency = transformers::ForeignTryFrom::foreign_try_from(
-        currency.ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-            field_name: "currency".into(),
-        })?,
-    )?;
-    Ok(payments_grpc::Money {
-        minor_amount,
-        currency: currency.into(),
-    })
+impl transformers::ForeignTryFrom<(Option<i64>, Option<common_enums::Currency>)>
+    for payments_grpc::Money
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(
+        (amount, currency): (Option<i64>, Option<common_enums::Currency>),
+    ) -> Result<Self, Self::Error> {
+        let minor_amount = amount.ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+            field_name: "amount".into(),
+        })?;
+        let currency = payments_grpc::Currency::foreign_try_from(currency.ok_or(
+            UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "currency".into(),
+            },
+        )?)?;
+        Ok(Self {
+            minor_amount,
+            currency: currency.into(),
+        })
+    }
 }
 
 impl
@@ -1756,13 +1764,13 @@ impl
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
-            amount: Some(ucs_money(
+            amount: Some(payments_grpc::Money::foreign_try_from((
                 router_data
                     .request
                     .amount
                     .map(|amount| amount.get_amount_as_i64()),
                 router_data.request.currency,
-            )?),
+            ))?),
             payment_method: Some(payment_method),
             customer: None,
             address: Some(payments_grpc::PaymentAddress::foreign_try_from(
@@ -1822,7 +1830,10 @@ impl
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
-            amount: Some(ucs_money(request.amount, request.currency)?),
+            amount: Some(payments_grpc::Money::foreign_try_from((
+                request.amount,
+                request.currency,
+            ))?),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
                 first_name: None,
@@ -1862,14 +1873,19 @@ impl
             webhook_url: Some(request.webhook_url.clone()),
             domain_data: None,
             merchant_details: ucs_merchant_details(router_data.connector_meta_data.as_ref()),
-            acquirer_details: ucs_acquirer_details(pre_authentication_data),
+            acquirer_details: Some(payments_grpc::AcquirerDetails::foreign_from(
+                pre_authentication_data,
+            )),
             device_channel: ucs_device_channel(Some(request.device_channel.clone())),
             sdk_information: ucs_sdk_information(request.sdk_information.clone()),
             three_ds_requestor_challenge_indicator: ucs_challenge_indicator(Some(
                 request.force_3ds_challenge,
             )),
             three_ds_requestor_authentication_indicator: None,
-            message_category: Some(ucs_message_category(&request.message_category)),
+            message_category: Some(
+                payments_grpc::ThreeDsMessageCategory::foreign_from(&request.message_category)
+                    .into(),
+            ),
             threeds_completion_indicator: Some(
                 payments_grpc::ThreeDsCompletionIndicator::foreign_from(
                     request.threeds_method_comp_ind.clone(),
@@ -1899,13 +1915,13 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
-            amount: Some(ucs_money(
+            amount: Some(payments_grpc::Money::foreign_try_from((
                 router_data
                     .request
                     .amount
                     .map(|amount| amount.get_amount_as_i64()),
                 router_data.request.currency,
-            )?),
+            ))?),
             payment_method: None,
             customer: None,
             address: Some(payments_grpc::PaymentAddress::foreign_try_from(
