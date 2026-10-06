@@ -4741,7 +4741,6 @@ impl
             token_source: wallet_token_data
                 .token_source
                 .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
-            card_network: card_network.map(|card_network| card_network.into()),
         };
 
         Ok(decrypted_wallet_token_details)
@@ -9054,6 +9053,7 @@ impl
                 .transpose()?,
             description: router_data.description.clone(),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            billing_descriptor: None,
         })
     }
 }
@@ -9183,6 +9183,7 @@ impl
                 ),
             ),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            vendor_account_details: None,
         })
     }
 }
@@ -9245,6 +9246,8 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            vendor_account_details: None,
+            destination_currency: None,
         })
     }
 }
@@ -9283,6 +9286,7 @@ impl
             payout_method_type: router_data
                 .payment_method_type
                 .map(|pmt| payments_grpc::PaymentMethodType::foreign_from(pmt).into()),
+            customer: None,
         })
     }
 }
@@ -10187,19 +10191,35 @@ impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             card_holder_name: value.card_holder_name,
+            card_bin: None,
+            card_type: None,
+            auth_code: value.auth_code,
+            card_subtype: value.card_subtype,
+            card_segment_type: value
+                .card_segment_type
+                .map(|cst| payments_grpc::CardSegmentType::foreign_from(cst).into()),
+            funding_source: value
+                .funding_source
+                .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
+            issuer_country: value
+                .card_issuing_country_code
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c))
+                .map(|c| c.into()),
+            card_network: value.card_network.map(|cn| cn.to_string()),
         }
     }
 }
 
 impl ForeignFrom<ApplepayPaymentMethod> for payments_grpc::AdditionalApplePayInfo {
     fn foreign_from(apple_pay: ApplepayPaymentMethod) -> Self {
-        Self {
-            display_name: apple_pay.display_name,
-            network: apple_pay.network,
-            pm_type: apple_pay.pm_type,
+        let card_info = payments_grpc::AdditionalCardInfo {
+            card_issuer: apple_pay.issuer_name,
+            last4: None,
+            card_isin: None,
+            card_extended_bin: None,
             card_exp_month: apple_pay.card_exp_month,
             card_exp_year: apple_pay.card_exp_year,
-            device_pan_bin: apple_pay.device_pan_bin,
+            card_holder_name: None,
             card_bin: apple_pay.card_bin,
             card_type: apple_pay
                 .card_type
@@ -10212,25 +10232,37 @@ impl ForeignFrom<ApplepayPaymentMethod> for payments_grpc::AdditionalApplePayInf
             funding_source: apple_pay
                 .funding_source
                 .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
-            issuer_name: apple_pay.issuer_name,
             issuer_country: apple_pay
                 .issuer_country
                 .and_then(|country| {
                     payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
                 })
                 .map(|country_code| country_code.into()),
+            card_network: Some(apple_pay.network),
+        };
+        Self {
+            display_name: apple_pay.display_name,
+            card_info: Some(card_info),
+            device_pan_bin: apple_pay.device_pan_bin,
         }
     }
 }
 
-impl ForeignFrom<WalletAdditionalDataForCard> for payments_grpc::AdditionalWalletCardInfo {
+impl ForeignFrom<WalletAdditionalDataForCard> for payments_grpc::AdditionalGooglePayInfo {
     fn foreign_from(wallet_card: WalletAdditionalDataForCard) -> Self {
-        Self {
-            payment_method_data_type: wallet_card.payment_method_data_type,
-            card_network: wallet_card.card_network,
+        let card_info = payments_grpc::AdditionalCardInfo {
+            card_issuer: wallet_card.issuer_name,
+            last4: wallet_card.last4,
+            card_isin: None,
+            card_extended_bin: None,
+            card_exp_month: wallet_card.card_exp_month,
+            card_exp_year: wallet_card.card_exp_year,
+            card_holder_name: None,
+            card_bin: wallet_card.card_bin,
             card_type: wallet_card
                 .card_type
                 .map(|card_type| payments_grpc::CardType::foreign_from(card_type).into()),
+            auth_code: wallet_card.auth_code,
             card_subtype: wallet_card.card_subtype,
             card_segment_type: wallet_card
                 .card_segment_type
@@ -10238,22 +10270,21 @@ impl ForeignFrom<WalletAdditionalDataForCard> for payments_grpc::AdditionalWalle
             funding_source: wallet_card
                 .funding_source
                 .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
-            last4: wallet_card.last4,
-            card_bin: wallet_card.card_bin,
-            device_pan_bin: wallet_card.device_pan_bin,
-            card_exp_month: wallet_card.card_exp_month,
-            card_exp_year: wallet_card.card_exp_year,
-            issuer_name: wallet_card.issuer_name,
             issuer_country: wallet_card
                 .issuer_country
                 .and_then(|country| {
                     payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
                 })
                 .map(|country_code| country_code.into()),
-            auth_code: wallet_card.auth_code,
+            card_network: wallet_card.card_network,
+        };
+        Self {
+            payment_method_data_type: wallet_card.payment_method_data_type,
             email: wallet_card
                 .email
                 .map(|email| Secret::new(email.expose().expose())),
+            card_info: Some(card_info),
+            device_pan_bin: wallet_card.device_pan_bin,
         }
     }
 }
@@ -10274,24 +10305,30 @@ impl ForeignFrom<AdditionalPaymentData> for payments_grpc::AdditionalPaymentData
                 apple_pay,
                 google_pay,
                 ..
-            } => Self {
-                payment_method_data: Some(
-                    payments_grpc::additional_payment_data::PaymentMethodData::Wallet(
-                        payments_grpc::AdditionalWalletInfo {
-                            apple_pay: apple_pay.map(|apple_pay_method| {
-                                ForeignFrom::<ApplepayPaymentMethod>::foreign_from(
-                                    *apple_pay_method,
-                                )
-                            }),
-                            google_pay: google_pay.map(|wallet_card_data| {
-                                ForeignFrom::<WalletAdditionalDataForCard>::foreign_from(
-                                    *wallet_card_data,
-                                )
-                            }),
-                        },
+            } => {
+                let wallet_data = match (apple_pay, google_pay) {
+                    (Some(apple_pay_method), _) => {
+                        Some(payments_grpc::additional_wallet_info::WalletData::ApplePay(
+                            ForeignFrom::<ApplepayPaymentMethod>::foreign_from(*apple_pay_method),
+                        ))
+                    }
+                    (None, Some(wallet_card_data)) => Some(
+                        payments_grpc::additional_wallet_info::WalletData::GooglePay(
+                            ForeignFrom::<WalletAdditionalDataForCard>::foreign_from(
+                                *wallet_card_data,
+                            ),
+                        ),
                     ),
-                ),
-            },
+                    (None, None) => None,
+                };
+                Self {
+                    payment_method_data: Some(
+                        payments_grpc::additional_payment_data::PaymentMethodData::Wallet(
+                            payments_grpc::AdditionalWalletInfo { wallet_data },
+                        ),
+                    ),
+                }
+            }
             _ => Self {
                 payment_method_data: None,
             },
