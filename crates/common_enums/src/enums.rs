@@ -9097,6 +9097,30 @@ pub enum BrazilStatesAbbreviation {
     Tocantins,
 }
 
+/// Internal execution marker; not a merchant-supplied payout request selector.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutExecutionKind {
+    #[default]
+    Normal,
+    ExternalVaultProxy,
+}
+
 #[derive(
     Clone,
     Copy,
