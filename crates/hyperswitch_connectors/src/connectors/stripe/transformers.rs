@@ -2229,6 +2229,29 @@ fn create_stripe_line_items_data(
     })
 }
 
+/// Stripe's `payment_method_options[card][moto]` marks a card keyed in by an agent, so it needs
+/// both a card and a mail/telephone order channel. Both conditions are required together --
+/// writing this as `is_card && a || b` instead lets `&&`'s higher precedence bind it as
+/// `(is_card && a) || b`, which sets the flag on a non-card telephone order.
+fn get_moto_flag(
+    payment_method_data: &PaymentMethodData,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> Option<bool> {
+    if matches!(payment_method_data, PaymentMethodData::Card { .. })
+        && matches!(
+            payment_channel,
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                    | common_enums::PaymentChannel::TelephoneOrder
+            )
+        )
+    {
+        Some(true)
+    } else {
+        None
+    }
+}
+
 pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterData) -> bool {
     data.request.is_stripe_split_payment()
         && (data.request.payment_method_data.is_card_payment()
@@ -2693,17 +2716,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             .and_then(|connector_metadata| connector_metadata.stripe.as_ref())
             .and_then(|stripe_metadata| stripe_metadata.error_on_requires_action);
 
-        let is_moto = if matches!(
-            item.request.payment_method_data,
-            PaymentMethodData::Card { .. }
-        ) && item.request.payment_channel
-            == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let is_moto = get_moto_flag(
+            &item.request.payment_method_data,
+            &item.request.payment_channel,
+        );
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
@@ -2830,17 +2846,10 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             .clone()
             .map(StripeBrowserInformation::from);
 
-        let is_moto = if matches!(
-            item.request.payment_method_data,
-            PaymentMethodData::Card { .. }
-        ) && item.request.payment_channel
-            == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let is_moto = get_moto_flag(
+            &item.request.payment_method_data,
+            &item.request.payment_channel,
+        );
 
         let setup_future_usage = match (item.request.setup_future_usage, is_moto) {
             (Some(enums::FutureUsage::OnSession), Some(true)) => None,
@@ -5839,5 +5848,55 @@ mod test_validate_shipping_address_against_payment_method {
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
         }
+    }
+}
+
+#[cfg(test)]
+mod moto_flag_tests {
+    use common_enums::PaymentChannel;
+    use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
+
+    use crate::connectors::stripe::transformers::get_moto_flag;
+
+    #[test]
+    fn a_card_on_a_moto_channel_sets_the_flag() {
+        for channel in [PaymentChannel::MailOrder, PaymentChannel::TelephoneOrder] {
+            let name = channel.to_string();
+            assert_eq!(
+                get_moto_flag(&PaymentMethodData::Card(Card::default()), &Some(channel)),
+                Some(true),
+                "a card keyed in over {name} is the whole point of the flag"
+            );
+        }
+    }
+
+    /// `moto` lives under `payment_method_options[card]`, so a non-card payment must never carry
+    /// it. With `is_card && MailOrder || TelephoneOrder` the telephone-order arm escaped the card
+    /// check entirely and set the flag here.
+    #[test]
+    fn a_non_card_payment_never_sets_the_flag() {
+        for channel in [PaymentChannel::MailOrder, PaymentChannel::TelephoneOrder] {
+            let name = channel.to_string();
+            assert_eq!(
+                get_moto_flag(&PaymentMethodData::Reward, &Some(channel)),
+                None,
+                "a non-card payment must not carry a card option on {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn ecommerce_and_an_absent_channel_never_set_the_flag() {
+        assert_eq!(
+            get_moto_flag(
+                &PaymentMethodData::Card(Card::default()),
+                &Some(PaymentChannel::Ecommerce)
+            ),
+            None
+        );
+        assert_eq!(
+            get_moto_flag(&PaymentMethodData::Card(Card::default()), &None),
+            None
+        );
     }
 }
