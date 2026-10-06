@@ -3709,6 +3709,170 @@ where
     )
 }
 
+/// Decides whether a declined network-token leg is eligible to be re-run against the vault card.
+///
+/// The rule mirrors the clear-PAN condition used by auto retries: the connector's decline must map
+/// to a GSM record that both decides `Retry` and sets `clear_pan_possible`. A non-failure status,
+/// a missing connector, or no matching GSM row all leave the network token response as final.
+#[cfg(feature = "v1")]
+async fn is_vault_card_fallback_eligible(
+    state: &SessionState,
+    network_token_response: &payments_api::PaymentsResponse,
+) -> bool {
+    let issuer_details = network_token_response
+        .error_details
+        .as_ref()
+        .and_then(|error_details| error_details.issuer_details.as_ref());
+
+    match (
+        network_token_response.status,
+        network_token_response.connector.clone(),
+    ) {
+        (enums::IntentStatus::Failed, Some(connector)) => helpers::get_gsm_record(
+            state,
+            connector,
+            consts::PAYMENT_FLOW_STR,
+            &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
+            network_token_response.error_code.clone(),
+            network_token_response.error_message.clone(),
+            issuer_details.and_then(|details| details.code.clone()),
+            issuer_details
+                .and_then(|details| details.network_details.as_ref())
+                .and_then(|network_details| network_details.name.clone()),
+        )
+        .await
+        .and_then(|gsm| gsm.feature_data.get_retry_feature_data())
+        .map(|retry_feature_data| {
+            // Auto retries require the decision as well as the flag, so a row that permits a
+            // clear-PAN retry but decides `DoDefault` must not trigger the fallback either.
+            retry_feature_data.get_decision() == common_enums::GsmDecision::Retry
+                && retry_feature_data.is_clear_pan_possible()
+        })
+        .unwrap_or(false),
+        _ => false,
+    }
+}
+
+/// Recovers the payment response carried by an [`ApplicationResponse`], if it carries one.
+#[cfg(feature = "v1")]
+fn payment_response_from_application_response(
+    application_response: &services::ApplicationResponse<payments_api::PaymentsResponse>,
+) -> Option<&payments_api::PaymentsResponse> {
+    match application_response {
+        services::ApplicationResponse::Json(response) => Some(response),
+        services::ApplicationResponse::JsonWithHeaders((response, _)) => Some(response),
+        _ => None,
+    }
+}
+
+/// Runs a network-token MIT and, when the decline is clear-PAN eligible, re-runs the same payment
+/// against the vault-aliased card held under the same network transaction ID.
+///
+/// The two legs cannot share a payment core. The network token leg is a plain proxy authorize over
+/// `PaymentData<Authorize>`; the vault card leg has to resolve an external vault proxy and pass
+/// through the injector, which only the external vault proxy core does, over
+/// `PaymentData<ExternalVaultProxy>`. Since both cores already generate their own response, the
+/// legs are composed at the response level and the deciding response is returned unchanged.
+///
+/// The fallback runs at most once: a vault card decline is final.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn network_token_with_vault_card_fallback_core<Op>(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
+    operation: Op,
+    req: payments_api::PaymentsRequest,
+    fallback: Box<api_models::mandates::NetworkTokenWithVaultCardFallback>,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResponse<payments_api::PaymentsResponse>
+where
+    Op: Debug
+        + Sync
+        + Clone
+        + Operation<api::Authorize, payments_api::PaymentsRequest, Data = PaymentData<api::Authorize>>,
+{
+    let network_token_request = payments_api::PaymentsRequest {
+        recurring_details: Some(fallback.to_network_token_leg()),
+        ..req.clone()
+    };
+
+    let network_token_outcome = Box::pin(proxy_for_payments_core::<
+        api::Authorize,
+        payments_api::PaymentsResponse,
+        _,
+        _,
+        _,
+        PaymentData<api::Authorize>,
+    >(
+        state.clone(),
+        req_state.clone(),
+        platform.clone(),
+        profile_id.clone(),
+        operation,
+        network_token_request,
+        auth_flow,
+        CallConnectorAction::Trigger,
+        header_payload.clone(),
+        req.all_keys_required,
+    ))
+    .await?;
+
+    let network_token_response = payment_response_from_application_response(&network_token_outcome);
+
+    let fallback_target = match network_token_response {
+        Some(response) => match is_vault_card_fallback_eligible(&state, response).await {
+            true => Some(response.payment_id.clone()),
+            false => None,
+        },
+        None => None,
+    };
+
+    match fallback_target {
+        None => Ok(network_token_outcome),
+        Some(payment_id) => {
+            logger::info!(
+                payment_id = ?payment_id,
+                "network token leg declined as clear-pan eligible, falling back to the vault card leg"
+            );
+
+            let vault_card_request = payments_api::PaymentsRequest {
+                payment_id: Some(payments_api::PaymentIdType::PaymentIntentId(payment_id)),
+                recurring_details: Some(fallback.to_vault_card_leg()),
+                ..req.clone()
+            };
+
+            // No attempt bookkeeping here: the external vault proxy confirm operation always
+            // advances the attempt count, so the vault card leg lands on its own attempt and leg
+            // one's decline survives.
+            Box::pin(external_vault_proxy_for_payments_core::<
+                api::ExternalVaultProxy,
+                payments_api::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentData<api::ExternalVaultProxy>,
+            >(
+                state.clone(),
+                req_state,
+                platform.clone(),
+                profile_id,
+                // Always the confirm operation, for both endpoints: leg one has already persisted
+                // the intent, including on a single-call create+confirm.
+                PaymentExternalVaultProxyConfirm,
+                vault_card_request,
+                auth_flow,
+                CallConnectorAction::Trigger,
+                header_payload,
+                req.all_keys_required,
+            ))
+            .await
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
@@ -11669,6 +11833,7 @@ pub fn get_proxy_connector_filters(
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
+        | RecurringDetails::NetworkTokenWithVaultCardFallback(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors

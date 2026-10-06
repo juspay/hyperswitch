@@ -2803,10 +2803,31 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
+    // A network-token-with-vault-card-fallback request is not a single payment: it names a network
+    // token leg and a vault-aliased card leg sharing one network transaction ID, and the two legs
+    // run on different cores. Its wrapper owns that sequencing, so it is checked ahead of both
+    // single-core gates.
+    let network_token_with_vault_card_fallback =
+        helpers::network_token_with_vault_card_fallback_details(&req);
+
     let should_call_proxy_for_payments_core =
         helpers::should_call_proxy_for_payments_core(req.clone());
 
-    if should_call_proxy_for_payments_core {
+    if let Some(fallback) = network_token_with_vault_card_fallback {
+        logger::debug!("Authorize call for NTI with network token and vault card fallback flow");
+        Box::pin(payments::network_token_with_vault_card_fallback_core(
+            state,
+            req_state,
+            platform,
+            profile_id,
+            operation,
+            req,
+            fallback,
+            auth_flow,
+            header_payload,
+        ))
+        .await
+    } else if should_call_proxy_for_payments_core {
         // no list of eligible connectors will be passed in the confirm call
         logger::debug!("Authorize call for NTI and Card Details flow");
         payments::proxy_for_payments_core::<

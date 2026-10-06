@@ -242,7 +242,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )?;
         }
 
-        let mut payment_attempt = db
+        let active_payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 processor_merchant_id,
@@ -252,6 +252,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // An external vault proxy authorization is always its own attempt, so the intent's attempt
+        // count advances by one on every pass through this operation. This matters when the proxy
+        // leg follows an earlier attempt on the same intent — the network token leg of a
+        // network-token-with-vault-card-fallback, for instance: reusing the active attempt would
+        // overwrite the decline that led here. Reusing the manual retry helper also copies
+        // `straight_through_algorithm` forward, so the proxy leg stays on the connector the
+        // earlier attempt routed to rather than routing afresh.
+        let (payment_intent, mut payment_attempt) = helpers::AttemptType::New
+            .modify_payment_intent_and_payment_attempt(
+                request,
+                payment_intent,
+                active_payment_attempt,
+                state,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+            )
+            .await?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();

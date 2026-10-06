@@ -134,3 +134,23 @@ pub fn should_call_external_vault_proxy_for_payments_core(
         })
         .unwrap_or(false)
 }
+
+/// Extracts the network-token-with-vault-card-fallback payload, when the request carries one.
+///
+/// This variant is an orchestration-level input rather than a single payment: it pairs a network
+/// token leg with a vault-aliased card leg under one network transaction ID. It therefore routes
+/// to neither payment core directly but to the fallback wrapper, which runs the legs in order.
+/// Returning the payload rather than a bool spares the caller a second match to recover it.
+#[cfg(feature = "v1")]
+pub fn network_token_with_vault_card_fallback_details(
+    payment_request: &api::PaymentsRequest,
+) -> Option<Box<api_models::mandates::NetworkTokenWithVaultCardFallback>> {
+    payment_request.recurring_details.clone().and_then(
+        |recurring_details| match recurring_details {
+            api_models::mandates::RecurringDetails::NetworkTokenWithVaultCardFallback(fallback) => {
+                Some(fallback)
+            }
+            _ => None,
+        },
+    )
+}
