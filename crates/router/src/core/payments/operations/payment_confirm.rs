@@ -929,6 +929,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -1138,9 +1139,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         customer: Option<domain::Customer>,
         updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-            state
+    ) -> RouterResult<Option<domain::Customer>> {
+        match (customer, updated_customer) {
+            (Some(customer), Some(updated_customer)) => state
                 .store
                 .update_customer_by_customer_id_merchant_id(
                     customer.get_id().to_owned(),
@@ -1152,9 +1153,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update CustomerConnector in customer")?;
+                .attach_printable("Failed to update CustomerConnector in customer")
+                .map(Some),
+            (customer, _) => Ok(customer),
         }
-        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -1209,14 +1211,40 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     },
                                 )?;
 
-                                let payment_method_data = req
-                                    .payment_method_data
-                                    .as_ref()
-                                    .and_then(|pmd| pmd.payment_method_data.clone())
-                                    .map(Into::into)
-                                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method_data".into(),
-                                    })?;
+                                let payment_method_token =
+                                    payment_data.get_payment_method_token().cloned();
+
+                                let payment_method_data =
+                                    match (payment_method, payment_method_token.is_some()) {
+                                        (common_enums::PaymentMethod::Wallet, true) => {
+                                            let data = req
+                                            .payment_method_data
+                                            .as_ref()
+                                            .and_then(|pmd| pmd.payment_method_data.clone())
+                                            .zip(payment_method_token)
+                                            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                                field_name: "payment_method_data".into(),
+                                            })?;
+
+                                            domain::PaymentMethodData::try_from(data)
+                                                .change_context(
+                                                errors::ApiErrorResponse::MissingRequiredField {
+                                                    field_name: "payment_method_data".into(),
+                                                },
+                                            )?
+                                        }
+                                        _ => req
+                                            .payment_method_data
+                                            .as_ref()
+                                            .and_then(|pmd| pmd.payment_method_data.clone())
+                                            .map(From::from)
+                                            .ok_or(
+                                                errors::ApiErrorResponse::MissingRequiredField {
+                                                    field_name: "payment_method_data".into(),
+                                                },
+                                            )?,
+                                    };
+
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
                                 let global_customer_id =
@@ -2956,6 +2984,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                         active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,

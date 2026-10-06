@@ -1,4 +1,6 @@
 use hyperswitch_domain_models::mandates;
+#[cfg(all(test, feature = "v1"))]
+mod tests;
 mod transformers;
 pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -55,7 +57,7 @@ use rand::SeedableRng;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
-use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
+use storage_impl::redis::cache::CacheKey;
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
@@ -1086,6 +1088,7 @@ impl RoutingStage for SessionRoutingStage {
                     profile_id,
                     input.transaction_type,
                     input.active_mca_ids,
+                    input.business_profile.get_auto_fallback_capture_method(),
                 )
                 .await?;
 
@@ -1099,6 +1102,7 @@ impl RoutingStage for SessionRoutingStage {
                         profile_id,
                         input.transaction_type,
                         input.active_mca_ids,
+                        input.business_profile.get_auto_fallback_capture_method(),
                     )
                     .await?
                 } else {
@@ -1570,6 +1574,7 @@ pub struct HybridRoutingInput<'a> {
     pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
     pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
     pub static_approach: common_enums::RoutingApproach,
+    pub preferred_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1577,6 +1582,26 @@ pub struct HybridRoutingStage;
 
 #[cfg(feature = "v1")]
 impl HybridRoutingStage {
+    #[cfg(any(feature = "dynamic_routing", test))]
+    fn resolve_preferred_connector(
+        preferred: &str,
+        static_connectors: &[routing_types::RoutableConnectorChoice],
+    ) -> Option<String> {
+        let preferred_connector_name = preferred.split_once(':').map(|(name, _)| name)?;
+        static_connectors
+            .iter()
+            .find(|choice| choice.to_string() == preferred)
+            .or_else(|| {
+                static_connectors.iter().find(|choice| {
+                    choice
+                        .connector
+                        .to_string()
+                        .eq_ignore_ascii_case(preferred_connector_name)
+                })
+            })
+            .map(ToString::to_string)
+    }
+
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     fn build_dynamic_routing_request(
         &self,
@@ -1588,10 +1613,16 @@ impl HybridRoutingStage {
             .open_router
             .dynamic_routing_enabled
             .then(|| {
+                // Match an exact account first, then any eligible account for the same connector.
+                let preferred_connector = input.preferred_connector.as_deref().and_then(|value| {
+                    Self::resolve_preferred_connector(value, input.static_connectors)
+                });
+
                 OpenRouterDecideGatewayRequest::construct_sr_request(
                     input.payment_dsl_input.payment_attempt,
                     input.static_connectors.to_vec(),
                     Some(or_types::RankingAlgorithm::SrBasedRouting),
+                    preferred_connector,
                 )
             })
     }
@@ -1704,11 +1735,22 @@ pub async fn perform_hybrid_routing_if_enabled(
     fallback_config: &[routing_types::RoutableConnectorChoice],
     static_connectors: &[routing_types::RoutableConnectorChoice],
     static_approach: common_enums::RoutingApproach,
+    preferred_connector: Option<String>,
 ) -> (
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
 ) {
     let stage = HybridRoutingStage;
+
+    let preferred_connector = match preferred_connector {
+        Some(connector)
+            if utils::is_preferred_connectors_routing_enabled(state, dimensions).await =>
+        {
+            Some(connector)
+        }
+        _ => None,
+    };
+
     let input = HybridRoutingInput {
         state,
         business_profile,
@@ -1717,6 +1759,7 @@ pub async fn perform_hybrid_routing_if_enabled(
         fallback_config,
         static_connectors,
         static_approach: static_approach.clone(),
+        preferred_connector,
     };
 
     // Flag-aware like every other consumer: with static_routing_enabled off the profile is
@@ -2014,7 +2057,10 @@ pub async fn ensure_algorithm_cached_v1(
         }
     };
 
-    let cached_algorithm = ROUTING_CACHE
+    let cached_algorithm = state
+        .store
+        .caches()
+        .routing
         .get_val::<Arc<CachedAlgorithm>>(CacheKey {
             key: key.clone(),
             prefix: state.tenant.redis_key_prefix.clone(),
@@ -2161,7 +2207,10 @@ pub async fn refresh_routing_cache_v1(
 
     let arc_cached_algorithm = Arc::new(cached_algorithm);
 
-    ROUTING_CACHE
+    state
+        .store
+        .caches()
+        .routing
         .push(
             CacheKey {
                 key,
@@ -2281,7 +2330,10 @@ pub async fn get_merchant_cgraph(
         }
     };
 
-    let cached_cgraph = CGRAPH_CACHE
+    let cached_cgraph = state
+        .store
+        .caches()
+        .cgraph
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>>(
             CacheKey {
                 key: key.clone(),
@@ -2392,7 +2444,10 @@ pub async fn refresh_cgraph_cache(
             .attach_printable("when construction cgraph")?,
     );
 
-    CGRAPH_CACHE
+    state
+        .store
+        .caches()
+        .cgraph
         .push(
             CacheKey {
                 key,
@@ -2415,7 +2470,21 @@ pub async fn perform_cgraph_filtering(
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let mut backend_input = backend_input;
+    let can_fall_back = backend_input
+        .payment
+        .capture_method
+        .zip(auto_fallback_capture_method)
+        .is_some_and(|(capture_method, setting)| setting.can_fall_back_from(capture_method));
+    if can_fall_back {
+        // The profile falls back to automatic capture for connectors that cannot do the
+        // requested capture method, so `pm_filters` capture-method restrictions must not remove
+        // those connectors here; `apply_auto_fallback_capture_method` decides per connector.
+        // A payment already requesting automatic capture has no fallback and is still filtered.
+        backend_input.payment.capture_method = None;
+    }
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
             .into_context()
@@ -2561,8 +2630,8 @@ pub async fn perform_eligibility_analysis(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: &common_utils::id_type::ProfileId,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -2576,9 +2645,10 @@ pub async fn perform_eligibility_analysis(
         chosen,
         backend_input,
         eligible_connectors,
-        profile_id,
+        business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await
 }
@@ -2648,6 +2718,7 @@ pub async fn perform_fallback_routing(
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await
 }
@@ -2701,8 +2772,8 @@ pub async fn perform_eligibility_analysis_with_fallback(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        business_profile.get_id(),
         &active_mca_ids,
+        business_profile,
     )
     .await?;
 
@@ -3201,6 +3272,7 @@ async fn perform_session_routing_for_pm_type(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await?;
 
@@ -3222,6 +3294,7 @@ async fn perform_session_routing_for_pm_type(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
+            business_profile.get_auto_fallback_capture_method(),
         )
         .await?;
     }
@@ -3301,6 +3374,7 @@ async fn perform_session_routing_for_pm_type<'a>(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await?;
 
@@ -3318,6 +3392,7 @@ async fn perform_session_routing_for_pm_type<'a>(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
+            business_profile.get_auto_fallback_capture_method(),
         )
         .await?;
     }
@@ -3681,6 +3756,8 @@ pub async fn perform_decide_gateway_call_with_open_router(
         payment_attempt,
         routable_connectors.clone(),
         Some(or_types::RankingAlgorithm::SrBasedRouting),
+        // Legacy routing does not send preferred connectors.
+        None,
     );
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(

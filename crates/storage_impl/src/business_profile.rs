@@ -12,9 +12,12 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "accounts_cache")]
+use crate::metrics;
+#[cfg(feature = "accounts_cache")]
 use crate::redis::{
     cache,
-    cache::{CacheKind, ACCOUNTS_CACHE},
+    cache::{CacheId, CacheInterface, CacheKind},
+    kv_store::RedisConnInterface,
 };
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
@@ -22,8 +25,6 @@ use crate::{
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
-#[cfg(feature = "accounts_cache")]
-use crate::{metrics, RedisConnInterface};
 
 /// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
 #[cfg(feature = "accounts_cache")]
@@ -38,10 +39,12 @@ fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
 /// invite a retry, without clearing the stale entry either way. The staleness is instead bounded by
 /// the cache TTLs, and the failure is logged and counted so it stays visible.
 #[cfg(feature = "accounts_cache")]
-async fn publish_and_redact_business_profile_cache(
-    store: &(dyn RedisConnInterface + Send + Sync),
+async fn publish_and_redact_business_profile_cache<S>(
+    store: &S,
     profile_id: &common_utils::id_type::ProfileId,
-) {
+) where
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
+{
     let redaction_result = cache::redact_from_redis_and_publish(
         store,
         [CacheKind::Accounts(profile_cache_key(profile_id).into())],
@@ -217,7 +220,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             ))
             .await?
             .convert(
@@ -265,7 +268,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func,
-                &ACCOUNTS_CACHE,
+                CacheId::Accounts,
             ))
             .await?
             .convert(
@@ -646,6 +649,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     dispute_polling_interval,
                     always_request_extended_authorization,
                     is_manual_retry_enabled,
+                    auto_fallback_capture_method,
                     always_enable_overcapture,
                     is_external_vault_enabled,
                     external_vault_connector_details,
@@ -717,6 +721,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     dispute_polling_interval,
                     is_manual_retry_enabled,
+                    auto_fallback_capture_method,
                     always_enable_overcapture,
                     is_external_vault_enabled,
                     external_vault_connector_details,
@@ -786,6 +791,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -852,6 +858,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -918,6 +925,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -984,6 +992,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -1051,6 +1060,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -1118,6 +1128,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -1185,6 +1196,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -1251,6 +1263,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -1318,6 +1331,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 dispute_polling_interval: None,
                 is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
                 always_enable_overcapture: None,
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
@@ -1410,6 +1424,7 @@ impl Conversion for domain::Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
+            auto_fallback_capture_method: self.auto_fallback_capture_method,
             always_enable_overcapture: self.always_enable_overcapture,
             is_external_vault_enabled,
             external_vault_connector_details,
@@ -1585,6 +1600,7 @@ impl Conversion for domain::Profile {
             merchant_country_code: item.merchant_country_code,
             dispute_polling_interval: item.dispute_polling_interval,
             is_manual_retry_enabled: item.is_manual_retry_enabled,
+            auto_fallback_capture_method: item.auto_fallback_capture_method,
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
             billing_processor_id: item.billing_processor_id,
@@ -1662,6 +1678,7 @@ impl Conversion for domain::Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
+            auto_fallback_capture_method: self.auto_fallback_capture_method,
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
@@ -2466,6 +2483,7 @@ impl Conversion for domain::Profile {
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
             is_manual_retry_enabled: None,
+            auto_fallback_capture_method: None,
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,

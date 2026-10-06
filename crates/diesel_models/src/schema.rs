@@ -344,6 +344,8 @@ diesel::table! {
         order_fulfillment_time -> Nullable<Int8>,
         apple_pay_certificates -> Nullable<Jsonb>,
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
+        #[max_length = 16]
+        auto_fallback_capture_method -> Nullable<Varchar>,
     }
 }
 
@@ -512,6 +514,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        preferred_connectors -> Nullable<Jsonb>,
     }
 }
 
@@ -1247,6 +1250,7 @@ diesel::table! {
         payment_account_reference -> Nullable<Varchar>,
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
+        applied_overrides -> Nullable<Jsonb>,
     }
 }
 

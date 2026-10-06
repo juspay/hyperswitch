@@ -88,6 +88,8 @@ pub struct IntegrityCheckError {
     pub field_names: String,
     /// Connector transaction reference id
     pub connector_transaction_id: Option<String>,
+    /// Amount actually received/reported by the connector, as seen at integrity check time
+    pub amount: Option<MinorUnit>,
 }
 
 /// Cryptographic algorithm errors

@@ -379,6 +379,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             currency,
             amount,
@@ -627,6 +628,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                     active_frm_id: payment_data
                         .frm_message
                         .as_ref()
