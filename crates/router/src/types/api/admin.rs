@@ -407,6 +407,22 @@ pub async fn create_profile_from_merchant_account(
 
     let current_time = common_utils::date_time::now();
 
+    if let Some(common_utils::outbound_url::WebhookUrlUpdate::Set(url)) = request
+        .webhook_details
+        .as_ref()
+        .and_then(|details| details.webhook_url.as_ref())
+        .map(|update| update.peek())
+    {
+        external_services::http_client::outbound_destination::validate_destination(
+            url,
+            state.conf.proxy.bypass_proxy_hosts.as_deref(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "webhook_url is not valid".to_string(),
+        })?;
+    }
+
     let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
     let payment_response_hash_key = request
