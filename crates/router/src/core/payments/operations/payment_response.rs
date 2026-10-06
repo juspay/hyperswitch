@@ -104,13 +104,15 @@ async fn prepare_pm_update_from_psync(
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
             bank_redirect_update,
         ) => {
-            payment_methods::cards::prepare_bank_redirect_payment_method_update(
-                state,
-                platform,
-                payment_method,
-                merchant_connector_id,
-                bank_redirect_update.clone(),
-                business_profile,
+            Box::pin(
+                payment_methods::cards::prepare_bank_redirect_payment_method_update(
+                    state,
+                    platform,
+                    payment_method,
+                    merchant_connector_id,
+                    bank_redirect_update.clone(),
+                    business_profile,
+                ),
             )
             .await
         }
@@ -3682,14 +3684,14 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
 
         let additional_data_update =
             if let Some(payment_method_data_update) = additional_payment_method_data {
-                prepare_pm_update_from_psync(
+                Box::pin(prepare_pm_update_from_psync(
                     state,
                     platform,
                     &payment_method,
                     merchant_connector_id,
                     payment_method_data_update,
                     business_profile,
-                )
+                ))
                 .await
                 .inspect_err(|error| {
                     logger::error!(
