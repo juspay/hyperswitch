@@ -11331,6 +11331,17 @@
                 "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "GiftCard"
+            ],
+            "properties": {
+              "GiftCard": {
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
+              }
+            }
           }
         ],
         "description": "Masked payout method details for storing in db"
@@ -40053,6 +40064,7 @@
           "nuvei",
           "payone",
           "paypal",
+          "paysafe",
           "stripe",
           "truelayer",
           "trustly",
@@ -40794,6 +40806,17 @@
             "properties": {
               "passthrough": {
                 "$ref": "#/components/schemas/PassthroughAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
               }
             }
           }
