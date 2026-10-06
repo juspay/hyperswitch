@@ -9,6 +9,19 @@ const blocklistContext = () => ({
   provider_merchant_id: globalState.get("merchantId"),
 });
 
+const profileBlocklistContext = () => ({
+  ...blocklistContext(),
+  profile_id: globalState.get("profileId"),
+});
+
+const blocklistedCardAllowed = {
+  Request: connectorDetails.eligibility_api.BlocklistedCardDenied.Request,
+  Response: {
+    status: 200,
+    body: {},
+  },
+};
+
 describe("Payments Eligibility API with Blocklist", () => {
   let specShouldSkip = false;
 
@@ -29,6 +42,8 @@ describe("Payments Eligibility API with Blocklist", () => {
       }
       expect(globalState.get("merchantId"), "merchant ID").to.be.a("string").and
         .not.be.empty;
+      expect(globalState.get("profileId"), "profile ID").to.be.a("string").and
+        .not.be.empty;
     });
   });
 
@@ -40,9 +55,12 @@ describe("Payments Eligibility API with Blocklist", () => {
 
   after("cleanup superposition config + flush global state", () => {
     if (!specShouldSkip && globalState?.get("merchantId")) {
+      if (globalState.get("profileId")) {
+        cy.deleteSuperpositionConfig(globalState, profileBlocklistContext());
+      }
       cy.setSuperpositionConfig(
         globalState,
-        "payments.guard_blocklist",
+        "payments.payment_blocklist_guard",
         false,
         blocklistContext()
       );
@@ -74,7 +92,7 @@ describe("Payments Eligibility API with Blocklist", () => {
     it("should enable blocklist functionality using Superposition", () => {
       cy.setSuperpositionConfig(
         globalState,
-        "payments.guard_blocklist",
+        "payments.payment_blocklist_guard",
         true,
         blocklistContext()
       );
@@ -94,6 +112,56 @@ describe("Payments Eligibility API with Blocklist", () => {
       cy.paymentsEligibilityCheck(
         fixtures.eligibilityCheckBody,
         connectorDetails.eligibility_api.NonBlocklistedCardAllowed,
+        globalState
+      );
+    });
+  });
+
+  context("Profile and merchant guard overrides", () => {
+    it("should disable the guard for a profile and inherit the enabled merchant guard after cleanup", () => {
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.payment_blocklist_guard",
+        false,
+        profileBlocklistContext()
+      );
+      cy.paymentsEligibilityCheck(
+        fixtures.eligibilityCheckBody,
+        blocklistedCardAllowed,
+        globalState
+      );
+
+      cy.deleteSuperpositionConfig(globalState, profileBlocklistContext());
+      cy.paymentsEligibilityCheck(
+        fixtures.eligibilityCheckBody,
+        connectorDetails.eligibility_api.BlocklistedCardDenied,
+        globalState
+      );
+    });
+
+    it("should enable the guard for a profile and inherit the disabled merchant guard after cleanup", () => {
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.payment_blocklist_guard",
+        false,
+        blocklistContext()
+      );
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.payment_blocklist_guard",
+        true,
+        profileBlocklistContext()
+      );
+      cy.paymentsEligibilityCheck(
+        fixtures.eligibilityCheckBody,
+        connectorDetails.eligibility_api.BlocklistedCardDenied,
+        globalState
+      );
+
+      cy.deleteSuperpositionConfig(globalState, profileBlocklistContext());
+      cy.paymentsEligibilityCheck(
+        fixtures.eligibilityCheckBody,
+        blocklistedCardAllowed,
         globalState
       );
     });

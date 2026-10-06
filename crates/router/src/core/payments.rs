@@ -8278,7 +8278,8 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let blocklist_guard_enabled = dimensions
-        .get_guard_blocklist(
+        .with_profile_id(business_profile.get_id().clone())
+        .get_payment_blocklist_guard(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             Some(payment_data.get_payment_intent().get_id()),
@@ -14272,12 +14273,19 @@ impl EligibilityCheck for BlockListCheck {
         platform: &domain::Platform,
         payment_elgibility_data: &PaymentEligibilityData,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
+        let profile_id = payment_elgibility_data
+            .payment_intent
+            .profile_id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
         let dimensions = Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile_id.clone());
 
         Ok(dimensions
-            .get_guard_blocklist(
+            .get_payment_blocklist_guard(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
                 Some(&payment_elgibility_data.payment_intent.payment_id),

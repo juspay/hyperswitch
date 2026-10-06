@@ -31,7 +31,7 @@ describe("Business Profile Payment Method Blocking", () => {
         .not.be.empty;
       cy.setSuperpositionConfig(
         globalState,
-        "payments.guard_blocklist",
+        "payments.payment_blocklist_guard",
         true,
         blocklistContext()
       );
@@ -48,7 +48,7 @@ describe("Business Profile Payment Method Blocking", () => {
     if (!specShouldSkip && globalState?.get("merchantId")) {
       cy.setSuperpositionConfig(
         globalState,
-        "payments.guard_blocklist",
+        "payments.payment_blocklist_guard",
         false,
         blocklistContext()
       );
