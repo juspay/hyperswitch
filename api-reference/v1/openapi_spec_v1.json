@@ -36504,6 +36504,14 @@
             ],
             "nullable": true
           },
+          "capture_method_applied": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
@@ -38366,6 +38374,14 @@
             "nullable": true
           },
           "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method_applied": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CaptureMethod"
@@ -43184,6 +43200,12 @@
             "description": "Indicates if manual retry for payment is enabled or not",
             "nullable": true
           },
+          "auto_fallback_capture_method": {
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
+            "nullable": true
+          },
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
@@ -43581,6 +43603,12 @@
           "is_manual_retry_enabled": {
             "type": "boolean",
             "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "auto_fallback_capture_method": {
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
             "nullable": true
           },
           "always_enable_overcapture": {
