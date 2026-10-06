@@ -21,6 +21,10 @@ mod tests {
         opensearch::{OpenSearchQuery, OpenSearchQueryBuilder},
     };
 
+    #[allow(
+        clippy::expect_used,
+        reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; a fixture whose org id will not parse should fail the test loudly"
+    )]
     fn org_scope(org_id: &str) -> AuthInfo {
         AuthInfo::OrgLevel {
             org_id: common_utils::id_type::OrganizationId::try_from(std::borrow::Cow::Owned(
