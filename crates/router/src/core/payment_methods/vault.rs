@@ -2441,10 +2441,12 @@ async fn get_fingerprint_ids_from_vault_batch(
     state: &routes::SessionState,
     fingerprints: Vec<pm_types::VaultBatchFingerprintEntry>,
 ) -> CustomResult<HashMap<String, String>, errors::VaultError> {
-    let payload = pm_types::VaultBatchFingerprintRequest { fingerprints }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultBatchFingerprintRequest")?;
+    let payload = pm_types::VaultBatchFingerprintRequest {
+        batch_data: fingerprints,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultBatchFingerprintRequest")?;
 
     let response = call_to_vault::<pm_types::GetVaultFingerprint>(
         state,

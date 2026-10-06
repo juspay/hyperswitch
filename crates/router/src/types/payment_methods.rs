@@ -55,11 +55,11 @@ pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
 }
 
-/// A batched request to the fingerprint API: `fingerprints` in place of `data` and `key`.
+/// A batched request to the fingerprint API: `batch_data` in place of `data` and `key`.
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultBatchFingerprintRequest {
-    pub fingerprints: Vec<VaultBatchFingerprintEntry>,
+    pub batch_data: Vec<VaultBatchFingerprintEntry>,
 }
 
 /// `label` is opaque to the vault and keys the entry's fingerprint in the response.
