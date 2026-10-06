@@ -1,0 +1,335 @@
+openapi: "3.0.2"
+info:
+  title: Tartarus - OpenAPI 3.0
+  description: |-
+    This the the open API 3.0 specification for the card locker.
+    This is used by the [hyperswitch](https://github.com/juspay/hyperswitch) for storing card information securely.
+  version: "1.0"
+tags:
+  - name: Key Custodian
+    description: API used to initialize the locker after deployment.
+  - name: Data
+    description: CRUD APIs to for working with data to be stored in the locker
+paths:
+  /api/v2/vault/add:
+    post:
+      tags:
+        - Data
+      summary: Add Data in Locker
+      description: Add sensitive data in the locker
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      requestBody:
+        description: The request body might be JWE + JWS encrypted when using middleware
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/StoreDataRequest"
+                - $ref: "#/components/schemas/JWEReq"
+        required: true
+      responses:
+        "200":
+          description: Store Data Response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/StoreDataResponse"
+                  - $ref: "#/components/schemas/JWERes"
+  /api/v2/vault/retrieve:
+    post:
+      tags:
+        - Data
+      summary: Retrieve Data from Locker
+      description: Retrieve sensitive data from the locker
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      requestBody:
+        description: The request body might be JWE + JWS encrypted when using middleware
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/RetrieveDataRequest"
+                - $ref: "#/components/schemas/JWEReq"
+        required: true
+      responses:
+        "200":
+          description: Retrieve Data Response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RetrieveDataResponse"
+                  - $ref: "#/components/schemas/JWERes"
+  /api/v2/vault/delete:
+    post:
+      tags:
+        - Data
+      summary: Delete Data from Locker
+      description: Delete sensitive data from the locker
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      requestBody:
+        description: The request body might be JWE + JWS encrypted when using middleware
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/DeleteDataRequest"
+                - $ref: "#/components/schemas/JWEReq"
+        required: true
+      responses:
+        "200":
+          description: Delete Data Response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DeleteDataResponse"
+                  - $ref: "#/components/schemas/JWERes"
+  /custodian/key1:
+    post:
+      tags:
+        - Key Custodian
+      summary: Provide Key 1
+      description: Provide the first key to unlock the locker
+      operationId: setKey1
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      requestBody:
+        description: Provide key 1 to unlock the locker
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Key"
+        required: true
+      responses:
+        "200":
+          description: Key 1 provided
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Key1Set"
+  /custodian/key2:
+    post:
+      tags:
+        - Key Custodian
+      summary: Provide Key 2
+      description: Provide the first key to unlock the locker
+      operationId: setKey2
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      requestBody:
+        description: Provide key 2 to unlock the locker
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Key"
+        required: true
+      responses:
+        "200":
+          description: Key 2 provided
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Key2Set"
+  /custodian/decrypt:
+    post:
+      tags:
+        - Key Custodian
+      summary: Unlock the locker
+      description: Unlock the locker with the key1 and key2 provided
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully Unlocked
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Decrypt200"
+  /health:
+    get:
+      summary: Get Health
+      description: To check whether the application is up
+      responses:
+        "200":
+          description: Health is good
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /api/v2/vault/fingerprint:
+    post:
+      tags:
+        - Data
+      summary: Get or insert the data fingerprint
+      description: Get or insert the data fingerprint
+      parameters:
+        - in: header
+          name: x-tenant-id
+          schema:
+            type: string
+      requestBody:
+        description: Provide data number and hash key
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FingerprintReq"
+        required: true
+      responses:
+        "200":
+          description: Fingerprint Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FingerprintRes"
+components:
+  schemas:
+    Key:
+      type: object
+      properties:
+        key:
+          type: string
+          example: 801bb63c1bd51820acbc8ac20c674675
+      required:
+        - key
+    DeleteDataRequest:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          description: Unique identifier for the entity
+        vault_id:
+          type: string
+          description: Unique identifier for the vault
+    DeleteDataResponse:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          description: Unique identifier for the entity
+        vault_id:
+          type: string
+          description: Unique identifier for the vault
+    RetrieveDataRequest:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          description: Unique identifier for the entity
+        vault_id:
+          type: string
+          description: Unique identifier for the vault
+    RetrieveDataResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Secret"
+    StoreDataRequest:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          description: Unique identifier for the entity
+        vault_id:
+          type: string
+          description: Unique identifier for the vault
+        data:
+          $ref: "#/components/schemas/Secret"
+        ttl:
+          $ref: "#/components/schemas/Ttl"
+    StoreDataResponse:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          description: Unique identifier for the entity
+        vault_id:
+          type: string
+          description: Unique identifier for the vault
+    JWEReq:
+      title: JWEReq
+      type: object
+      properties:
+        header:
+          type: string
+        iv:
+          type: string
+        encrypted_payload:
+          type: string
+        tag:
+          type: string
+        encrypted_key:
+          type: string
+    JWERes:
+      title: JWERes
+      type: object
+      description: JWE encrypted response equivalent
+      properties:
+        header:
+          type: string
+        iv:
+          type: string
+        encrypted_payload:
+          type: string
+        tag:
+          type: string
+        encrypted_key:
+          type: string
+    Secret:
+      type: object
+    Ttl:
+      type: integer
+      description: Time-to-live in seconds
+    Key1Set:
+      type: string
+      description: Response after setting key1
+      example: Received Key1
+    Key2Set:
+      type: string
+      description: Response after setting key2
+      example: Received Key2
+    Decrypt200:
+      type: string
+      description: Response if the locker key custodian decryption was successful
+      example: Decryption successful
+    Health:
+      type: string
+      description: Response when the health is good
+      example: health is good
+    FingerprintReq:
+      type: object
+      properties:
+        data:
+          type: string
+          example: 4242424242424242
+        key:
+          type: string
+          example: Hash1
+    FingerprintRes:
+      type: object
+      description: Response received if the fingerprint insertion or retrieval was successful
+      properties:
+        fingerprint_id:
+          type: string

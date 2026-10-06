@@ -12,6 +12,8 @@ pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod mandates;
+pub mod merchant_connector_webhook_management;
+pub mod merchant_connector_webhook_management_v2;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
@@ -29,6 +31,7 @@ pub mod webhooks;
 pub mod authentication_v2;
 pub mod connector_mapping;
 pub mod disputes_v2;
+pub mod feature_matrix;
 pub mod files_v2;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
@@ -40,10 +43,13 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
-use common_enums::RoutableConnectors;
+pub use common_utils::id_type::PaymentId;
 use error_stack::ResultExt;
+use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
+    access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
+    mandate_revoke::MandateRevoke,
+    unified_authentication_service::*,
     webhooks::VerifyWebhookSource,
 };
 pub use hyperswitch_interfaces::{
@@ -57,12 +63,14 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
+        merchant_connector_webhook_management::WebhookRegister,
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
             RevenueRecovery, RevenueRecoveryRecordBack,
         },
         revenue_recovery_v2::RevenueRecoveryV2,
-        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon,
+        BoxedConnector, Connector, ConnectorAccessToken, ConnectorAccessTokenV2,
+        ConnectorAuthenticationToken, ConnectorAuthenticationTokenV2, ConnectorCommon,
         ConnectorCommonExt, ConnectorMandateRevoke, ConnectorMandateRevokeV2,
         ConnectorTransactionId, ConnectorVerifyWebhookSource, ConnectorVerifyWebhookSourceV2,
         CurrencyUnit,
@@ -77,8 +85,8 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, connector_mapping::*, customers::*,
-    disputes::*, files::*, payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*,
-    refunds_v2::*, webhooks::*,
+    disputes::*, files::*, merchant_connector_webhook_management::*, payment_link::*,
+    payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*, webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{
@@ -104,6 +112,7 @@ impl From<ConnectorData> for ConnectorRoutingData {
         Self {
             connector_data,
             network: None,
+            action_type: None,
         }
     }
 }
@@ -236,7 +245,6 @@ pub enum ConnectorChoice {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
@@ -301,6 +309,35 @@ impl TaxCalculateConnectorData {
             enums::TaxConnectors::Taxjar => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
             }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct SurchargeCalculateConnectorData {
+    pub connector: ConnectorEnum,
+    pub connector_name: enums::SurchargeConnectors,
+}
+
+impl SurchargeCalculateConnectorData {
+    pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector_name = enums::SurchargeConnectors::from_str(name)
+            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+            .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
+        let connector = Self::convert_connector(connector_name)?;
+        Ok(Self {
+            connector,
+            connector_name,
+        })
+    }
+
+    fn convert_connector(
+        connector_name: enums::SurchargeConnectors,
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
+        match connector_name {
+            enums::SurchargeConnectors::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                connector::Interpayments::new(),
+            ))),
         }
     }
 }

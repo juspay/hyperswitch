@@ -30,7 +30,8 @@ if (!isFramed) {
    **/
   function initializeSDK() {
     // @ts-ignore
-    var paymentDetails = window.__PAYMENT_DETAILS;
+    var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+    var paymentDetails = decodeUri(encodedPaymentDetails);
     var clientSecret = paymentDetails.client_secret;
     var sdkUiRules = paymentDetails.sdk_ui_rules;
     var labelType = paymentDetails.payment_form_label_type;
@@ -81,13 +82,18 @@ if (!isFramed) {
 
     var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
     var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
+    var layoutOptions = {
+      type: type, //accordion , tabs, spaced accordion
+      spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
+    };
+    var paymentMethodsSeparatorText = paymentDetails.payment_methods_separator_text;
+    if (paymentMethodsSeparatorText !== null && typeof paymentMethodsSeparatorText === "string") {
+      layoutOptions.separatorText = paymentMethodsSeparatorText;
+    }
     var unifiedCheckoutOptions = {
       displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
       displaySavedPaymentMethods: enableSavedPaymentMethod,
-      layout: {
-        type: type, //accordion , tabs, spaced accordion
-        spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
-      },
+      layout: layoutOptions,
       branding: "never",
       wallets: {
         walletReturnUrl: paymentDetails.return_url,
@@ -100,6 +106,7 @@ if (!isFramed) {
       hideCardNicknameField: hideCardNicknameField,
       showCardFormByDefault: paymentDetails.show_card_form_by_default,
       customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
+      paymentMethodsConfig: paymentDetails.custom_message_for_payment_method_types,
     };
     var showCardTerms = paymentDetails.show_card_terms;
     if (showCardTerms !== null && typeof showCardTerms === "string") {

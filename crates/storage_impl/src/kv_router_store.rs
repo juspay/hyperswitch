@@ -1,41 +1,45 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{fallback_reverse_lookup_not_found, types::keymanager::KeyManagerState};
+use common_utils::{
+    fallback_reverse_lookup_not_found, request_context::RequestContext,
+    types::keymanager::KeyManagerState,
+};
 use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::StrongSecret;
-use redis_interface::{errors::RedisError, types::HsetnxReply, RedisConnectionPool};
+use hyperswitch_masking::StrongSecret;
+use redis_interface::{errors::RedisError, types::HsetnxReply};
 use router_env::logger;
 use serde::de;
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
 use crate::{
-    config::TenantConfig,
+    behaviour::{Conversion, ReverseConversion},
     database::store::PgPool,
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt, StorageResult},
     lookup::ReverseLookupInterface,
     metrics,
-    redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, KvStorePartition, Op, PartitionKey,
-        RedisConnInterface,
+    redis::{
+        cache::{CacheInterface, Caches},
+        kv_store::{
+            decide_storage_scheme, kv_wrapper, KvOperation, KvStorePartition, Op, PartitionKey,
+            RedisConnInterface,
+        },
     },
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
-    RouterStore, UniqueConstraints,
+    RouterStore, TenantConfig, UniqueConstraints,
 };
 pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
     pub router_store: RouterStore<T>,
+    pub key_manager_state: Option<KeyManagerState>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
     pub ttl_for_kv: u32,
@@ -43,8 +47,25 @@ pub struct KVRouterStore<T: DatabaseStore> {
     pub soft_kill_mode: bool,
 }
 
-pub struct InsertResourceParams<'a> {
-    pub insertable: kv::Insertable,
+impl<T: DatabaseStore> KVRouterStore<T> {
+    pub fn get_keymanager_state(&self) -> Result<&KeyManagerState, errors::StorageError> {
+        self.key_manager_state
+            .as_ref()
+            .ok_or_else(|| errors::StorageError::DecryptionError)
+    }
+    pub fn update_key_manager_request_id(&mut self, request_id: String) {
+        if let Some(ref mut km_state) = self.key_manager_state {
+            km_state.request_id = Some(request_id.clone());
+        }
+        self.router_store.update_key_manager_request_id(request_id);
+    }
+}
+
+pub struct InsertResourceParams<'a, DrainerQueryFut>
+where
+    DrainerQueryFut: futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>>,
+{
+    pub drainer_query_fut: DrainerQueryFut,
     pub reverse_lookups: Vec<String>,
     pub key: PartitionKey<'a>,
     // secondary key
@@ -53,8 +74,11 @@ pub struct InsertResourceParams<'a> {
     pub resource_type: &'static str,
 }
 
-pub struct UpdateResourceParams<'a> {
-    pub updateable: kv::Updateable,
+pub struct UpdateResourceParams<'a, DrainerQueryFut>
+where
+    DrainerQueryFut: futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>>,
+{
+    pub drainer_query_fut: DrainerQueryFut,
     pub operation: Op<'a>,
 }
 
@@ -110,6 +134,10 @@ where
         config: Self::Config,
         tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
+        key_manager_state: Option<KeyManagerState>,
+        _event_emitter: std::sync::Arc<
+            dyn common_utils::external_service::ExternalServiceEventEmitter,
+        >,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
@@ -119,6 +147,7 @@ where
             drainer_num_partitions,
             ttl_for_kv,
             soft_kill_mode,
+            key_manager_state,
         ))
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -135,11 +164,37 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.router_store.get_accounts_replica_pool()
     }
+
+    /// Request correlation consumed by the deja replay DB routing hook.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id
+            .clone()
+            .or_else(|| self.router_store.get_request_id())
+    }
+}
+
+impl<T: DatabaseStore> RequestContext for KVRouterStore<T> {
+    fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError> {
         self.router_store.get_redis_conn()
+    }
+}
+
+impl<T: DatabaseStore> CacheInterface for KVRouterStore<T> {
+    fn caches(&self) -> &Caches {
+        self.router_store.caches()
+    }
+
+    fn cache_key_prefix(&self) -> &str {
+        self.router_store.cache_key_prefix()
     }
 }
 
@@ -150,6 +205,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         drainer_num_partitions: u8,
         ttl_for_kv: u32,
         soft_kill: Option<bool>,
+        key_manager_state: Option<KeyManagerState>,
     ) -> Self {
         let request_id = store.request_id.clone();
 
@@ -160,6 +216,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             ttl_for_kv,
             request_id,
             soft_kill_mode: soft_kill.unwrap_or(false),
+            key_manager_state,
         }
     }
 
@@ -173,7 +230,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn push_to_drainer_stream<R>(
         &self,
-        redis_entry: kv::TypedSql,
+        serializable_query: kv::SerializableQuery,
         partition_key: PartitionKey<'_>,
     ) -> error_stack::Result<(), RedisError>
     where
@@ -184,20 +241,22 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
         let shard_key = R::shard_key(partition_key, self.drainer_num_partitions);
         let stream_name = self.get_drainer_stream_name(&shard_key);
-        self.router_store
-            .cache_store
-            .redis_conn
+        let metric_attributes = router_env::metric_attributes!(
+            ("operation", serializable_query.operation().to_string()),
+            ("entity_type", serializable_query.entity_type())
+        );
+        self.get_redis_conn()?
             .stream_append_entry(
                 &stream_name.into(),
                 &redis_interface::RedisEntryId::AutoGeneratedID,
-                redis_entry
+                serializable_query
                     .to_field_value_pairs(request_id, global_id)
                     .change_context(RedisError::JsonSerializationFailed)?,
             )
             .await
-            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(1, &[]))
+            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(1, metric_attributes))
             .inspect_err(|error| {
-                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(1, &[]);
+                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(1, metric_attributes);
                 logger::error!(?error, "Failed to add entry in drainer stream");
             })
             .change_context(RedisError::StreamAppendFailed)
@@ -205,7 +264,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn find_resource_by_id<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
@@ -264,7 +322,87 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         res()
             .await?
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
+    // Equivalent of find_resource_by_id but where the conversion trait is still
+    // implemented in the hyperswitch_domain_models crate (used by types not yet
+    // migrated to the storage_impl Conversion impls, e.g. PaymentIntent).
+    pub async fn find_resource_by_id_old<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        find_resource_db_fut: R,
+        find_by: FindResourceBy<'_>,
+    ) -> error_stack::Result<D, errors::StorageError>
+    where
+        D: Debug + Sync + hyperswitch_domain_models::behaviour::Conversion,
+        M: de::DeserializeOwned
+            + serde::Serialize
+            + Debug
+            + KvStorePartition
+            + UniqueConstraints
+            + Sync
+            + Send
+            + hyperswitch_domain_models::behaviour::ReverseConversion<D>,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+    {
+        let database_call = || async {
+            find_resource_db_fut.await.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, M>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let res = || async {
+            match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => database_call().await,
+                MerchantStorageScheme::RedisKv => {
+                    let (field, key) = match find_by {
+                        FindResourceBy::Id(field, key) => (field, key),
+                        FindResourceBy::LookupId(lookup_id) => {
+                            let lookup = fallback_reverse_lookup_not_found!(
+                                self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                                    .await,
+                                database_call().await
+                            );
+                            (
+                                lookup.clone().sk_id,
+                                PartitionKey::CombinationKey {
+                                    combination: &lookup.clone().pk_id,
+                                },
+                            )
+                        }
+                    };
+
+                    Box::pin(try_redis_get_else_try_database_get(
+                        async {
+                            Box::pin(kv_wrapper(self, KvOperation::<M>::HGet(&field), key))
+                                .await?
+                                .try_into_hget()
+                        },
+                        database_call,
+                    ))
+                    .await
+                }
+            }
+        };
+        res()
+            .await?
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -274,7 +412,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
     pub async fn find_optional_resource_by_id<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         find_resource_db_fut: R,
@@ -335,7 +472,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             Some(resource) => Ok(Some(
                 resource
                     .convert(
-                        state,
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
                         key_store.key.get_inner(),
                         key_store.merchant_id.clone().into(),
                     )
@@ -346,25 +484,26 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         }
     }
 
-    pub async fn insert_resource<D, R, M>(
+    pub async fn insert_resource<D, R, M, DrainerQueryFut>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         create_resource_fut: R,
         resource_new: M,
         InsertResourceParams {
-            insertable,
+            drainer_query_fut,
             reverse_lookups,
             key,
             identifier,
             resource_type,
-        }: InsertResourceParams<'_>,
+        }: InsertResourceParams<'_, DrainerQueryFut>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQueryFut:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
     {
         let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
             self,
@@ -392,14 +531,14 @@ impl<T: DatabaseStore> KVRouterStore<T> {
 
                 futures::future::try_join_all(results).await?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(insertable),
-                    },
-                };
+                let drainer_query = drainer_query_fut
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate drainer insert query")?;
+
                 match Box::pin(kv_wrapper::<M, _, _>(
                     self,
-                    KvOperation::<M>::HSetNx(&identifier, &resource_new, redis_entry),
+                    KvOperation::<M>::HSetNx(&identifier, &resource_new, drainer_query),
                     key.clone(),
                 ))
                 .await
@@ -417,7 +556,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             }
         }?
         .convert(
-            state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -425,22 +565,23 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         .change_context(errors::StorageError::DecryptionError)
     }
 
-    pub async fn update_resource<D, R, M>(
+    pub async fn update_resource<D, R, M, DrainerQueryFut>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         update_resource_fut: R,
         updated_resource: M,
         UpdateResourceParams {
-            updateable,
+            drainer_query_fut,
             operation,
-        }: UpdateResourceParams<'_>,
+        }: UpdateResourceParams<'_, DrainerQueryFut>,
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQueryFut:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
     {
         match operation {
             Op::Update(key, field, updated_by) => {
@@ -461,15 +602,14 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                         let key_str = key.to_string();
                         let redis_value = serde_json::to_string(&updated_resource)
                             .change_context(errors::StorageError::SerializationFailed)?;
+                        let drainer_query = drainer_query_fut
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate drainer update query")?;
 
-                        let redis_entry = kv::TypedSql {
-                            op: kv::DBOperation::Update {
-                                updatable: Box::new(updateable),
-                            },
-                        };
                         Box::pin(kv_wrapper::<(), _, _>(
                             self,
-                            KvOperation::<M>::Hset((field, redis_value), redis_entry),
+                            KvOperation::<M>::Hset((field, redis_value), drainer_query),
                             key,
                         ))
                         .await
@@ -483,7 +623,176 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             _ => Err(errors::StorageError::KVError.into()),
         }?
         .convert(
-            state,
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
+    // Equivalent of insert_resource but where the conversion trait is still
+    // implemented in the hyperswitch_domain_models crate (used by types not yet
+    // migrated to the storage_impl Conversion impls, e.g. PaymentIntent).
+    pub async fn insert_resource_old<D, R, M, DrainerQueryFut>(
+        &self,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        create_resource_fut: R,
+        resource_new: M,
+        InsertResourceParams {
+            drainer_query_fut,
+            reverse_lookups,
+            key,
+            identifier,
+            resource_type,
+        }: InsertResourceParams<'_, DrainerQueryFut>,
+    ) -> error_stack::Result<D, errors::StorageError>
+    where
+        D: Debug + Sync + hyperswitch_domain_models::behaviour::Conversion,
+        M: de::DeserializeOwned
+            + serde::Serialize
+            + Debug
+            + KvStorePartition
+            + UniqueConstraints
+            + Sync
+            + Send
+            + hyperswitch_domain_models::behaviour::ReverseConversion<D>,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQueryFut:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
+    {
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => create_resource_fut.await.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            }),
+            MerchantStorageScheme::RedisKv => {
+                let key_str = key.to_string();
+                let reverse_lookup_entry = |v: String| diesel_models::ReverseLookupNew {
+                    sk_id: identifier.clone(),
+                    pk_id: key_str.clone(),
+                    lookup_id: v,
+                    source: resource_type.to_string(),
+                    updated_by: storage_scheme.to_string(),
+                };
+                let results = reverse_lookups
+                    .into_iter()
+                    .map(|v| self.insert_reverse_lookup(reverse_lookup_entry(v), storage_scheme));
+
+                futures::future::try_join_all(results).await?;
+
+                let drainer_query = drainer_query_fut
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate drainer insert query")?;
+
+                match Box::pin(kv_wrapper::<M, _, _>(
+                    self,
+                    KvOperation::<M>::HSetNx(&identifier, &resource_new, drainer_query),
+                    key.clone(),
+                ))
+                .await
+                .map_err(|err| err.to_redis_failed_response(&key.to_string()))?
+                .try_into_hsetnx()
+                {
+                    Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                        entity: resource_type,
+                        key: Some(key_str),
+                    }
+                    .into()),
+                    Ok(HsetnxReply::KeySet) => Ok(resource_new),
+                    Err(er) => Err(er).change_context(errors::StorageError::KVError),
+                }
+            }
+        }?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
+    // Equivalent of update_resource but where the conversion trait is still
+    // implemented in the hyperswitch_domain_models crate (used by types not yet
+    // migrated to the storage_impl Conversion impls, e.g. PaymentIntent).
+    pub async fn update_resource_old<D, R, M, DrainerQueryFut>(
+        &self,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        update_resource_fut: R,
+        updated_resource: M,
+        UpdateResourceParams {
+            drainer_query_fut,
+            operation,
+        }: UpdateResourceParams<'_, DrainerQueryFut>,
+    ) -> error_stack::Result<D, errors::StorageError>
+    where
+        D: Debug + Sync + hyperswitch_domain_models::behaviour::Conversion,
+        M: de::DeserializeOwned
+            + serde::Serialize
+            + Debug
+            + KvStorePartition
+            + UniqueConstraints
+            + Sync
+            + Send
+            + hyperswitch_domain_models::behaviour::ReverseConversion<D>,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQueryFut:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
+    {
+        match operation {
+            Op::Update(key, field, updated_by) => {
+                let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
+                    self,
+                    storage_scheme,
+                    Op::Update(key.clone(), field, updated_by),
+                ))
+                .await;
+                match storage_scheme {
+                    MerchantStorageScheme::PostgresOnly => {
+                        update_resource_fut.await.map_err(|error| {
+                            let new_err = diesel_error_to_data_error(*error.current_context());
+                            error.change_context(new_err)
+                        })
+                    }
+                    MerchantStorageScheme::RedisKv => {
+                        let key_str = key.to_string();
+                        let redis_value = serde_json::to_string(&updated_resource)
+                            .change_context(errors::StorageError::SerializationFailed)?;
+                        let drainer_query = drainer_query_fut
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate drainer update query")?;
+
+                        Box::pin(kv_wrapper::<(), _, _>(
+                            self,
+                            KvOperation::<M>::Hset((field, redis_value), drainer_query),
+                            key,
+                        ))
+                        .await
+                        .map_err(|err| err.to_redis_failed_response(&key_str))?
+                        .try_into_hset()
+                        .change_context(errors::StorageError::KVError)?;
+                        Ok(updated_resource)
+                    }
+                }
+            }
+            _ => Err(errors::StorageError::KVError.into()),
+        }?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
             key_store.key.get_inner(),
             key_store.merchant_id.clone().into(),
         )
@@ -492,7 +801,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     }
     pub async fn filter_resources<D, R, M>(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
         filter_resource_db_fut: R,
@@ -535,7 +843,8 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .into_iter()
             .map(|pm| async {
                 pm.convert(
-                    state,
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
                     key_store.key.get_inner(),
                     key_store.merchant_id.clone().into(),
                 )

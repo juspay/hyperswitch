@@ -23,6 +23,7 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
     - [Development Mode (Interactive)](#development-mode-interactive)
     - [CI Mode (Headless)](#ci-mode-headless)
     - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
+    - [Payment-method based spec selection](#payment-method-based-spec-selection)
 - [Test reports](#test-reports)
 - [Folder structure](#folder-structure)
 - [Adding tests](#adding-tests)
@@ -113,6 +114,22 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
    ```
 
+   Individual suites need additional variables on top of the above:
+
+   ```shell
+   # Modular Payment Method Service, which is deployed separately from the
+   # router. Required by `npm run cypress:modular-pm-service`, and by the
+   # modular customer / saved card steps in
+   # `Payment/54-ConnectorAgnosticMandates`.
+   export PM_SERVICE_URL="pm_service_url"
+   ```
+
+> [!IMPORTANT]
+> `PM_SERVICE_URL` is passed **without** the `CYPRESS_` prefix — it is forwarded onto `Cypress.env()` by the `env` block in [`cypress.config.js`](cypress.config.js). Every other variable above relies on Cypress auto-mapping instead, where `CYPRESS_NAME` becomes `Cypress.env("NAME")` with the remainder of the name used verbatim, underscores included. So `CYPRESS_PMSERVICEURL` is **not** read as `PM_SERVICE_URL`. The names the tests consume are listed in [`cypress/utils/State.js`](cypress/utils/State.js).
+
+> [!NOTE]
+> When `PM_SERVICE_URL` is unset, `54-ConnectorAgnosticMandates` logs a message and falls back to the v1 customer, payment method list, and save card confirm calls, so the payments suite still runs.
+
 > [!TIP]
 > It is recommended to install [direnv](https://github.com/direnv/direnv) and use a `.envrc` file to store these environment variables with `cypress-tests` directory. This will make it easier to manage environment variables while working with Cypress tests.
 
@@ -164,6 +181,40 @@ npm run cypress:routing             # Routing tests
    ```
 
    Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
+
+#### Payment-method based spec selection
+
+`npm run cypress:payments` runs every payment spec by default. Connectors listed
+in `CONNECTOR_PAYMENT_METHODS` (`cypress/utils/specSelection/config.js`) instead
+run the mandatory setup specs (`01-AccountCreate`, `02-CustomerCreate`,
+`03-ConnectorCreate`) plus only the specs matching their payment methods:
+
+```js
+loonio: ["bank_redirect"],   // 4 specs instead of 89
+cryptopay: ["crypto"],
+```
+
+The table is opt-in — **listing a connector only affects that connector**, every
+other connector keeps running the full suite. It currently covers the connectors
+that do not support cards, where the saving is largest.
+
+Valid payment methods are in `PAYMENT_METHODS` in the same file.
+
+To see what would run without executing anything:
+
+```shell
+CYPRESS_CONNECTOR=loonio npm run cypress:specs -- payments --print-specs
+```
+
+Implementation lives in `cypress/utils/specSelection/`:
+
+| File        | Responsibility                                      |
+| ----------- | --------------------------------------------------- |
+| `config.js` | Connector → payment methods, spec → payment methods |
+| `index.js`  | `resolveSpecs({ service, connectorId })`            |
+
+When adding a payment spec, tag it in `config.js`. Untagged specs run for every
+connector, so forgetting to tag one costs time but never coverage.
 
 ## Test reports
 
@@ -236,7 +287,6 @@ The folder structure of this directory is as follows:
    **Include Relevant Information:** Populate the file with all the necessary details specific to that connector.
 
    **Handling Unsupported Features:**
-
    - If a connector does not support a specific payment method or a feature:
    - The relevant configurations in the `<connector_name>.js` file can be omitted
    - The handling of unsupported or unimplemented features will be managed by the [`Commons.js`](cypress/e2e/PaymentUtils/Commons.js) file, which will throw the appropriate `unsupported` or `not implemented` error
@@ -375,6 +425,55 @@ npm run lint -- --fix
 8. Use custom commands for repetitive tasks
 9. Use `cy.log` for debugging and do not use `console.log`
 
+## Mock Server
+
+The cypress-tests directory includes a mock server for simulating payment processor APIs during testing.
+
+### Architecture
+
+The mock server follows a router-based architecture:
+
+- `mockserver.js` - Main entry point that starts the Express server
+- `router.js` - Central router that forwards requests to connector-specific routers
+- Connector implementations (e.g., `Silverflow.js`) - Individual router implementations for each payment processor
+
+Each connector exports an Express router that is imported by the main router. This modular approach allows for easy addition of new connectors and simplified maintenance.
+
+### Running the Mock Server
+
+To start the mock server:
+
+```bash
+npm run mockserver
+```
+
+By default, the server runs on port 3010. You can change this by setting the `MOCKSERVER_PORT` environment variable:
+
+```bash
+MOCKSERVER_PORT=3010 npm run mockserver
+```
+
+### Testing with cURL
+
+Example curl command for testing the Silverflow API:
+
+```bash
+curl -X POST "http://localhost:3010/silverflow/charges" \
+-H "Content-Type: application/json" \
+-H "Authorization: Basic YXBrLXRlc3RrZXkxMjM6dGVzdHNlY3JldDQ1Ng==" \
+-d '{"merchantAcceptorResolver":"merchant123","card":{"number":"4111111111111111","expMonth":12,"expYear":2025,"cvc":"123"},"amount":{"value":1000,"currency":"USD"},"type":"authorization","clearingMode":"auto"}'
+```
+
+### Using with Hyperswitch
+
+To use the mock server with Hyperswitch, you need to redirect the base URL for the Silverflow connector to the mock server. Run Hyperswitch with the following environment variable:
+
+```bash
+ROUTER__CONNECTORS__SILVERFLOW__BASE_URL=http://localhost:3010/silverflow cargo r
+```
+
+This will redirect all Silverflow API calls from Hyperswitch to your local mock server instead of the actual Silverflow API.
+
 ## Additional Resources
 
 - [Cypress Documentation](https://docs.cypress.io/)
@@ -467,6 +566,29 @@ npm run lint -- --fix
       "key1": "key1",
       "api_secret": "api_secret"
     }
+  },
+  // Payout connector with runtime-injected payout bank transfer details; `<connector_name>_payout` is read by the payout create flow, and `payout_bank_transfer` holds sensitive bank info injected into payout requests at runtime via `injectGotymePayoutBankTransfer` in `cypress/e2e/configs/Payout/Utils.js` so it never appears in committed configs.
+  "gotyme_sanlam_payout": {
+    "connector_account_details": {
+      "auth_type": "BodyKey",
+      "api_key": "api_key",
+      "key1": "key1"
+    },
+    "payout_bank_transfer": {
+      "payshap": {
+        "intrabank": {
+          "bank_account_number": "bank_account_number"
+        },
+        "interbank": {
+          "bank_account_number": "bank_account_number",
+          "account_holder_name": "account_holder_name",
+          "bank_name": "bank_name"
+        }
+      },
+      "payshap_proxy": {
+        "shap_id": "shap_id"
+      }
+    }
   }
 }
 ```
@@ -475,7 +597,7 @@ npm run lint -- --fix
 
 - There are some use cases where a connector supports a feature that requires a different set of API keys (example: Network transaction ID for Stripe expects a different API Key to be passed). This forces the need for having multiple credentials that serves different use cases
 - This basically means that a connector can have multiple credentials
-- At present the maximum number of credentials that can be supported is `2`
+- Additional credentials can be added using the `connector_N` format, for example `connector_3`, `connector_4`, and so on.
 - The `creds.json` file should be structured to support multiple credentials for such connectors. The `creds.json` file should be structured as follows:
 
 ```json

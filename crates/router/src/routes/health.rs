@@ -150,6 +150,21 @@ async fn deep_health_check_func(
 
     logger::debug!("Outgoing Request health check end");
 
+    logger::debug!("Unified Connector Service health check begin");
+
+    let unified_connector_service_status = state
+        .health_check_unified_connector_service()
+        .await
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                component: "Unified Connector Service",
+                message,
+            })
+        })?;
+
+    logger::debug!("Unified Connector Service health check end");
+
     let response = RouterHealthCheckResponse {
         database: db_status.into(),
         redis: redis_status.into(),
@@ -163,6 +178,7 @@ async fn deep_health_check_func(
         grpc_health_check,
         #[cfg(feature = "dynamic_routing")]
         decision_engine: decision_engine_health_check.into(),
+        unified_connector_service: unified_connector_service_status.into(),
     };
 
     Ok(api::ApplicationResponse::Json(response))

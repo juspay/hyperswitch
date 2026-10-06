@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
+use common_utils::types::TenantConfig;
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
-use masking::ErasedMaskSerialize;
+use hyperswitch_interfaces::events as events_interfaces;
+use hyperswitch_masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
-use storage_impl::{
-    config::TenantConfig,
-    errors::{ApplicationError, StorageError, StorageResult},
-};
+use storage_impl::errors::{ApplicationError, StorageError, StorageResult};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -16,10 +15,13 @@ use crate::{
     services::kafka::{KafkaMessage, KafkaSettings},
 };
 
+#[cfg(feature = "v2")]
+pub mod account_updater;
 pub mod api_logs;
 pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
+pub mod external_service_call;
 pub mod outgoing_webhook_logs;
 pub mod routing_api_logs;
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -39,12 +41,23 @@ pub enum EventType {
     Consolidated,
     Authentication,
     RoutingApiLogs,
+    RevenueRecovery,
+    ExternalServiceCall,
+    AccountUpdater,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct EventsConfig {
+    #[serde(flatten)]
+    pub source: EventsSource,
+    #[serde(default)]
+    pub emit_external_service_call_events: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(tag = "source")]
 #[serde(rename_all = "lowercase")]
-pub enum EventsConfig {
+pub enum EventsSource {
     Kafka {
         kafka: Box<KafkaSettings>,
     },
@@ -65,22 +78,43 @@ impl Default for EventsHandler {
     }
 }
 
+impl events_interfaces::EventHandlerInterface for EventsHandler {
+    fn log_connector_event(&self, event: &events_interfaces::connector_api_logs::ConnectorEvent) {
+        self.log_event(event);
+    }
+}
+
+impl common_utils::external_service::ExternalServiceEventEmitter for EventsHandler {
+    fn emit_external_service_call(
+        &self,
+        event: common_utils::external_service::ExternalServiceCall,
+    ) {
+        self.log_event(&external_service_call::KafkaExternalServiceCall { event: &event });
+    }
+}
+
 impl EventsConfig {
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
-        Ok(match self {
-            Self::Kafka { kafka } => EventsHandler::Kafka(
+        Ok(match &self.source {
+            EventsSource::Kafka { kafka } => EventsHandler::Kafka(
                 KafkaProducer::create(kafka)
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
-            Self::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
+            EventsSource::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
         })
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        match self {
-            Self::Kafka { kafka } => kafka.validate(),
-            Self::Logs => Ok(()),
+        match &self.source {
+            EventsSource::Kafka { kafka } => {
+                kafka.validate()?;
+                if self.emit_external_service_call_events {
+                    kafka.validate_external_service_call_topic()?;
+                }
+                Ok(())
+            }
+            EventsSource::Logs => Ok(()),
         }
     }
 }

@@ -11,7 +11,6 @@ use api_models::{
     enums as api_model_enums, routing::ConnectorSelection,
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
-use common_enums::RoutableConnectors;
 use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
@@ -23,6 +22,7 @@ use currency_conversion::{
 use euclid::{
     backend::{inputs, interpreter::InterpreterBackend, EuclidBackend},
     dssa::{self, analyzer, graph::CgraphExt, state_machine},
+    enums::RoutableConnectors,
     frontend::{
         ast,
         dir::{self, enums as dir_enums, EuclidDirFilter},
@@ -37,8 +37,9 @@ use api_models::payment_methods::CountryCodeWithName;
 #[cfg(feature = "payouts")]
 use common_enums::PayoutStatus;
 use common_enums::{
-    CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
-    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+    CardSegmentType, CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, FundingSource,
+    IntentStatus, InvoiceStatus, MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName,
+    RefundStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -49,6 +50,21 @@ struct SeedData {
 
 static SEED_DATA: OnceLock<SeedData> = OnceLock::new();
 static SEED_FOREX: OnceLock<currency_conversion_types::ExchangeRates> = OnceLock::new();
+
+const MERCHANT_CATEGORY_CODES: &[u16] = &[
+    743, 744, 763, 4011, 4511, 4733, 4813, 4815, 4816, 4829, 5021, 5262, 5411, 5552, 5661, 5715,
+    6050, 6532, 6533, 6536, 6537, 6538, 6540, 7011, 7013, 7280, 7295, 7322, 7512, 7523, 7800, 7801,
+    7802, 8111, 8912, 9211, 9222, 9223, 9311, 9399, 9400, 9402, 9405, 9406, 9700, 9701, 9702, 9950,
+];
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn console_log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console, js_name = error)]
+    fn console_error(s: &str);
+}
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
 /// The input argument is a struct fields base_currency and conversion where later is all the conversions associated with the base_currency
@@ -100,10 +116,29 @@ pub fn get_two_letter_country_code() -> JsResult {
 /// along with their names.
 #[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
 pub fn get_merchant_category_code_with_name() -> JsResult {
-    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
-        .map(|mcc_value| MerchantCategoryCodeWithName {
-            code: mcc_value,
-            name: mcc_value.to_merchant_category_name(),
+    let merchant_category_codes_with_name = MERCHANT_CATEGORY_CODES
+        .iter()
+        .filter_map(|&mcc_value| match MerchantCategoryCode::new(mcc_value) {
+            Ok(mcc) => match mcc.get_category_name() {
+                Ok(mcc_name) => Some(MerchantCategoryCodeWithName {
+                    code: mcc.clone(),
+                    name: mcc_name.to_string(),
+                }),
+                Err(err) => {
+                    console_error(&format!(
+                        "Failed to get category name for MCC {}: {:?}",
+                        mcc_value, err
+                    ));
+                    None
+                }
+            },
+            Err(err) => {
+                console_error(&format!(
+                    "Failed to create MCC for value {}: {:?}",
+                    mcc_value, err
+                ));
+                None
+            }
         })
         .collect::<Vec<_>>();
 
@@ -135,7 +170,14 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         connector_configs: HashMap::new(),
         default_configs: Some(pm_filter),
     };
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
+    let mca_graph_data = mcas
+        .iter()
+        .map(|mca| api_models::admin::MCACGraphData {
+            connector_name: mca.connector_name.clone(),
+            payment_methods_enabled: mca.payment_methods_enabled.clone(),
+        })
+        .collect::<Vec<_>>();
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mca_graph_data, &config).err_to_js()?;
     let analysis_graph = hyperswitch_constraint_graph::ConstraintGraph::combine(
         &mca_graph,
         &dssa::truth::ANALYSIS_GRAPH,
@@ -247,7 +289,6 @@ pub fn get_all_keys() -> JsResult {
         "Connector",
         // 3DS Decision Rule Keys should not be included in the payument routing keys
         "issuer_name",
-        "issuer_country",
         "customer_device_platform",
         "customer_device_type",
         "customer_device_display_size",
@@ -328,13 +369,18 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
         dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
         dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::TransactionInitiator => dir_enums::TransactionInitiator::VARIANTS,
         dir::DirKeyKind::CustomerDeviceDisplaySize => {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
+        dir::DirKeyKind::NetworkTokenType => dir_enums::NetworkTokenType::VARIANTS,
+        dir::DirKeyKind::CardDiscovery => dir_enums::CardDiscovery::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
+        | dir::DirKeyKind::SurchargeAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
+        | dir::DirKeyKind::ExtendedCardBin
         | dir::DirKeyKind::BusinessLabel
         | dir::DirKeyKind::MetaData
         | dir::DirKeyKind::IssuerName
@@ -381,6 +427,14 @@ pub fn get_connector_config(key: &str) -> JsResult {
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 
+#[wasm_bindgen(js_name = getBillingConnectorConfig)]
+pub fn get_billing_connector_config(key: &str) -> JsResult {
+    let key = api_model_enums::BillingConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_billing_connector_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
 #[cfg(feature = "payouts")]
 #[wasm_bindgen(js_name = getPayoutConnectorConfig)]
 pub fn get_payout_connector_config(key: &str) -> JsResult {
@@ -403,6 +457,14 @@ pub fn get_tax_processor_config(key: &str) -> JsResult {
     let key = api_model_enums::TaxConnectors::from_str(key)
         .map_err(|_| "Invalid key received".to_string())?;
     let res = connector::ConnectorConfig::get_tax_processor_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
+#[wasm_bindgen(js_name = getSurchargeProcessorConfig)]
+pub fn get_surcharge_processor_config(key: &str) -> JsResult {
+    let key = api_model_enums::SurchargeConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_surcharge_processor_config(key)?;
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 
@@ -445,6 +507,7 @@ pub fn get_payout_variant_values(key: &str) -> Result<JsValue, JsValue> {
     let variants: &[&str] = match key {
         dir::PayoutDirKeyKind::BusinessCountry => dir_enums::BusinessCountry::VARIANTS,
         dir::PayoutDirKeyKind::BillingCountry => dir_enums::BillingCountry::VARIANTS,
+        dir::PayoutDirKeyKind::PayoutCurrency => dir_enums::PaymentCurrency::VARIANTS,
         dir::PayoutDirKeyKind::PayoutType => dir_enums::PayoutType::VARIANTS,
         dir::PayoutDirKeyKind::WalletType => dir_enums::PayoutWalletType::VARIANTS,
         dir::PayoutDirKeyKind::BankTransferType => dir_enums::PayoutBankTransferType::VARIANTS,
@@ -478,41 +541,102 @@ pub fn get_payout_description_category() -> JsResult {
     Ok(serde_wasm_bindgen::to_value(&category)?)
 }
 
+#[wasm_bindgen(js_name = getCardSubtypeValues)]
+pub fn get_card_subtype_values() -> JsResult {
+    let config = card_metadata::CardMetadataConfig::load()
+        .map_err(|error| error.to_string())
+        .err_to_js()?;
+    Ok(serde_wasm_bindgen::to_value(&config.card_subtypes)?)
+}
+
+#[wasm_bindgen(js_name = getCardTypeValues)]
+pub fn get_card_type_values() -> JsResult {
+    let types: Vec<CardType> = CardType::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&types)?)
+}
+
+#[wasm_bindgen(js_name = getFundingSourceValues)]
+pub fn get_funding_source_values() -> JsResult {
+    let funding_sources: Vec<FundingSource> = FundingSource::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&funding_sources)?)
+}
+
+#[wasm_bindgen(js_name = getCardSegmentTypeValues)]
+pub fn get_card_segment_type_values() -> JsResult {
+    let segment_types: Vec<CardSegmentType> = CardSegmentType::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&segment_types)?)
+}
+
 #[wasm_bindgen(js_name = getValidWebhookStatus)]
 pub fn get_valid_webhook_status(key: &str) -> JsResult {
     let event_class = EventClass::from_str(key)
         .map_err(|_| "Invalid webhook event type received".to_string())
         .err_to_js()?;
 
+    let statuses: Vec<String> = webhook_status_config(event_class)
+        .statuses
+        .into_iter()
+        .map(|status| status.value)
+        .collect();
+
+    Ok(serde_wasm_bindgen::to_value(&statuses)?)
+}
+
+#[wasm_bindgen(js_name = getWebhookStatusConfig)]
+pub fn get_webhook_status_config() -> JsResult {
+    let config: Vec<types::WebhookEventClassConfig> =
+        EventClass::iter().map(webhook_status_config).collect();
+
+    Ok(serde_wasm_bindgen::to_value(&config)?)
+}
+
+fn webhook_status_metadata<T>(
+    event_type_from_status: impl Fn(T) -> Option<EventType>,
+) -> Vec<types::WebhookStatusConfig>
+where
+    T: IntoEnumIterator + ToString,
+{
+    T::iter()
+        .filter_map(|status| {
+            let value = status.to_string();
+            event_type_from_status(status)
+                .map(|event_type| types::WebhookStatusConfig { value, event_type })
+        })
+        .collect()
+}
+
+fn webhook_status_config(event_class: EventClass) -> types::WebhookEventClassConfig {
     match event_class {
-        EventClass::Payments => {
-            let statuses: Vec<IntentStatus> = IntentStatus::iter()
-                .filter(|intent_status| Into::<Option<EventType>>::into(*intent_status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Refunds => {
-            let statuses: Vec<RefundStatus> = RefundStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Disputes => {
-            let statuses: Vec<DisputeStatus> = DisputeStatus::iter().collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
-        EventClass::Mandates => {
-            let statuses: Vec<MandateStatus> = MandateStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
+        EventClass::Payments => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "payment_statuses_enabled",
+            statuses: webhook_status_metadata::<IntentStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Refunds => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "refund_statuses_enabled",
+            statuses: webhook_status_metadata::<RefundStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Disputes => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "dispute_statuses_enabled",
+            statuses: webhook_status_metadata::<DisputeStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Mandates => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "mandate_statuses_enabled",
+            statuses: webhook_status_metadata::<MandateStatus>(Into::<Option<EventType>>::into),
+        },
         #[cfg(feature = "payouts")]
-        EventClass::Payouts => {
-            let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
-                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
-                .collect();
-            Ok(serde_wasm_bindgen::to_value(&statuses)?)
-        }
+        EventClass::Payouts => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "payout_statuses_enabled",
+            statuses: webhook_status_metadata::<PayoutStatus>(Into::<Option<EventType>>::into),
+        },
+        EventClass::Subscriptions => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "invoice_statuses_enabled",
+            statuses: webhook_status_metadata::<InvoiceStatus>(Into::<Option<EventType>>::into),
+        },
     }
 }

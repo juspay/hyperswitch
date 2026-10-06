@@ -1,4 +1,4 @@
-use common_enums::AuthenticationStatus;
+use common_enums::{AuthenticationStatus, DecoupledAuthenticationType};
 use common_utils::{
     errors::ParsingError,
     types::{authentication::AuthInfo, TimeRange},
@@ -16,6 +16,7 @@ use crate::{
 pub struct SankeyRow {
     pub count: i64,
     pub authentication_status: Option<AuthenticationStatus>,
+    pub authentication_type: Option<DecoupledAuthenticationType>,
     pub exemption_requested: Option<bool>,
     pub exemption_accepted: Option<bool>,
 }
@@ -58,6 +59,10 @@ pub async fn get_sankey_data(
         .add_select_column("authentication_status")
         .change_context(MetricsError::QueryBuildingError)?;
 
+    query_builder
+        .add_select_column("authentication_type")
+        .change_context(MetricsError::QueryBuildingError)?;
+
     auth.set_filter_clause(&mut query_builder)
         .change_context(MetricsError::QueryBuildingError)?;
 
@@ -75,6 +80,10 @@ pub async fn get_sankey_data(
 
     query_builder
         .add_group_by_clause("authentication_status")
+        .change_context(MetricsError::QueryBuildingError)?;
+
+    query_builder
+        .add_group_by_clause("authentication_type")
         .change_context(MetricsError::QueryBuildingError)?;
 
     query_builder

@@ -35,6 +35,9 @@ export const connectorDetails = {
   },
   bank_transfer_pm: {
     Pix: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as HandleRedirection is not required to complete the payment flow for Pix.
+      },
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
@@ -44,8 +47,6 @@ export const connectorDetails = {
               // since we pass the same cpf number, the connector customer id will be updated instead of new ones being created
               cpf: "86665623580",
               source_bank_account_id: "739d6b0a-e92a-40fd-9f58-6d4cdeb699bb",
-              destination_bank_account_id:
-                "91f5cac1-9058-44b7-80e1-80c6f4a6f0bc",
               pix_qr_expiry: isoTimeTomorrow(), // 1 day expiration
             },
           },
@@ -61,7 +62,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
       ResponseCustom: {
@@ -69,6 +70,31 @@ export const connectorDetails = {
         body: {
           error_code: "Cancelled",
           error_reason: "Unable to generate Pix QRCode",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),

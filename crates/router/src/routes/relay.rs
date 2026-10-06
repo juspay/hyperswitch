@@ -1,11 +1,50 @@
 use actix_web::{web, Responder};
+use common_utils::ext_traits::OptionExt;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
     self as app,
-    core::{api_locking, relay},
+    core::{api_locking, errors, relay},
     services::{api, authentication as auth},
 };
+
+#[instrument(skip_all, fields(flow = ?Flow::RelayUnreferencedRefund))]
+#[cfg(feature = "oltp")]
+pub async fn unreferenced_refund(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<api_models::unreferenced_refund::UnreferencedRefundRequest>,
+) -> impl Responder {
+    let flow = Flow::RelayUnreferencedRefund;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| async move {
+            #[cfg(feature = "v1")]
+            let profile_id = auth
+                .profile
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "profile_id".into(),
+                })?
+                .get_id()
+                .clone();
+            #[cfg(feature = "v2")]
+            let profile_id = auth.profile.get_id().clone();
+            relay::relay_unreferenced_refund(state, auth.platform, profile_id, req).await
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 
 #[instrument(skip_all, fields(flow = ?Flow::Relay))]
 #[cfg(feature = "oltp")]
@@ -22,22 +61,19 @@ pub async fn relay(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
-            ));
             relay::relay_flow_decider(
                 state,
-                merchant_context,
+                auth.platform,
                 #[cfg(feature = "v1")]
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
                 req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -63,22 +99,19 @@ pub async fn relay_retrieve(
         &req,
         relay_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
-            ));
             relay::relay_retrieve(
                 state,
-                merchant_context,
+                auth.platform,
                 #[cfg(feature = "v1")]
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
                 Some(auth.profile.get_id().clone()),
                 req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

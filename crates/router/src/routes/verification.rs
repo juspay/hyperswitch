@@ -28,16 +28,58 @@ pub async fn apple_pay_merchant_registration(
                 state.clone(),
                 body,
                 merchant_id.clone(),
-                auth.profile_id,
+                auth.profile.map(|profile| profile.get_id().clone()),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::Verification))]
+pub async fn apple_pay_merchant_registration(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<verifications::ApplepayMerchantVerificationRequest>,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> impl Responder {
+    let flow = Flow::Verification;
+    let merchant_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, body, _| {
+            verification::verify_merchant_creds_for_applepay(
+                state.clone(),
+                body,
+                merchant_id.clone(),
+                Some(auth.profile.get_id().clone()),
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -70,11 +112,13 @@ pub async fn retrieve_apple_pay_verified_domains(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),

@@ -29,7 +29,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
+        AuthenticationResponseData, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
@@ -46,9 +47,9 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as gpayments;
 
 use crate::{
@@ -158,9 +159,11 @@ impl ConnectorCommon for Gpayments {
             reason: response.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -202,6 +205,7 @@ impl IncomingWebhook for Gpayments {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
@@ -209,7 +213,7 @@ impl IncomingWebhook for Gpayments {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -394,6 +398,8 @@ impl
                 trans_status: response.trans_status.into(),
                 authentication_value: response.authentication_value,
                 eci: response.eci,
+                challenge_cancel: None,
+                challenge_code_reason: None,
             }),
             ..data.clone()
         })
@@ -587,4 +593,23 @@ impl
     }
 }
 
-impl ConnectorSpecifications for Gpayments {}
+static GPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "GPayments",
+    description: "GPayments authentication connector for 3D Secure MPI/ACS services supporting Visa Secure, Mastercard SecureCode, and global card authentication standards",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
+};
+
+impl ConnectorSpecifications for Gpayments {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&GPAYMENTS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

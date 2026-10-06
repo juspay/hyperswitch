@@ -1,13 +1,17 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  standardBillingAddress,
+} from "./Commons";
+import { getCustomExchange, getCurrency } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
 // Based on Global Payments test cards
 const successfulNo3DSCardDetails = {
-  card_number: "4263970000005262",
+  card_number: "4111111111111111",
   card_exp_month: "12",
   card_exp_year: "2030",
-  card_holder_name: "Test Customer",
+  card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
 
@@ -48,18 +52,22 @@ const multiUseMandateData = {
 // Payment method data for non-3DS card transactions
 const payment_method_data_no3ds = {
   card: {
-    last4: "5262",
-    card_type: "CREDIT",
+    last4: "1111",
+    card_type: "DEBIT",
+    card_subtype: "VISA CLASSIC",
+    card_segment_type: "consumer",
+    funding_source: "DEBIT",
     card_network: "Visa",
-    card_issuer: "ALLIED IRISH BANKS, P.L.C.",
-    card_issuing_country: "IRELAND",
-    card_isin: "426397",
+    card_issuer: "CONOTOXIA SP Z OO",
+    card_issuing_country: "POLAND",
+    card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
     card_exp_year: "2030",
-    card_holder_name: "Test Customer",
+    card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -262,15 +270,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -286,15 +293,14 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -401,6 +407,7 @@ export const connectorDetails = {
     // Mandate flows
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -412,12 +419,12 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          setup_future_usage: "off_session",
         },
       },
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -429,12 +436,12 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          setup_future_usage: "off_session",
         },
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -446,12 +453,12 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          setup_future_usage: "off_session",
         },
       },
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -463,7 +470,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -478,15 +484,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -501,15 +506,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -524,15 +528,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -547,20 +550,20 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
     MITAutoCapture: {
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: billingAddressEurope,
       },
@@ -568,12 +571,33 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          setup_future_usage: "off_session",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        amount: 6000,
+        currency: "EUR",
+        billing: billingAddressEurope,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
     MITManualCapture: {
       Request: {
+        amount: 6000,
         currency: "EUR",
         billing: billingAddressEurope,
       },
@@ -581,7 +605,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          setup_future_usage: "off_session",
         },
       },
     },
@@ -590,6 +613,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -624,19 +648,27 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
+        setup_future_usage: "off_session",
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "succeeded",
-          setup_future_usage: "off_session",
+          code: "IR_00",
+          message: "Setup Mandate flow for Globalpay is not implemented",
+          type: "invalid_request",
         },
       },
     },
@@ -689,15 +721,14 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -713,20 +744,20 @@ export const connectorDetails = {
         authentication_type: "three_ds",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
-          error_code: "feature_not_supported",
-          error_message:
-            "3DS authentication is not supported by Globalpay connector",
-          unified_code: "UE_5004",
-          unified_message:
-            "The operation requested is not supported by the payment processor",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -745,6 +776,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -835,6 +867,282 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+              country: "NL",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1000",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+31",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              country: "DE",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Berlin",
+            state: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+49",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Berlin",
+            state: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+49",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "INVALID_REQUEST_DATA",
+          error_message: "FAILED",
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "bank_austria",
+              country: "AT",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Vienna",
+            state: "Vienna",
+            zip: "1010",
+            country: "AT",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+43",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_type: "paypal",
+          connector: "globalpay",
+        },
+      },
+    }),
+    PaypalRedirectMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_type: "paypal",
+          connector: "globalpay",
+        },
+      },
+    }),
   },
   pm_list: {
     PmListResponse: {

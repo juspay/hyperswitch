@@ -33,18 +33,10 @@ where
 {
     use std::time::Duration;
 
-    use rand::distributions::{Distribution, Uniform};
+    let jitter_ceiling = i64::try_from(scheduler_settings.loop_interval).unwrap_or(i64::MAX);
+    let timeout = common_utils::generate_random_number_in_range(0, jitter_ceiling);
 
-    let mut rng = rand::thread_rng();
-
-    // TODO: this can be removed once rand-0.9 is released
-    // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
-    #[allow(unknown_lints)]
-    #[allow(clippy::unnecessary_fallible_conversions)]
-    let timeout = Uniform::try_from(0..=scheduler_settings.loop_interval)
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?;
-
-    tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
+    tokio::time::sleep(Duration::from_millis(u64::try_from(timeout).unwrap_or(0))).await;
 
     let mut interval =
         tokio::time::interval(Duration::from_millis(scheduler_settings.loop_interval));
@@ -111,12 +103,25 @@ where
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
+        let (cug_tasks, main_tasks): (Vec<storage::ProcessTracker>, Vec<storage::ProcessTracker>) =
+            tasks.into_iter().partition(|task| {
+                task.application_source == Some(diesel_models::enums::ApplicationSource::Cug)
+            });
 
         divide_and_append_tasks(
             state.get_db().as_scheduler(),
             SchedulerFlow::Producer,
-            tasks,
+            main_tasks,
             settings,
+            diesel_models::enums::ApplicationSource::Main,
+        )
+        .await?;
+        divide_and_append_tasks(
+            state.get_db().as_scheduler(),
+            SchedulerFlow::Producer,
+            cug_tasks,
+            settings,
+            diesel_models::enums::ApplicationSource::Cug,
         )
         .await?;
 

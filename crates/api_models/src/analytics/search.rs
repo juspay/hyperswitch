@@ -1,6 +1,14 @@
 use common_utils::{hashing::HashedString, types::TimeRange};
-use masking::WithType;
+use hyperswitch_masking::{ExposeInterface, WithType};
 use serde_json::Value;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct OpensearchRange {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gte: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lte: Option<i64>,
+}
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
@@ -13,24 +21,136 @@ pub struct SearchFilters {
     pub payment_method_type: Option<Vec<String>>,
     pub card_network: Option<Vec<String>>,
     pub card_last_4: Option<Vec<String>>,
+    pub active_attempt_id: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<String>>,
+    pub card_issuer: Option<Vec<String>>,
+    pub routing_approach: Option<Vec<String>>,
+    pub refunds_status: Option<Vec<String>>,
+    pub dispute_status: Option<Vec<String>>,
+    pub client_source: Option<Vec<String>>,
+    pub client_version: Option<Vec<String>>,
+    pub first_attempt: Option<Vec<bool>>,
     pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
+    pub amount_filter: Option<OpensearchRange>,
     pub customer_id: Option<Vec<String>>,
+    pub authentication_type: Option<Vec<String>>,
+    pub card_discovery: Option<Vec<String>>,
+    pub merchant_order_reference_id: Option<Vec<String>>,
 }
+
+#[cfg(feature = "v1")]
+pub fn convert_to_strings<T: ToString>(items: &[T]) -> Vec<String> {
+    items.iter().map(|item| item.to_string()).collect()
+}
+
+#[cfg(feature = "v1")]
+impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
+    fn from(constraints: &crate::payments::PaymentListFilterConstraints) -> Self {
+        Self {
+            payment_method: constraints
+                .payment_method
+                .as_deref()
+                .map(convert_to_strings),
+            currency: constraints.currency.as_deref().map(convert_to_strings),
+            status: constraints.status.as_deref().map(convert_to_strings),
+            payment_method_type: constraints
+                .payment_method_type
+                .as_deref()
+                .map(convert_to_strings),
+            authentication_type: constraints
+                .authentication_type
+                .as_deref()
+                .map(convert_to_strings),
+            card_network: constraints.card_network.as_deref().map(convert_to_strings),
+            connector: constraints.connector.as_deref().map(convert_to_strings),
+            merchant_connector_id: constraints.merchant_connector_id.as_ref().map(
+                |merchant_connector_ids| {
+                    merchant_connector_ids
+                        .iter()
+                        .map(|merchant_connector_id| {
+                            merchant_connector_id.get_string_repr().to_string()
+                        })
+                        .collect()
+                },
+            ),
+            card_last_4: constraints.card_last_4.clone(),
+            active_attempt_id: constraints.active_attempt_id.clone(),
+            card_issuer: constraints.card_issuer.clone(),
+            routing_approach: constraints
+                .routing_approach
+                .as_deref()
+                .map(convert_to_strings),
+            refunds_status: constraints.refunds_status.clone(),
+            dispute_status: constraints.dispute_status.clone(),
+            client_source: constraints.client_source.clone(),
+            client_version: constraints.client_version.clone(),
+            first_attempt: constraints.first_attempt.clone(),
+            card_discovery: constraints
+                .card_discovery
+                .as_deref()
+                .map(convert_to_strings),
+            customer_id: constraints
+                .customer_id
+                .as_ref()
+                .map(|customer_id| vec![customer_id.get_string_repr().to_string()]),
+            payment_id: constraints
+                .payment_id
+                .as_ref()
+                .map(|payment_id| vec![payment_id.get_string_repr().to_string()]),
+            merchant_order_reference_id: constraints
+                .merchant_order_reference_id
+                .as_ref()
+                .map(|merchant_order_reference_id| vec![merchant_order_reference_id.clone()]),
+            customer_email: constraints
+                .customer_email
+                .as_ref()
+                .map(|customer_email| vec![HashedString::from(customer_email.clone().expose())]),
+            search_tags: None,
+            amount: None,
+            amount_filter: constraints
+                .amount_filter
+                .as_ref()
+                .map(|amount| OpensearchRange {
+                    gte: amount.start_amount,
+                    lte: amount.end_amount,
+                }),
+        }
+    }
+}
+
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
-        self.payment_method.is_none()
-            && self.currency.is_none()
-            && self.status.is_none()
-            && self.customer_email.is_none()
-            && self.search_tags.is_none()
-            && self.connector.is_none()
-            && self.payment_method_type.is_none()
-            && self.card_network.is_none()
-            && self.card_last_4.is_none()
-            && self.payment_id.is_none()
-            && self.amount.is_none()
-            && self.customer_id.is_none()
+        matches!(
+            self,
+            Self {
+                payment_method: None,
+                currency: None,
+                status: None,
+                customer_email: None,
+                search_tags: None,
+                connector: None,
+                payment_method_type: None,
+                card_network: None,
+                card_last_4: None,
+                active_attempt_id: None,
+                merchant_connector_id: None,
+                card_issuer: None,
+                routing_approach: None,
+                refunds_status: None,
+                dispute_status: None,
+                client_source: None,
+                client_version: None,
+                first_attempt: None,
+                payment_id: None,
+                amount: None,
+                amount_filter: None,
+                customer_id: None,
+                authentication_type: None,
+                card_discovery: None,
+                merchant_order_reference_id: None,
+            }
+        )
     }
 }
 
@@ -54,6 +174,8 @@ pub struct GetSearchRequest {
     pub filters: Option<SearchFilters>,
     #[serde(default)]
     pub time_range: Option<TimeRange>,
+    #[serde(default)]
+    pub order: Option<crate::payments::Order>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -72,6 +194,7 @@ pub enum SearchIndex {
     PaymentIntents,
     Refunds,
     Disputes,
+    Payouts,
     SessionizerPaymentAttempts,
     SessionizerPaymentIntents,
     SessionizerRefunds,

@@ -45,7 +45,7 @@ macro_rules! dirval {
     }};
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DirKey {
     pub kind: DirKeyKind,
     pub value: Option<String>,
@@ -64,6 +64,7 @@ impl DirKey {
     PartialEq,
     Eq,
     serde::Serialize,
+    serde::Deserialize,
     strum::Display,
     strum::EnumIter,
     strum::VariantNames,
@@ -86,6 +87,13 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "card_bin")]
     CardBin,
+    #[strum(
+        serialize = "extended_card_bin",
+        detailed_message = "First 8 digits of a payment card number",
+        props(Category = "Payment Methods")
+    )]
+    #[serde(rename = "extended_card_bin")]
+    ExtendedCardBin,
     #[strum(
         serialize = "card_type",
         detailed_message = "Type of the payment card - eg. credit, debit",
@@ -206,6 +214,13 @@ pub enum DirKeyKind {
     #[serde(rename = "amount")]
     PaymentAmount,
     #[strum(
+        serialize = "surcharge_amount",
+        detailed_message = "External surcharge amount computed during eligibility",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "surcharge_amount")]
+    SurchargeAmount,
+    #[strum(
         serialize = "currency",
         detailed_message = "Currency used for the payment",
         props(Category = "Payments")
@@ -241,7 +256,9 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "billing_country")]
     BillingCountry,
-    #[serde(skip_deserializing, rename = "connector")]
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
+    #[serde(rename = "connector")]
     Connector,
     #[strum(
         serialize = "business_label",
@@ -334,6 +351,27 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate,
+    #[strum(
+        serialize = "transaction_initiator",
+        detailed_message = "Initiator of transaction either Customer or Merchant",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator,
+    #[strum(
+        serialize = "network_token",
+        detailed_message = "Supported types of network token payment method",
+        props(Category = "Payment Method Types")
+    )]
+    #[serde(rename = "network_token")]
+    NetworkTokenType,
+    #[strum(
+        serialize = "card_discovery",
+        detailed_message = "Method by which the card was discovered (manual entry, saved card, click to pay)",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "card_discovery")]
+    CardDiscovery,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -355,6 +393,7 @@ impl DirKeyKind {
         match self {
             Self::PaymentMethod => types::DataType::EnumVariant,
             Self::CardBin => types::DataType::StrValue,
+            Self::ExtendedCardBin => types::DataType::StrValue,
             Self::CardType => types::DataType::EnumVariant,
             Self::CardNetwork => types::DataType::EnumVariant,
             Self::MetaData => types::DataType::MetadataValue,
@@ -371,6 +410,7 @@ impl DirKeyKind {
             Self::CryptoType => types::DataType::EnumVariant,
             Self::RewardType => types::DataType::EnumVariant,
             Self::PaymentAmount => types::DataType::Number,
+            Self::SurchargeAmount => types::DataType::Number,
             Self::PaymentCurrency => types::DataType::EnumVariant,
             Self::AuthenticationType => types::DataType::EnumVariant,
             Self::CaptureMethod => types::DataType::EnumVariant,
@@ -391,6 +431,9 @@ impl DirKeyKind {
             Self::CustomerDeviceDisplaySize => types::DataType::EnumVariant,
             Self::AcquirerCountry => types::DataType::EnumVariant,
             Self::AcquirerFraudRate => types::DataType::Number,
+            Self::TransactionInitiator => types::DataType::EnumVariant,
+            Self::NetworkTokenType => types::DataType::EnumVariant,
+            Self::CardDiscovery => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -401,6 +444,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::CardBin => None,
+            Self::ExtendedCardBin => None,
             Self::CardType => Some(enums::CardType::iter().map(DirValue::CardType).collect()),
             Self::MandateAcceptanceType => Some(
                 euclid_enums::MandateAcceptanceType::iter()
@@ -465,6 +509,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::PaymentAmount => None,
+            Self::SurchargeAmount => None,
             Self::PaymentCurrency => Some(
                 enums::PaymentCurrency::iter()
                     .map(DirValue::PaymentCurrency)
@@ -496,7 +541,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::Connector => Some(
-                common_enums::RoutableConnectors::iter()
+                crate::enums::RoutableConnectors::iter()
                     .map(|connector| {
                         DirValue::Connector(Box::new(ast::ConnectorChoice { connector }))
                     })
@@ -555,12 +600,35 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::AcquirerFraudRate => None,
+            Self::TransactionInitiator => Some(
+                enums::TransactionInitiator::iter()
+                    .map(DirValue::TransactionInitiator)
+                    .collect(),
+            ),
+            Self::NetworkTokenType => Some(
+                enums::NetworkTokenType::iter()
+                    .map(DirValue::NetworkTokenType)
+                    .collect(),
+            ),
+            Self::CardDiscovery => Some(
+                enums::CardDiscovery::iter()
+                    .map(DirValue::CardDiscovery)
+                    .collect(),
+            ),
         }
     }
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {
@@ -568,6 +636,8 @@ pub enum DirValue {
     PaymentMethod(enums::PaymentMethod),
     #[serde(rename = "card_bin")]
     CardBin(types::StrValue),
+    #[serde(rename = "extended_card_bin")]
+    ExtendedCardBin(types::StrValue),
     #[serde(rename = "card_type")]
     CardType(enums::CardType),
     #[serde(rename = "card_network")]
@@ -602,6 +672,8 @@ pub enum DirValue {
     GiftCardType(enums::GiftCardType),
     #[serde(rename = "amount")]
     PaymentAmount(types::NumValue),
+    #[serde(rename = "surcharge_amount")]
+    SurchargeAmount(types::NumValue),
     #[serde(rename = "currency")]
     PaymentCurrency(enums::PaymentCurrency),
     #[serde(rename = "authentication_type")]
@@ -612,7 +684,9 @@ pub enum DirValue {
     BusinessCountry(enums::Country),
     #[serde(rename = "billing_country")]
     BillingCountry(enums::Country),
-    #[serde(skip_deserializing, rename = "connector")]
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
+    #[serde(rename = "connector")]
     Connector(Box<ast::ConnectorChoice>),
     #[serde(rename = "business_label")]
     BusinessLabel(types::StrValue),
@@ -640,6 +714,12 @@ pub enum DirValue {
     AcquirerCountry(enums::Country),
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate(types::NumValue),
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator(enums::TransactionInitiator),
+    #[serde(rename = "network_token")]
+    NetworkTokenType(enums::NetworkTokenType),
+    #[serde(rename = "card_discovery")]
+    CardDiscovery(enums::CardDiscovery),
 }
 
 impl DirValue {
@@ -647,6 +727,7 @@ impl DirValue {
         let (kind, data) = match self {
             Self::PaymentMethod(_) => (DirKeyKind::PaymentMethod, None),
             Self::CardBin(_) => (DirKeyKind::CardBin, None),
+            Self::ExtendedCardBin(_) => (DirKeyKind::ExtendedCardBin, None),
             Self::RewardType(_) => (DirKeyKind::RewardType, None),
             Self::BusinessCountry(_) => (DirKeyKind::BusinessCountry, None),
             Self::BillingCountry(_) => (DirKeyKind::BillingCountry, None),
@@ -662,6 +743,7 @@ impl DirValue {
             Self::AuthenticationType(_) => (DirKeyKind::AuthenticationType, None),
             Self::CaptureMethod(_) => (DirKeyKind::CaptureMethod, None),
             Self::PaymentAmount(_) => (DirKeyKind::PaymentAmount, None),
+            Self::SurchargeAmount(_) => (DirKeyKind::SurchargeAmount, None),
             Self::PaymentCurrency(_) => (DirKeyKind::PaymentCurrency, None),
             Self::Connector(_) => (DirKeyKind::Connector, None),
             Self::BankDebitType(_) => (DirKeyKind::BankDebitType, None),
@@ -683,6 +765,9 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => (DirKeyKind::CustomerDeviceDisplaySize, None),
             Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
+            Self::TransactionInitiator(_) => (DirKeyKind::TransactionInitiator, None),
+            Self::NetworkTokenType(_) => (DirKeyKind::NetworkTokenType, None),
+            Self::CardDiscovery(_) => (DirKeyKind::CardDiscovery, None),
         };
 
         DirKey::new(kind, data)
@@ -692,6 +777,7 @@ impl DirValue {
             Self::MetaData(val) => Some(val.clone()),
             Self::PaymentMethod(_) => None,
             Self::CardBin(_) => None,
+            Self::ExtendedCardBin(_) => None,
             Self::CardType(_) => None,
             Self::CardNetwork(_) => None,
             Self::PayLaterType(_) => None,
@@ -702,6 +788,7 @@ impl DirValue {
             Self::CaptureMethod(_) => None,
             Self::GiftCardType(_) => None,
             Self::PaymentAmount(_) => None,
+            Self::SurchargeAmount(_) => None,
             Self::PaymentCurrency(_) => None,
             Self::BusinessCountry(_) => None,
             Self::BillingCountry(_) => None,
@@ -727,12 +814,16 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => None,
             Self::AcquirerCountry(_) => None,
             Self::AcquirerFraudRate(_) => None,
+            Self::TransactionInitiator(_) => None,
+            Self::NetworkTokenType(_) => None,
+            Self::CardDiscovery(_) => None,
         }
     }
 
     pub fn get_str_val(&self) -> Option<types::StrValue> {
         match self {
             Self::CardBin(val) => Some(val.clone()),
+            Self::ExtendedCardBin(val) => Some(val.clone()),
             Self::IssuerName(val) => Some(val.clone()),
             _ => None,
         }
@@ -741,6 +832,7 @@ impl DirValue {
     pub fn get_num_value(&self) -> Option<types::NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::SurchargeAmount(val) => Some(val.clone()),
             Self::AcquirerFraudRate(val) => Some(val.clone()),
             _ => None,
         }
@@ -782,6 +874,8 @@ impl DirValue {
             (Self::CustomerDeviceDisplaySize(s1), Self::CustomerDeviceDisplaySize(s2)) => s1 == s2,
             (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
             (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
+            (Self::TransactionInitiator(ti1), Self::TransactionInitiator(ti2)) => ti1 == ti2,
+            (Self::NetworkTokenType(ntt1), Self::NetworkTokenType(ntt2)) => ntt1 == ntt2,
             _ => false,
         }
     }
@@ -837,6 +931,14 @@ pub enum PayoutDirKeyKind {
     PayoutAmount,
 
     #[strum(
+        serialize = "currency",
+        detailed_message = "Currency used for the payout",
+        props(Category = "Order details")
+    )]
+    #[serde(rename = "currency")]
+    PayoutCurrency,
+
+    #[strum(
         serialize = "payment_method",
         detailed_message = "Different modes of payout - eg. cards, wallets, banks",
         props(Category = "Payout Methods")
@@ -874,6 +976,8 @@ pub enum PayoutDirValue {
     BusinessLabel(types::StrValue),
     #[serde(rename = "amount")]
     PayoutAmount(types::NumValue),
+    #[serde(rename = "currency")]
+    PayoutCurrency(enums::PaymentCurrency),
     #[serde(rename = "payment_method")]
     PayoutType(common_enums::PayoutType),
     #[serde(rename = "wallet")]
@@ -900,7 +1004,7 @@ pub type DirIfCondition = Vec<DirComparison>;
 #[derive(Debug, Clone)]
 pub struct DirIfStatement {
     pub condition: DirIfCondition,
-    pub nested: Option<Vec<DirIfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 #[derive(Debug, Clone)]
@@ -919,7 +1023,6 @@ pub struct DirProgram<O> {
 
 #[cfg(test)]
 mod test {
-    #![allow(clippy::expect_used)]
     use rustc_hash::FxHashMap;
     use strum::IntoEnumIterator;
 
@@ -1021,5 +1124,73 @@ mod test {
 
         let out = ast::lowering::lower_program::<DummyOutput>(program);
         assert!(out.is_err())
+    }
+}
+#[cfg(test)]
+mod serde_round_trip {
+    use strum::IntoEnumIterator;
+
+    use super::{ast, DirKey, DirKeyKind, DirValue};
+    use crate::enums as euclid_enums;
+
+    /// Every key kind must survive a serde round trip.
+    ///
+    /// A variant that serializes under a tag it refuses to deserialize is
+    /// invisible to the compiler and silent in every test that only ever
+    /// writes. `DirKeyKind::Connector` and `DirValue::Connector` carried
+    /// `skip_deserializing` for years, harmlessly, because nothing read these
+    /// back — until a recorded constraint graph was substituted on replay,
+    /// where reconstruction of the WHOLE graph failed on the one unreadable
+    /// variant and took the request down with it. Enumerating the variants
+    /// keeps the asymmetry from returning silently for any of them.
+    #[test]
+    fn every_key_kind_round_trips() {
+        for kind in DirKeyKind::iter() {
+            let wire = serde_json::to_value(&kind)
+                .unwrap_or_else(|e| panic!("{kind:?} does not serialize: {e}"));
+            let back: DirKeyKind = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+                panic!("{kind:?} serializes as {wire} but does not read back: {e}")
+            });
+            assert_eq!(back, kind, "{kind:?} changed identity across a round trip");
+        }
+    }
+
+    /// The same for a full key, which is what a graph's key nodes carry.
+    #[test]
+    fn every_key_round_trips_inside_a_key() {
+        for kind in DirKeyKind::iter() {
+            let key = DirKey::new(kind.clone(), None);
+            let wire = serde_json::to_value(&key).expect("serializes");
+            let back: DirKey = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+                panic!("DirKey({kind:?}) serializes as {wire} but does not read back: {e}")
+            });
+            assert_eq!(back, key);
+        }
+    }
+
+    /// `DirValue::Connector` specifically, because it is the variant that was
+    /// unreadable and the enumerating tests above cannot reach it.
+    ///
+    /// `DirValue`'s variants carry data, so it derives `VariantNames` rather
+    /// than `EnumIter` and cannot be iterated into values. The one variant the
+    /// fix was about therefore needs naming outright, or it is the only part
+    /// of the change with no test over it.
+    #[test]
+    fn the_connector_value_round_trips() {
+        let value = DirValue::Connector(Box::new(ast::ConnectorChoice {
+            connector: euclid_enums::RoutableConnectors::Adyen,
+        }));
+
+        let wire = serde_json::to_value(&value).expect("serializes");
+        assert_eq!(
+            wire.get("key").and_then(|k| k.as_str()),
+            Some("connector"),
+            "the tag must stay `connector`; a recorded graph names it that way, got {wire}"
+        );
+
+        let back: DirValue = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
+            panic!("DirValue::Connector serializes as {wire} but does not read back: {e}")
+        });
+        assert_eq!(back, value);
     }
 }

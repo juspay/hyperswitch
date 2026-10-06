@@ -75,24 +75,28 @@ impl
             connector: payout_attempt.connector,
             payout_type: payout.payout_type,
             auto_fulfill: payout.auto_fulfill,
-            customer_id: customer.as_ref().map(|cust| cust.customer_id.clone()),
+            customer_id: customer.as_ref().map(|cust| cust.get_id().clone()),
             customer: customer.as_ref().map(|cust| cust.foreign_into()),
             return_url: payout.return_url,
             business_country: payout_attempt.business_country,
             business_label: payout_attempt.business_label,
             description: payout.description,
+            billing_descriptor: payout.billing_descriptor,
             entity_type: payout.entity_type,
             recurring: payout.recurring,
             metadata: payout.metadata,
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
             error_code: payout_attempt.error_code,
+            frm_message: None,
             profile_id: payout.profile_id,
             created: Some(payout.created_at),
             connector_transaction_id: attempt.connector_transaction_id.clone(),
+            connector_eligibility_reference_id: payout_attempt.connector_eligibility_reference_id,
             priority: payout.priority,
             billing: address,
             payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),
+            source_bank_data: payout_attempt.additional_source_bank_data,
             client_secret: None,
             payout_link: None,
             unified_code: attempt.unified_code.clone(),
@@ -153,7 +157,9 @@ impl
                                         required_fields.entry(key.to_string()).and_modify(
                                             |required_field| {
                                                 required_field.value =
-                                                    Some(masking::Secret::new(value.to_string()));
+                                                    Some(hyperswitch_masking::Secret::new(
+                                                        value.to_string(),
+                                                    ));
                                             },
                                         );
                                     }

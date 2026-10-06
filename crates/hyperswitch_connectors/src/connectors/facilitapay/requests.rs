@@ -1,6 +1,6 @@
 use common_enums::CountryAlpha2;
 use common_utils::{new_type::MaskedBankAccount, pii, types::StringMajorUnit};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -67,12 +67,6 @@ pub enum FacilitapayTransactionRequest {
 #[derive(Debug, Serialize, PartialEq)]
 pub struct FacilitapayPaymentsRequest {
     pub transaction: FacilitapayTransactionRequest,
-}
-
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct FacilitapayRefundRequest {
-    pub amount: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize, PartialEq)]

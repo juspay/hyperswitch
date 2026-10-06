@@ -3,18 +3,19 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
         BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
-        RevenueRecoveryRecordBackData,
+        DisputeRecordBackData, InvoiceRecordBackData,
     },
     router_flow_types::{
-        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, DisputeRecordBack,
+        InvoiceRecordBack,
     },
     router_request_types::revenue_recovery::{
         BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-        RevenueRecoveryRecordBackRequest,
+        DisputeRecordBackRequest, InvoiceRecordBackRequest,
     },
     router_response_types::revenue_recovery::{
         BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-        RevenueRecoveryRecordBackResponse,
+        DisputeRecordBackResponse, InvoiceRecordBackResponse,
     },
 };
 
@@ -25,6 +26,7 @@ use crate::connector_integration_v2::ConnectorIntegrationV2;
 pub trait RevenueRecoveryV2:
     BillingConnectorPaymentsSyncIntegrationV2
     + RevenueRecoveryRecordBackV2
+    + RevenueRecoveryDisputeRecordBackV2
     + BillingConnectorInvoiceSyncIntegrationV2
 {
 }
@@ -47,10 +49,21 @@ pub trait BillingConnectorPaymentsSyncIntegrationV2:
 /// trait RevenueRecoveryRecordBackV2
 pub trait RevenueRecoveryRecordBackV2:
     ConnectorIntegrationV2<
-    RecoveryRecordBack,
-    RevenueRecoveryRecordBackData,
-    RevenueRecoveryRecordBackRequest,
-    RevenueRecoveryRecordBackResponse,
+    InvoiceRecordBack,
+    InvoiceRecordBackData,
+    InvoiceRecordBackRequest,
+    InvoiceRecordBackResponse,
+>
+{
+}
+
+/// trait RevenueRecoveryDisputeRecordBackV2
+pub trait RevenueRecoveryDisputeRecordBackV2:
+    ConnectorIntegrationV2<
+    DisputeRecordBack,
+    DisputeRecordBackData,
+    DisputeRecordBackRequest,
+    DisputeRecordBackResponse,
 >
 {
 }

@@ -1,5 +1,8 @@
-use common_utils::{id_type, DbConnectionParams};
-use masking::Secret;
+use common_utils::DbConnectionParams;
+use hyperswitch_domain_models::master_key::MasterKeyInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
+
+use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Database {
@@ -8,11 +11,28 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle", default = "default_min_idle_pool_size")]
+    pub min_idle_pool_size: u32,
+    #[serde(default = "default_max_lifetime")]
+    pub max_lifetime: u64,
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout: u64,
+}
+
+const fn default_min_idle_pool_size() -> u32 {
+    2
+}
+
+const fn default_max_lifetime() -> u64 {
+    1800
+}
+
+const fn default_idle_timeout() -> u64 {
+    300
 }
 
 impl DbConnectionParams for Database {
@@ -31,14 +51,6 @@ impl DbConnectionParams for Database {
     fn get_dbname(&self) -> &str {
         &self.dbname
     }
-}
-
-pub trait TenantConfig: Send + Sync {
-    fn get_tenant_id(&self) -> &id_type::TenantId;
-    fn get_schema(&self) -> &str;
-    fn get_accounts_schema(&self) -> &str;
-    fn get_redis_key_prefix(&self) -> &str;
-    fn get_clickhouse_database(&self) -> &str;
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
@@ -66,11 +78,31 @@ impl Default for Database {
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
-            pool_size: 5,
+            max_pool_size: 5,
             connection_timeout: 10,
             queue_strategy: QueueStrategy::default(),
-            min_idle: None,
-            max_lifetime: None,
+            min_idle_pool_size: default_min_idle_pool_size(),
+            max_lifetime: default_max_lifetime(),
+            idle_timeout: default_idle_timeout(),
         }
+    }
+}
+
+impl<T: DatabaseStore> MasterKeyInterface for kv_router_store::KVRouterStore<T> {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key().peek()
+    }
+}
+
+impl<T: DatabaseStore> MasterKeyInterface for RouterStore<T> {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key().peek()
+    }
+}
+
+/// Default dummy key for MockDb
+impl MasterKeyInterface for MockDb {
+    fn get_master_key(&self) -> &[u8] {
+        self.master_key()
     }
 }

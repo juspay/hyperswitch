@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response, TokenizationType},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use reqwest::multipart::Form;
 use serde::Serialize;
 use serde_json::Value;
@@ -51,7 +51,9 @@ use transformers as hipay;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
-pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_errors::ParsingError> {
+pub fn build_form_from_struct<T: Serialize + Send + 'static>(
+    data: T,
+) -> Result<RequestContent, common_errors::ParsingError> {
     let mut form = Form::new();
     let serialized = serde_json::to_value(&data).map_err(|e| {
         router_env::logger::error!("Error serializing data to JSON value: {:?}", e);
@@ -74,7 +76,7 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
         };
         form = form.text(key.clone(), value.clone());
     }
-    Ok(form)
+    Ok(RequestContent::FormData((form, Box::new(data))))
 }
 #[derive(Clone)]
 pub struct Hipay {
@@ -109,7 +111,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         &self,
         req: &TokenizationRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -131,9 +134,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = transformers::HiPayTokenRequest::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req);
-        let connector_req = build_form_from_struct(connector_req)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(connector_req).change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -191,7 +192,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::ACCEPT.to_string(),
             "application/json".to_string().into(),
@@ -218,7 +220,8 @@ impl ConnectorCommon for Hipay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = hipay::HipayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_key = format!("{}:{}", auth.api_key.peek(), auth.key1.peek());
@@ -249,9 +252,11 @@ impl ConnectorCommon for Hipay {
             reason: response.description,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -269,7 +274,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -295,9 +301,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = hipay::HipayRouterData::from((amount, req));
         let connector_req = hipay::HipayPaymentsRequest::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req);
-        let connector_req = build_form_from_struct(connector_req)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(connector_req).change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -354,7 +358,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Hip
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -423,7 +428,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -453,9 +459,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = hipay::HipayRouterData::from((capture_amount, req));
         let connector_req = hipay::HipayMaintenanceRequest::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req);
-        let connector_req = build_form_from_struct(connector_req)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(connector_req).change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -511,7 +515,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hi
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
     fn get_url(
@@ -548,9 +553,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Hi
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = hipay::HipayMaintenanceRequest::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req);
-        let connector_req = build_form_from_struct(connector_req)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(connector_req).change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn handle_response(
@@ -578,7 +581,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -608,9 +612,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Hipay {
         let connector_router_data = hipay::HipayRouterData::from((refund_amount, req));
         let connector_req = hipay::HipayMaintenanceRequest::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req);
-        let connector_req = build_form_from_struct(connector_req)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(connector_req).change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -665,7 +667,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -740,6 +743,7 @@ impl webhooks::IncomingWebhook for Hipay {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -747,7 +751,8 @@ impl webhooks::IncomingWebhook for Hipay {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -817,7 +822,8 @@ static HIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 static HIPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Hipay",
     description: "HiPay is an independent global payment service provider that is based in France.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static HIPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

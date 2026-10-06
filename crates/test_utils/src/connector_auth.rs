@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env};
 
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -18,9 +18,9 @@ pub struct ConnectorAuthentication {
     #[cfg(feature = "payouts")]
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
-    pub amazonpay: Option<HeaderKey>,
+    pub amazonpay: Option<BodyKey>,
     pub archipel: Option<NoKey>,
-    pub authipay: Option<SignatureKey>,
+    pub authipay: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
@@ -29,9 +29,11 @@ pub struct ConnectorAuthentication {
     pub billwerk: Option<HeaderKey>,
     pub bitpay: Option<HeaderKey>,
     pub blackhawknetwork: Option<HeaderKey>,
+    pub calida: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
     pub breadpay: Option<BodyKey>,
+    pub cardinal: Option<SignatureKey>,
     pub cashtocode: Option<BodyKey>,
     pub celero: Option<HeaderKey>,
     pub chargebee: Option<HeaderKey>,
@@ -41,6 +43,7 @@ pub struct ConnectorAuthentication {
     pub coingate: Option<HeaderKey>,
     pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub cybersourcedecisionmanager: Option<HeaderKey>,
     pub datatrans: Option<HeaderKey>,
     pub deutschebank: Option<SignatureKey>,
     pub digitalvirgo: Option<HeaderKey>,
@@ -50,25 +53,41 @@ pub struct ConnectorAuthentication {
     pub dwolla: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
     pub elavon: Option<HeaderKey>,
+    pub elavon_pg: Option<BodyKey>,
+    pub envoy: Option<HeaderKey>,
+    pub etisalat: Option<SignatureKey>,
     pub facilitapay: Option<BodyKey>,
+    pub finix: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
+    pub fiservcommercehub: Option<HeaderKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
     pub flexiti: Option<HeaderKey>,
     pub forte: Option<MultiAuthKey>,
     pub getnet: Option<HeaderKey>,
+    pub gigadat: Option<SignatureKey>,
+    pub givepayments: Option<HeaderKey>,
     pub globalpay: Option<BodyKey>,
+    pub globalpayments_heartland: Option<HeaderKey>,
     pub globepay: Option<BodyKey>,
     pub gocardless: Option<HeaderKey>,
     pub gpayments: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
     pub hipay: Option<HeaderKey>,
+    pub hyperpg: Option<HeaderKey>,
     pub hyperswitch_vault: Option<SignatureKey>,
+    pub hyperwallet: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
+    pub imerchantsolutions: Option<HeaderKey>,
     pub inespay: Option<HeaderKey>,
+    pub interpayments: Option<HeaderKey>,
     pub itaubank: Option<MultiAuthKey>,
     pub jpmorgan: Option<BodyKey>,
+    pub jpmorgan_orbital: Option<SignatureKey>,
     pub juspaythreedsserver: Option<HeaderKey>,
+    pub katapult: Option<HeaderKey>,
+    pub loonio: Option<HeaderKey>,
+    pub merchante: Option<BodyKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub moneris: Option<SignatureKey>,
@@ -79,7 +98,7 @@ pub struct ConnectorAuthentication {
     pub nexixpay: Option<HeaderKey>,
     pub nomupay: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
-    pub nordea: Option<BodyKey>,
+    pub nordea: Option<SignatureKey>,
     pub novalnet: Option<HeaderKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
@@ -87,12 +106,22 @@ pub struct ConnectorAuthentication {
     pub opennode: Option<HeaderKey>,
     pub paybox: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
-    pub payload: Option<HeaderKey>,
+    pub payjustnow: Option<HeaderKey>,
+    pub payjustnowinstore: Option<BodyKey>,
+    pub payload: Option<CurrencyAuthKey>,
     pub payme: Option<BodyKey>,
+    pub paynearme: Option<BodyKey>,
     pub payone: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
+    pub paysafe: Option<BodyKey>,
     pub paystack: Option<HeaderKey>,
+    pub paytm: Option<HeaderKey>,
+    pub payconex: Option<BodyKey>,
+    pub citigate: Option<BodyKey>,
+    pub d24: Option<SignatureKey>,
     pub payu: Option<BodyKey>,
+    pub peachpayments: Option<HeaderKey>,
+    pub phonepe: Option<HeaderKey>,
     pub placetopay: Option<BodyKey>,
     pub plaid: Option<BodyKey>,
     pub powertranz: Option<BodyKey>,
@@ -101,17 +130,25 @@ pub struct ConnectorAuthentication {
     pub razorpay: Option<BodyKey>,
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
+    pub revolv3: Option<HeaderKey>,
+    pub absa_sanlam: Option<BodyKey>,
+    pub saferpay: Option<MultiAuthKey>,
     pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub sift: Option<HeaderKey>,
     pub silverflow: Option<SignatureKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripebilling: Option<HeaderKey>,
     pub taxjar: Option<HeaderKey>,
+    pub tesouro: Option<HeaderKey>,
     pub threedsecureio: Option<HeaderKey>,
     pub thunes: Option<HeaderKey>,
+    pub tokenex: Option<BodyKey>,
     pub tokenio: Option<HeaderKey>,
+    pub truelayer: Option<BodyKey>,
+    pub trustly: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
@@ -124,9 +161,12 @@ pub struct ConnectorAuthentication {
     // pub wellsfargopayout: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
+    pub worldpayraft: Option<BodyKey>,
+    pub worldpaymodular: Option<HeaderKey>,
     pub worldpayvantiv: Option<HeaderKey>,
     pub worldpayxml: Option<HeaderKey>,
     pub xendit: Option<HeaderKey>,
+    pub zift: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
     pub zsl: Option<BodyKey>,
@@ -219,54 +259,78 @@ impl ConnectorAuthenticationMap {
             .into_iter()
             .map(|(connector_name, config)| {
                 let auth_type = match config {
-                    toml::Value::Table(table) => {
-                        match (
-                            table.get("api_key"),
-                            table.get("key1"),
-                            table.get("api_secret"),
-                            table.get("key2"),
-                        ) {
-                            (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
-                                api_key: Secret::new(
-                                    api_key.as_str().unwrap_or_default().to_string(),
-                                ),
-                            },
-                            (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
-                                api_key: Secret::new(
-                                    api_key.as_str().unwrap_or_default().to_string(),
-                                ),
-                                key1: Secret::new(key1.as_str().unwrap_or_default().to_string()),
-                            },
-                            (Some(api_key), Some(key1), Some(api_secret), None) => {
-                                ConnectorAuthType::SignatureKey {
+                    toml::Value::Table(mut table) => {
+                        if let Some(auth_key_map_value) = table.remove("auth_key_map") {
+                            // This is a CurrencyAuthKey
+                            if let toml::Value::Table(auth_key_map_table) = auth_key_map_value {
+                                let mut parsed_auth_map = HashMap::new();
+                                for (currency, val) in auth_key_map_table {
+                                    if let Ok(currency_enum) =
+                                        currency.parse::<common_enums::Currency>()
+                                    {
+                                        parsed_auth_map
+                                            .insert(currency_enum, Secret::new(val.to_string()));
+                                    }
+                                }
+                                ConnectorAuthType::CurrencyAuthKey {
+                                    auth_key_map: parsed_auth_map,
+                                }
+                            } else {
+                                ConnectorAuthType::NoKey
+                            }
+                        } else {
+                            match (
+                                table.get("api_key"),
+                                table.get("key1"),
+                                table.get("api_secret"),
+                                table.get("key2"),
+                            ) {
+                                (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
                                     api_key: Secret::new(
                                         api_key.as_str().unwrap_or_default().to_string(),
                                     ),
-                                    key1: Secret::new(
-                                        key1.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    api_secret: Secret::new(
-                                        api_secret.as_str().unwrap_or_default().to_string(),
-                                    ),
+                                },
+                                (Some(api_key), Some(key1), None, None) => {
+                                    ConnectorAuthType::BodyKey {
+                                        api_key: Secret::new(
+                                            api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    }
                                 }
-                            }
-                            (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
-                                ConnectorAuthType::MultiAuthKey {
-                                    api_key: Secret::new(
-                                        api_key.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key1: Secret::new(
-                                        key1.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    api_secret: Secret::new(
-                                        api_secret.as_str().unwrap_or_default().to_string(),
-                                    ),
-                                    key2: Secret::new(
-                                        key2.as_str().unwrap_or_default().to_string(),
-                                    ),
+                                (Some(api_key), Some(key1), Some(api_secret), None) => {
+                                    ConnectorAuthType::SignatureKey {
+                                        api_key: Secret::new(
+                                            api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        api_secret: Secret::new(
+                                            api_secret.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    }
                                 }
+                                (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
+                                    ConnectorAuthType::MultiAuthKey {
+                                        api_key: Secret::new(
+                                            api_key.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key1: Secret::new(
+                                            key1.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        api_secret: Secret::new(
+                                            api_secret.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                        key2: Secret::new(
+                                            key2.as_str().unwrap_or_default().to_string(),
+                                        ),
+                                    }
+                                }
+                                _ => ConnectorAuthType::NoKey,
                             }
-                            _ => ConnectorAuthType::NoKey,
                         }
                     }
                     _ => ConnectorAuthType::NoKey,
@@ -274,7 +338,6 @@ impl ConnectorAuthenticationMap {
                 (connector_name, auth_type)
             })
             .collect();
-
         Self(auth_map)
     }
 }
@@ -344,6 +407,25 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CurrencyAuthKey {
+    pub auth_key_map: HashMap<String, toml::Value>,
+}
+
+impl From<CurrencyAuthKey> for ConnectorAuthType {
+    fn from(key: CurrencyAuthKey) -> Self {
+        let mut auth_map = HashMap::new();
+        for (currency, auth_data) in key.auth_key_map {
+            if let Ok(currency_enum) = currency.parse::<common_enums::Currency>() {
+                auth_map.insert(currency_enum, Secret::new(auth_data.to_string()));
+            }
+        }
+        Self::CurrencyAuthKey {
+            auth_key_map: auth_map,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoKey {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -394,6 +476,9 @@ pub enum ConnectorAuthType {
         key1: Secret<String>,
         api_secret: Secret<String>,
         key2: Secret<String>,
+    },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<common_enums::Currency, Secret<String>>,
     },
     #[default]
     NoKey,

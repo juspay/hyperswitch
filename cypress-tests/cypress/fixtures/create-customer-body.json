@@ -13,7 +13,8 @@
     "state": "Karnataka",
     "zip": "560095",
     "first_name": "John",
-    "last_name": "Doe"
+    "last_name": "Doe",
+    "origin_zip": "560095"
   },
   "metadata": {
     "udf1": "value1",

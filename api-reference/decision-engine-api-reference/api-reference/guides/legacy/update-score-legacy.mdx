@@ -1,0 +1,20 @@
+---
+title: "Legacy Update Score"
+description: "Compatibility example for the legacy /update-score route."
+---
+
+# Legacy Update Score
+
+`/update-score` is retained for compatibility. New integrations should use [`/update-gateway-score`](/decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score).
+
+```bash
+curl --location "$BASE_URL/update-score" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "gateway": "stripe",
+    "paymentId": "pay_001",
+    "status": "CHARGED"
+  }'
+```

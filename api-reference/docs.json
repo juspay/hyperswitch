@@ -18,11 +18,14 @@
             "groups": [
               {
                 "group": "Get Started",
-                "pages": ["introduction"]
+                "pages": [
+                  "introduction"
+                ]
               },
               {
                 "group": "Essentials",
                 "pages": [
+                  "essentials/authentication",
                   "essentials/error_codes",
                   "essentials/rate_limit",
                   "essentials/go-live"
@@ -41,46 +44,59 @@
                       "v1/payments/payments--confirm",
                       "v1/payments/payments--retrieve",
                       "v1/payments/payments--cancel",
+                      "v1/payments/payments--cancel-post-capture",
+                      "v1/payments/payments--cancel-post-capture-retrieve",
                       "v1/payments/payments--capture",
                       "v1/payments/payments--incremental-authorization",
+                      "v1/payments/payments--extend-authorization",
                       "v1/payments/payments--session-token",
                       "v1/payments/payments-link--retrieve",
                       "v1/payments/payments--list",
                       "v1/payments/payments--external-3ds-authentication",
                       "v1/payments/payments--complete-authorize",
-                      "v1/payments/payments--update-metadata"
+                      "v1/payments/payments--update-metadata",
+                      "v1/payments/payments--submit-eligibility-data"
                     ]
                   },
                   {
                     "group": "Payment Methods",
                     "pages": [
-                      "v1/payment-methods/paymentmethods--create",
-                      "v1/payment-methods/payment-method--retrieve",
-                      "v1/payment-methods/payment-method--update",
-                      "v1/payment-methods/payment-method--delete",
-                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
-                      "v1/payment-methods/list-payment-methods-for-a-merchant",
-                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-                      "v1/payment-methods/list-payment-methods-for-a-customer",
-                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
+                      "v2/payment-methods/payment-method--create-v1",
+                      "v2/payment-methods/payment-method--retrieve-v1",
+                      "v2/payment-methods/payment-method--update-v1",
+                      "v2/payment-methods/payment-method--delete-v1",
+                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
+                      "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1",
+                      "v2/payment-methods/payment-method--set-default-payment-method-for-customer-v1",
+                      "v1/payment-methods/list-payment-methods-for-a-payment-via-client-sdk"
                     ]
                   },
                   {
                     "group": "Customers",
                     "pages": [
-                      "v1/customers/customers--create",
-                      "v1/customers/customers--retrieve",
-                      "v1/customers/customers--update",
-                      "v1/customers/customers--delete",
-                      "v1/customers/customers--list"
+                      "v2/customers/customers--create-v1",
+                      "v2/customers/customers--retrieve-v1",
+                      "v1/customers/customers--retrieve-by-merchant-reference-id",
+                      "v2/customers/customers--update-v1",
+                      "v2/customers/customers--delete-v1",
+                      "v2/customers/customers--list-v1"
                     ]
                   },
                   {
-                    "group": "Mandates",
+                    "group": "Proxy",
                     "pages": [
-                      "v1/mandates/mandates--revoke-mandate",
-                      "v1/mandates/mandates--retrieve-mandate",
-                      "v1/mandates/mandates--customer-mandates-list"
+                      "v2/proxy/proxy-v1"
+                    ]
+                  },
+                  {
+                    "group": "Payment Method Session",
+                    "pages": [
+                      "v2/payment-method-session/payment-method-session--create-v1",
+                      "v2/payment-method-session/payment-method-session--retrieve-v1",
+                      "v2/payment-method-session/payment-method-session--list-payment-methods-v1",
+                      "v2/payment-method-session/payment-method-session--update-a-saved-payment-method-v1",
+                      "v2/payment-method-session/payment-method-session--confirm-a-payment-method-session-v1",
+                      "v2/payment-method-session/payment-method-session--delete-a-saved-payment-method-v1"
                     ]
                   },
                   {
@@ -96,7 +112,25 @@
                     "group": "Disputes",
                     "pages": [
                       "v1/disputes/disputes--retrieve",
-                      "v1/disputes/disputes--list"
+                      "v1/disputes/disputes--list",
+                      "v1/disputes/disputes--list-profiles",
+                      "v1/disputes/disputes--accept",
+                      "v1/disputes/disputes--submit-evidence",
+                      "v1/disputes/disputes--attach-evidence",
+                      "v1/disputes/disputes--retrieve-evidence",
+                      "v1/disputes/disputes--delete-evidence",
+                      "v1/disputes/disputes--get-aggregate",
+                      "v1/disputes/disputes--get-aggregate-profiles",
+                      "v1/disputes/disputes--get-filters",
+                      "v1/disputes/disputes--get-filters-profiles"
+                    ]
+                  },
+                  {
+                    "group": "Authentication",
+                    "pages": [
+                      "v1/authentication/authentication--create",
+                      "v1/authentication/authentication--post-eligibility-check",
+                      "v1/authentication/authentication--get-eligibility-check"
                     ]
                   },
                   {
@@ -111,6 +145,43 @@
                       "v1/payouts/payouts--list",
                       "v1/payouts/payouts--list-filters",
                       "v1/payouts/payouts--filter"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deprecated APIs",
+                "pages": [
+                  {
+                    "group": "Mandates",
+                    "pages": [
+                      "v1/mandates/mandates--revoke-mandate",
+                      "v1/mandates/mandates--retrieve-mandate",
+                      "v1/mandates/mandates--customer-mandates-list"
+                    ]
+                  },
+                  {
+                    "group": "Customers",
+                    "pages": [
+                      "v1/customers/customers--create",
+                      "v1/customers/customers--retrieve",
+                      "v1/customers/customers--update",
+                      "v1/customers/customers--delete",
+                      "v1/customers/customers--list"
+                    ]
+                  },
+                  {
+                    "group": "Payment Methods",
+                    "pages": [
+                      "v1/payment-methods/paymentmethods--create",
+                      "v1/payment-methods/payment-method--retrieve",
+                      "v1/payment-methods/payment-method--update",
+                      "v1/payment-methods/payment-method--delete",
+                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
+                      "v1/payment-methods/list-payment-methods-for-a-merchant",
+                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+                      "v1/payment-methods/list-payment-methods-for-a-customer",
+                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
                     ]
                   }
                 ]
@@ -144,6 +215,12 @@
                       "v1/business-profile/business-profile--retrieve",
                       "v1/business-profile/business-profile--delete",
                       "v1/business-profile/business-profile--list"
+                    ]
+                  },
+                  {
+                    "group": "Platform Account",
+                    "pages": [
+                      "v1/platform/platform--create"
                     ]
                   },
                   {
@@ -190,7 +267,9 @@
                   },
                   {
                     "group": "Poll",
-                    "pages": ["v1/poll/poll--retrieve-poll-status"]
+                    "pages": [
+                      "v1/poll/poll--retrieve-poll-status"
+                    ]
                   },
                   {
                     "group": "Blocklist",
@@ -198,7 +277,14 @@
                       "v1/blocklist/get-blocklist",
                       "v1/blocklist/post-blocklist",
                       "v1/blocklist/delete-blocklist",
-                      "v1/blocklist/post-blocklisttoggle"
+                      "v1/blocklist/post-blocklisttoggle",
+                      "v1/blocklist/blocklist--count",
+                      "v1/blocklist/blocklist--lookup",
+                      "v1/blocklist/blocklist--batch-upload",
+                      "v1/blocklist/blocklist--batch-list",
+                      "v1/blocklist/blocklist--batch-status",
+                      "v1/blocklist/blocklist--export-create",
+                      "v1/blocklist/blocklist--clone"
                     ]
                   },
                   {
@@ -206,6 +292,8 @@
                     "pages": [
                       "v1/routing/routing--list",
                       "v1/routing/routing--create",
+                      "v1/routing/routing--success-based",
+                      "v1/routing/routing--elimination",
                       "v1/routing/routing--retrieve-config",
                       "v1/routing/routing--deactivate",
                       "v1/routing/routing--retrieve-default-config",
@@ -213,16 +301,39 @@
                       "v1/routing/routing--retrieve-default-for-profile",
                       "v1/routing/routing--update-default-for-profile",
                       "v1/routing/routing--retrieve",
-                      "v1/routing/routing--activate-config"
+                      "v1/routing/routing--activate-config",
+                      "v1/routing/routing--evaluate",
+                      "v1/routing/routing--feedback",
+                      "v1/routing/routing--rule-evaluate"
                     ]
                   },
                   {
                     "group": "Relay",
-                    "pages": ["v1/relay/relay", "v1/relay/relay--retrieve"]
+                    "pages": [
+                      "v1/relay/relay",
+                      "v1/relay/relay--retrieve"
+                    ]
                   },
                   {
                     "group": "Schemas",
-                    "pages": ["v1/schemas/outgoing--webhook"]
+                    "pages": [
+                      "v1/schemas/outgoing--webhook"
+                    ]
+                  },
+                  {
+                    "group": "Subscriptions",
+                    "pages": [
+                      "v1/subscriptions/create",
+                      "v1/subscriptions/confirm",
+                      "v1/subscriptions/create-and-confirm",
+                      "v1/subscriptions/update",
+                      "v1/subscriptions/get",
+                      "v1/subscriptions/get-plans",
+                      "v1/subscriptions/estimate",
+                      "v1/subscriptions/pause",
+                      "v1/subscriptions/resume",
+                      "v1/subscriptions/cancel"
+                    ]
                   }
                 ]
               }
@@ -233,7 +344,9 @@
             "groups": [
               {
                 "group": "Get Started [BETA]",
-                "pages": ["introduction"]
+                "pages": [
+                  "introduction"
+                ]
               },
               {
                 "group": "Essentials [BETA]",
@@ -257,7 +370,8 @@
                       "v2/payments/payments--confirm-intent",
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
-                      "v2/payments/payments--list"
+                      "v2/payments/payments--list",
+                      "v2/payments/payments--check-balance-and-apply-pm-data"
                     ]
                   },
                   {
@@ -271,6 +385,12 @@
                       "v2/payment-methods/payment-method--delete",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods",
                       "v2/payment-methods/list-saved-payment-methods-for-a-customer"
+                    ]
+                  },
+                  {
+                    "group": "Network Tokenization",
+                    "pages": [
+                      "v2/payment-methods/check-network-token-status"
                     ]
                   },
                   {
@@ -289,6 +409,7 @@
                     "pages": [
                       "v2/customers/customers--create",
                       "v2/customers/customers--retrieve",
+                      "v2/customers/customers--retrieve-by-merchant-reference-id",
                       "v2/customers/customers--update",
                       "v2/customers/customers--delete",
                       "v2/customers/customers--list"
@@ -372,15 +493,22 @@
                 "pages": [
                   {
                     "group": "Proxy",
-                    "pages": ["v2/proxy/proxy"]
+                    "pages": [
+                      "v2/proxy/proxy"
+                    ]
                   },
                   {
                     "group": "Tokenization",
-                    "pages": ["v2/tokenization/tokenization--create"]
+                    "pages": [
+                      "v2/tokenization/tokenization--create"
+                    ]
                   },
                   {
                     "group": "Revenue Recovery",
-                    "pages": ["v2/revenue-recovery/revenue-recovery--retrieve"]
+                    "pages": [
+                      "v2/revenue-recovery/revenue-recovery--create",
+                      "v2/revenue-recovery/revenue-recovery--retrieve"
+                    ]
                   }
                 ]
               }
@@ -393,14 +521,18 @@
         "groups": [
           {
             "group": "Hyperswitch Card Vault",
-            "pages": ["locker-api-reference/overview"]
+            "pages": [
+              "locker-api-reference/overview"
+            ]
           },
           {
             "group": "API Reference",
             "pages": [
               {
                 "group": "Locker - Health",
-                "pages": ["locker-api-reference/locker-health/get-health"]
+                "pages": [
+                  "locker-api-reference/locker-health/get-health"
+                ]
               },
               {
                 "group": "Locker - Key Custodian",
@@ -418,51 +550,268 @@
                   "locker-api-reference/cards/retrieve-data-from-locker",
                   "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
                 ]
+              },
+              {
+                "group": "Locker - General Purpose Storage",
+                "pages": [
+                  "locker-api-reference/locker-general-purpose-storage/add-data-in-locker",
+                  "locker-api-reference/locker-general-purpose-storage/retrieve-data-from-locker",
+                  "locker-api-reference/locker-general-purpose-storage/delete-data-from-locker",
+                  "locker-api-reference/locker-general-purpose-storage/get-or-insert-the-card-fingerprint"
+                ]
               }
             ]
           }
         ]
       },
       {
-        "tab": "Intelligent Router API Reference",
+        "tab": "Decision Engine API Reference",
         "groups": [
           {
-            "group": "Hyperswitch Intelligent Router",
-            "pages": ["intelligent-router-api-reference/overview"]
+            "group": "Overview",
+            "pages": [
+              "decision-engine-api-reference/introduction",
+              {
+                "group": "Installation",
+                "pages": [
+                  "decision-engine-api-reference/installation",
+                  "decision-engine-api-reference/local-setup",
+                  "decision-engine-api-reference/setup-guide-postgres",
+                  "decision-engine-api-reference/setup-guide-mysql",
+                  "decision-engine-api-reference/configuration",
+                  "decision-engine-api-reference/dashboard-guide"
+                ]
+              },
+              "decision-engine-api-reference/api-reference/guides/api-ref",
+              "decision-engine-api-reference/analytics",
+              "decision-engine-api-reference/payment-audit",
+              "decision-engine-api-reference/clickhouse-analytics",
+              "decision-engine-api-reference/benchmarks"
+            ]
           },
           {
-            "group": "API Reference",
+            "group": "OpenAPI: Health",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/health/healthCheck",
+              "decision-engine-api-reference/api-reference/endpoint/health/healthReady",
+              "decision-engine-api-reference/api-reference/endpoint/health/healthDiagnostics"
+            ]
+          },
+          {
+            "group": "OpenAPI: Gateway Decision",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway"
+            ]
+          },
+          {
+            "group": "OpenAPI: Score Feedback",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/score-feedback/updateGatewayScore"
+            ]
+          },
+          {
+            "group": "OpenAPI: Merchant Account",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/createMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/getMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/deleteMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/getMerchantDebitRouting",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/updateMerchantDebitRouting"
+            ]
+          },
+          {
+            "group": "OpenAPI: Routing Rules",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/createRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/activateRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/deactivateRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/listRoutingRules",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/getActiveRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/evaluateRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/hybridRouting"
+            ]
+          },
+          {
+            "group": "OpenAPI: Rule Configuration",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/createRuleConfig",
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/getRuleConfig",
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/updateRuleConfig",
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/deleteRuleConfig"
+            ]
+          },
+          {
+            "group": "OpenAPI: Auth And API Keys",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/auth/signup",
+              "decision-engine-api-reference/api-reference/endpoint/auth/login",
+              "decision-engine-api-reference/api-reference/endpoint/auth/logout",
+              "decision-engine-api-reference/api-reference/endpoint/auth/me",
+              "decision-engine-api-reference/api-reference/endpoint/auth/listUserMerchants",
+              "decision-engine-api-reference/api-reference/endpoint/auth/switchMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/auth/onboardMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/auth/createApiKey",
+              "decision-engine-api-reference/api-reference/endpoint/auth/listApiKeys",
+              "decision-engine-api-reference/api-reference/endpoint/auth/revokeApiKey"
+            ]
+          },
+          {
+            "group": "OpenAPI: Analytics",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsOverview",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsGatewayScores",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsDecisions",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsRoutingStats",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsLogSummaries",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsPaymentAudit",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsPreviewTrace",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsCostSavings",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsRoutingEvents",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsExperimentResults",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsExperimentTransactions"
+            ]
+          },
+          {
+            "group": "OpenAPI: Compatibility And Config",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/legacyDecisionGateway",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/legacyUpdateScore",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/getRoutingConfig",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/configSrDimension",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/getSrDimensions"
+            ]
+          },
+          {
+            "group": "OpenAPI: Connector Costs & Ingestion",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listConnectorFees",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setFeeOverride",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostClusters",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setClusterOverride",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/getCostCoverage",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostIngestions",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteCostIngestion",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostPriceChanges",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listInvoiceAddons",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteInvoiceAddon",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/getInvoiceReconciliation"
+            ]
+          },
+          {
+            "group": "OpenAPI: Feature Flags & Autopilot",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/features/getMerchantFeatures",
+              "decision-engine-api-reference/api-reference/endpoint/features/updateMerchantFeature",
+              "decision-engine-api-reference/api-reference/endpoint/features/resetGatewayScores"
+            ]
+          },
+          {
+            "group": "API Examples (curl flows)",
             "pages": [
               {
-                "group": "Success Rate",
+                "group": "Health & Status",
                 "pages": [
-                  "intelligent-router-api-reference/success-rate/fetch-success-rate-for-an-entity",
-                  "intelligent-router-api-reference/success-rate/update-success-rate-window",
-                  "intelligent-router-api-reference/success-rate/invalidate-windows",
-                  "intelligent-router-api-reference/success-rate/fetch-entity-and-global-success-rates"
+                  "decision-engine-api-reference/api-reference/guides/health-status/health-check"
                 ]
               },
               {
-                "group": "Elimination",
+                "group": "Authentication & Onboarding",
                 "pages": [
-                  "intelligent-router-api-reference/elimination/fetch-eliminated-processor-list",
-                  "intelligent-router-api-reference/elimination/update-elimination-bucket",
-                  "intelligent-router-api-reference/elimination/invalidate-elimination-bucket"
+                  "decision-engine-api-reference/api-reference/guides/auth-onboarding/auth-and-onboarding",
+                  "decision-engine-api-reference/api-reference/guides/auth-onboarding/api-keys"
                 ]
               },
               {
-                "group": "Contract Routing",
+                "group": "Merchant Accounts",
                 "pages": [
-                  "intelligent-router-api-reference/contract-routing/fetch-contract-scores-for-an-entity",
-                  "intelligent-router-api-reference/contract-routing/update-contract-information-for-an-entity",
-                  "intelligent-router-api-reference/contract-routing/invalidate-contract-information-for-an-entity"
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-create",
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-get",
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-delete",
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-debit-routing"
                 ]
               },
               {
-                "group": "Static Routing",
+                "group": "Configure Routing",
                 "pages": [
-                  "intelligent-router-api-reference/static-routing/create-a-routing-rule",
-                  "intelligent-router-api-reference/static-routing/evaluate-routing-rule"
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-single-connector-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-priority-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-volume-split-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-advanced-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-activate",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-deactivate",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-update-delete",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list-active",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid"
+                ]
+              },
+              {
+                "group": "Scoring Configuration",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-create",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-get",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-update",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-delete",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-create",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-get",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-update",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-delete",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/config-endpoints"
+                ]
+              },
+              {
+                "group": "Cost Data Ingestion",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup",
+                  "decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads",
+                  "decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees"
+                ]
+              },
+              {
+                "group": "A/B Testing",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create",
+                  "decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results"
+                ]
+              },
+              {
+                "group": "Autopilot & Feature Flags",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/autopilot/merchant-features"
+                ]
+              },
+              {
+                "group": "Run Transactions",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-pl-based",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-debit-routing",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-hybrid-routing",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective"
+                ]
+              },
+              {
+                "group": "Feedback & Scoring",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score"
+                ]
+              },
+              {
+                "group": "Analytics & Audit",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints"
+                ]
+              },
+              {
+                "group": "Legacy & Compatibility",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/legacy/decision-gateway-legacy",
+                  "decision-engine-api-reference/api-reference/guides/legacy/update-score-legacy"
                 ]
               }
             ]
@@ -479,7 +828,8 @@
     "openapi": [
       "v1/openapi_spec_v1.json",
       "v2/openapi_spec_v2.json",
-      "rust_locker_open_api_spec.yml"
+      "rust_locker_open_api_spec.yml",
+      "decision_engine_openapi-specs.json"
     ]
   },
   "background": {
@@ -520,6 +870,11 @@
     }
   },
   "contextual": {
-    "options": ["copy", "claude", "chatgpt", "view"]
+    "options": [
+      "copy",
+      "claude",
+      "chatgpt",
+      "view"
+    ]
   }
 }

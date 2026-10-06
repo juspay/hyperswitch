@@ -1,0 +1,243 @@
+use std::ops::Deref;
+
+use common_utils::ext_traits::ValueExt;
+use diesel_models::process_tracker::business_status;
+use error_stack::ResultExt;
+use router_env::{logger, tracing::Instrument};
+use scheduler::{
+    consumer::{self, workflows::ProcessTrackerWorkflow},
+    errors as sch_errors, utils as scheduler_utils,
+};
+
+use crate::{
+    core::disputes,
+    db::StorageInterface,
+    errors,
+    routes::SessionState,
+    types::{api, domain, storage},
+};
+
+pub struct DisputeListWorkflow;
+
+/// This workflow fetches disputes from the connector for a given time range
+/// and creates a process tracker task for each dispute.
+/// It also schedules the next dispute list sync after dispute_polling_hours.
+#[async_trait::async_trait]
+impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        let db = &*state.store;
+        let tracking_data: api::DisputeListPTData = process
+            .tracking_data
+            .clone()
+            .parse_value("ProcessDisputePTData")?;
+
+        let provider_key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                &tracking_data.merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+        let provider_account = db
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
+            .await?;
+
+        let processor_merchant_id = tracking_data
+            .processor_merchant_id
+            .as_ref()
+            .unwrap_or(&tracking_data.merchant_id);
+        let processor_key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                processor_merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+
+        let processor_account = db
+            .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+            .await?;
+
+        let platform = domain::Platform::new(
+            provider_account,
+            provider_key_store,
+            processor_account,
+            processor_key_store,
+            None,
+        );
+
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &tracking_data.profile_id,
+            )
+            .await?;
+
+        if process.retry_count == 0 {
+            let m_db = state.clone().store;
+            let m_tracking_data = tracking_data.clone();
+            let dispute_polling_interval = *business_profile
+                .dispute_polling_interval
+                .unwrap_or_default()
+                .deref();
+            let application_source = state.conf.application_source;
+
+            tokio::spawn(
+                async move {
+                    schedule_next_dispute_list_task(
+                        &*m_db,
+                        &m_tracking_data,
+                        dispute_polling_interval,
+                        application_source,
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(
+                            "Failed to add dispute list task to process tracker: {error}"
+                        )
+                    })
+                }
+                .in_current_span(),
+            );
+        };
+
+        let response = Box::pin(disputes::fetch_disputes_from_connector(
+            state.clone(),
+            platform,
+            tracking_data.merchant_connector_id,
+            hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
+                created_from: tracking_data.created_from,
+                created_till: tracking_data.created_till,
+            },
+        ))
+        .await
+        .attach_printable("Dispute update failed");
+
+        if response.is_err() {
+            retry_sync_task(
+                db,
+                state.superposition_service.as_ref(),
+                tracking_data.connector_name,
+                tracking_data
+                    .processor_merchant_id
+                    .unwrap_or_else(|| tracking_data.merchant_id.clone()),
+                process,
+            )
+            .await?;
+        } else {
+            state
+                .store
+                .as_scheduler()
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
+                .await?
+        }
+
+        Ok(())
+    }
+
+    async fn error_handler<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+        error: sch_errors::ProcessTrackerError,
+    ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError> {
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
+    }
+}
+
+pub async fn get_sync_process_schedule_time(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    retry_count: i32,
+) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let mapping = dimensions
+        .get_pt_mapping_dispute_sync(db, superposition_client, None)
+        .await;
+    let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
+
+    Ok(scheduler_utils::get_time_from_delta(time_delta))
+}
+
+/// Schedule the task for retry
+///
+/// Returns bool which indicates whether this was the last retry or not
+pub async fn retry_sync_task(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    connector: String,
+    processor_merchant_id: common_utils::id_type::MerchantId,
+    pt: storage::ProcessTracker,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+    let connector_enum = connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor_merchant_id.into())
+        .with_connector(connector_enum);
+    let schedule_time: Option<time::PrimitiveDateTime> =
+        get_sync_process_schedule_time(db, superposition_client, &dimensions, pt.retry_count + 1)
+            .await?;
+
+    match schedule_time {
+        Some(s_time) => {
+            db.as_scheduler().retry_process(pt, s_time).await?;
+            Ok(false)
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(pt, business_status::RETRIES_EXCEEDED)
+                .await?;
+            Ok(true)
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn schedule_next_dispute_list_task(
+    db: &dyn StorageInterface,
+    tracking_data: &api::DisputeListPTData,
+    dispute_polling_interval: i32,
+    application_source: common_enums::ApplicationSource,
+) -> Result<(), errors::ProcessTrackerError> {
+    let new_created_till = tracking_data
+        .created_till
+        .checked_add(time::Duration::hours(i64::from(dispute_polling_interval)))
+        .ok_or(sch_errors::ProcessTrackerError::TypeConversionError)?;
+
+    let fetch_request = hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
+        created_from: tracking_data.created_till,
+        created_till: new_created_till,
+    };
+
+    let processor_merchant_id = tracking_data
+        .processor_merchant_id
+        .clone()
+        .unwrap_or_else(|| tracking_data.merchant_id.clone());
+
+    disputes::add_dispute_list_task_to_pt(
+        db,
+        &tracking_data.connector_name,
+        tracking_data.merchant_id.clone(),
+        processor_merchant_id,
+        tracking_data.merchant_connector_id.clone(),
+        tracking_data.profile_id.clone(),
+        fetch_request,
+        application_source,
+    )
+    .await?;
+    Ok(())
+}

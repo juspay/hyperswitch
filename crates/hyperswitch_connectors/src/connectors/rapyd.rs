@@ -1,4 +1,5 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
@@ -10,7 +11,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
-        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMinorUnit,
+        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
         StringMinorUnitForConnector,
     },
 };
@@ -45,11 +46,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use ring::hmac;
 use router_env::logger;
 use transformers as rapyd;
@@ -62,13 +61,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Rapyd {
-    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
     amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 impl Rapyd {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &FloatMajorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
             amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
@@ -120,7 +119,8 @@ impl ConnectorCommon for Rapyd {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![])
     }
 
@@ -145,9 +145,11 @@ impl ConnectorCommon for Rapyd {
                     reason: response_data.status.message,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(error_msg) => {
@@ -180,7 +182,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         _req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self)
@@ -222,7 +225,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
@@ -304,7 +307,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ra
         &self,
         _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsVoidType::get_content_type(self)
@@ -335,7 +339,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ra
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!("/v1/payments/{}", req.request.connector_transaction_id);
@@ -393,7 +397,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Rap
         &self,
         _req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsSyncType::get_content_type(self)
@@ -426,7 +431,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Rap
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let response_id = req.request.connector_transaction_id.clone();
@@ -489,7 +494,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsCaptureType::get_content_type(self)
@@ -523,7 +529,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!(
@@ -613,7 +619,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Rapyd {
         &self,
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::RefundExecuteType::get_content_type(self)
@@ -656,7 +663,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Rapyd {
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let timestamp = date_time::now_unix_timestamp();
-        let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let salt = common_utils::generate_random_alphanumeric_string(12);
 
         let body = types::RefundExecuteType::get_request_body(self, req, connectors)?;
         let req_body = body.get_inner_value().expose();
@@ -861,6 +868,7 @@ impl IncomingWebhook for Rapyd {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
@@ -895,7 +903,8 @@ impl IncomingWebhook for Rapyd {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
@@ -921,6 +930,7 @@ impl IncomingWebhook for Rapyd {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
@@ -945,107 +955,109 @@ impl IncomingWebhook for Rapyd {
             connector_status: webhook_dispute_data.status.to_string(),
             created_at: webhook_dispute_data.created_at,
             updated_at: webhook_dispute_data.updated_at,
+            additional_details: None,
         })
     }
 }
 
-lazy_static! {
-    static ref RAPYD_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
+static RAPYD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
 
-        let supported_card_network = vec![
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::UnionPay,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::Discover,
-        ];
+    let supported_card_network = vec![
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Discover,
+    ];
 
-        let mut rapyd_supported_payment_methods = SupportedPaymentMethods::new();
+    let mut rapyd_supported_payment_methods = SupportedPaymentMethods::new();
 
-        rapyd_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::ApplePay,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            }
-        );
+    rapyd_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        rapyd_supported_payment_methods.add(
-            enums::PaymentMethod::Wallet,
-            enums::PaymentMethodType::GooglePay,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            }
-        );
+    rapyd_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        rapyd_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    rapyd_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        rapyd_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails{
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            }
-        );
+    rapyd_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
 
-        rapyd_supported_payment_methods
-    };
+    rapyd_supported_payment_methods
+});
 
-    static ref RAPYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Rapyd",
-        description:
-            "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe ",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
+static RAPYD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Rapyd",
+    description: "Rapyd is a fintech company that enables businesses to collect payments in local currencies across the globe ",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+};
 
-    static ref RAPYD_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Disputes];
-
-}
+static RAPYD_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
 
 impl ConnectorSpecifications for Rapyd {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*RAPYD_CONNECTOR_INFO)
+        Some(&RAPYD_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -1053,6 +1065,6 @@ impl ConnectorSpecifications for Rapyd {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*RAPYD_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&RAPYD_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

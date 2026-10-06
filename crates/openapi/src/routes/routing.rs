@@ -14,6 +14,15 @@
         (status = 422, description = "Unprocessable request"),
         (status = 403, description = "Forbidden"),
     ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
    tag = "Routing",
    operation_id = "Create a routing config",
    security(("api_key" = []), ("jwt_key" = []))
@@ -51,6 +60,13 @@ pub async fn routing_create_config() {}
     path = "/routing/{routing_algorithm_id}/activate",
     params(
         ("routing_algorithm_id" = String, Path, description = "The unique identifier for a config"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Routing config activated", body = RoutingDictionaryRecord),
@@ -73,6 +89,13 @@ pub async fn routing_link_config() {}
     path = "/routing/{routing_algorithm_id}",
     params(
         ("routing_algorithm_id" = String, Path, description = "The unique identifier for a config"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Successfully fetched routing config", body = MerchantRoutingAlgorithm),
@@ -119,6 +142,13 @@ pub async fn routing_retrieve_config() {}
         ("limit" = Option<u16>, Query, description = "The number of records to be returned"),
         ("offset" = Option<u8>, Query, description = "The record offset from which to start gathering of results"),
         ("profile_id" = Option<String>, Query, description = "The unique identifier for a merchant profile"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Successfully fetched routing configs", body = RoutingKind),
@@ -146,6 +176,15 @@ pub async fn list_routing_configs() {}
         (status = 403, description = "Malformed request"),
         (status = 422, description = "Unprocessable request")
     ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
    tag = "Routing",
    operation_id = "Deactivate a routing config",
    security(("api_key" = []), ("jwt_key" = []))
@@ -166,6 +205,15 @@ pub async fn routing_unlink_config() {}
         (status = 400, description = "Malformed request"),
         (status = 422, description = "Unprocessable request")
     ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
    tag = "Routing",
    operation_id = "Update default fallback config",
    security(("api_key" = []), ("jwt_key" = []))
@@ -183,6 +231,15 @@ pub async fn routing_update_default_config() {}
         (status = 200, description = "Successfully retrieved default config", body = Vec<RoutableConnectorChoice>),
         (status = 500, description = "Internal server error")
     ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
    tag = "Routing",
    operation_id = "Retrieve default fallback config",
    security(("api_key" = []), ("jwt_key" = []))
@@ -198,6 +255,13 @@ pub async fn routing_retrieve_default_config() {}
     path = "/routing/active",
     params(
         ("profile_id" = Option<String>, Query, description = "The unique identifier for a merchant profile"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Successfully retrieved active config", body = LinkedRoutingConfigRetrieveResponse),
@@ -223,6 +287,15 @@ pub async fn routing_retrieve_linked_config() {}
         (status = 500, description = "Internal server error"),
         (status = 404, description = "Resource missing")
     ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
    tag = "Routing",
    operation_id = "Retrieve default configs for all profiles",
    security(("api_key" = []), ("jwt_key" = []))
@@ -239,6 +312,13 @@ pub async fn routing_retrieve_default_config_for_profiles() {}
     request_body = Vec<RoutableConnectorChoice>,
     params(
         ("profile_id" = String, Path, description = "The unique identifier for a profile"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     responses(
         (status = 200, description = "Successfully updated default config for profile", body = ProfileDefaultRoutingConfig),
@@ -281,6 +361,40 @@ pub async fn routing_update_default_config_for_profile() {}
 pub async fn toggle_success_based_routing() {}
 
 #[cfg(feature = "v1")]
+/// Routing - Auth Rate Based
+///
+/// Create a success based dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/create",
+    request_body = SuccessBasedRoutingConfig,
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),
+        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for success based routing"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Create success based dynamic routing algorithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn create_success_based_routing() {}
+
+#[cfg(feature = "v1")]
 /// Routing - Update success based dynamic routing config for profile
 ///
 /// Update success based dynamic routing algorithm
@@ -291,6 +405,13 @@ pub async fn toggle_success_based_routing() {}
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
         ("algorithm_id" = String, Path, description = "Success based routing algorithm id which was last activated to update the config"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body = SuccessBasedRoutingConfig,
     responses(
@@ -334,6 +455,40 @@ pub async fn success_based_routing_update_configs() {}
 pub async fn toggle_elimination_routing() {}
 
 #[cfg(feature = "v1")]
+/// Routing - Elimination
+///
+/// Create a elimination based dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/create",
+    request_body = EliminationRoutingConfig,
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),
+        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for elimination based routing"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Create elimination routing algorithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn create_elimination_routing() {}
+
+#[cfg(feature = "v1")]
 /// Routing - Toggle Contract routing for profile
 ///
 /// Create a Contract based dynamic routing algorithm
@@ -344,6 +499,13 @@ pub async fn toggle_elimination_routing() {}
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
         ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for contract based routing"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body = ContractBasedRoutingConfig,
     responses(
@@ -371,6 +533,13 @@ pub async fn contract_based_routing_setup_config() {}
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
         ("algorithm_id" = String, Path, description = "Contract based routing algorithm id which was last activated to update the config"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body = ContractBasedRoutingConfig,
     responses(
@@ -386,3 +555,96 @@ pub async fn contract_based_routing_setup_config() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn contract_based_routing_update_configs() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Evaluate
+///
+/// Evaluate routing rules
+#[utoipa::path(
+    post,
+    path = "/routing/evaluate",
+    request_body = OpenRouterDecideGatewayRequest,
+    responses(
+        (status = 200, description = "Routing rules evaluated successfully", body = DecideGatewayResponse),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
+   tag = "Routing",
+   operation_id = "Evaluate routing rules",
+   security(("api_key" = []))
+)]
+pub async fn call_decide_gateway_open_router() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Feedback
+///
+/// Update gateway scores for dynamic routing
+#[utoipa::path(
+    post,
+    path = "/routing/feedback",
+    request_body = UpdateScorePayload,
+    responses(
+        (status = 200, description = "Gateway score updated successfully", body = UpdateScoreResponse),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
+   tag = "Routing",
+   operation_id = "Update gateway scores",
+   security(("api_key" = []))
+)]
+pub async fn call_update_gateway_score_open_router() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Rule Evaluate
+///
+/// Evaluate routing rules
+#[utoipa::path(
+    post,
+    path = "/routing/rule/evaluate",
+    request_body = RoutingEvaluateRequest,
+    responses(
+        (status = 200, description = "Routing rules evaluated successfully", body = RoutingEvaluateResponse),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   params(
+       (
+           "X-Connected-Merchant-Id" = Option<String>, Header,
+           description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+           example = "merchant_abc"
+       )
+   ),
+   tag = "Routing",
+   operation_id = "Evaluate routing rules (alternative)",
+   security(("api_key" = []))
+)]
+pub async fn evaluate_routing_rule() {}

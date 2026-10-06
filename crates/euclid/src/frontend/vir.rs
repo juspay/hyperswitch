@@ -21,7 +21,7 @@ pub type ValuedIfCondition = Vec<ValuedComparison>;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ValuedIfStatement {
     pub condition: ValuedIfCondition,
-    pub nested: Option<Vec<ValuedIfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

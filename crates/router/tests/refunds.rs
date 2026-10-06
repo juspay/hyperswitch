@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::print_stdout)]
-
 use utils::{mk_service, AppClient};
 
 mod utils;

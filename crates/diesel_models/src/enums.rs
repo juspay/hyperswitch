@@ -61,28 +61,6 @@ pub enum RoutingAlgorithmKind {
     ThreeDsDecisionRule,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventObjectType {
-    PaymentDetails,
-    RefundDetails,
-    DisputeDetails,
-    MandateDetails,
-    PayoutDetails,
-}
-
 // Refund
 #[derive(
     Clone,
@@ -197,6 +175,7 @@ pub enum FraudCheckLastStep {
     CheckoutOrSale,
     TransactionOrRecordRefund,
     Fulfillment,
+    PoFrm,
 }
 
 #[derive(
@@ -259,6 +238,10 @@ pub enum DashboardMetadata {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
+    #[cfg(feature = "v1")]
+    PaymentViews,
+    #[cfg(feature = "v1")]
+    PaymentAdvancedViews,
 }
 
 #[derive(

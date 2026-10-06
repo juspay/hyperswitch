@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use common_utils::id_type;
-
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;
 
@@ -13,6 +11,9 @@ impl Default for super::settings::Server {
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             shutdown_timeout: 30,
+            keep_alive: 5,
+            client_request_timeout: 5000,
+            client_disconnect_timeout: 1000,
             #[cfg(feature = "tls")]
             tls: None,
         }
@@ -41,11 +42,12 @@ impl Default for super::settings::Database {
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
-            pool_size: 5,
+            max_pool_size: 5,
             connection_timeout: 10,
             queue_strategy: Default::default(),
-            min_idle: None,
-            max_lifetime: None,
+            min_idle_pool_size: 2,
+            max_lifetime: 1800,
+            idle_timeout: 300,
         }
     }
 }
@@ -53,15 +55,16 @@ impl Default for super::settings::Locker {
     fn default() -> Self {
         Self {
             host: "localhost".into(),
-            host_rs: "localhost".into(),
             mock_locker: true,
-            basilisk_host: "localhost".into(),
             locker_signing_key_id: "1".into(),
             //true or false
             locker_enabled: true,
             //Time to live for storage entries in locker
             ttl_for_storage_in_secs: 60 * 60 * 24 * 365 * 7,
             decryption_scheme: Default::default(),
+            create_entity_on_merchant_create: false,
+            #[cfg(feature = "v2")]
+            plain_fingerprint_response: true,
         }
     }
 }
@@ -120,17 +123,6 @@ impl Default for super::settings::KvConfig {
         Self {
             ttl: 900,
             soft_kill: Some(false),
-        }
-    }
-}
-
-impl Default for super::settings::GlobalTenant {
-    fn default() -> Self {
-        Self {
-            tenant_id: id_type::TenantId::get_default_global_tenant_id(),
-            schema: String::from("global"),
-            redis_key_prefix: String::from("global"),
-            clickhouse_database: String::from("global"),
         }
     }
 }

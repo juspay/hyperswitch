@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use api_models::{enums as api_enums, routing};
 use common_utils::id_type;
-use serde;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

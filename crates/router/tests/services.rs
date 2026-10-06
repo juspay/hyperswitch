@@ -6,7 +6,6 @@ mod utils;
 
 #[tokio::test]
 #[should_panic]
-#[allow(clippy::unwrap_used)]
 async fn get_redis_conn_failure() {
     // Arrange
     utils::setup().await;
@@ -15,6 +14,7 @@ async fn get_redis_conn_failure() {
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -26,7 +26,8 @@ async fn get_redis_conn_failure() {
         .unwrap();
 
     let _ = state.store.get_redis_conn().map(|conn| {
-        conn.is_redis_available
+        conn.redis_conn
+            .is_redis_available
             .store(false, atomic::Ordering::SeqCst)
     });
 
@@ -38,7 +39,6 @@ async fn get_redis_conn_failure() {
 }
 
 #[tokio::test]
-#[allow(clippy::unwrap_used)]
 async fn get_redis_conn_success() {
     // Arrange
     Box::pin(utils::setup()).await;
@@ -47,6 +47,7 @@ async fn get_redis_conn_success() {
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)

@@ -3,7 +3,7 @@ use std::{str::FromStr, time::Duration};
 use cards::CardNumber;
 use common_utils::types::MinorUnit;
 use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 
 use crate::{
@@ -649,7 +649,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         *response.unwrap_err().current_context(),
         router::core::errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
-            connector: "Forte",
+            connector: "Forte".into(),
         }
     )
 }

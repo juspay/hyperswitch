@@ -1,0 +1,30 @@
+{
+  "event": {
+    "checksum": "dGVzdF9jaGVja3N1bQ==",
+    "tid": "{{connector_refund_id}}",
+    "parent_tid": null,
+    "type": "TRANSACTION_REFUND"
+  },
+  "result": {
+    "status": "SUCCESS",
+    "status_code": 100,
+    "status_text": "Successful"
+  },
+  "transaction": {
+    "amount": 6000,
+    "currency": "EUR",
+    "order_no": null,
+    "payment_type": "CREDITCARD",
+    "refund": {
+      "amount": 6000,
+      "currency": "EUR",
+      "payment_type": null,
+      "tid": null
+    },
+    "refunded_amount": 6000,
+    "status": "CONFIRMED",
+    "status_code": 100,
+    "test_mode": 1,
+    "tid": 12345678
+  }
+}

@@ -15,23 +15,23 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreAuthenticateData, ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types::{PaymentsPreProcessingRouterData, RefundsRouterData},
+    types::{PaymentsPreAuthenticateRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
     types::{
-        PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsPreAuthenticateResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, to_connector_meta, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData, RouterData as _,
     },
 };
 
@@ -43,6 +43,7 @@ trait Shift4AuthorizePreprocessingCommon {
     fn get_email_optional(&self) -> Option<pii::Email>;
     fn get_complete_authorize_url(&self) -> Option<String>;
     fn get_currency_required(&self) -> Result<enums::Currency, Error>;
+    fn get_metadata(&self) -> Result<Option<serde_json::Value>, Error>;
     fn get_payment_method_data_required(&self) -> Result<PaymentMethodData, Error>;
 }
 
@@ -88,9 +89,15 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_router_return_url(&self) -> Option<String> {
         self.router_return_url.clone()
     }
+
+    fn get_metadata(
+        &self,
+    ) -> Result<Option<serde_json::Value>, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.metadata.clone())
+    }
 }
 
-impl Shift4AuthorizePreprocessingCommon for PaymentsPreProcessingData {
+impl Shift4AuthorizePreprocessingCommon for PaymentsPreAuthenticateData {
     fn get_email_optional(&self) -> Option<pii::Email> {
         self.email.clone()
     }
@@ -99,17 +106,22 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsPreProcessingData {
         self.complete_authorize_url.clone()
     }
 
-    fn get_currency_required(&self) -> Result<enums::Currency, Error> {
-        self.get_currency()
-    }
-    fn get_payment_method_data_required(&self) -> Result<PaymentMethodData, Error> {
-        self.payment_method_data.clone().ok_or(
+    fn get_currency_required(
+        &self,
+    ) -> Result<enums::Currency, error_stack::Report<errors::ConnectorError>> {
+        self.currency.ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "currency".into(),
             }
             .into(),
         )
     }
+    fn get_payment_method_data_required(
+        &self,
+    ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+        Ok(self.payment_method_data.clone())
+    }
+
     fn is_automatic_capture(&self) -> Result<bool, Error> {
         self.is_auto_capture()
     }
@@ -117,12 +129,20 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsPreProcessingData {
     fn get_router_return_url(&self) -> Option<String> {
         self.router_return_url.clone()
     }
+
+    fn get_metadata(
+        &self,
+    ) -> Result<Option<serde_json::Value>, error_stack::Report<errors::ConnectorError>> {
+        Ok(None)
+    }
 }
+
 #[derive(Debug, Serialize)]
 pub struct Shift4PaymentsRequest {
     amount: MinorUnit,
     currency: enums::Currency,
     captured: bool,
+    metadata: Option<serde_json::Value>,
     #[serde(flatten)]
     payment_method: Shift4PaymentMethod,
 }
@@ -275,11 +295,13 @@ where
         let submit_for_settlement = item.router_data.request.is_automatic_capture()?;
         let amount = item.amount.to_owned();
         let currency = item.router_data.request.get_currency_required()?;
+        let metadata = item.router_data.request.get_metadata()?;
         let payment_method = Shift4PaymentMethod::try_from(item.router_data)?;
         Ok(Self {
             amount,
             currency,
             captured: submit_for_settlement,
+            metadata,
             payment_method,
         })
     }
@@ -296,11 +318,15 @@ impl TryFrom<&PayLaterData> for PaymentMethodType {
             | PayLaterData::WalleyRedirect { .. }
             | PayLaterData::AlmaRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
+            | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
-            | PayLaterData::BreadpayRedirect { .. } => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Shift4"),
-            )
-            .into()),
+            | PayLaterData::BreadpayRedirect { .. }
+            | PayLaterData::PayjustnowRedirect { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -359,7 +385,12 @@ where
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
@@ -378,6 +409,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             WalletData::Paysera(_) => Ok(Self::Paysera),
             WalletData::Skrill(_) => Ok(Self::Skrill),
             WalletData::AliPayQr(_)
+            | WalletData::AmazonPay(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::MomoRedirect(_)
@@ -391,6 +423,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::GooglePay(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::PaypalRedirect(_)
             | WalletData::MbWayRedirect(_)
             | WalletData::MobilePayRedirect(_)
@@ -404,6 +437,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::Mifinity(_)
+            | WalletData::Neteller(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
@@ -450,6 +484,10 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }
@@ -527,12 +565,12 @@ impl TryFrom<&GiftCardData> for Shift4PaymentMethod {
     type Error = Error;
     fn try_from(gift_card_data: &GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
+            GiftCardData::Givex(_)
+            | GiftCardData::PaySafeCard {}
+            | GiftCardData::BhnCardNetwork(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
         }
     }
 }
@@ -638,9 +676,11 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             Some(PaymentMethodData::Card(_)) => {
                 let card_token: Shift4CardToken =
                     to_connector_meta(item.router_data.request.connector_meta.clone())?;
+                let metadata = item.router_data.request.metadata.clone();
                 Ok(Self {
                     amount: item.amount.to_owned(),
                     currency: item.router_data.request.currency,
+                    metadata,
                     payment_method: Shift4PaymentMethod::CardsNon3DSRequest(Box::new(
                         CardsNon3DSRequest {
                             card: CardPayment::CardToken(card_token.id),
@@ -668,6 +708,13 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
+            | Some(PaymentMethodData::CardWithLimitedDetails(_))
+            | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
@@ -698,12 +745,11 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
-            | BankRedirectData::LocalBankRedirect {} => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
+            | BankRedirectData::LocalBankRedirect {}
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
         }
     }
 }
@@ -915,12 +961,12 @@ pub struct Shift4CardToken {
     pub id: Secret<String>,
 }
 
-impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
-    for PaymentsPreProcessingRouterData
+impl TryFrom<PaymentsPreAuthenticateResponseRouterData<Shift4ThreeDsResponse>>
+    for PaymentsPreAuthenticateRouterData
 {
     type Error = Error;
     fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>,
+        item: PaymentsPreAuthenticateResponseRouterData<Shift4ThreeDsResponse>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
@@ -932,7 +978,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
             } else {
                 enums::AttemptStatus::Pending
             },
-            request: PaymentsPreProcessingData {
+            request: PaymentsPreAuthenticateData {
                 enrolled_for_3ds: item.response.enrolled,
                 ..item.data.request
             },
@@ -947,9 +993,12 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -985,9 +1034,12 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -1079,9 +1131,14 @@ pub struct ErrorResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename = "camelCase")]
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,
+    pub issuer_decline_code: Option<String>,
+    pub advice_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub charge_id: Option<String>,
 }
 
 pub fn is_transaction_event(event: &Shift4WebhookEvent) -> bool {

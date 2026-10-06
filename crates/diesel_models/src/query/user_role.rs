@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
     associations::HasTable,
@@ -16,11 +17,11 @@ use crate::{
     query::generics,
     schema::user_roles::dsl,
     user_role::*,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl UserRoleNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<UserRole> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<UserRole> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -76,7 +77,7 @@ impl UserRole {
     }
 
     pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -99,9 +100,80 @@ impl UserRole {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
     }
 
+    fn check_user_in_lineage_with_entity_type(
+        tenant_id: id_type::TenantId,
+        org_id: Option<id_type::OrganizationId>,
+        merchant_id: Option<id_type::MerchantId>,
+        profile_id: Option<id_type::ProfileId>,
+    ) -> Box<
+        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>>
+            + 'static,
+    > {
+        // Checking in user roles, for a user in token hierarchy, only one of the relations will be true:
+        // either tenant level, org level, merchant level, or profile level
+        // Tenant-level: (tenant_id = ? && org_id = null && merchant_id = null && profile_id = null)
+        // Org-level: (org_id = ? && entity_type = organization)
+        // Merchant-level: (org_id = ? && merchant_id = ? && entity_id = merchant)
+        // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ? && entity_type = profile)
+        Box::new(
+            // Tenant-level condition
+            dsl::tenant_id
+                .eq(tenant_id.clone())
+                .and(dsl::entity_type.eq(EntityType::Tenant))
+                .or(
+                    // Org-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id.clone())
+                        .and(dsl::org_id.eq(org_id.clone()))
+                        .and(dsl::entity_type.eq(EntityType::Organization)),
+                )
+                .or(
+                    // Merchant-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id.clone())
+                        .and(dsl::org_id.eq(org_id.clone()))
+                        .and(dsl::merchant_id.eq(merchant_id.clone()))
+                        .and(dsl::entity_type.eq(EntityType::Merchant)),
+                )
+                .or(
+                    // Profile-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id)
+                        .and(dsl::org_id.eq(org_id))
+                        .and(dsl::merchant_id.eq(merchant_id))
+                        .and(dsl::profile_id.eq(profile_id))
+                        .and(dsl::entity_type.eq(EntityType::Profile)),
+                ),
+        )
+    }
+
+    pub async fn find_by_user_id_tenant_id_org_id_merchant_id_profile_id_with_entity_type(
+        conn: &DatabaseConnectionWithContext<'_>,
+        user_id: String,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        version: UserRoleVersion,
+    ) -> StorageResult<Self> {
+        let check_lineage = Self::check_user_in_lineage_with_entity_type(
+            tenant_id,
+            Some(org_id),
+            Some(merchant_id),
+            Some(profile_id),
+        );
+
+        let predicate = dsl::user_id
+            .eq(user_id)
+            .and(check_lineage)
+            .and(dsl::version.eq(version));
+
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn update_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -155,7 +227,7 @@ impl UserRole {
     }
 
     pub async fn delete_by_user_id_tenant_id_org_id_merchant_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
@@ -181,7 +253,7 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_user(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         tenant_id: id_type::TenantId,
         org_id: Option<id_type::OrganizationId>,
@@ -192,9 +264,10 @@ impl UserRole {
         version: Option<UserRoleVersion>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = <Self as HasTable>::table()
-            .filter(dsl::user_id.eq(user_id).and(dsl::tenant_id.eq(tenant_id)))
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .filter(dsl::user_id.eq(user_id).and(dsl::tenant_id.eq(tenant_id))),
+        );
 
         if let Some(org_id) = org_id {
             query = query.filter(dsl::org_id.eq(org_id));
@@ -227,8 +300,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -244,18 +319,20 @@ impl UserRole {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_org_and_extra(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: Option<String>,
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
+        entity_type: Option<EntityType>,
         version: Option<UserRoleVersion>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = <Self as HasTable>::table()
-            .filter(dsl::org_id.eq(org_id).and(dsl::tenant_id.eq(tenant_id)))
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .filter(dsl::org_id.eq(org_id).and(dsl::tenant_id.eq(tenant_id))),
+        );
 
         if let Some(user_id) = user_id {
             query = query.filter(dsl::user_id.eq(user_id));
@@ -269,6 +346,10 @@ impl UserRole {
             query = query.filter(dsl::profile_id.eq(profile_id));
         }
 
+        if let Some(entity_type) = entity_type {
+            query = query.filter(dsl::entity_type.eq(entity_type));
+        }
+
         if let Some(version) = version {
             query = query.filter(dsl::version.eq(version));
         }
@@ -280,8 +361,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -296,13 +379,13 @@ impl UserRole {
     }
 
     pub async fn list_user_roles_by_user_id_across_tenants(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         user_id: String,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = <Self as HasTable>::table()
-            .filter(dsl::user_id.eq(user_id))
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            <Self as HasTable>::table().filter(dsl::user_id.eq(user_id)),
+        );
         if let Some(limit) = limit {
             query = query.limit(limit.into());
         }
@@ -310,8 +393,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {

@@ -58,6 +58,9 @@ ALTER TABLE payment_attempt
 -- This is done to nullify the effects of dropping primary key for v1
 CREATE INDEX idx_payment_attempt_attempt_id_merchant_id ON payment_attempt (attempt_id, merchant_id);
 
+ALTER TABLE payment_attempt
+    ALTER COLUMN confirm DROP NOT NULL;
+
 ---------------------- Payment Methods ----------------------
 ALTER TABLE payment_methods 
     DROP CONSTRAINT payment_methods_pkey,
@@ -69,5 +72,8 @@ CREATE INDEX idx_payment_methods_payment_method_id ON payment_methods (payment_m
 ALTER TABLE refund
     DROP CONSTRAINT refund_pkey,
     ALTER COLUMN refund_id DROP NOT NULL;
+
+ALTER TABLE refund
+    ALTER COLUMN internal_reference_id DROP NOT NULL;
 -- This is done to nullify the effects of dropping primary key for v1
 CREATE INDEX idx_refund_refund_id_merchant_id ON refund (refund_id, merchant_id);

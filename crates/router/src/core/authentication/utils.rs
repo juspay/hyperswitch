@@ -1,7 +1,10 @@
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
-use masking::ExposeInterface;
+use hyperswitch_domain_models::{
+    authentication, router_data_v2::ExternalAuthenticationFlowData, router_request_types,
+    type_encryption::AsyncLift,
+};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     consts,
@@ -13,8 +16,8 @@ use crate::{
     routes::SessionState,
     services::{self, execute_connector_processing_step},
     types::{
-        api, authentication::AuthenticationResponseData, domain, storage,
-        transformers::ForeignFrom, RouterData,
+        api, authentication::AuthenticationResponseData, domain, transformers::ForeignFrom,
+        RouterData,
     },
     utils::OptionExt,
 };
@@ -52,13 +55,17 @@ pub fn get_connector_data_if_separate_authn_supported(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, AuthenticationResponseData>,
-    authentication: storage::Authentication,
+    authentication: authentication::Authentication,
     acquirer_details: Option<super::types::AcquirerDetails>,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-) -> RouterResult<storage::Authentication> {
+    authentication_info: router_request_types::authentication::AuthenticationInfo,
+    storage_scheme: diesel_models::enums::MerchantStorageScheme,
+) -> RouterResult<authentication::Authentication> {
+    let key_manager_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             AuthenticationResponseData::PreAuthNResponse {
@@ -70,29 +77,137 @@ pub async fn update_trackers<F: Clone, Req>(
                 message_version,
                 connector_metadata,
                 directory_server_id,
-            } => storage::AuthenticationUpdate::PreAuthenticationUpdate {
-                threeds_server_transaction_id,
-                maximum_supported_3ds_version,
-                connector_authentication_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                message_version,
-                connector_metadata,
-                authentication_status: common_enums::AuthenticationStatus::Pending,
-                acquirer_bin: acquirer_details
+                scheme_id,
+            } => {
+                let billing_details_encoded = authentication_info
+                    .billing_address
+                    .clone()
+                    .map(|billing| {
+                        common_utils::ext_traits::Encode::encode_to_value(&billing)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+                let shipping_details_encoded = authentication_info
+                    .shipping_address
+                    .clone()
+                    .map(|shipping| {
+                        common_utils::ext_traits::Encode::encode_to_value(&shipping)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
+                    })
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+                let encrypted_data = domain::types::crypto_operation(
+                    &key_manager_state,
+                    common_utils::type_name!(authentication::Authentication),
+                    domain::types::CryptoOperation::BatchEncrypt(
+                        authentication::UpdateEncryptableAuthentication::to_encryptable(
+                            authentication::UpdateEncryptableAuthentication {
+                                billing_address: billing_details_encoded,
+                                shipping_address: shipping_details_encoded,
+                            },
+                        ),
+                    ),
+                    common_utils::types::keymanager::Identifier::Merchant(
+                        merchant_key_store.merchant_id.clone(),
+                    ),
+                    merchant_key_store.key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_batchoperation())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+                let browser_info = authentication_info
+                    .browser_info
                     .as_ref()
-                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
-                acquirer_merchant_id: acquirer_details
-                    .as_ref()
-                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
-                acquirer_country_code: acquirer_details
-                    .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
-                directory_server_id,
-                billing_address: None,
-                shipping_address: None,
-                browser_info: Box::new(None),
-                email: None,
-            },
+                    .map(common_utils::ext_traits::Encode::encode_to_value)
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "browser_information".into(),
+                    })?;
+
+                let encrypted_data =
+                    authentication::FromRequestEncryptableAuthentication::from_encryptable(
+                        encrypted_data,
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Unable to get encrypted data for authentication after encryption",
+                    )?;
+
+                let email_encrypted = authentication_info
+                    .email
+                    .clone()
+                    .async_lift(|inner| async {
+                        domain::types::crypto_operation(
+                            &key_manager_state,
+                            common_utils::type_name!(authentication::Authentication),
+                            domain::types::CryptoOperation::EncryptOptional(
+                                inner.map(|inner| inner.expose()),
+                            ),
+                            common_utils::types::keymanager::Identifier::Merchant(
+                                merchant_key_store.merchant_id.clone(),
+                            ),
+                            merchant_key_store.key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt email")?;
+
+                authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+                    threeds_server_transaction_id,
+                    maximum_supported_3ds_version: maximum_supported_3ds_version.clone(),
+                    connector_authentication_id,
+                    three_ds_method_data,
+                    three_ds_method_url,
+                    message_version,
+                    connector_metadata,
+                    authentication_status: common_enums::AuthenticationStatus::Pending,
+                    acquirer_bin: acquirer_details
+                        .as_ref()
+                        .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                    acquirer_merchant_id: acquirer_details
+                        .as_ref()
+                        .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                    acquirer_country_code: acquirer_details
+                        .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
+                    directory_server_id,
+                    billing_address: Box::new(encrypted_data.billing_address),
+                    shipping_address: Box::new(encrypted_data.shipping_address),
+                    browser_info: Box::new(browser_info),
+                    email: email_encrypted,
+                    scheme_id,
+                    merchant_category_code: authentication_info.merchant_category_code,
+                    merchant_country_code: authentication_info
+                        .merchant_country_code
+                        .map(|merchant_country_code| merchant_country_code.to_string()),
+                    billing_country: authentication_info.billing_address.and_then(
+                        |billing_address| {
+                            billing_address.address.and_then(|address| {
+                                address.country.map(|country| country.to_string())
+                            })
+                        },
+                    ),
+                    shipping_country: authentication_info.shipping_address.and_then(
+                        |shipping_address| {
+                            shipping_address.address.and_then(|address| {
+                                address.country.map(|country| country.to_string())
+                            })
+                        },
+                    ),
+                    earliest_supported_version: Some(maximum_supported_3ds_version.clone()),
+                    latest_supported_version: Some(maximum_supported_3ds_version.clone()),
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
                 authentication_value,
@@ -100,10 +215,14 @@ pub async fn update_trackers<F: Clone, Req>(
                 connector_metadata,
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        crate::core::payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -119,11 +238,16 @@ pub async fn update_trackers<F: Clone, Req>(
 
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+                let exemption_accepted = authentication
+                    .psd2_sca_exemption_type
+                    .as_ref()
+                    .map(|_| matches!(&trans_status, common_enums::TransactionStatus::Success));
 
-                storage::AuthenticationUpdate::AuthenticationUpdate {
+                authentication::AuthenticationUpdate::AuthenticationUpdate {
                     trans_status,
                     acs_url: authn_flow_type.get_acs_url(),
                     challenge_request: authn_flow_type.get_challenge_request(),
+                    challenge_request_key: authn_flow_type.get_challenge_request_key(),
                     acs_reference_number: authn_flow_type.get_acs_reference_number(),
                     acs_trans_id: authn_flow_type.get_acs_trans_id(),
                     acs_signed_content: authn_flow_type.get_acs_signed_content(),
@@ -132,16 +256,41 @@ pub async fn update_trackers<F: Clone, Req>(
                     connector_metadata,
                     ds_trans_id,
                     eci,
+                    challenge_code,
+                    challenge_cancel,
+                    challenge_code_reason,
+                    message_extension,
+                    device_type: authentication_info
+                        .device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_type.clone()),
+                    device_brand: authentication_info
+                        .device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_brand.clone()),
+                    device_os: authentication_info
+                        .device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_os.clone()),
+                    device_display: authentication_info
+                        .device_details
+                        .as_ref()
+                        .and_then(|device_details| device_details.device_display.clone()),
+                    platform: authentication_info.platform,
+                    exemption_accepted,
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {
                 trans_status,
                 authentication_value,
                 eci,
+                challenge_cancel,
+                challenge_code_reason,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
-                        crate::core::payment_methods::vault::create_tokenize(
+                        crate::core::payment_methods::vault::create_tokenize_without_configurable_expiry(
                             state,
                             auth_val.expose(),
                             None,
@@ -154,26 +303,30 @@ pub async fn update_trackers<F: Clone, Req>(
                     })
                     .await
                     .transpose()?;
-                storage::AuthenticationUpdate::PostAuthenticationUpdate {
+                authentication::AuthenticationUpdate::PostAuthenticationUpdate {
                     authentication_status: common_enums::AuthenticationStatus::foreign_from(
                         trans_status.clone(),
                     ),
                     trans_status,
                     eci,
+                    challenge_cancel,
+                    challenge_code_reason,
+                    updated_by: storage_scheme.to_string(),
                 }
             }
             AuthenticationResponseData::PreAuthVersionCallResponse {
                 maximum_supported_3ds_version,
-            } => storage::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
+            } => authentication::AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 message_version: maximum_supported_3ds_version.clone(),
                 maximum_supported_3ds_version,
+                updated_by: storage_scheme.to_string(),
             },
             AuthenticationResponseData::PreAuthThreeDsMethodCallResponse {
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
                 connector_metadata,
-            } => storage::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
+            } => authentication::AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
                 threeds_server_transaction_id,
                 three_ds_method_data,
                 three_ds_method_url,
@@ -183,9 +336,10 @@ pub async fn update_trackers<F: Clone, Req>(
                     .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
                 acquirer_merchant_id: acquirer_details
                     .map(|acquirer_details| acquirer_details.acquirer_merchant_id),
+                updated_by: storage_scheme.to_string(),
             },
         },
-        Err(error) => storage::AuthenticationUpdate::ErrorUpdate {
+        Err(error) => authentication::AuthenticationUpdate::ErrorUpdate {
             connector_authentication_id: error.connector_transaction_id,
             authentication_status: common_enums::AuthenticationStatus::Failed,
             error_message: error
@@ -193,13 +347,17 @@ pub async fn update_trackers<F: Clone, Req>(
                 .map(|reason| format!("message: {}, reason: {}", error.message, reason))
                 .or(Some(error.message)),
             error_code: Some(error.code),
+            updated_by: storage_scheme.to_string(),
         },
     };
     state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
+            merchant_key_store,
+            &key_manager_state,
+            storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -223,13 +381,22 @@ pub async fn create_new_authentication(
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
-    profile_id: common_utils::id_type::ProfileId,
+    business_profile: &domain::Profile,
     payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-) -> RouterResult<storage::Authentication> {
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
+    card: &hyperswitch_domain_models::payment_method_data::Card,
+    browser_info: Option<&router_request_types::BrowserInformation>,
+    acquirer_details: Option<&super::types::AcquirerDetails>,
+    billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<&hyperswitch_domain_models::address::Address>,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<common_enums::Currency>,
+) -> RouterResult<authentication::Authentication> {
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
     );
@@ -237,15 +404,58 @@ pub async fn create_new_authentication(
         "{}_secret",
         authentication_id.get_string_repr()
     )));
-    let new_authorization = storage::AuthenticationNew {
+
+    let key_manager_state = (state).into();
+
+    let current_time = common_utils::date_time::now();
+
+    let issuer_country = card
+        .card_issuing_country_code
+        .clone()
+        .or(card.card_issuing_country.clone());
+    let device_type = browser_info.and_then(|info| info.device_model.clone());
+    let device_os = browser_info.and_then(|info| match (&info.os_type, &info.os_version) {
+        (Some(os_type), Some(os_version)) => Some(format!("{os_type}-{os_version}")),
+        (Some(os_type), None) => Some(os_type.clone()),
+        (None, Some(os_version)) => Some(os_version.clone()),
+        (None, None) => None,
+    });
+    let device_display =
+        browser_info.and_then(|info| match (info.screen_width, info.screen_height) {
+            (Some(width), Some(height)) => Some(format!("{width}x{height}")),
+            _ => None,
+        });
+    let browser_info = browser_info
+        .map(common_utils::ext_traits::Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_information".into(),
+        })?;
+    let billing_country = billing_address.and_then(|billing| {
+        billing
+            .address
+            .as_ref()
+            .and_then(|address| address.country.map(|country| country.to_string()))
+    });
+    let shipping_country = shipping_address.and_then(|shipping| {
+        shipping
+            .address
+            .as_ref()
+            .and_then(|address| address.country.map(|country| country.to_string()))
+    });
+
+    let new_authentication = authentication::Authentication {
         authentication_id: authentication_id.clone(),
         merchant_id,
         authentication_connector: Some(authentication_connector),
         connector_authentication_id: None,
+        authentication_data: None,
         payment_method_id: format!("eph_{token}"),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
+        created_at: current_time,
+        modified_at: current_time,
         error_message: None,
         error_code: None,
         connector_metadata: None,
@@ -256,8 +466,8 @@ pub async fn create_new_authentication(
         message_version: None,
         eci: None,
         trans_status: None,
-        acquirer_bin: None,
-        acquirer_merchant_id: None,
+        acquirer_bin: acquirer_details.map(|details| details.acquirer_bin.clone()),
+        acquirer_merchant_id: acquirer_details.map(|details| details.acquirer_merchant_id.clone()),
         three_ds_method_data: None,
         three_ds_method_url: None,
         acs_url: None,
@@ -265,29 +475,70 @@ pub async fn create_new_authentication(
         acs_reference_number: None,
         acs_trans_id: None,
         acs_signed_content: None,
-        profile_id,
+        profile_id: business_profile.get_id().to_owned(),
         payment_id: Some(payment_id),
         merchant_connector_id: Some(merchant_connector_id),
         ds_trans_id: None,
         directory_server_id: None,
-        acquirer_country_code: None,
-        service_details: None,
+        acquirer_country_code: acquirer_details
+            .and_then(|details| details.acquirer_country_code.clone()),
         organization_id,
+        mcc: business_profile.merchant_category_code.clone(),
+        amount,
+        currency,
+        billing_country,
+        shipping_country,
+        issuer_country,
+        earliest_supported_version: None,
+        latest_supported_version: None,
+        platform: None,
+        device_type,
+        device_brand: None,
+        device_os,
+        device_display,
+        browser_name: None,
+        browser_version: None,
+        issuer_id: card
+            .card_issuer
+            .as_ref()
+            .map(|issuer_id| issuer_id.replace(' ', "")),
+        scheme_name: card.card_network.as_ref().map(ToString::to_string),
+        exemption_requested: psd2_sca_exemption_type.map(|_| true),
+        exemption_accepted: None,
+        service_details: None,
         authentication_client_secret,
         force_3ds_challenge,
         psd2_sca_exemption_type,
         return_url: None,
-        amount: None,
-        currency: None,
         billing_address: None,
         shipping_address: None,
-        browser_info: None,
+        browser_info,
         email: None,
         profile_acquirer_id: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        challenge_request_key: None,
+        customer_details: None,
+        merchant_country_code: business_profile
+            .merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.get_country_code()),
+        processor_merchant_id: Some(processor.get_account().get_id().clone()),
+        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+        // Seed with the configured scheme; the insert layer overwrites with the decided one.
+        updated_by: Some(processor.get_account().storage_scheme.to_string()),
     };
+
     state
         .store
-        .insert_authentication(new_authorization)
+        .insert_authentication(
+            &key_manager_state,
+            processor.get_key_store(),
+            new_authentication,
+            processor.get_account().storage_scheme,
+        )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -332,7 +583,7 @@ where
 
 pub async fn get_authentication_connector_data(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     authentication_connector: Option<String>,
 ) -> RouterResult<(
@@ -377,9 +628,8 @@ pub async fn get_authentication_connector_data(
     let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,
-        &business_profile.merchant_id,
+        processor,
         None,
-        key_store,
         profile_id,
         authentication_connector.to_string().as_str(),
         None,

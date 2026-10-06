@@ -1,7 +1,5 @@
-#![allow(clippy::unwrap_used)]
-
 mod utils;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use test_utils::connector_auth::ConnectorAuthentication;
 use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 

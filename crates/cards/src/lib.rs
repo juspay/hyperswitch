@@ -3,11 +3,13 @@ use std::ops::Deref;
 
 use common_utils::{date_time, errors};
 use error_stack::report;
-use masking::{PeekInterface, StrongSecret};
+use hyperswitch_masking::{PeekInterface, StrongSecret};
 use serde::{de, Deserialize, Serialize};
 use time::{Date, Duration, PrimitiveDateTime, Time};
 
-pub use crate::validate::{CardNumber, CardNumberStrategy, CardNumberValidationErr, NetworkToken};
+pub use crate::validate::{
+    CardBin, CardNumber, CardNumberStrategy, CardNumberValidationErr, NetworkToken,
+};
 
 #[derive(Serialize)]
 pub struct CardSecurityCode(StrongSecret<u16>);

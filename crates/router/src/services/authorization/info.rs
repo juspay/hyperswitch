@@ -41,14 +41,32 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::AnalyticsView => Some("View Analytics"),
         PermissionGroup::UsersView => Some("View Users"),
         PermissionGroup::UsersManage => Some("Manage and invite Users to the Team"),
-        PermissionGroup::MerchantDetailsView | PermissionGroup::AccountView => Some("View Merchant Details"),
-        PermissionGroup::MerchantDetailsManage | PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        PermissionGroup::OrganizationManage => Some("Manage organization level tasks like create new Merchant accounts, Organization level roles, etc"),
-        PermissionGroup::ReconReportsView => Some("View reconciliation reports and analytics"),
-        PermissionGroup::ReconReportsManage => Some("Manage reconciliation reports"),
-        PermissionGroup::ReconOpsView => Some("View and access all reconciliation operations including reports and analytics"),
-        PermissionGroup::ReconOpsManage => Some("Manage all reconciliation operations including reports and analytics"),
-        PermissionGroup::InternalManage => None, // Internal group, no user-facing description
+        PermissionGroup::AccountView => Some("View Merchant Details"),
+        PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
+        // Omits these from the authorization-info response; hidden until the role backfill
+        PermissionGroup::WebhooksView => None,
+        PermissionGroup::WebhooksManage => None,
+        PermissionGroup::ApiKeysView => None,
+        PermissionGroup::ApiKeysManage => None,
+        PermissionGroup::ThemeView => Some("View Themes"),
+        PermissionGroup::ThemeManage => Some("Manage Themes"),
+        PermissionGroup::ConfigurationsView => Some("View Configurations"),
+        PermissionGroup::ConfigurationsManage => Some("Create, modify and delete Configurations"),
+        PermissionGroup::CloneConnectorManage => Some("Clone a connector and its configuration"),
+        PermissionGroup::ReconSourcesView => Some("View recon ingestion and transformation configs and files"),
+        PermissionGroup::ReconSourcesManage => Some("Create and edit recon ingestion and transformation configs and download files"),
+        PermissionGroup::ReconExceptionsView => Some("Investigate Exceptions and view resolutions"),
+        PermissionGroup::ReconExceptionsManage => Some("Investigate and resolve recon exceptions"),
+        PermissionGroup::ReconTransactionsView => Some("View recon staging entries and transactions"),
+        PermissionGroup::ReconTransactionsManage => Some("View and edit recon staging entries and transactions"),
+        PermissionGroup::ReconRulesView => Some("View reconciliation rules"),
+        PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
+        PermissionGroup::OffersView => Some("View Offers"),
+        PermissionGroup::OffersManage => Some("Create, modify and delete Offers"),
+        PermissionGroup::AlertsView
+        | PermissionGroup::AlertsManage
+        | PermissionGroup::MonitoringView
+        | PermissionGroup::MonitoringManage => None,
     }
 }
 
@@ -60,8 +78,18 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Analytics => Some("View Analytics"),
         ParentGroup::Users =>  Some("Manage and invite Users to the Team"),
         ParentGroup::Account => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        ParentGroup::ReconOps => Some("View, manage reconciliation operations like upload and process files, run reconciliation etc"),
-        ParentGroup::ReconReports => Some("View, manage reconciliation reports and analytics"),
-        ParentGroup::Internal => None, // Internal group, no user-facing description
+        // Omits these from the authorization-info response; hidden until the role backfill
+        ParentGroup::Webhook => None,
+        ParentGroup::ApiKeys => None,
+        ParentGroup::Theme => Some("Manage and view themes for the organization"),
+        ParentGroup::Configurations => Some("Manage and view configurations"),
+        ParentGroup::CloneConnector => Some("Clone a connector and its configuration"),
+        ParentGroup::ReconSources => Some("Recon ingestion and transformation pipelines"),
+        ParentGroup::ReconExceptions => Some("Recon exception investigation and resolution"),
+        ParentGroup::ReconTransactions => Some("Recon staging entries and transactions"),
+        ParentGroup::ReconRules => Some("Reconciliation rules"),
+        ParentGroup::Offers => Some("Manage and view offers"),
+        ParentGroup::Alerts |
+        ParentGroup::Monitoring => None,
     }
 }

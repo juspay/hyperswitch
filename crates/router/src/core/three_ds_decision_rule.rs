@@ -7,8 +7,8 @@ use euclid::{
     backend::{self, inputs as dsl_inputs, EuclidBackend},
     frontend::ast,
 };
-use hyperswitch_domain_models::merchant_context::MerchantContext;
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::platform::Platform;
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     core::{
@@ -23,12 +23,12 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn execute_three_ds_decision_rule(
     state: SessionState,
-    merchant_context: MerchantContext,
+    platform: Platform,
     request: api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
 ) -> RouterResponse<api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse> {
     let decision = get_three_ds_decision_rule_output(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        platform.get_processor().get_account().get_id(),
         request.clone(),
     )
     .await?;
@@ -40,13 +40,16 @@ pub async fn execute_three_ds_decision_rule(
 
 pub async fn get_three_ds_decision_rule_output(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     request: api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
 ) -> errors::RouterResult<common_types::three_ds_decision_rule_engine::ThreeDSDecision> {
     let db = state.store.as_ref();
     // Retrieve the rule from database
     let routing_algorithm = db
-        .find_routing_algorithm_by_algorithm_id_merchant_id(&request.routing_id, merchant_id)
+        .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
+            &request.routing_id,
+            processor_merchant_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let algorithm: Algorithm = routing_algorithm
@@ -70,9 +73,14 @@ pub async fn get_three_ds_decision_rule_output(
         .execute(backend_input)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error executing 3DS decision rule")?;
-    // Apply PSD2 validations to the decision
+
+    logger::info!(
+        "3DS decision after rule evaluation {:?}",
+        result.get_output().get_decision()
+    );
+    // Apply SCA validations to the decision
     let final_decision =
-        utils::apply_psd2_validations_during_execute(result.get_output().get_decision(), &request);
+        utils::apply_sca_validations_during_execute(result.get_output().get_decision(), &request);
     Ok(final_decision)
 }
 

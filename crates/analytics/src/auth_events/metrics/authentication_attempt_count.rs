@@ -69,7 +69,11 @@ where
         query_builder
             .add_filter_in_range_clause(
                 "authentication_status",
-                &[AuthenticationStatus::Success, AuthenticationStatus::Failed],
+                &[
+                    AuthenticationStatus::Success,
+                    AuthenticationStatus::Failed,
+                    AuthenticationStatus::Pending,
+                ],
             )
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;

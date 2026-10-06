@@ -1,17 +1,14 @@
-use std::str::FromStr;
-
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
 #[cfg(feature = "email")]
 use common_enums::EntityType;
-use common_utils::pii;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::crm::CrmPayload;
 #[cfg(feature = "email")]
-use masking::ExposeInterface;
-use masking::PeekInterface;
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
@@ -51,13 +48,12 @@ pub async fn get_multiple_metadata(
     let mut response = Vec::with_capacity(metadata_keys.len());
     for key in metadata_keys {
         let data = metadata.iter().find(|ele| ele.data_key == key);
-        let resp;
-        if data.is_none() && utils::is_backfill_required(key) {
+        let resp = if data.is_none() && utils::is_backfill_required(key) {
             let backfill_data = backfill_metadata(&state, &user, &key).await?;
-            resp = into_response(backfill_data.as_ref(), key)?;
+            into_response(backfill_data.as_ref(), key)?
         } else {
-            resp = into_response(data, key)?;
-        }
+            into_response(data, key)?
+        };
         response.push(resp);
     }
 
@@ -122,6 +118,14 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
             Ok(types::MetaData::OnboardingSurvey(req))
         }
         api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::PaymentViews(operation) => {
+            Ok(types::MetaData::PaymentViews(operation))
+        }
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::PaymentAdvancedViews(operation) => {
+            Ok(types::MetaData::PaymentAdvancedViews(operation))
+        }
     }
 }
 
@@ -151,6 +155,10 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
         api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::PaymentViews => DBEnum::PaymentViews,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::PaymentAdvancedViews => DBEnum::PaymentAdvancedViews,
     }
 }
 
@@ -237,6 +245,32 @@ fn into_response(
         DBEnum::ReconStatus => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::ReconStatus(resp))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::PaymentViews => {
+            let resp: Option<types::PaymentViewsValue> = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::PaymentViews(resp.map(|d| {
+                d.views
+                    .into_iter()
+                    .map(|v| api::SavedViewResponse {
+                        view_id: v.view_id,
+                        view_name: v.view_name,
+                        data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
+                            v.filters,
+                        )),
+                        created_at: v.created_at.to_string(),
+                        updated_at: v.updated_at.to_string(),
+                    })
+                    .collect()
+            })))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::PaymentAdvancedViews => {
+            let resp: Option<types::PaymentAdvancedViewsValue> =
+                utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::PaymentAdvancedViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
         }
     }
 }
@@ -456,11 +490,6 @@ async fn insert_metadata(
             metadata
         }
         types::MetaData::ProdIntent(data) => {
-            if let Some(poc_email) = &data.poc_email {
-                let inner_poc_email = poc_email.peek().as_str();
-                pii::Email::from_str(inner_poc_email)
-                    .change_context(UserErrors::EmailParsingError)?;
-            }
             let mut metadata = utils::insert_merchant_scoped_metadata_to_db(
                 state,
                 user.user_id.clone(),
@@ -486,7 +515,7 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                let user_data = user.get_user_from_db(state).await?;
+                let user_data = user.get_active_user_from_db(state).await?;
                 let user_email = domain::UserEmail::from_pii_email(user_data.get_email())
                     .change_context(UserErrors::InternalServerError)?
                     .get_secret()
@@ -523,19 +552,23 @@ async fn insert_metadata(
             let hubspot_body = state
                 .crm_client
                 .make_body(CrmPayload {
-                    legal_business_name: data.legal_business_name,
-                    business_label: data.business_label,
+                    legal_business_name: data.legal_business_name.map(|s| s.into_inner()),
+                    business_label: data.business_label.map(|s| s.into_inner()),
                     business_location: data.business_location,
-                    display_name: data.display_name,
-                    poc_email: data.poc_email,
-                    business_type: data.business_type,
-                    business_identifier: data.business_identifier,
-                    business_website: data.business_website,
-                    poc_name: data.poc_name,
-                    poc_contact: data.poc_contact,
-                    comments: data.comments,
+                    display_name: data.display_name.map(|s| s.into_inner()),
+                    poc_email: data.poc_email.map(|s| Secret::new(s.peek().clone())),
+                    business_type: data.business_type.map(|s| s.into_inner()),
+                    business_identifier: data.business_identifier.map(|s| s.into_inner()),
+                    business_website: data.business_website.map(|s| s.into_inner()),
+                    poc_name: data
+                        .poc_name
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    poc_contact: data
+                        .poc_contact
+                        .map(|s| Secret::new(s.peek().clone().into_inner())),
+                    comments: data.comments.map(|s| s.into_inner()),
                     is_completed: data.is_completed,
-                    business_country_name: data.business_country_name,
+                    business_country_name: data.business_country_name.map(|s| s.into_inner()),
                 })
                 .await;
             let base_url = user_utils::get_base_url(state);
@@ -659,6 +692,15 @@ async fn insert_metadata(
             }
             metadata
         }
+        #[cfg(feature = "v1")]
+        types::MetaData::PaymentViews(operation) => {
+            utils::handle_saved_view_operations(state, user, metadata_key, *operation).await
+        }
+        #[cfg(feature = "v1")]
+        types::MetaData::PaymentAdvancedViews(operation) => {
+            utils::handle_payment_advanced_view_operations(state, user, metadata_key, *operation)
+                .await
+        }
     }
 }
 
@@ -668,7 +710,7 @@ async fn fetch_metadata(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     let mut dashboard_metadata = Vec::with_capacity(metadata_keys.len());
-    let (merchant_scoped_enums, user_scoped_enums) =
+    let (merchant_scoped_enums, user_scoped_enums, profile_user_scoped_enums) =
         utils::separate_metadata_type_based_on_scope(metadata_keys);
 
     if !merchant_scoped_enums.is_empty() {
@@ -694,6 +736,20 @@ async fn fetch_metadata(
         dashboard_metadata.append(&mut res);
     }
 
+    if !profile_user_scoped_enums.is_empty() {
+        let profile_id = utils::get_profile_id_from_role(state, user).await?;
+        let mut res = utils::get_profile_user_scoped_metadata_from_db(
+            state,
+            user.user_id.to_owned(),
+            user.merchant_id.to_owned(),
+            user.org_id.to_owned(),
+            profile_id,
+            profile_user_scoped_enums,
+        )
+        .await?;
+        dashboard_metadata.append(&mut res);
+    }
+
     Ok(dashboard_metadata)
 }
 
@@ -705,7 +761,6 @@ pub async fn backfill_metadata(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &state.into(),
             &user.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -819,7 +874,6 @@ pub async fn get_merchant_connector_account_by_name(
         state
             .store
             .find_merchant_connector_account_by_merchant_id_connector_name(
-                &state.into(),
                 merchant_id,
                 connector_name,
                 key_store,

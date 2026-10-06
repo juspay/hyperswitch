@@ -43,10 +43,10 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, CreateOrderType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use lazy_static::lazy_static;
-use masking::{Mask, Maskable, PeekInterface};
 use router_env::logger;
 use transformers as razorpay;
 
@@ -162,9 +162,11 @@ impl ConnectorCommon for Razorpay {
                             reason: error_response.error.reason,
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     }
                     razorpay::ErrorResponse::RazorpayError(error_response) => Ok(ErrorResponse {
@@ -174,9 +176,11 @@ impl ConnectorCommon for Razorpay {
                         reason: Some(error_response.message),
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     razorpay::ErrorResponse::RazorpayStringError(error_string) => {
                         Ok(ErrorResponse {
@@ -186,9 +190,11 @@ impl ConnectorCommon for Razorpay {
                             reason: Some(error_string.clone()),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            connector_metadata: None,
                         })
                     }
                 }
@@ -732,7 +738,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
 //         _merchant_id: &common_utils::id_type::MerchantId,
 //         _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
 //         _connector_account_details: common_utils::crypto::Encryptable<
-//             masking::Secret<serde_json::Value>,
+//             hyperswitch_masking::Secret<serde_json::Value>,
 //         >,
 //         _connector_label: &str,
 //     ) -> CustomResult<bool, errors::ConnectorError> {
@@ -753,7 +759,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
 //     fn get_webhook_resource_object(
 //         &self,
 //         request: &IncomingWebhookRequestDetails<'_>,
-//     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+//     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError> {
 //         let details: razorpay::RazorpayWebhookPayload = request
 //             .body
 //             .parse_struct("RazorpayWebhookPayload")
@@ -774,6 +780,7 @@ impl IncomingWebhook for Razorpay {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
     }
@@ -781,7 +788,8 @@ impl IncomingWebhook for Razorpay {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -809,7 +817,8 @@ lazy_static! {
         display_name: "RAZORPAY",
         description:
             "Razorpay helps you accept online payments from customers across Desktop, Mobile web, Android & iOS. Additionally by using Razorpay Payment Links, you can collect payments across multiple channels like SMS, Email, Whatsapp, Chatbots & Messenger.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
@@ -832,10 +841,14 @@ impl ConnectorSpecifications for Razorpay {
     #[cfg(feature = "v2")]
     fn generate_connector_request_reference_id(
         &self,
-        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
         // The length of receipt for Razorpay order request should not exceed 40 characters.
-        uuid::Uuid::now_v7().to_string()
+        payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_else(|| common_utils::generate_uuid_v7().to_string())
     }
 }

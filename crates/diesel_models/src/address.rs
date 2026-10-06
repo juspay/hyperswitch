@@ -27,6 +27,7 @@ pub struct AddressNew {
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
     pub email: Option<Encryption>,
+    pub origin_zip: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Queryable, Identifiable, Selectable, Serialize, Deserialize)]
@@ -51,6 +52,7 @@ pub struct Address {
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub updated_by: String,
     pub email: Option<Encryption>,
+    pub origin_zip: Option<Encryption>,
 }
 
 #[derive(Clone)]
@@ -65,10 +67,12 @@ pub struct EncryptableAddress {
     pub last_name: crypto::OptionalEncryptableSecretString,
     pub phone_number: crypto::OptionalEncryptableSecretString,
     pub email: crypto::OptionalEncryptableEmail,
+    pub origin_zip: crypto::OptionalEncryptableSecretString,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = address)]
+#[router_derive::apply_changeset(target = Address)]
 pub struct AddressUpdateInternal {
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -84,25 +88,5 @@ pub struct AddressUpdateInternal {
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
     pub email: Option<Encryption>,
-}
-
-impl AddressUpdateInternal {
-    pub fn create_address(self, source: Address) -> Address {
-        Address {
-            city: self.city,
-            country: self.country,
-            line1: self.line1,
-            line2: self.line2,
-            line3: self.line3,
-            state: self.state,
-            zip: self.zip,
-            first_name: self.first_name,
-            last_name: self.last_name,
-            phone_number: self.phone_number,
-            country_code: self.country_code,
-            modified_at: self.modified_at,
-            updated_by: self.updated_by,
-            ..source
-        }
-    }
+    pub origin_zip: Option<Encryption>,
 }

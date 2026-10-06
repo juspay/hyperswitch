@@ -2,7 +2,7 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     types::keymanager::{Identifier, KeyManagerState},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 /// Trait for converting domain types to storage models
 #[async_trait::async_trait]

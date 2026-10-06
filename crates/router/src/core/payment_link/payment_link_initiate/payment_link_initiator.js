@@ -15,6 +15,8 @@ function initializeSDK() {
   var sdkUiRules = paymentDetails.sdk_ui_rules;
   var labelType = paymentDetails.payment_form_label_type;
   var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
+  var isTestMode = paymentDetails.isTestMode === true;
+  var preloadSDKWithParams = paymentDetails.preloadSDKWithParams;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -37,9 +39,22 @@ function initializeSDK() {
   if (colorIconCardCvcError !== null && typeof colorIconCardCvcError === "string") {
     appearance.variables.colorIconCardCvcError = colorIconCardCvcError;
   }
+
+  var isPreloadEnabled = false;
+  if (isTestMode) {
+    isPreloadEnabled = true;
+  } else if (preloadSDKWithParams != null && typeof preloadSDKWithParams === "object") {
+    isPreloadEnabled = true;
+  }
+
+  if (isTestMode) {
+    console.warn("The SDK is running in test mode. API calls are bypassed and wallet interactions are disabled.");
+  }
+
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
-    isPreloadEnabled: false,
+    isTestMode: isTestMode,
+    isPreloadEnabled: isPreloadEnabled,
     // TODO: Remove in next deployment
     shouldUseTopRedirection: true,
     redirectionFlags: {
@@ -47,25 +62,38 @@ function initializeSDK() {
       shouldUseTopRedirection: true,
     },
   });
-  // @ts-ignore
-  widgets = hyper.widgets({
+
+  var widgetOptions = {
     appearance: appearance,
     clientSecret: clientSecret,
-    locale: paymentDetails.locale,
-  });
+    locale: paymentDetails.locale
+  };
+
+  if (preloadSDKWithParams != null && typeof preloadSDKWithParams === "object") {
+    // @ts-ignore
+    widgetOptions.preloadSDKWithParams = preloadSDKWithParams;
+  }
+
+  // @ts-ignore
+  widgets = hyper.widgets(widgetOptions);
   var type =
     paymentDetails.sdk_layout === "spaced_accordion" ||
       paymentDetails.sdk_layout === "accordion"
       ? "accordion"
       : paymentDetails.sdk_layout;
   var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
+  var layoutOptions = {
+    type: type, //accordion , tabs, spaced accordion
+    spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
+  };
+  var paymentMethodsSeparatorText = paymentDetails.payment_methods_separator_text;
+  if (paymentMethodsSeparatorText !== null && typeof paymentMethodsSeparatorText === "string") {
+    layoutOptions.separatorText = paymentMethodsSeparatorText;
+  }
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
     displaySavedPaymentMethods: false,
-    layout: {
-      type: type, //accordion , tabs, spaced accordion
-      spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
-    },
+    layout: layoutOptions,
     branding: "never",
     wallets: {
       walletReturnUrl: paymentDetails.return_url,
@@ -78,6 +106,7 @@ function initializeSDK() {
     showCardFormByDefault: paymentDetails.show_card_form_by_default,
     hideCardNicknameField: hideCardNicknameField,
     customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
+    paymentMethodsConfig: paymentDetails.custom_message_for_payment_method_types,
   };
   var showCardTerms = paymentDetails.show_card_terms;
   if (showCardTerms !== null && typeof showCardTerms === "string") {

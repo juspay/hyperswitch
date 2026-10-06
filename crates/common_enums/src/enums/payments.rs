@@ -1,4 +1,3 @@
-use serde;
 use utoipa::ToSchema;
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

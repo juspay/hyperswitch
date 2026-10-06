@@ -12,14 +12,13 @@ use diesel_models::enums;
 pub use diesel_models::{self, process_tracker as storage};
 use error_stack::ResultExt;
 use futures::future;
-use redis_interface::{RedisConnectionPool, RedisEntryId};
+use redis_interface::{RedisConnectionWithContext, RedisEntryId};
 use router_env::{
     instrument,
     tracing::{self, Instrument},
 };
 use time::PrimitiveDateTime;
 use tokio::sync::mpsc;
-use uuid::Uuid;
 
 use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
@@ -46,23 +45,20 @@ where
 {
     use std::time::Duration;
 
-    use rand::distributions::{Distribution, Uniform};
+    let jitter_ceiling = i64::try_from(settings.loop_interval).unwrap_or(i64::MAX);
+    let timeout = common_utils::generate_random_number_in_range(0, jitter_ceiling);
 
-    let mut rng = rand::thread_rng();
-
-    // TODO: this can be removed once rand-0.9 is released
-    // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
-    #[allow(unknown_lints)]
-    #[allow(clippy::unnecessary_fallible_conversions)]
-    let timeout = Uniform::try_from(0..=settings.loop_interval)
-        .change_context(errors::ProcessTrackerError::ConfigurationError)?;
-
-    tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
+    tokio::time::sleep(Duration::from_millis(u64::try_from(timeout).unwrap_or(0))).await;
 
     let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
 
     let mut shutdown_interval =
         tokio::time::interval(Duration::from_millis(settings.graceful_shutdown_interval));
+
+    // Generated once per process rather than per poll iteration, so that the Redis consumer
+    // group registers a single, stable consumer for the lifetime of this process instead of
+    // accumulating a new entry on every poll (entries are never expired by Redis).
+    let consumer_name = format!("consumer_{}", common_utils::generate_uuid_v4());
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
@@ -96,6 +92,7 @@ where
                             logger::error!(?error, "Failed to perform consumer operation");
                         },
                         workflow_selector,
+                        &consumer_name,
                     )
                     .await;
                 }
@@ -118,6 +115,40 @@ where
                     match active_tasks {
                         0 => {
                             logger::info!("Terminating consumer");
+                            for tenant in state.get_tenants() {
+                                let session_state = match app_state_to_session_state(state, &tenant)
+                                {
+                                    Ok(session_state) => session_state,
+                                    Err(error) => {
+                                        logger::error!(
+                                            ?error,
+                                            ?tenant,
+                                            "Failed to build session state, skipping consumer removal for tenant"
+                                        );
+                                        continue;
+                                    }
+                                };
+                                let stream_name = match session_state.get_application_source() {
+                                    enums::ApplicationSource::Main => settings.stream.clone(),
+                                    enums::ApplicationSource::Cug => settings.cug_stream.clone(),
+                                };
+                                let group_name = settings.consumer.consumer_group.clone();
+                                if let Err(error) = session_state
+                                    .get_db()
+                                    .consumer_group_remove_consumer(
+                                        &stream_name,
+                                        &group_name,
+                                        &consumer_name,
+                                    )
+                                    .await
+                                {
+                                    logger::error!(
+                                        ?error,
+                                        ?tenant,
+                                        "Failed to remove consumer from consumer group during graceful shutdown"
+                                    );
+                                }
+                            }
                             break 'consumer;
                         }
                         _ => continue,
@@ -139,10 +170,13 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    consumer_name: &str,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    let stream_name = settings.stream.clone();
+    let stream_name = match state.get_application_source() {
+        enums::ApplicationSource::Main => settings.stream.clone(),
+        enums::ApplicationSource::Cug => settings.cug_stream.clone(),
+    };
     let group_name = settings.consumer.consumer_group.clone();
-    let consumer_name = format!("consumer_{}", Uuid::new_v4());
 
     let _group_created = &mut state
         .get_db()
@@ -152,7 +186,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     let mut tasks = state
         .get_db()
         .as_scheduler()
-        .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
+        .fetch_consumer_tasks(&stream_name, &group_name, consumer_name)
         .await?;
 
     if !tasks.is_empty() {
@@ -182,7 +216,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
 #[instrument(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
     db: &dyn ProcessTrackerInterface,
-    redis_conn: &RedisConnectionPool,
+    redis_conn: &RedisConnectionWithContext,
     stream_name: &str,
     group_name: &str,
     consumer_name: &str,
@@ -228,7 +262,7 @@ pub async fn fetch_consumer_tasks(
 // Accept flow_options if required
 #[instrument(skip(state), fields(workflow_id))]
 pub async fn start_workflow<T>(
-    state: T,
+    mut state: T,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
@@ -236,10 +270,25 @@ pub async fn start_workflow<T>(
 where
     T: SchedulerSessionState,
 {
-    tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
+    let workflow_id = common_utils::generate_uuid_v7();
+    tracing::Span::current().record("workflow_id", workflow_id.to_string());
     logger::info!(pt.name=?process.name, pt.id=%process.id);
+
+    // Generate a unique request_id for this workflow execution if not already present
+    if state.get_request_id().is_none() {
+        match router_env::RequestId::try_from(workflow_id.to_string()) {
+            Ok(req_id) => {
+                logger::info!(workflow_request_id = %req_id, process_tracker_id = %process.id, "Generated request ID for workflow execution");
+                state.add_request_id(req_id);
+            }
+            Err(err) => {
+                logger::error!(error = %err, workflow_id = %workflow_id, "Failed to generate RequestId from workflow_id");
+            }
+        }
+    }
+
     let res = workflow_selector
-        .trigger_workflow(&state.clone(), process.clone())
+        .trigger_workflow(&state, process.clone())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");

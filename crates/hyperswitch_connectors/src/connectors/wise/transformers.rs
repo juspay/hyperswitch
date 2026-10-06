@@ -1,5 +1,5 @@
 #[cfg(feature = "payouts")]
-use api_models::payouts::Bank;
+use api_models::payouts::BankTransfer;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
@@ -8,12 +8,12 @@ use common_enums::PayoutEntityType;
 use common_enums::{CountryAlpha2, PayoutStatus, PayoutType};
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-use common_utils::types::MinorUnit;
+use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -27,12 +27,12 @@ type Error = error_stack::Report<ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct WiseRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(MinorUnit, T)> for WiseRouterData<T> {
-    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for WiseRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -64,11 +64,33 @@ impl TryFrom<&ConnectorAuthType> for WiseAuthType {
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
-    pub status: Option<String>,
+    pub status: Option<WiseHttpStatus>,
     pub error: Option<String>,
     pub error_description: Option<String>,
     pub message: Option<String>,
     pub path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum WiseHttpStatus {
+    String(String),
+    Number(u16),
+}
+
+impl Default for WiseHttpStatus {
+    fn default() -> Self {
+        Self::String("".to_string())
+    }
+}
+
+impl WiseHttpStatus {
+    pub fn get_status(&self) -> String {
+        match self {
+            Self::String(val) => val.clone(),
+            Self::Number(val) => val.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -179,8 +201,8 @@ pub struct WiseRecipientCreateResponse {
 pub struct WisePayoutQuoteRequest {
     source_currency: String,
     target_currency: String,
-    source_amount: Option<MinorUnit>,
-    target_amount: Option<MinorUnit>,
+    source_amount: Option<FloatMajorUnit>,
+    target_amount: Option<FloatMajorUnit>,
     pay_out: WisePayOutOption,
 }
 
@@ -337,11 +359,11 @@ fn get_payout_bank_details(
     let wise_address_details = match get_payout_address_details(address) {
         Some(a) => Ok(a),
         None => Err(ConnectorError::MissingRequiredField {
-            field_name: "address",
+            field_name: "address".into(),
         }),
     }?;
     match payout_method_data {
-        PayoutMethodData::Bank(Bank::Ach(b)) => Ok(WiseBankDetails {
+        PayoutMethodData::BankTransfer(BankTransfer::Ach(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::from(entity_type),
             address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
@@ -349,14 +371,14 @@ fn get_payout_bank_details(
             account_type: Some(AccountType::Checking),
             ..WiseBankDetails::default()
         }),
-        PayoutMethodData::Bank(Bank::Bacs(b)) => Ok(WiseBankDetails {
+        PayoutMethodData::BankTransfer(BankTransfer::Bacs(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::from(entity_type),
             address: Some(wise_address_details),
             account_number: Some(b.bank_account_number.to_owned()),
             sort_code: Some(b.bank_sort_code),
             ..WiseBankDetails::default()
         }),
-        PayoutMethodData::Bank(Bank::Sepa(b)) => Ok(WiseBankDetails {
+        PayoutMethodData::BankTransfer(BankTransfer::Sepa(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::from(entity_type),
             address: Some(wise_address_details),
             iban: Some(b.iban.to_owned()),
@@ -386,22 +408,24 @@ impl<F> TryFrom<&WiseRouterData<&PayoutsRouterData<F>>> for WiseRecipientCreateR
         let source_id = match item.connector_auth_type.to_owned() {
             ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(key1),
             _ => Err(ConnectorError::MissingRequiredField {
-                field_name: "source_id for PayoutRecipient creation",
+                field_name: "source_id for PayoutRecipient creation".into(),
             }),
         }?;
         let payout_type = request.get_payout_type()?;
         match payout_type {
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
             PayoutType::Bank => {
                 let account_holder_name = customer_details
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "customer_details for PayoutRecipient creation",
+                        field_name: "customer_details for PayoutRecipient creation".into(),
                     })?
                     .name
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "customer_details.name for PayoutRecipient creation",
+                        field_name: "customer_details.name for PayoutRecipient creation".into(),
                     })?;
                 Ok(Self {
                     profile: source_id,
@@ -434,6 +458,8 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseRecipientCreateResponse>>
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -456,9 +482,11 @@ impl<F> TryFrom<&WiseRouterData<&PayoutsRouterData<F>>> for WisePayoutQuoteReque
                 target_currency: request.destination_currency.to_string(),
                 pay_out: WisePayOutOption::default(),
             }),
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -480,6 +508,8 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutQuoteResponse>> for Payou
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -504,19 +534,21 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutCreateRequest {
                 };
                 let target_account: i64 = connector_customer_id.trim().parse().map_err(|_| {
                     ConnectorError::MissingRequiredField {
-                        field_name: "profile",
+                        field_name: "profile".into(),
                     }
                 })?;
                 Ok(Self {
                     target_account,
                     quote_uuid,
-                    customer_transaction_id: request.payout_id.get_string_repr().to_string(),
+                    customer_transaction_id: common_utils::generate_uuid_v4().to_string(),
                     details: wise_transfer_details,
                 })
             }
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -542,6 +574,8 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutResponse>> for PayoutsRou
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -558,9 +592,11 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             PayoutType::Bank => Ok(Self {
                 fund_type: FundType::default(),
             }),
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Wise"),
+                ))?
+            }
         }
     }
 }
@@ -588,6 +624,8 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseFulfillResponse>> for PayoutsRo
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -598,7 +636,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, WiseFulfillResponse>> for PayoutsRo
 impl From<WiseStatus> for PayoutStatus {
     fn from(wise_status: WiseStatus) -> Self {
         match wise_status {
-            WiseStatus::Completed => Self::Success,
+            WiseStatus::Completed => Self::Initiated,
             WiseStatus::Rejected => Self::Failed,
             WiseStatus::Cancelled => Self::Cancelled,
             WiseStatus::Pending | WiseStatus::Processing | WiseStatus::IncomingPaymentWaiting => {
@@ -628,13 +666,131 @@ impl TryFrom<PayoutMethodData> for RecipientType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(payout_method_type: PayoutMethodData) -> Result<Self, Self::Error> {
         match payout_method_type {
-            PayoutMethodData::Bank(Bank::Ach(_)) => Ok(Self::Aba),
-            PayoutMethodData::Bank(Bank::Bacs(_)) => Ok(Self::SortCode),
-            PayoutMethodData::Bank(Bank::Sepa(_)) => Ok(Self::Iban),
+            PayoutMethodData::BankTransfer(BankTransfer::Ach(_)) => Ok(Self::Aba),
+            PayoutMethodData::BankTransfer(BankTransfer::Bacs(_)) => Ok(Self::SortCode),
+            PayoutMethodData::BankTransfer(BankTransfer::Sepa(_)) => Ok(Self::Iban),
             _ => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Wise"),
             )
             .into()),
         }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutSyncResponse {
+    id: u64,
+    status: WiseSyncStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WiseSyncStatus {
+    IncomingPaymentWaiting,
+    IncomingPaymentInitiated,
+    Processing,
+    FundsConverted,
+    OutgoingPaymentSent,
+    Cancelled,
+    FundsRefunded,
+    BouncedBack,
+    ChargedBack,
+    Unknown,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, WisePayoutSyncResponse>> for PayoutsRouterData<F> {
+    type Error = Error;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, WisePayoutSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::from(item.response.status)),
+                connector_payout_id: Some(item.response.id.to_string()),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<WiseSyncStatus> for PayoutStatus {
+    fn from(status: WiseSyncStatus) -> Self {
+        match status {
+            WiseSyncStatus::IncomingPaymentWaiting => Self::Pending,
+            WiseSyncStatus::IncomingPaymentInitiated => Self::Pending,
+            WiseSyncStatus::Processing => Self::Pending,
+            WiseSyncStatus::FundsConverted => Self::Pending,
+            WiseSyncStatus::OutgoingPaymentSent => Self::Success,
+            WiseSyncStatus::Cancelled => Self::Cancelled,
+            WiseSyncStatus::FundsRefunded => Self::Reversed,
+            WiseSyncStatus::BouncedBack => Self::Pending,
+            WiseSyncStatus::ChargedBack => Self::Reversed,
+            WiseSyncStatus::Unknown => Self::Ineligible,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutsWebhookBody {
+    pub data: WisePayoutsWebhookData,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutsWebhookData {
+    pub resource: WisePayoutsWebhookResource,
+    pub current_state: WiseSyncStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WisePayoutsWebhookResource {
+    pub id: u64,
+}
+
+#[cfg(feature = "payouts")]
+impl From<WisePayoutsWebhookData> for WisePayoutSyncResponse {
+    fn from(data: WisePayoutsWebhookData) -> Self {
+        Self {
+            id: data.resource.id,
+            status: data.current_state,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+pub fn get_wise_webhooks_event(
+    state: WiseSyncStatus,
+) -> api_models::webhooks::IncomingWebhookEvent {
+    match state {
+        WiseSyncStatus::IncomingPaymentWaiting => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        WiseSyncStatus::IncomingPaymentInitiated => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        WiseSyncStatus::Processing => api_models::webhooks::IncomingWebhookEvent::PayoutProcessing,
+        WiseSyncStatus::FundsConverted => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutProcessing
+        }
+        WiseSyncStatus::OutgoingPaymentSent => {
+            api_models::webhooks::IncomingWebhookEvent::PayoutSuccess
+        }
+        WiseSyncStatus::Cancelled => api_models::webhooks::IncomingWebhookEvent::PayoutCancelled,
+        WiseSyncStatus::FundsRefunded => api_models::webhooks::IncomingWebhookEvent::PayoutReversed,
+        WiseSyncStatus::BouncedBack => api_models::webhooks::IncomingWebhookEvent::PayoutProcessing,
+        WiseSyncStatus::ChargedBack => api_models::webhooks::IncomingWebhookEvent::PayoutReversed,
+        WiseSyncStatus::Unknown => api_models::webhooks::IncomingWebhookEvent::EventNotSupported,
     }
 }

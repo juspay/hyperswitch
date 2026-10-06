@@ -43,6 +43,9 @@ ALTER TABLE payment_attempt
     ADD PRIMARY KEY (attempt_id, merchant_id),
     ALTER COLUMN amount SET NOT NULL;
 
+ALTER TABLE payment_attempt
+    ALTER COLUMN confirm SET NOT NULL;
+
 ---------------------- Payment Methods ----------------------
 DROP INDEX IF EXISTS idx_payment_methods_payment_method_id;
 ALTER TABLE payment_methods 
@@ -52,3 +55,5 @@ ALTER TABLE payment_methods
 DROP INDEX IF EXISTS idx_refund_refund_id_merchant_id;
 ALTER TABLE refund
     ADD PRIMARY KEY (refund_id,merchant_id);
+ALTER TABLE refund
+    ALTER COLUMN internal_reference_id SET NOT NULL;

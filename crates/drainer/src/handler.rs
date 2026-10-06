@@ -129,7 +129,7 @@ impl Handler {
             .stores
             .values()
             .next()
-            .map(|store| store.redis_conn.clone());
+            .map(|store| store.get_redis_conn().redis_conn.clone());
         match redis_conn_clone {
             None => {
                 logger::error!("No redis connection found");
@@ -231,7 +231,7 @@ async fn drainer(
     // parse_stream_entries returns error if no entries is found, handle it
     let entries = utils::parse_stream_entries(
         &stream_read,
-        store.redis_conn.add_prefix(stream_name).as_str(),
+        store.get_redis_conn().add_prefix(stream_name).as_str(),
     )?;
     let read_count = entries.len();
 
@@ -241,29 +241,30 @@ async fn drainer(
     );
 
     let session_id = common_utils::generate_id_with_default_len("drainer_session");
+    tracing::Span::current().record("session_id", &session_id);
 
     let mut last_processed_id = String::new();
 
     for (entry_id, entry) in entries.clone() {
         let data = match StreamData::from_hashmap(entry) {
             Ok(data) => data,
-            Err(err) => {
-                logger::error!(operation = "deserialization", err=?err);
+            Err(error) => {
+                logger::error!(operation = "deserialization", ?error);
                 metrics::STREAM_PARSE_FAIL.add(
                     1,
                     router_env::metric_attributes!(("operation", "deserialization")),
                 );
 
-                // break from the loop in case of a deser error
+                // break from the loop in case of a deserialization error
                 break;
             }
         };
 
         tracing::Span::current().record("request_id", data.request_id);
         tracing::Span::current().record("global_id", data.global_id);
-        tracing::Span::current().record("session_id", &session_id);
+        logger::debug!("Processing stream entry");
 
-        match data.typed_sql.execute_query(&store, data.pushed_at).await {
+        match data.query.execute_query(&store, data.pushed_at).await {
             Ok(_) => {
                 last_processed_id = entry_id;
             }
@@ -277,9 +278,15 @@ async fn drainer(
                 _ => break,
             },
         }
+
+        if store.use_legacy_version() {
+            store
+                .delete_from_stream(stream_name, &last_processed_id)
+                .await?;
+        }
     }
 
-    if !last_processed_id.is_empty() {
+    if !(last_processed_id.is_empty() || store.use_legacy_version()) {
         let entries_trimmed = store
             .trim_from_stream(stream_name, &last_processed_id)
             .await?;
@@ -288,11 +295,11 @@ async fn drainer(
                 read_entries = %read_count,
                 trimmed_entries = %entries_trimmed,
                 ?entries,
-                "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
+                "Assertion failed: no. of entries read from the stream doesn't match no. of entries trimmed"
             );
         }
     } else {
-        logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
+        logger::error!(read_entries = %read_count, ?entries, "No streams were processed in this session");
     }
 
     Ok(())

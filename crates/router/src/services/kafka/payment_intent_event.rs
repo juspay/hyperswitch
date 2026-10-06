@@ -1,5 +1,8 @@
 #[cfg(feature = "v2")]
-use ::common_types::{payments, primitive_wrappers::RequestExtendedAuthorizationBool};
+use ::common_types::{
+    payments,
+    primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
+};
 #[cfg(feature = "v2")]
 use common_enums::{self, RequestIncrementalAuthorization};
 use common_utils::{
@@ -13,7 +16,7 @@ use diesel_models::{types::OrderDetailsWithAmount, TaxDetails};
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::Value;
 use time::OffsetDateTime;
 
@@ -55,6 +58,8 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
+    pub processor_merchant_id: &'a id_type::MerchantId,
+    pub created_by: Option<&'a common_types::CreatedBy>,
     #[serde(flatten)]
     pub infra_values: Option<Value>,
 }
@@ -74,15 +79,17 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub return_url: Option<&'a common_types::Url>,
     pub metadata: Option<&'a Secret<Value>>,
     pub statement_descriptor: Option<&'a common_types::StatementDescriptor>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub setup_future_usage: storage_enums::FutureUsage,
     pub off_session: bool,
     pub active_attempt_id: Option<&'a id_type::GlobalAttemptId>,
+    pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
+    pub active_attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
@@ -91,13 +98,15 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub order_details: Option<&'a Vec<Secret<OrderDetailsWithAmount>>>,
 
     pub allowed_payment_method_types: Option<&'a Vec<common_enums::PaymentMethodType>>,
-    pub connector_metadata: Option<&'a Secret<Value>>,
+    pub connector_metadata: Option<&'a api_models::payments::ConnectorMetadata>,
     pub payment_link_id: Option<&'a String>,
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,
+    pub external_surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
+    pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub authorization_count: Option<i32>,
-    #[serde(with = "time::serde::timestamp")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub session_expiry: OffsetDateTime,
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
     pub frm_metadata: Option<Secret<&'a Value>>,
@@ -128,6 +137,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
     pub routing_algorithm_id: Option<&'a id_type::RoutingId>,
     pub payment_link_config: Option<&'a PaymentLinkConfigRequestForPayments>,
+    pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
 
     #[serde(flatten)]
     infra_values: Option<Value>,
@@ -184,9 +194,11 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
                 .and_then(|obj| obj.get("email"))
                 .and_then(|email| email.as_str())
                 .map(|email| HashedString::from(Secret::new(email.to_string()))),
-            feature_metadata: intent.feature_metadata.as_ref(),
+            feature_metadata: intent.feature_metadata.as_ref().map(|s| s.peek()),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
+            processor_merchant_id: &intent.processor_merchant_id,
+            created_by: intent.created_by.as_ref(),
             infra_values: infra_values.clone(),
         }
     }
@@ -211,6 +223,8 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             last_synced,
             setup_future_usage,
             active_attempt_id,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -221,6 +235,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -245,6 +260,12 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             created_by,
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            enable_partial_authorization,
+            profile_acquirer_id: _,
+            external_surcharge_strategy: _,
+            external_surcharge_applicable: _,
+            is_account_funded_transaction: _,
+            recipient_details: _,
         } = intent;
 
         Self {
@@ -265,6 +286,8 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             setup_future_usage: *setup_future_usage,
             off_session: setup_future_usage.is_off_session(),
             active_attempt_id: active_attempt_id.as_ref(),
+            active_attempt_id_type: *active_attempt_id_type,
+            active_attempts_group_id: active_attempts_group_id.as_ref(),
             attempt_count: *attempt_count,
             profile_id,
             customer_email: None,
@@ -276,7 +299,9 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             payment_link_id: payment_link_id.as_ref(),
             updated_by,
             surcharge_applicable: None,
+            external_surcharge_applicable: None,
             request_incremental_authorization: *request_incremental_authorization,
+            split_txns_enabled: *split_txns_enabled,
             authorization_count: *authorization_count,
             session_expiry: session_expiry.assume_utc(),
             request_external_three_ds_authentication: *request_external_three_ds_authentication,
@@ -317,6 +342,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
             infra_values,
+            enable_partial_authorization: Some(*enable_partial_authorization),
         }
     }
 }

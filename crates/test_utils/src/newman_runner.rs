@@ -7,8 +7,8 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::{arg, command, Parser, ValueEnum};
-use masking::PeekInterface;
+use clap::{Parser, ValueEnum};
+use hyperswitch_masking::PeekInterface;
 use regex::Regex;
 
 use crate::connector_auth::{
@@ -165,7 +165,7 @@ pub fn generate_newman_command_for_users() -> Result<ReturnArgs> {
 
     newman_command.args([
         "--delay-request",
-        format!("{}", &args.delay_request).as_str(),
+        format!("{}", args.delay_request).as_str(),
     ]);
 
     newman_command.arg("--color").arg("on");
@@ -299,7 +299,7 @@ pub fn generate_newman_command_for_connector() -> Result<ReturnArgs> {
 
     newman_command.args([
         "--delay-request",
-        format!("{}", &args.delay_request).as_str(),
+        format!("{}", args.delay_request).as_str(),
     ]);
 
     newman_command.arg("--color").arg("on");

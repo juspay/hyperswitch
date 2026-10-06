@@ -5,7 +5,7 @@ use diesel_models::{
     user_role::UserRole,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use super::UserFromStorage;
@@ -132,7 +132,7 @@ impl JWTFlow {
         // Fetch lineage context from DB
         let lineage_context_from_db = state
             .global_store
-            .find_user_by_id(user_id)
+            .find_active_user_by_user_id(user_id)
             .await
             .inspect_err(|e| {
                 logger::error!(
@@ -149,7 +149,7 @@ impl JWTFlow {
                 let tenant_id = ctx.tenant_id.clone();
                 let user_role_match_v2 = state
                     .global_store
-                    .find_user_role_by_user_id_and_lineage(
+                    .find_user_role_by_user_id_and_lineage_with_entity_type(
                         &ctx.user_id,
                         &tenant_id,
                         &ctx.org_id,
@@ -169,7 +169,7 @@ impl JWTFlow {
                 } else {
                     let user_role_match_v1 = state
                         .global_store
-                        .find_user_role_by_user_id_and_lineage(
+                        .find_user_role_by_user_id_and_lineage_with_entity_type(
                             &ctx.user_id,
                             &tenant_id,
                             &ctx.org_id,

@@ -4,31 +4,74 @@ pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod health_check_client;
+/// gRPC based Recovery Trainer Client interface implementation
+#[cfg(feature = "revenue_recovery")]
+pub mod revenue_recovery;
+
 /// gRPC based Unified Connector Service Client interface implementation
 pub mod unified_connector_service;
+
+/// Deja gRPC egress boundary: the transport-layer tower Service wrapper.
+/// Installed at transport construction
+/// sites so every unary rpc crosses one deja boundary; identity is rank-2
+/// span-path (no explicit call-site tag), routing hardcoded Substitute.
+#[cfg(feature = "deja")]
+pub mod deja_transport;
+/// Deja gRPC egress semantics: recorded result envelope, byte-faithful response
+/// reconstruction.
+#[cfg(feature = "deja")]
+pub mod semantic_boundary;
+
 use std::{fmt::Debug, sync::Arc};
 
+use common_enums::{PaymentMethod, PaymentMethodType};
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
+use common_utils::{id_type, ucs_types};
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use hyper_util::client::legacy::connect::HttpConnector;
-#[cfg(feature = "dynamic_routing")]
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
-use serde;
-#[cfg(feature = "dynamic_routing")]
+use router_env::RequestId;
+#[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
+use typed_builder::TypedBuilder;
 
+#[cfg(feature = "revenue_recovery")]
+pub use self::revenue_recovery::{
+    recovery_decider_client::{
+        DeciderRequest, DeciderResponse, RecoveryDeciderClientConfig,
+        RecoveryDeciderClientInterface, RecoveryDeciderError, RecoveryDeciderResult,
+    },
+    GrpcRecoveryHeaders,
+};
 use crate::grpc_client::unified_connector_service::{
     UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
 };
 
-#[cfg(feature = "dynamic_routing")]
+#[cfg(all(
+    any(feature = "dynamic_routing", feature = "revenue_recovery"),
+    not(feature = "deja")
+))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
+
+#[cfg(all(
+    any(feature = "dynamic_routing", feature = "revenue_recovery"),
+    feature = "deja"
+))]
+/// Hyper based Client type for maintaining connection pool for all gRPC services.
+///
+/// Under the `deja` feature the pool is wrapped in the deja gRPC egress boundary
+/// at this single definition site — every unary rpc on every service client built
+/// over it (dynamic routing, health check, recovery decider, future) is
+/// recorded/substituted at the wire level with zero call-site changes.
+pub type Client =
+    deja_transport::DejaGrpcTransport<hyper_util::client::legacy::Client<HttpConnector, Body>>;
 
 /// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
@@ -39,15 +82,22 @@ pub struct GrpcClients {
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
+    /// Recovery Decider Client
+    #[cfg(feature = "revenue_recovery")]
+    pub recovery_decider_client: Option<Box<dyn RecoveryDeciderClientInterface>>,
     /// Unified Connector Service client
     pub unified_connector_service_client: Option<UnifiedConnectorServiceClient>,
 }
+
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: Option<DynamicRoutingClientConfig>,
+    #[cfg(feature = "revenue_recovery")]
+    /// Configs for Recovery Decider Client
+    pub recovery_decider_client: Option<RecoveryDeciderClientConfig>,
     /// Configs for Unified Connector Service client
     pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
@@ -55,15 +105,24 @@ pub struct GrpcClientSettings {
 impl GrpcClientSettings {
     /// # Panics
     ///
-    /// This function will panic if it fails to establish a connection with the gRPC server.
-    /// This function will be called at service startup.
+    /// This function will panic if it fails to establish a connection with the gRPC server, or if
+    /// the Unified Connector Service is configured but its client cannot be built. Both are fatal
+    /// at service startup by design: a pod that silently loses UCS would route every payment down
+    /// the direct connector path, which is not an option for `ucs_only_connectors`.
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
-        #[cfg(feature = "dynamic_routing")]
+        #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .http2_only(true)
                 .build_http();
+        // deja: wrap the shared pool in the gRPC egress boundary at its one
+        // construction site.
+        #[cfg(all(
+            any(feature = "dynamic_routing", feature = "revenue_recovery"),
+            feature = "deja"
+        ))]
+        let client = deja_transport::DejaGrpcTransport::new(client);
 
         #[cfg(feature = "dynamic_routing")]
         let dynamic_routing_connection = self
@@ -75,18 +134,49 @@ impl GrpcClientSettings {
             .flatten();
 
         #[cfg(feature = "dynamic_routing")]
-        let health_client = HealthCheckClient::build_connections(self, client)
+        let health_client = HealthCheckClient::build_connections(self, client.clone())
             .await
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
-            UnifiedConnectorServiceClient::build_connections(self).await;
+            UnifiedConnectorServiceClient::build_connections(self)
+                .await
+                .expect("Failed to build the Unified Connector Service client from configuration");
+
+        #[cfg(feature = "revenue_recovery")]
+        let recovery_decider_client = {
+            match &self.recovery_decider_client {
+                Some(config) => {
+                    // Validate the config first
+                    config
+                        .validate()
+                        .expect("Recovery Decider configuration validation failed");
+
+                    // Create the client
+                    let client = config
+                        .get_recovery_decider_connection(client.clone())
+                        .expect(
+                            "Failed to establish a connection with the Recovery Decider Server",
+                        );
+
+                    logger::info!("Recovery Decider gRPC client successfully initialized");
+                    let boxed_client: Box<dyn RecoveryDeciderClientInterface> = Box::new(client);
+                    Some(boxed_client)
+                }
+                None => {
+                    logger::debug!("Recovery Decider client configuration not provided, client will be disabled");
+                    None
+                }
+            }
+        };
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
+            #[cfg(feature = "revenue_recovery")]
+            recovery_decider_client,
             unified_connector_service_client,
         })
     }
@@ -99,6 +189,84 @@ pub struct GrpcHeaders {
     pub tenant_id: String,
     /// Request id
     pub request_id: Option<String>,
+}
+
+/// Contains grpc headers for Ucs
+#[derive(Debug, TypedBuilder)]
+pub struct GrpcHeadersUcs {
+    /// Tenant id
+    tenant_id: String,
+    /// Request id
+    request_id: Option<RequestId>,
+    /// Lineage ids
+    lineage_ids: LineageIds,
+    /// External vault proxy metadata
+    external_vault_proxy_metadata: Option<String>,
+    /// Merchant Reference Id
+    merchant_reference_id: Option<ucs_types::UcsReferenceId>,
+    /// Resource id
+    resource_id: Option<ucs_types::UcsResourceId>,
+
+    shadow_mode: Option<bool>,
+    /// Proxy name for UCS to select the proxy to route the request through
+    proxy_name: Option<&'static str>,
+    /// Config override as JSON string to pass to UCS
+    config_override: Option<String>,
+    /// Sent as `x-payment-method` / `x-payment-method-type` so UCS can attribute the call
+    /// (its rollout scope includes the payment method). `None` where the flow has no
+    /// payment method: access-token fetch, FRM notification, incoming webhooks, surcharge
+    /// calculation, notify-connector, account-updater refresh.
+    payment_method: Option<PaymentMethod>,
+    payment_method_type: Option<PaymentMethodType>,
+}
+
+/// Type aliase for GrpcHeaders builder in initial stage
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (),
+    (),
+    (),
+    (Option<bool>,),
+    (Option<&'static str>,),
+    (Option<String>,),
+    (),
+    (),
+)>;
+/// Type aliase for GrpcHeaders builder in intermediate stage
+pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (LineageIds,),
+    (Option<String>,),
+    (Option<ucs_types::UcsReferenceId>,),
+    (Option<ucs_types::UcsResourceId>,),
+    (Option<bool>,),
+    (Option<&'static str>,),
+    (Option<String>,),
+    (Option<PaymentMethod>,),
+    (Option<PaymentMethodType>,),
+)>;
+
+/// struct to represent set of Lineage ids
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LineageIds {
+    merchant_id: id_type::MerchantId,
+    profile_id: id_type::ProfileId,
+}
+impl LineageIds {
+    /// constructor for LineageIds
+    pub fn new(merchant_id: id_type::MerchantId, profile_id: id_type::ProfileId) -> Self {
+        Self {
+            merchant_id,
+            profile_id,
+        }
+    }
+    /// get url encoded string representation of LineageIds
+    pub fn get_url_encoded_string(self) -> Result<String, serde_urlencoded::ser::Error> {
+        serde_urlencoded::to_string(&self)
+    }
 }
 
 #[cfg(feature = "dynamic_routing")]
@@ -145,7 +313,7 @@ pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) ->
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);
 
-    logger::info!(dynamic_routing_request=?request);
+    logger::info!(?request);
 
     request
 }

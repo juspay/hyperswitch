@@ -1,4 +1,4 @@
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Address {
@@ -7,7 +7,7 @@ pub struct Address {
     pub email: Option<common_utils::pii::Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
@@ -26,13 +26,7 @@ impl Address {
             phone: {
                 self.phone
                     .clone()
-                    .and_then(|phone_details| {
-                        if phone_details.number.is_some() {
-                            Some(phone_details)
-                        } else {
-                            None
-                        }
-                    })
+                    .filter(|phone_details| phone_details.number.is_some())
                     .or_else(|| other.and_then(|other| other.phone.clone()))
             },
         }
@@ -50,6 +44,7 @@ pub struct AddressDetails {
     pub state: Option<Secret<String>>,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
+    pub origin_zip: Option<Secret<String>>,
 }
 
 impl AddressDetails {
@@ -88,6 +83,7 @@ impl AddressDetails {
                 line3: self.line3.clone().or(other.line3.clone()),
                 zip: self.zip.clone().or(other.zip.clone()),
                 state: self.state.clone().or(other.state.clone()),
+                origin_zip: self.origin_zip.clone().or(other.origin_zip.clone()),
             }
         } else {
             self.clone()
@@ -123,6 +119,7 @@ impl From<api_models::payments::AddressDetails> for AddressDetails {
             state: address.state,
             first_name: address.first_name,
             last_name: address.last_name,
+            origin_zip: address.origin_zip,
         }
     }
 }
@@ -160,6 +157,7 @@ impl From<AddressDetails> for api_models::payments::AddressDetails {
             state: address.state,
             first_name: address.first_name,
             last_name: address.last_name,
+            origin_zip: address.origin_zip,
         }
     }
 }

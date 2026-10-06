@@ -1,13 +1,8 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(feature = "v1")]
-use api_models::payment_methods::PaymentMethodsData;
-use api_models::{
-    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
-};
-use common_enums::{ConnectorMandateStatus, PaymentMethod};
-use common_types::callback_mapper::CallbackMapperData;
+use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
+use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -15,6 +10,7 @@ use common_utils::{
     metrics::utils::record_operation_time,
     pii,
 };
+use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
@@ -22,33 +18,144 @@ use hyperswitch_domain_models::{
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_domain_models::{
+    mandates::ConnectorMandateReferenceId,
+    payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
+    transformers::ForeignFrom as _,
+};
+use hyperswitch_interfaces::api::gateway;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::{
+    get_payment_method_custom_data, vault_payment_method_external_v1,
+};
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::{
-            self,
-            cards::{create_encrypted_data, PmCards},
-            network_tokenization,
-        },
-        payments,
+        payment_methods::{self, cards::PmCards, network_tokenization},
+        payments::{self, gateway::context as gateway_context},
+        utils::create_encrypted_data,
     },
     logger,
     routes::{metrics, SessionState},
     services,
     types::{
         self,
-        api::{self, CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreateExt},
+        api::{self, CardDetailFromLocker, PaymentMethodCreateExt},
         domain, payment_methods as pm_types,
         storage::enums as storage_enums,
     },
     utils::{generate_id, OptionExt},
 };
+
+#[cfg(feature = "v1")]
+pub async fn save_network_token_details_in_nt_mapper(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+    payment_method_id: String,
+    network_token_requestor_ref_id: String,
+) -> RouterResult<()> {
+    let db = &*state.store;
+
+    //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
+    let callback_mapper_data = CallbackMapperData::NetworkTokenWebhook {
+        merchant_id: provider.get_account().get_id().clone(),
+        customer_id: customer_id.to_owned(),
+        payment_method_id: payment_method_id.clone(),
+    };
+    let callback_mapper = CallbackMapper::new(
+        network_token_requestor_ref_id,
+        common_enums::CallbackMapperIdType::NetworkTokenRequestorReferenceID,
+        callback_mapper_data,
+        common_utils::date_time::now(),
+        common_utils::date_time::now(),
+    );
+
+    db.insert_call_back_mapper(callback_mapper)
+        .await
+        .inspect_err(|err| {
+            logger::error!("Failed to insert in Callback Mapper table: {:?}", err);
+        })
+        .attach_printable("Failed to insert in Callback Mapper table")
+        .ok();
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+/// Inserts the network token reference ID along with merchant id and customer id in the
+/// CallbackMapper table (for its respective webhooks), when a reference ID is available.
+///
+/// No-op when `network_token_requestor_ref_id` is `None`.
+pub async fn save_optional_network_token_details_in_nt_mapper(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+    payment_method_id: String,
+    network_token_requestor_ref_id: Option<String>,
+) -> RouterResult<()> {
+    network_token_requestor_ref_id
+        .async_map(|nt_ref_id| {
+            save_network_token_details_in_nt_mapper(
+                state,
+                provider,
+                customer_id,
+                payment_method_id,
+                nt_ref_id,
+            )
+        })
+        .await
+        .transpose()
+        .attach_printable("Failed to save network token details in callback_mapper table")?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn save_in_locker(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method_request: api::PaymentMethodCreate,
+    card_detail: Option<api::CardDetail>,
+    business_profile: &domain::Profile,
+) -> RouterResult<(
+    domain::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile).await?;
+
+    match &external_vault_profile.external_vault_details {
+        domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
+            logger::info!("External vault is enabled, using vault_payment_method_external_v1");
+
+            Box::pin(save_in_locker_external(
+                state,
+                platform.get_provider(),
+                payment_method_request,
+                card_detail,
+                external_vault_details,
+            ))
+            .await
+        }
+        domain::ExternalVaultDetails::Skip => {
+            // Use internal vault (locker)
+            save_in_locker_internal(
+                state,
+                platform.get_provider(),
+                payment_method_request,
+                card_detail,
+            )
+            .await
+        }
+    }
+}
 
 pub struct SavePaymentMethodData<Req> {
     request: Req,
@@ -84,7 +191,7 @@ pub async fn save_payment_method<FData>(
     connector_name: String,
     save_payment_method_data: SavePaymentMethodData<FData>,
     customer_id: Option<id_type::CustomerId>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
@@ -93,6 +200,9 @@ pub async fn save_payment_method<FData>(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
+    payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -100,7 +210,7 @@ where
     let mut pm_status = None;
     let cards = PmCards {
         state,
-        merchant_context,
+        provider: platform.get_provider(),
     };
     match save_payment_method_data.response {
         Ok(responses) => {
@@ -113,11 +223,13 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let network_transaction_id = match &responses {
-                types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id.clone()
-                }
-                _ => None,
+            let (network_transaction_id, network_transaction_link_id) = match &responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    network_txn_id,
+                    network_txn_link_id,
+                    ..
+                } => (network_txn_id.clone(), network_txn_link_id.clone()),
+                _ => (None, None),
             };
 
             let network_transaction_id =
@@ -130,6 +242,15 @@ where
                         logger::info!("Skip storing network transaction id");
                         None
                     }
+                } else {
+                    None
+                };
+
+            let network_transaction_link_id =
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    network_transaction_link_id
                 } else {
                     None
                 };
@@ -194,7 +315,58 @@ where
                     _ => (None, None, None),
                 };
 
-            let pm_id = if customer_acceptance.is_some() {
+            // Details retained for scheduling the asynchronous network tokenization task,
+            // since `billing_name` / `customer_id` are consumed within the branches below.
+            let billing_name_for_network_tokenization = billing_name.clone();
+            let customer_id_for_network_tokenization = customer_id.clone();
+            // The card read back from the locker does not carry the brand, so capture the card
+            // network here, while the original card data is still available.
+            let card_network_for_network_tokenization = save_payment_method_data
+                .request
+                .get_payment_method_data()
+                .get_card_data()
+                .and_then(|card| card.card_network.clone());
+
+            // `payment_method_pending_network_tokenization` carries the id of a payment method
+            // that may still need a network token generated asynchronously by the process
+            // tracker. It is produced alongside `pm_id` by the branches below instead of being
+            // assigned to a mutable variable.
+            let (pm_id, payment_method_pending_network_tokenization) = if let Some(existing_pm) =
+                payment_method_info.clone().filter(|_| {
+                    matches!(
+                        save_payment_method_data.request.get_payment_method_data(),
+                        domain::PaymentMethodData::MandatePayment
+                            | domain::PaymentMethodData::CardToken(_)
+                    )
+                }) {
+                // Recharge of an already-saved payment method where the request
+                // carries no fresh raw card data — either a recurring/MIT charge via
+                // an established connector mandate (PaymentMethodData::MandatePayment)
+                // or a repeat-customer confirm that only supplies a saved-card token +
+                // CVC (PaymentMethodData::CardToken; card_token always references an
+                // existing saved method, there is no "new card" form of it). There is
+                // no new card to save in either case; update the existing row's
+                // last-used timestamp instead of falling through to the "unknown
+                // payment method" branches below, which would otherwise mint a
+                // locker-less orphan payment_methods row (no card => no locker call
+                // => no dedup => throwaway locker_id).
+                payment_methods::cards::update_last_used_at(
+                    &existing_pm,
+                    state,
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!("Failed to update last used at: {:?}", e);
+                })
+                .ok();
+
+                // The existing payment method may still be missing a network token (the workflow
+                // skips it if one is already present), so hand it to the process tracker as well.
+                let existing_pm_id = existing_pm.get_id().clone();
+                (Some(existing_pm_id.clone()), Some(existing_pm_id))
+            } else if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
                 let payment_method_create_request =
@@ -213,7 +385,6 @@ where
                 let co_badged_card_data = payment_methods_data.get_co_badged_card_data();
 
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
-                let merchant_id = merchant_context.get_merchant_account().get_id();
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
                 let (
@@ -221,7 +392,7 @@ where
                     network_token_resp,
                 ) = if !state.conf.locker.locker_enabled {
                     let (res, dc) = skip_saving_card_in_locker(
-                        merchant_context,
+                        platform.get_provider(),
                         payment_method_create_request.to_owned(),
                     )
                     .await?;
@@ -231,17 +402,18 @@ where
                         save_payment_method_data.attempt_status,
                     );
                     pm_status = Some(payment_method_status);
-                    save_card_and_network_token_in_locker(
+                    Box::pin(save_card_and_network_token_in_locker(
                         state,
                         customer_id.clone(),
                         payment_method_status,
                         payment_method_data.clone(),
                         vault_operation,
                         payment_method_info,
-                        merchant_context,
+                        platform,
                         payment_method_create_request.clone(),
                         is_network_tokenization_enabled,
-                    )
+                        business_profile,
+                    ))
                     .await?
                 };
                 let network_token_locker_id = match network_token_resp {
@@ -256,21 +428,29 @@ where
                 };
 
                 let optional_pm_details = match (resp.card.as_ref(), payment_method_data) {
-                    (Some(card), _) => Some(PaymentMethodsData::Card(
-                        CardDetailsPaymentMethod::from((card.clone(), co_badged_card_data)),
+                    (Some(card), _) => Some(domain::PaymentMethodsData::Card(
+                        domain::CardDetailsPaymentMethod::from((card.clone(), co_badged_card_data)),
                     )),
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)),
-                    ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(applepay),
+                    ) => Some(domain::PaymentMethodsData::WalletDetails(
+                        get_applepay_wallet_info(applepay, payment_method_token.clone()),
                     )),
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
-                    ) => Some(PaymentMethodsData::WalletDetails(
-                        PaymentMethodDataWalletInfo::from(googlepay),
+                    ) => Some(domain::PaymentMethodsData::WalletDetails(
+                        get_googlepay_wallet_info(googlepay, payment_method_token),
                     )),
+                    (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
+                        .get_bank_debit_details()
+                        .map(domain::PaymentMethodsData::BankDebit),
+                    (_, domain::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
+                        bank_redirect_data
+                            .get_bank_redirect_details()
+                            .map(domain::PaymentMethodsData::BankRedirect)
+                    }
                     _ => None,
                 };
 
@@ -280,8 +460,11 @@ where
                         .async_map(|pm| {
                             create_encrypted_data(
                                 &key_manager_state,
-                                merchant_context.get_merchant_key_store(),
+                                platform.get_provider().get_key_store(),
                                 pm,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                         })
                         .await
@@ -294,18 +477,20 @@ where
                 > = match network_token_resp {
                     Some(token_resp) => {
                         let pm_token_details = token_resp.card.as_ref().map(|card| {
-                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
-                                card.clone(),
-                                None,
-                            )))
+                            domain::PaymentMethodsData::Card(
+                                domain::CardDetailsPaymentMethod::from((card.clone(), None)),
+                            )
                         });
 
                         pm_token_details
                             .async_map(|pm_card| {
                                 create_encrypted_data(
                                     &key_manager_state,
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     pm_card,
+                                    common_utils::type_name!(
+                                        diesel_models::payment_method::PaymentMethod
+                                    ),
                                 )
                             })
                             .await
@@ -322,8 +507,9 @@ where
                     .async_map(|address| {
                         create_encrypted_data(
                             &key_manager_state,
-                            merchant_context.get_merchant_key_store(),
+                            platform.get_provider().get_key_store(),
                             address.clone(),
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -331,8 +517,45 @@ where
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt payment method billing address")?;
 
+                let payment_method_customer_details_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = customer_details
+                    .async_map(|customer_details| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_provider().get_key_store(),
+                            customer_details,
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method customer details")?;
+
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
+                let external_vault_profile =
+                    helpers::resolve_provider_profile(state, platform, business_profile).await?;
+                let (external_vault_details, vault_type) = match &external_vault_profile.external_vault_details{
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
+                        (Some(external_vault_connector_details), Some(common_enums::VaultType::External))
+                    },
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => (None, Some(common_enums::VaultType::Internal)),
+                };
+                let external_vault_mca_id = external_vault_details
+                    .map(|connector_details| connector_details.vault_connector_id.clone());
+
+                let vault_source_details = domain::PaymentMethodVaultSourceDetails::try_from((
+                    vault_type,
+                    external_vault_mca_id,
+                ))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to create vault source details")?;
+
+                // Whether a network token was generated for this card during this save flow.
+                // Read after the match below to decide if generation must be deferred.
+                let network_token_generated = network_token_requestor_ref_id.is_some();
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -340,10 +563,9 @@ where
                             let payment_method = {
                                 let existing_pm_by_pmid = db
                                     .find_payment_method(
-                                        &(state.into()),
-                                        merchant_context.get_merchant_key_store(),
+                                        platform.get_provider().get_key_store(),
                                         &payment_method_id,
-                                        merchant_context.get_merchant_account().storage_scheme,
+                                        platform.get_provider().get_account().storage_scheme,
                                     )
                                     .await;
 
@@ -352,11 +574,11 @@ where
                                         locker_id = Some(payment_method_id.clone());
                                         let existing_pm_by_locker_id = db
                                             .find_payment_method_by_locker_id(
-                                                &(state.into()),
-                                                merchant_context.get_merchant_key_store(),
+                                                platform.get_provider().get_key_store(),
                                                 &payment_method_id,
-                                                merchant_context
-                                                    .get_merchant_account()
+                                                platform
+                                                    .get_provider()
+                                                    .get_account()
                                                     .storage_scheme,
                                             )
                                             .await;
@@ -387,17 +609,37 @@ where
                                         pm.metadata.as_ref(),
                                         connector_token,
                                     )?;
-                                    payment_methods::cards::update_payment_method_metadata_and_last_used(
+                                    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                                         state,
-                                        merchant_context.get_merchant_key_store(),
+                                        &pm.merchant_id,
+                                        &platform.get_provider().get_account().organization_id,
+                                        pm.customer_id.as_ref(),
+                                    )
+                                    .await;
+                                    payment_methods::cards::update_payment_method_metadata_and_network_token_data_and_last_used(
+                                        platform.get_provider().get_key_store(),
                                         db,
                                         pm.clone(),
                                         pm_metadata,
-                                        merchant_context.get_merchant_account().storage_scheme,
+                                        network_token_requestor_ref_id.clone(),
+                                        network_token_locker_id,
+                                        pm_network_token_data_encrypted,
+                                        platform.get_provider().get_account().storage_scheme,
+                                        platform.get_initiator(),
+                                        compat_action,
                                     )
                                     .await
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable("Failed to add payment method in db")?;
+
+                                    save_optional_network_token_details_in_nt_mapper(
+                                        state,
+                                        platform.get_provider(),
+                                        &customer_id,
+                                        resp.payment_method_id.clone(),
+                                        network_token_requestor_ref_id,
+                                    )
+                                    .await?;
                                 }
                                 Err(err) => {
                                     if err.current_context().is_db_not_found() {
@@ -409,7 +651,7 @@ where
                                                 &customer_id,
                                                 &resp.payment_method_id,
                                                 locker_id,
-                                                merchant_id,
+                                                platform.get_provider().get_account().get_id(),
                                                 pm_metadata,
                                                 customer_acceptance,
                                                 pm_data_encrypted,
@@ -417,6 +659,7 @@ where
                                                 pm_status,
                                                 network_transaction_id,
                                                 encrypted_payment_method_billing_address,
+                                                network_transaction_link_id,
                                                 resp.card.and_then(|card| {
                                                     card.card_network.map(|card_network| {
                                                         card_network.to_string()
@@ -425,6 +668,10 @@ where
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
                                                 pm_network_token_data_encrypted,
+                                                Some(vault_source_details),
+                                                payment_method_customer_details_encrypted,
+                                                resp.locker_fingerprint_id,
+                                                platform.get_initiator(),
                                             )
                                             .await
                                     } else {
@@ -442,10 +689,9 @@ where
                                 let payment_method = {
                                     let existing_pm_by_pmid = db
                                         .find_payment_method(
-                                            &(state.into()),
-                                            merchant_context.get_merchant_key_store(),
+                                            platform.get_provider().get_key_store(),
                                             &payment_method_id,
-                                            merchant_context.get_merchant_account().storage_scheme,
+                                            platform.get_provider().get_account().storage_scheme,
                                         )
                                         .await;
 
@@ -454,11 +700,11 @@ where
                                             locker_id = Some(payment_method_id.clone());
                                             let existing_pm_by_locker_id = db
                                                 .find_payment_method_by_locker_id(
-                                                    &(state.into()),
-                                                    merchant_context.get_merchant_key_store(),
+                                                    platform.get_provider().get_key_store(),
                                                     &payment_method_id,
-                                                    merchant_context
-                                                        .get_merchant_account()
+                                                    platform
+                                                        .get_provider()
+                                                        .get_account()
                                                         .storage_scheme,
                                                 )
                                                 .await;
@@ -497,27 +743,50 @@ where
                                         .transpose()
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
-                                        if let Some((mandate_details, merchant_connector_id)) =
-                                            mandate_details.zip(merchant_connector_id)
-                                        {
-                                            let connector_mandate_details =
+                                        let connector_mandate_details =
+                                            if let Some((mandate_details, merchant_connector_id)) =
+                                                mandate_details.zip(merchant_connector_id)
+                                            {
                                                 update_connector_mandate_details_status(
                                                     merchant_connector_id,
                                                     mandate_details,
                                                     ConnectorMandateStatus::Inactive,
-                                                )?;
-                                            payment_methods::cards::update_payment_method_connector_mandate_details(
+                                                )?
+                                            } else {
+                                                None
+                                            };
+                                        let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                                             state,
-                                            merchant_context.get_merchant_key_store(),
+                                            &pm.merchant_id,
+                                            &platform.get_provider().get_account().organization_id,
+                                            pm.customer_id.as_ref(),
+                                        )
+                                        .await;
+                                        payment_methods::cards::update_payment_method_connector_mandate_details_and_network_token_data(
+                                            platform.get_provider().get_key_store(),
                                             db,
                                             pm.clone(),
                                             connector_mandate_details,
-                                            merchant_context.get_merchant_account().storage_scheme,
+                                            network_token_requestor_ref_id.clone(),
+                                            network_token_locker_id,
+                                            pm_network_token_data_encrypted,
+                                            platform.get_provider().get_account().storage_scheme,
+                                            platform.get_initiator(),
+                                            compat_action,
                                         )
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable("Failed to add payment method in db")?;
-                                        }
+
+                                        save_optional_network_token_details_in_nt_mapper(
+                                            state,
+                                            platform.get_provider(),
+                                            &customer_id,
+                                            resp.payment_method_id.clone(),
+                                            network_token_requestor_ref_id.clone(),
+                                        )
+                                        .await?;
+
                                         Ok(pm)
                                     }
                                     Err(err) => {
@@ -528,7 +797,7 @@ where
                                                     &customer_id,
                                                     &resp.payment_method_id,
                                                     locker_id,
-                                                    merchant_id,
+                                                    platform.get_provider().get_account().get_id(),
                                                     resp.metadata.clone().map(|val| val.expose()),
                                                     customer_acceptance,
                                                     pm_data_encrypted,
@@ -536,6 +805,7 @@ where
                                                     pm_status,
                                                     network_transaction_id,
                                                     encrypted_payment_method_billing_address,
+                                                    network_transaction_link_id,
                                                     resp.card.and_then(|card| {
                                                         card.card_network.map(|card_network| {
                                                             card_network.to_string()
@@ -544,6 +814,10 @@ where
                                                     network_token_requestor_ref_id,
                                                     network_token_locker_id,
                                                     pm_network_token_data_encrypted,
+                                                    Some(vault_source_details),
+                                                    payment_method_customer_details_encrypted,
+                                                    resp.locker_fingerprint_id,
+                                                    platform.get_initiator(),
                                                 )
                                                 .await
                                         } else {
@@ -561,7 +835,7 @@ where
                                 cards
                                     .delete_card_from_locker(
                                         &customer_id,
-                                        merchant_id,
+                                        platform.get_provider().get_account().get_id(),
                                         existing_pm
                                             .locker_id
                                             .as_ref()
@@ -574,7 +848,6 @@ where
                                         payment_method_create_request,
                                         &card,
                                         &customer_id,
-                                        api::enums::LockerChoice::HyperswitchCardVault,
                                         Some(
                                             existing_pm
                                                 .locker_id
@@ -587,9 +860,8 @@ where
                                 if let Err(err) = add_card_resp {
                                     logger::error!(vault_err=?err);
                                     db.delete_payment_method_by_merchant_id_payment_method_id(
-                                        &(state.into()),
-                                        merchant_context.get_merchant_key_store(),
-                                        merchant_id,
+                                        platform.get_provider().get_key_store(),
+                                        platform.get_provider().get_account().get_id(),
                                         &resp.payment_method_id,
                                     )
                                     .await
@@ -620,6 +892,9 @@ where
                                     issuer_country: card
                                         .card_issuing_country
                                         .or(existing_pm_data.issuer_country),
+                                    issuer_country_code: card
+                                        .card_issuing_country_code
+                                        .or(existing_pm_data.issuer_country_code),
                                     card_isin: Some(card.card_number.get_card_isin()),
                                     card_number: Some(card.card_number),
                                     expiry_month: Some(card.card_exp_month),
@@ -635,14 +910,25 @@ where
                                         .or(existing_pm_data.card_network),
                                     card_issuer: card.card_issuer.or(existing_pm_data.card_issuer),
                                     card_type: card.card_type.or(existing_pm_data.card_type),
+                                    card_subtype: card
+                                        .card_subtype
+                                        .or(existing_pm_data.card_subtype),
+                                    card_segment_type: card
+                                        .card_segment_type
+                                        .or(existing_pm_data.card_segment_type),
+                                    funding_source: card
+                                        .funding_source
+                                        .or(existing_pm_data.funding_source),
                                     saved_to_locker: true,
                                 });
 
                                 let updated_pmd = updated_card.as_ref().map(|card| {
-                                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
-                                        card.clone(),
-                                        co_badged_card_data,
-                                    )))
+                                    domain::PaymentMethodsData::Card(
+                                        domain::CardDetailsPaymentMethod::from((
+                                            card.clone(),
+                                            co_badged_card_data,
+                                        )),
+                                    )
                                 });
                                 let pm_data_encrypted: Option<
                                     Encryptable<Secret<serde_json::Value>>,
@@ -650,8 +936,11 @@ where
                                     .async_map(|pmd| {
                                         create_encrypted_data(
                                             &key_manager_state,
-                                            merchant_context.get_merchant_key_store(),
+                                            platform.get_provider().get_key_store(),
                                             pmd,
+                                            common_utils::type_name!(
+                                                diesel_models::payment_method::PaymentMethod
+                                            ),
                                         )
                                     })
                                     .await
@@ -659,14 +948,23 @@ where
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable("Unable to encrypt payment method data")?;
 
+                                let compat_action =
+                                    payment_methods::payment_method_modular_forward_compat_action(
+                                        state,
+                                        &existing_pm.merchant_id,
+                                        &platform.get_provider().get_account().organization_id,
+                                        existing_pm.customer_id.as_ref(),
+                                    )
+                                    .await;
                                 payment_methods::cards::update_payment_method_and_last_used(
-                                    state,
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     db,
                                     existing_pm,
                                     pm_data_encrypted.map(Into::into),
-                                    merchant_context.get_merchant_account().storage_scheme,
+                                    platform.get_provider().get_account().storage_scheme,
                                     card_scheme,
+                                    platform.get_initiator(),
+                                    compat_action,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -675,20 +973,34 @@ where
                         }
                     },
                     None => {
-                        let customer_saved_pm_option = if payment_method_type
+                        let should_save_walled_decrypted_token = dimensions
+                            .get_save_wallet_decrypted_data(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&customer_id),
+                            )
+                            .await;
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
+                            save_payment_method_data.payment_method_token.as_ref(),
+                            should_save_walled_decrypted_token,
+                        ));
+
+                        let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
-                                    .should_check_for_customer_saved_payment_method_type()
+                                    .should_check_for_customer_saved_payment_method_type(
+                                        wallet_decrypt_preference,
+                                    )
                             })
-                            .unwrap_or(false)
-                        {
+                            .unwrap_or(false);
+
+                        let customer_saved_pm_option = if check_for_customer_pm {
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
-                                    &(state.into()),
-                                    merchant_context.get_merchant_key_store(),
+                                    platform.get_provider().get_key_store(),
                                     &customer_id,
-                                    merchant_id,
+                                    platform.get_provider().get_account().get_id(),
                                     None,
                                 )
                                 .await
@@ -722,8 +1034,8 @@ where
                             payment_methods::cards::update_last_used_at(
                                 &customer_saved_pm,
                                 state,
-                                merchant_context.get_merchant_account().storage_scheme,
-                                merchant_context.get_merchant_key_store(),
+                                platform.get_provider().get_account().storage_scheme,
+                                platform.get_provider().get_key_store(),
                             )
                             .await
                             .map_err(|e| {
@@ -736,7 +1048,9 @@ where
                                 create_payment_method_metadata(None, connector_token)?;
 
                             locker_id = resp.payment_method.and_then(|pm| {
-                                if pm == PaymentMethod::Card {
+                                if pm.should_persist_locker_id_for_saved_payment_method(
+                                    check_for_customer_pm,
+                                ) {
                                     Some(resp.payment_method_id)
                                 } else {
                                     None
@@ -750,7 +1064,7 @@ where
                                     &customer_id,
                                     &resp.payment_method_id,
                                     locker_id,
-                                    merchant_id,
+                                    platform.get_provider().get_account().get_id(),
                                     pm_metadata,
                                     customer_acceptance,
                                     pm_data_encrypted,
@@ -758,6 +1072,7 @@ where
                                     pm_status,
                                     network_transaction_id,
                                     encrypted_payment_method_billing_address,
+                                    network_transaction_link_id,
                                     resp.card.and_then(|card| {
                                         card.card_network
                                             .map(|card_network| card_network.to_string())
@@ -765,37 +1080,26 @@ where
                                     network_token_requestor_ref_id.clone(),
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
+                                    Some(vault_source_details),
+                                    payment_method_customer_details_encrypted,
+                                    resp.locker_fingerprint_id,
+                                    platform.get_initiator(),
                                 )
                                 .await?;
 
                             match network_token_requestor_ref_id {
                                 Some(network_token_requestor_ref_id) => {
-                                    //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
-                                    let callback_mapper_data =
-                                        CallbackMapperData::NetworkTokenWebhook {
-                                            merchant_id: merchant_context
-                                                .get_merchant_account()
-                                                .get_id()
-                                                .clone(),
-                                            customer_id,
-                                            payment_method_id: resp.payment_method_id.clone(),
-                                        };
-                                    let callback_mapper = CallbackMapper::new(
+                                    save_network_token_details_in_nt_mapper(
+                                        state,
+                                        platform.get_provider(),
+                                        &customer_id,
+                                        resp.payment_method_id.clone(),
                                         network_token_requestor_ref_id,
-                                        common_enums::CallbackMapperIdType::NetworkTokenRequestorReferenceID,
-                                        callback_mapper_data,
-                                        common_utils::date_time::now(),
-                                        common_utils::date_time::now(),
-                                    );
-
-                                    db.insert_call_back_mapper(callback_mapper)
-                                        .await
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable(
-                                            "Failed to insert in Callback Mapper table",
-                                        )?;
+                                    )
+                                    .await
+                                    .attach_printable(
+                                        "Failed to save network token details in callback_mapper table",
+                                    )?;
                                 }
                                 None => {
                                     logger::info!("Network token requestor reference ID is not available, skipping callback mapper insertion");
@@ -805,10 +1109,60 @@ where
                     }
                 }
 
-                Some(resp.payment_method_id)
+                // A card can be saved without a network token in any of the duplication
+                // branches above (fresh, duplicated or metadata-changed) — e.g. an unsupported
+                // network or a failed tokenization service call. In every such case, defer
+                // generation to the process tracker. The workflow skips payment methods that are
+                // already tokenized, so this is safe for duplicated cards as well.
+                let pending_network_tokenization = (save_payment_method_data.payment_method
+                    == PaymentMethod::Card
+                    && !network_token_generated)
+                    .then(|| resp.payment_method_id.clone());
+
+                (Some(resp.payment_method_id), pending_network_tokenization)
             } else {
-                None
+                (None, None)
             };
+
+            // If network tokenization is enabled for the profile, trigger the process tracker
+            // workflow, which fetches the card, generates the network token and updates the
+            // payment method.
+            if business_profile.is_network_tokenization_enabled {
+                if let (Some(pending_pm_id), Some(nt_customer_id)) = (
+                    payment_method_pending_network_tokenization,
+                    customer_id_for_network_tokenization,
+                ) {
+                    let scheduling_result = payment_methods::add_network_tokenization_task(
+                        db,
+                        types::storage::NetworkTokenizationTrackingData {
+                            payment_method_id: pending_pm_id.clone(),
+                            merchant_id: platform.get_provider().get_account().get_id().clone(),
+                            profile_id: business_profile.get_id().clone(),
+                            customer_id: nt_customer_id,
+                            payment_method: save_payment_method_data.payment_method,
+                            payment_method_type,
+                            billing_name: billing_name_for_network_tokenization,
+                            card_network: card_network_for_network_tokenization,
+                        },
+                        state.conf.application_source,
+                    )
+                    .await;
+
+                    // Scheduling is best effort: the payment method has already been saved, so a
+                    // failure to enqueue is logged rather than failing the payment.
+                    match scheduling_result {
+                        Ok(()) => logger::info!(
+                            payment_method_id=%pending_pm_id,
+                            "Scheduled NetworkTokenizationWorkflow process tracker task"
+                        ),
+                        Err(err) => logger::error!(
+                            payment_method_id=%pending_pm_id,
+                            ?err,
+                            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+                        ),
+                    }
+                }
+            }
             // check if there needs to be a config if yes then remove it to a different place
             let connector_mandate_reference_id = if connector_mandate_id.is_some() {
                 if let Some(ref mut record) = original_connector_mandate_reference_id {
@@ -827,6 +1181,7 @@ where
                         None,
                         mandate_metadata,
                         connector_mandate_request_reference_id,
+                        None,
                     ))
                 }
             } else {
@@ -855,7 +1210,7 @@ pub async fn save_payment_method<FData>(
     _connector_name: String,
     _save_payment_method_data: SavePaymentMethodData<FData>,
     _customer_id: Option<id_type::CustomerId>,
-    _merchant_context: &domain::MerchantContext,
+    _merchant_context: &domain::Platform,
     _payment_method_type: Option<storage_enums::PaymentMethodType>,
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
@@ -902,7 +1257,7 @@ pub async fn pre_payment_tokenization(
                     network_tokenization_service,
                 ) {
                     (Some(token_ref), Some(network_tokenization_service)) => {
-                        let network_token = record_operation_time(
+                        let network_token = Box::pin(record_operation_time(
                             async {
                                 network_tokenization::get_network_token(
                                     state,
@@ -914,7 +1269,7 @@ pub async fn pre_payment_tokenization(
                             },
                             &metrics::FETCH_NETWORK_TOKEN_TIME,
                             &[],
-                        )
+                        ))
                         .await;
                         match network_token {
                             Ok(token_response) => {
@@ -944,13 +1299,12 @@ pub async fn pre_payment_tokenization(
 
 #[cfg(feature = "v1")]
 async fn skip_saving_card_in_locker(
-    merchant_context: &domain::MerchantContext,
+    provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
-    api_models::payment_methods::PaymentMethodResponse,
+    domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = payment_method_request
         .clone()
         .customer_id
@@ -973,6 +1327,7 @@ async fn skip_saving_card_in_locker(
             let card_detail = CardDetailFromLocker {
                 scheme: None,
                 issuer_country: card.card_issuing_country.clone(),
+                issuer_country_code: card.card_issuing_country_code.clone(),
                 last4_digits: last4_digits.clone(),
                 card_number: None,
                 expiry_month: Some(card.card_exp_month.clone()),
@@ -985,10 +1340,13 @@ async fn skip_saving_card_in_locker(
                 card_issuer: card.card_issuer.clone(),
                 card_network: card.card_network.clone(),
                 card_type: card.card_type.clone(),
+                card_subtype: card.card_subtype.clone(),
+                card_segment_type: card.card_segment_type,
+                funding_source: card.funding_source,
                 saved_to_locker: false,
             };
-            let pm_resp = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_owned(),
+            let pm_resp = domain::PaymentMethodResponse {
+                merchant_id: provider.get_account().get_id().to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
@@ -1003,14 +1361,15 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                locker_fingerprint_id: None,
             };
 
             Ok((pm_resp, None))
         }
         None => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.to_owned(),
+            let payment_method_response = domain::PaymentMethodResponse {
+                merchant_id: provider.get_account().get_id().to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
@@ -1025,6 +1384,7 @@ async fn skip_saving_card_in_locker(
                 bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                locker_fingerprint_id: None,
             };
             Ok((payment_method_response, None))
         }
@@ -1033,7 +1393,7 @@ async fn skip_saving_card_in_locker(
 
 #[cfg(feature = "v2")]
 async fn skip_saving_card_in_locker(
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
@@ -1043,36 +1403,108 @@ async fn skip_saving_card_in_locker(
 }
 
 #[cfg(feature = "v1")]
-pub async fn save_in_locker(
+pub async fn save_in_locker_internal(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
 ) -> RouterResult<(
-    api_models::payment_methods::PaymentMethodResponse,
+    domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
+    let db = &state.store;
     payment_method_request.validate()?;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = payment_method_request
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    match (payment_method_request.card.clone(), card_detail) {
-        (_, Some(card)) | (Some(card), _) => Box::pin(
-            PmCards {
-                state,
-                merchant_context,
-            }
-            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
+
+    let customer_obj = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found in db")?;
+
+    match (
+        payment_method_request.card.clone(),
+        card_detail,
+        payment_method_request.payment_method_data.clone(),
+    ) {
+        (_, Some(card), _) | (Some(card), _, _) => {
+            Box::pin(PmCards { state, provider }.add_card_to_locker(
+                payment_method_request,
+                &card,
+                &customer_id,
+                None,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")
+        }
+
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
+                bank_debit_create_data,
+            )),
+        ) => Box::pin(
+            PmCards { state, provider }.add_bank_debit_to_locker(
+                payment_method_request,
+                bank_debit_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
+        .attach_printable("Add Bank Debit Failed"),
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
+        ) => Box::pin(
+            PmCards { state, provider }.add_wallet_to_locker(
+                payment_method_request,
+                wallet_create_data,
+                provider.get_key_store(),
+                &customer_id,
+                customer_obj
+                    .get_global_id()
+                    .map(|id| id.get_string_repr().to_owned()),
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Wallet Failed"),
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::BankRedirect(
+                bank_redirect_create_data,
+            )),
+        ) => Box::pin(PmCards { state, provider }.add_bank_redirect_to_locker(
+            payment_method_request,
+            bank_redirect_create_data,
+            provider.get_key_store(),
+            &customer_id,
+        ))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Bank Redirect Failed"),
+
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.clone(),
+            let payment_method_response = domain::PaymentMethodResponse {
+                merchant_id: provider.get_account().get_id().clone(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
@@ -1087,16 +1519,113 @@ pub async fn save_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                locker_fingerprint_id: None,
             };
             Ok((payment_method_response, None))
         }
     }
 }
 
+#[cfg(feature = "v1")]
+pub async fn save_in_locker_external(
+    state: &SessionState,
+    provider: &domain::Provider,
+    payment_method_request: api::PaymentMethodCreate,
+    card_detail: Option<api::CardDetail>,
+    external_vault_connector_details: &ExternalVaultConnectorDetails,
+) -> RouterResult<(
+    domain::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    let customer_id = payment_method_request
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+    // For external vault, we need to convert the card data to PaymentMethodVaultingData
+    if let Some(card) = card_detail {
+        let payment_method_custom_vaulting_data = get_payment_method_custom_data(
+            hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card.clone()),
+            external_vault_connector_details
+                .vault_token_selector
+                .clone(),
+        )?;
+
+        let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
+
+        let merchant_connector_account_details = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                provider.get_account().get_id(),
+                &external_vault_mca_id,
+                provider.get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: external_vault_mca_id.get_string_repr().to_string(),
+            })?;
+
+        // Call vault_payment_method_external_v1
+        let vault_response = Box::pin(vault_payment_method_external_v1(
+            state,
+            &payment_method_custom_vaulting_data,
+            provider.get_account(),
+            merchant_connector_account_details,
+            None,
+        ))
+        .await?;
+
+        let payment_method_id = vault_response.vault_id.get_single_vault_id()?;
+        let card_detail = CardDetailFromLocker::from(card);
+
+        let pm_resp = domain::PaymentMethodResponse {
+            merchant_id: provider.get_account().get_id().to_owned(),
+            customer_id: Some(customer_id),
+            payment_method_id,
+            payment_method: payment_method_request.payment_method,
+            payment_method_type: payment_method_request.payment_method_type,
+            card: Some(card_detail),
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+            metadata: None,
+            created: Some(common_utils::date_time::now()),
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            last_used_at: Some(common_utils::date_time::now()),
+            client_secret: None,
+            locker_fingerprint_id: None,
+        };
+
+        Ok((pm_resp, None))
+    } else {
+        //Similar implementation is done for save in locker internal
+        let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+        let payment_method_response = domain::PaymentMethodResponse {
+            merchant_id: provider.get_account().get_id().to_owned(),
+            customer_id: Some(customer_id),
+            payment_method_id: pm_id,
+            payment_method: payment_method_request.payment_method,
+            payment_method_type: payment_method_request.payment_method_type,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            card: None,
+            metadata: None,
+            created: Some(common_utils::date_time::now()),
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
+            payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+            last_used_at: Some(common_utils::date_time::now()),
+            client_secret: None,
+            locker_fingerprint_id: None,
+        };
+        Ok((payment_method_response, None))
+    }
+}
+
 #[cfg(feature = "v2")]
-pub async fn save_in_locker(
+pub async fn save_in_locker_internal(
     _state: &SessionState,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
     _payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
     api_models::payment_methods::PaymentMethodResponse,
@@ -1108,7 +1637,7 @@ pub async fn save_in_locker(
 #[cfg(feature = "v2")]
 pub async fn save_network_token_in_locker(
     _state: &SessionState,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
     _card_data: &domain::Card,
     _payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
@@ -1122,12 +1651,12 @@ pub async fn save_network_token_in_locker(
 #[cfg(feature = "v1")]
 pub async fn save_network_token_in_locker(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    provider: &domain::Provider,
     card_data: &payment_method_data::Card,
     network_token_data: Option<api::CardDetail>,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
-    Option<api_models::payment_methods::PaymentMethodResponse>,
+    Option<domain::PaymentMethodResponse>,
     Option<payment_methods::transformers::DataDuplicationCheck>,
     Option<String>,
 )> {
@@ -1142,18 +1671,12 @@ pub async fn save_network_token_in_locker(
 
     match network_token_data {
         Some(nt_data) => {
-            let (res, dc) = Box::pin(
-                PmCards {
-                    state,
-                    merchant_context,
-                }
-                .add_card_to_locker(
-                    payment_method_request,
-                    &nt_data,
-                    &customer_id,
-                    None,
-                ),
-            )
+            let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
+                payment_method_request,
+                &nt_data,
+                &customer_id,
+                None,
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Network Token Failed")?;
@@ -1167,7 +1690,11 @@ pub async fn save_network_token_in_locker(
                 .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
                 .is_some()
             {
-                let optional_card_cvc = Some(card_data.card_cvc.clone());
+                // The CVC is never stored in the locker, so cards read back from it carry an
+                // empty CVC. Send no card security code at all in that case, rather than an
+                // empty one.
+                let optional_card_cvc =
+                    (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone());
                 match network_tokenization::make_card_network_tokenization_request(
                     state,
                     &domain::CardDetail::from(card_data),
@@ -1182,26 +1709,25 @@ pub async fn save_network_token_in_locker(
                             card_number: token_response.token.clone(),
                             card_exp_month: token_response.token_expiry_month.clone(),
                             card_exp_year: token_response.token_expiry_year.clone(),
+                            card_cvc: None,
                             card_holder_name: None,
                             nick_name: None,
                             card_issuing_country: None,
+                            card_issuing_country_code: None,
                             card_network: Some(token_response.card_brand.clone()),
                             card_issuer: None,
                             card_type: None,
+                            card_subtype: None,
+                            card_segment_type: None,
+                            funding_source: None,
                         };
 
-                        let (res, dc) = Box::pin(
-                            PmCards {
-                                state,
-                                merchant_context,
-                            }
-                            .add_card_to_locker(
-                                payment_method_request,
-                                &network_token_data,
-                                &customer_id,
-                                None,
-                            ),
-                        )
+                        let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
+                            payment_method_request,
+                            &network_token_data,
+                            &customer_id,
+                            None,
+                        ))
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add Network Token Failed")?;
@@ -1215,6 +1741,25 @@ pub async fn save_network_token_in_locker(
                 }
             } else {
                 Ok((None, None, None)) //None will be returned in case of unsupported card network.
+            }
+        }
+    }
+}
+
+pub fn handle_tokenization_response<F, Req>(
+    resp: &mut types::RouterData<F, Req, types::PaymentsResponseData>,
+) {
+    let response = resp.response.clone();
+    if let Err(err) = response {
+        if let Some(secret_metadata) = &err.connector_metadata {
+            let metadata = secret_metadata.clone().expose();
+            if let Some(token) = metadata
+                .get("payment_method_token")
+                .and_then(|t| t.as_str())
+            {
+                resp.response = Ok(types::PaymentsResponseData::TokenizationResponse {
+                    token: token.to_string(),
+                });
             }
         }
     }
@@ -1250,6 +1795,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
     should_continue_payment: bool,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::PaymentMethodTokenResult> {
     if should_continue_payment {
         match tokenization_action {
@@ -1276,16 +1822,20 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                     .request
                     .set_session_token(pm_token_router_data.session_token.clone());
 
-                let resp = services::execute_connector_processing_step(
+                let mut resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &pm_token_router_data,
                     payments::CallConnectorAction::Trigger,
                     None,
                     None,
+                    gateway_context.clone(),
                 )
                 .await
                 .to_payment_failed_response()?;
+
+                // checks for metadata in the ErrorResponse, if present bypasses it and constructs an Ok response
+                handle_tokenization_response(&mut resp);
 
                 metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                     1,
@@ -1385,6 +1935,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 mandate_metadata,
                 connector_mandate_status: Some(ConnectorMandateStatus::Active),
                 connector_mandate_request_reference_id,
+                connector_customer_id: None,
             },
         );
         Some(CommonMandateReference {
@@ -1425,6 +1976,7 @@ pub fn update_connector_mandate_details(
                     connector_mandate_status: Some(ConnectorMandateStatus::Active),
                     connector_mandate_request_reference_id: connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
 
                 payment_mandate_reference
@@ -1438,6 +1990,7 @@ pub fn update_connector_mandate_details(
                         mandate_metadata: mandate_metadata.clone(),
                         connector_mandate_status: Some(ConnectorMandateStatus::Active),
                         connector_mandate_request_reference_id,
+                        connector_customer_id: None,
                     });
 
                 let payout_data = mandate_details.and_then(|common_mandate| common_mandate.payouts);
@@ -1483,6 +2036,7 @@ pub fn update_connector_mandate_details_status(
                     connector_mandate_request_reference_id: pm
                         .connector_mandate_request_reference_id
                         .clone(),
+                    connector_customer_id: None,
                 };
                 *pm = update_rec
             });
@@ -1567,19 +2121,20 @@ pub async fn save_card_and_network_token_in_locker(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     payment_method_status: common_enums::PaymentMethodStatus,
-    payment_method_data: domain::PaymentMethodData,
+    _payment_method_data: domain::PaymentMethodData,
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_method_create_request: api::PaymentMethodCreate,
-    is_network_tokenization_enabled: bool,
+    _is_network_tokenization_enabled: bool,
+    business_profile: &domain::Profile,
 ) -> RouterResult<(
     (
-        api_models::payment_methods::PaymentMethodResponse,
+        domain::PaymentMethodResponse,
         Option<payment_methods::transformers::DataDuplicationCheck>,
         Option<String>,
     ),
-    Option<api_models::payment_methods::PaymentMethodResponse>,
+    Option<domain::PaymentMethodResponse>,
 )> {
     let network_token_requestor_reference_id = payment_method_info
         .and_then(|pm_info| pm_info.network_token_requestor_reference_id.clone());
@@ -1608,9 +2163,10 @@ pub async fn save_card_and_network_token_in_locker(
             }
             let (res, dc) = Box::pin(save_in_locker(
                 state,
-                merchant_context,
+                platform,
                 payment_method_create_request.to_owned(),
                 Some(card_data),
+                business_profile,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1632,9 +2188,9 @@ pub async fn save_card_and_network_token_in_locker(
             );
 
             if payment_method_status == common_enums::PaymentMethodStatus::Active {
-                let (res, dc) = Box::pin(save_in_locker(
+                let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
-                    merchant_context,
+                    platform.get_provider(),
                     payment_method_create_request.to_owned(),
                     Some(card_data),
                 ))
@@ -1644,7 +2200,7 @@ pub async fn save_card_and_network_token_in_locker(
 
                 let (network_token_resp, _dc, _) = Box::pin(save_network_token_in_locker(
                     state,
-                    merchant_context,
+                    platform.get_provider(),
                     &save_card_and_network_token_data.card_data,
                     Some(network_token_data),
                     payment_method_create_request.clone(),
@@ -1677,9 +2233,9 @@ pub async fn save_card_and_network_token_in_locker(
                     )
                     .await;
                 }
-                let (res, dc) = Box::pin(save_in_locker(
+                let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
-                    merchant_context,
+                    platform.get_provider(),
                     payment_method_create_request.to_owned(),
                     Some(card_data),
                 ))
@@ -1691,40 +2247,272 @@ pub async fn save_card_and_network_token_in_locker(
             }
         }
         _ => {
+            let card_data = payment_method_create_request.card.clone();
             let (res, dc) = Box::pin(save_in_locker(
                 state,
-                merchant_context,
+                platform,
                 payment_method_create_request.to_owned(),
-                None,
+                card_data,
+                business_profile,
             ))
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card In Locker Failed")?;
 
-            if is_network_tokenization_enabled {
-                match &payment_method_data {
-                    domain::PaymentMethodData::Card(card) => {
-                        let (
-                            network_token_resp,
-                            _network_token_duplication_check, //the duplication check is discarded, since each card has only one token, handling card duplication check will be suffice
-                            network_token_requestor_ref_id,
-                        ) = Box::pin(save_network_token_in_locker(
-                            state,
-                            merchant_context,
-                            card,
-                            None,
-                            payment_method_create_request.clone(),
-                        ))
-                        .await?;
-
-                        Ok((
-                            (res, dc, network_token_requestor_ref_id),
-                            network_token_resp,
-                        ))
-                    }
-                    _ => Ok(((res, dc, None), None)), //network_token_resp is None in case of other payment methods
-                }
-            } else {
-                Ok(((res, dc, None), None))
-            }
+            // Network token generation is deferred to an async background task in save_payment_method()
+            // after the payment method is inserted into DB (so pm_id is available for the update).
+            // We return None here regardless of is_network_tokenization_enabled.
+            Ok(((res, dc, None), None))
         }
     }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn generate_network_token_and_update_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_method_data: &domain::PaymentMethodData,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    customer_id: Option<id_type::CustomerId>,
+    billing_name: Option<Secret<String>>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    payment_method_info: Option<domain::PaymentMethod>,
+) -> RouterResult<()> {
+    // check if payment method already has a network token associated
+    if let Some(true) = payment_method_info.as_ref().map(|pm| {
+        pm.network_token_requestor_reference_id.is_some()
+            || pm.status != common_enums::PaymentMethodStatus::Active
+    }) {
+        logger::info!(
+            "Payment method already has a network token associated or the payment method is inactive, skipping network tokenization"
+        );
+        Ok(())
+    } else {
+        // Extract card data and attempt network tokenization
+        if let domain::PaymentMethodData::Card(card_data) = &payment_method_data {
+            let payment_method_create_request = payment_methods::get_payment_method_create_request(
+                Some(payment_method_data),
+                Some(payment_method),
+                payment_method_type,
+                &customer_id.clone(),
+                billing_name,
+                payment_method_billing_address,
+            )
+            .await?;
+
+            // Call save_network_token_in_locker - it will handle tokenization if network_token_data is None
+            let (network_token_resp, _dc, network_token_requestor_ref_id) =
+                Box::pin(save_network_token_in_locker(
+                    state,
+                    platform.get_provider(),
+                    card_data,
+                    None,
+                    payment_method_create_request.clone(),
+                ))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Add Network Token In Locker Failed")?;
+
+            logger::info!(
+                card_network = ?card_data.card_network,
+                network_token_resp_present = network_token_resp.is_some(),
+                network_token_locker_id = ?network_token_resp
+                    .as_ref()
+                    .map(|resp| &resp.payment_method_id),
+                ?network_token_requestor_ref_id,
+                "NT response: received result from save_network_token_in_locker"
+            );
+
+            // Update payment method with network token details if available
+            if let (Some(token_resp), Some(pm_info)) = (network_token_resp, payment_method_info) {
+                let network_token_locker_id = network_token_requestor_ref_id
+                    .as_ref()
+                    .map(|_| token_resp.payment_method_id.clone());
+
+                // Create encrypted network token data
+                let key_manager_state = state.into();
+                let pm_network_token_data_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = {
+                    let pm_token_details = token_resp.card.as_ref().map(|card| {
+                        domain::PaymentMethodsData::Card(domain::CardDetailsPaymentMethod::from((
+                            card.clone(),
+                            None,
+                        )))
+                    });
+
+                    pm_token_details
+                        .async_map(|pm_card| {
+                            create_encrypted_data(
+                                &key_manager_state,
+                                platform.get_provider().get_key_store(),
+                                pm_card,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
+                            )
+                        })
+                        .await
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt payment method data")?
+                };
+
+                // Update the payment method with network token details
+                let db = &*state.store;
+                let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                    state,
+                    &pm_info.merchant_id,
+                    &platform.get_provider().get_account().organization_id,
+                    pm_info.customer_id.as_ref(),
+                )
+                .await;
+                payment_methods::cards::update_payment_method_network_token_data(
+                    platform.get_provider().get_key_store(),
+                    db,
+                    pm_info.clone(),
+                    network_token_requestor_ref_id.clone(),
+                    network_token_locker_id,
+                    pm_network_token_data_encrypted,
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_initiator(),
+                    compat_action,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method with network token details")?;
+
+                // Save network token details in callback_mapper table if network_token_requestor_ref_id is present
+                if let Some(cust_id) = customer_id.as_ref() {
+                    save_optional_network_token_details_in_nt_mapper(
+                        state,
+                        platform.get_provider(),
+                        cust_id,
+                        pm_info.payment_method_id.clone(),
+                        network_token_requestor_ref_id,
+                    )
+                    .await?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "v1")]
+/// Inputs used to build the card sent for network token generation from the process tracker.
+///
+/// This exists as a named type rather than a tuple because `domain::Card` is defined in
+/// another crate, so the orphan rule requires a local type as the conversion source.
+pub struct NetworkTokenizationCardData<'a> {
+    pub locker_card: &'a api_models::payment_methods::Card,
+    pub tracking_data: &'a types::storage::NetworkTokenizationTrackingData,
+}
+
+#[cfg(feature = "v1")]
+impl From<NetworkTokenizationCardData<'_>> for domain::Card {
+    /// Builds the card used for network token generation from the card fetched out of the
+    /// locker, falling back to the process tracker tracking data for details the locker does
+    /// not return.
+    fn from(card_data: NetworkTokenizationCardData<'_>) -> Self {
+        let NetworkTokenizationCardData {
+            locker_card,
+            tracking_data,
+        } = card_data;
+
+        Self {
+            card_number: locker_card.card_number.clone(),
+            card_exp_month: locker_card.card_exp_month.clone(),
+            card_exp_year: locker_card.card_exp_year.clone(),
+            // The CVC is never stored in the locker, so there is none to send with the
+            // network tokenization request.
+            card_cvc: Secret::new(String::new()),
+            card_issuer: None,
+            // Card details always come from the locker. The card read back from it does not
+            // currently carry the brand, so fall back to the card network captured at payment
+            // time and carried through the process tracker tracking data.
+            card_network: locker_card
+                .card_brand
+                .as_deref()
+                .and_then(|card_brand| card_brand.parse::<common_enums::CardNetwork>().ok())
+                .or_else(|| tracking_data.card_network.clone()),
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            bank_code: None,
+            card_holder_name: tracking_data.billing_name.clone(),
+            nick_name: locker_card.nick_name.clone().map(Secret::new),
+            co_badged_card_data: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+/// Called from the `NetworkTokenizationWorkflow` process tracker job.
+///
+/// Fetches the card from the locker for the given payment method and delegates to
+/// `generate_network_token_and_update_payment_method`, which performs the actual
+/// network token generation and updates the payment method record.
+pub async fn generate_network_token_for_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    tracking_data: &types::storage::NetworkTokenizationTrackingData,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<()> {
+    let customer_id = &tracking_data.customer_id;
+    let locker_id = payment_method
+        .locker_id
+        .as_ref()
+        .unwrap_or(&payment_method.payment_method_id);
+
+    // Fetch the raw card from the locker
+    let card_from_locker = payment_methods::cards::get_card_from_locker(
+        state,
+        customer_id,
+        &tracking_data.merchant_id,
+        locker_id,
+    )
+    .await
+    .inspect_err(|err| {
+        logger::error!(
+            ?err,
+            payment_method_id=%payment_method.payment_method_id,
+            "Failed to fetch card from locker for network token generation"
+        );
+    })?;
+
+    let locker_card = card_from_locker.get_card();
+
+    let card_data = domain::Card::from(NetworkTokenizationCardData {
+        locker_card: &locker_card,
+        tracking_data,
+    });
+
+    logger::info!(
+        payment_method_id = %payment_method.payment_method_id,
+        locker_id = %locker_id,
+        card_network = ?card_data.card_network,
+        locker_card_brand = ?locker_card.card_brand,
+        "NT request: card fetched from locker, initiating network token generation"
+    );
+
+    let payment_method_data = domain::PaymentMethodData::Card(card_data);
+
+    generate_network_token_and_update_payment_method(
+        state,
+        platform,
+        &payment_method_data,
+        tracking_data.payment_method,
+        tracking_data.payment_method_type,
+        Some(customer_id.clone()),
+        tracking_data.billing_name.clone(),
+        None,
+        Some(payment_method),
+    )
+    .await
 }

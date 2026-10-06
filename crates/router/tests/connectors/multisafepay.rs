@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::address::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums, PaymentAddress};
 
 use crate::{
@@ -51,6 +51,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
                 zip: Some(Secret::new("1033SC".to_string())),
                 country: Some(api_models::enums::CountryAlpha2::NL),
                 state: Some(Secret::new("Amsterdam".to_string())),
+                origin_zip: None,
             }),
             phone: None,
             email: None,

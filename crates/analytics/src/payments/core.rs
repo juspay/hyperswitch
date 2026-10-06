@@ -441,6 +441,9 @@ pub async fn get_filters(
             PaymentDimensions::CardIssuer => fil.card_issuer,
             PaymentDimensions::ErrorReason => fil.error_reason,
             PaymentDimensions::RoutingApproach => fil.routing_approach.map(|i| i.as_ref().to_string()),
+            PaymentDimensions::SignatureNetwork => fil.signature_network,
+            PaymentDimensions::IsIssuerRegulated => fil.is_issuer_regulated.map(|b| b.to_string()),
+            PaymentDimensions::IsDebitRouted => fil.is_debit_routed.map(|b| b.to_string())
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

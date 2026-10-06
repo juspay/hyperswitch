@@ -1,4 +1,4 @@
-use masking::{PeekInterface, Secret, Strategy};
+use hyperswitch_masking::{PeekInterface, Secret, Strategy};
 use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Clone, PartialEq, Debug, Deserialize)]

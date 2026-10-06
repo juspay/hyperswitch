@@ -32,7 +32,33 @@ pub async fn revenue_recovery_pt_retrieve_api(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileRevenueRecoveryRead,
+            allow_connected: false,
+            allow_platform: false,
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn revenue_recovery_resume_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+    json_payload: web::Json<revenue_recovery_api::RevenueRecoveryRetriggerRequest>,
+) -> HttpResponse {
+    let flow = Flow::RevenueRecoveryResume;
+    let id = path.into_inner();
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, payload, _| {
+            revenue_recovery::resume_revenue_recovery_process_tracker(state, id.clone(), payload)
+        },
+        &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

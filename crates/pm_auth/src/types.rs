@@ -6,7 +6,7 @@ use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken, Recipi
 use api_models::enums as api_enums;
 use common_enums::{CountryAlpha2, PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, types};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {

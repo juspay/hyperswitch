@@ -71,11 +71,18 @@ pub struct KafkaPaymentAttempt<'a> {
     pub card_discovery: Option<String>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub debit_routing_savings: Option<MinorUnit>,
+    pub signature_network: Option<common_enums::CardNetwork>,
+    pub is_issuer_regulated: Option<bool>,
+    pub processor_merchant_id: &'a id_type::MerchantId,
+    pub created_by: Option<&'a common_utils::types::CreatedBy>,
 }
 
 #[cfg(feature = "v1")]
 impl<'a> KafkaPaymentAttempt<'a> {
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
+        let card_payment_method_data = attempt
+            .get_payment_method_data()
+            .and_then(|data| data.get_additional_card_info());
         Self {
             payment_id: &attempt.payment_id,
             merchant_id: &attempt.merchant_id,
@@ -121,19 +128,19 @@ impl<'a> KafkaPaymentAttempt<'a> {
             profile_id: &attempt.profile_id,
             organization_id: &attempt.organization_id,
             card_network: attempt
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
+                .extract_card_network()
                 .map(|network| network.to_string()),
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
-            routing_approach: attempt.routing_approach,
+            routing_approach: attempt.routing_approach.clone(),
             debit_routing_savings: attempt.debit_routing_savings,
+            signature_network: card_payment_method_data
+                .as_ref()
+                .and_then(|data| data.signature_network.clone()),
+            is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
+            processor_merchant_id: &attempt.processor_merchant_id,
+            created_by: attempt.created_by.as_ref(),
         }
     }
 }
@@ -144,6 +151,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub payment_id: &'a id_type::GlobalPaymentId,
     pub merchant_id: &'a id_type::MerchantId,
     pub attempt_id: &'a id_type::GlobalAttemptId,
+    pub attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
     pub connector: Option<&'a String>,
@@ -167,7 +175,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub connector_metadata: Option<String>,
     // TODO: These types should implement copy ideally
     pub payment_experience: Option<&'a storage_enums::PaymentExperience>,
-    pub payment_method_type: &'a storage_enums::PaymentMethodType,
+    pub payment_method_type: Option<&'a storage_enums::PaymentMethodType>,
     pub payment_method_data: Option<String>,
     pub error_reason: Option<&'a String>,
     pub multiple_capture_count: Option<i16>,
@@ -188,24 +196,24 @@ pub struct KafkaPaymentAttempt<'a> {
     pub preprocessing_step_id: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub updated_by: &'a String,
-    pub encoded_data: Option<&'a masking::Secret<String>>,
+    pub encoded_data: Option<&'a hyperswitch_masking::Secret<String>>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
+    pub customer_acceptance: Option<&'a hyperswitch_masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
     pub processor_merchant_id: &'a id_type::MerchantId,
     pub created_by: Option<&'a types::CreatedBy>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_billing_address: Option<masking::Secret<&'a address::Address>>, // adjusted from Encryption
+    pub payment_method_billing_address: Option<hyperswitch_masking::Secret<&'a address::Address>>,
     pub redirection_data: Option<&'a RedirectForm>,
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<&'a payment_attempt::ConnectorTokenDetails>,
@@ -219,10 +227,11 @@ pub struct KafkaPaymentAttempt<'a> {
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentAttempt<'a> {
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
         let PaymentAttempt {
             payment_id,
             merchant_id,
+            attempts_group_id,
             amount_details,
             status,
             connector,
@@ -246,6 +255,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             encoded_data,
             merchant_connector_id,
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: _,
             authentication_connector,
             authentication_id,
             fingerprint_id,
@@ -269,6 +279,13 @@ impl<'a> KafkaPaymentAttempt<'a> {
             processor_merchant_id,
             created_by,
             connector_request_reference_id,
+            network_transaction_id: _,
+            network_transaction_link_id: _,
+            authorized_amount: _,
+            external_surcharge_details: _,
+            applied_offer_details: _,
+            payment_account_reference: _,
+            active_frm_id: _,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -281,6 +298,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             payment_id,
             merchant_id,
             attempt_id: id,
+            attempts_group_id: attempts_group_id.as_ref(),
             status: *status,
             amount: amount_details.get_net_amount(),
             connector: connector.as_ref(),
@@ -300,7 +318,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             error_code: error.as_ref().map(|error_details| &error_details.code),
             connector_metadata: connector_metadata.as_ref().map(|v| v.peek().to_string()),
             payment_experience: payment_experience.as_ref(),
-            payment_method_type: payment_method_subtype,
+            payment_method_type: payment_method_subtype.as_ref(),
             payment_method_data: payment_method_data.as_ref().map(|v| v.peek().to_string()),
             error_reason: error
                 .as_ref()
@@ -319,14 +337,8 @@ impl<'a> KafkaPaymentAttempt<'a> {
             client_version: client_version.as_ref(),
             profile_id,
             organization_id,
-            card_network: payment_method_data
-                .as_ref()
-                .map(|data| data.peek())
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
+            card_network: attempt
+                .extract_card_network()
                 .map(|network| network.to_string()),
             card_discovery: card_discovery.map(|discovery| discovery.to_string()),
             payment_token: payment_token.clone(),
@@ -355,7 +367,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             tax_on_surcharge: amount_details.get_tax_on_surcharge(),
             payment_method_billing_address: payment_method_billing_address
                 .as_ref()
-                .map(|v| masking::Secret::new(v.get_inner())),
+                .map(|v| hyperswitch_masking::Secret::new(v.get_inner())),
             redirection_data: redirection_data.as_ref(),
             connector_payment_data,
             connector_token_details: connector_token_details.as_ref(),

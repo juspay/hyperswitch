@@ -59,8 +59,11 @@ impl SqlxClient {
         let database_url = conf.get_database_url(schema);
         #[allow(clippy::expect_used)]
         let pool = PgPoolOptions::new()
-            .max_connections(conf.pool_size)
+            .max_connections(conf.max_pool_size)
+            .min_connections(conf.min_idle_pool_size)
             .acquire_timeout(std::time::Duration::from_secs(conf.connection_timeout))
+            .max_lifetime(std::time::Duration::from_secs(conf.max_lifetime))
+            .idle_timeout(std::time::Duration::from_secs(conf.idle_timeout))
             .connect_lazy(&database_url)
             .expect("SQLX Pool Creation failed");
         Self { pool }
@@ -112,7 +115,7 @@ where
     fn encode_by_ref(
         &self,
         buf: &mut PgArgumentBuffer,
-    ) -> Result<sqlx::encode::IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
         <String as Encode<'q, Postgres>>::encode(self.0.to_string(), buf)
     }
     fn size_hint(&self) -> usize {
@@ -736,6 +739,21 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -768,6 +786,9 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             error_reason,
             first_attempt,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             total,
             count,
             start_bucket,
@@ -845,6 +866,22 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -888,6 +925,9 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             count,
             error_message,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
             start_bucket,
             end_bucket,
         })
@@ -967,6 +1007,21 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
                 ColumnNotFound(_) => Ok(Default::default()),
                 e => Err(e),
             })?;
+        let signature_network: Option<String> =
+            row.try_get("signature_network").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_issuer_regulated: Option<bool> =
+            row.try_get("is_issuer_regulated").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let is_debit_routed: Option<bool> =
+            row.try_get("is_debit_routed").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             currency,
             status,
@@ -984,6 +1039,9 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             error_reason,
             first_attempt,
             routing_approach,
+            signature_network,
+            is_issuer_regulated,
+            is_debit_routed,
         })
     }
 }
@@ -1400,6 +1458,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
                 .attach_printable("SdkEvents table is not implemented for Sqlx"))?,
             Self::ApiEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
+            Self::ApiPayoutEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ApiPayoutEvents table is not implemented for Sqlx"))?,
             Self::FraudCheck => Ok("fraud_check".to_string()),
             Self::PaymentIntent => Ok("payment_intent".to_string()),
             Self::PaymentIntentSessionized => Err(error_stack::report!(
@@ -1408,12 +1468,24 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             .attach_printable("PaymentIntentSessionized table is not implemented for Sqlx"))?,
             Self::ConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ConnectorEvents table is not implemented for Sqlx"))?,
+            Self::ConnectorPayoutEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("ConnectorPayoutEvents table is not implemented for Sqlx"))?,
+            Self::PrismConnectorEvents => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("PrismConnectorEvents table is not implemented for Sqlx"))?,
+            Self::PrismConnectorPayoutEvents => Err(error_stack::report!(
+                ParsingError::UnknownError
+            )
+            .attach_printable("PrismConnectorPayoutEvents table is not implemented for Sqlx"))?,
             Self::ApiEventsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ApiEvents table is not implemented for Sqlx"))?,
             Self::ActivePaymentsAnalytics => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("ActivePaymentsAnalytics table is not implemented for Sqlx"))?,
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
+            Self::OutgoingWebhookPayoutEvent => Err(error_stack::report!(
+                ParsingError::UnknownError
+            )
+            .attach_printable("OutgoingWebhookPayoutEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
             Self::DisputeSessionized => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,

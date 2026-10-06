@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
 
 use core::fmt;
+use std::sync::Arc;
 
 use base64::Engine;
-use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
-#[cfg(feature = "km_forward_x_request_id")]
-use router_env::tracing_actix_web::RequestId;
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -19,6 +18,7 @@ use crate::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{self, CustomResult},
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
     id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
@@ -37,22 +37,49 @@ macro_rules! impl_get_tenant_for_request {
 }
 
 #[derive(Debug, Clone)]
+pub struct KeyManagerMetricsContext {
+    pub merchant_mode: &'static str,
+}
+
+#[derive(Debug, Clone)]
 pub struct KeyManagerState {
     pub tenant_id: id_type::TenantId,
     pub global_tenant_id: id_type::TenantId,
     pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
-    #[cfg(feature = "km_forward_x_request_id")]
-    pub request_id: Option<RequestId>,
+    pub request_id: Option<String>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
     pub infra_values: Option<serde_json::Value>,
+    pub use_legacy_key_store_decryption: bool,
+    pub metrics_context: Option<KeyManagerMetricsContext>,
 }
 
 impl KeyManagerState {
+    /// Creates a mock KeyManagerState with default values for testing.
+    pub fn mock() -> Self {
+        Self {
+            tenant_id: id_type::TenantId::get_default_tenant_id(),
+            global_tenant_id: id_type::TenantId::get_default_global_tenant_id(),
+            enabled: Default::default(),
+            url: String::default(),
+            client_idle_timeout: Default::default(),
+            request_id: None,
+            event_emitter: Arc::new(NoOpEventEmitter),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: Default::default(),
+            #[cfg(feature = "keymanager_mtls")]
+            cert: Default::default(),
+            infra_values: Default::default(),
+            use_legacy_key_store_decryption: false,
+            metrics_context: None,
+        }
+    }
+
     pub fn add_confirm_value_in_infra_values(
         &self,
         is_confirm_operation: bool,
@@ -68,6 +95,10 @@ impl KeyManagerState {
             }
             infra_values
         })
+    }
+
+    pub fn is_encryption_service_enabled(&self) -> bool {
+        cfg!(feature = "encryption_service") && self.enabled
     }
 }
 
@@ -93,7 +124,7 @@ pub struct EncryptionCreateRequest {
 pub struct EncryptionTransferRequest {
     #[serde(flatten)]
     pub identifier: Identifier,
-    pub key: String,
+    pub key: StrongSecret<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

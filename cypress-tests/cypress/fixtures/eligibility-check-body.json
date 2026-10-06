@@ -1,0 +1,31 @@
+{
+  "client_secret": "",
+  "payment_method_type": "card",
+  "payment_method_data": {
+    "card": {
+      "card_number": "",
+      "card_exp_month": "",
+      "card_exp_year": "",
+      "card_holder_name": "",
+      "card_cvc": "",
+      "card_network": ""
+    },
+    "billing": {
+      "address": {
+        "line1": "",
+        "line2": "",
+        "line3": "",
+        "city": "",
+        "state": "",
+        "zip": "",
+        "country": "",
+        "first_name": "",
+        "last_name": ""
+      },
+      "phone": {
+        "number": "",
+        "country_code": ""
+      }
+    }
+  }
+}

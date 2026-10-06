@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use futures::future::OptionFuture;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 use serial_test::serial;
 
@@ -50,7 +50,11 @@ async fn should_only_authorize_payment() {
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     bank_code: None,
                     nick_name: Some(Secret::new("nick_name".into())),
                     card_holder_name: Some(Secret::new("card holder name".into())),
@@ -79,7 +83,11 @@ async fn should_authorize_and_capture_payment() {
                     card_issuer: None,
                     card_network: None,
                     card_type: None,
+                    card_subtype: None,
+                    card_segment_type: None,
+                    funding_source: None,
                     card_issuing_country: None,
+                    card_issuing_country_code: None,
                     bank_code: None,
                     nick_name: Some(Secret::new("nick_name".into())),
                     card_holder_name: Some(Secret::new("card holder name".into())),

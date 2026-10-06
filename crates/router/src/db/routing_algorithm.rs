@@ -1,4 +1,6 @@
-use diesel_models::routing_algorithm as routing_storage;
+use diesel_models::{
+    enums as storage_enums, errors::DatabaseError, routing_algorithm as routing_storage,
+};
 use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::mock_db::MockDb;
@@ -24,10 +26,10 @@ pub trait RoutingAlgorithmInterface {
         algorithm_id: &common_utils::id_type::RoutingId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &common_utils::id_type::RoutingId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
@@ -57,6 +59,31 @@ pub trait RoutingAlgorithmInterface {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
+
+    async fn list_routing_scope_page(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+        )>,
+    >;
+
+    /// Each profile's rules, with the merchant that **owns the profile** — the rule's
+    /// `processor_merchant_id` where a platform wrote it, its `merchant_id` otherwise.
+    async fn find_rule_ids_for_profiles(
+        &self,
+        profile_ids: &[common_utils::id_type::ProfileId],
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::RoutingId,
+            storage_enums::RoutingAlgorithmKind,
+        )>,
+    >;
 }
 
 #[async_trait::async_trait]
@@ -90,19 +117,37 @@ impl RoutingAlgorithmInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &common_utils::id_type::RoutingId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
-        routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let result = routing_storage::RoutingAlgorithm::find_by_algorithm_id_processor_merchant_id(
             &conn,
             algorithm_id,
-            merchant_id,
+            processor_merchant_id,
         )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .await;
+
+        match result {
+            Ok(routing_algorithm) => Ok(routing_algorithm),
+            Err(error) => {
+                if matches!(error.current_context(), DatabaseError::NotFound) {
+                    routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
+                        &conn,
+                        algorithm_id,
+                        processor_merchant_id,
+                    )
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                } else {
+                    Err(report!(errors::StorageError::from(error)))
+                }
+            }
+        }
     }
 
     #[instrument(skip_all)]
@@ -172,6 +217,43 @@ impl RoutingAlgorithmInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
+
+    #[instrument(skip_all)]
+    async fn list_routing_scope_page(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+        )>,
+    > {
+        // Read connection: this scans every routing rule and only reports, so it does not belong
+        // on the pool live payments write through.
+        let conn = connection::pg_connection_read(self).await?;
+        routing_storage::RoutingAlgorithm::list_scope_page(&conn, limit, offset)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_rule_ids_for_profiles(
+        &self,
+        profile_ids: &[common_utils::id_type::ProfileId],
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::RoutingId,
+            storage_enums::RoutingAlgorithmKind,
+        )>,
+    > {
+        let conn = connection::pg_connection_read(self).await?;
+        routing_storage::RoutingAlgorithm::rule_ids_for_profiles(&conn, profile_ids)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -191,10 +273,10 @@ impl RoutingAlgorithmInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         _algorithm_id: &common_utils::id_type::RoutingId,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -232,6 +314,33 @@ impl RoutingAlgorithmInterface for MockDb {
         _limit: i64,
         _offset: i64,
     ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_routing_scope_page(
+        &self,
+        _limit: i64,
+        _offset: i64,
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+        )>,
+    > {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_rule_ids_for_profiles(
+        &self,
+        _profile_ids: &[common_utils::id_type::ProfileId],
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::RoutingId,
+            storage_enums::RoutingAlgorithmKind,
+        )>,
+    > {
         Err(errors::StorageError::MockDbError)?
     }
 }

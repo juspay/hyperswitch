@@ -37,7 +37,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -57,12 +59,10 @@ use hyperswitch_interfaces::{
     },
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "frm")]
-use masking::Maskable;
-#[cfg(feature = "frm")]
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
@@ -194,9 +194,11 @@ impl ConnectorCommon for Riskified {
             message: response.error.message.clone(),
             reason: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -230,11 +232,11 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
     ) -> CustomResult<RequestContent, ConnectorError> {
         let amount = convert_amount(
             self.amount_converter,
-            MinorUnit::new(req.request.amount),
+            req.request.amount,
             req.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let req_data = riskified::RiskifiedRouterData::from((amount, req));
@@ -349,7 +351,7 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
                     req.request
                         .currency
                         .ok_or(ConnectorError::MissingRequiredField {
-                            field_name: "currency",
+                            field_name: "currency".into(),
                         })?,
                 )?;
                 let req_data = riskified::RiskifiedRouterData::from((amount, req));
@@ -628,6 +630,7 @@ impl IncomingWebhook for Riskified {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
@@ -639,7 +642,7 @@ impl IncomingWebhook for Riskified {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
             .parse_struct("RiskifiedWebhookBody")
@@ -648,4 +651,23 @@ impl IncomingWebhook for Riskified {
     }
 }
 
-impl ConnectorSpecifications for Riskified {}
+static RISKIFIED_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Riskified",
+    description: "Riskified fraud and risk management provider with guaranteed real-time decisions and machine learning-powered ecommerce fraud prevention",
+    connector_type: common_enums::HyperswitchConnectorCategory::FraudAndRiskManagementProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Riskified {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&RISKIFIED_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

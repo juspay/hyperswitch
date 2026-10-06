@@ -11,19 +11,17 @@ use hyperswitch_domain_models::{
     payment_method_data::{CardRedirectData, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::Execute,
-    router_request_types::{
-        CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, PaymentsAuthorizeData, ResponseId,
-    },
+    router_request_types::{CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::{api, consts::NO_ERROR_CODE, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{PaymentsResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{self, to_connector_meta},
 };
 
@@ -174,19 +172,12 @@ pub struct ProphetpayTokenResponse {
     hosted_tokenize_id: Secret<String>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<F, ProphetpayTokenResponse, PaymentsAuthorizeData, PaymentsResponseData>,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<ProphetpayTokenResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            ProphetpayTokenResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<ProphetpayTokenResponse>,
     ) -> Result<Self, Self::Error> {
         let url_data = format!(
             "{}{}",
@@ -211,9 +202,12 @@ impl<F>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -229,7 +223,7 @@ fn get_redirect_url_form(
     form_fields.insert(
         String::from("redirectUrl"),
         complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "complete_auth_url",
+            field_name: "complete_auth_url".into(),
         })?,
     );
 
@@ -280,7 +274,7 @@ fn get_card_token(
     response: Option<CompleteAuthorizeRedirectResponse>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let res = response.ok_or(errors::ConnectorError::MissingRequiredField {
-        field_name: "redirect_response",
+        field_name: "redirect_response".into(),
     })?;
     let queries_params = res
         .params
@@ -310,7 +304,7 @@ fn get_card_token(
     }
 
     Err(errors::ConnectorError::MissingRequiredField {
-        field_name: "card_token",
+        field_name: "card_token".into(),
     }
     .into())
 }
@@ -409,9 +403,12 @@ impl<F>
                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -425,9 +422,11 @@ impl<F>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -460,9 +459,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -476,9 +478,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResp
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -511,9 +515,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResp
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -527,9 +534,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResp
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -621,7 +630,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
                     // no refund id is generated, tranSeqNumber is kept for future usage
                     connector_refund_id: item.response.tran_seq_number.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "tran_seq_number",
+                            field_name: "tran_seq_number".into(),
                         },
                     )?,
                     refund_status: enums::RefundStatus::Success,
@@ -638,9 +647,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })
@@ -681,9 +692,11 @@ impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 ..item.data
             })

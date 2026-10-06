@@ -1,47 +1,64 @@
-use std::{fmt::Debug, str::FromStr};
-
+#[cfg(feature = "v2")]
+use api_models::enums::VaultConnectors;
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
+#[cfg(feature = "v2")]
+use error_stack::report;
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+pub use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_address::PaymentAddress,
-    payments::{HeaderPayload, PaymentIntentData},
+    payments::HeaderPayload,
     router_data::{PaymentMethodToken, RouterData},
     router_data_v2::{flow_common_types::VaultConnectorFlowData, RouterDataV2},
     router_flow_types::ExternalVaultCreateFlow,
     router_request_types::CustomerDetails,
     types::{VaultRouterData, VaultRouterDataV2},
 };
+#[cfg(feature = "v2")]
 use hyperswitch_interfaces::{
     api::Connector as ConnectorTrait,
+    connector_integration_interface::RouterDataConversion,
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
-use masking::ExposeInterface;
-use router_env::{env::Env, instrument, tracing};
+use hyperswitch_masking::ExposeInterface;
+#[cfg(feature = "v1")]
+use hyperswitch_masking::Mask;
 
+#[cfg(feature = "v2")]
+use crate::core::{
+    errors::utils::ConnectorErrorExt,
+    payments::{customers, gateway::context as gateway_context},
+    utils as core_utils,
+};
+#[cfg(feature = "v1")]
 use crate::{
+    consts,
     core::{
-        errors::{self, utils::StorageErrorExt, RouterResult},
-        payments::{
-            self as payments_core, call_multiple_connectors_service, customers,
-            flows::{ConstructFlowSpecificData, Feature},
-            helpers, helpers as payment_helpers, operations,
-            operations::{BoxedOperation, Operation},
-            transformers, OperationSessionGetters, OperationSessionSetters,
-        },
+        payments::types::{CachedPmVaultSession, CreatedPmVaultSession},
         utils as core_utils,
     },
-    db::errors::ConnectorErrorExt,
-    errors::RouterResponse,
-    routes::{app::ReqState, SessionState},
-    services::{self, connector_integration_interface::RouterDataConversion},
-    types::{
-        self as router_types,
-        api::{self, enums as api_enums, ConnectorCommon},
-        domain, storage,
+};
+use crate::{
+    core::{
+        errors::{self, RouterResult},
+        payments::{
+            flows::{ConstructFlowSpecificData, Feature},
+            helpers,
+            operations::BoxedOperation,
+            OperationSessionGetters, OperationSessionSetters,
+        },
     },
-    utils::{OptionExt, ValueExt},
+    routes::{app::ReqState, SessionState},
+    services,
+    types::{self as router_types, api, domain},
+};
+#[cfg(feature = "v2")]
+use crate::{
+    errors::RouterResponse,
+    types::{api::ConnectorCommon, storage},
 };
 
 #[cfg(feature = "v2")]
@@ -50,11 +67,14 @@ pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
     customer: &Option<domain::Customer>,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     profile: &domain::Profile,
     payment_data: &mut D,
     header_payload: HeaderPayload,
+    // V2 gates on `profile.is_vault_sdk_enabled()`; the modular-service flag is V1-only and ignored
+    // here, but kept in the signature so the shared call site compiles under both feature flags.
+    _is_modular_service_enabled: bool,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
@@ -68,61 +88,321 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, profile).await?;
+    let is_external_vault_sdk_enabled = external_vault_profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
-        let external_vault_source = profile
-            .external_vault_connector_details
-            .as_ref()
-            .map(|details| &details.vault_connector_id);
-
-        let merchant_connector_account =
-            domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                helpers::get_merchant_connector_account_v2(
-                    state,
-                    merchant_context.get_merchant_key_store(),
-                    external_vault_source,
-                )
-                .await?,
-            ));
-
-        let updated_customer = call_create_connector_customer_if_required(
-            state,
-            customer,
-            merchant_context,
-            &merchant_connector_account,
-            payment_data,
-        )
-        .await?;
-
-        if let Some((customer, updated_customer)) = customer.clone().zip(updated_customer) {
-            let db = &*state.store;
-            let customer_id = customer.get_id().clone();
-            let customer_merchant_id = customer.merchant_id.clone();
-
-            let _updated_customer = db
-                .update_customer_by_global_id(
-                    &state.into(),
-                    &customer_id,
-                    customer,
-                    updated_customer,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update customer during Vault session")?;
+        // Guest flow (no customer) uses volatile storage; a known customer uses persistent.
+        let storage_type = if customer.is_some() {
+            common_enums::StorageType::Persistent
+        } else {
+            common_enums::StorageType::Volatile
         };
-
-        let vault_session_details = generate_vault_session_details(
+        let external_vault_details = Box::pin(fetch_external_vault_details(
             state,
-            merchant_context,
-            &merchant_connector_account,
-            payment_data.get_connector_customer_id(),
-        )
+            platform,
+            profile,
+            customer,
+            storage_type,
+        ))
         .await?;
+        let vault_details = external_vault_details.map(|evd| api::VaultDetails {
+            internal_vault: None,
+            external_vault_details: Some(evd),
+        });
+        payment_data.set_vault_session_details(vault_details);
+    }
+    Ok(())
+}
 
-        payment_data.set_vault_session_details(vault_session_details);
+/// Storage intent for the PM vault session.
+///
+/// `setup_future_usage` on the intent carries the merchant's storage intent for the session: set
+/// (on_session/off_session) → persistent, absent → volatile. Persistent intent without a
+/// customer_id is rejected at payment create/confirm (`validate_customer_id_mandatory_cases`), so
+/// a persistent session always has a customer to attach to.
+#[cfg(feature = "v1")]
+pub fn resolve_vault_storage_type(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    customer_id: Option<&id_type::CustomerId>,
+) -> common_enums::StorageType {
+    match (setup_future_usage, customer_id) {
+        (Some(_), Some(_)) => common_enums::StorageType::Persistent,
+        _ => common_enums::StorageType::Volatile,
+    }
+}
+
+/// Returns the PM vault session for this payment, creating it on first use.
+///
+/// Every route that mints session tokens for a payment — the standalone session-tokens call and
+/// the server-integration enrichment of a payment create or intent update — comes through here,
+/// so all of them return the session minted by whichever ran first. The cache lives no longer
+/// than the PM service says the session does. A cache miss or a cache write failure is never
+/// fatal: the worst case is a fresh session, which is what every call used to get.
+#[cfg(feature = "v1")]
+pub async fn get_or_create_pm_vault_session(
+    state: &SessionState,
+    external_vault_profile: &domain::Profile,
+    processor_merchant_id: &id_type::MerchantId,
+    payment_id: &id_type::PaymentId,
+    customer_id: Option<&id_type::CustomerId>,
+    storage_type: common_enums::StorageType,
+) -> RouterResult<Option<api::VaultDetails>> {
+    let redis_key = payment_id.get_pm_vault_session_redis_key(processor_merchant_id);
+
+    let cached = core_utils::read_cached_value::<CachedPmVaultSession>(
+        state,
+        &redis_key,
+        "CachedPmVaultSession",
+    )
+    .await
+    .filter(|cached| {
+        cached.customer_id.as_ref() == customer_id && cached.storage_type == storage_type
+    });
+
+    match cached {
+        Some(cached) => {
+            router_env::logger::info!(
+                payment_id = %payment_id.get_string_repr(),
+                ?storage_type,
+                "Reusing the cached PM vault session for this payment"
+            );
+            Ok(Some(cached.vault_details))
+        }
+        None => {
+            let created = call_internal_pm_session_create_for_vault(
+                state,
+                external_vault_profile,
+                customer_id,
+                storage_type,
+            )
+            .await?;
+
+            let cache_entry = created
+                .vault_details
+                .clone()
+                .zip(cache_ttl_seconds(created.expires_at))
+                .map(|(vault_details, ttl_seconds)| {
+                    (
+                        CachedPmVaultSession {
+                            customer_id: customer_id.cloned(),
+                            storage_type,
+                            vault_details,
+                        },
+                        ttl_seconds,
+                    )
+                });
+
+            if let Some((entry, ttl_seconds)) = cache_entry {
+                core_utils::cache_value_with_expiry(
+                    state,
+                    &redis_key,
+                    "CachedPmVaultSession",
+                    &entry,
+                    ttl_seconds,
+                )
+                .await;
+            }
+
+            Ok(created.vault_details)
+        }
+    }
+}
+
+/// How long the cache entry may live: the remaining life of the PM session, capped at the
+/// default session expiry. `None` when the session has already expired, in which case caching
+/// would only hand out a dead authorization.
+#[cfg(feature = "v1")]
+fn cache_ttl_seconds(expires_at: Option<time::PrimitiveDateTime>) -> Option<i64> {
+    let default_ttl = i64::from(consts::DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY);
+    expires_at
+        .map(|expires_at| (expires_at - common_utils::date_time::now()).whole_seconds())
+        .map_or(Some(default_ttl), |remaining| {
+            Some(remaining.min(default_ttl)).filter(|ttl| *ttl > 0)
+        })
+}
+
+/// Call the internal payment-methods service to create a PM session and extract both
+/// `internal_vault` (sdk_authorization) and `external_vault_details` from the response.
+#[cfg(feature = "v1")]
+async fn call_internal_pm_session_create_for_vault(
+    state: &SessionState,
+    profile: &domain::Profile,
+    customer_id: Option<&id_type::CustomerId>,
+    storage_type: common_enums::StorageType,
+) -> RouterResult<CreatedPmVaultSession> {
+    use common_utils::request::Headers;
+    use payment_methods::client::{
+        CreatePaymentMethodSession, CreatePaymentMethodSessionV1Request, PaymentMethodClient,
+    };
+
+    // The merchant that owns the supplied profile; in platform flows this is the platform
+    // (provider) merchant whose profile carries the external vault configuration.
+    let merchant_id = &profile.merchant_id;
+    let profile_id = profile.get_id();
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+
+    let mut headers = Headers::new();
+    headers.insert((
+        crate::headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    headers.insert((
+        crate::headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+    headers.insert((
+        crate::headers::X_INTERNAL_API_KEY.to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+
+    let client = PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &headers,
+        &state.conf.trace_header.header_name,
+    );
+
+    let request = CreatePaymentMethodSessionV1Request {
+        customer_id: customer_id.cloned(),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        storage_type,
+    };
+
+    let response = CreatePaymentMethodSession::call(state, &client, request)
+        .await
+        .map_err(|err| {
+            router_env::logger::error!(
+                ?err,
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                ?storage_type,
+                "Internal PM session create for vault failed"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Failed to create PM session via internal service for vault details")?;
+
+    // Build the internal vault details from the sdk_authorization returned by the PM service.
+    let internal_vault =
+        response
+            .sdk_authorization
+            .map(|sdk_auth| api::InternalVaultSessionDetails {
+                sdk_authorization: sdk_auth,
+            });
+
+    // Only worth returning when at least one of the two parts is present.
+    let vault_details = match (internal_vault, response.external_vault_details) {
+        (None, None) => {
+            router_env::logger::warn!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                ?storage_type,
+                "Internal PM session create returned neither sdk_authorization nor external_vault_details"
+            );
+            None
+        }
+        (internal_vault, external_vault_details) => {
+            router_env::logger::info!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                ?storage_type,
+                has_internal_vault=internal_vault.is_some(),
+                has_external_vault_details=external_vault_details.is_some(),
+                "Internal PM session created for vault details"
+            );
+            Some(api::VaultDetails {
+                internal_vault,
+                external_vault_details,
+            })
+        }
+    };
+
+    Ok(CreatedPmVaultSession {
+        vault_details,
+        expires_at: response.expires_at,
+    })
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
+    state: &SessionState,
+    _req_state: ReqState,
+    customer: &Option<domain::Customer>,
+    platform: &domain::Platform,
+    _operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    profile: &domain::Profile,
+    payment_data: &mut D,
+    _header_payload: HeaderPayload,
+    is_modular_service_enabled: bool,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    // Always route vault session creation through the modular PM service when the org is eligible
+    // for it (not just when an external vault is configured). When no external vault is set up, the
+    // PM service returns the internal Hyperswitch vault SDK authorization, which is the SaaS default.
+    if is_modular_service_enabled {
+        let external_vault_profile =
+            helpers::resolve_provider_profile(state, platform, profile).await?;
+        let customer_id = customer.as_ref().map(|c| c.get_id());
+
+        let payment_intent = payment_data.get_payment_intent();
+        let payment_id = payment_intent.payment_id.clone();
+        let setup_future_usage = payment_intent.setup_future_usage;
+
+        // A payment is unique under its processor merchant — that is the pair every lookup of it
+        // uses — so that is what namespaces the cache. The intent's own `merchant_id` is the
+        // provider merchant, which in a platform flow is shared by every connected merchant under
+        // it: two of them picking the same `payment_id` would collide on one cached session.
+        let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+
+        let storage_type = resolve_vault_storage_type(setup_future_usage, customer_id);
+        router_env::logger::info!(
+            ?storage_type,
+            ?setup_future_usage,
+            has_customer = customer_id.is_some(),
+            "Resolved storage type for PM vault session create"
+        );
+
+        // Use the resolved external vault profile (the platform merchant's profile in platform
+        // flows) so the PM service operates under the merchant that actually holds the external
+        // vault configuration. For standard merchants this is the payment profile itself.
+        let vault_details = get_or_create_pm_vault_session(
+            state,
+            &external_vault_profile,
+            &processor_merchant_id,
+            &payment_id,
+            customer_id,
+            storage_type,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            // Non-fatal by design: the payment continues without vault session details, which
+            // means the SDK gets no vault session — this warn is the only trace of that.
+            router_env::logger::warn!(
+                ?err,
+                profile_id=%external_vault_profile.get_id().get_string_repr(),
+                "Failed to fetch vault details via internal PM session service; continuing without vault session"
+            );
+            None
+        });
+
+        payment_data.set_vault_session_details(vault_details);
+    } else {
+        router_env::logger::debug!(
+            "PM modular service disabled for this organization; skipping vault session creation"
+        );
     }
     Ok(())
 }
@@ -131,7 +411,8 @@ where
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
-    merchant_context: &domain::MerchantContext,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
@@ -150,7 +431,14 @@ where
 {
     let db_merchant_connector_account =
         merchant_connector_account_type.get_inner_db_merchant_connector_account();
-
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
+    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+        processor.clone(),
+        merchant_connector_account_type.clone(),
+        payment_data.get_payment_intent().merchant_id.clone(),
+        profile_id,
+        payment_data.get_creds_identifier().map(|id| id.to_string()),
+    );
     match db_merchant_connector_account {
         Some(merchant_connector_account) => {
             let connector_name = merchant_connector_account.get_connector_name_as_string();
@@ -165,7 +453,6 @@ where
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
-                    state,
                     &connector,
                     customer,
                     merchant_connector_account_type,
@@ -177,7 +464,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        merchant_context,
+                        processor,
                         customer,
                         merchant_connector_account_type,
                         None,
@@ -186,13 +473,14 @@ where
                     .await?;
 
                 let connector_customer_id = router_data
-                    .create_connector_customer(state, &connector)
+                    .create_connector_customer(state, &connector, &default_gateway_context)
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
                     merchant_connector_account_type,
                     customer.as_ref(),
                     connector_customer_id.clone(),
+                    initiator,
                 )
                 .await;
 
@@ -218,16 +506,19 @@ where
 #[cfg(feature = "v2")]
 pub async fn generate_vault_session_details(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let connector_name = merchant_connector_account_type
-        .get_connector_name()
-        .map(|name| name.to_string())
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?; // should not panic since we should always have a connector name
-    let connector = api_enums::VaultConnectors::from_str(&connector_name)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let connector = VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
+        .map_err(|error| {
+            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                "Failed to convert connector to vault connector: {}",
+                error
+            ))
+        })?;
+
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
         .get_connector_account_details()
         .map_err(|err| {
@@ -238,12 +529,14 @@ pub async fn generate_vault_session_details(
     match (connector, connector_auth_type) {
         // create session for vgs vault
         (
-            api_enums::VaultConnectors::Vgs,
+            VaultConnectors::Vgs,
             router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
         ) => {
             let sdk_env = match state.conf.env {
-                Env::Sandbox | Env::Development => "sandbox",
-                Env::Production => "live",
+                router_env::Env::Sandbox
+                | router_env::Env::Development
+                | router_env::Env::Integ => "sandbox",
+                router_env::Env::Production => "live",
             }
             .to_string();
             Ok(Some(api::VaultSessionDetails::Vgs(
@@ -255,47 +548,54 @@ pub async fn generate_vault_session_details(
         }
         // create session for hyperswitch vault
         (
-            api_enums::VaultConnectors::HyperswitchVault,
+            VaultConnectors::HyperswitchVault,
             router_types::ConnectorAuthType::SignatureKey {
                 key1, api_secret, ..
             },
         ) => {
             generate_hyperswitch_vault_session_details(
                 state,
-                merchant_context,
+                platform,
                 merchant_connector_account_type,
                 connector_customer_id,
-                connector_name,
+                merchant_connector_account_type
+                    .get_connector_name()
+                    .to_string(),
                 key1,
                 api_secret,
+                storage_type,
             )
             .await
         }
         _ => {
             router_env::logger::warn!(
-                "External vault session creation is not supported for connector: {}",
-                connector_name
+                "External vault session creation is not supported for connector: {:?}",
+                connector
             );
             Ok(None)
         }
     }
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 async fn generate_hyperswitch_vault_session_details(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
     connector_name: String,
-    vault_publishable_key: masking::Secret<String>,
-    vault_profile_id: masking::Secret<String>,
+    vault_publishable_key: hyperswitch_masking::Secret<String>,
+    vault_profile_id: hyperswitch_masking::Secret<String>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_response = call_external_vault_create(
         state,
-        merchant_context,
+        platform,
         connector_name,
         merchant_connector_account_type,
-        connector_customer_id,
+        connector_customer_id.clone(),
+        storage_type,
     )
     .await?;
 
@@ -303,14 +603,52 @@ async fn generate_hyperswitch_vault_session_details(
         Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
             session_id,
             client_secret,
-        }) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
-            api::HyperswitchVaultSessionDetails {
-                payment_method_session_id: session_id,
-                client_secret,
-                publishable_key: vault_publishable_key,
-                profile_id: vault_profile_id,
-            },
-        ))),
+        }) => {
+            // Build the base64-encoded SDK authorization for the Hyperswitch Vault session,
+            // mirroring the payment-method-session-create response, instead of exposing the
+            // individual vault keys.
+            let sdk_authorization =
+                Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
+                    hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
+                        platform: platform.to_owned(),
+                        publishable_key: vault_publishable_key.expose(),
+                        profile_id: id_type::ProfileId::try_from(std::borrow::Cow::from(
+                            vault_profile_id.expose(),
+                        ))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Invalid profile_id in Hyperswitch Vault connector auth",
+                        )?,
+                        client_secret: client_secret.expose(),
+                        customer_id: connector_customer_id
+                            .map(id_type::GlobalCustomerId::new_unchecked),
+                        payment_method_session_id: Some(
+                            id_type::GlobalPaymentMethodSessionId::new_unchecked(
+                                session_id.clone().expose(),
+                            ),
+                        ),
+                    },
+                )
+                .map(|auth| auth.encode())
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encode Hyperswitch Vault SDK authorization")?;
+
+            match sdk_authorization {
+                Some(sdk_authorization) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
+                    api::HyperswitchVaultSessionDetails {
+                        sdk_authorization: sdk_authorization.into(),
+                    },
+                ))),
+                None => {
+                    router_env::logger::warn!(
+                        "No SDK authorization generated for Hyperswitch Vault session (non-API initiator)"
+                    );
+                    Ok(None)
+                }
+            }
+        }
+
         Ok(_) => {
             router_env::logger::warn!("Unexpected response from external vault create API");
             Err(errors::ApiErrorResponse::InternalServerError.into())
@@ -325,10 +663,11 @@ async fn generate_hyperswitch_vault_session_details(
 #[cfg(feature = "v2")]
 async fn call_external_vault_create(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     connector_name: String,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<VaultRouterData<ExternalVaultCreateFlow>>
 where
     dyn ConnectorTrait + Sync: services::api::ConnectorIntegration<
@@ -349,14 +688,25 @@ where
         api::GetToken::Connector,
         merchant_connector_account_type.get_mca_id(),
     )?;
+    let merchant_connector_account = match &merchant_connector_account_type {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+            Ok(mca.as_ref())
+        }
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            Err(report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("MerchantConnectorDetails not supported for vault operations"))
+        }
+    }?;
 
     let mut router_data = core_utils::construct_vault_router_data(
         state,
-        merchant_context.get_merchant_account(),
-        merchant_connector_account_type,
+        platform.get_processor().get_account().get_id(),
+        merchant_connector_account,
         None,
         None,
         connector_customer_id,
+        None,
+        Some(storage_type),
     )
     .await?;
 
@@ -381,4 +731,238 @@ where
     )
     .await
     .to_vault_failed_response()
+}
+
+#[cfg(feature = "v2")]
+pub async fn fetch_external_vault_details(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    customer: &Option<domain::Customer>,
+    storage_type: common_enums::StorageType,
+) -> RouterResult<Option<api::VaultSessionDetails>> {
+    // In platform flows the external vault configuration and its MCA live on the platform
+    // (provider) merchant's profile, not on the payment profile; resolve it first. For standard
+    // merchants this resolves to the supplied profile and the provider is the merchant itself.
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, profile).await?;
+    let external_vault_source = external_vault_profile
+        .external_vault_connector_details
+        .as_ref()
+        .map(|details| &details.vault_connector_id);
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_provider_mca_v2(state, platform.get_provider(), external_vault_source)
+                .await?,
+        ));
+
+    // Connector-customer creation is optional. For the guest flow (no customer) we skip it
+    // entirely and call the external vault with a `null` customer id. When a customer is present,
+    // reuse the existing connector customer or create one at the vault connector.
+    let connector_customer_id = match customer {
+        Some(_) => get_or_create_vault_connector_customer(
+            state,
+            platform,
+            customer,
+            &merchant_connector_account,
+            profile.get_id(),
+        )
+        .await
+        .map_err(|err| {
+            router_env::logger::error!(?err, "Failed to get or create vault connector customer");
+            err
+        })?,
+        None => {
+            router_env::logger::info!(
+                "No customer present for external vault session; skipping connector customer creation (guest flow)"
+            );
+            None
+        }
+    };
+
+    generate_vault_session_details(
+        state,
+        platform,
+        &merchant_connector_account,
+        connector_customer_id,
+        storage_type,
+    )
+    .await
+}
+
+/// Returns the existing connector customer ID for the given vault MCA, or creates one if absent.
+/// Returns `None` only if the connector does not require a customer.
+#[cfg(feature = "v2")]
+async fn get_or_create_vault_connector_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer: &Option<domain::Customer>,
+    merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<Option<String>> {
+    use hyperswitch_domain_models::router_request_types::ConnectorCustomerData;
+
+    let db_mca = merchant_connector_account_type
+        .get_inner_db_merchant_connector_account()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Vault MCA is missing, cannot create connector customer")?;
+
+    let connector_name = db_mca.get_connector_name_as_string();
+    let merchant_connector_id = db_mca.get_id();
+
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api::GetToken::Connector,
+        Some(merchant_connector_id.clone()),
+    )?;
+
+    let (should_create, existing_id) = customers::should_call_connector_create_customer(
+        &connector,
+        customer,
+        merchant_connector_account_type,
+    );
+
+    match should_create {
+        false => {
+            router_env::logger::info!(
+                vault_mca_id = %merchant_connector_id.get_string_repr(),
+                has_existing_connector_customer_id = existing_id.is_some(),
+                "Vault connector customer already exists for MCA, skipping creation"
+            );
+            Ok(existing_id.map(ToOwned::to_owned))
+        }
+        true => {
+            router_env::logger::info!(
+                vault_mca_id = %merchant_connector_id.get_string_repr(),
+                has_customer = customer.is_some(),
+                "No existing vault connector customer for MCA, creating one now"
+            );
+
+            // No existing connector customer – create one now.
+            let gateway_context = gateway_context::RouterGatewayContext::direct(
+                platform.get_processor().clone(),
+                merchant_connector_account_type.clone(),
+                platform.get_processor().get_account().get_id().clone(),
+                profile_id.clone(),
+                None,
+            );
+
+            let vault_mca = match merchant_connector_account_type {
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => {
+                    Ok(mca.as_ref())
+                }
+                _ => Err(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        "MerchantConnectorDetails not supported for vault operations",
+                    ),
+                ),
+            }?;
+
+            // Construct vault router data, then convert to CreateConnectorCustomer flow
+            let vault_router_data_v2 =
+                core_utils::construct_vault_router_data::<ExternalVaultCreateFlow>(
+                    state,
+                    platform.get_processor().get_account().get_id(),
+                    vault_mca,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await?;
+
+            let old_vault_router_data =
+                VaultConnectorFlowData::to_old_router_data(vault_router_data_v2)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Cannot convert vault router data for connector customer creation",
+                    )?;
+
+            // Extract name and email from the customer record for the connector customer creation request.
+            let (customer_name, customer_email) = if let Some(cust) = customer.as_ref() {
+                let name = cust.name.clone().map(|n| n.into_inner());
+                let email = cust.email.clone().map(common_utils::pii::Email::from);
+                router_env::logger::info!(
+                    vault_customer_name_present = name.is_some(),
+                    vault_customer_email_present = email.is_some(),
+                    "Building vault connector customer request"
+                );
+                (name, email)
+            } else {
+                router_env::logger::warn!("No customer record available when creating vault connector customer; name will be None");
+                (None, None)
+            };
+
+            let customer_request_data = ConnectorCustomerData {
+                description: None,
+                email: customer_email,
+                phone: None,
+                name: customer_name,
+                preprocessing_id: None,
+                payment_method_data: None,
+                split_payments: None,
+                setup_future_usage: None,
+                customer_acceptance: None,
+                customer_id: None,
+                billing_address: None,
+                metadata: None,
+                currency: None,
+            };
+
+            let customer_response_data: Result<
+                router_types::PaymentsResponseData,
+                router_types::ErrorResponse,
+            > = Err(router_types::ErrorResponse::default());
+
+            let customer_router_data = helpers::router_data_type_conversion::<
+                _,
+                api::CreateConnectorCustomer,
+                _,
+                _,
+                _,
+                _,
+            >(
+                old_vault_router_data,
+                customer_request_data,
+                customer_response_data,
+            );
+
+            let new_connector_customer_id = customers::create_connector_customer(
+                state,
+                &connector,
+                &customer_router_data,
+                customer_router_data.request.clone(),
+                &gateway_context,
+            )
+            .await?;
+
+            // Persist the newly created connector customer ID back to the customer record.
+            let customer_update = customers::update_connector_customer_in_customers(
+                merchant_connector_account_type,
+                customer.as_ref(),
+                new_connector_customer_id.clone(),
+                platform.get_initiator(),
+            )
+            .await;
+
+            if let Some((cust, update)) = customer.clone().zip(customer_update) {
+                let db = &*state.store;
+                db.update_customer_by_global_id(
+                    &cust.get_id().clone(),
+                    cust,
+                    update,
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to persist connector customer ID for vault session")?;
+            }
+
+            Ok(new_connector_customer_id)
+        }
+    }
 }

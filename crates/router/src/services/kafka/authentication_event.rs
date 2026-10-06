@@ -1,4 +1,4 @@
-use diesel_models::{authentication::Authentication, enums as storage_enums};
+use diesel_models::enums as storage_enums;
 use time::OffsetDateTime;
 
 #[serde_with::skip_serializing_none]
@@ -43,10 +43,14 @@ pub struct KafkaAuthenticationEvent<'a> {
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
     pub organization_id: &'a common_utils::id_type::OrganizationId,
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<&'a common_utils::types::CreatedBy>,
 }
 
 impl<'a> KafkaAuthenticationEvent<'a> {
-    pub fn from_storage(authentication: &'a Authentication) -> Self {
+    pub fn from_storage(
+        authentication: &'a hyperswitch_domain_models::authentication::Authentication,
+    ) -> Self {
         Self {
             created_at: authentication.created_at.assume_utc(),
             modified_at: authentication.modified_at.assume_utc(),
@@ -85,6 +89,8 @@ impl<'a> KafkaAuthenticationEvent<'a> {
             directory_server_id: authentication.directory_server_id.as_ref(),
             acquirer_country_code: authentication.acquirer_country_code.as_ref(),
             organization_id: &authentication.organization_id,
+            processor_merchant_id: authentication.processor_merchant_id.as_ref(),
+            created_by: authentication.created_by.as_ref(),
         }
     }
 }

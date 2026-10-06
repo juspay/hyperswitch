@@ -3,10 +3,12 @@
 
 mod api_key;
 mod authentication;
+mod card_issuer;
 mod client_secret;
+mod client_session;
 mod customer;
-#[cfg(feature = "v2")]
 mod global_id;
+mod invoice;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
@@ -16,8 +18,11 @@ mod profile;
 mod profile_acquirer;
 mod refunds;
 mod relay;
+mod resource;
 mod routing;
+mod subscription;
 mod tenant;
+mod webhook_endpoint;
 
 use std::{borrow::Cow, fmt::Debug};
 
@@ -34,28 +39,34 @@ use thiserror::Error;
 
 #[cfg(feature = "v2")]
 pub use self::global_id::{
-    customer::GlobalCustomerId,
-    payment::{GlobalAttemptId, GlobalPaymentId},
+    payment::{GlobalAttemptGroupId, GlobalAttemptId, GlobalPaymentId},
     payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
     refunds::GlobalRefundId,
     token::GlobalTokenId,
-    CellId,
 };
 pub use self::{
     api_key::ApiKeyId,
     authentication::AuthenticationId,
+    card_issuer::CardIssuerId,
     client_secret::ClientSecretId,
+    client_session::ClientSessionId,
     customer::CustomerId,
+    global_id::{customer::GlobalCustomerId, CellId},
+    invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
-    payment::{PaymentId, PaymentReferenceId},
+    payment::{PaymentId, PaymentReferenceId, PaymentResourceId},
+    payout::{PayoutReferenceId, PayoutResourceId},
     profile::ProfileId,
     profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
     relay::RelayId,
+    resource::ResourceId,
     routing::RoutingId,
+    subscription::SubscriptionId,
     tenant::TenantId,
+    webhook_endpoint::WebhookEndpointId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
 
@@ -178,7 +189,6 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
         Self(alphanumeric_id)
     }
 
-    #[cfg(feature = "v2")]
     /// Create a new LengthId from aplhanumeric id
     pub(crate) fn from_alphanumeric_id(
         alphanumeric_id: AlphaNumericId,
@@ -240,9 +250,14 @@ pub trait GenerateId {
     fn generate() -> Self;
 }
 
+/// Trait for types that can be used as a targeting key in Superposition experiments.
+pub trait TargetingKey {
+    /// Get the string representation to use as the targeting key value.
+    fn targeting_key_value(&self) -> &str;
+}
+
 #[cfg(test)]
 mod alphanumeric_id_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     const VALID_UNDERSCORE_ID_JSON: &str = r#""cus_abcdefghijklmnopqrstuv""#;

@@ -28,7 +28,9 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -42,14 +44,14 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::{
     api::{PayoutFulfill, Payouts},
     types::PayoutFulfillType,
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::hmac;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
@@ -234,9 +236,11 @@ impl ConnectorCommon for Payone {
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             None => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -245,9 +249,11 @@ impl ConnectorCommon for Payone {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
         }
     }
@@ -374,6 +380,7 @@ impl IncomingWebhook for Payone {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
@@ -381,7 +388,7 @@ impl IncomingWebhook for Payone {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -430,4 +437,23 @@ impl ConnectorErrorTypeMapping for Payone {
     }
 }
 
-impl ConnectorSpecifications for Payone {}
+static PAYONE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Payone",
+    description: "Payone payout connector for European market disbursements and automated fund distribution with comprehensive compliance support",
+    connector_type: common_enums::HyperswitchConnectorCategory::PayoutProcessor,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Payone {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYONE_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

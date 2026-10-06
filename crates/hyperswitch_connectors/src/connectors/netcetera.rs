@@ -29,7 +29,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        AuthenticationResponseData, PaymentsResponseData, RefundsResponseData,
+        AuthenticationResponseData, ConnectorInfo, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 use hyperswitch_interfaces::{
@@ -45,9 +46,9 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as netcetera;
 
 use crate::{
@@ -143,9 +144,11 @@ impl ConnectorCommon for Netcetera {
             reason: response.error_details.error_detail,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -191,6 +194,7 @@ impl IncomingWebhook for Netcetera {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Ok(IncomingWebhookEvent::ExternalAuthenticationARes)
     }
@@ -198,7 +202,7 @@ impl IncomingWebhook for Netcetera {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let webhook_body_value: netcetera::ResultsResponseData = request
             .body
             .parse_struct("netcetera ResultsResponseDatae")
@@ -214,23 +218,29 @@ impl IncomingWebhook for Netcetera {
             .body
             .parse_struct("netcetera ResultsResponseData")
             .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let challenge_cancel = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.get("challengeCancel").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
+        let challenge_code_reason = webhook_body
+            .results_request
+            .as_ref()
+            .and_then(|v| v.get("transStatusReason").and_then(|v| v.as_str()))
+            .map(|s| s.to_string());
+
         Ok(ExternalAuthenticationPayload {
             trans_status: webhook_body
                 .trans_status
                 .unwrap_or(common_enums::TransactionStatus::InformationOnly),
             authentication_value: webhook_body.authentication_value,
             eci: webhook_body.eci,
+            challenge_cancel,
+            challenge_code_reason,
         })
     }
-}
-
-fn build_endpoint(
-    base_url: &str,
-    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
-) -> CustomResult<String, ConnectorError> {
-    let metadata = netcetera::NetceteraMetaData::try_from(connector_metadata)?;
-    let endpoint_prefix = metadata.endpoint_prefix;
-    Ok(base_url.replace("{{merchant_endpoint_prefix}}", &endpoint_prefix))
 }
 
 impl ConnectorPreAuthentication for Netcetera {}
@@ -256,11 +266,10 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 
     fn get_url(
         &self,
-        req: &PreAuthNRouterData,
+        _req: &PreAuthNRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{base_url}/3ds/versioning"))
+        Ok(format!("{}/3ds/versioning", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -348,11 +357,10 @@ impl
 
     fn get_url(
         &self,
-        req: &ConnectorAuthenticationRouterData,
+        _req: &ConnectorAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{base_url}/3ds/authentication"))
+        Ok(format!("{}/3ds/authentication", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -365,12 +373,12 @@ impl
             req.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
             req.request
                 .amount
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "amount".into(),
                 })?,
             req,
         ))?;
@@ -449,4 +457,23 @@ impl
 {
 }
 
-impl ConnectorSpecifications for Netcetera {}
+static NETCETERA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Netcetera",
+    description: "Netcetera authentication provider for comprehensive 3D Secure solutions including certified ACS, Directory Server, and multi-protocol EMV 3DS supports",
+    connector_type: common_enums::HyperswitchConnectorCategory::AuthenticationProvider,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+impl ConnectorSpecifications for Netcetera {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&NETCETERA_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        None
+    }
+}

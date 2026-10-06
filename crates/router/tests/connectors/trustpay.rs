@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use hyperswitch_domain_models::address::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, domain, storage::enums, BrowserInformation};
 
 use crate::{
@@ -53,6 +53,7 @@ fn get_default_browser_info() -> BrowserInformation {
         os_version: None,
         device_model: None,
         accept_language: Some("en".to_string()),
+        referer: None,
     }
 }
 

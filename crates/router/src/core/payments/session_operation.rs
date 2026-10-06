@@ -17,11 +17,12 @@ use hyperswitch_interfaces::{
     api::Connector as ConnectorTrait,
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{env::Env, instrument, tracing};
 
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
             self as payments_core, call_multiple_connectors_service,
@@ -49,7 +50,7 @@ use crate::{
 pub async fn payments_session_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     operation: Op,
     req: Req,
@@ -73,17 +74,23 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(profile.get_id().clone());
+
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_session_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            merchant_context.clone(),
+            platform.clone(),
             profile,
             operation.clone(),
             req,
             payment_id,
             call_connector_action,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -96,7 +103,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
-        &merchant_context,
+        &platform,
     )
 }
 
@@ -105,13 +112,14 @@ where
 pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
-    merchant_context: domain::MerchantContext,
+    platform: domain::Platform,
     profile: domain::Profile,
     operation: Op,
     req: Req,
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -132,7 +140,7 @@ where
 
     let _validate_result = operation
         .to_validate_request()?
-        .validate_request(&req, &merchant_context)?;
+        .validate_request(&req, &platform)?;
 
     let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?
@@ -140,7 +148,7 @@ where
             state,
             &payment_id,
             &req,
-            &merchant_context,
+            &platform,
             &profile,
             &header_payload,
         )
@@ -151,33 +159,30 @@ where
         .get_customer_details(
             state,
             &mut payment_data,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    vault_session::populate_vault_session_details(
+    Box::pin(vault_session::populate_vault_session_details(
         state,
         req_state.clone(),
         &customer,
-        &merchant_context,
+        &platform,
         &operation,
         &profile,
         &mut payment_data,
         header_payload.clone(),
-    )
+        // V2 gates internally on `profile.is_vault_sdk_enabled()`; this flag is ignored here.
+        false,
+    ))
     .await?;
 
     let connector = operation
         .to_domain()?
-        .perform_routing(
-            &merchant_context,
-            &profile,
-            &state.clone(),
-            &mut payment_data,
-        )
+        .perform_routing(&platform, &profile, &state.clone(), &mut payment_data)
         .await?;
 
     let payment_data = match connector {
@@ -192,19 +197,17 @@ where
                 .update_trackers(
                     state,
                     req_state,
+                    platform.get_processor(),
                     payment_data.clone(),
-                    customer.clone(),
-                    merchant_context.get_merchant_account().storage_scheme,
-                    None,
-                    merchant_context.get_merchant_key_store(),
                     None,
                     header_payload.clone(),
+                    &dimensions.without_profile_id(),
                 )
                 .await?;
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,
-                &merchant_context,
+                platform.get_processor(),
                 connectors,
                 &operation,
                 payment_data,

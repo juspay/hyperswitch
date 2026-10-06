@@ -1,7 +1,8 @@
 use api_models::apple_pay_certificates_migration;
 use common_utils::{errors::CustomResult, type_name, types::keymanager::Identifier};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
+use storage_impl::behaviour::ForeignInto;
 
 use super::{
     errors::{self, StorageErrorExt},
@@ -29,12 +30,10 @@ pub async fn apple_pay_certificates_migration(
 
     let mut migration_successful_merchant_ids = vec![];
     let mut migration_failed_merchant_ids = vec![];
-    let key_manager_state = &(&state).into();
     for merchant_id in merchant_id_list {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -43,7 +42,6 @@ pub async fn apple_pay_certificates_migration(
 
         let merchant_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                key_manager_state,
                 merchant_id,
                 true,
                 &key_store,
@@ -86,7 +84,7 @@ pub async fn apple_pay_certificates_migration(
                         connector_wallets_details: encrypted_apple_pay_metadata,
                     };
 
-                mca_to_update.push((connector_account, updated_mca.into()));
+                mca_to_update.push((connector_account, updated_mca.foreign_into()));
             }
         }
 

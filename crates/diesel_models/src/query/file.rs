@@ -5,39 +5,72 @@ use crate::{
     errors,
     file::{FileMetadata, FileMetadataNew, FileMetadataUpdate, FileMetadataUpdateInternal},
     schema::file_metadata::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl FileMetadataNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FileMetadata> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<FileMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl FileMetadata {
-    pub async fn find_by_merchant_id_file_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+    pub async fn find_by_processor_merchant_id_file_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::file_id.eq(file_id.to_owned())),
         )
         .await
     }
 
+    // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
+    pub async fn find_by_merchant_id_file_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        file_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::file_id.eq(file_id.to_owned())),
+        )
+        .await
+    }
+
+    pub async fn delete_by_processor_merchant_id_file_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        file_id: &str,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::file_id.eq(file_id.to_owned())),
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - deletes by merchant_id when processor_merchant_id is NULL
     pub async fn delete_by_merchant_id_file_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        conn: &DatabaseConnectionWithContext<'_>,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::merchant_id
-                .eq(merchant_id.to_owned())
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::file_id.eq(file_id.to_owned())),
         )
         .await
@@ -45,7 +78,7 @@ impl FileMetadata {
 
     pub async fn update(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         file_metadata: FileMetadataUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<

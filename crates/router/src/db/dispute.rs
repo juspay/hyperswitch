@@ -1,14 +1,11 @@
 use std::collections::HashMap;
 
-use error_stack::report;
 use hyperswitch_domain_models::disputes;
-use router_env::{instrument, tracing};
 
-use super::{MockDb, Store};
+use super::MockDb;
 use crate::{
-    connection,
     core::errors::{self, CustomResult},
-    types::storage::{self, DisputeDbExt},
+    types::storage::{self, enums},
 };
 
 #[async_trait::async_trait]
@@ -16,143 +13,763 @@ pub trait DisputeInterface {
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
-    async fn find_by_merchant_id_payment_id_connector_dispute_id(
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError>;
 
-    async fn find_dispute_by_merchant_id_dispute_id(
+    async fn find_dispute_by_processor_merchant_id_dispute_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
     async fn find_disputes_by_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
+
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
-    async fn find_disputes_by_merchant_id_payment_id(
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError>;
+
+    async fn find_disputes_by_processor_merchant_id_payment_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
     async fn update_dispute(
         &self,
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
     async fn get_dispute_status_with_count(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::StorageError>;
 }
 
-#[async_trait::async_trait]
-impl DisputeInterface for Store {
-    #[instrument(skip_all)]
-    async fn insert_dispute(
-        &self,
-        dispute: storage::DisputeNew,
-    ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        dispute
-            .insert(&conn)
+#[cfg(not(feature = "kv_store"))]
+mod storage_impl {
+    use error_stack::report;
+    use hyperswitch_domain_models::disputes;
+    use router_env::{instrument, tracing};
+
+    use super::DisputeInterface;
+    use crate::{
+        connection,
+        core::errors::{self, CustomResult},
+        services::Store,
+        types::storage::{self as storage_types, enums},
+    };
+
+    #[async_trait::async_trait]
+    impl DisputeInterface for Store {
+        #[instrument(skip_all)]
+        async fn insert_dispute(
+            &self,
+            dispute: storage_types::DisputeNew,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            dispute
+                .insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
+            connector_dispute_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let result =
+                storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
+                    &conn,
+                    processor_merchant_id,
+                    payment_id,
+                    connector_dispute_id,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+            match result {
+                Some(dispute) => Ok(Some(dispute)),
+                None => {
+                    storage_types::Dispute::find_optional_by_merchant_id_payment_id_connector_dispute_id(
+                        &conn,
+                        processor_merchant_id,
+                        payment_id,
+                        connector_dispute_id,
+                    )
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn find_dispute_by_processor_merchant_id_dispute_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let result = storage_types::Dispute::find_by_processor_merchant_id_dispute_id(
+                &conn,
+                processor_merchant_id,
+                dispute_id,
+            )
+            .await;
+
+            match result {
+                Ok(dispute) => Ok(dispute),
+                Err(error) => {
+                    if matches!(
+                        error.current_context(),
+                        diesel_models::errors::DatabaseError::NotFound
+                    ) {
+                        storage_types::Dispute::find_by_merchant_id_dispute_id(
+                            &conn,
+                            processor_merchant_id,
+                            dispute_id,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    } else {
+                        Err(report!(errors::StorageError::from(error)))
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn find_disputes_by_processor_merchant_id_payment_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::find_by_processor_merchant_id_payment_id(
+                &conn,
+                processor_merchant_id,
+                payment_id,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
-    }
+        }
 
-    #[instrument(skip_all)]
-    async fn find_by_merchant_id_payment_id_connector_dispute_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
-        connector_dispute_id: &str,
-    ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
-            &conn,
-            merchant_id,
-            payment_id,
-            connector_dispute_id,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn find_dispute_by_merchant_id_dispute_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        dispute_id: &str,
-    ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::find_by_merchant_id_dispute_id(&conn, merchant_id, dispute_id)
+        #[instrument(skip_all)]
+        async fn find_disputes_by_constraints(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::filter_by_constraints(
+                &conn,
+                processor_merchant_id,
+                dispute_constraints,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
-    }
+        }
 
-    #[instrument(skip_all)]
-    async fn find_disputes_by_constraints(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        dispute_constraints: &disputes::DisputeListConstraints,
-    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::filter_by_constraints(&conn, merchant_id, dispute_constraints)
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn find_disputes_by_constraints_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::filter_by_constraints_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
-    }
+        }
 
-    #[instrument(skip_all)]
-    async fn find_disputes_by_merchant_id_payment_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
-    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn get_disputes_count_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::get_disputes_count_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
-    }
+        }
 
-    #[instrument(skip_all)]
-    async fn update_dispute(
-        &self,
-        this: storage::Dispute,
-        dispute: storage::DisputeUpdate,
-    ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, dispute)
+        #[instrument(skip_all)]
+        async fn update_dispute(
+            &self,
+            this: storage_types::Dispute,
+            dispute: storage_types::DisputeUpdate,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            this.update(&conn, dispute)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        async fn get_dispute_status_with_count(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+            time_range: &common_utils::types::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::get_dispute_status_with_count(
+                &conn,
+                processor_merchant_id,
+                profile_id_list,
+                time_range,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
+}
 
-    #[instrument(skip_all)]
-    async fn get_dispute_status_with_count(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
-        time_range: &common_utils::types::TimeRange,
-    ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::get_dispute_status_with_count(
-            &conn,
-            merchant_id,
-            profile_id_list,
-            time_range,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+#[cfg(feature = "kv_store")]
+mod storage_impl {
+    use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
+    use error_stack::{report, ResultExt};
+    use hyperswitch_domain_models::disputes;
+    use redis_interface::HsetnxReply;
+    use router_env::{instrument, tracing};
+    use storage_impl::{
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+        utils as storage_impl_utils, KvSupportedEntity,
+    };
+
+    use super::DisputeInterface;
+    use crate::{
+        connection,
+        core::errors::{self, utils::RedisErrorExt, CustomResult},
+        db::reverse_lookup::ReverseLookupInterface,
+        services::Store,
+        types::storage::{self as storage_types, enums, DisputeDbExt},
+        utils::db_utils,
+    };
+
+    #[async_trait::async_trait]
+    impl DisputeInterface for Store {
+        #[instrument(skip_all)]
+        async fn insert_dispute(
+            &self,
+            dispute: storage_types::DisputeNew,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
+                self,
+                storage_scheme,
+                Op::Insert,
+            ))
+            .await;
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
+                    dispute
+                        .insert(&conn)
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                }
+                enums::MerchantStorageScheme::RedisKv => {
+                    let merchant_id = dispute.merchant_id.clone();
+                    let payment_id = dispute.payment_id.clone();
+                    let created_dispute = storage_types::Dispute {
+                        dispute_id: dispute.dispute_id.clone(),
+                        amount: dispute.amount.clone(),
+                        currency: dispute.currency.clone(),
+                        dispute_stage: dispute.dispute_stage,
+                        dispute_status: dispute.dispute_status,
+                        payment_id: dispute.payment_id.clone(),
+                        attempt_id: dispute.attempt_id.clone(),
+                        merchant_id: dispute.merchant_id.clone(),
+                        connector_status: dispute.connector_status.clone(),
+                        connector_dispute_id: dispute.connector_dispute_id.clone(),
+                        connector_reason: dispute.connector_reason.clone(),
+                        connector_reason_code: dispute.connector_reason_code.clone(),
+                        challenge_required_by: dispute.challenge_required_by,
+                        connector_created_at: dispute.connector_created_at,
+                        connector_updated_at: dispute.connector_updated_at,
+                        created_at: dispute.created_at,
+                        modified_at: dispute.modified_at,
+                        connector: dispute.connector.clone(),
+                        evidence: dispute.evidence.clone(),
+                        profile_id: dispute.profile_id.clone(),
+                        merchant_connector_id: dispute.merchant_connector_id.clone(),
+                        dispute_amount: dispute.dispute_amount,
+                        organization_id: dispute.organization_id.clone(),
+                        dispute_currency: dispute.dispute_currency,
+                        processor_merchant_id: dispute.processor_merchant_id.clone(),
+                        created_by: dispute.created_by.clone(),
+                        additional_details: dispute.additional_details.clone(),
+                    };
+
+                    let key = created_dispute.get_partition_key();
+                    let key_str = key.to_string();
+
+                    let field = created_dispute.get_hash_field_key();
+
+                    let reverse_lookups = vec![
+                        storage_types::ReverseLookupNew {
+                            sk_id: field.clone(),
+                            lookup_id:
+                                diesel_models::Dispute::generate_lookup_merchant_id_dispute_id(
+                                    &merchant_id,
+                                    &created_dispute.dispute_id,
+                                ),
+                            pk_id: key_str.clone(),
+                            source: "dispute".to_string(),
+                            updated_by: storage_scheme.to_string(),
+                        },
+                        storage_types::ReverseLookupNew {
+                            sk_id: field.clone(),
+                            lookup_id:
+                                diesel_models::Dispute::generate_lookup_merchant_id_payment_id_connector_dispute_id(
+                                    &merchant_id,
+                                    &payment_id,
+                                    &created_dispute.connector_dispute_id,
+                                ),
+                            pk_id: key_str.clone(),
+                            source: "dispute".to_string(),
+                            updated_by: storage_scheme.to_string(),
+                        },
+                    ];
+
+                    let rev_look = reverse_lookups
+                        .into_iter()
+                        .map(|rev| self.insert_reverse_lookup(rev, storage_scheme));
+
+                    futures::future::try_join_all(rev_look).await?;
+
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = dispute
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate dispute insert query")?;
+
+                    match Box::pin(kv_wrapper::<diesel_models::Dispute, _, _>(
+                        self,
+                        KvOperation::<diesel_models::Dispute>::HSetNx(
+                            &field,
+                            &created_dispute,
+                            drainer_query,
+                        ),
+                        key,
+                    ))
+                    .await
+                    .map_err(|err| err.to_redis_failed_response(&key_str))?
+                    .try_into_hsetnx()
+                    {
+                        Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                            entity: "dispute",
+                            key: Some(created_dispute.dispute_id),
+                        }
+                        .into()),
+                        Ok(HsetnxReply::KeySet) => Ok(created_dispute),
+                        Err(er) => Err(er).change_context(errors::StorageError::KVError),
+                    }
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
+            connector_dispute_id: &str,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
+            let database_call = || async {
+                let conn = connection::pg_connection_read(self).await?;
+                let result =
+                    storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
+                        &conn,
+                        processor_merchant_id,
+                        payment_id,
+                        connector_dispute_id,
+                    )
+                    .await;
+
+                match result {
+                    Ok(Some(dispute)) => Ok(Some(dispute)),
+                    Ok(None) => {
+                        storage_types::Dispute::find_optional_by_merchant_id_payment_id_connector_dispute_id(
+                            &conn,
+                            processor_merchant_id,
+                            payment_id,
+                            connector_dispute_id,
+                        )
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    }
+                    Err(error) => Err(report!(errors::StorageError::from(error))),
+                }
+            };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                enums::MerchantStorageScheme::RedisKv => {
+                    let lookup_id =
+                        diesel_models::Dispute::generate_lookup_merchant_id_payment_id_connector_dispute_id(
+                            processor_merchant_id,
+                            payment_id,
+                            connector_dispute_id,
+                        );
+                    let lookup = fallback_reverse_lookup_not_found!(
+                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                            .await,
+                        database_call().await
+                    );
+
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                        async {
+                            Box::pin(kv_wrapper(
+                                self,
+                                KvOperation::<diesel_models::Dispute>::HGet(&lookup.sk_id),
+                                key,
+                            ))
+                            .await?
+                            .try_into_hget()
+                        },
+                        database_call,
+                    ))
+                    .await
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn find_dispute_by_processor_merchant_id_dispute_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_id: &str,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let database_call = || async {
+                let conn = connection::pg_connection_read(self).await?;
+                let result = storage_types::Dispute::find_by_processor_merchant_id_dispute_id(
+                    &conn,
+                    processor_merchant_id,
+                    dispute_id,
+                )
+                .await;
+
+                match result {
+                    Ok(dispute) => Ok(dispute),
+                    Err(error) => {
+                        if matches!(
+                            error.current_context(),
+                            diesel_models::errors::DatabaseError::NotFound
+                        ) {
+                            storage_types::Dispute::find_by_merchant_id_dispute_id(
+                                &conn,
+                                processor_merchant_id,
+                                dispute_id,
+                            )
+                            .await
+                            .map_err(|error| report!(errors::StorageError::from(error)))
+                        } else {
+                            Err(report!(errors::StorageError::from(error)))
+                        }
+                    }
+                }
+            };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                enums::MerchantStorageScheme::RedisKv => {
+                    let lookup_id = diesel_models::Dispute::generate_lookup_merchant_id_dispute_id(
+                        processor_merchant_id,
+                        dispute_id,
+                    );
+                    let lookup = fallback_reverse_lookup_not_found!(
+                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                            .await,
+                        database_call().await
+                    );
+
+                    let key = PartitionKey::CombinationKey {
+                        combination: &lookup.pk_id,
+                    };
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                        async {
+                            Box::pin(kv_wrapper(
+                                self,
+                                KvOperation::<diesel_models::Dispute>::HGet(&lookup.sk_id),
+                                key,
+                            ))
+                            .await?
+                            .try_into_hget()
+                        },
+                        database_call,
+                    ))
+                    .await
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn find_disputes_by_processor_merchant_id_payment_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let database_call = || async {
+                let conn = connection::pg_connection_read(self).await?;
+                storage_types::Dispute::find_by_processor_merchant_id_payment_id(
+                    &conn,
+                    processor_merchant_id,
+                    payment_id,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+            };
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
+                self,
+                storage_scheme,
+                Op::Find,
+            ))
+            .await;
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                enums::MerchantStorageScheme::RedisKv => {
+                    let key = PartitionKey::MerchantIdPaymentId {
+                        merchant_id: processor_merchant_id,
+                        payment_id,
+                    };
+                    let redis_fut = async {
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<diesel_models::Dispute>::Scan("dspt_*"),
+                            key,
+                        ))
+                        .await?
+                        .try_into_scan()
+                    };
+                    Box::pin(storage_impl_utils::find_all_combined_kv_database(
+                        redis_fut,
+                        database_call,
+                        None,
+                    ))
+                    .await
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn find_disputes_by_constraints(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::filter_by_constraints(
+                &conn,
+                processor_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn find_disputes_by_constraints_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<Vec<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::filter_by_constraints_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
+        #[instrument(skip_all)]
+        async fn get_disputes_count_for_platform(
+            &self,
+            platform_merchant_id: &common_utils::id_type::MerchantId,
+            dispute_constraints: &disputes::DisputeListConstraints,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::get_disputes_count_for_platform(
+                &conn,
+                platform_merchant_id,
+                dispute_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        async fn update_dispute(
+            &self,
+            this: storage_types::Dispute,
+            dispute: storage_types::DisputeUpdate,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let merchant_id = this.merchant_id.clone();
+            let key = this.get_partition_key();
+            let field = this.get_hash_field_key();
+            let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Dispute>(
+                self,
+                storage_scheme,
+                Op::Update(key.clone(), &field, None),
+            ))
+            .await;
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
+                    let result = this.clone().update(&conn, dispute).await;
+
+                    match result {
+                        Ok(dispute) => Ok(dispute),
+                        Err(error) => {
+                            if matches!(
+                                error.current_context(),
+                                diesel_models::errors::DatabaseError::NotFound
+                            ) {
+                                storage_types::Dispute::find_by_merchant_id_dispute_id(
+                                    &conn,
+                                    &merchant_id,
+                                    &this.dispute_id,
+                                )
+                                .await
+                                .map_err(|error| report!(errors::StorageError::from(error)))
+                            } else {
+                                Err(report!(errors::StorageError::from(error)))
+                            }
+                        }
+                    }
+                }
+                enums::MerchantStorageScheme::RedisKv => {
+                    let key_str = key.to_string();
+                    let updated_dispute =
+                        diesel_models::dispute::DisputeUpdateInternal::from(dispute.clone())
+                            .apply_changeset(this.clone());
+
+                    let redis_value = updated_dispute
+                        .encode_to_string_of_json()
+                        .change_context(errors::StorageError::SerializationFailed)?;
+
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query =
+                        diesel_models::dispute::DisputeUpdateInternal::from(dispute)
+                            .generate_drainer_update_query(
+                                &mut query_gen_conn,
+                                this.dispute_id.clone(),
+                            )
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate dispute update query")?;
+
+                    Box::pin(kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<diesel_models::Dispute>(
+                            (&field, redis_value),
+                            drainer_query,
+                        ),
+                        key,
+                    ))
+                    .await
+                    .map_err(|err| err.to_redis_failed_response(&key_str))?
+                    .try_into_hset()
+                    .change_context(errors::StorageError::KVError)?;
+
+                    Ok(updated_dispute)
+                }
+            }
+        }
+
+        #[instrument(skip_all)]
+        async fn get_dispute_status_with_count(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+            time_range: &common_utils::types::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::get_dispute_status_with_count(
+                &conn,
+                processor_merchant_id,
+                profile_id_list,
+                time_range,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
 }
 
@@ -161,9 +778,8 @@ impl DisputeInterface for MockDb {
     async fn insert_dispute(
         &self,
         dispute: storage::DisputeNew,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let evidence = dispute.evidence.ok_or(errors::StorageError::MockDbError)?;
-
         let mut locked_disputes = self.disputes.lock().await;
 
         if locked_disputes
@@ -172,8 +788,6 @@ impl DisputeInterface for MockDb {
         {
             Err(errors::StorageError::MockDbError)?;
         }
-
-        let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
             dispute_id: dispute.dispute_id,
@@ -191,26 +805,31 @@ impl DisputeInterface for MockDb {
             challenge_required_by: dispute.challenge_required_by,
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
-            created_at: now,
-            modified_at: now,
+            created_at: dispute.created_at,
+            modified_at: dispute.modified_at,
             connector: dispute.connector,
             profile_id: dispute.profile_id,
-            evidence,
+            evidence: dispute.evidence,
             merchant_connector_id: dispute.merchant_connector_id,
             dispute_amount: dispute.dispute_amount,
             organization_id: dispute.organization_id,
             dispute_currency: dispute.dispute_currency,
+            processor_merchant_id: dispute.processor_merchant_id,
+            created_by: dispute.created_by,
+            additional_details: dispute.additional_details,
         };
 
         locked_disputes.push(new_dispute.clone());
 
         Ok(new_dispute)
     }
-    async fn find_by_merchant_id_payment_id_connector_dispute_id(
+
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         Ok(self
             .disputes
@@ -218,83 +837,102 @@ impl DisputeInterface for MockDb {
             .await
             .iter()
             .find(|d| {
-                d.merchant_id == *merchant_id
+                d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
                     && d.payment_id == *payment_id
                     && d.connector_dispute_id == connector_dispute_id
             })
             .cloned())
     }
 
-    async fn find_dispute_by_merchant_id_dispute_id(
+    async fn find_dispute_by_processor_merchant_id_dispute_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
         locked_disputes
             .iter()
-            .find(|d| d.merchant_id == *merchant_id && d.dispute_id == dispute_id)
+            .find(|d| {
+                d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    && d.dispute_id == dispute_id
+            })
             .cloned()
-            .ok_or(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id:?} and dispute_id = {dispute_id}"))
+            .ok_or(errors::StorageError::ValueNotFound(format!("No dispute available for processor_merchant_id = {processor_merchant_id:?} and dispute_id = {dispute_id}"))
             .into())
+    }
+
+    async fn find_disputes_by_processor_merchant_id_payment_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        let locked_disputes = self.disputes.lock().await;
+
+        Ok(locked_disputes
+            .iter()
+            .filter(|d| {
+                (d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (d.processor_merchant_id.is_none()
+                        && d.merchant_id == *processor_merchant_id))
+                    && d.payment_id == *payment_id
+            })
+            .cloned()
+            .collect())
     }
 
     async fn find_disputes_by_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: &disputes::DisputeListConstraints,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-        let limit_usize = dispute_constraints
-            .limit
-            .unwrap_or(u32::MAX)
-            .try_into()
-            .unwrap_or(usize::MAX);
-        let offset_usize = dispute_constraints
-            .offset
-            .unwrap_or(0)
-            .try_into()
-            .unwrap_or(usize::MIN);
+        let limit_usize = dispute_constraints.limit.as_usize();
+        let offset_usize = dispute_constraints.offset.as_usize();
         let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
             .filter(|dispute| {
-                dispute.merchant_id == *merchant_id
+                (dispute.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (dispute.processor_merchant_id.is_none()
+                        && dispute.merchant_id == *processor_merchant_id))
                     && dispute_constraints
                         .dispute_id
                         .as_ref()
-                        .map_or(true, |id| &dispute.dispute_id == id)
+                        .is_none_or(|id| &dispute.dispute_id == id)
                     && dispute_constraints
                         .payment_id
                         .as_ref()
-                        .map_or(true, |id| &dispute.payment_id == id)
+                        .is_none_or(|id| &dispute.payment_id == id)
                     && dispute_constraints
                         .profile_id
                         .as_ref()
-                        .map_or(true, |profile_ids| {
+                        .is_none_or(|profile_ids| {
                             dispute
                                 .profile_id
                                 .as_ref()
-                                .map_or(true, |id| profile_ids.contains(id))
+                                .is_none_or(|id| profile_ids.contains(id))
                         })
                     && dispute_constraints
                         .dispute_status
                         .as_ref()
-                        .map_or(true, |statuses| statuses.contains(&dispute.dispute_status))
+                        .is_none_or(|statuses| statuses.contains(&dispute.dispute_status))
                     && dispute_constraints
                         .dispute_stage
                         .as_ref()
-                        .map_or(true, |stages| stages.contains(&dispute.dispute_stage))
-                    && dispute_constraints.reason.as_ref().map_or(true, |reason| {
+                        .is_none_or(|stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().is_none_or(|reason| {
                         dispute
                             .connector_reason
                             .as_ref()
-                            .map_or(true, |d_reason| d_reason == reason)
+                            .is_none_or(|d_reason| d_reason == reason)
                     })
                     && dispute_constraints
                         .connector
                         .as_ref()
-                        .map_or(true, |connectors| {
+                        .is_none_or(|connectors| {
                             connectors
                                 .iter()
                                 .any(|connector| dispute.connector.as_str() == *connector)
@@ -302,13 +940,11 @@ impl DisputeInterface for MockDb {
                     && dispute_constraints
                         .merchant_connector_id
                         .as_ref()
-                        .map_or(true, |id| {
-                            dispute.merchant_connector_id.as_ref() == Some(id)
-                        })
+                        .is_none_or(|id| dispute.merchant_connector_id.as_ref() == Some(id))
                     && dispute_constraints
                         .currency
                         .as_ref()
-                        .map_or(true, |currencies| {
+                        .is_none_or(|currencies| {
                             currencies.iter().any(|currency| {
                                 dispute
                                     .dispute_currency
@@ -316,16 +952,13 @@ impl DisputeInterface for MockDb {
                                     .unwrap_or(dispute.currency.as_str() == currency.to_string())
                             })
                         })
-                    && dispute_constraints
-                        .time_range
-                        .as_ref()
-                        .map_or(true, |range| {
-                            let dispute_time = dispute.created_at;
-                            dispute_time >= range.start_time
-                                && range
-                                    .end_time
-                                    .map_or(true, |end_time| dispute_time <= end_time)
-                        })
+                    && dispute_constraints.time_range.as_ref().is_none_or(|range| {
+                        let dispute_time = dispute.created_at;
+                        dispute_time >= range.start_time
+                            && range
+                                .end_time
+                                .is_none_or(|end_time| dispute_time <= end_time)
+                    })
             })
             .skip(offset_usize)
             .take(limit_usize)
@@ -335,24 +968,190 @@ impl DisputeInterface for MockDb {
         Ok(filtered_disputes)
     }
 
-    async fn find_disputes_by_merchant_id_payment_id(
+    #[cfg(feature = "v1")]
+    async fn find_disputes_by_constraints_for_platform(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-
-        Ok(locked_disputes
+        let limit_usize = dispute_constraints.limit.as_usize();
+        let offset_usize = dispute_constraints.offset.as_usize();
+        let filtered_disputes: Vec<storage::Dispute> = locked_disputes
             .iter()
-            .filter(|d| d.merchant_id == *merchant_id && d.payment_id == *payment_id)
+            .filter(|dispute| {
+                dispute.merchant_id == *platform_merchant_id
+                    && dispute_constraints
+                        .processor_merchant_id
+                        .as_ref()
+                        .is_none_or(|merchant_ids| {
+                            dispute
+                                .processor_merchant_id
+                                .as_ref()
+                                .is_some_and(|id| merchant_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.dispute_id == id)
+                    && dispute_constraints
+                        .payment_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.payment_id == id)
+                    && dispute_constraints
+                        .profile_id
+                        .as_ref()
+                        .is_none_or(|profile_ids| {
+                            dispute
+                                .profile_id
+                                .as_ref()
+                                .is_none_or(|id| profile_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_status
+                        .as_ref()
+                        .is_none_or(|statuses| statuses.contains(&dispute.dispute_status))
+                    && dispute_constraints
+                        .dispute_stage
+                        .as_ref()
+                        .is_none_or(|stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().is_none_or(|reason| {
+                        dispute
+                            .connector_reason
+                            .as_ref()
+                            .is_none_or(|d_reason| d_reason == reason)
+                    })
+                    && dispute_constraints
+                        .connector
+                        .as_ref()
+                        .is_none_or(|connectors| {
+                            connectors
+                                .iter()
+                                .any(|connector| dispute.connector.as_str() == *connector)
+                        })
+                    && dispute_constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .is_none_or(|id| dispute.merchant_connector_id.as_ref() == Some(id))
+                    && dispute_constraints
+                        .currency
+                        .as_ref()
+                        .is_none_or(|currencies| {
+                            currencies.iter().any(|currency| {
+                                dispute
+                                    .dispute_currency
+                                    .map(|dispute_currency| &dispute_currency == currency)
+                                    .unwrap_or(dispute.currency.as_str() == currency.to_string())
+                            })
+                        })
+                    && dispute_constraints.time_range.as_ref().is_none_or(|range| {
+                        let dispute_time = dispute.created_at;
+                        dispute_time >= range.start_time
+                            && range
+                                .end_time
+                                .is_none_or(|end_time| dispute_time <= end_time)
+                    })
+            })
+            .skip(offset_usize)
+            .take(limit_usize)
             .cloned()
-            .collect())
+            .collect();
+
+        Ok(filtered_disputes)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_disputes_count_for_platform(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        dispute_constraints: &disputes::DisputeListConstraints,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let locked_disputes = self.disputes.lock().await;
+        let count = locked_disputes
+            .iter()
+            .filter(|dispute| {
+                dispute.merchant_id == *platform_merchant_id
+                    && dispute_constraints
+                        .processor_merchant_id
+                        .as_ref()
+                        .is_none_or(|merchant_ids| {
+                            dispute
+                                .processor_merchant_id
+                                .as_ref()
+                                .is_some_and(|id| merchant_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.dispute_id == id)
+                    && dispute_constraints
+                        .payment_id
+                        .as_ref()
+                        .is_none_or(|id| &dispute.payment_id == id)
+                    && dispute_constraints
+                        .profile_id
+                        .as_ref()
+                        .is_none_or(|profile_ids| {
+                            dispute
+                                .profile_id
+                                .as_ref()
+                                .is_none_or(|id| profile_ids.contains(id))
+                        })
+                    && dispute_constraints
+                        .dispute_status
+                        .as_ref()
+                        .is_none_or(|statuses| statuses.contains(&dispute.dispute_status))
+                    && dispute_constraints
+                        .dispute_stage
+                        .as_ref()
+                        .is_none_or(|stages| stages.contains(&dispute.dispute_stage))
+                    && dispute_constraints.reason.as_ref().is_none_or(|reason| {
+                        dispute
+                            .connector_reason
+                            .as_ref()
+                            .is_none_or(|d_reason| d_reason == reason)
+                    })
+                    && dispute_constraints
+                        .connector
+                        .as_ref()
+                        .is_none_or(|connectors| {
+                            connectors
+                                .iter()
+                                .any(|connector| dispute.connector.as_str() == *connector)
+                        })
+                    && dispute_constraints
+                        .merchant_connector_id
+                        .as_ref()
+                        .is_none_or(|id| dispute.merchant_connector_id.as_ref() == Some(id))
+                    && dispute_constraints
+                        .currency
+                        .as_ref()
+                        .is_none_or(|currencies| {
+                            currencies.iter().any(|currency| {
+                                dispute
+                                    .dispute_currency
+                                    .map(|dispute_currency| &dispute_currency == currency)
+                                    .unwrap_or(dispute.currency.as_str() == currency.to_string())
+                            })
+                        })
+                    && dispute_constraints.time_range.as_ref().is_none_or(|range| {
+                        let dispute_time = dispute.created_at;
+                        dispute_time >= range.start_time
+                            && range
+                                .end_time
+                                .is_none_or(|end_time| dispute_time <= end_time)
+                    })
+            })
+            .count();
+
+        Ok(i64::try_from(count).unwrap_or(i64::MAX))
     }
 
     async fn update_dispute(
         &self,
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let mut locked_disputes = self.disputes.lock().await;
 
@@ -372,7 +1171,12 @@ impl DisputeInterface for MockDb {
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
+                additional_details,
             } => {
+                if additional_details.is_some() {
+                    dispute_to_update.additional_details = additional_details;
+                }
+
                 if connector_reason.is_some() {
                     dispute_to_update.connector_reason = connector_reason;
                 }
@@ -414,29 +1218,30 @@ impl DisputeInterface for MockDb {
 
     async fn get_dispute_status_with_count(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
         let filtered_disputes_data = locked_disputes
             .iter()
             .filter(|d| {
-                d.merchant_id == *merchant_id
+                (d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    || (d.processor_merchant_id.is_none()
+                        && d.merchant_id == *processor_merchant_id))
                     && d.created_at >= time_range.start_time
                     && time_range
                         .end_time
                         .as_ref()
-                        .map(|received_end_time| received_end_time >= &d.created_at)
-                        .unwrap_or(true)
+                        .is_none_or(|received_end_time| received_end_time >= &d.created_at)
                     && profile_id_list
                         .as_ref()
                         .zip(d.profile_id.as_ref())
-                        .map(|(received_profile_list, received_profile_id)| {
+                        .is_none_or(|(received_profile_list, received_profile_id)| {
                             received_profile_list.contains(received_profile_id)
                         })
-                        .unwrap_or(true)
             })
             .cloned()
             .collect::<Vec<storage::Dispute>>();
@@ -459,18 +1264,19 @@ impl DisputeInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
     mod mockdb_dispute_interface {
         use std::borrow::Cow;
 
         use common_enums::enums::Currency;
-        use common_utils::types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector};
+        use common_utils::types::{
+            keymanager::KeyManagerState, AmountConvertor, MinorUnit, StringMinorUnitForConnector,
+        };
         use diesel_models::{
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
         };
         use hyperswitch_domain_models::disputes::DisputeListConstraints;
-        use masking::Secret;
+        use hyperswitch_masking::Secret;
         use redis_interface::RedisSettings;
         use serde_json::Value;
         use time::macros::datetime;
@@ -499,7 +1305,7 @@ mod tests {
                 dispute_status: DisputeStatus::DisputeOpened,
                 payment_id: dispute_ids.payment_id,
                 attempt_id: dispute_ids.attempt_id,
-                merchant_id: dispute_ids.merchant_id,
+                merchant_id: dispute_ids.merchant_id.clone(),
                 connector_status: "connector_status".into(),
                 connector_dispute_id: dispute_ids.connector_dispute_id,
                 connector_reason: Some("connector_reason".into()),
@@ -508,18 +1314,23 @@ mod tests {
                 connector_created_at: Some(datetime!(2019-01-02 0:00)),
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
-                evidence: Some(Secret::from(Value::String("evidence".into()))),
+                evidence: Secret::from(Value::String("evidence".into())),
                 profile_id: Some(common_utils::generate_profile_id_of_default_length()),
                 merchant_connector_id: None,
                 dispute_amount: MinorUnit::new(1040),
                 organization_id: common_utils::id_type::OrganizationId::default(),
                 dispute_currency: Some(Currency::default()),
+                processor_merchant_id: Some(dispute_ids.merchant_id),
+                created_by: None,
+                additional_details: None,
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
             }
         }
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create a mock DB");
 
@@ -527,16 +1338,19 @@ mod tests {
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
             let created_dispute = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_1".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
-                        "payment_1",
-                    ))
-                    .unwrap(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                            "payment_1",
+                        ))
+                        .unwrap(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
@@ -558,44 +1372,51 @@ mod tests {
             let merchant_id =
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_1".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
-                        "payment_1",
-                    ))
-                    .unwrap(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                            "payment_1",
+                        ))
+                        .unwrap(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let _ = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_2".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
-                        "payment_1",
-                    ))
-                    .unwrap(),
-                    connector_dispute_id: "connector_dispute_2".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_2".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                            "payment_1",
+                        ))
+                        .unwrap(),
+                        connector_dispute_id: "connector_dispute_2".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let found_dispute = mockdb
-                .find_by_merchant_id_payment_id_connector_dispute_id(
+                .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                     &merchant_id,
                     &common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
                         .unwrap(),
                     "connector_dispute_1",
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                 )
                 .await
                 .unwrap();
@@ -613,34 +1434,44 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_1".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: payment_id.clone(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: payment_id.clone(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let _ = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_2".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: payment_id.clone(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_2".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: payment_id.clone(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let found_dispute = mockdb
-                .find_dispute_by_merchant_id_dispute_id(&merchant_id, "dispute_1")
+                .find_dispute_by_processor_merchant_id_dispute_id(
+                    &merchant_id,
+                    "dispute_1",
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
@@ -655,29 +1486,35 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_1".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: payment_id.clone(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: payment_id.clone(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let _ = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_2".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: payment_id.clone(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_2".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: payment_id.clone(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
@@ -691,18 +1528,20 @@ mod tests {
                         connector: None,
                         merchant_connector_id: None,
                         currency: None,
-                        limit: None,
-                        offset: None,
+                        limit: Default::default(),
+                        offset: Default::default(),
                         dispute_status: None,
                         dispute_stage: None,
                         reason: None,
                         time_range: None,
+                        processor_merchant_id: None,
                     },
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                 )
                 .await
                 .unwrap();
 
-            assert_eq!(1, found_disputes.len());
+            assert_eq!(2, found_disputes.len());
 
             assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
@@ -715,38 +1554,48 @@ mod tests {
             let payment_id =
                 common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-            let mockdb = MockDb::new(&RedisSettings::default())
+            let mockdb = MockDb::new(&RedisSettings::default(), KeyManagerState::mock())
                 .await
                 .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_1".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: payment_id.clone(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: payment_id.clone(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let _ = mockdb
-                .insert_dispute(create_dispute_new(DisputeNewIds {
-                    dispute_id: "dispute_2".into(),
-                    attempt_id: "attempt_1".into(),
-                    merchant_id: merchant_id.clone(),
-                    payment_id: payment_id.clone(),
-                    connector_dispute_id: "connector_dispute_1".into(),
-                }))
+                .insert_dispute(
+                    create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_2".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: merchant_id.clone(),
+                        payment_id: payment_id.clone(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }),
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id_payment_id(&merchant_id, &payment_id)
+                .find_disputes_by_processor_merchant_id_payment_id(
+                    &merchant_id,
+                    &payment_id,
+                    diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                )
                 .await
                 .unwrap();
 
-            assert_eq!(1, found_disputes.len());
+            assert_eq!(2, found_disputes.len());
 
             assert_eq!(created_dispute, found_disputes.first().unwrap().clone());
         }
@@ -758,7 +1607,7 @@ mod tests {
                 dispute::DisputeUpdate,
                 enums::{DisputeStage, DisputeStatus},
             };
-            use masking::Secret;
+            use hyperswitch_masking::Secret;
             use serde_json::Value;
             use time::macros::datetime;
 
@@ -778,18 +1627,24 @@ mod tests {
                 let payment_id =
                     common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                    .await
-                    .expect("Failed to create Mock store");
+                let mockdb = MockDb::new(
+                    &redis_interface::RedisSettings::default(),
+                    common_utils::types::keymanager::KeyManagerState::mock(),
+                )
+                .await
+                .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
-                    .insert_dispute(create_dispute_new(DisputeNewIds {
-                        dispute_id: "dispute_1".into(),
-                        attempt_id: "attempt_1".into(),
-                        merchant_id: merchant_id.clone(),
-                        payment_id: payment_id.clone(),
-                        connector_dispute_id: "connector_dispute_1".into(),
-                    }))
+                    .insert_dispute(
+                        create_dispute_new(DisputeNewIds {
+                            dispute_id: "dispute_1".into(),
+                            attempt_id: "attempt_1".into(),
+                            merchant_id: merchant_id.clone(),
+                            payment_id: payment_id.clone(),
+                            connector_dispute_id: "connector_dispute_1".into(),
+                        }),
+                        diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                    )
                     .await
                     .unwrap();
 
@@ -804,7 +1659,9 @@ mod tests {
                             connector_reason_code: Some("updated_connector_reason_code".into()),
                             challenge_required_by: Some(datetime!(2019-01-10 0:00)),
                             connector_updated_at: Some(datetime!(2019-01-11 0:00)),
+                            additional_details: None,
                         },
+                        diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                     )
                     .await
                     .unwrap();
@@ -862,18 +1719,24 @@ mod tests {
                 let payment_id =
                     common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                    .await
-                    .expect("Failed to create Mock store");
+                let mockdb = MockDb::new(
+                    &redis_interface::RedisSettings::default(),
+                    common_utils::types::keymanager::KeyManagerState::mock(),
+                )
+                .await
+                .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
-                    .insert_dispute(create_dispute_new(DisputeNewIds {
-                        dispute_id: "dispute_1".into(),
-                        attempt_id: "attempt_1".into(),
-                        merchant_id: merchant_id.clone(),
-                        payment_id: payment_id.clone(),
-                        connector_dispute_id: "connector_dispute_1".into(),
-                    }))
+                    .insert_dispute(
+                        create_dispute_new(DisputeNewIds {
+                            dispute_id: "dispute_1".into(),
+                            attempt_id: "attempt_1".into(),
+                            merchant_id: merchant_id.clone(),
+                            payment_id: payment_id.clone(),
+                            connector_dispute_id: "connector_dispute_1".into(),
+                        }),
+                        diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                    )
                     .await
                     .unwrap();
 
@@ -884,6 +1747,7 @@ mod tests {
                             dispute_status: DisputeStatus::DisputeExpired,
                             connector_status: Some("updated_connector_status".into()),
                         },
+                        diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                     )
                     .await
                     .unwrap();
@@ -941,18 +1805,24 @@ mod tests {
                 let payment_id =
                     common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
-                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
-                    .await
-                    .expect("Failed to create Mock store");
+                let mockdb = MockDb::new(
+                    &redis_interface::RedisSettings::default(),
+                    common_utils::types::keymanager::KeyManagerState::mock(),
+                )
+                .await
+                .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
-                    .insert_dispute(create_dispute_new(DisputeNewIds {
-                        dispute_id: "dispute_1".into(),
-                        attempt_id: "attempt_1".into(),
-                        merchant_id: merchant_id.clone(),
-                        payment_id: payment_id.clone(),
-                        connector_dispute_id: "connector_dispute_1".into(),
-                    }))
+                    .insert_dispute(
+                        create_dispute_new(DisputeNewIds {
+                            dispute_id: "dispute_1".into(),
+                            attempt_id: "attempt_1".into(),
+                            merchant_id: merchant_id.clone(),
+                            payment_id: payment_id.clone(),
+                            connector_dispute_id: "connector_dispute_1".into(),
+                        }),
+                        diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+                    )
                     .await
                     .unwrap();
 
@@ -962,6 +1832,7 @@ mod tests {
                         DisputeUpdate::EvidenceUpdate {
                             evidence: Secret::from(Value::String("updated_evidence".into())),
                         },
+                        diesel_models::enums::MerchantStorageScheme::PostgresOnly,
                     )
                     .await
                     .unwrap();

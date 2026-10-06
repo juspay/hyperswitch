@@ -10,6 +10,9 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const MESSAGE_SIGNATURE: &str = "Message-Signature";
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
+    pub(crate) const PROFILE_ID: &str = "Profile-Id";
+    pub(crate) const MERCHANTID: &str = "MerchantID";
+    pub(crate) const MERCHANT_TOKEN: &str = "MerchantToken";
     pub(crate) const REQUEST_ID: &str = "request-id";
     pub(crate) const NONCE: &str = "nonce";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
@@ -25,6 +28,7 @@ pub(crate) mod headers {
     pub(crate) const X_REQUEST_DATE: &str = "X-RequestDate";
     pub(crate) const X_VERSION: &str = "X-Version";
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
+    pub(crate) const X_API_VERSION: &str = "x-api-version";
     pub(crate) const CORRELATION_ID: &str = "Correlation-Id";
     pub(crate) const WP_API_VERSION: &str = "WP-Api-Version";
     pub(crate) const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
@@ -34,6 +38,8 @@ pub(crate) mod headers {
     pub(crate) const X_SIGNATURE: &str = "X-Signature";
     pub(crate) const SOAP_ACTION: &str = "SOAPAction";
     pub(crate) const X_PROFILE_ID: &str = "X-Profile-Id";
+    pub(crate) const X_APPLICATION_KEY: &str = "X-Application-Key";
+    pub(crate) const X_MERCHANT_ID: &str = "X-Merchant-Id";
 }
 
 /// Unsupported response type error message
@@ -46,6 +52,8 @@ pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the co
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
 
 pub const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
+
+pub const MISMATCHED_CURRENCY: &str = "Payment Method currency does not match the payment currency";
 
 pub const DUIT_NOW_BRAND_COLOR: &str = "#ED2E67";
 

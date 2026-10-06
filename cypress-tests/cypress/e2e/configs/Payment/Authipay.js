@@ -75,6 +75,9 @@ const payment_method_data = {
   card: {
     last4: "0083",
     card_type: null,
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: null,
     card_issuer: null,
     card_issuing_country: null,
@@ -85,6 +88,7 @@ const payment_method_data = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -93,6 +97,9 @@ const payment_method_data_failed = {
   card: {
     last4: "0002",
     card_type: null,
+    card_subtype: null,
+    card_segment_type: null,
+    funding_source: null,
     card_network: null,
     card_issuer: null,
     card_issuing_country: null,
@@ -103,6 +110,7 @@ const payment_method_data_failed = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -417,6 +425,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -435,6 +444,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -455,6 +465,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -475,6 +486,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -561,11 +573,14 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support zero auth
       },
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -582,7 +597,29 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support MIT
       },
-      Request: {},
+      Request: { amount: 6000 },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Skip if Authipay doesn't support MIT
+      },
+      Request: {
+        amount: 6000,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -596,6 +633,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support MIT
       },
       Request: {
+        amount: 6000,
         billing: null,
       },
       Response: {
@@ -878,6 +916,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support payment method ID mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -899,6 +938,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip if Authipay doesn't support payment method ID mandates
       },
       Request: {
+        amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -922,6 +962,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true, // Skip as requested by user
       },
       Request: {
+        amount: 0,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

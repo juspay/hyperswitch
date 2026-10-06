@@ -6,7 +6,7 @@ use common_utils::{
     },
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{Duration, PrimitiveDateTime};
 
@@ -66,9 +66,9 @@ pub struct GenericLinkNew {
     pub link_id: String,
     pub primary_reference: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expiry: PrimitiveDateTime,

@@ -2,18 +2,22 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
 
 use crate::{
-    errors, gsm::*, query::generics, schema::gateway_status_map::dsl, PgPooledConn, StorageResult,
+    errors, gsm::*, query::generics, schema::gateway_status_map::dsl,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl GatewayStatusMappingNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<GatewayStatusMap> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<GatewayStatusMap> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl GatewayStatusMap {
     pub async fn find(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         connector: String,
         flow: String,
         sub_flow: String,
@@ -33,7 +37,7 @@ impl GatewayStatusMap {
     }
 
     pub async fn retrieve_decision(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         connector: String,
         flow: String,
         sub_flow: String,
@@ -46,7 +50,7 @@ impl GatewayStatusMap {
     }
 
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         connector: String,
         flow: String,
         sub_flow: String,
@@ -79,7 +83,7 @@ impl GatewayStatusMap {
     }
 
     pub async fn delete(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         connector: String,
         flow: String,
         sub_flow: String,

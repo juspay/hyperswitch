@@ -10,14 +10,19 @@ use api_models::{
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     organization::OrganizationBridge,
+    user::UserUpdate,
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
+use router_env::logger;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    db::{
+        domain::role::get_accessible_product_categories,
+        user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    },
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -89,7 +94,8 @@ pub async fn get_authorization_info_with_group_tag(
 pub async fn get_parent_group_info(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<role_api::ParentGroupInfo>> {
+    request: role_api::GetParentGroupsInfoQueryParams,
+) -> UserResponse<Vec<role_api::ParentGroupDescription>> {
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
@@ -102,24 +108,46 @@ pub async fn get_parent_group_info(
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
-    let parent_groups = ParentGroup::get_descriptions_for_groups(
-        role_info.get_entity_type(),
-        PermissionGroup::iter().collect(),
-    )
-    .unwrap_or_default()
-    .into_iter()
-    .map(|(parent_group, description)| role_api::ParentGroupInfo {
-        name: parent_group.clone(),
-        description,
-        scopes: PermissionGroup::iter()
-            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-            // TODO: Remove this hashset conversion when merhant access
-            // and organization access groups are removed
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect(),
-    })
-    .collect::<Vec<_>>();
+    let entity_type = request
+        .entity_type
+        .unwrap_or_else(|| role_info.get_entity_type());
+
+    if role_info.get_entity_type() < entity_type {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "Invalid operation, requestor entity type = {} cannot access entity type = {}",
+            role_info.get_entity_type(),
+            entity_type
+        ));
+    }
+
+    let permission_groups = if let Some(product_type) = request.product_type {
+        let accessible_product_categories = get_accessible_product_categories(product_type);
+        PermissionGroup::iter()
+            .filter(|group| {
+                accessible_product_categories.contains(&group.get_role_product_category())
+            })
+            .collect()
+    } else {
+        PermissionGroup::iter().collect()
+    };
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(entity_type, permission_groups)
+        .unwrap_or_default()
+        .into_iter()
+        .map(
+            |(parent_group, description)| role_api::ParentGroupDescription {
+                name: parent_group.clone(),
+                description,
+                scopes: PermissionGroup::iter()
+                    .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+                    // TODO: Remove this hashset conversion when merchant access
+                    // and organization access groups are removed
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect(),
+            },
+        )
+        .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(parent_groups))
 }
@@ -149,11 +177,13 @@ pub async fn update_user_role(
             .attach_printable(format!("User role cannot be updated to {}", req.role_id));
     }
 
-    let user_to_be_updated =
-        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleOperation)
-            .attach_printable("User not found in our records".to_string())?;
+    let user_to_be_updated = utils::user::get_active_user_from_db_by_email(
+        &state,
+        domain::UserEmail::try_from(req.email)?,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleOperation)
+    .attach_printable("User not found in our records".to_string())?;
 
     if user_from_token.user_id == user_to_be_updated.get_user_id() {
         return Err(report!(UserErrors::InvalidRoleOperation))
@@ -471,7 +501,7 @@ pub async fn accept_invitations_pre_auth(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(user_token.user_id.as_str())
+        .find_active_user_by_user_id(user_token.user_id.as_str())
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -494,10 +524,10 @@ pub async fn delete_user_role(
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
     _req_state: ReqState,
-) -> UserResponse<()> {
+) -> UserResponse<user_role_api::DeleteUserRoleResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
+        .find_active_user_by_user_email(&domain::UserEmail::from_pii_email(request.email)?)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -526,7 +556,7 @@ pub async fn delete_user_role(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
-    let mut user_role_deleted_flag = false;
+    let mut deleted_user_role_info: Option<roles::RoleInfo> = None;
 
     // Find in V2
     let user_role_v2 = match state
@@ -584,7 +614,7 @@ pub async fn delete_user_role(
             ));
         }
 
-        user_role_deleted_flag = true;
+        deleted_user_role_info = Some(target_role_info.clone());
         state
             .global_store
             .delete_user_role_by_user_id_and_lineage(
@@ -659,7 +689,9 @@ pub async fn delete_user_role(
             ));
         }
 
-        user_role_deleted_flag = true;
+        if deleted_user_role_info.is_none() {
+            deleted_user_role_info = Some(target_role_info.clone());
+        }
         state
             .global_store
             .delete_user_role_by_user_id_and_lineage(
@@ -678,10 +710,35 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?;
     }
 
-    if !user_role_deleted_flag {
-        return Err(report!(UserErrors::InvalidDeleteOperation))
-            .attach_printable("User is not associated with the merchant");
-    }
+    let is_email_sent = {
+        #[cfg(feature = "email")]
+        {
+            let Some(deleted_user_role_info) = deleted_user_role_info else {
+                return Err(report!(UserErrors::InvalidDeleteOperation))
+                    .attach_printable("User is not associated with the merchant");
+            };
+            utils::user_role::send_role_deletion_email_using_db(
+                &state,
+                &user_from_db,
+                &deleted_user_role_info,
+                &user_from_token,
+            )
+            .await
+            .map_err(|err| {
+                logger::error!("Failed to send role deletion email: {}", err);
+                err
+            })
+            .is_ok()
+        }
+        #[cfg(not(feature = "email"))]
+        {
+            if deleted_user_role_info.is_none() {
+                return Err(report!(UserErrors::InvalidDeleteOperation))
+                    .attach_printable("User is not associated with the merchant");
+            };
+            false
+        }
+    };
 
     // Check if user has any more role associations
     let remaining_roles = state
@@ -706,16 +763,26 @@ pub async fn delete_user_role(
 
     // If user has no more role associated with him then deleting user
     if remaining_roles.is_empty() {
+        let _ = state
+            .store
+            .delete_all_metadata_by_user_id(user_from_db.get_user_id())
+            .await
+            .inspect_err(|e| {
+                logger::error!("Error while deleting user metadata: {}", e);
+            });
+
         state
             .global_store
-            .delete_user_by_user_id(user_from_db.get_user_id())
+            .update_active_user_by_user_id(user_from_db.get_user_id(), UserUpdate::DeactivateUpdate)
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user entry")?;
     }
 
     auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        user_role_api::DeleteUserRoleResponse { is_email_sent },
+    ))
 }
 
 pub async fn list_users_in_lineage(
@@ -751,6 +818,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -793,6 +861,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -812,6 +881,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -831,6 +901,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(&user_from_token.profile_id),
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -852,7 +923,7 @@ pub async fn list_users_in_lineage(
 
     let mut email_map = state
         .global_store
-        .find_users_by_user_ids(
+        .find_active_users_by_user_ids(
             user_roles_set
                 .iter()
                 .map(|user_role| user_role.user_id.clone())
@@ -1009,11 +1080,9 @@ pub async fn list_invitations_for_user(
     .into_iter()
     .collect::<HashMap<_, _>>();
 
-    let key_manager_state = &(&state).into();
-
     let merchant_name_map = state
         .store
-        .list_multiple_merchant_accounts(key_manager_state, merchant_ids)
+        .list_multiple_merchant_accounts(merchant_ids)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
@@ -1033,17 +1102,13 @@ pub async fn list_invitations_for_user(
         |(profile_id, merchant_id)| async {
             let merchant_key_store = state
                 .store
-                .get_merchant_key_store_by_merchant_id(key_manager_state, merchant_id, master_key)
+                .get_merchant_key_store_by_merchant_id(merchant_id, master_key)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
             let business_profile = state
                 .store
-                .find_business_profile_by_profile_id(
-                    key_manager_state,
-                    &merchant_key_store,
-                    profile_id,
-                )
+                .find_business_profile_by_profile_id(&merchant_key_store, profile_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 

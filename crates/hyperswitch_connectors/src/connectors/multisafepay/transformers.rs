@@ -5,7 +5,9 @@ use common_utils::{
     request::Method,
     types::{FloatMajorUnit, MinorUnit},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{BankRedirectData, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -19,7 +21,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -278,139 +280,9 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             BankNames::VanLanschot => Ok(Self::VanLanschot),
             BankNames::Yoursafe => Ok(Self::Yoursafe),
             BankNames::Handelsbanken => Ok(Self::Handelsbanken),
-            BankNames::AmericanExpress
-            | BankNames::AffinBank
-            | BankNames::AgroBank
-            | BankNames::AllianceBank
-            | BankNames::AmBank
-            | BankNames::BankOfAmerica
-            | BankNames::BankOfChina
-            | BankNames::BankIslam
-            | BankNames::BankMuamalat
-            | BankNames::BankRakyat
-            | BankNames::BankSimpananNasional
-            | BankNames::Barclays
-            | BankNames::BlikPSP
-            | BankNames::CapitalOne
-            | BankNames::Chase
-            | BankNames::Citi
-            | BankNames::CimbBank
-            | BankNames::Discover
-            | BankNames::NavyFederalCreditUnion
-            | BankNames::PentagonFederalCreditUnion
-            | BankNames::SynchronyBank
-            | BankNames::WellsFargo
-            | BankNames::HongLeongBank
-            | BankNames::HsbcBank
-            | BankNames::KuwaitFinanceHouse
-            | BankNames::Moneyou
-            | BankNames::ArzteUndApothekerBank
-            | BankNames::AustrianAnadiBankAg
-            | BankNames::BankAustria
-            | BankNames::Bank99Ag
-            | BankNames::BankhausCarlSpangler
-            | BankNames::BankhausSchelhammerUndSchatteraAg
-            | BankNames::BankMillennium
-            | BankNames::BankPEKAOSA
-            | BankNames::BawagPskAg
-            | BankNames::BksBankAg
-            | BankNames::BrullKallmusBankAg
-            | BankNames::BtvVierLanderBank
-            | BankNames::CapitalBankGraweGruppeAg
-            | BankNames::CeskaSporitelna
-            | BankNames::Dolomitenbank
-            | BankNames::EasybankAg
-            | BankNames::EPlatbyVUB
-            | BankNames::ErsteBankUndSparkassen
-            | BankNames::FrieslandBank
-            | BankNames::HypoAlpeadriabankInternationalAg
-            | BankNames::HypoNoeLbFurNiederosterreichUWien
-            | BankNames::HypoOberosterreichSalzburgSteiermark
-            | BankNames::HypoTirolBankAg
-            | BankNames::HypoVorarlbergBankAg
-            | BankNames::HypoBankBurgenlandAktiengesellschaft
-            | BankNames::KomercniBanka
-            | BankNames::MBank
-            | BankNames::MarchfelderBank
-            | BankNames::Maybank
-            | BankNames::OberbankAg
-            | BankNames::OsterreichischeArzteUndApothekerbank
-            | BankNames::OcbcBank
-            | BankNames::PayWithING
-            | BankNames::PlaceZIPKO
-            | BankNames::PlatnoscOnlineKartaPlatnicza
-            | BankNames::PosojilnicaBankEGen
-            | BankNames::PostovaBanka
-            | BankNames::PublicBank
-            | BankNames::RaiffeisenBankengruppeOsterreich
-            | BankNames::RhbBank
-            | BankNames::SchelhammerCapitalBankAg
-            | BankNames::StandardCharteredBank
-            | BankNames::SchoellerbankAg
-            | BankNames::SpardaBankWien
-            | BankNames::SporoPay
-            | BankNames::SantanderPrzelew24
-            | BankNames::TatraPay
-            | BankNames::Viamo
-            | BankNames::VolksbankGruppe
-            | BankNames::VolkskreditbankAg
-            | BankNames::VrBankBraunau
-            | BankNames::UobBank
-            | BankNames::PayWithAliorBank
-            | BankNames::BankiSpoldzielcze
-            | BankNames::PayWithInteligo
-            | BankNames::BNPParibasPoland
-            | BankNames::BankNowySA
-            | BankNames::CreditAgricole
-            | BankNames::PayWithBOS
-            | BankNames::PayWithCitiHandlowy
-            | BankNames::PayWithPlusBank
-            | BankNames::ToyotaBank
-            | BankNames::VeloBank
-            | BankNames::ETransferPocztowy24
-            | BankNames::PlusBank
-            | BankNames::EtransferPocztowy24
-            | BankNames::BankiSpbdzielcze
-            | BankNames::BankNowyBfgSa
-            | BankNames::GetinBank
-            | BankNames::Blik
-            | BankNames::NoblePay
-            | BankNames::IdeaBank
-            | BankNames::EnveloBank
-            | BankNames::NestPrzelew
-            | BankNames::MbankMtransfer
-            | BankNames::Inteligo
-            | BankNames::PbacZIpko
-            | BankNames::BnpParibas
-            | BankNames::BankPekaoSa
-            | BankNames::VolkswagenBank
-            | BankNames::AliorBank
-            | BankNames::Boz
-            | BankNames::BangkokBank
-            | BankNames::KrungsriBank
-            | BankNames::KrungThaiBank
-            | BankNames::TheSiamCommercialBank
-            | BankNames::KasikornBank
-            | BankNames::OpenBankSuccess
-            | BankNames::OpenBankFailure
-            | BankNames::OpenBankCancelled
-            | BankNames::Aib
-            | BankNames::BankOfScotland
-            | BankNames::DanskeBank
-            | BankNames::FirstDirect
-            | BankNames::FirstTrust
-            | BankNames::Halifax
-            | BankNames::Lloyds
-            | BankNames::Monzo
-            | BankNames::NatWest
-            | BankNames::NationwideBank
-            | BankNames::RoyalBankOfScotland
-            | BankNames::Starling
-            | BankNames::TsbBank
-            | BankNames::TescoBank
-            | BankNames::UlsterBank => Err(Into::into(errors::ConnectorError::NotSupported {
+            _ => Err(Into::into(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
-                connector: "Multisafepay",
+                connector: "Multisafepay".into(),
             })),
         }
     }
@@ -498,6 +370,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::DinersClub
             | utils::CardIssuer::JCB
             | utils::CardIssuer::CarteBlanche
+            | utils::CardIssuer::UnionPay
             | utils::CardIssuer::CartesBancaires => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Multisafe pay"),
             )
@@ -524,9 +397,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::MbWayRedirect(_) => Type::Redirect,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -571,7 +447,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
-                | BankRedirectData::LocalBankRedirect {} => {
+                | BankRedirectData::LocalBankRedirect {}
+                | BankRedirectData::OpenBanking { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("multisafepay"),
                     ))?
@@ -593,9 +470,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::MbWayRedirect(_) => Gateway::MbWay,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -640,7 +520,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
-                | BankRedirectData::LocalBankRedirect {} => {
+                | BankRedirectData::LocalBankRedirect {}
+                | BankRedirectData::OpenBanking { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("multisafepay"),
                     ))?
@@ -662,7 +543,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?
@@ -746,7 +632,13 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
                         GpayInfo {
                             payment_token: Some(Secret::new(
-                                google_pay.tokenization_data.token.clone(),
+                                google_pay
+                                    .tokenization_data
+                                    .get_encrypted_google_pay_token()
+                                    .change_context(errors::ConnectorError::MissingRequiredField {
+                                        field_name: "google_pay_token".into(),
+                                    })?
+                                    .clone(),
                             )),
                         }
                     })))
@@ -763,9 +655,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
                 | WalletData::AmazonPayRedirect(_)
                 | WalletData::Paysera(_)
                 | WalletData::Skrill(_)
+                | WalletData::Neteller(_)
+                | WalletData::BluecodeRedirect {}
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -797,12 +692,14 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         PayLaterData::KlarnaRedirect {} => item.router_data.get_billing_email()?,
                         PayLaterData::KlarnaSdk { token: _ }
                         | PayLaterData::AffirmRedirect {}
+                        | PayLaterData::FlexitiRedirect {}
                         | PayLaterData::AfterpayClearpayRedirect {}
                         | PayLaterData::PayBrightRedirect {}
                         | PayLaterData::WalleyRedirect {}
                         | PayLaterData::AlmaRedirect {}
                         | PayLaterData::AtomeRedirect {}
-                        | PayLaterData::BreadpayRedirect {} => {
+                        | PayLaterData::BreadpayRedirect {}
+                        | PayLaterData::PayjustnowRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",
@@ -817,7 +714,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                     BankRedirectInfo::Ideal(IdealInfo {
                         issuer_id: MultisafepayBankNames::try_from(&bank_name.ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "ideal.bank_name",
+                                field_name: "ideal.bank_name".into(),
                             },
                         )?)?,
                     }),
@@ -845,7 +742,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
-                | BankRedirectData::LocalBankRedirect {} => None,
+                | BankRedirectData::LocalBankRedirect {}
+                | BankRedirectData::OpenBanking { .. } => None,
             },
             PaymentMethodData::MandatePayment => None,
             PaymentMethodData::CardRedirect(_)
@@ -861,7 +759,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?
@@ -894,7 +797,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 .mandate_id
                 .clone()
                 .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
-                    Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    Some(mandates::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_ids,
                     )) => connector_mandate_ids
                         .get_connector_mandate_id()
@@ -1055,11 +958,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                             ),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 payment_response.data.order_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         })
                     },
                     ..item.data
@@ -1097,9 +1003,11 @@ pub fn populate_error_reason(
         status_code: http_code,
         attempt_status,
         connector_transaction_id,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        connector_metadata: None,
     }
 }
 // REFUND :
@@ -1205,9 +1113,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, MultisafepayRefundResponse>>
                         status_code: item.http_code,
                         attempt_status,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        connector_metadata: None,
                     }),
                     ..item.data
                 })

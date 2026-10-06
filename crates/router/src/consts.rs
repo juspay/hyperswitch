@@ -1,11 +1,12 @@
+pub mod oidc;
 pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr, sync};
 
 use api_models::enums::Country;
-use common_utils::consts;
+use common_utils::{consts, id_type};
 pub use hyperswitch_domain_models::consts::{
     CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
     ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
@@ -25,8 +26,6 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
-pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
-pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
@@ -41,6 +40,8 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
 
 pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
+
+pub const MULTIPART_MEMORY_LIMIT: usize = 6 * 1024 * 1024;
 
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
@@ -61,6 +62,7 @@ pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+pub const JWT_EMBEDDED_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 3; // 3 hours
 
 // This should be one day, but it is causing issue while checking token in blacklist.
 // TODO: This should be fixed in future.
@@ -91,6 +93,8 @@ pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLO
 
 pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
+pub const GUEST_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_IP_BLOCKING";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
@@ -112,6 +116,9 @@ pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
 pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+pub const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
+pub const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
+pub const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 
@@ -120,6 +127,15 @@ pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";
 
 // 15 minutes = 900 seconds
 pub const POLL_ID_TTL: i64 = 900;
+
+// 15 minutes = 900 seconds
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
+
+// TTL for external surcharge details stored in Redis (15 minutes)
+pub const EXTERNAL_SURCHARGE_TTL: i64 = 900;
+
+// Prefix key for storing authentication eligibility check data in redis
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
 
 // Default Poll Config
 pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
@@ -157,10 +173,6 @@ pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 /// [PaymentLink] Default bool for enabling button only when form is ready
 pub const DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY: bool = false;
 
-/// Default Merchant Logo Link
-pub const DEFAULT_MERCHANT_LOGO: &str =
-    "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
-
 /// Default Payment Link Background color
 pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 
@@ -168,44 +180,51 @@ pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 pub const DEFAULT_PRODUCT_IMG: &str =
     "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
 
+/// Show merchant name by default for payment links
+pub const DEFAULT_SHOW_MERCHANT_NAME: bool = true;
+
 /// Default SDK Layout
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
-#[cfg(feature = "v2")]
-pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
+pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
-#[cfg(feature = "v2")]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
+pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
-#[cfg(feature = "v2")]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
+pub const V2_VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
-#[cfg(feature = "v2")]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
+pub const V2_VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
-#[cfg(feature = "v2")]
-pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
+pub const V2_VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
+
+/// Header asking the vault for a plain (unencrypted) fingerprint response; the vault echoes it
+/// when honoured
+pub const V2_VAULT_FP_RESPONSE_ENCODING_HEADER: &str = "x-fp-response-encoding";
+
+/// `x-fp-response-encoding` value for a plain JSON response
+pub const V2_VAULT_FP_RESPONSE_ENCODING_PLAIN: &str = "plain";
 
 /// Vault Add flow type
-#[cfg(feature = "v2")]
-pub const VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
+pub const V2_VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
 
 /// Vault Retrieve flow type
-#[cfg(feature = "v2")]
-pub const VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
+pub const V2_VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
 
 /// Vault Delete flow type
-#[cfg(feature = "v2")]
-pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
+pub const V2_VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 
 /// Vault Fingerprint fetch flow type
-#[cfg(feature = "v2")]
-pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+pub const V2_VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+
+/// Locker entity create request url
+pub const LOCKER_ENTITY_CREATE_REQUEST_URL: &str = "/entity";
+
+/// Locker entity create flow type
+pub const LOCKER_ENTITY_CREATE_FLOW_TYPE: &str = "create_entity";
 
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
@@ -216,6 +235,15 @@ pub const CLICK_TO_PAY: &str = "click_to_pay";
 /// Merchant eligible for authentication service config
 pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
     "merchants_eligible_for_authentication_service";
+
+/// Payment flow identifier used for performing GSM operations
+pub const PAYMENT_FLOW_STR: &str = "Payment";
+
+/// Redis key prefix for client session storage
+pub(crate) const CLIENT_SESSION_KEY_PREFIX: &str = "client_session";
+
+/// Default subflow identifier used for performing GSM operations
+pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
@@ -265,6 +293,11 @@ pub(crate) const PROTOCOL: &str = "ECv2";
 /// Sender ID for Google Pay Decryption
 pub(crate) const SENDER_ID: &[u8] = b"Google";
 
+/// Prefix of the recipient identifier Google signs a gateway tokenized card against, i.e.
+/// `gateway:<gateway id>`. Used by the `INTERNAL_GATEWAY` google pay flow, which derives the
+/// recipient from configuration instead of taking it from the merchant.
+pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
@@ -274,11 +307,22 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
+pub static PROFILE_ID_UNAVAILABLE: sync::LazyLock<id_type::ProfileId> = sync::LazyLock::new(|| {
+    #[allow(clippy::expect_used)]
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAILABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAILABLE")
+});
+
+/// Default payment attempt id
+pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
+    "irrelevant_connector_request_reference_id";
+
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
-// List of countries that are part of the PSD2 region
-pub const PSD2_COUNTRIES: [Country; 27] = [
+// Countries and separately encoded territories where PSD2 or the equivalent UK
+// strong customer authentication rules apply.
+pub const SCA_MANDATED_COUNTRIES: [Country; 39] = [
     Country::Austria,
     Country::Belgium,
     Country::Bulgaria,
@@ -306,13 +350,41 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Slovenia,
     Country::Spain,
     Country::Sweden,
+    // EEA/EFTA states where PSD2 applies
+    Country::Iceland,
+    Country::Liechtenstein,
+    Country::Norway,
+    // EU territories represented separately by the Country enum
+    Country::AlandIslands,
+    Country::FrenchGuiana,
+    Country::Guadeloupe,
+    Country::Martinique,
+    Country::Mayotte,
+    Country::Reunion,
+    Country::SaintMartinFrenchpart,
+    // Jurisdictions covered by the equivalent UK SCA regime
+    Country::UnitedKingdomOfGreatBritainAndNorthernIreland,
+    Country::Gibraltar,
 ];
 
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 
+// Sentinel value cached when a rollout config key is absent, so subsequent lookups
+// skip the DB entirely instead of hitting it on every cache miss.
+pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
+
+// Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
+pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
+
+// Lifetime of a trip, in seconds. A trip is meant to be cleared by an operator, but
+// `redis_interface` has no setter that writes a key without an expiry, so it is spelled as a
+// bound rather than left open. A week outlives a long weekend; a still-broken scope trips again
+// on its next request.
+pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
 
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
@@ -322,3 +394,172 @@ pub const UCS_AUTH_BODY_KEY: &str = "body-key";
 
 /// Header value indicating that header-key-based authentication is used.
 pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
+
+/// Header value indicating that multi-key-based authentication is used.
+pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
+
+/// Header value indicating that currency-auth-key-based authentication is used.
+pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
+
+/// Header value indicating that no credentials are required (e.g. external-3DS
+/// over VGS where mTLS is handled on the outbound proxy route, not by UCS).
+pub const UCS_AUTH_NO_KEY: &str = "no-key";
+
+/// Form field name for challenge request during creq submission
+pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
+
+/// `RedirectForm::Form.form_fields` keys UCS's Netcetera integration uses to carry 3DS Method
+/// (DDC) data — there's no typed proto slot for it, so connector-service stuffs it into the same
+/// generic form-fields map used for the challenge (see its `netcetera/transformers.rs`, the
+/// `form_fields.insert("threeDsMethodData"/"threeDsMethodUrl", ...)` call).
+pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
+pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
+
+/// Superposition configuration keys
+pub mod superposition {
+    /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
+    pub const OFFER_ENGINE_ENABLED: &str = "offer_engine.enabled";
+    /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config, `"merchant"` uses per-merchant credentials.
+    pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine.credential_source";
+    /// Merchant integration type key: `"client"` (default), `"server"` or `"client_and_server"`. The `X-Integration-Type` header on payment requests must match it.
+    pub const MERCHANT_INTEGRATION_TYPE: &str = "system.payment_integration_type";
+    /// Account Updater master gate key: `false` (default) disables all Account Updater calls.
+    pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater.enabled";
+    /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses the static application config.
+    pub const ACCOUNT_UPDATER_CREDENTIAL_SOURCE: &str = "account_updater.credential_source";
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "payments.requires_cvv";
+    /// implicit customer update configuration key
+    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Organization-scoped block implicit customer creation configuration key
+    pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
+    /// Fingerprint secret configuration key retained for migration fallback
+    pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
+    /// Poll config for external 3DS authentication key
+    pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "payments.poll_config_external_three_ds";
+    /// Outgoing webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "process_tracker.pt_mapping_outgoing_webhooks";
+    /// Outgoing connector webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_CONNECTOR_WEBHOOKS: &str =
+        "pt_mapping_outgoing_connector_webhooks";
+    /// PCR (Revenue Recovery) payments retry process tracker mapping key
+    pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
+    /// Static ladder process tracker mapping used by the adaptive revenue recovery retry
+    /// algorithm, kept separate from the cascading ladder so the two can be tuned independently
+    pub const PT_MAPPING_ADAPTIVE_RETRIES: &str = "process_tracker.pt_mapping_adaptive_retries";
+    /// Revenue Recovery retry-stats key. Enables recording of retry outcome stats
+    pub const REVREC_RETRY_STATS_ENABLED: &str = "revenue_recovery.retry_stats.enabled";
+    /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
+    /// the smart algorithm — replaces the decider-based smart retry implementation
+    pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether A/B routing decides which retry implementation an invoice runs.
+    pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
+    /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.
+    pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
+    /// Days from the first attempt during which an invoice may still be retried
+    pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
+    /// Total retries an invoice is allowed across its whole recovery lifecycle
+    pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
+    /// Payment sync (psync) retry process tracker mapping key
+    pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
+    /// Refund sync retry process tracker mapping key
+    pub const PT_MAPPING_REFUND_SYNC: &str = "process_tracker.pt_mapping_refund_sync";
+    /// Dispute sync retry process tracker mapping key
+    pub const PT_MAPPING_DISPUTE_SYNC: &str = "process_tracker.pt_mapping_dispute_sync";
+    /// GSM (Global Status Map) call configuration key
+    pub const SHOULD_CALL_GSM: &str = "payments.should_call_gsm";
+    /// Eligibility check configuration key
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "payments.should_perform_eligibility";
+    /// MIT with limited card data configuration key
+    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
+        "payments.should_enable_mit_with_limited_card_data";
+    /// Store eligibility check data for authentication configuration key
+    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
+        "payments.should_store_eligibility_check_data_for_authentication";
+    /// Extended card BIN configuration key
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
+    /// Max auto payout retries configuration key
+    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
+    pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
+    /// Disable vault tokenization configuration key
+    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str =
+        "vaulting.should_disable_vault_tokenization";
+    /// Authentication service eligibility configuration key (org and merchant scoped, org takes precedence)
+    pub const SHOULD_ENABLE_AUTHENTICATION_SERVICE: &str =
+        "system.should_enable_authentication_service";
+    /// Return raw payment method details configuration key
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "payments.should_return_raw_payment_method_details";
+    /// Call PM modular service configuration key
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "system.should_call_pm_modular_service";
+    /// Schedule PM modular forward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
+        "system.should_schedule_modular_forward_compat";
+    /// Schedule PM modular backward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT: &str =
+        "system.should_schedule_modular_backward_compat";
+    /// Trigger PM modular backward compatibility inline configuration key
+    pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
+        "system.should_trigger_backwards_compatibility_inline";
+    /// Payment method integration type configuration key
+    pub const PAYMENT_METHOD_INTEGRATION_TYPE: &str = "system.payment_method_integration_type";
+    /// Trigger fingerprint migration configuration key
+    pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
+        "vaulting.should_trigger_fingerprint_migration";
+    /// Timeout (in seconds) for fetching a network token from the tokenization service during a
+    /// payment configuration key
+    pub const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: &str =
+        "payments.network_token_fetch_timeout_in_secs";
+    /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
+    /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
+    /// `false` for specific merchants to force the SDK to skip tokenization.
+    pub const SHOULD_PERFORM_SDK_VAULTING: &str = "vaulting.should_perform_sdk_vaulting";
+    /// dynamic fields configuration key for sdk config
+    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
+    /// payout sync tracker configuration key
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payouts.payout_tracker_mapping";
+    /// client session validation enabled configuration key
+    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
+    pub const ROUTING_RESULT_SOURCE: &str = "routing.routing_result_source";
+    /// 3DS routing region configuration key for UAS
+    pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
+    /// disabled webhook events configuration key per merchant and connector
+    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// save wallet decrypted data in locker
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// checkout sdk configuration
+    pub const CHECKOUT_SDK: &str = "checkout_sdk";
+    /// Pre-FRM failure handling mode
+    pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
+    /// Payout FRM call configuration key
+    pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Maximum number of card issuers a list request reads
+    pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
+    /// Preferred-connector routing enablement configuration key per profile
+    pub const PREFERRED_CONNECTORS_ROUTING_ENABLED: &str =
+        "routing.preferred_connectors_routing_enabled";
+    /// Payment method types eligible for preferred-connectors routing (comma-separated)
+    pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
+        "routing.preferred_connectors_enabled_payment_method_types";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
+    /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
+    /// and payment method type). When enabled, a connector-reported payment amount that differs
+    /// from the requested amount does not fail the integrity check. Refunds are not affected.
+    pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
+}
+
+/// The value substituted for sensitive webhook header values in event retrieval responses.
+pub const REDACTED_HEADER_VALUE: &str = "*** ***";
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_profile_id_unavailable_initialization() {
+        // Just access the lazy static to ensure it doesn't panic during initialization
+        let _profile_id = super::PROFILE_ID_UNAVAILABLE.clone();
+        // If we get here without panicking, the test passes
+    }
+}

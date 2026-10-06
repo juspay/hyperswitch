@@ -19,13 +19,29 @@ pub async fn link_token_create(
     let flow = Flow::PmAuthLinkTokenCreate;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
-        req.headers(),
-        &payload,
-        api_auth,
-    ) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
+    let (auth, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match crate::services::authentication::check_sdk_auth_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match crate::services::authentication::check_client_secret_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
     };
 
     let header_payload =
@@ -41,13 +57,14 @@ pub async fn link_token_create(
         state,
         &req,
         payload,
-        |state, auth, payload, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut payload, _| {
+            #[cfg(feature = "v1")]
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
+            }
             crate::core::pm_auth::create_link_token(
                 state,
-                merchant_context,
+                auth.platform,
                 payload,
                 Some(header_payload.clone()),
             )
@@ -68,24 +85,41 @@ pub async fn exchange_token(
     let flow = Flow::PmAuthExchangeToken;
     let api_auth = auth::ApiKeyAuth::default();
 
-    let (auth, _) = match crate::services::authentication::check_client_secret_and_get_auth(
-        req.headers(),
-        &payload,
-        api_auth,
-    ) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
+    let (auth, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match crate::services::authentication::check_sdk_auth_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match crate::services::authentication::check_client_secret_and_get_auth(
+                req.headers(),
+                &payload,
+                api_auth,
+            ) {
+                Ok((auth, _auth_flow)) => (auth, _auth_flow),
+                Err(e) => return api::log_and_return_error_response(e),
+            }
+        }
     };
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, payload, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            crate::core::pm_auth::exchange_token_core(state, merchant_context, payload)
+        |state, auth, mut payload, _| {
+            #[cfg(feature = "v1")]
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
+            }
+            crate::core::pm_auth::exchange_token_core(state, auth.platform, payload)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

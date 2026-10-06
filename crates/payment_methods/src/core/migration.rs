@@ -1,10 +1,11 @@
 use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
+use common_utils::id_type;
 use csv::Reader;
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::{api, merchant_context};
-use masking::PeekInterface;
+use hyperswitch_domain_models::{api, platform};
+use hyperswitch_masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
@@ -22,9 +23,9 @@ type PmMigrationResult<T> =
 pub async fn migrate_payment_methods(
     state: &state::PaymentMethodsState,
     payment_methods: Vec<pm_api::PaymentMethodRecord>,
-    merchant_id: &common_utils::id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
-    mca_ids: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+    merchant_id: &id_type::MerchantId,
+    platform: &platform::Platform,
+    mca_ids: Option<Vec<id_type::MerchantConnectorAccountId>>,
     controller: &dyn pm::PaymentMethodsController,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::with_capacity(payment_methods.len());
@@ -46,7 +47,7 @@ pub async fn migrate_payment_methods(
                     state,
                     migrate_request,
                     merchant_id,
-                    merchant_context,
+                    platform,
                     controller,
                 )
                 .await;
@@ -69,21 +70,19 @@ pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
     pub file: bytes::Bytes,
 
-    pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
+    pub merchant_id: text::Text<id_type::MerchantId>,
 
-    pub merchant_connector_id:
-        Option<text::Text<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub merchant_connector_id: Option<text::Text<id_type::MerchantConnectorAccountId>>,
 
     pub merchant_connector_ids: Option<text::Text<String>>,
 }
 
-struct MerchantConnectorValidator;
+pub struct MerchantConnectorValidator;
 
 impl MerchantConnectorValidator {
-    fn parse_comma_separated_ids(
+    pub fn parse_comma_separated_ids(
         ids_string: &str,
-    ) -> Result<Vec<common_utils::id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse>
-    {
+    ) -> Result<Vec<id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse> {
         // Estimate capacity based on comma count
         let capacity = ids_string.matches(',').count() + 1;
         let mut result = Vec::with_capacity(capacity);
@@ -91,11 +90,10 @@ impl MerchantConnectorValidator {
         for id in ids_string.split(',') {
             let trimmed_id = id.trim();
             if !trimmed_id.is_empty() {
-                let mca_id =
-                    common_utils::id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
-                        .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
-                            message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
-                        })?;
+                let mca_id = id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
+                    .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
+                    })?;
                 result.push(mca_id);
             }
         }
@@ -142,9 +140,9 @@ impl MerchantConnectorValidator {
 
 type MigrationValidationResult = Result<
     (
-        common_utils::id_type::MerchantId,
+        id_type::MerchantId,
         Vec<pm_api::PaymentMethodRecord>,
-        Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        Option<Vec<id_type::MerchantConnectorAccountId>>,
     ),
     errors::ApiErrorResponse,
 >;
@@ -218,15 +216,15 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodRecord>> {
 
 #[instrument(skip_all)]
 pub fn validate_card_expiry(
-    card_exp_month: &masking::Secret<String>,
-    card_exp_year: &masking::Secret<String>,
+    card_exp_month: &hyperswitch_masking::Secret<String>,
+    card_exp_year: &hyperswitch_masking::Secret<String>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     let exp_month = card_exp_month
         .peek()
         .to_string()
         .parse::<u8>()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "card_exp_month",
+            field_name: "card_exp_month".into(),
         })?;
     ::cards::CardExpirationMonth::try_from(exp_month).change_context(
         errors::ApiErrorResponse::PreconditionFailed {
@@ -264,6 +262,7 @@ fn validate_card_exp_year(year: String) -> Result<(), errors::ValidationError> {
 #[derive(Debug)]
 pub struct RecordMigrationStatus {
     pub card_migrated: Option<bool>,
+    pub payment_method_migrated: Option<bool>,
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_migrated: Option<bool>,
@@ -272,6 +271,7 @@ pub struct RecordMigrationStatus {
 #[derive(Debug)]
 pub struct RecordMigrationStatusBuilder {
     pub card_migrated: Option<bool>,
+    pub payment_method_migrated: Option<bool>,
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_migrated: Option<bool>,
@@ -281,6 +281,7 @@ impl RecordMigrationStatusBuilder {
     pub fn new() -> Self {
         Self {
             card_migrated: None,
+            payment_method_migrated: None,
             network_token_migrated: None,
             connector_mandate_details_migrated: None,
             network_transaction_migrated: None,
@@ -289,6 +290,10 @@ impl RecordMigrationStatusBuilder {
 
     pub fn card_migrated(&mut self, card_migrated: bool) {
         self.card_migrated = Some(card_migrated);
+    }
+
+    pub fn payment_method_migrated(&mut self, payment_method_migrated: bool) {
+        self.payment_method_migrated = Some(payment_method_migrated);
     }
 
     pub fn network_token_migrated(&mut self, network_token_migrated: Option<bool>) {
@@ -309,6 +314,7 @@ impl RecordMigrationStatusBuilder {
     pub fn build(self) -> RecordMigrationStatus {
         RecordMigrationStatus {
             card_migrated: self.card_migrated,
+            payment_method_migrated: self.payment_method_migrated,
             network_token_migrated: self.network_token_migrated,
             connector_mandate_details_migrated: self.connector_mandate_details_migrated,
             network_transaction_migrated: self.network_transaction_migrated,

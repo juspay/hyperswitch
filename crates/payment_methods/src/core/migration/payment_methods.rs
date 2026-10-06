@@ -15,13 +15,13 @@ use common_utils::{
 use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
+    api::ApplicationResponse, errors::api_error_response as errors, platform,
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v1")]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
@@ -41,18 +41,40 @@ pub async fn migrate_payment_method(
     state: &state::PaymentMethodsState,
     req: pm_api::PaymentMethodMigrate,
     merchant_id: &id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
+    platform: &platform::Platform,
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
+    // If payment_method_data contains non-card data (e.g., bank debit), use the dedicated migration flow
+    if let Some(payment_method_data) = req
+        .payment_method_data
+        .clone()
+        .filter(|data| !matches!(data, pm_api::PaymentMethodCreateData::Card(_)))
+    {
+        return migrate_payment_method_data(
+            state,
+            &req,
+            payment_method_data,
+            merchant_id,
+            platform,
+            controller,
+        )
+        .await;
+    }
+
+    // Existing card migration flow
     let mut req = req;
     let card_details = &req.card.get_required_value("card")?;
 
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
 
-    let card_bin_details =
-        populate_bin_details_for_masked_card(card_details, &*state.store).await?;
+    let card_bin_details = populate_bin_details_for_masked_card(
+        card_details,
+        &*state.store,
+        req.payment_method_type.as_ref(),
+    )
+    .await?;
 
     req.card = Some(api_models::payment_methods::MigrateCardDetail {
         card_issuing_country: card_bin_details.issuer_country.clone(),
@@ -65,7 +87,7 @@ pub async fn migrate_payment_method(
     if let Some(connector_mandate_details) = &req.connector_mandate_details {
         controller
             .validate_merchant_connector_ids_in_connector_mandate_details(
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 connector_mandate_details,
                 merchant_id,
                 card_bin_details.card_network.clone(),
@@ -89,9 +111,10 @@ pub async fn migrate_payment_method(
             get_client_secret_or_add_payment_method_for_migration(
                 state,
                 payment_method_create_request,
-                merchant_context,
+                platform.get_provider(),
                 &mut migration_status,
                 controller,
+                platform.get_initiator(),
             )
             .await?
         }
@@ -101,7 +124,8 @@ pub async fn migrate_payment_method(
                 state,
                 &req,
                 merchant_id.to_owned(),
-                merchant_context,
+                platform.get_provider(),
+                platform.get_initiator(),
                 card_bin_details.clone(),
                 should_require_connector_mandate_details,
                 &mut migration_status,
@@ -130,10 +154,11 @@ pub async fn migrate_payment_method(
                 controller
                     .save_network_token_and_update_payment_method(
                         &req,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_provider().get_key_store(),
                         network_token_data,
                         network_token_requestor_ref_id,
                         pm_id,
+                        platform.get_initiator(),
                     )
                     .await
                     .map_err(|err| logger::error!(?err, "Failed to save network token"))
@@ -153,7 +178,90 @@ pub async fn migrate_payment_method(
         pm_api::PaymentMethodMigrateResponse {
             payment_method_response,
             card_migrated: migrate_status.card_migrated,
+            payment_method_migrated: None,
             network_token_migrated: migrate_status.network_token_migrated,
+            connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
+            network_transaction_id_migrated: migrate_status.network_transaction_migrated,
+        },
+    ))
+}
+
+/// Migrates a payment method using payment_method_data (e.g., ACH bank debit, wallet, etc.).
+/// This bypasses card-specific logic (BIN lookup, card validation, network token, etc.)
+/// and stores the details directly via `controller.add_payment_method()`.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+async fn migrate_payment_method_data(
+    _state: &state::PaymentMethodsState,
+    req: &pm_api::PaymentMethodMigrate,
+    payment_method_data: pm_api::PaymentMethodCreateData,
+    merchant_id: &id_type::MerchantId,
+    platform: &platform::Platform,
+    controller: &dyn PaymentMethodsController,
+) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
+{
+    logger::debug!("Migrating payment method via payment_method_data");
+
+    if let Some(connector_mandate_details) = &req.connector_mandate_details {
+        controller
+            .validate_merchant_connector_ids_in_connector_mandate_details(
+                platform.get_processor().get_key_store(),
+                connector_mandate_details,
+                merchant_id,
+                None,
+            )
+            .await?;
+    };
+
+    let mut migration_status = migration::RecordMigrationStatusBuilder::new();
+
+    let payment_method_create =
+        pm_api::PaymentMethodCreate::get_payment_method_create_from_payment_method_data_migrate(
+            payment_method_data,
+            req,
+        );
+
+    let connector_mandate_details = payment_method_create
+        .connector_mandate_details
+        .clone()
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let network_transaction_id = payment_method_create.network_transaction_id.clone();
+
+    let res = controller
+        .add_payment_method(&payment_method_create, platform.get_initiator())
+        .await?;
+
+    let payment_method_response = match res {
+        ApplicationResponse::Json(response) => response,
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the payment method response")?,
+    };
+
+    migration_status.payment_method_migrated(true);
+    migration_status.network_transaction_id_migrated(
+        network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
+    );
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .and_then(|val| if val == json!({}) { None } else { Some(true) })
+            .or_else(|| {
+                payment_method_create
+                    .connector_mandate_details
+                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+            }),
+    );
+
+    let migrate_status = migration_status.build();
+
+    Ok(ApplicationResponse::Json(
+        pm_api::PaymentMethodMigrateResponse {
+            payment_method_response,
+            card_migrated: None,
+            payment_method_migrated: migrate_status.payment_method_migrated,
+            network_token_migrated: None,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,
         },
@@ -165,7 +273,7 @@ pub async fn migrate_payment_method(
     _state: &state::PaymentMethodsState,
     _req: pm_api::PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
-    _merchant_context: &merchant_context::MerchantContext,
+    _platform: &platform::Platform,
     _controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
@@ -176,8 +284,23 @@ pub async fn migrate_payment_method(
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn state::PaymentMethodsStorageInterface,
+    payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> CustomResult<pm_api::CardDetailFromLocker, errors::ApiErrorResponse> {
-    migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
+    if let Some(
+            // Cards
+            enums::PaymentMethodType::Credit
+            | enums::PaymentMethodType::Debit
+
+            // Wallets
+            | enums::PaymentMethodType::ApplePay
+            | enums::PaymentMethodType::GooglePay,
+        ) = payment_method_type {
+        migration::validate_card_expiry(
+            &card_details.card_exp_month,
+            &card_details.card_exp_year,
+        )?;
+    }
+
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
@@ -237,6 +360,10 @@ impl
                     .card_issuing_country
                     .clone()
                     .or(card_bin_info.card_issuing_country),
+                issuer_country_code: card_details
+                    .card_issuing_country_code
+                    .clone()
+                    .or(card_bin_info.country_code),
                 card_number: None,
                 expiry_month: Some(card_details.card_exp_month.clone()),
                 expiry_year: Some(card_details.card_exp_year.clone()),
@@ -254,6 +381,14 @@ impl
                     .clone()
                     .or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
+                card_subtype: card_details
+                    .card_subtype
+                    .clone()
+                    .or(card_bin_info.card_subtype),
+                card_segment_type: card_details.card_segment_type.or(card_bin_info
+                    .card_segment_type
+                    .and_then(|segment_type| segment_type.parse().ok())),
+                funding_source: card_details.funding_source.or(card_bin_info.funding_source),
                 saved_to_locker: false,
             })
         } else {
@@ -264,6 +399,7 @@ impl
                     .map(|card_network| card_network.to_string()),
                 last4_digits: Some(last4_digits.clone()),
                 issuer_country: card_details.card_issuing_country.clone(),
+                issuer_country_code: card_details.card_issuing_country_code.clone(),
                 card_number: None,
                 expiry_month: Some(card_details.card_exp_month.clone()),
                 expiry_year: Some(card_details.card_exp_year.clone()),
@@ -275,6 +411,9 @@ impl
                 card_issuer: card_details.card_issuer.clone(),
                 card_network: card_details.card_network.clone(),
                 card_type: card_details.card_type.clone(),
+                card_subtype: card_details.card_subtype.clone(),
+                card_segment_type: card_details.card_segment_type,
+                funding_source: card_details.funding_source,
                 saved_to_locker: false,
             })
         }
@@ -333,6 +472,14 @@ impl
                     .clone()
                     .or(card_bin_info.card_network),
                 card_type: card_details.card_type.clone().or(card_bin_info.card_type),
+                card_subtype: card_details
+                    .card_subtype
+                    .clone()
+                    .or(card_bin_info.card_subtype),
+                card_segment_type: card_details.card_segment_type.or(card_bin_info
+                    .card_segment_type
+                    .and_then(|segment_type| segment_type.parse().ok())),
+                funding_source: card_details.funding_source.or(card_bin_info.funding_source),
                 saved_to_locker: false,
             })
         } else {
@@ -355,6 +502,9 @@ impl
                 card_issuer: card_details.card_issuer.clone(),
                 card_network: card_details.card_network.clone(),
                 card_type: card_details.card_type.clone(),
+                card_subtype: card_details.card_subtype.clone(),
+                card_segment_type: card_details.card_segment_type,
+                funding_source: card_details.funding_source,
                 saved_to_locker: false,
             })
         }
@@ -366,11 +516,12 @@ impl
 pub async fn get_client_secret_or_add_payment_method_for_migration(
     state: &state::PaymentMethodsState,
     req: pm_api::PaymentMethodCreate,
-    merchant_context: &merchant_context::MerchantContext,
+    provider: &platform::Provider,
     migration_status: &mut migration::RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
+    initiator: Option<&platform::Initiator>,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = provider.get_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     #[cfg(not(feature = "payouts"))]
@@ -383,11 +534,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         .billing
         .clone()
         .async_map(|billing| {
-            create_encrypted_data(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
-                billing,
-            )
+            create_encrypted_data(key_manager_state, provider.get_key_store(), billing)
         })
         .await
         .transpose()
@@ -406,6 +553,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
             req,
             migration_status,
             controller,
+            initiator,
         ))
         .await
     } else {
@@ -429,6 +577,11 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 None,
                 None,
+                None,
+                Default::default(),
+                None,
+                None,
+                initiator,
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -451,6 +604,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                     enums::PaymentMethodStatus::AwaitingData,
                     enums::PaymentMethodStatus::Inactive,
                     merchant_id,
+                    initiator,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -470,7 +624,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     state: &state::PaymentMethodsState,
     req: &pm_api::PaymentMethodMigrate,
     merchant_id: id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
+    provider: &platform::Provider,
+    initiator: Option<&platform::Initiator>,
     card: pm_api::CardDetailFromLocker,
     should_require_connector_mandate_details: bool,
     migration_status: &mut migration::RecordMigrationStatusBuilder,
@@ -511,11 +666,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .billing
         .clone()
         .async_map(|billing| {
-            create_encrypted_data(
-                key_manager_state,
-                merchant_context.get_merchant_key_store(),
-                billing,
-            )
+            create_encrypted_data(key_manager_state, provider.get_key_store(), billing)
         })
         .await
         .transpose()
@@ -524,11 +675,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &state.into(),
             &customer_id,
             &merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -540,7 +690,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
         create_encrypted_data(
             &state.into(),
-            merchant_context.get_merchant_key_store(),
+            provider.get_key_store(),
             payment_method_card_details,
         )
         .await
@@ -559,10 +709,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let response = db
         .insert_payment_method(
-            &state.into(),
-            merchant_context.get_merchant_key_store(),
+            provider.get_key_store(),
             domain_pm::PaymentMethod {
-                customer_id: customer_id.to_owned(),
+                customer_id: Some(customer_id.to_owned()),
                 merchant_id: merchant_id.to_owned(),
                 payment_method_id: payment_method_id.to_string(),
                 locker_id: None,
@@ -577,6 +726,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 client_secret: None,
                 status: enums::PaymentMethodStatus::Active,
                 network_transaction_id: network_transaction_id.clone(),
+                network_transaction_link_id: None,
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,
@@ -596,8 +746,18 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                vault_source_details: Default::default(),
+                created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                customer_details: None,
+                locker_fingerprint_id: None,
+                network_tokenization_data: None,
+                storage_type: None,
+                compatibility_updated_at: None,
+                connector_payment_method_details: None,
             },
-            merchant_context.get_merchant_account().storage_scheme,
+            provider.get_account().storage_scheme,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -623,7 +783,12 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = controller
-            .set_default_payment_method(&merchant_id, &customer_id, payment_method_id.to_owned())
+            .set_default_payment_method(
+                &merchant_id,
+                &customer_id,
+                payment_method_id.to_owned(),
+                initiator,
+            )
             .await
             .map_err(|error| logger::error!(?error, "Failed to set the payment method as default"));
     }
@@ -638,7 +803,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     _state: state::PaymentMethodsState,
     _req: &pm_api::PaymentMethodMigrate,
     _merchant_id: id_type::MerchantId,
-    _merchant_context: &merchant_context::MerchantContext,
+    _provider: &platform::Provider,
     _card: pm_api::CardDetailFromLocker,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
     todo!()
@@ -668,6 +833,7 @@ pub async fn save_migration_payment_method(
     req: pm_api::PaymentMethodCreate,
     migration_status: &mut migration::RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
+    initiator: Option<&platform::Initiator>,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
     let connector_mandate_details = req
         .connector_mandate_details
@@ -678,7 +844,7 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    let res = controller.add_payment_method(&req).await?;
+    let res = controller.add_payment_method(&req, initiator).await?;
 
     migration_status.card_migrated(true);
     migration_status.network_transaction_id_migrated(

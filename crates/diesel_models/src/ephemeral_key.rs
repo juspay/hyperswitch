@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 #[cfg(feature = "v2")]
 pub struct ClientSecretTypeNew {

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use hyperswitch_domain_models::router_data_v2::PaymentFlowData;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -10,35 +11,22 @@ use crate::{
     services,
     types::{self, api, domain},
 };
-
+#[cfg(feature = "v1")]
 #[async_trait]
 impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for PaymentData<api::Void>
 {
-    #[cfg(feature = "v2")]
-    async fn construct_router_data<'a>(
-        &self,
-        _state: &SessionState,
-        _connector_id: &str,
-        _merchant_context: &domain::MerchantContext,
-        _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
-        _merchant_recipient_data: Option<types::MerchantRecipientData>,
-        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    ) -> RouterResult<types::PaymentsCancelRouterData> {
-        todo!()
-    }
-
-    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
+        business_profile: &domain::Profile,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Void,
@@ -47,7 +35,37 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            processor,
+            business_profile,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+            None,
+            None,
+        ))
+        .await
+    }
+}
+#[cfg(feature = "v2")]
+#[async_trait]
+impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for hyperswitch_domain_models::payments::PaymentCancelData<api::Void>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        processor: &domain::Processor,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsCancelRouterData> {
+        Box::pin(transformers::construct_router_data_for_cancel(
+            state,
+            self.clone(),
+            connector_id,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -69,42 +87,49 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
             router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
 
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::Void,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let resp = services::execute_connector_processing_step(
+        Box::pin(payments::gateway::handle_gateway_call::<
+            _,
+            _,
+            _,
+            PaymentFlowData,
+            _,
+        >(
             state,
-            connector_integration,
-            &self,
+            self,
+            connector,
+            &gateway_context,
             call_connector_action,
             connector_request,
-            None,
-        )
+            return_raw_connector_response,
+        ))
         .await
-        .to_payment_failed_response()?;
-
-        Ok(resp)
     }
 
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+            gateway_context,
+            None,
+        ))
+        .await
     }
 
     async fn build_flow_specific_connector_request(

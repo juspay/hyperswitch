@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
 use api_models::{
-    analytics::search::SearchIndex,
+    analytics::search::{OpensearchRange, SearchIndex},
     errors::types::{ApiError, ApiErrorResponse},
+    payments::{Order, SortBy, SortOn},
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::{
@@ -43,6 +44,7 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+    pub payouts: String,
     pub sessionizer_payment_attempts: String,
     pub sessionizer_payment_intents: String,
     pub sessionizer_refunds: String,
@@ -88,6 +90,7 @@ impl Default for OpenSearchConfig {
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
+                payouts: "hyperswitch-payout-events".to_string(),
                 sessionizer_payment_attempts: "sessionizer-payment-attempt-events".to_string(),
                 sessionizer_payment_intents: "sessionizer-payment-intent-events".to_string(),
                 sessionizer_refunds: "sessionizer-refund-events".to_string(),
@@ -239,6 +242,7 @@ impl OpenSearchClient {
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
             SearchIndex::Disputes => self.indexes.disputes.clone(),
+            SearchIndex::Payouts => self.indexes.payouts.clone(),
             SearchIndex::SessionizerPaymentAttempts => {
                 self.indexes.sessionizer_payment_attempts.clone()
             }
@@ -349,6 +353,12 @@ impl OpenSearchIndexes {
         when(self.disputes.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Disputes index must not be empty".into(),
+            ))
+        })?;
+
+        when(self.payouts.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Payouts index must not be empty".into(),
             ))
         })?;
 
@@ -478,12 +488,69 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<Value>)>,
     pub time_range: Option<OpensearchTimeRange>,
+    pub amount_range: Option<OpensearchRange>,
     search_params: Vec<AuthInfo>,
     case_sensitive_fields: HashSet<&'static str>,
+    pub order: Option<Order>,
 }
 
+pub enum OpenSearchComparison {
+    Equal,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+}
+
+impl OpenSearchComparison {
+    fn range_operator(&self) -> Option<&'static str> {
+        match self {
+            Self::Equal => None,
+            Self::GreaterThan => Some("gt"),
+            Self::GreaterThanOrEqual => Some("gte"),
+            Self::LessThan => Some("lt"),
+            Self::LessThanOrEqual => Some("lte"),
+        }
+    }
+}
+
+const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
+    if (!params.containsKey('_source')) return false;
+
+    def source = params._source;
+    if (source == null) return false;
+
+    def activeAttemptId = source.active_attempt_id;
+    if (activeAttemptId == null) return false;
+
+    def attemptsList = source.attempts_list;
+    if (attemptsList == null) return false;
+
+    for (def attemptObject : attemptsList) {
+        if (attemptObject == null) continue;
+        if (!(attemptObject instanceof Map)) continue;
+
+        def attemptId = attemptObject.get("attempt_id");
+        if (attemptId == null) continue;
+
+        if (attemptId == activeAttemptId) {
+            def fieldValueForActiveAttempt = attemptObject.get(params.field);
+            if (fieldValueForActiveAttempt == null) return false;
+
+            return params.values.contains(fieldValueForActiveAttempt);
+        }
+    }
+
+    return false;
+"#;
+
 impl OpenSearchQueryBuilder {
-    pub fn new(query_type: OpenSearchQuery, query: String, search_params: Vec<AuthInfo>) -> Self {
+    pub fn new(
+        query_type: OpenSearchQuery,
+        query: String,
+        search_params: Vec<AuthInfo>,
+        order: Option<Order>,
+    ) -> Self {
         Self {
             query_type,
             query,
@@ -492,14 +559,20 @@ impl OpenSearchQueryBuilder {
             count: Default::default(),
             filters: Default::default(),
             time_range: Default::default(),
+            amount_range: Default::default(),
             case_sensitive_fields: HashSet::from([
                 "customer_email.keyword",
                 "search_tags.keyword",
                 "card_last_4.keyword",
                 "payment_id.keyword",
+                "active_attempt_id.keyword",
+                "merchant_connector_id.keyword",
                 "amount",
+                "first_attempt",
                 "customer_id.keyword",
+                "merchant_order_reference_id.keyword",
             ]),
+            order,
         }
     }
 
@@ -511,6 +584,11 @@ impl OpenSearchQueryBuilder {
 
     pub fn set_time_range(&mut self, time_range: OpensearchTimeRange) -> QueryResult<()> {
         self.time_range = Some(time_range);
+        Ok(())
+    }
+
+    pub fn set_amount_range(&mut self, amount_range: OpensearchRange) -> QueryResult<()> {
+        self.amount_range = Some(amount_range);
         Ok(())
     }
 
@@ -535,25 +613,231 @@ impl OpenSearchQueryBuilder {
         }
     }
 
+    fn parse_search_amounts(&self) -> Vec<Value> {
+        let query = self.query.trim();
+        if query.is_empty()
+            || (query.len() > 1 && query.starts_with('0') && !query.starts_with("0."))
+        {
+            return Vec::new();
+        }
+
+        let amount_parts = query.split('.').collect::<Vec<_>>();
+        let major_units = match amount_parts.as_slice() {
+            [whole] if whole.chars().all(|char| char.is_ascii_digit()) => whole.parse::<u64>().ok(),
+            [whole, fractional]
+                if whole.chars().all(|char| char.is_ascii_digit())
+                    && fractional.len() <= 2
+                    && fractional.chars().all(|char| char.is_ascii_digit()) =>
+            {
+                let fractional_units = match fractional.len() {
+                    0 => Some(0),
+                    1 => fractional
+                        .parse::<u64>()
+                        .ok()
+                        .and_then(|amount| amount.checked_mul(10)),
+                    2 => fractional.parse::<u64>().ok(),
+                    _ => None,
+                };
+
+                whole.parse::<u64>().ok().and_then(|whole_units| {
+                    fractional_units.and_then(|fractional_units| {
+                        whole_units
+                            .checked_mul(100)
+                            .and_then(|amount| amount.checked_add(fractional_units))
+                    })
+                })
+            }
+            _ => None,
+        };
+
+        let mut amounts = Vec::new();
+
+        if amount_parts.len() == 1 {
+            if let Ok(raw_amount) = query.parse::<u64>() {
+                amounts.push(Value::from(raw_amount));
+            }
+        }
+
+        if let Some(minor_amount) = major_units.and_then(|amount| {
+            if amount_parts.len() == 1 {
+                amount.checked_mul(100)
+            } else {
+                Some(amount)
+            }
+        }) {
+            let minor_amount = Value::from(minor_amount);
+            if !amounts.contains(&minor_amount) {
+                amounts.push(minor_amount);
+            }
+        }
+
+        amounts
+    }
+
+    fn make_query_filter(&self, index: SearchIndex) -> Option<Value> {
+        if self.query.is_empty() {
+            return None;
+        }
+
+        let text_query = json!({
+            "multi_match": {
+                "type": "phrase",
+                "query": self.query,
+                "lenient": true
+            }
+        });
+
+        let amount_values = self.parse_search_amounts();
+        if amount_values.is_empty() {
+            return Some(text_query);
+        }
+
+        Some(json!({
+            "bool": {
+                "should": [
+                    text_query,
+                    {
+                        "terms": {
+                            self.get_amount_field(index): amount_values
+                        }
+                    }
+                ],
+                "minimum_should_match": 1
+            }
+        }))
+    }
+
+    fn make_active_attempt_script_filter(&self, field: &str, values: &Vec<Value>) -> Value {
+        json!({
+            "bool": {
+                "should": [
+                    {
+                        "terms": {
+                            format!("{}.keyword", field): values
+                        }
+                    },
+                    {
+                        "bool": {
+                            "must": [
+                                {
+                                    "term": {
+                                        "attempt_count": 1
+                                    }
+                                },
+                                {
+                                    "terms": {
+                                        format!("attempts_list.{}.keyword", field): values
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "attempt_count": {
+                                            "gt": 1
+                                        }
+                                    }
+                                },
+                                {
+                                    "bool": {
+                                        "must_not": [
+                                            {
+                                                "exists": {
+                                                    "field": field
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "script": {
+                                        "script": {
+                                            "lang": "painless",
+                                            "source": ACTIVE_ATTEMPT_FILTER_SCRIPT,
+                                            "params": {
+                                                "field": field,
+                                                "values": values
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "minimum_should_match": 1
+            }
+        })
+    }
+
+    fn make_case_insensitive_multi_field_filter(&self, fields: &[&str], values: &[Value]) -> Value {
+        json!({
+            "bool": {
+                "should": fields.iter().flat_map(|field| {
+                    values.iter().map(|value| {
+                        json!({
+                            "term": {
+                                *field: {
+                                    "value": value,
+                                    "case_insensitive": true
+                                }
+                            }
+                        })
+                    })
+                }).collect::<Vec<Value>>(),
+                "minimum_should_match": 1
+            }
+        })
+    }
+
     pub fn build_filter_array(
         &self,
         case_sensitive_filters: Vec<&(String, Vec<Value>)>,
         index: SearchIndex,
     ) -> Vec<Value> {
         let mut filter_array = Vec::new();
-        if !self.query.is_empty() {
-            filter_array.push(json!({
-                "multi_match": {
-                    "type": "phrase",
-                    "query": self.query,
-                    "lenient": true
-                }
-            }));
+        if let Some(query_filter) = self.make_query_filter(index) {
+            filter_array.push(query_filter);
         }
 
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
             .map(|(k, v)| {
+                if *k == "first_attempt" {
+                    let mut should_clauses = Vec::new();
+
+                    if v.iter().any(|value| value.as_bool() == Some(true)) {
+                        should_clauses.push(json!({
+                            "term": {
+                                "attempt_count": 1
+                            }
+                        }));
+                    }
+
+                    if v.iter().any(|value| value.as_bool() == Some(false)) {
+                        if let Some(operator) = OpenSearchComparison::GreaterThan.range_operator() {
+                            should_clauses.push(json!({
+                                "range": {
+                                    "attempt_count": {
+                                        (operator): 1
+                                    }
+                                }
+                            }));
+                        }
+                    }
+
+                    return json!({
+                        "bool": {
+                            "should": should_clauses,
+                            "minimum_should_match": 1
+                        }
+                    });
+                }
+
                 let key = if *k == "amount" {
                     self.get_amount_field(index).to_string()
                 } else {
@@ -574,6 +858,16 @@ impl OpenSearchQueryBuilder {
             }));
         }
 
+        if let Some(ref amount_range) = self.amount_range {
+            let range = json!(amount_range);
+            let amount_field = self.get_amount_field(index);
+            filter_array.push(json!({
+                "range": {
+                    amount_field: range
+                }
+            }));
+        }
+
         filter_array
     }
 
@@ -587,6 +881,31 @@ impl OpenSearchQueryBuilder {
         let mut must_array = case_insensitive_filters
             .iter()
             .map(|(k, v)| {
+                if *k == "card_discovery.keyword" {
+                    return self.make_active_attempt_script_filter("card_discovery", v);
+                }
+                if *k == "refunds_status.keyword" {
+                    return self.make_case_insensitive_multi_field_filter(
+                        &[
+                            "refunds_status.keyword",
+                            "refunds_list.refund_status.keyword",
+                            "refunds_list.status.keyword",
+                        ],
+                        v,
+                    );
+                }
+                if *k == "dispute_status.keyword" {
+                    return self.make_case_insensitive_multi_field_filter(
+                        &[
+                            "dispute_status.keyword",
+                            "disputes_list.dispute_status.keyword",
+                            "disputes_list.status.keyword",
+                            "dispute_list.dispute_status.keyword",
+                            "dispute_list.status.keyword",
+                        ],
+                        v,
+                    );
+                }
                 let key = if *k == "status.keyword" {
                     self.get_status_field(index).to_string()
                 } else {
@@ -600,7 +919,7 @@ impl OpenSearchQueryBuilder {
                                     "should": v.iter().map(|value| {
                                         json!({
                                             "term": {
-                                                format!("{}", key): {
+                                                key.to_string(): {
                                                     "value": value,
                                                     "case_insensitive": true
                                                 }
@@ -660,8 +979,9 @@ impl OpenSearchQueryBuilder {
                 AuthInfo::MerchantLevel {
                     org_id,
                     merchant_ids,
+                    processor_merchant_ids,
                 } => {
-                    let must_clauses = vec![
+                    let mut must_clauses = vec![
                         json!({
                             "term": {
                                 "organization_id.keyword": {
@@ -676,6 +996,14 @@ impl OpenSearchQueryBuilder {
                         }),
                     ];
 
+                    if let Some(processor_mids) = processor_merchant_ids {
+                        must_clauses.push(json!({
+                            "terms": {
+                                "processor_merchant_id.keyword": processor_mids
+                            }
+                        }));
+                    }
+
                     json!({
                         "bool": {
                             "must": must_clauses
@@ -686,8 +1014,9 @@ impl OpenSearchQueryBuilder {
                     org_id,
                     merchant_id,
                     profile_ids,
+                    processor_merchant_id,
                 } => {
-                    let must_clauses = vec![
+                    let mut must_clauses = vec![
                         json!({
                             "term": {
                                 "organization_id.keyword": {
@@ -708,6 +1037,16 @@ impl OpenSearchQueryBuilder {
                             }
                         }),
                     ];
+
+                    if let Some(processor_mid) = processor_merchant_id {
+                        must_clauses.push(json!({
+                            "term": {
+                                "processor_merchant_id.keyword": {
+                                    "value": processor_mid
+                                }
+                            }
+                        }));
+                    }
 
                     json!({
                         "bool": {
@@ -739,22 +1078,40 @@ impl OpenSearchQueryBuilder {
 
         query_obj.insert("bool".to_string(), Value::Object(bool_obj.clone()));
 
-        let mut sort_obj = Map::new();
-        sort_obj.insert(
-            "@timestamp".to_string(),
-            json!({
-                "order": "desc"
-            }),
-        );
-
         Ok(indexes
             .iter()
             .map(|index| {
+                let mut sort_list = Vec::new();
+                match &self.order {
+                    Some(order) => {
+                        let sort_on = match order.on {
+                            SortOn::Amount => self.get_amount_field(*index).to_string(),
+                            SortOn::AttemptCount => "attempt_count".to_string(),
+                            SortOn::Created => "@timestamp".to_string(),
+                            SortOn::Modified => "modified_at".to_string(),
+                        };
+                        let sort_by = match order.by {
+                            SortBy::Asc => "asc",
+                            SortBy::Desc => "desc",
+                        };
+                        sort_list.push(json!({
+                            sort_on: {
+                                "order": sort_by
+                            }
+                        }));
+                    }
+                    None => {
+                        sort_list.push(json!({
+                            "@timestamp": {
+                                "order": "desc"
+                            }
+                        }));
+                    }
+                }
                 let mut payload = json!({
+                    "track_total_hits": true,
                     "query": query_obj.clone(),
-                    "sort": [
-                        Value::Object(sort_obj.clone())
-                    ]
+                    "sort": sort_list.clone()
                 });
                 let filter_array = self.build_filter_array(case_sensitive_filters.clone(), *index);
                 if !filter_array.is_empty() {

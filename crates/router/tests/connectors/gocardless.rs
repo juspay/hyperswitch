@@ -1,4 +1,4 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 use test_utils::connector_auth;
 
@@ -11,7 +11,7 @@ impl utils::Connector for GocardlessTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Gocardless;
         utils::construct_connector_data_old(
-            Box::new(&Gocardless),
+            Box::new(Gocardless::new()),
             types::Connector::Gocardless,
             types::api::GetToken::Connector,
             None,

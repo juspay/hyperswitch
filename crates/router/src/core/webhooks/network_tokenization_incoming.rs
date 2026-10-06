@@ -10,14 +10,15 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::cards,
+        payment_methods::{self, cards},
+        utils::create_encrypted_data,
     },
     logger,
     routes::{app::SessionStateInfo, SessionState},
@@ -71,7 +72,8 @@ impl NetworkTokenWebhookResponse {
 
 pub fn get_network_token_resource_object(
     request_details: &api::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::NetworkTokenizationError> {
+) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::NetworkTokenizationError>
+{
     let response: NetworkTokenWebhookResponse = request_details
         .body
         .parse_struct("NetworkTokenWebhookResponse")
@@ -90,7 +92,7 @@ pub trait NetworkTokenWebhookResponseExt {
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse>;
 }
 
@@ -124,10 +126,10 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        handle_metadata_update(
+        Box::pin(handle_metadata_update(
             state,
             &self.card,
             payment_method
@@ -137,10 +139,10 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Locker id is not found for the payment method")?,
             payment_method,
-            merchant_context,
+            platform,
             decrypted_data,
             true,
-        )
+        ))
         .await
     }
 }
@@ -175,10 +177,10 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
+        platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        handle_metadata_update(
+        Box::pin(handle_metadata_update(
             state,
             &self.token,
             payment_method
@@ -188,10 +190,10 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Locker id is not found for the payment method")?,
             payment_method,
-            merchant_context,
+            platform,
             decrypted_data,
             true,
-        )
+        ))
         .await
     }
 }
@@ -241,12 +243,15 @@ pub async fn handle_metadata_update(
     metadata: &pm_types::NetworkTokenRequestorData,
     locker_id: String,
     payment_method: &domain::PaymentMethod,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     decrypted_data: api::payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
-    let customer_id = &payment_method.customer_id;
+    let merchant_id = platform.get_processor().get_account().get_id();
+    let customer_id = &payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
     let payment_method_id = payment_method.get_id().clone();
     let status = payment_method.status;
 
@@ -266,7 +271,8 @@ pub async fn handle_metadata_update(
             let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch token information from the locker")?;
+                .attach_printable("Failed to fetch token information from the locker")?
+                .get_card();
 
             card.card_exp_year = metadata.expiry_year.clone();
             card.card_exp_month = metadata.expiry_month.clone();
@@ -277,7 +283,7 @@ pub async fn handle_metadata_update(
                 .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "card network",
+                    field_name: "card network".into(),
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid Card Network stored in vault")?;
@@ -289,7 +295,7 @@ pub async fn handle_metadata_update(
 
             let pm_cards = cards::PmCards {
                 state,
-                merchant_context,
+                provider: platform.get_provider(),
             };
 
             pm_cards
@@ -313,10 +319,11 @@ pub async fn handle_metadata_update(
 
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = pm_details
                 .async_map(|pm_card| {
-                    cards::create_encrypted_data(
+                    create_encrypted_data(
                         &key_manager_state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor().get_key_store(),
                         pm_card,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                     )
                 })
                 .await
@@ -327,6 +334,7 @@ pub async fn handle_metadata_update(
             let pm_update = if is_pan_update {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
                     locker_id: Some(res.payment_method_id),
+                    locker_fingerprint_id: None,
                     payment_method_data: pm_data_encrypted.map(Into::into),
                     status: None,
                     payment_method: None,
@@ -335,10 +343,20 @@ pub async fn handle_metadata_update(
                     network_token_requestor_reference_id: None,
                     network_token_locker_id: None,
                     network_token_payment_method_data: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
+                    metadata: None,
+                    last_used_at: None,
+                    connector_mandate_details: None,
+                    network_tokenization_data: None,
+                    connector_payment_method_details: Box::new(None),
                 }
             } else {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
                     locker_id: None,
+                    locker_fingerprint_id: None,
                     payment_method_data: None,
                     status: None,
                     payment_method: None,
@@ -347,16 +365,32 @@ pub async fn handle_metadata_update(
                     network_token_requestor_reference_id: None,
                     network_token_locker_id: Some(res.payment_method_id),
                     network_token_payment_method_data: pm_data_encrypted.map(Into::into),
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
+                    metadata: None,
+                    last_used_at: None,
+                    connector_mandate_details: None,
+                    network_tokenization_data: None,
+                    connector_payment_method_details: Box::new(None),
                 }
             };
             let db = &*state.store;
+            let compat_action = payment_methods::payment_method_modular_compat_action(
+                state,
+                &payment_method.merchant_id,
+                &platform.get_provider().get_account().organization_id,
+                payment_method.customer_id.as_ref(),
+            )
+            .await;
 
             db.update_payment_method(
-                &key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                platform.get_processor().get_key_store(),
                 payment_method.clone(),
                 pm_update,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
+                compat_action,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -379,7 +413,7 @@ impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)>
         (data, payment_method): (&api::payment_methods::CardDetail, &domain::PaymentMethod),
     ) -> Self {
         Self(api::payment_methods::PaymentMethodCreate {
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             payment_method_issuer: payment_method.payment_method_issuer.clone(),
@@ -395,6 +429,7 @@ impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)>
                 .clone()
                 .map(|card_network| card_network.to_string()),
             bank_transfer: None,
+            bank_transfer_data: None,
             wallet: None,
             network_transaction_id: payment_method.network_transaction_id.clone(),
         })
@@ -410,14 +445,12 @@ impl PaymentMethodCreateWrapper {
 pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-) -> RouterResult<domain::MerchantContext> {
+) -> RouterResult<domain::Platform> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let key_store = state
         .store()
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store().get_master_key().to_vec().into(),
         )
@@ -426,17 +459,20 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
         merchant_account.clone(),
+        key_store.clone(),
+        merchant_account,
         key_store,
-    )));
+        None,
+    );
 
-    Ok(merchant_context)
+    Ok(platform)
 }
 
 pub async fn fetch_payment_method_for_network_token_webhooks(
@@ -446,11 +482,9 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
     payment_method_id: &str,
 ) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
-    let key_manager_state = &(state).into();
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
             key_store,
             payment_method_id,
             merchant_account.storage_scheme,

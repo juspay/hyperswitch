@@ -5,6 +5,12 @@ use router_env::tracing::Instrument;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
+    // Pin the rustls crypto backend;
+    #[allow(clippy::expect_used)]
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("Failed to install default rustls CryptoProvider");
+
     // Get configuration
     let cmd_line = <settings::CmdLineConf as clap::Parser>::parse();
 
@@ -32,7 +38,13 @@ async fn main() -> DrainerResult<()> {
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),
-        [router_env::service_name!()],
+        [
+            router_env::service_name!(),
+            "actix_server",
+            "open_feature",
+            "superposition_provider",
+            "superposition_sdk",
+        ],
     );
 
     #[allow(clippy::expect_used)]

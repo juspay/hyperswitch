@@ -7,7 +7,10 @@ use crate::{
     core::{api_locking, gsm},
     services::{api, authentication as auth},
 };
-
+#[cfg(feature = "v1")]
+const ADMIN_API_AUTH: auth::AdminApiAuth = auth::AdminApiAuth;
+#[cfg(feature = "v2")]
+const ADMIN_API_AUTH: auth::V2AdminApiAuth = auth::V2AdminApiAuth;
 /// Gsm - Create
 ///
 /// To create a Gsm Rule
@@ -40,7 +43,7 @@ pub async fn create_gsm_rule(
         &req,
         payload,
         |state, _, payload, _| gsm::create_gsm_rule(state, payload),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -77,7 +80,7 @@ pub async fn get_gsm_rule(
         &req,
         gsm_retrieve_req,
         |state, _, gsm_retrieve_req, _| gsm::retrieve_gsm_rule(state, gsm_retrieve_req),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -115,7 +118,7 @@ pub async fn update_gsm_rule(
         &req,
         payload,
         |state, _, payload, _| gsm::update_gsm_rule(state, payload),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -154,7 +157,7 @@ pub async fn delete_gsm_rule(
         &req,
         payload,
         |state, _, payload, _| gsm::delete_gsm_rule(state, payload),
-        &auth::AdminApiAuth,
+        &ADMIN_API_AUTH,
         api_locking::LockAction::NotApplicable,
     ))
     .await

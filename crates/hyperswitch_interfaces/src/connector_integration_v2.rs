@@ -5,11 +5,11 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 use crate::{
-    api::{self, CaptureSyncMethod},
+    api::{self, subscriptions_v2, CaptureSyncMethod},
     errors,
     events::connector_api_logs::ConnectorEvent,
     metrics, types, webhooks,
@@ -22,6 +22,9 @@ pub trait ConnectorV2:
     + api::payments_v2::PaymentV2
     + api::ConnectorRedirectResponse
     + webhooks::IncomingWebhook
+    + api::merchant_connector_webhook_management_v2::WebhookRegisterV2
+    + api::merchant_connector_webhook_management_v2::WebhookGenerateSecretV2
+    + api::ConnectorAuthenticationTokenV2
     + api::ConnectorAccessTokenV2
     + api::disputes_v2::DisputeV2
     + api::files_v2::FileUploadV2
@@ -34,6 +37,7 @@ pub trait ConnectorV2:
     + api::UnifiedAuthenticationServiceV2
     + api::revenue_recovery_v2::RevenueRecoveryV2
     + api::ExternalVaultV2
+    + subscriptions_v2::SubscriptionsV2
 {
 }
 impl<
@@ -42,6 +46,9 @@ impl<
             + api::ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + api::merchant_connector_webhook_management_v2::WebhookRegisterV2
+            + api::merchant_connector_webhook_management_v2::WebhookGenerateSecretV2
+            + api::ConnectorAuthenticationTokenV2
             + api::ConnectorAccessTokenV2
             + api::disputes_v2::DisputeV2
             + api::files_v2::FileUploadV2
@@ -53,7 +60,8 @@ impl<
             + api::authentication_v2::ExternalAuthenticationV2
             + api::UnifiedAuthenticationServiceV2
             + api::revenue_recovery_v2::RevenueRecoveryV2
-            + api::ExternalVaultV2,
+            + api::ExternalVaultV2
+            + subscriptions_v2::SubscriptionsV2,
     > ConnectorV2 for T
 {
 }
@@ -208,9 +216,11 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 
@@ -226,7 +236,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -234,7 +244,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate_key(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::ConnectorError> {
         Ok(None)
     }
 }

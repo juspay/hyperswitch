@@ -48,10 +48,6 @@ WHERE id IS NULL;
 ALTER TABLE merchant_connector_account
 ADD PRIMARY KEY (id);
 
--- Create index on profile_id
-CREATE INDEX IF NOT EXISTS merchant_connector_account_profile_id_index 
-ON merchant_connector_account (profile_id);
-
 ------------------------ Customers -----------------------
 -- Backfill id column with customer_id values
 UPDATE customers

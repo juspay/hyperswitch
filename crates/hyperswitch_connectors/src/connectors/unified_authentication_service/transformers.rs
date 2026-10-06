@@ -1,23 +1,23 @@
-use common_enums::{enums, MerchantCategoryCode};
+use common_enums::{enums, MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
-use common_utils::types::FloatMajorUnit;
+use common_utils::{ext_traits::OptionExt as _, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
-    ext_traits::OptionExt,
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::{
         authentication::{AuthNFlowType, ChallengeParams},
         unified_authentication_service::{
             AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
-            TokenDetails, UasAuthenticationResponseData,
+            RawCardDetails, TokenDetails, UasAuthenticationResponseData,
         },
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
         UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
+        UasProcessWebhookRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -43,7 +43,7 @@ use error_stack::ResultExt;
 #[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub authenticate_by: String,
-    pub session_id: common_utils::id_type::AuthenticationId,
+    pub session_id: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub authentication_info: Option<AuthenticationInfo>,
     pub service_details: Option<CtpServiceDetails>,
@@ -53,6 +53,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub transaction_details: Option<TransactionDetails>,
     pub acquirer_details: Option<Acquirer>,
     pub billing_address: Option<Address>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,7 +68,7 @@ pub struct UnifiedAuthenticationServiceAuthenticateConfirmationRequest {
     pub checkout_event_status: Option<String>,
     pub confirmation_status: Option<String>,
     pub confirmation_reason: Option<String>,
-    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub confirmation_timestamp: Option<String>,
     pub network_authorization_code: Option<String>,
     pub network_transaction_identifier: Option<String>,
     pub correlation_id: Option<String>,
@@ -109,13 +110,14 @@ impl<F, T>
 pub struct PaymentDetails {
     pub pan: cards::CardNumber,
     pub digital_card_id: Option<String>,
-    pub payment_data_type: Option<String>,
+    pub payment_data_type: Option<common_enums::PaymentMethodType>,
     pub encrypted_src_card_details: Option<String>,
     pub card_expiry_month: Secret<String>,
     pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_token_number: Secret<String>,
+    pub card_token_number: Option<Secret<String>>,
     pub account_type: Option<common_enums::PaymentMethodType>,
+    pub card_cvc: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -143,6 +145,8 @@ pub enum MessageCategory {
 pub struct ThreeDSData {
     pub preferred_protocol_version: common_utils::types::SemanticVersion,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -197,6 +201,8 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub merchant_country_code: Option<MerchantCountryCode>,
+    pub notification_url: Option<url::Url>,
+    pub webhook_url: Option<url::Url>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -244,7 +250,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
     ) -> Result<Self, Self::Error> {
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_id",
+                field_name: "authentication_id".into(),
             },
         )?;
         let authentication_info = item.router_data.request.authentication_info.clone();
@@ -252,7 +258,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             authenticate_by: item.router_data.connector.clone(),
-            session_id: authentication_id.clone(),
+            session_id: item.router_data.payment_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info,
             service_details: Some(CtpServiceDetails {
@@ -277,7 +283,69 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                             .and_then(|service_session_ids| service_session_ids.x_src_flow_id),
                     },
                 ),
-                merchant_details: None,
+                merchant_details: Some(MerchantDetails {
+                    merchant_id: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_id.clone()),
+                    merchant_name: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_name.clone()),
+                    merchant_category_code: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_category_code.clone()),
+                    configuration_id: None,
+                    endpoint_prefix: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.endpoint_prefix.clone()),
+                    three_ds_requestor_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_url.clone()),
+                    three_ds_requestor_id: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_id.clone()),
+                    three_ds_requestor_name: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_name.clone()),
+                    merchant_country_code: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_country_code.clone()),
+                    notification_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.notification_url.clone()),
+                    webhook_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.webhook_url.clone()),
+                }),
             }),
             customer_details: None,
             pmt_details: None,
@@ -292,11 +360,11 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                     .transaction_details
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "transaction_details",
+                        field_name: "transaction_details".into(),
                     })?
                     .currency
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "currency",
+                        field_name: "currency".into(),
                     })?,
                 date: None,
                 pan_source: None,
@@ -307,6 +375,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                 three_ds_data: None,
                 message_category: None,
             }),
+            routing_region: item.router_data.request.routing_region.clone(),
         })
     }
 }
@@ -363,8 +432,8 @@ impl<F, T>
                 .and_then(|three_ds_eligibility_response| {
                     three_ds_eligibility_response
                         .three_ds_method_data_form
-                        .three_ds_method_data
-                        .clone()
+                        .as_ref()
+                        .and_then(|form| form.three_ds_method_data.clone())
                 });
         let three_ds_method_url = max_acs_protocol_version
             .and_then(|acs_protocol_version| acs_protocol_version.three_ds_method_url);
@@ -380,10 +449,17 @@ impl<F, T>
                         .map(|response| response.three_ds_server_trans_id.clone()),
                     three_ds_method_data,
                     three_ds_method_url,
-                    message_version: maximum_supported_3ds_version,
+                    message_version: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.highest_common_supported_version.clone())
+                        .or(maximum_supported_3ds_version),
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
-                        .and_then(|response| response.directory_server_id),
+                        .as_ref()
+                        .and_then(|response| response.directory_server_id.clone()),
+                    scheme_id: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.scheme_id.clone()),
                 },
             }),
             ..item.data
@@ -396,6 +472,7 @@ pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
     pub authenticate_by: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub auth_creds: ConnectorAuthType,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -406,16 +483,27 @@ pub struct UnifiedAuthenticationServicePostAuthenticateResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuthenticationDetails {
     pub eci: Option<String>,
-    pub token_details: UasTokenDetails,
+    pub token_details: Option<UasTokenDetails>,
     pub dynamic_data_details: Option<UasDynamicData>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
+    pub raw_card_details: Option<UasRawCardDetails>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasTokenDetails {
-    pub payment_token: cards::CardNumber,
-    pub payment_account_reference: String,
+    pub payment_token: cards::NetworkToken,
+    pub payment_account_reference: Option<String>,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UasRawCardDetails {
+    pub pan: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub card_security_code: Option<Secret<String>>,
+    pub payment_account_reference: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -434,10 +522,11 @@ impl TryFrom<&UasPostAuthenticationRouterData>
             authenticate_by: item.connector.clone(),
             source_authentication_id: item.authentication_id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "authentication_id",
+                    field_name: "authentication_id".into(),
                 },
             )?,
             auth_creds: item.connector_auth_type.clone(),
+            routing_region: item.request.routing_region.clone(),
         })
     }
 }
@@ -465,28 +554,23 @@ impl<F, T>
             response: Ok(UasAuthenticationResponseData::PostAuthentication {
                 authentication_details: PostAuthenticationDetails {
                     eci: item.response.authentication_details.eci,
-                    token_details: Some(TokenDetails {
-                        payment_token: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .payment_token,
-                        payment_account_reference: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .payment_account_reference,
-                        token_expiration_month: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .token_expiration_month,
-                        token_expiration_year: item
-                            .response
-                            .authentication_details
-                            .token_details
-                            .token_expiration_year,
-                    }),
+                    token_details: item.response.authentication_details.token_details.map(
+                        |token_details| TokenDetails {
+                            payment_token: token_details.payment_token,
+                            payment_account_reference: token_details.payment_account_reference,
+                            token_expiration_month: token_details.token_expiration_month,
+                            token_expiration_year: token_details.token_expiration_year,
+                        },
+                    ),
+                    raw_card_details: item.response.authentication_details.raw_card_details.map(
+                        |raw_card_details| RawCardDetails {
+                            pan: raw_card_details.pan,
+                            expiration_month: raw_card_details.expiration_month,
+                            expiration_year: raw_card_details.expiration_year,
+                            card_security_code: raw_card_details.card_security_code,
+                            payment_account_reference: raw_card_details.payment_account_reference,
+                        },
+                    ),
                     dynamic_data_details: item
                         .response
                         .authentication_details
@@ -496,7 +580,9 @@ impl<F, T>
                             dynamic_data_type: dynamic_data.dynamic_data_type,
                             ds_trans_id: dynamic_data.ds_trans_id,
                         }),
-                    trans_status: None,
+                    trans_status: item.response.authentication_details.trans_status,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
                 },
             }),
             ..item.data
@@ -519,7 +605,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
     ) -> Result<Self, Self::Error> {
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_id",
+                field_name: "authentication_id".into(),
             },
         )?;
         let auth_type =
@@ -536,7 +622,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
             checkout_event_status: item.router_data.request.checkout_event_status.clone(),
             confirmation_status: item.router_data.request.confirmation_status.clone(),
             confirmation_reason: item.router_data.request.confirmation_reason.clone(),
-            confirmation_timestamp: item.router_data.request.confirmation_timestamp,
+            confirmation_timestamp: item.router_data.request.confirmation_timestamp.clone(),
             network_authorization_code: item.router_data.request.network_authorization_code.clone(),
             network_transaction_identifier: item
                 .router_data
@@ -549,6 +635,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
     }
 }
 
+// ThreeDs request
 impl TryFrom<&UasPreAuthenticationRouterData>
     for UnifiedAuthenticationServicePreAuthenticateRequest
 {
@@ -559,12 +646,12 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             item.authentication_id
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "authentication_id",
+                    field_name: "authentication_id".into(),
                 })?;
 
         let merchant_data = item.request.merchant_details.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "merchant_details",
+                field_name: "merchant_details".into(),
             },
         )?;
 
@@ -578,6 +665,8 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             three_ds_requestor_id: merchant_data.three_ds_requestor_id,
             three_ds_requestor_name: merchant_data.three_ds_requestor_name,
             configuration_id: None,
+            notification_url: merchant_data.notification_url,
+            webhook_url: merchant_data.webhook_url,
         };
 
         let acquirer = Acquirer {
@@ -621,12 +710,12 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                 post_code: address_wrap.address.clone().and_then(|address| address.zip),
                 state: address_wrap.address.and_then(|address| address.state),
             });
-
+        let authentication_info = item.request.authentication_info.clone();
         Ok(Self {
             authenticate_by: item.connector.clone(),
-            session_id: authentication_id.clone(),
+            session_id: item.payment_id.clone(),
             source_authentication_id: authentication_id,
-            authentication_info: None,
+            authentication_info,
             service_details,
             customer_details: None,
             pmt_details: item
@@ -643,11 +732,13 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                     account_type: details.account_type,
                     card_expiry_month: details.card_expiry_month,
                     card_expiry_year: details.card_expiry_year,
+                    card_cvc: details.card_cvc,
                 }),
             auth_creds: auth_type,
             transaction_details: None,
             acquirer_details: Some(acquirer),
             billing_address,
+            routing_region: item.request.routing_region.clone(),
         })
     }
 }
@@ -662,6 +753,12 @@ pub enum UnifiedAuthenticationServiceAuthType {
         certificate: Secret<String>,
         private_key: Secret<String>,
     },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    NoKey,
 }
 
 impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
@@ -671,6 +768,15 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self::HeaderKey {
                 api_key: api_key.clone(),
             }),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self::SignatureKey {
+                api_key: api_key.clone(),
+                key1: key1.clone(),
+                api_secret: api_secret.clone(),
+            }),
             ConnectorAuthType::CertificateAuth {
                 certificate,
                 private_key,
@@ -678,6 +784,7 @@ impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
                 certificate: certificate.clone(),
                 private_key: private_key.clone(),
             }),
+            ConnectorAuthType::NoKey => Ok(Self::NoKey),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -737,11 +844,12 @@ pub struct ThreeDsEligibilityResponse {
     pub scheme_id: Option<String>,
     pub acs_protocol_versions: Option<Vec<AcsProtocolVersion>>,
     pub ds_protocol_versions: Option<Vec<String>>,
-    pub three_ds_method_data_form: ThreeDsMethodDataForm,
+    pub three_ds_method_data_form: Option<ThreeDsMethodDataForm>,
     pub three_ds_method_data: Option<ThreeDsMethodData>,
     pub error_details: Option<String>,
     pub is_card_found_in_2x_ranges: bool,
     pub directory_server_id: Option<String>,
+    pub highest_common_supported_version: Option<common_utils::types::SemanticVersion>,
 }
 
 impl ThreeDsEligibilityResponse {
@@ -791,6 +899,8 @@ pub struct UnifiedAuthenticationServiceAuthenticateRequest {
     pub device_details: DeviceDetails,
     pub customer_details: Option<CustomerDetails>,
     pub auth_creds: UnifiedAuthenticationServiceAuthType,
+    pub authentication_info: Option<AuthenticationInfo>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -817,18 +927,23 @@ pub struct ThreeDsAuthDetails {
     pub acs_trans_id: String,
     pub acs_reference_number: String,
     pub acs_operator_id: Option<String>,
-    pub ds_reference_number: String,
+    pub ds_reference_number: Option<String>,
     pub ds_trans_id: String,
     pub sdk_trans_id: Option<String>,
     pub trans_status: common_enums::TransactionStatus,
     pub acs_challenge_mandated: Option<ACSChallengeMandatedEnum>,
-    pub message_type: String,
-    pub message_version: String,
+    pub message_type: Option<String>,
+    pub message_version: Option<String>,
     pub acs_url: Option<url::Url>,
     pub challenge_request: Option<String>,
+    pub challenge_request_key: Option<String>,
     pub acs_signed_content: Option<String>,
     pub authentication_value: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize, Clone, Copy, Deserialize)]
@@ -855,7 +970,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
     ) -> Result<Self, Self::Error> {
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "authentication_id",
+                field_name: "authentication_id".into(),
             },
         )?;
 
@@ -889,6 +1004,16 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .message_version
                 .clone(),
             threeds_method_comp_ind: item.router_data.request.threeds_method_comp_ind.clone(),
+            force_3ds_challenge: item
+                .router_data
+                .request
+                .transaction_details
+                .force_3ds_challenge,
+            psd2_sca_exemption_type: item
+                .router_data
+                .request
+                .transaction_details
+                .psd2_sca_exemption_type,
         };
 
         let device_details = DeviceDetails {
@@ -899,7 +1024,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .device_channel
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "device_channel",
+                    field_name: "device_channel".into(),
                 })?,
             browser_info: Some(browser_info),
             sdk_info: item.router_data.request.sdk_information.clone(),
@@ -930,7 +1055,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
         };
         let auth_type =
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
-
+        let authentication_info = item.router_data.request.authentication_info.clone();
         Ok(Self {
             authenticate_by: item.router_data.connector.clone(),
             source_authentication_id: authentication_id,
@@ -938,6 +1063,8 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
             auth_creds: auth_type,
             device_details,
             customer_details: None,
+            authentication_info,
+            routing_region: item.router_data.request.routing_region.clone(),
         })
     }
 }
@@ -963,16 +1090,16 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             UnifiedAuthenticationServiceAuthenticateResponse::Success(auth_response) => {
-                let authn_flow_type = match auth_response
-                    .three_ds_auth_response
-                    .acs_challenge_mandated
-                {
-                    Some(ACSChallengeMandatedEnum::Y) => {
+                let authn_flow_type = match auth_response.three_ds_auth_response.trans_status {
+                    common_enums::TransactionStatus::ChallengeRequired => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: auth_response.three_ds_auth_response.acs_url.clone(),
                             challenge_request: auth_response
                                 .three_ds_auth_response
                                 .challenge_request,
+                            challenge_request_key: auth_response
+                                .three_ds_auth_response
+                                .challenge_request_key,
                             acs_reference_number: Some(
                                 auth_response.three_ds_auth_response.acs_reference_number,
                             ),
@@ -987,7 +1114,7 @@ impl<F, T>
                                 .acs_signed_content,
                         }))
                     }
-                    Some(ACSChallengeMandatedEnum::N) | None => AuthNFlowType::Frictionless,
+                    _ => AuthNFlowType::Frictionless,
                 };
                 Ok(UasAuthenticationResponseData::Authentication {
                     authentication_details: hyperswitch_domain_models::router_request_types::unified_authentication_service::AuthenticationDetails {
@@ -997,6 +1124,10 @@ impl<F, T>
                         connector_metadata: None,
                         ds_trans_id: Some(auth_response.three_ds_auth_response.ds_trans_id),
                         eci: auth_response.three_ds_auth_response.eci,
+                        challenge_code: auth_response.three_ds_auth_response.challenge_code,
+                        challenge_cancel: auth_response.three_ds_auth_response.challenge_cancel,
+                        challenge_code_reason: auth_response.three_ds_auth_response.challenge_code_reason,
+                        message_extension:  auth_response.three_ds_auth_response.message_extension,
                     },
                 })
             }
@@ -1008,9 +1139,11 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
         };
@@ -1019,5 +1152,100 @@ impl<F, T>
             response,
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct WebhookRequest {
+    pub authenticate_by: String,
+    pub body: Vec<u8>,
+    pub routing_region: Option<RoutingRegion>,
+}
+
+impl TryFrom<&UasProcessWebhookRouterData> for WebhookRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &UasProcessWebhookRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            authenticate_by: item.connector.clone(),
+            body: item.request.body.clone(),
+            routing_region: item.request.routing_region.clone(),
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponseResult, T, UasAuthenticationResponseData>>
+    for RouterData<F, T, UasAuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, WebhookResponseResult, T, UasAuthenticationResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response {
+            WebhookResponseResult::Success(auth_response) => {
+                let webhook_response = *auth_response;
+                Ok(UasAuthenticationResponseData::Webhook {
+                    trans_status: webhook_response.trans_status,
+                    authentication_value: webhook_response.authentication_value,
+                    eci: webhook_response.eci,
+                    three_ds_server_transaction_id: webhook_response.three_ds_server_transaction_id,
+                    authentication_id: webhook_response.authentication_id,
+                    results_request: webhook_response.results_request,
+                    results_response: webhook_response.results_response,
+                })
+            }
+            WebhookResponseResult::Failure(error_response) => {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.error.clone(),
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                    connector_response_reference_id: None,
+                })
+            }
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum WebhookResponseResult {
+    Success(Box<WebhookResponse>),
+    Failure(UnifiedAuthenticationServiceErrorResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<Secret<String>>,
+    /// eci
+    pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: String,
+    /// authentication_id
+    pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
+    /// The received Results Request from the Directory Server.
+    pub results_request: Option<common_utils::pii::SecretSerdeValue>,
+    /// The sent Results Response to the Directory Server.
+    pub results_response: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+impl WebhookResponse {
+    /// Convert the WebhookResponse to Bytes using JSON serialization
+    pub fn to_bytes(&self) -> Result<actix_web::web::Bytes, serde_json::Error> {
+        let json_bytes = serde_json::to_vec(self)?;
+        Ok(actix_web::web::Bytes::from(json_bytes))
     }
 }

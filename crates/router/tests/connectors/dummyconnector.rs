@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 use test_utils::connector_auth;
 
@@ -14,7 +14,7 @@ impl utils::Connector for DummyConnectorTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::DummyConnector;
         utils::construct_connector_data_old(
-            Box::new(&DummyConnector::<1>),
+            Box::new(DummyConnector::<1>::new()),
             types::Connector::DummyConnector1,
             types::api::GetToken::Connector,
             None,

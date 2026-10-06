@@ -4,24 +4,29 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::user::sample_data::SampleDataRequest;
 #[cfg(feature = "control_center_theme")]
 use crate::user::theme::{
-    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+    CreateThemeRequest, CreateUserThemeRequest, GetThemeResponse, ThemeVersionResponse,
+    UpdateThemeRequest, UploadFileRequest,
 };
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
-    ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
-    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
+    AcceptInviteFromEmailRequest, AcceptInviteResponse, AuthSelectRequest, AuthorizeResponse,
+    AuthorizeTokenRequest, BeginTotpResponse, ChangePasswordRequest, CloneConnectorRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, CreateTenantUserRequest,
+    CreateUserAuthenticationMethodRequest, CreateUserAuthenticationMethodResponse,
+    EmbeddedTokenInfoResponse, ForgotPasswordRequest, GetSsoAuthUrlRequest,
+    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserInternalDetailsResponse,
     GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
+    IssueEmbeddedTokenResponse, ListUsersInternalRequest, ListUsersInternalResponse,
     PlatformAccountCreateRequest, PlatformAccountCreateResponse, ReInviteUserRequest,
     RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
     SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
     SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
     TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
     UserFromEmailRequest, UserMerchantAccountResponse, UserMerchantCreate,
-    UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    UserMerchantDetailsResponse, UserOrgMerchantCreateRequest, VerifyEmailRequest,
+    VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 common_utils::impl_api_event_type!(
@@ -43,6 +48,7 @@ common_utils::impl_api_event_type!(
         PlatformAccountCreateResponse,
         UserOrgMerchantCreateRequest,
         UserMerchantAccountResponse,
+        UserMerchantDetailsResponse,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,
@@ -59,6 +65,7 @@ common_utils::impl_api_event_type!(
         GetUserRoleDetailsRequest,
         GetUserRoleDetailsResponseV2,
         TokenResponse,
+        AcceptInviteResponse,
         TwoFactorAuthStatusResponse,
         TwoFactorStatus,
         UserFromEmailRequest,
@@ -68,11 +75,18 @@ common_utils::impl_api_event_type!(
         RecoveryCodes,
         GetUserAuthenticationMethodsRequest,
         CreateUserAuthenticationMethodRequest,
+        CreateUserAuthenticationMethodResponse,
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
         AuthSelectRequest,
-        CloneConnectorRequest
+        CloneConnectorRequest,
+        IssueEmbeddedTokenResponse,
+        EmbeddedTokenInfoResponse,
+        GetUserInternalDetailsResponse,
+        ListUsersInternalRequest,
+        ListUsersInternalResponse,
+        AuthorizeTokenRequest
     )
 );
 
@@ -83,7 +97,9 @@ common_utils::impl_api_event_type!(
         GetThemeResponse,
         UploadFileRequest,
         CreateThemeRequest,
-        UpdateThemeRequest
+        CreateUserThemeRequest,
+        UpdateThemeRequest,
+        ThemeVersionResponse
     )
 );
 

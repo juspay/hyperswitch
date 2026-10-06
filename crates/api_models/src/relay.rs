@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{enums as api_enums, unreferenced_refund};
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
@@ -25,6 +25,22 @@ pub struct RelayRequest {
 pub enum RelayData {
     /// The data that is associated with a refund relay request
     Refund(RelayRefundRequestData),
+    Capture(RelayCaptureRequestData),
+    IncrementalAuthorization(RelayIncrementalAuthorizationRequestData),
+    Void(RelayVoidRequestData),
+    UnreferencedRefund(RelayUnreferencedRefundData),
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayUnreferencedRefundData {
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+    #[schema(value_type = Currency)]
+    pub currency: api_enums::Currency,
+    #[schema(value_type = String)]
+    pub customer_id: Option<String>,
+    #[schema(value_type = RecipientPaymentMethodData)]
+    pub recipient_payment_method_data: Option<unreferenced_refund::RecipientPaymentMethodData>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -38,6 +54,48 @@ pub struct RelayRefundRequestData {
     /// The reason for the refund
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayCaptureRequestData {
+    /// The amount that is authorized for capture
+    #[schema(value_type = i64 , example = 6540)]
+    pub authorized_amount: MinorUnit,
+    /// The amount that is being captured
+    #[schema(value_type = i64 , example = 6540)]
+    pub amount_to_capture: MinorUnit,
+    /// The currency in which the amount is being captured
+    #[schema(value_type = Currency)]
+    pub currency: api_enums::Currency,
+    /// type of capture for the relay
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayIncrementalAuthorizationRequestData {
+    /// Original amount + additional amount of the transaction
+    #[schema(value_type = i64 , example = 6540)]
+    pub total_amount: MinorUnit,
+    /// The amount by which the payment needs is incremented
+    #[schema(value_type = i64 , example = 6540)]
+    pub additional_amount: MinorUnit,
+    /// The currency in which the amount is being captured
+    #[schema(value_type = Currency)]
+    pub currency: api_enums::Currency,
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayVoidRequestData {
+    /// The amount of the transaction that is being voided
+    #[schema(value_type = i64 , example = 6540)]
+    pub amount: Option<MinorUnit>,
+    /// The currency in which the amount is being voided
+    #[schema(value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
+    /// The cancellation reason for voiding the transaction
+    #[schema(example = "Requested by merchant")]
+    pub cancellation_reason: Option<String>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

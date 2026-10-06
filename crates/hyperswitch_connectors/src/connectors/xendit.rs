@@ -19,15 +19,15 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PreProcessing, Session, SetupMandate,
-            Void,
+            Authorize, Capture, PSync, PaymentMethodToken, Session, SettlementSplitCreate,
+            SetupMandate, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData, SplitRefundsRequest,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SettlementSplitRequestData, SetupMandateRequestData, SplitRefundsRequest,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        PaymentsSettlementSplitCreateRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
         RefundsRouterData,
     },
 };
@@ -50,15 +50,15 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, Response},
     webhooks,
 };
+use hyperswitch_masking::{Mask, PeekInterface};
 use image::EncodableLayout;
-use masking::{Mask, PeekInterface};
 use transformers::{self as xendit, XenditEventType, XenditWebhookEvent};
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils as connector_utils,
-    utils::{self, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -74,7 +74,7 @@ impl Xendit {
     }
 }
 impl api::Payment for Xendit {}
-impl api::PaymentsPreProcessing for Xendit {}
+impl api::PaymentsSettlementSplitCreate for Xendit {}
 impl api::PaymentSession for Xendit {}
 impl api::ConnectorAccessToken for Xendit {}
 impl api::MandateSetup for Xendit {}
@@ -100,7 +100,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -131,7 +132,8 @@ impl ConnectorCommon for Xendit {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = xendit::XenditAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
@@ -160,9 +162,11 @@ impl ConnectorCommon for Xendit {
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -174,22 +178,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Cancel/Void flow".to_string(),
-            connector: "Xendit",
+            connector: "Xendit".into(),
         }
         .into())
     }
 }
 
-impl ConnectorValidation for Xendit {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Xendit {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Xendit {}
 
@@ -204,7 +199,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
 
         match &req.request.split_payments {
@@ -212,6 +208,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 common_types::payments::XenditSplitRequest::MultipleSplits(_),
             )) => {
                 if let Ok(PaymentsResponseData::TransactionResponse {
+                    authentication_data: None,
                     charges:
                         Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
                             common_types::payments::XenditChargeResponseData::MultipleSplits(
@@ -253,10 +250,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/payment_requests", self.base_url(connectors)))
+        let base_url = self.base_url(connectors);
+        match req.request.payment_method_type {
+            Some(PaymentMethodType::Qris) => Ok(format!("{}/qr_codes", base_url)),
+            _ => Ok(format!("{}/payment_requests", self.base_url(connectors))),
+        }
     }
 
     fn get_request_body(
@@ -306,7 +307,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let response_integrity_object = connector_utils::get_authorise_integrity_object(
             self.amount_converter,
             response.amount,
-            response.currency.to_string().clone(),
+            response
+                .currency
+                .unwrap_or(data.request.currency)
+                .to_string()
+                .clone(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -334,14 +339,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+impl ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>
     for Xendit
 {
     fn get_headers(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsSettlementSplitCreateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -351,7 +357,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_url(
         &self,
-        _req: &PaymentsPreProcessingRouterData,
+        _req: &PaymentsSettlementSplitCreateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}/split_rules", self.base_url(connectors)))
@@ -359,7 +365,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_request_body(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsSettlementSplitCreateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = xendit::XenditSplitRequestData::try_from(req)?;
@@ -368,20 +374,20 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn build_request(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsSettlementSplitCreateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let req = Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
+                .headers(types::PaymentsSettlementSplitCreateType::get_headers(
                     self, req, connectors,
                 )?)
-                .url(&types::PaymentsPreProcessingType::get_url(
+                .url(&types::PaymentsSettlementSplitCreateType::get_url(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsPreProcessingType::get_request_body(
+                .set_body(types::PaymentsSettlementSplitCreateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -391,10 +397,10 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn handle_response(
         &self,
-        data: &PaymentsPreProcessingRouterData,
+        data: &PaymentsSettlementSplitCreateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSettlementSplitCreateRouterData, errors::ConnectorError> {
         let response: xendit::XenditSplitResponse = res
             .response
             .parse_struct("XenditSplitResponse")
@@ -423,7 +429,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
 
         match &req.request.split_payments {
@@ -502,13 +509,27 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Xen
             xendit::XenditResponse::Payment(p) => connector_utils::get_sync_integrity_object(
                 self.amount_converter,
                 p.amount,
-                p.currency.to_string().clone(),
+                p.currency
+                    .unwrap_or(data.request.currency)
+                    .to_string()
+                    .clone(),
             ),
-            xendit::XenditResponse::Webhook(p) => connector_utils::get_sync_integrity_object(
-                self.amount_converter,
-                p.data.amount,
-                p.data.currency.to_string().clone(),
-            ),
+            xendit::XenditResponse::Webhook(webhook_response_data) => match webhook_response_data {
+                XenditWebhookEvent::CommonEvent(event_data) => {
+                    connector_utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        event_data.data.amount,
+                        event_data.data.currency.clone(),
+                    )
+                }
+                XenditWebhookEvent::QrEvent(xendit_qris_webhook_response_data) => {
+                    connector_utils::get_sync_integrity_object(
+                        self.amount_converter,
+                        xendit_qris_webhook_response_data.amount,
+                        data.request.currency.to_string(),
+                    )
+                }
+            },
         };
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -532,7 +553,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
 
         match &req.request.split_payments {
@@ -594,7 +616,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         if amount_to_capture != authorized_amount {
             Err(report!(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
-                connector: "Xendit"
+                connector: "Xendit".into()
             }))
         } else {
             let connector_router_data = xendit::XenditRouterData::from((amount_to_capture, req));
@@ -626,31 +648,18 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: xendit::XenditPaymentResponse = res
+        let response: xendit::XenditCaptureResponse = res
             .response
             .parse_struct("Xendit PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let response_integrity_object = connector_utils::get_capture_integrity_object(
-            self.amount_converter,
-            Some(response.amount),
-            response.currency.to_string().clone(),
-        )?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
-        let new_router_data = RouterData::try_from(ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed);
-
-        new_router_data.map(|mut router_data| {
-            router_data.request.integrity_object = Some(response_integrity_object);
-            router_data
-        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -667,7 +676,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Xendit 
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
             &req.request.split_refunds
@@ -775,7 +785,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Xendit {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         if let Some(SplitRefundsRequest::XenditSplitRefund(sub_merchant_data)) =
             &req.request.split_refunds
@@ -879,7 +890,9 @@ impl webhooks::IncomingWebhook for Xendit {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
@@ -913,49 +926,70 @@ impl webhooks::IncomingWebhook for Xendit {
             .body
             .parse_struct("XenditWebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match details.event {
-            XenditEventType::PaymentSucceeded
-            | XenditEventType::PaymentAwaitingCapture
-            | XenditEventType::PaymentFailed
-            | XenditEventType::CaptureSucceeded
-            | XenditEventType::CaptureFailed => {
+        match details {
+            XenditWebhookEvent::CommonEvent(event_data) => match event_data.event {
+                XenditEventType::PaymentSucceeded
+                | XenditEventType::PaymentAwaitingCapture
+                | XenditEventType::PaymentFailed
+                | XenditEventType::CaptureSucceeded
+                | XenditEventType::CaptureFailed => {
+                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            event_data
+                                .data
+                                .payment_request_id
+                                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        ),
+                    ))
+                }
+                XenditEventType::QrPayment => {
+                    Err(errors::ConnectorError::WebhookReferenceIdNotFound.into())
+                }
+            },
+            XenditWebhookEvent::QrEvent(xendit_qris_webhook_event_data) => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        details
-                            .data
-                            .payment_request_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        xendit_qris_webhook_event_data.qr_code.external_id,
                     ),
                 ))
             }
         }
     }
+
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let body: XenditWebhookEvent = request
             .body
             .parse_struct("XenditWebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match body.event {
-            XenditEventType::PaymentSucceeded => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
-            XenditEventType::CaptureSucceeded => {
-                Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess)
-            }
-            XenditEventType::PaymentAwaitingCapture => {
-                Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
-            }
-            XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
-                Ok(IncomingWebhookEvent::PaymentIntentFailure)
-            }
+        match body {
+            XenditWebhookEvent::CommonEvent(event_data) => match event_data.event {
+                XenditEventType::PaymentSucceeded | XenditEventType::QrPayment => {
+                    Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                }
+                XenditEventType::CaptureSucceeded => {
+                    Ok(IncomingWebhookEvent::PaymentIntentCaptureSuccess)
+                }
+                XenditEventType::PaymentAwaitingCapture => {
+                    Ok(IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+                }
+                XenditEventType::PaymentFailed | XenditEventType::CaptureFailed => {
+                    Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                }
+            },
+            // Xendit’s QR Code system currently only sends a webhook for a successful payment
+            XenditWebhookEvent::QrEvent(_) => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
         }
     }
 
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let body: XenditWebhookEvent = request
             .body
             .parse_struct("XenditWebhookEvent")
@@ -966,6 +1000,7 @@ impl webhooks::IncomingWebhook for Xendit {
 
 static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
+    let automatic_capture_supported = vec![CaptureMethod::Automatic];
 
     let supported_card_network = vec![
         common_enums::CardNetwork::Mastercard,
@@ -1019,18 +1054,50 @@ static XENDIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         },
     );
 
+    xendit_supported_payment_methods.add(
+        enums::PaymentMethod::RealTimePayment,
+        PaymentMethodType::Qris,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: automatic_capture_supported.clone(),
+            specific_features: None,
+        },
+    );
+
     xendit_supported_payment_methods
 });
 
 static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Xendit",
     description: "Xendit is a financial technology company that provides payment solutions and simplifies the payment process for businesses in Indonesia, the Philippines and Southeast Asia, from SMEs and e-commerce startups to large enterprises.",
-    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Xendit {
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { request_data, .. } => {
+                matches!(request_data.payment_method_data, PaymentMethodData::Card(_))
+                    && matches!(
+                        request_data.split_payments.as_ref(),
+                        Some(
+                            common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                                common_types::payments::XenditSplitRequest::MultipleSplits(_),
+                            ),
+                        )
+                    )
+            }
+            api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&XENDIT_CONNECTOR_INFO)
     }

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use cards::CardNumber;
 use common_utils::{pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::types::OrderDetailsWithAmount;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 
 use crate::{
@@ -323,7 +323,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
-                    product_name: "test".to_string(),
+                    product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: MinorUnit::new(1000),
                     product_img_link: None,
@@ -336,6 +336,16 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     product_tax_code: None,
                     tax_rate: None,
                     total_tax_amount: None,
+                    description: None,
+                    sku: None,
+                    upc: None,
+                    commodity_code: None,
+                    unit_of_measure: None,
+                    total_amount: None,
+                    unit_discount_amount: None,
+                    discount_name: None,
+                    discount_percentage: None,
+                    discount_type: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -368,7 +378,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
-                    product_name: "test".to_string(),
+                    product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: MinorUnit::new(1000),
                     product_img_link: None,
@@ -381,6 +391,16 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     product_tax_code: None,
                     tax_rate: None,
                     total_tax_amount: None,
+                    description: None,
+                    sku: None,
+                    upc: None,
+                    commodity_code: None,
+                    unit_of_measure: None,
+                    total_amount: None,
+                    unit_discount_amount: None,
+                    discount_name: None,
+                    discount_percentage: None,
+                    discount_type: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -413,7 +433,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
-                    product_name: "test".to_string(),
+                    product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: MinorUnit::new(1000),
                     product_img_link: None,
@@ -426,6 +446,16 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     product_tax_code: None,
                     tax_rate: None,
                     total_tax_amount: None,
+                    description: None,
+                    sku: None,
+                    upc: None,
+                    commodity_code: None,
+                    unit_of_measure: None,
+                    total_amount: None,
+                    unit_discount_amount: None,
+                    discount_name: None,
+                    discount_percentage: None,
+                    discount_type: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
@@ -458,7 +488,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetailsWithAmount {
-                    product_name: "test".to_string(),
+                    product_name: "iphone 13".to_string(),
                     quantity: 1,
                     amount: MinorUnit::new(1000),
                     product_img_link: None,
@@ -471,6 +501,16 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     product_tax_code: None,
                     tax_rate: None,
                     total_tax_amount: None,
+                    description: None,
+                    sku: None,
+                    upc: None,
+                    commodity_code: None,
+                    unit_of_measure: None,
+                    total_amount: None,
+                    unit_discount_amount: None,
+                    discount_name: None,
+                    discount_percentage: None,
+                    discount_type: None,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),

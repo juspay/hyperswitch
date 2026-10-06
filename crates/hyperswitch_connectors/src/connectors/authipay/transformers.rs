@@ -1,4 +1,3 @@
-use cards;
 use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
@@ -13,12 +12,12 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils,
+    utils::{self, CardData},
 };
 
 // Type definition for router data with amount
@@ -111,7 +110,7 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
             PaymentMethodData::Card(req_card) => {
                 let expiry_date = ExpiryDate {
                     month: req_card.card_exp_month.clone(),
-                    year: req_card.card_exp_year.clone(),
+                    year: req_card.get_card_expiry_year_2_digit()?,
                 };
 
                 let card = Card {
@@ -137,7 +136,7 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     | Some(enums::CaptureMethod::Scheduled) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Capture method not supported by Authipay".to_string(),
-                            connector: "Authipay",
+                            connector: "Authipay".into(),
                         }
                         .into());
                     }
@@ -171,13 +170,9 @@ impl TryFrom<&ConnectorAuthType> for AuthipayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
-                api_key,
-                api_secret,
-                ..
-            } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
-                api_secret: api_secret.to_owned(),
+                api_secret: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -426,11 +421,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     gateway_resp.transaction_processing_details.order_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -616,9 +614,11 @@ impl From<&AuthipayErrorResponse> for ErrorResponse {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            connector_metadata: None,
         }
     }
 }

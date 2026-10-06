@@ -1,32 +1,65 @@
-use api_models;
-use common_enums;
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,
+    types::MinorUnit,
 };
 use diesel_models::types::OrderDetailsWithAmount;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::router_request_types;
-#[derive(Debug, Clone)]
-pub struct FraudCheckSaleData {
-    pub amount: i64,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
-    pub currency: Option<common_enums::Currency>,
-    pub email: Option<Email>,
-}
+use crate::{payment_method_data::PaymentMethodData, router_request_types};
 
 #[derive(Debug, Clone)]
+pub struct FraudCheckSaleData {
+    pub amount: MinorUnit,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub currency: Option<common_enums::Currency>,
+    pub gateway: Option<String>,
+    pub client_ip: Option<std::net::IpAddr>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
+}
+
+/// `Serialize` is here only to satisfy the `Req: Serialize` bound on
+/// `execute_payment_gateway`. `payment_method_data_full` carries the full
+/// instrument, and `Secret`/`CardNumber` mask **only** under
+/// `hyperswitch_masking::masked_serialize` — a plain serializer (e.g.
+/// `serde_json::to_string`, `json!`) emits the raw PAN. Never feed this type
+/// to a raw serializer or a `?`-formatted log.
+#[derive(Debug, Clone, Serialize)]
 pub struct FraudCheckCheckoutData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub currency: Option<common_enums::Currency>,
     pub browser_info: Option<router_request_types::BrowserInformation>,
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
-    pub email: Option<Email>,
     pub gateway: Option<String>,
+    pub gateway_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub client_ip: Option<std::net::IpAddr>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+    /// Buyer's full name from the intent's customer details. Risk providers
+    /// match buyer history on it alongside `email`/`phone`.
+    pub customer_name: Option<Secret<String>>,
+    /// The full instrument being scored (card BIN, last four, expiry). The
+    /// `payment_method_data` above is the thinner `AdditionalPaymentData`
+    /// shape the in-process connectors consume; UCS-backed providers need the
+    /// domain type.
+    pub payment_method_data_full: Option<PaymentMethodData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FraudCheckPayoutData {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub gateway: Option<String>,
+    pub gateway_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +73,8 @@ pub struct FraudCheckTransactionData {
     pub connector_transaction_id: Option<String>,
     //The name of the payment gateway or financial institution that processed the transaction.
     pub connector: Option<String>,
+    //The transaction ID returned by the fraud check provider during checkout
+    pub frm_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

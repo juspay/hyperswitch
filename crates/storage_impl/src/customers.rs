@@ -1,27 +1,31 @@
 use common_utils::{id_type, pii};
-use diesel_models::{customers, kv};
+#[cfg(feature = "v2")]
+use diesel_models::customers;
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    customer as domain,
-    merchant_key_store::MerchantKeyStore,
+    customer as domain, merchant_key_store::MerchantKeyStore, type_encryption::AsyncLift,
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "v1")]
-use crate::diesel_error_to_data_error;
 use crate::{
+    behaviour::{Conversion, ForeignFrom, ForeignInto, ReverseConversion},
+    diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
     utils::{pg_connection_read, pg_connection_write},
-    CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
+    CustomResult, DatabaseStore, MockDb, RouterStore,
+};
+#[cfg(feature = "v2")]
+use crate::{
+    redis::kv_store::{kv_wrapper, KvOperation},
+    utils::try_redis_get_else_try_database_get,
 };
 
-impl KvStorePartition for customers::Customer {}
+impl KvStorePartition for diesel_models::Customer {}
 
 #[cfg(feature = "v2")]
 mod label {
@@ -57,32 +61,29 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let maybe_result = self
-            .find_optional_resource_by_id(
-                state,
-                key_store,
-                storage_scheme,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
+        let maybe_result = Box::pin(self.find_optional_resource_by_id(
+            key_store,
+            storage_scheme,
+            diesel_models::Customer::find_optional_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", customer_id.get_string_repr()),
+                PartitionKey::MerchantIdCustomerId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", customer_id.get_string_repr()),
-                    PartitionKey::MerchantIdCustomerId {
-                        merchant_id,
-                        customer_id,
-                    },
-                ),
-            )
-            .await?;
+                    customer_id,
+                },
+            ),
+        ))
+        .await?;
 
         maybe_result.map_or(Ok(None), |customer: domain::Customer| match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -95,18 +96,16 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_optional_resource_by_id(
-            state,
+        Box::pin(self.find_optional_resource_by_id(
             key_store,
             storage_scheme,
-            customers::Customer::find_optional_by_customer_id_merchant_id(
+            diesel_models::Customer::find_optional_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id,
@@ -118,39 +117,36 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                     customer_id,
                 },
             ),
-        )
+        ))
         .await
     }
 
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let maybe_result = self
-            .find_optional_resource_by_id(
-                state,
-                key_store,
-                storage_scheme,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
-                    &conn,
-                    merchant_reference_id,
+        let maybe_result = Box::pin(self.find_optional_resource_by_id(
+            key_store,
+            storage_scheme,
+            diesel_models::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                &conn,
+                merchant_reference_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", merchant_reference_id.get_string_repr()),
+                PartitionKey::MerchantIdMerchantReferenceId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", merchant_reference_id.get_string_repr()),
-                    PartitionKey::MerchantIdMerchantReferenceId {
-                        merchant_id,
-                        merchant_reference_id: merchant_reference_id.get_string_repr(),
-                    },
-                ),
-            )
-            .await?;
+                    merchant_reference_id: merchant_reference_id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
 
         maybe_result.map_or(Ok(None), |customer: domain::Customer| match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -158,11 +154,35 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         })
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        self.router_store
+            .find_customer_for_global_id_migration(customer_id, merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        self.router_store
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: id_type::CustomerId,
         merchant_id: id_type::MerchantId,
         customer: domain::Customer,
@@ -174,32 +194,39 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
-        let updated_customer = diesel_models::CustomerUpdateInternal::from(customer_update.clone())
+        let customer_update_internal =
+            diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone());
+        let updated_customer = customer_update_internal
+            .clone()
             .apply_changeset(customer.clone());
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &merchant_id,
             customer_id: &customer_id,
         };
         let field = format!("cust_{}", customer_id.get_string_repr());
-        self.update_resource(
-            state,
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query_fut = customer_update_internal.generate_drainer_update_query(
+            &mut query_gen_conn,
+            customer_id.clone(),
+            merchant_id.clone(),
+        );
+
+        Box::pin(self.update_resource(
             key_store,
             storage_scheme,
-            customers::Customer::update_by_customer_id_merchant_id(
+            diesel_models::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id.clone(),
                 merchant_id.clone(),
-                customer_update.clone().into(),
+                customer_update.clone().foreign_into(),
             ),
             updated_customer,
             kv_router_store::UpdateResourceParams {
-                updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
-                    orig: customer.clone(),
-                    update_data: customer_update.clone().into(),
-                }),
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
-        )
+        ))
         .await
     }
 
@@ -207,32 +234,29 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                state,
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
-                    &conn,
-                    merchant_reference_id,
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            diesel_models::Customer::find_by_merchant_reference_id_merchant_id(
+                &conn,
+                merchant_reference_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", merchant_reference_id.get_string_repr()),
+                PartitionKey::MerchantIdMerchantReferenceId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", merchant_reference_id.get_string_repr()),
-                    PartitionKey::MerchantIdMerchantReferenceId {
-                        merchant_id,
-                        merchant_reference_id: merchant_reference_id.get_string_repr(),
-                    },
-                ),
-            )
-            .await?;
+                    merchant_reference_id: merchant_reference_id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
 
         match result.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -244,32 +268,29 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                state,
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            diesel_models::Customer::find_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", customer_id.get_string_repr()),
+                PartitionKey::MerchantIdCustomerId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", customer_id.get_string_repr()),
-                    PartitionKey::MerchantIdCustomerId {
-                        merchant_id,
-                        customer_id,
-                    },
-                ),
-            )
-            .await?;
+                    customer_id,
+                },
+            ),
+        ))
+        .await?;
 
         match result.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -280,13 +301,24 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     #[instrument(skip_all)]
     async fn list_customers_by_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
         self.router_store
-            .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
+            .list_customers_by_merchant_id(merchant_id, key_store, constraints)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        self.router_store
+            .list_customers_by_merchant_id_with_count(merchant_id, key_store, constraints)
             .await
     }
 
@@ -295,7 +327,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -310,7 +341,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
             .change_context(StorageError::EncryptionError)?;
 
-        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -326,20 +357,24 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             reverse_lookups.push(reverse_lookup_merchant_scoped_id);
         }
 
-        self.insert_resource(
-            state,
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query_fut = new_customer
+            .clone()
+            .generate_drainer_insert_query(&mut query_gen_conn);
+
+        Box::pin(self.insert_resource(
             key_store,
             decided_storage_scheme,
             new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
-                insertable: kv::Insertable::Customer(new_customer.clone()),
+                drainer_query_fut,
                 reverse_lookups,
                 identifier,
                 key,
                 resource_type: "customer",
             },
-        )
+        ))
         .await
     }
 
@@ -348,21 +383,21 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
+        let customer_id = customer_data.get_id().clone();
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &customer_data.merchant_id.clone(),
-            customer_id: &customer_data.customer_id.clone(),
+            customer_id: &customer_id,
         };
-        let identifier = format!("cust_{}", customer_data.customer_id.get_string_repr());
+        let identifier = format!("cust_{}", customer_id.get_string_repr());
         let mut new_customer = customer_data
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -370,20 +405,25 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await;
         new_customer.update_storage_scheme(storage_scheme);
         let customer = new_customer.clone().into();
-        self.insert_resource(
-            state,
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query_fut = new_customer
+            .clone()
+            .generate_drainer_insert_query(&mut query_gen_conn);
+
+        Box::pin(self.insert_resource(
             key_store,
             storage_scheme,
             new_customer.clone().insert(&conn),
             customer,
             kv_router_store::InsertResourceParams {
-                insertable: kv::Insertable::Customer(new_customer.clone()),
+                drainer_query_fut,
                 reverse_lookups: vec![],
                 identifier,
                 key,
                 resource_type: "customer",
             },
-        )
+        ))
         .await
     }
 
@@ -403,26 +443,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                state,
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_global_id(&conn, id),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", id.get_string_repr()),
-                    PartitionKey::GlobalId {
-                        id: id.get_string_repr(),
-                    },
-                ),
-            )
-            .await?;
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            diesel_models::Customer::find_by_global_id(&conn, id),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", id.get_string_repr()),
+                PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
 
         if result.status == common_enums::DeleteStatus::Redacted {
             Err(StorageError::CustomerRedacted)?
@@ -433,9 +470,100 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            diesel_models::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", id.get_string_repr()),
+                PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
+
+        if result.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if result.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(result)
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let database_call = || async {
+            Ok::<_, error_stack::Report<StorageError>>(
+                diesel_models::Customer::find_by_global_id(&conn, id)
+                    .await
+                    .map(domain::CustomerWithoutEncrypted::foreign_from)
+                    .map_err(StorageError::from)?,
+            )
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, customers::Customer>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let result = match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await?,
+            MerchantStorageScheme::RedisKv => {
+                let field = format!("cust_{}", id.get_string_repr());
+                let key = PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        let customer: customers::Customer = Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<customers::Customer>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()?;
+                        Ok(domain::CustomerWithoutEncrypted::foreign_from(customer))
+                    },
+                    database_call,
+                ))
+                .await?
+            }
+        };
+
+        if result.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if result.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(result)
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
     async fn update_customer_by_global_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
         customer_update: domain::CustomerUpdate,
@@ -446,27 +574,30 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
+        let customer_update_internal =
+            diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone());
         let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update_internal.clone());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
         let field = format!("cust_{}", id.get_string_repr());
-        self.update_resource(
-            state,
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query_fut = customer_update_internal
+            .clone()
+            .generate_drainer_update_query(&mut query_gen_conn, id.clone());
+
+        Box::pin(self.update_resource(
             key_store,
             storage_scheme,
             database_call,
-            diesel_models::CustomerUpdateInternal::from(customer_update.clone())
-                .apply_changeset(customer.clone()),
+            customer_update_internal.apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
-                updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
-                    orig: customer.clone(),
-                    update_data: customer_update.into(),
-                }),
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
-        )
+        ))
         .await
     }
 }
@@ -478,7 +609,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -486,10 +616,9 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> = self
-            .find_optional_resource(
-                state,
+            .find_optional_resource_new(
                 key_store,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
+                diesel_models::Customer::find_optional_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -512,17 +641,15 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_optional_resource(
-            state,
+        self.find_optional_resource_new(
             key_store,
-            customers::Customer::find_optional_by_customer_id_merchant_id(
+            diesel_models::Customer::find_optional_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id,
@@ -535,7 +662,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -543,10 +669,9 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> = self
-            .find_optional_resource(
-                state,
+            .find_optional_resource_new(
                 key_store,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                diesel_models::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -565,11 +690,47 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         })
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        customers::Customer::find_by_merchant_id_customer_id_for_global_id_migration(
+            &conn,
+            merchant_id,
+            customer_id,
+        )
+        .await
+        .map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let conn = pg_connection_write(self).await?;
+        customers::Customer::update_global_id_for_migration(&conn, merchant_id, customer_id, new_id)
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: id_type::CustomerId,
         merchant_id: id_type::MerchantId,
         _customer: domain::Customer,
@@ -578,16 +739,15 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        self.call_database(
-            state,
+        Box::pin(self.call_database_new(
             key_store,
-            customers::Customer::update_by_customer_id_merchant_id(
+            diesel_models::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id.clone(),
-                customer_update.into(),
+                customer_update.foreign_into(),
             ),
-        )
+        ))
         .await
     }
 
@@ -595,7 +755,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -603,10 +762,9 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
-            .call_database(
-                state,
+            .call_database_new(
                 key_store,
-                customers::Customer::find_by_customer_id_merchant_id(
+                diesel_models::Customer::find_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -623,7 +781,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
@@ -631,10 +788,9 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
-            .call_database(
-                state,
+            .call_database_new(
                 key_store,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
+                diesel_models::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -650,7 +806,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn list_customers_by_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
@@ -658,19 +813,61 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
-        self.find_resources(
-            state,
+        self.find_resources_new(
             key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            diesel_models::Customer::list_customers_by_merchant_id_and_constraints(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            ),
         )
         .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer_list_constraints =
+            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+        let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
+            limit: customer_list_constraints.limit,
+            offset: customer_list_constraints.offset,
+            customer_id: customer_list_constraints.customer_id.clone(),
+            time_range: customer_list_constraints.time_range,
+        };
+        let customers = self
+            .find_resources_new(
+                key_store,
+                diesel_models::Customer::list_customers_by_merchant_id_and_constraints(
+                    &conn,
+                    merchant_id,
+                    customers_constraints,
+                ),
+            )
+            .await?;
+        let total_count =
+            diesel_models::Customer::get_customer_count_by_merchant_id_and_constraints(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            )
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?;
+        Ok((customers, total_count))
     }
 
     #[instrument(skip_all)]
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -679,8 +876,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        self.call_database(state, key_store, customer_new.insert(&conn))
-            .await
+        Box::pin(self.call_database_new(key_store, customer_new.insert(&conn))).await
     }
 
     #[cfg(feature = "v1")]
@@ -691,7 +887,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
         let conn = pg_connection_write(self).await?;
-        customers::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
+        diesel_models::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
             .map_err(|error| {
                 let new_err = diesel_error_to_data_error(*error.current_context());
@@ -703,7 +899,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
         customer_update: domain::CustomerUpdate,
@@ -711,11 +906,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        self.call_database(
-            state,
+        Box::pin(self.call_database_new(
             key_store,
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.into()),
-        )
+            diesel_models::Customer::update_by_id(
+                &conn,
+                id.clone(),
+                customer_update.foreign_into(),
+            ),
+        ))
         .await
     }
 
@@ -723,22 +921,67 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer: domain::Customer = self
-            .call_database(
-                state,
+            .call_database_new(
                 key_store,
-                customers::Customer::find_by_global_id(&conn, id),
+                diesel_models::Customer::find_by_global_id(&conn, id),
             )
             .await?;
         match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
             _ => Ok(customer),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer: domain::Customer = self
+            .call_database_new(
+                key_store,
+                diesel_models::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+            )
+            .await?;
+        match customer.name {
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
+            _ => Ok(customer),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer = customers::Customer::find_by_global_id(&conn, id)
+            .await
+            .map(domain::CustomerWithoutEncrypted::foreign_from)
+            .map_err(StorageError::from)?;
+
+        if customer.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if customer.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(customer)
         }
     }
 }
@@ -749,14 +992,13 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let customers = self.customers.lock().await;
-        self.find_resource(state, key_store, customers, |customer| {
+        self.find_resource_new(key_store, customers, |customer| {
             customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
         })
         .await
@@ -765,14 +1007,13 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
-        state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let customers = self.customers.lock().await;
-        self.find_resource(state, key_store, customers, |customer| {
+        self.find_resource_new(key_store, customers, |customer| {
             customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
         })
         .await
@@ -781,7 +1022,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        _state: &KeyManagerState,
         _customer_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -790,9 +1030,66 @@ impl domain::CustomerInterface for MockDb {
         todo!()
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let customers = self.customers.lock().await;
+        customers
+            .iter()
+            .find_map(|customer| {
+                let row_customer_id = customer.customer_id.as_ref()?.get_string_repr();
+                (customer.merchant_id == *merchant_id
+                    && row_customer_id == customer_id.get_string_repr())
+                .then(|| customers::CustomerGlobalIdMigrationRow {
+                    merchant_id: customer.merchant_id.clone(),
+                    customer_id: Some(row_customer_id.to_owned()),
+                    id: Some(customer.id.get_string_repr().to_owned()),
+                    version: customer.version,
+                })
+            })
+            .ok_or_else(|| StorageError::ValueNotFound("customer".to_string()).into())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
+        let mut customers = self.customers.lock().await;
+        let customer = customers
+            .iter_mut()
+            .find(|customer| {
+                customer.version == common_enums::ApiVersion::V1
+                    && customer.merchant_id == *merchant_id
+                    && customer
+                        .customer_id
+                        .as_ref()
+                        .is_some_and(|row_customer_id| {
+                            row_customer_id.get_string_repr() == customer_id.get_string_repr()
+                        })
+            })
+            .ok_or_else(|| StorageError::ValueNotFound("customer".to_string()))?;
+
+        customer.id = new_id;
+
+        Ok(customers::CustomerGlobalIdMigrationRow {
+            merchant_id: customer.merchant_id.clone(),
+            customer_id: customer
+                .customer_id
+                .as_ref()
+                .map(|customer_id| customer_id.get_string_repr().to_owned()),
+            id: Some(customer.id.get_string_repr().to_owned()),
+            version: customer.version,
+        })
+    }
+
     async fn list_customers_by_merchant_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         constraints: domain::CustomerListConstraints,
@@ -809,7 +1106,8 @@ impl domain::CustomerInterface for MockDb {
                     customer
                         .to_owned()
                         .convert(
-                            state,
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
                             key_store.key.get_inner(),
                             key_store.merchant_id.clone().into(),
                         )
@@ -822,11 +1120,45 @@ impl domain::CustomerInterface for MockDb {
         Ok(customers)
     }
 
+    async fn list_customers_by_merchant_id_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        constraints: domain::CustomerListConstraints,
+    ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
+        let customers = self.customers.lock().await;
+
+        let customers_list = try_join_all(
+            customers
+                .iter()
+                .filter(|customer| customer.merchant_id == *merchant_id)
+                .take(usize::from(constraints.limit))
+                .skip(usize::try_from(constraints.offset.unwrap_or(0)).unwrap_or(0))
+                .map(|customer| async {
+                    customer
+                        .to_owned()
+                        .convert(
+                            self.get_keymanager_state()
+                                .attach_printable("Missing KeyManagerState")?,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+        let total_count = customers
+            .iter()
+            .filter(|customer| customer.merchant_id == *merchant_id)
+            .count();
+        Ok((customers_list, total_count))
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
-        _state: &KeyManagerState,
         _customer_id: id_type::CustomerId,
         _merchant_id: id_type::MerchantId,
         _customer: domain::Customer,
@@ -841,7 +1173,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
-        _state: &KeyManagerState,
         _customer_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -854,7 +1185,6 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
-        _state: &KeyManagerState,
         _merchant_reference_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
@@ -868,7 +1198,6 @@ impl domain::CustomerInterface for MockDb {
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -882,7 +1211,8 @@ impl domain::CustomerInterface for MockDb {
 
         customer
             .convert(
-                state,
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
                 key_store.merchant_id.clone().into(),
             )
@@ -904,7 +1234,6 @@ impl domain::CustomerInterface for MockDb {
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
-        _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
         _customer_update: domain::CustomerUpdate,
@@ -918,12 +1247,604 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
-        _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        _id: &id_type::GlobalCustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        _id: &id_type::GlobalCustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+}
+
+#[cfg(feature = "v2")]
+use common_enums::DeleteStatus;
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    encryption::Encryption,
+    errors::ValidationError,
+    types::{
+        keymanager::{self, KeyManagerState, ToEncryptable},
+        CreatedBy,
+    },
+};
+use hyperswitch_domain_models::type_encryption;
+use hyperswitch_masking::{Secret, SwitchStrategy};
+
+#[cfg(feature = "v1")]
+#[async_trait::async_trait]
+impl Conversion for domain::Customer {
+    type DstType = diesel_models::Customer;
+    type NewDstType = diesel_models::CustomerNew;
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let customer_id = self.get_id().clone();
+        let global_customer_id = self.get_global_id().cloned();
+        Ok(diesel_models::Customer {
+            customer_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
+            phone_country_code: self.phone_country_code,
+            description: self.description,
+            created_at: self.created_at,
+            metadata: self.metadata,
+            modified_at: self.modified_at,
+            connector_customer: self.connector_customer,
+            address_id: self.address_id,
+            default_payment_method_id: self.default_payment_method_id,
+            updated_by: self.updated_by,
+            version: self.version,
+            tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            document_details: self.document_details.map(Encryption::from),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
+            id: global_customer_id,
+            preferred_connectors: self.preferred_connectors,
+        })
+    }
+
+    async fn convert_back(
+        state: &KeyManagerState,
+        item: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        _key_store_ref_id: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        let decrypted = type_encryption::crypto_operation(
+            state,
+            common_utils::type_name!(Self::DstType),
+            type_encryption::CryptoOperation::BatchDecrypt(
+                domain::EncryptedCustomer::to_encryptable(domain::EncryptedCustomer {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                    tax_registration_id: item.tax_registration_id.clone(),
+                }),
+            ),
+            keymanager::Identifier::Merchant(item.merchant_id.clone()),
+            key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting customer data".to_string(),
+        })?;
+        let encryptable_customer = domain::EncryptedCustomer::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?;
+        let document_details = item
+            .document_details
+            .async_lift(|inner| async {
+                type_encryption::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    type_encryption::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt document details".to_string(),
+            })?;
+
+        Ok(Self {
+            identifiers: domain::CustomerIdentifiers::new(item.customer_id, item.id),
+            merchant_id: item.merchant_id,
+            name: encryptable_customer.name,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
+            phone: encryptable_customer.phone,
+            phone_country_code: item.phone_country_code,
+            description: item.description,
+            created_at: item.created_at,
+            metadata: item.metadata,
+            modified_at: item.modified_at,
+            connector_customer: item.connector_customer,
+            address_id: item.address_id,
+            default_payment_method_id: item.default_payment_method_id,
+            updated_by: item.updated_by,
+            version: item.version,
+            tax_registration_id: encryptable_customer.tax_registration_id,
+            document_details,
+            created_by: item
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            last_modified_by: item
+                .last_modified_by
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            preferred_connectors: item.preferred_connectors,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
+        let customer_id = self.get_id().clone();
+        let global_customer_id = self.get_global_id().cloned();
+        Ok(diesel_models::CustomerNew {
+            id: global_customer_id,
+            customer_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
+            description: self.description,
+            phone_country_code: self.phone_country_code,
+            metadata: self.metadata,
+            created_at: now,
+            modified_at: now,
+            connector_customer: self.connector_customer,
+            address_id: self.address_id,
+            updated_by: self.updated_by,
+            version: self.version,
+            tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            document_details: self.document_details.map(Encryption::from),
+            created_by: self
+                .created_by
+                .as_ref()
+                .map(|created_by| created_by.to_string()),
+            last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
+            preferred_connectors: self.preferred_connectors,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateInternal {
+    fn foreign_from(customer_update: domain::CustomerUpdate) -> Self {
+        match customer_update {
+            domain::CustomerUpdate::Update {
+                name,
+                email,
+                phone,
+                description,
+                phone_country_code,
+                metadata,
+                connector_customer,
+                address_id,
+                tax_registration_id,
+                document_details,
+                last_modified_by,
+            } => Self {
+                name: name.map(Encryption::from),
+                email: email.map(Encryption::from),
+                phone: phone.map(Encryption::from),
+                description,
+                phone_country_code,
+                metadata: *metadata,
+                connector_customer: *connector_customer,
+                modified_at: date_time::now(),
+                address_id,
+                default_payment_method_id: None,
+                updated_by: None,
+                tax_registration_id: tax_registration_id.map(Encryption::from),
+                document_details: document_details.map(Encryption::from),
+                last_modified_by,
+                preferred_connectors: None,
+            },
+            domain::CustomerUpdate::ConnectorCustomer {
+                connector_customer,
+                last_modified_by,
+            } => Self {
+                connector_customer,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                default_payment_method_id: None,
+                updated_by: None,
+                address_id: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+                preferred_connectors: None,
+            },
+            domain::CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id,
+                last_modified_by,
+            } => Self {
+                default_payment_method_id,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                address_id: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+                preferred_connectors: None,
+            },
+            domain::CustomerUpdate::UpdatePreferredConnectors {
+                preferred_connectors,
+                last_modified_by,
+            } => Self {
+                preferred_connectors,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                default_payment_method_id: None,
+                updated_by: None,
+                address_id: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl Conversion for domain::Customer {
+    type DstType = diesel_models::Customer;
+    type NewDstType = diesel_models::CustomerNew;
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::Customer {
+            id: self.id.clone(),
+            customer_id: Some(self.id),
+            merchant_reference_id: self.merchant_reference_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
+            phone_country_code: self.phone_country_code,
+            description: self.description,
+            created_at: self.created_at,
+            metadata: self.metadata,
+            modified_at: self.modified_at,
+            connector_customer: self.connector_customer,
+            default_payment_method_id: self.default_payment_method_id,
+            updated_by: self.updated_by,
+            default_billing_address: self.default_billing_address.map(Encryption::from),
+            default_shipping_address: self.default_shipping_address.map(Encryption::from),
+            version: self.version,
+            status: self.status,
+            tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            document_details: self.document_details.map(Encryption::from),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            last_modified_by: self
+                .last_modified_by
+                .map(|last_modified_by| last_modified_by.to_string()),
+            preferred_connectors: self.preferred_connectors,
+        })
+    }
+
+    async fn convert_back(
+        state: &KeyManagerState,
+        item: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        _key_store_ref_id: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        let decrypted = type_encryption::crypto_operation(
+            state,
+            common_utils::type_name!(Self::DstType),
+            type_encryption::CryptoOperation::BatchDecrypt(
+                domain::EncryptedCustomer::to_encryptable(domain::EncryptedCustomer {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                    tax_registration_id: item.tax_registration_id.clone(),
+                }),
+            ),
+            keymanager::Identifier::Merchant(item.merchant_id.clone()),
+            key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting customer data".to_string(),
+        })?;
+        let encryptable_customer = domain::EncryptedCustomer::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?;
+
+        let default_billing_address = item
+            .default_billing_address
+            .async_lift(|inner| async {
+                type_encryption::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    type_encryption::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt default billing address".to_string(),
+            })?;
+
+        let default_shipping_address = item
+            .default_shipping_address
+            .async_lift(|inner| async {
+                type_encryption::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    type_encryption::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt default shipping address".to_string(),
+            })?;
+
+        let document_details = item
+            .document_details
+            .async_lift(|inner| async {
+                type_encryption::crypto_operation(
+                    state,
+                    common_utils::type_name!(Self),
+                    type_encryption::CryptoOperation::DecryptOptional(inner),
+                    keymanager::Identifier::Merchant(item.merchant_id.clone()),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt document details".to_string(),
+            })?;
+
+        Ok(Self {
+            id: item.id,
+            merchant_reference_id: item.merchant_reference_id,
+            merchant_id: item.merchant_id,
+            name: encryptable_customer.name,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
+            phone: encryptable_customer.phone,
+            phone_country_code: item.phone_country_code,
+            description: item.description,
+            created_at: item.created_at,
+            metadata: item.metadata,
+            modified_at: item.modified_at,
+            connector_customer: item.connector_customer,
+            default_payment_method_id: item.default_payment_method_id,
+            updated_by: item.updated_by,
+            default_billing_address,
+            default_shipping_address,
+            version: item.version,
+            status: item.status,
+            tax_registration_id: encryptable_customer.tax_registration_id,
+            document_details,
+            created_by: item
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            last_modified_by: item
+                .last_modified_by
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            preferred_connectors: item.preferred_connectors,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
+        Ok(customers::CustomerNew {
+            id: self.id.clone(),
+            merchant_reference_id: self.merchant_reference_id,
+            merchant_id: self.merchant_id,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
+            description: self.description,
+            phone_country_code: self.phone_country_code,
+            metadata: self.metadata,
+            default_payment_method_id: None,
+            created_at: now,
+            modified_at: now,
+            connector_customer: self.connector_customer,
+            updated_by: self.updated_by,
+            default_billing_address: self.default_billing_address.map(Encryption::from),
+            default_shipping_address: self.default_shipping_address.map(Encryption::from),
+            version: common_types::consts::API_VERSION,
+            status: self.status,
+            tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            document_details: self.document_details.map(Encryption::from),
+            created_by: self
+                .created_by
+                .as_ref()
+                .map(|created_by| created_by.to_string()),
+            last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
+            customer_id: Some(self.id),
+            preferred_connectors: self.preferred_connectors,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateInternal {
+    fn foreign_from(customer_update: domain::CustomerUpdate) -> Self {
+        match customer_update {
+            domain::CustomerUpdate::Update(update) => {
+                let domain::CustomerGeneralUpdate {
+                    name,
+                    email,
+                    phone,
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer,
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    status,
+                    tax_registration_id,
+                    document_details,
+                    last_modified_by,
+                } = *update;
+                Self {
+                    name: name.map(Encryption::from),
+                    email: email.map(Encryption::from),
+                    phone: phone.map(Encryption::from),
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer: *connector_customer,
+                    modified_at: date_time::now(),
+                    default_billing_address: default_billing_address.map(Encryption::from),
+                    default_shipping_address: default_shipping_address.map(Encryption::from),
+                    default_payment_method_id,
+                    updated_by: None,
+                    status,
+                    tax_registration_id: tax_registration_id.map(Encryption::from),
+                    document_details: document_details.map(Encryption::from),
+                    last_modified_by,
+                }
+            }
+            domain::CustomerUpdate::ConnectorCustomer {
+                connector_customer,
+                last_modified_by,
+            } => Self {
+                connector_customer,
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                modified_at: date_time::now(),
+                default_payment_method_id: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+            domain::CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id,
+                last_modified_by,
+            } => Self {
+                default_payment_method_id,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::Customer> for domain::CustomerWithoutEncrypted {
+    fn foreign_from(customer: diesel_models::Customer) -> Self {
+        Self {
+            merchant_id: customer.merchant_id,
+            phone_country_code: customer.phone_country_code,
+            description: customer.description,
+            created_at: customer.created_at,
+            metadata: customer.metadata,
+            connector_customer: customer.connector_customer,
+            modified_at: customer.modified_at,
+            default_payment_method_id: customer.default_payment_method_id,
+            updated_by: customer.updated_by,
+            merchant_reference_id: customer.merchant_reference_id,
+            id: customer.id,
+            version: customer.version,
+            status: customer.status,
+            created_by: customer
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            last_modified_by: customer
+                .last_modified_by
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+        }
     }
 }

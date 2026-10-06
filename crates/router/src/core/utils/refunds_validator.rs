@@ -1,5 +1,9 @@
 use diesel_models::refund as diesel_refund;
 use error_stack::report;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::{self, api::ConnectorSpecifications};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -114,6 +118,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 #[cfg(feature = "v1")]
 pub fn validate_for_valid_refunds(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    connector_enum: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
@@ -121,30 +126,23 @@ pub fn validate_for_valid_refunds(
         .as_ref()
         .get_required_value("payment_method")?;
 
-    match payment_method {
-        diesel_models::enums::PaymentMethod::PayLater
-        | diesel_models::enums::PaymentMethod::Wallet => {
-            let payment_method_type = payment_attempt
-                .payment_method_type
-                .get_required_value("payment_method_type")?;
+    let payment_method_type = payment_attempt
+        .payment_method_type
+        .get_required_value("payment_method_type")?;
 
-            utils::when(
-                matches!(
-                    (connector, payment_method_type),
-                    (
-                        api_models::enums::Connector::Braintree,
-                        diesel_models::enums::PaymentMethodType::Paypal,
-                    )
-                ),
-                || {
-                    Err(errors::ApiErrorResponse::RefundNotPossible {
-                        connector: connector.to_string(),
-                    }
-                    .into())
-                },
-            )
-        }
-        _ => Ok(()),
+    let supported_payment_methods = connector_enum.get_supported_payment_methods();
+
+    let is_refund_supported = supported_payment_methods.is_none_or(|supported_payment_method| {
+        supported_payment_method.is_refund_supported(payment_method, &payment_method_type)
+    });
+
+    if !is_refund_supported {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("Refunds are currently not supported for {payment_method_type} transactions via {connector}"),
+            }
+            .into())
+    } else {
+        Ok(())
     }
 }
 
@@ -165,7 +163,7 @@ pub fn validate_for_valid_refunds(
                     (connector, payment_method_subtype),
                     (
                         api_models::enums::Connector::Braintree,
-                        diesel_models::enums::PaymentMethodType::Paypal,
+                        Some(diesel_models::enums::PaymentMethodType::Paypal),
                     )
                 ),
                 || {
@@ -194,7 +192,7 @@ pub fn validate_stripe_charge_refund(
             stripe_split_refund
         }
         _ => Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "stripe_split_refund",
+            field_name: "stripe_split_refund".into(),
         })?,
     };
 
@@ -227,7 +225,7 @@ pub fn validate_adyen_charge_refund(
 ) -> RouterResult<()> {
     if adyen_split_refund_request.store != adyen_split_payment_response.store {
         return Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "split_payments.adyen_split_payment.store",
+            field_name: "split_payments.adyen_split_payment.store".into(),
         }));
     };
 
@@ -239,19 +237,6 @@ pub fn validate_adyen_charge_refund(
             .find(|payment_split_item| refund_split_reference == payment_split_item.reference);
 
         if let Some(payment_split_item) = matching_payment_split_item {
-            if let Some((refund_amount, payment_amount)) =
-                refund_split_item.amount.zip(payment_split_item.amount)
-            {
-                if refund_amount > payment_amount {
-                    return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!(
-                            "Invalid refund amount for split item, reference: {refund_split_reference}",
-
-                        ),
-                    }));
-                }
-            }
-
             if let Some((refund_account, payment_account)) = refund_split_item
                 .account
                 .as_ref()
@@ -297,7 +282,7 @@ pub fn validate_xendit_charge_refund(
                 != Some(xendit_split_refund_request.for_user_id.clone())
             {
                 return Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id",
+                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id".into(),
                 }.into());
             }
             Ok(Some(xendit_split_refund_request.for_user_id.clone()))
@@ -307,7 +292,7 @@ pub fn validate_xendit_charge_refund(
         ) => {
             if payment_sub_merchant_data.for_user_id != xendit_split_refund_request.for_user_id {
                 return Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id",
+                    field_name: "xendit_split_refund.for_user_id does not match xendit_split_payment.for_user_id".into(),
                 }.into());
             }
             Ok(Some(xendit_split_refund_request.for_user_id.clone()))

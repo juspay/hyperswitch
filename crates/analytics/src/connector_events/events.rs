@@ -3,6 +3,7 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
+use super::ConnectorEventSource;
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
@@ -13,6 +14,7 @@ pub async fn get_connector_events<T>(
     merchant_id: &common_utils::id_type::MerchantId,
     query_param: ConnectorEventsRequest,
     pool: &T,
+    source: ConnectorEventSource,
 ) -> FiltersResult<Vec<ConnectorEventsResult>>
 where
     T: AnalyticsDataSource + ConnectorEventLogAnalytics,
@@ -22,17 +24,31 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let mut query_builder: QueryBuilder<T> =
-        QueryBuilder::new(AnalyticsCollection::ConnectorEvents);
+    let mut query_builder: QueryBuilder<T> = match (source, query_param.payment_id.as_ref()) {
+        (ConnectorEventSource::Prism, Some(_)) => {
+            QueryBuilder::new(AnalyticsCollection::PrismConnectorEvents)
+        }
+        (ConnectorEventSource::Prism, None) => {
+            QueryBuilder::new(AnalyticsCollection::PrismConnectorPayoutEvents)
+        }
+        (ConnectorEventSource::Hyperswitch, Some(_)) => {
+            QueryBuilder::new(AnalyticsCollection::ConnectorEvents)
+        }
+        (ConnectorEventSource::Hyperswitch, None) => {
+            QueryBuilder::new(AnalyticsCollection::ConnectorPayoutEvents)
+        }
+    };
     query_builder.add_select_column("*").switch()?;
 
     query_builder
         .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
 
-    query_builder
-        .add_filter_clause("payment_id", &query_param.payment_id)
-        .switch()?;
+    if let Some(payment_id) = query_param.payment_id {
+        query_builder
+            .add_filter_clause("payment_id", &payment_id)
+            .switch()?;
+    }
 
     if let Some(refund_id) = query_param.refund_id {
         query_builder
@@ -43,6 +59,12 @@ where
     if let Some(dispute_id) = query_param.dispute_id {
         query_builder
             .add_filter_clause("dispute_id", &dispute_id)
+            .switch()?;
+    }
+
+    if let Some(payout_id) = query_param.payout_id {
+        query_builder
+            .add_filter_clause("payout_id", &payout_id)
             .switch()?;
     }
 
@@ -57,7 +79,8 @@ where
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorEventsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: Option<String>,
+    pub payout_id: Option<String>,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,
     pub flow: String,
@@ -70,4 +93,16 @@ pub struct ConnectorEventsResult {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub method: Option<String>,
+    pub destination: Option<String>,
+    /// Read to filter shadow-mode events out of the response; never surfaced to the caller.
+    #[serde(skip_serializing)]
+    pub execution_mode: Option<String>,
+}
+
+impl ConnectorEventsResult {
+    pub fn is_shadow(&self) -> bool {
+        self.execution_mode
+            .as_deref()
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("shadow"))
+    }
 }

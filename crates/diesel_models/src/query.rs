@@ -3,11 +3,15 @@ pub mod api_keys;
 pub mod blocklist_lookup;
 pub mod business_profile;
 mod capture;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_retry_stats;
 
 pub mod authentication;
 pub mod authorization;
+pub mod batch_blocklist_job;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod callback_mapper;
@@ -21,6 +25,8 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod generics;
 pub mod gsm;
+pub mod hierarchical_resource;
+pub mod invoice;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -39,6 +45,7 @@ pub mod relay;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod subscription;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod unified_translations;

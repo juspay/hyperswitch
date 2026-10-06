@@ -23,6 +23,11 @@ macro_rules! impl_entity {
 
 pub(crate) use impl_entity;
 
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "V: serde::Serialize",
+    deserialize = "V: serde::de::DeserializeOwned"
+))]
 pub struct DenseMap<K, V> {
     data: Vec<V>,
     _marker: PhantomData<K>,

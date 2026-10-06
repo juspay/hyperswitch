@@ -1,8 +1,8 @@
 //! Contains new types with restrictions
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH,
+    consts::{MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH, MAX_ALLOWED_MERCHANT_NAME_LENGTH},
     pii::{Email, UpiVpaMaskingStrategy},
     transformers::ForeignFrom,
 };
@@ -13,7 +13,15 @@ use crate::{
 )]
 pub struct MerchantName(String);
 
-impl masking::SerializableSecret for MerchantName {}
+impl hyperswitch_masking::SerializableSecret for MerchantName {}
+
+#[nutype::nutype(
+    derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash),
+    validate(len_char_min = 1, len_char_max = MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH)
+)]
+pub struct CardIssuerName(String);
+
+impl hyperswitch_masking::SerializableSecret for CardIssuerName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///
@@ -75,6 +83,18 @@ fn apply_mask(val: &str, unmasked_char_count: usize, min_masked_char_count: usiz
         })
 }
 
+/// Masks a sensitive field by taking the last N characters.
+pub fn mask_sensitive_field(secret_value: &str, visible_chars: usize) -> String {
+    secret_value
+        .chars()
+        .rev()
+        .take(visible_chars)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>()
+}
+
 /// Masked sort code
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MaskedSortCode(Secret<String>);
@@ -85,6 +105,21 @@ impl From<String> for MaskedSortCode {
     }
 }
 impl From<Secret<String>> for MaskedSortCode {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked branch code
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedBranchCode(Secret<String>);
+impl From<String> for MaskedBranchCode {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 2, 2);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedBranchCode {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }
@@ -114,7 +149,72 @@ impl From<String> for MaskedBankAccount {
         Self(Secret::from(masked_value))
     }
 }
+
+impl MaskedBankAccount {
+    /// Expose the inner secret
+    pub fn expose_inner(self) -> String {
+        self.0.expose()
+    }
+}
 impl From<Secret<String>> for MaskedBankAccount {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// A generically masked value, for identifiers that have no more specific masked type.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedValue<const UNMASKED_CHAR_COUNT: usize = 4, const MIN_MASKED_CHAR_COUNT: usize = 4>(
+    Secret<String>,
+);
+
+impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<String>
+    for MaskedValue<UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT>
+{
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT);
+        Self(Secret::from(masked_value))
+    }
+}
+
+impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<Secret<String>>
+    for MaskedValue<UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT>
+{
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked card number, revealing the first six and last four digits.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedCardNumber(hyperswitch_masking::StrongSecret<String>);
+impl From<String> for MaskedCardNumber {
+    fn from(src: String) -> Self {
+        const UNMASKED_PREFIX_LEN: usize = 6;
+        const UNMASKED_SUFFIX_LEN: usize = 4;
+
+        let len = src.len();
+        let masked_value = if len <= UNMASKED_PREFIX_LEN + UNMASKED_SUFFIX_LEN {
+            apply_mask(src.as_ref(), UNMASKED_SUFFIX_LEN, UNMASKED_SUFFIX_LEN)
+        } else {
+            src.chars()
+                .enumerate()
+                .map(|(index, ch)| {
+                    if index >= UNMASKED_PREFIX_LEN
+                        && index < len - UNMASKED_SUFFIX_LEN
+                        && ch.is_alphanumeric()
+                    {
+                        '*'
+                    } else {
+                        ch
+                    }
+                })
+                .collect()
+        };
+        Self(hyperswitch_masking::StrongSecret::new(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedCardNumber {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }
@@ -236,9 +336,24 @@ impl From<Secret<String>> for MaskedPhoneNumber {
     }
 }
 
+/// Masked Psp token
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedPspToken(Secret<String>);
+impl From<String> for MaskedPspToken {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 3, 3);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedPspToken {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
 #[cfg(test)]
 mod apply_mask_fn_test {
-    use masking::PeekInterface;
+    use hyperswitch_masking::PeekInterface;
 
     use crate::new_type::{
         apply_mask, MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode,

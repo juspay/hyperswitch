@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS merchant_connector_account_profile_id_index;

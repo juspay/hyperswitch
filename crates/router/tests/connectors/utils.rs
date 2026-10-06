@@ -3,7 +3,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Durati
 use async_trait::async_trait;
 use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
-use masking::Secret;
+use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
+use hyperswitch_masking::Secret;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -117,7 +118,8 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::ConnectorCustomerData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::ConnectorCustomerRouterData, Report<ConnectorError>> {
-        let integration = self.get_data().connector.get_connector_integration();
+        let integration: BoxedConnectorIntegrationInterface<_, PaymentFlowData, _, _> =
+            self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::ConnectorCustomerData {
                 ..(payment_data.unwrap_or(CustomerType::default().0))
@@ -392,7 +394,7 @@ pub trait ConnectorActions: Connector {
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
-                refund_id: uuid::Uuid::new_v4().to_string(),
+                refund_id: common_utils::generate_uuid_v4().to_string(),
                 connector_transaction_id: "".to_string(),
                 webhook_url: None,
                 refund_amount: 100,
@@ -409,6 +411,7 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_connector_request_reference_id: None,
             }),
             payment_info,
         );
@@ -452,15 +455,16 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
+                connector_eligibility_reference_id: None,
                 payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
                 connector_payout_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 source_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type: Some(payout_type),
@@ -470,10 +474,19 @@ pub trait ConnectorActions: Connector {
                     email: Email::from_str("john.doe@example").ok(),
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
+                    tax_registration_id: Some("1232343243".to_string().into()),
+                    document_details: None,
+                    date_of_birth: None,
                 }),
                 vendor_details: None,
                 priority: None,
                 connector_transfer_method_id: None,
+                webhook_url: None,
+                browser_info: None,
+                payout_connector_metadata: None,
+                additional_payout_method_data: None,
+                source_bank_data: None,
+                billing_descriptor: None,
             },
             payment_info,
         )
@@ -495,16 +508,16 @@ pub trait ConnectorActions: Connector {
             connector: self.get_name(),
             tenant_id: common_utils::id_type::TenantId::try_from_string("public".to_string())
                 .unwrap(),
-            payment_id: uuid::Uuid::new_v4().to_string(),
-            attempt_id: uuid::Uuid::new_v4().to_string(),
+            payment_id: common_utils::generate_uuid_v4().to_string(),
+            attempt_id: common_utils::generate_uuid_v4().to_string(),
             status: enums::AttemptStatus::default(),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
-                    a.auth_type
-                        .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
+                    a.auth_type.unwrap_or(enums::AuthenticationType::NoThreeDs)
                 }),
             payment_method: enums::PaymentMethod::Card,
+            payment_method_type: None,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             payment_method_status: None,
@@ -532,7 +545,7 @@ pub trait ConnectorActions: Connector {
             recurring_mandate_payment_data: None,
 
             preprocessing_id: None,
-            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
             #[cfg(feature = "payouts")]
             payout_method_data: info.and_then(|p| p.payout_method_data),
             #[cfg(feature = "payouts")]
@@ -546,8 +559,10 @@ pub trait ConnectorActions: Connector {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
@@ -555,6 +570,14 @@ pub trait ConnectorActions: Connector {
             authentication_id: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
+            l2_l3_data: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
+            customer_document_details: None,
+            feature_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 
@@ -570,7 +593,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse(..)) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
@@ -578,6 +601,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -605,6 +629,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -650,6 +675,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -696,6 +722,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -741,6 +768,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -805,7 +833,7 @@ pub trait ConnectorActions: Connector {
                 create_res
                     .connector_payout_id
                     .ok_or(ConnectorError::MissingRequiredField {
-                        field_name: "connector_payout_id",
+                        field_name: "connector_payout_id".into(),
                     })?,
                 payout_type,
                 payment_info.to_owned(),
@@ -837,6 +865,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -879,6 +908,7 @@ async fn call_connector<
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -943,7 +973,11 @@ impl Default for CCardType {
             card_issuer: None,
             card_network: None,
             card_type: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
             card_holder_name: Some(Secret::new("card holder name".into())),
@@ -961,8 +995,6 @@ impl Default for PaymentAuthorizeType {
             order_tax_amount: Some(MinorUnit::zero()),
             currency: enums::Currency::USD,
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             capture_method: None,
             setup_future_usage: None,
             mandate_id: None,
@@ -987,8 +1019,11 @@ impl Default for PaymentAuthorizeType {
             request_extended_authorization: None,
             metadata: None,
             authentication_data: None,
+            ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
+            guest_customer: None,
             integrity_object: None,
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
@@ -998,6 +1033,20 @@ impl Default for PaymentAuthorizeType {
             connector_testing_data: None,
             order_id: None,
             locale: None,
+            payment_channel: None,
+            enable_partial_authorization: None,
+            enable_overcapture: None,
+            is_stored_credential: None,
+            mit_category: None,
+            billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            feature_metadata: None,
+            installment_details: None,
+            connector_intent_metadata: None,
+            business_country: None,
         };
         Self(data)
     }
@@ -1042,6 +1091,7 @@ impl Default for BrowserInfoType {
             os_type: Some("IOS or ANDROID".to_string()),
             os_version: Some("IOS 14.5".to_string()),
             accept_language: Some("en".to_string()),
+            referer: None,
         };
         Self(data)
     }
@@ -1075,7 +1125,7 @@ impl Default for PaymentRefundType {
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
-            refund_id: uuid::Uuid::new_v4().to_string(),
+            refund_id: common_utils::generate_uuid_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
             minor_refund_amount: MinorUnit::new(100),
@@ -1092,6 +1142,7 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: None,
         };
         Self(data)
     }
@@ -1109,6 +1160,12 @@ impl Default for CustomerType {
             name: None,
             preprocessing_id: None,
             split_payments: None,
+            customer_acceptance: None,
+            setup_future_usage: None,
+            customer_id: None,
+            billing_address: None,
+            currency: None,
+            metadata: None,
         };
         Self(data)
     }
@@ -1122,6 +1179,13 @@ impl Default for TokenType {
             amount: Some(100),
             currency: enums::Currency::USD,
             split_payments: None,
+            mandate_id: None,
+            setup_future_usage: None,
+            customer_acceptance: None,
+            setup_mandate_details: None,
+            payment_method_type: None,
+            router_return_url: None,
+            capture_method: None,
         };
         Self(data)
     }
@@ -1139,13 +1203,14 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse(..)) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
         Err(_) => None,
     }
 }
@@ -1160,9 +1225,12 @@ pub fn get_connector_metadata(
             mandate_reference: _,
             connector_metadata,
             network_txn_id: _,
+            network_txn_link_id: None,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
+            authentication_data: None,
             charges: _,
+            payment_account_reference: _,
         }) => connector_metadata,
         _ => None,
     }

@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
@@ -9,21 +9,21 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CreateConnectorCustomer, PreProcessing,
+        CreateConnectorCustomer,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -43,20 +43,29 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsSyncType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use lazy_static::lazy_static;
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as gocardless;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{is_mandate_supported, PaymentMethodDataType},
+    utils::{self},
 };
 
-#[derive(Debug, Clone)]
-pub struct Gocardless;
+#[derive(Clone)]
+pub struct Gocardless {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Gocardless {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Gocardless {}
 impl api::PaymentSession for Gocardless {}
@@ -71,7 +80,6 @@ impl api::RefundExecute for Gocardless {}
 impl api::RefundSync for Gocardless {}
 impl api::PaymentToken for Gocardless {}
 impl api::ConnectorCustomer for Gocardless {}
-impl api::PaymentsPreProcessing for Gocardless {}
 
 const GOCARDLESS_VERSION: &str = "2015-07-06";
 const GOCARDLESS_VERSION_HEADER: &str = "GoCardless-Version";
@@ -84,7 +92,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -121,7 +130,8 @@ impl ConnectorCommon for Gocardless {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = gocardless::GocardlessAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -158,9 +168,11 @@ impl ConnectorCommon for Gocardless {
             reason: Some(error_reason.join("; ")),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -172,7 +184,8 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         &self,
         req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -260,7 +273,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         &self,
         req: &TokenizationRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -337,26 +351,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     }
 }
 
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
-    for Gocardless
-{
-}
-
-impl ConnectorValidation for Gocardless {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-            PaymentMethodDataType::BacsBankDebit,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Gocardless {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Gocardless {
     //TODO: implement sessions flow
@@ -371,7 +366,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &SetupMandateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -450,7 +446,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -471,12 +468,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gocardless::GocardlessRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = gocardless::GocardlessRouterData::from((amount, req));
         let connector_req =
             gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -539,7 +537,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Goc
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -616,7 +615,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gocardl
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -637,12 +637,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gocardl
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = gocardless::GocardlessRouterData::try_from((
-            &self.get_currency_unit(),
+        let refund_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = gocardless::GocardlessRouterData::from((refund_amount, req));
+
         let connector_req = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -757,21 +759,22 @@ impl IncomingWebhook for Gocardless {
             .events
             .first()
             .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        let reference_id = match &first_event.links {
-            transformers::WebhooksLink::PaymentWebhooksLink(link) => {
+        let reference_id = match first_event {
+            transformers::WebhookEvent::Payments(event) => {
                 let payment_id = api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    link.payment.to_owned(),
+                    event.links.payment.to_owned(),
                 );
                 ObjectReferenceId::PaymentId(payment_id)
             }
-            transformers::WebhooksLink::RefundWebhookLink(link) => {
-                let refund_id =
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(link.refund.to_owned());
+            transformers::WebhookEvent::Refunds(event) => {
+                let refund_id = api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    event.links.refund.to_owned(),
+                );
                 ObjectReferenceId::RefundId(refund_id)
             }
-            transformers::WebhooksLink::MandateWebhookLink(link) => {
+            transformers::WebhookEvent::Mandates(event) => {
                 let mandate_id = api_models::webhooks::MandateIdType::ConnectorMandateId(
-                    link.mandate.to_owned(),
+                    event.links.mandate.to_owned(),
                 );
                 ObjectReferenceId::MandateId(mandate_id)
             }
@@ -782,6 +785,7 @@ impl IncomingWebhook for Gocardless {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: gocardless::GocardlessWebhookEvent = request
             .body
@@ -791,8 +795,8 @@ impl IncomingWebhook for Gocardless {
             .events
             .first()
             .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        let event_type = match &first_event.action {
-            transformers::WebhookAction::PaymentsAction(action) => match action {
+        let event_type = match first_event {
+            transformers::WebhookEvent::Payments(event) => match event.action {
                 transformers::PaymentsAction::Created
                 | transformers::PaymentsAction::Submitted
                 | transformers::PaymentsAction::CustomerApprovalGranted => {
@@ -808,18 +812,18 @@ impl IncomingWebhook for Gocardless {
                     IncomingWebhookEvent::PaymentIntentSuccess
                 }
                 transformers::PaymentsAction::SurchargeFeeDebited
-                | transformers::PaymentsAction::ResubmissionRequired => {
+                | transformers::PaymentsAction::ResubmissionRequested => {
                     IncomingWebhookEvent::EventNotSupported
                 }
             },
-            transformers::WebhookAction::RefundsAction(action) => match action {
+            transformers::WebhookEvent::Refunds(event) => match event.action {
                 transformers::RefundsAction::Failed => IncomingWebhookEvent::RefundFailure,
                 transformers::RefundsAction::Paid => IncomingWebhookEvent::RefundSuccess,
                 transformers::RefundsAction::RefundSettled
                 | transformers::RefundsAction::FundsReturned
                 | transformers::RefundsAction::Created => IncomingWebhookEvent::EventNotSupported,
             },
-            transformers::WebhookAction::MandatesAction(action) => match action {
+            transformers::WebhookEvent::Mandates(event) => match event.action {
                 transformers::MandatesAction::Active | transformers::MandatesAction::Reinstated => {
                     IncomingWebhookEvent::MandateActive
                 }
@@ -843,7 +847,8 @@ impl IncomingWebhook for Gocardless {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let details: gocardless::GocardlessWebhookEvent = request
             .body
             .parse_struct("GocardlessWebhookEvent")
@@ -853,18 +858,19 @@ impl IncomingWebhook for Gocardless {
             .first()
             .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?
             .clone();
-        match first_event.resource_type {
-            transformers::WebhookResourceType::Payments => Ok(Box::new(
-                gocardless::GocardlessPaymentsResponse::try_from(&first_event)?,
+        match &first_event {
+            transformers::WebhookEvent::Payments(event) => Ok(Box::new(
+                gocardless::GocardlessPaymentsResponse::try_from(event)?,
             )),
-            transformers::WebhookResourceType::Refunds
-            | transformers::WebhookResourceType::Mandates => Ok(Box::new(first_event)),
+            transformers::WebhookEvent::Refunds(_) | transformers::WebhookEvent::Mandates(_) => {
+                Ok(Box::new(first_event))
+            }
         }
     }
 }
 
-lazy_static! {
-    static ref GOCARDLESS_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+static GOCARDLESS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
@@ -906,18 +912,24 @@ lazy_static! {
         );
 
         gocardless_supported_payment_methods
-    };
-    static ref GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "GoCardless",
-        description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-    static ref GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds, enums::EventClass::Mandates];
-}
+    });
+
+static GOCARDLESS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "GoCardless",
+    description: "GoCardless is a fintech company that specialises in bank payments including recurring payments.",
+    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+};
+
+static GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Mandates,
+];
 
 impl ConnectorSpecifications for Gocardless {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&*GOCARDLESS_CONNECTOR_INFO)
+        Some(&GOCARDLESS_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
@@ -925,6 +937,123 @@ impl ConnectorSpecifications for Gocardless {
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&*GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&GOCARDLESS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        #[cfg(feature = "v1")]
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
+        api::ConnectorCustomerAction::CallConnectorCustomer
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId, RefundIdType};
+    use hyperswitch_interfaces::webhooks::{IncomingWebhook, IncomingWebhookRequestDetails};
+
+    use super::Gocardless;
+
+    fn webhook_body(resource_type: &str, action: &str, link_key: &str) -> Vec<u8> {
+        serde_json::json!({
+            "events": [{
+                "id": "EV000",
+                "resource_type": resource_type,
+                "action": action,
+                "links": { link_key: "ID000" }
+            }]
+        })
+        .to_string()
+        .into_bytes()
+    }
+
+    fn event_type_for(resource_type: &str, action: &str, link_key: &str) -> IncomingWebhookEvent {
+        let body = webhook_body(resource_type, action, link_key);
+        let headers = actix_web::http::header::HeaderMap::new();
+        let request = IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("/webhooks"),
+            headers: &headers,
+            body: &body,
+            query_params: String::new(),
+        };
+        Gocardless::new()
+            .get_webhook_event_type(&request, None)
+            .expect("webhook event type should be derived")
+    }
+
+    #[test]
+    fn refund_actions_shared_with_payments_map_to_refund_events() {
+        assert_eq!(
+            event_type_for("refunds", "failed", "refund"),
+            IncomingWebhookEvent::RefundFailure
+        );
+        assert_eq!(
+            event_type_for("refunds", "created", "refund"),
+            IncomingWebhookEvent::EventNotSupported
+        );
+        assert_eq!(
+            event_type_for("refunds", "paid", "refund"),
+            IncomingWebhookEvent::RefundSuccess
+        );
+    }
+
+    #[test]
+    fn mandate_actions_shared_with_payments_map_to_mandate_events() {
+        assert_eq!(
+            event_type_for("mandates", "cancelled", "mandate"),
+            IncomingWebhookEvent::MandateRevoked
+        );
+        assert_eq!(
+            event_type_for("mandates", "failed", "mandate"),
+            IncomingWebhookEvent::MandateRevoked
+        );
+        for action in ["created", "submitted", "customer_approval_granted"] {
+            assert_eq!(
+                event_type_for("mandates", action, "mandate"),
+                IncomingWebhookEvent::EventNotSupported,
+                "mandate action `{action}`"
+            );
+        }
+    }
+
+    #[test]
+    fn payment_actions_map_to_payment_events() {
+        assert_eq!(
+            event_type_for("payments", "failed", "payment"),
+            IncomingWebhookEvent::PaymentIntentFailure
+        );
+        assert_eq!(
+            event_type_for("payments", "confirmed", "payment"),
+            IncomingWebhookEvent::PaymentIntentSuccess
+        );
+        assert_eq!(
+            event_type_for("payments", "resubmission_requested", "payment"),
+            IncomingWebhookEvent::EventNotSupported
+        );
+    }
+
+    #[test]
+    fn refund_webhook_references_the_refund() {
+        let body = webhook_body("refunds", "failed", "refund");
+        let headers = actix_web::http::header::HeaderMap::new();
+        let request = IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("/webhooks"),
+            headers: &headers,
+            body: &body,
+            query_params: String::new(),
+        };
+
+        let reference_id = Gocardless::new()
+            .get_webhook_object_reference_id(&request)
+            .expect("webhook reference id should be derived");
+
+        assert!(matches!(
+            reference_id,
+            ObjectReferenceId::RefundId(RefundIdType::ConnectorRefundId(ref id)) if id == "ID000"
+        ));
     }
 }

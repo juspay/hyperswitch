@@ -1,4 +1,3 @@
-use common_enums;
 use common_utils::consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH;
 
 pub const MAX_NAME_LENGTH: usize = 70;
@@ -24,7 +23,7 @@ pub const RECOVERY_CODE_MAX_ATTEMPTS: u8 = 4;
 pub const ORG_LIST_LIMIT_FOR_TENANT: u32 = 20;
 
 pub const MAX_PASSWORD_LENGTH: usize = 70;
-pub const MIN_PASSWORD_LENGTH: usize = 8;
+pub const MIN_PASSWORD_LENGTH: usize = 12;
 
 pub const REDIS_TOTP_PREFIX: &str = "TOTP_";
 pub const REDIS_RECOVERY_CODE_PREFIX: &str = "RC_";
@@ -37,6 +36,8 @@ pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS: i64 = 10 * 60; // 10 mins
 
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
+
+pub const REDIS_THEME_CONFIG_VERSION_TTL_IN_SECS: i64 = 7 * 24 * 60 * 60; // 7 days
 
 pub const DEFAULT_PROFILE_NAME: &str = "default";
 pub const DEFAULT_PRODUCT_TYPE: common_enums::MerchantProductType =

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use hyperswitch_domain_models::address::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::{
     connector::Worldline,
     core::errors,
@@ -80,15 +80,17 @@ impl WorldlineTest {
                 card_issuer: None,
                 card_network: None,
                 card_type: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
                 card_holder_name: Some(Secret::new("card holder name".into())),
                 co_badged_card_data: None,
             }),
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -113,6 +115,7 @@ impl WorldlineTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            billing_descriptor: None,
             ..utils::PaymentAuthorizeType::default().0
         })
     }
@@ -165,7 +168,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
-            connector: "worldline",
+            connector: "worldline".into(),
         }
     )
 }
@@ -191,7 +194,7 @@ async fn should_throw_missing_required_field_for_country() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::MissingRequiredField {
-            field_name: "billing.address.country"
+            field_name: "billing.address.country".into()
         }
     )
 }

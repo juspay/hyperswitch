@@ -3,23 +3,36 @@
 use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{
-            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SetupMandate, UpdateMetadata, Void,
+            Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
+            CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
+            ExtendAuthorization, GenerateQr, IncrementalAuthorization, PSync, PaymentMethodToken,
+            PostCaptureVoid, PostCaptureVoidSync, PostProcessing, PostSessionTokens,
+            PreAuthorizeVoid, PushNotification, Reject, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
-        CreateOrder,
+        Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
+        PreAuthenticate, UpdatePostConfirm,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
+        PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
+    router_response_types::{
+        CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, SurchargeCalculationResponseData,
+        TaxCalculationResponseData,
+    },
 };
 
 use crate::api;
@@ -30,24 +43,36 @@ pub trait Payment:
     + api::ConnectorSpecifications
     + api::ConnectorValidation
     + PaymentAuthorize
+    + PaymentsPreAuthenticate
+    + PaymentsAuthenticate
+    + PaymentsPostAuthenticate
     + PaymentAuthorizeSessionToken
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
+    + PaymentPostCaptureVoid
+    + PaymentPostCaptureVoidSync
+    + PaymentPreAuthorizeVoid
     + PaymentApprove
     + PaymentReject
     + MandateSetup
     + PaymentSession
     + PaymentToken
-    + PaymentsPreProcessing
     + PaymentsPostProcessing
+    + PaymentsPushNotification
+    + PaymentsGenerateQr
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
+    + PaymentExtendAuthorization
     + PaymentSessionUpdate
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
+    + ExternalVaultProxyPaymentsCreateV1
+    + PaymentsSettlementSplitCreate
+    + PaymentsGiftCardBalanceCheck
+    + PaymentUpdate
 {
 }
 
@@ -84,6 +109,38 @@ pub trait PaymentSync:
 /// trait PaymentVoid
 pub trait PaymentVoid:
     api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoid
+pub trait PaymentPostCaptureVoid:
+    api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoidSync
+pub trait PaymentPostCaptureVoidSync:
+    api::ConnectorIntegration<
+    PostCaptureVoidSync,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentPreAuthorizeVoid
+pub trait PaymentPreAuthorizeVoid:
+    api::ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentExtendAuthorization
+pub trait PaymentExtendAuthorization:
+    api::ConnectorIntegration<
+    ExtendAuthorization,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>
 {
 }
 
@@ -127,6 +184,36 @@ pub trait TaxCalculation:
 {
 }
 
+/// trait SurchargeCalculation
+pub trait SurchargeCalculation:
+    api::ConnectorIntegration<
+    CalculateSurcharge,
+    PaymentsSurchargeCalculationData,
+    SurchargeCalculationResponseData,
+>
+{
+}
+
+/// trait SurchargeComplete
+pub trait SurchargeComplete:
+    api::ConnectorIntegration<
+    CompleteSurcharge,
+    PaymentsCompleteSurchargeData,
+    CompleteSurchargeResponseData,
+>
+{
+}
+
+/// trait SurchargeRefund
+pub trait SurchargeRefund:
+    api::ConnectorIntegration<
+    CompleteRefundSurchrge,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
+>
+{
+}
+
 /// trait SessionUpdate
 pub trait PaymentSessionUpdate:
     api::ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
@@ -145,6 +232,12 @@ pub trait PaymentUpdateMetadata:
 {
 }
 
+/// trait UpdatePostConfirm
+pub trait PaymentUpdate:
+    api::ConnectorIntegration<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentsCompleteAuthorize
 pub trait PaymentsCompleteAuthorize:
     api::ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
@@ -157,9 +250,21 @@ pub trait ConnectorCustomer:
 {
 }
 
-/// trait PaymentsPreProcessing
-pub trait PaymentsPreProcessing:
-    api::ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+/// trait PaymentsPreAuthenticate
+pub trait PaymentsPreAuthenticate:
+    api::ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsAuthenticate
+pub trait PaymentsAuthenticate:
+    api::ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPostAuthenticate
+pub trait PaymentsPostAuthenticate:
+    api::ConnectorIntegration<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
 {
 }
 
@@ -169,8 +274,42 @@ pub trait PaymentsPostProcessing:
 {
 }
 
+/// trait PaymentsPushNotification
+pub trait PaymentsPushNotification:
+    api::ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsGenerateQr
+pub trait PaymentsGenerateQr:
+    api::ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentsCreateOrder
 pub trait PaymentsCreateOrder:
     api::ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+{
+}
+
+/// trait ExternalVaultProxyPaymentsCreate
+pub trait ExternalVaultProxyPaymentsCreateV1:
+    api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsSettlementSplitCreate
+pub trait PaymentsSettlementSplitCreate:
+    api::ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsGiftCardBalanceCheck
+pub trait PaymentsGiftCardBalanceCheck:
+    api::ConnectorIntegration<
+    GiftCardBalanceCheck,
+    GiftCardBalanceCheckRequestData,
+    GiftCardBalanceCheckResponseData,
+>
 {
 }

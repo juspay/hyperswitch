@@ -25,7 +25,7 @@ jobs:
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -106,7 +106,7 @@ jobs:
       - name: Install cocogitto
         uses: taiki-e/install-action@v2
         with:
-          tool: cocogitto
+          tool: cocogitto@6.3.0
           checksum: true
 
       - name: Obtain previous and next tag information

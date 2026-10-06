@@ -1,0 +1,22 @@
+---
+title: "Delete Merchant Account"
+description: "Curl example for deleting a merchant account."
+---
+
+# Delete Merchant Account
+
+## Request
+
+```bash
+curl --request DELETE "$BASE_URL/merchant-account/merchant_demo" \
+  --header "$AUTH_HEADER"
+```
+
+## Response
+
+```json
+{
+  "message": "Merchant account deleted successfully",
+  "merchant_id": "merchant_demo"
+}
+```

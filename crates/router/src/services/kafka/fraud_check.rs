@@ -1,4 +1,5 @@
 // use diesel_models::enums as storage_enums;
+use common_utils::types::CreatedBy;
 use diesel_models::{
     enums as storage_enums,
     enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
@@ -9,7 +10,8 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaFraudCheck<'a> {
     pub frm_id: &'a String,
-    pub payment_id: &'a common_utils::id_type::PaymentId,
+    pub payment_id: Option<&'a common_utils::id_type::PaymentId>,
+    pub payout_id: Option<&'a common_utils::id_type::PayoutId>,
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub attempt_id: &'a String,
     #[serde(with = "time::serde::timestamp")]
@@ -27,13 +29,16 @@ pub struct KafkaFraudCheck<'a> {
     pub modified_at: OffsetDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl<'a> KafkaFraudCheck<'a> {
     pub fn from_storage(check: &'a FraudCheck) -> Self {
         Self {
             frm_id: &check.frm_id,
-            payment_id: &check.payment_id,
+            payment_id: check.payment_id.as_ref(),
+            payout_id: check.payout_id.as_ref(),
             merchant_id: &check.merchant_id,
             attempt_id: &check.attempt_id,
             created_at: check.created_at.assume_utc(),
@@ -49,6 +54,11 @@ impl<'a> KafkaFraudCheck<'a> {
             modified_at: check.modified_at.assume_utc(),
             last_step: check.last_step,
             payment_capture_method: check.payment_capture_method,
+            processor_merchant_id: check.processor_merchant_id.as_ref(),
+            created_by: check
+                .created_by
+                .as_ref()
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }
@@ -56,9 +66,8 @@ impl<'a> KafkaFraudCheck<'a> {
 impl super::KafkaMessage for KafkaFraudCheck<'_> {
     fn key(&self) -> String {
         format!(
-            "{}_{}_{}_{}",
+            "{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id.get_string_repr(),
             self.attempt_id,
             self.frm_id
         )

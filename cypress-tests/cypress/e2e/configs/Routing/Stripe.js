@@ -77,7 +77,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
@@ -143,14 +143,15 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+        amount_to_capture: 1100,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6000,
+          amount: 1100,
           amount_capturable: 0,
-          amount_received: 6000,
+          amount_received: 1100,
         },
       },
     },

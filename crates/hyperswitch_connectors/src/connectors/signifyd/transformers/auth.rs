@@ -1,7 +1,6 @@
-use error_stack;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 pub struct SignifydAuthType {
     pub api_key: Secret<String>,

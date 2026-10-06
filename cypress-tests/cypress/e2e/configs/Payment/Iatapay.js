@@ -55,8 +55,80 @@ export const connectorDetails = {
       },
     },
   },
+  real_time_payment_pm: {
+    PaymentIntent: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["realTimePayment"],
+          value: "connector_2",
+        },
+      },
+      Request: {
+        currency: "MYR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    DuitNow: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["realTimePayment"],
+          value: "connector_2",
+        },
+      },
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "duit_now",
+        payment_method_data: {
+          real_time_payment: {
+            duit_now: {},
+          },
+        },
+        billing: {
+          ...billingAddress,
+          address: {
+            ...billingAddress.address,
+            country: "MY",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          net_amount: 6000,
+          amount_received: null,
+          amount: 6000,
+        },
+      },
+    },
+    DuitNowRetrieve: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["realTimePayment"],
+          value: "connector_2",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+          amount_capturable: 0,
+        },
+      },
+    },
+  },
   card_pm: {
     ZeroAuthMandate: {
+      Request: {
+        amount: 0,
+      },
       Response: {
         status: 501,
         body: {
@@ -84,6 +156,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        amount: 0,
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",

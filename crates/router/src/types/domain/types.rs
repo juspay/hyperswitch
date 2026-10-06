@@ -1,11 +1,40 @@
-use ::payment_methods::state as pm_state;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::types::keymanager::{KeyManagerMetricsContext, KeyManagerState};
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
+use hyperswitch_interfaces::configs;
+use payment_methods::state as pm_state;
 
-use crate::routes::app;
+use crate::{
+    routes::app,
+    types::{api as api_types, ForeignFrom},
+};
 
+impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
+    fn foreign_from((app_state, tenant): (&app::AppState, configs::Tenant)) -> Self {
+        let conf = app_state.conf.key_manager.get_inner();
+        Self {
+            global_tenant_id: app_state.conf.multitenancy.global_tenant.tenant_id.clone(),
+            tenant_id: tenant.tenant_id.clone(),
+            enabled: conf.enabled,
+            url: conf.url.clone(),
+            client_idle_timeout: app_state.conf.proxy.idle_pool_connection_timeout,
+            request_id: app_state.request_id.as_ref().map(|r| r.to_string()),
+            event_emitter: if app_state.conf.events.emit_external_service_call_events {
+                std::sync::Arc::new(app_state.event_handler.clone())
+            } else {
+                std::sync::Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
+            #[cfg(feature = "keymanager_mtls")]
+            cert: conf.cert.clone(),
+            #[cfg(feature = "keymanager_mtls")]
+            ca: conf.ca.clone(),
+            infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
+            use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            metrics_context: None,
+        }
+    }
+}
 impl From<&app::SessionState> for KeyManagerState {
     fn from(state: &app::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
@@ -15,13 +44,22 @@ impl From<&app::SessionState> for KeyManagerState {
             enabled: conf.enabled,
             url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,
-            #[cfg(feature = "km_forward_x_request_id")]
-            request_id: state.request_id,
+            request_id: state.request_id.as_ref().map(|r| r.to_string()),
+            event_emitter: if state.conf.events.emit_external_service_call_events {
+                std::sync::Arc::new(state.event_handler.clone())
+            } else {
+                std::sync::Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
             #[cfg(feature = "keymanager_mtls")]
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
+            use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            metrics_context: state.payment_metrics_context.map(|context| {
+                let merchant_mode: &'static str = context.merchant_mode.into();
+                KeyManagerMetricsContext { merchant_mode }
+            }),
         }
     }
 }
@@ -32,6 +70,44 @@ impl From<&app::SessionState> for pm_state::PaymentMethodsState {
             store: state.store.get_payment_methods_store(),
             key_store: None,
             key_manager_state: state.into(),
+        }
+    }
+}
+
+pub struct ConnectorConversionHandler;
+
+impl hyperswitch_interfaces::api_client::ConnectorConverter for ConnectorConversionHandler {
+    fn get_connector_enum_by_name(
+        &self,
+        connector: &str,
+    ) -> common_utils::errors::CustomResult<
+        hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
+        hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse,
+    > {
+        api_types::ConnectorData::convert_connector(connector)
+    }
+}
+
+impl From<app::SessionState> for subscriptions::state::SubscriptionState {
+    fn from(state: app::SessionState) -> Self {
+        Self {
+            store: state.store.get_subscription_store(),
+            key_store: None,
+            key_manager_state: (&state).into(),
+            api_client: state.api_client.clone(),
+            conf: subscriptions::state::SubscriptionConfig {
+                proxy: state.conf.proxy.clone(),
+                internal_merchant_id_profile_id_auth: state
+                    .conf
+                    .internal_merchant_id_profile_id_auth
+                    .clone(),
+                internal_services: state.conf.internal_services.clone(),
+                connectors: state.conf.connectors.clone(),
+                application_source: state.conf.application_source,
+            },
+            tenant: state.tenant.clone(),
+            event_handler: Box::new(state.event_handler.clone()),
+            connector_converter: Box::new(ConnectorConversionHandler),
         }
     }
 }

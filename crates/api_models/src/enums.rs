@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+pub use euclid::enums::RoutableConnectors;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::Connector;
@@ -47,22 +49,46 @@ pub enum PayoutConnectors {
     Adyen,
     Adyenplatform,
     Cybersource,
+    Deutschebank,
     Ebanx,
+    Gigadat,
+    GotymeSanlam,
+    Loonio,
     Nomupay,
+    Nuvei,
     Payone,
     Paypal,
     Stripe,
+    Truelayer,
+    Trustly,
     Wise,
+    Worldpay,
+    Worldpayxml,
+    Envoy,
+    Itaubank,
+    Santander,
 }
 
 #[cfg(feature = "v2")]
-/// Whether active attempt is to be set/unset
+/// Whether active attempt is to be set/unset/left alone
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum UpdateActiveAttempt {
     /// Request to set the active attempt id
     #[schema(value_type = Option<String>)]
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
+    Unset,
+    /// Leave the active attempt id as it is.
+    NoAction,
+}
+
+/// Generic enum to handle updating or clearing a field
+#[derive(Debug, ToSchema, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetOrUnset<T> {
+    /// Set the field to a specific value
+    Set(T),
+    /// Clear/unset the field
     Unset,
 }
 
@@ -73,12 +99,24 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Deutschebank => Self::Deutschebank,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Gigadat => Self::Gigadat,
+            PayoutConnectors::GotymeSanlam => Self::GotymeSanlam,
+            PayoutConnectors::Loonio => Self::Loonio,
             PayoutConnectors::Nomupay => Self::Nomupay,
+            PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
+            PayoutConnectors::Trustly => Self::Trustly,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
+            PayoutConnectors::Itaubank => Self::Itaubank,
+            PayoutConnectors::Santander => Self::Santander,
         }
     }
 }
@@ -90,12 +128,24 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Deutschebank => Self::Deutschebank,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Gigadat => Self::Gigadat,
+            PayoutConnectors::GotymeSanlam => Self::GotymeSanlam,
+            PayoutConnectors::Loonio => Self::Loonio,
             PayoutConnectors::Nomupay => Self::Nomupay,
+            PayoutConnectors::Nuvei => Self::Nuvei,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
+            PayoutConnectors::Trustly => Self::Trustly,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
+            PayoutConnectors::Itaubank => Self::Itaubank,
+            PayoutConnectors::Santander => Self::Santander,
         }
     }
 }
@@ -108,12 +158,24 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Gigadat => Ok(Self::Gigadat),
+            Connector::GotymeSanlam => Ok(Self::GotymeSanlam),
+            Connector::Loonio => Ok(Self::Loonio),
+            Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Truelayer => Ok(Self::Truelayer),
+            Connector::Trustly => Ok(Self::Trustly),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
+            Connector::Envoy => Ok(Self::Envoy),
+            Connector::Itaubank => Ok(Self::Itaubank),
+            Connector::Santander => Ok(Self::Santander),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
@@ -139,6 +201,11 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+    Cybersourcedecisionmanager,
+    SanlamPayshield,
+    /// nSure.ai. Executed via the Unified Connector Service, not in-process.
+    /// Official docs: https://docs.nsure.ai/
+    Nsure,
 }
 
 #[derive(
@@ -160,6 +227,43 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeConnectors {
+    Interpayments,
+}
+
+impl SurchargeConnectors {
+    pub fn should_notify_connector(&self, primary_event: EventType) -> bool {
+        match primary_event {
+            EventType::PaymentSucceeded => {
+                matches!(self, Self::Interpayments)
+            }
+            EventType::RefundSucceeded => {
+                matches!(self, Self::Interpayments)
+            }
+            _ => false,
+        }
+    }
+}
+
+pub fn convert_surcharge_connector(connector_name: &str) -> Option<SurchargeConnectors> {
+    SurchargeConnectors::from_str(connector_name).ok()
+}
+
 #[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BillingConnectors {
@@ -171,12 +275,15 @@ pub enum BillingConnectors {
     DummyBillingConnector,
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[derive(
+    Clone, Copy, Debug, serde::Serialize, serde::Deserialize, strum::EnumString, Eq, PartialEq,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
     Vgs,
     HyperswitchVault,
+    Tokenex,
 }
 
 impl From<VaultConnectors> for Connector {
@@ -184,6 +291,38 @@ impl From<VaultConnectors> for Connector {
         match value {
             VaultConnectors::Vgs => Self::Vgs,
             VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
+            VaultConnectors::Tokenex => Self::Tokenex,
+        }
+    }
+}
+
+impl TryFrom<String> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        use std::str::FromStr;
+        Self::from_str(&value).map_err(|_| format!("'{value}' is not a valid vault connector name"))
+    }
+}
+
+impl VaultConnectors {
+    /// Parse a `VaultConnectors` from a connector name string, going through
+    /// the `Connector` enum to validate it is a known connector first.
+    pub fn from_connector_name(connector_name: &str) -> Result<Self, String> {
+        use std::str::FromStr;
+        let connector_enum = Connector::from_str(connector_name)
+            .map_err(|_| format!("Failed to parse connector name to enum: {connector_name}"))?;
+        Self::try_from(connector_enum)
+    }
+}
+
+impl TryFrom<Connector> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: Connector) -> Result<Self, Self::Error> {
+        match value {
+            Connector::Vgs => Ok(Self::Vgs),
+            Connector::HyperswitchVault => Ok(Self::HyperswitchVault),
+            Connector::Tokenex => Ok(Self::Tokenex),
+            _ => Err(format!("Connector {value} is not a valid vault connector")),
         }
     }
 }
@@ -230,9 +369,11 @@ pub struct UnresolvedResponseReason {
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     UserCardNumber,
+    UserGiftCardNumber,
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserGiftCardPin,
     UserCardNetwork,
     UserFullName,
     UserEmailAddress,
@@ -255,6 +396,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserDocumentType { options: Vec<String> },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
@@ -274,9 +416,14 @@ pub enum FieldType {
     UserBsbNumber,
     UserBankSortCode,
     UserBankRoutingNumber,
+    UserBankType { options: Vec<String> },
+    UserBankAccountHolderName,
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
+    UserBranchCode,
+    UserBankIdentifier,
+    UserPixAccountNumber,
 }
 
 impl FieldType {
@@ -404,19 +551,16 @@ mod test {
     PartialEq,
     Eq,
     ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RetryAction {
-    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
-}
-
-#[derive(Clone, Copy)]
-pub enum LockerChoice {
-    HyperswitchCardVault,
 }
 
 #[derive(
@@ -474,6 +618,79 @@ impl From<PermissionScope> for ReconPermissionScope {
         match scope {
             PermissionScope::Read => Self::Read,
             PermissionScope::Write => Self::Write,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum TokenStatus {
+    /// Indicates that the token is active and can be used for payments
+    Active,
+    /// Indicates that the token is inactive and can't be used for payments
+    Inactive,
+    /// Indicates that the token is suspended from network's end for some reason and can't be used for payments until it is re-activated
+    Suspended,
+    /// Indicates that the token is expired and can't be used for payments
+    Expired,
+    /// Indicates that the token is deleted and further can't be used for payments
+    Deleted,
+}
+
+/// Enum representing the allowed intent statuses for manual status update
+/// Only Succeeded and Failed are valid transitions from Review state
+#[derive(
+    Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ManualUpdateIntentStatus {
+    /// Transition the payment to succeeded state
+    Succeeded,
+    /// Transition the payment to failed state
+    Failed,
+    /// Transition the payment to partially captured state
+    PartiallyCaptured,
+    /// Transition the payment to requires capture state
+    RequiresCapture,
+    /// Transition the payment to partially authorized, requires capture state
+    PartiallyAuthorizedAndRequiresCapture,
+    /// Transition the payment to partially captured and still capturable state
+    PartiallyCapturedAndCapturable,
+}
+
+impl ManualUpdateIntentStatus {
+    /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus.
+    /// Goes via `to_attempt_status()` and the existing `AttemptStatus -> IntentStatus`
+    /// conversion, rather than hand-maintaining a second, independent mapping that could
+    /// drift out of sync with it.
+    pub fn to_intent_status(self) -> IntentStatus {
+        self.to_attempt_status().into()
+    }
+
+    /// Convert ManualUpdateIntentStatus to the corresponding AttemptStatus
+    pub fn to_attempt_status(self) -> AttemptStatus {
+        match self {
+            Self::Succeeded => AttemptStatus::Charged,
+            Self::Failed => AttemptStatus::Failure,
+            Self::PartiallyCaptured => AttemptStatus::PartialCharged,
+            Self::RequiresCapture => AttemptStatus::Authorized,
+            Self::PartiallyAuthorizedAndRequiresCapture => AttemptStatus::PartiallyAuthorized,
+            Self::PartiallyCapturedAndCapturable => AttemptStatus::PartialChargedAndChargeable,
         }
     }
 }

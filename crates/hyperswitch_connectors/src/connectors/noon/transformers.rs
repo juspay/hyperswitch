@@ -1,6 +1,6 @@
 use common_enums::enums::{self, AttemptStatus};
 use common_utils::{ext_traits::Encode, pii, request::Method, types::StringMajorUnit};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -26,6 +26,49 @@ use crate::{
         RevokeMandateRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NoonConnectorMetadataObject {
+    #[serde(default)]
+    pub region: NoonRegion,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub enum NoonRegion {
+    #[default]
+    Global,
+    Ksa,
+    Egypt,
+}
+
+impl From<NoonRegion> for String {
+    fn from(region: NoonRegion) -> Self {
+        Self::from(match region {
+            NoonRegion::Global => "",
+            NoonRegion::Ksa => ".sa",
+            NoonRegion::Egypt => ".eg",
+        })
+    }
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for NoonConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        match meta_data {
+            None => Ok(Self {
+                region: NoonRegion::Global,
+            }),
+            Some(_) => {
+                let metadata: Self =
+                    utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                            config: "metadata",
+                        })?;
+                Ok(metadata)
+            }
+        }
+    }
+}
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
 const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
@@ -288,7 +331,10 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                             Ok(NoonPaymentData::GooglePay(NoonGooglePay {
                                 api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
                                 api_version: GOOGLEPAY_API_VERSION,
-                                payment_method_data: GooglePayWalletData::from(google_pay_data),
+                                payment_method_data: GooglePayWalletData::try_from(google_pay_data)
+                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "google_pay_data".into(),
+                                    })?,
                             }))
                         }
                         WalletData::ApplePay(apple_pay_data) => {
@@ -320,9 +366,12 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                         WalletData::AliPayQr(_)
                         | WalletData::AliPayRedirect(_)
                         | WalletData::AliPayHkRedirect(_)
+                        | WalletData::AmazonPay(_)
                         | WalletData::AmazonPayRedirect(_)
                         | WalletData::Paysera(_)
                         | WalletData::Skrill(_)
+                        | WalletData::Neteller(_)
+                        | WalletData::BluecodeRedirect {}
                         | WalletData::MomoRedirect(_)
                         | WalletData::KakaoPayRedirect(_)
                         | WalletData::GoPayRedirect(_)
@@ -365,7 +414,12 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
+                    | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
@@ -374,7 +428,7 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                 Some(item.request.currency),
                 Some(item.request.order_category.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_category",
+                        field_name: "order_category".into(),
                     },
                 )?),
             ),
@@ -500,6 +554,8 @@ pub enum NoonPaymentStatus {
     Reversed,
     Rejected,
     Locked,
+    #[serde(other)]
+    Unknown,
 }
 
 fn get_payment_status(data: (NoonPaymentStatus, AttemptStatus)) -> AttemptStatus {
@@ -524,6 +580,13 @@ fn get_payment_status(data: (NoonPaymentStatus, AttemptStatus)) -> AttemptStatus
         | NoonPaymentStatus::PaymentInfoAdded
         | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
         NoonPaymentStatus::Locked => current_status,
+        NoonPaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Received unknown noon payment status; retaining previous status {:?}",
+                current_status
+            );
+            current_status
+        }
     }
 }
 
@@ -599,9 +662,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                     status_code: item.http_code,
                     attempt_status: Some(status),
                     connector_transaction_id: Some(order.id.to_string()),
+                    connector_response_reference_id: order.reference,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -612,9 +677,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                         mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     })
                 }
             },
@@ -728,6 +796,8 @@ impl<F> TryFrom<&NoonRouterData<&RefundsRouterData<F>>> for NoonPaymentsActionRe
 #[derive(Debug, Deserialize, Serialize)]
 pub enum NoonRevokeStatus {
     Cancelled,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -771,6 +841,10 @@ impl<F>
                 }),
                 ..item.data
             }),
+            NoonRevokeStatus::Unknown => Err(report!(errors::ConnectorError::ResponseHandlingFailed)
+                .attach_printable(
+                    "Received unknown noon mandate revoke status; cannot determine outcome without explicit mapping",
+                )),
         }
     }
 }
@@ -782,14 +856,22 @@ pub enum RefundStatus {
     Failed,
     #[default]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Success => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Pending => Self::Pending,
+fn get_refund_status(data: (RefundStatus, enums::RefundStatus)) -> enums::RefundStatus {
+    let (item, current_status) = data;
+    match item {
+        RefundStatus::Success => enums::RefundStatus::Success,
+        RefundStatus::Failed => enums::RefundStatus::Failure,
+        RefundStatus::Pending => enums::RefundStatus::Pending,
+        RefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Received unknown noon refund status; retaining previous status {:?}",
+                current_status
+            );
+            current_status
         }
     }
 }
@@ -812,7 +894,7 @@ pub struct NoonRefundResponseResult {
 pub struct RefundResponse {
     result: NoonRefundResponseResult,
     result_code: u32,
-    class_description: String,
+    class_description: Option<String>,
     message: String,
 }
 
@@ -822,19 +904,23 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
-        let refund_status =
-            enums::RefundStatus::from(response.result.transaction.status.to_owned());
+        let refund_status = get_refund_status((
+            response.result.transaction.status.to_owned(),
+            item.data.request.refund_status,
+        ));
         let response = if utils::is_refund_failure(refund_status) {
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
-                message: response.class_description.clone(),
+                message: response.message.clone(),
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(response.result.transaction.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -868,7 +954,7 @@ pub struct NoonRefundSyncResponseResult {
 pub struct RefundSyncResponse {
     result: NoonRefundSyncResponseResult,
     result_code: u32,
-    class_description: String,
+    class_description: Option<String>,
     message: String,
 }
 
@@ -891,19 +977,24 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundSyncResponse>> for RefundsRo
                     })
             })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-        let refund_status = enums::RefundStatus::from(noon_transaction.status.to_owned());
+        let refund_status = get_refund_status((
+            noon_transaction.status.to_owned(),
+            item.data.request.refund_status,
+        ));
         let response = if utils::is_refund_failure(refund_status) {
             let response = &item.response;
             Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.result_code.to_string(),
-                message: response.class_description.clone(),
+                message: response.message.clone(),
                 reason: Some(response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(noon_transaction.id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -990,5 +1081,5 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
 pub struct NoonErrorResponse {
     pub result_code: u32,
     pub message: String,
-    pub class_description: String,
+    pub class_description: Option<String>,
 }

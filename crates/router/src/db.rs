@@ -2,12 +2,14 @@ pub mod address;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
+pub mod batch_blocklist_job;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
+pub mod card_issuer;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
@@ -20,6 +22,7 @@ pub mod fraud_check;
 pub mod generic_link;
 pub mod gsm;
 pub mod health_check;
+pub mod hierarchical_resource;
 pub mod kafka_store;
 pub mod locker_mock_up;
 pub mod mandate;
@@ -41,7 +44,7 @@ pub mod user_key_store;
 pub mod user_role;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
-use common_utils::id_type;
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -52,17 +55,23 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
+    card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
+    master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use router_env::logger;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use storage_impl::{
-    errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
+    errors::StorageError,
+    redis::{cache::CacheInterface, kv_store::RedisConnInterface},
+    tokenization, MockDb,
 };
 
 pub use self::kafka_store::KafkaStore;
@@ -96,7 +105,7 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + blocklist_lookup::BlocklistLookupInterface
-    + configs::ConfigInterface
+    + configs::ConfigInterface<Error = StorageError>
     + capture::CaptureInterface
     + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
@@ -108,14 +117,16 @@ pub trait StorageInterface:
     + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
-    + merchant_account::MerchantAccountInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
     + merchant_connector_account::ConnectorAccessToken
-    + merchant_connector_account::MerchantConnectorAccountInterface
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + batch_blocklist_job::BatchBlocklistJobInterface
+    + CardIssuersInterface<Error = StorageError>
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface<Error = StorageError>
@@ -123,12 +134,14 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
-    + business_profile::ProfileInterface
+    + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
@@ -136,20 +149,32 @@ pub trait StorageInterface:
     + user::sample_data::BatchSampleDataInterface
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
-    + authentication::AuthenticationInterface
+    + AuthenticationInterface<Error = StorageError>
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
     + tokenization::TokenizationInterface
     + callback_mapper::CallbackMapperInterface
+    + storage_impl::subscription::SubscriptionInterface<Error = StorageError>
+    + storage_impl::invoice::InvoiceInterface<Error = StorageError>
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    >;
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface>;
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
+    fn get_subscription_store(&self)
+        -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
+#[cfg(feature = "deja")]
 #[async_trait::async_trait]
 pub trait GlobalStorageInterface:
     Send
@@ -160,21 +185,61 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
+    + RequestIdStore
     + 'static
 {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)>;
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
 }
 
+#[cfg(not(feature = "deja"))]
+#[async_trait::async_trait]
+pub trait GlobalStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + user::UserInterface
+    + user_role::UserRoleInterface
+    + user_key_store::UserKeyStoreInterface
+    + role::RoleInterface
+    + RedisConnInterface
+    + CacheInterface
+    + RequestIdStore
+    + 'static
+{
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
+}
+
+#[cfg(feature = "deja")]
 #[async_trait::async_trait]
 pub trait AccountsStorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
     + OrganizationInterface
-    + merchant_account::MerchantAccountInterface
-    + business_profile::ProfileInterface
-    + merchant_connector_account::MerchantConnectorAccountInterface
-    + merchant_key_store::MerchantKeyStoreInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
+    + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
+    + 'static
+{
+}
+
+#[cfg(not(feature = "deja"))]
+#[async_trait::async_trait]
+pub trait AccountsStorageInterface:
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + OrganizationInterface
+    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + business_profile::ProfileInterface<Error = StorageError>
+    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + 'static
 {
@@ -191,43 +256,43 @@ pub trait CommonStorageInterface:
     fn get_accounts_storage_interface(&self) -> Box<dyn AccountsStorageInterface>;
 }
 
-pub trait MasterKeyInterface {
-    fn get_master_key(&self) -> &[u8];
-}
-
-impl MasterKeyInterface for Store {
-    fn get_master_key(&self) -> &[u8] {
-        self.master_key().peek()
-    }
-}
-
-/// Default dummy key for MockDb
-impl MasterKeyInterface for MockDb {
-    fn get_master_key(&self) -> &[u8] {
-        &[
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
-        ]
-    }
-}
-
 #[async_trait::async_trait]
 impl StorageInterface for Store {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    > {
         Box::new(self.clone())
     }
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
 
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
+    }
+
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
+        Box::new(self.clone())
+    }
+
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.key_manager_state = Some(key_manager_state.clone());
+        #[cfg(feature = "kv_store")]
+        self.router_store.set_key_manager_state(key_manager_state);
     }
 }
 
 #[async_trait::async_trait]
 impl GlobalStorageInterface for Store {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
@@ -239,18 +304,34 @@ impl StorageInterface for MockDb {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
         Box::new(self.clone())
     }
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<Error = StorageError>,
+    > {
+        Box::new(self.clone())
+    }
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
         Box::new(self.clone())
     }
 
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
+    }
+    fn get_subscription_store(
+        &self,
+    ) -> Box<dyn subscriptions::state::SubscriptionStorageInterface> {
+        Box::new(self.clone())
+    }
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.key_manager_state = Some(key_manager_state);
     }
 }
 
 #[async_trait::async_trait]
 impl GlobalStorageInterface for MockDb {
-    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+    fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static> {
         Box::new(self.clone())
     }
 }
@@ -293,7 +374,18 @@ impl RequestIdStore for MockDb {}
 
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
-        self.request_id = Some(request_id)
+        // During deja replay, also stamp the inner RouterStore in KV builds because
+        // PostgresOnly-delegated operations route through it.
+        #[cfg(all(feature = "kv_store", feature = "deja"))]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
+        self.request_id = Some(request_id.clone());
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
+        self.update_key_manager_request_id(request_id);
     }
 
     fn get_request_id(&self) -> Option<String> {
@@ -343,14 +435,14 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    async fn update_fraud_check_response_with_attempt_id(
+    async fn update_fraud_check_response_with_frm_id(
         &self,
         this: FraudCheck,
         fraud_check: FraudCheckUpdate,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
             .diesel_store
-            .update_fraud_check_response_with_attempt_id(this, fraud_check)
+            .update_fraud_check_response_with_frm_id(this, fraud_check)
             .await?;
         if let Err(er) = self
             .kafka_producer
@@ -361,42 +453,17 @@ impl FraudCheckInterface for KafkaStore {
         }
         Ok(frm)
     }
-    async fn find_fraud_check_by_payment_id(
+    async fn find_fraud_check_by_frm_id(
         &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
+        frm_id: String,
     ) -> CustomResult<FraudCheck, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id(payment_id, merchant_id)
-            .await?;
+        let frm = self.diesel_store.find_fraud_check_by_frm_id(frm_id).await?;
         if let Err(er) = self
             .kafka_producer
             .log_fraud_check(&frm, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for fraud check {frm:?}", error_message=?er)
-        }
-        Ok(frm)
-    }
-    async fn find_fraud_check_by_payment_id_if_present(
-        &self,
-        payment_id: id_type::PaymentId,
-        merchant_id: id_type::MerchantId,
-    ) -> CustomResult<Option<FraudCheck>, StorageError> {
-        let frm = self
-            .diesel_store
-            .find_fraud_check_by_payment_id_if_present(payment_id, merchant_id)
-            .await?;
-
-        if let Some(fraud_check) = frm.clone() {
-            if let Err(er) = self
-                .kafka_producer
-                .log_fraud_check(&fraud_check, None, self.tenant_id.clone())
-                .await
-            {
-                logger::error!(message="Failed to log analytics event for frm {frm:?}", error_message=?er);
-            }
         }
         Ok(frm)
     }

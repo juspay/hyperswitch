@@ -3,8 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     core::{api_locking, payment_link::*},
-    services::{api, authentication as auth},
-    types::domain,
+    services::{api, authentication as auth, authorization::permissions::Permission},
     AppState,
 };
 
@@ -20,13 +19,27 @@ pub async fn payment_link_retrieve(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkRetrieve;
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-        };
+    let (auth_type, _) = {
+        #[cfg(feature = "v1")]
+        {
+            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+            }
+        }
+        #[cfg(feature = "v2")]
+        {
+            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+                Ok(auth) => auth,
+                Err(err) => return api::log_and_return_error_response(err),
+            }
+        }
+    };
 
     api::server_wrap(
         flow,
@@ -61,12 +74,9 @@ pub async fn initiate_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             initiate_payment_link_flow(
                 state,
-                merchant_context,
+                auth.platform.get_processor().clone(),
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )
@@ -98,12 +108,9 @@ pub async fn initiate_secure_payment_link(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             initiate_secure_payment_link_flow(
                 state,
-                merchant_context,
+                auth.platform.get_processor().clone(),
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
                 headers,
@@ -117,12 +124,12 @@ pub async fn initiate_secure_payment_link(
 
 /// Payment Link - List
 ///
-/// To list the payment links
+/// To list the payment links across all profiles for a merchant
 #[instrument(skip_all, fields(flow = ?Flow::PaymentLinkList))]
 pub async fn payments_link_list(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<api_models::payments::PaymentLinkListConstraints>,
+    payload: web::Json<api_models::payments::PaymentLinkListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkList;
     let payload = payload.into_inner();
@@ -132,12 +139,66 @@ pub async fn payments_link_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            list_payment_link(state, auth.merchant_account, payload)
+            list_payment_link(
+                state,
+                auth.platform.get_processor().get_account().clone(),
+                payload,
+                None,
+            )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentLinkRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payment Link - Profile List
+///
+/// To list payment links scoped to the authenticated business profile
+#[instrument(skip_all, fields(flow = ?Flow::PaymentLinkList))]
+pub async fn profile_payment_link_list(
+    state: web::Data<AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<api_models::payments::PaymentLinkListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentLinkList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, payload, _| {
+            list_payment_link(
+                state,
+                auth.platform.get_processor().get_account().clone(),
+                payload,
+                auth.profile.map(|p| p.get_id().clone()),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentLinkRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -164,12 +225,9 @@ pub async fn payment_link_status(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             get_payment_link_status(
                 state,
-                merchant_context,
+                auth.platform.get_processor().clone(),
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
             )

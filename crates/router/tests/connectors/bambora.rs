@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use common_utils::types::MinorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 
 use crate::{
@@ -16,7 +16,7 @@ impl utils::Connector for BamboraTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Bambora;
         utils::construct_connector_data_old(
-            Box::new(&Bambora),
+            Box::new(Bambora::new()),
             types::Connector::Bambora,
             types::api::GetToken::Connector,
             None,

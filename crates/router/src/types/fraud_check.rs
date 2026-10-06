@@ -1,7 +1,7 @@
 pub use hyperswitch_domain_models::{
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData, RefundMethod,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData, RefundMethod,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };

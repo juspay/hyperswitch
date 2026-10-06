@@ -7,6 +7,7 @@ pub mod authentication;
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub mod blocklist;
 pub mod cache;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
 #[cfg(feature = "olap")]
@@ -18,6 +19,7 @@ pub mod disputes;
 #[cfg(feature = "dummy_connector")]
 pub mod dummy_connector;
 pub mod ephemeral_key;
+pub mod external_service_auth;
 pub mod feature_matrix;
 pub mod files;
 #[cfg(feature = "frm")]
@@ -26,10 +28,10 @@ pub mod gsm;
 pub mod health;
 pub mod hypersense;
 pub mod lock_utils;
-#[cfg(feature = "v1")]
-pub mod locker_migration;
 pub mod mandates;
 pub mod metrics;
+pub mod offer_engine;
+pub mod oidc;
 #[cfg(feature = "v1")]
 pub mod payment_link;
 pub mod payment_methods;
@@ -45,13 +47,21 @@ pub mod poll;
 pub mod profile_acquirer;
 #[cfg(feature = "olap")]
 pub mod profiles;
-#[cfg(feature = "recon")]
-pub mod recon;
 pub mod refunds;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_data_backfill;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_redis;
 #[cfg(feature = "olap")]
 pub mod routing;
+#[cfg(feature = "v1")]
+pub mod subscription;
+pub mod superposition_proxy;
+pub mod superposition_sdk_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
+#[cfg(feature = "olap")]
+pub mod unified_connector_service;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -69,13 +79,14 @@ pub mod recovery_webhooks;
 
 pub mod relay;
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub mod hierarchical_resources;
+
 #[cfg(feature = "olap")]
 pub mod process_tracker;
 
 #[cfg(feature = "v2")]
 pub mod proxy;
-
-pub mod chat;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
@@ -83,22 +94,24 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
-#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-pub use self::app::Recon;
-#[cfg(feature = "v2")]
-pub use self::app::Tokenization;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
-    ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,
-    Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
-    PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
-    ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
-    User, UserDeprecated, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
+    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, ExternalService,
+    FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount,
+    MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll,
+    ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay,
+    RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy, ThreeDsDecisionRule, User,
+    UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
+pub use self::app::{
+    Blocklist, HierarchicalResources, Organization, Routing, Subscription, UnifiedConnectorService,
+    Verify, WebhookEvents,
+};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
+#[cfg(feature = "v2")]
+pub use self::app::{RecoveryDataBackfill, Tokenization};
 #[cfg(all(feature = "stripe", feature = "v1"))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]

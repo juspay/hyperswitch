@@ -1,11 +1,10 @@
-#[cfg(feature = "v1")]
-use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
+use api_models::customers::CustomerDocumentDetails;
+use common_types::primitive_wrappers;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -22,8 +21,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{Deserialize, PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{Deserialize, PeekInterface, Secret};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -47,7 +46,6 @@ pub trait PaymentIntentInterface {
     type Error;
     async fn update_payment_intent(
         &self,
-        state: &KeyManagerState,
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
@@ -56,25 +54,22 @@ pub trait PaymentIntentInterface {
 
     async fn insert_payment_intent(
         &self,
-        state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_intent_by_payment_id_merchant_id(
+    async fn find_payment_intent_by_payment_id_processor_merchant_id(
         &self,
-        state: &KeyManagerState,
         payment_id: &id_type::PaymentId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, Self::Error>;
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_merchant_reference_id_profile_id(
         &self,
-        state: &KeyManagerState,
         merchant_reference_id: &id_type::PaymentReferenceId,
         profile_id: &id_type::ProfileId,
         merchant_key_store: &MerchantKeyStore,
@@ -84,7 +79,6 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -93,18 +87,36 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
-        state: &KeyManagerState,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_filtered_payment_intents_attempt_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<
+        Vec<(
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>,
+        Self::Error,
+    >;
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn get_payment_intents_attempt_count_for_platform(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+    ) -> error_stack::Result<i64, Self::Error>;
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
-        state: &KeyManagerState,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -113,7 +125,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_intent_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         constraints: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, Self::Error>;
@@ -121,8 +133,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: common_enums::MerchantStorageScheme,
@@ -131,7 +142,6 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v2", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
@@ -155,7 +165,7 @@ pub trait PaymentIntentInterface {
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, Self::Error>;
@@ -167,6 +177,29 @@ pub struct CustomerData {
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
+    pub tax_registration_id: Option<Secret<String>>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
+}
+
+impl CustomerData {
+    pub fn fill_missing_fields(&mut self, other: &Self) {
+        self.name = self.name.clone().or_else(|| other.name.clone());
+        self.email = self.email.clone().or_else(|| other.email.clone());
+        self.phone = self.phone.clone().or_else(|| other.phone.clone());
+        self.phone_country_code = self
+            .phone_country_code
+            .clone()
+            .or_else(|| other.phone_country_code.clone());
+        self.tax_registration_id = self
+            .tax_registration_id
+            .clone()
+            .or_else(|| other.tax_registration_id.clone());
+        self.date_of_birth = self
+            .date_of_birth
+            .clone()
+            .or_else(|| other.date_of_birth.clone());
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -207,6 +240,12 @@ pub struct PaymentIntentUpdateFields {
     pub updated_by: String,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
+    pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -225,8 +264,10 @@ pub struct PaymentIntentUpdateFields {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
     pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub updated_by: String,
@@ -241,7 +282,23 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
     pub is_confirm_operation: bool,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 #[cfg(feature = "v1")]
@@ -253,9 +310,10 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         fingerprint_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: Option<serde_json::Value>,
         updated_by: String,
     },
     Update(Box<PaymentIntentUpdateFields>),
@@ -278,6 +336,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -304,6 +363,10 @@ pub enum PaymentIntentUpdate {
         surcharge_applicable: bool,
         updated_by: String,
     },
+    ExternalSurchargeApplicableUpdate {
+        external_surcharge_applicable: bool,
+        updated_by: String,
+    },
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
     },
@@ -316,12 +379,21 @@ pub enum PaymentIntentUpdate {
     ManualUpdate {
         status: Option<common_enums::IntentStatus>,
         updated_by: String,
+        amount_captured: Option<MinorUnit>,
     },
     SessionResponseUpdate {
         tax_details: diesel_models::TaxDetails,
         shipping_address_id: Option<String>,
         updated_by: String,
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    },
+    StateMetadataUpdate {
+        state_metadata: common_types::payments::PaymentIntentStateMetadata,
+        updated_by: String,
+    },
+    RecurrenceUpdate {
+        status: common_enums::IntentStatus,
+        updated_by: String,
     },
 }
 
@@ -372,9 +444,24 @@ pub enum PaymentIntentUpdate {
         feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
         updated_by: String,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
+        active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
+    /// VoidUpdate for payment cancellation
+    VoidUpdate {
+        status: common_enums::IntentStatus,
+        updated_by: String,
+    },
+    AttemptGroupUpdate {
+        active_attempts_group_id: id_type::GlobalAttemptGroupId,
+        active_attempt_id_type: common_enums::ActiveAttemptIDType,
+        updated_by: String,
+    },
+    SplitPaymentStatusUpdate {
+        status: common_enums::IntentStatus,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -396,6 +483,7 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
@@ -405,6 +493,7 @@ pub struct PaymentIntentUpdateInternal {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -428,6 +517,23 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub payment_channel: Option<common_enums::PaymentChannel>,
+    pub feature_metadata: Option<Secret<serde_json::Value>>,
+    pub tax_status: Option<common_enums::TaxStatus>,
+    pub discount_amount: Option<MinorUnit>,
+    pub order_date: Option<PrimitiveDateTime>,
+    pub shipping_amount_tax: Option<MinorUnit>,
+    pub duty_amount: Option<MinorUnit>,
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+    pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -443,6 +549,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
             } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -478,6 +586,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -488,6 +601,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
             } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount_captured,
@@ -523,6 +638,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -531,6 +651,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
             } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -566,6 +688,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -575,6 +702,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 status: Some(status),
                 amount_captured,
                 active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
                 prerouting_algorithm: None,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
@@ -609,6 +738,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -616,6 +750,8 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
             } => Ok(Self {
                 status: None,
                 active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
                 modified_at: common_utils::date_time::now(),
                 amount_captured: None,
                 prerouting_algorithm: Some(
@@ -655,6 +791,11 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -688,13 +829,22 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     frm_metadata,
                     request_external_three_ds_authentication,
                     active_attempt_id,
+
                     updated_by,
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
+                    enable_partial_authorization,
+                    active_attempt_id_type,
+                    active_attempts_group_id,
+                    profile_acquirer_id,
+                    external_surcharge_strategy,
+                    external_surcharge_applicable,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
                     active_attempt_id,
+                    active_attempt_id_type,
+                    active_attempts_group_id,
                     prerouting_algorithm: None,
                     modified_at: common_utils::date_time::now(),
                     amount_captured: None,
@@ -733,10 +883,14 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     frm_metadata,
                     request_external_three_ds_authentication:
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
-
                     updated_by,
                     force_3ds_challenge,
                     is_iframe_redirection_enabled,
+                    enable_partial_authorization,
+                    state_metadata: None,
+                    profile_acquirer_id,
+                    external_surcharge_strategy,
+                    external_surcharge_applicable,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -744,10 +898,13 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 feature_metadata,
                 updated_by,
                 active_attempt_id,
+                active_attempts_group_id,
             } => Ok(Self {
                 status: Some(status),
                 amount_captured: None,
                 active_attempt_id: Some(active_attempt_id),
+                active_attempt_id_type: None,
+                active_attempts_group_id,
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
@@ -782,6 +939,154 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 force_3ds_challenge: None,
                 is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+            }),
+            PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
+                status: Some(status),
+                amount_captured: None,
+                active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
+
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+            }),
+            PaymentIntentUpdate::AttemptGroupUpdate {
+                updated_by,
+                active_attempts_group_id,
+                active_attempt_id_type,
+            } => Ok(Self {
+                status: None,
+                amount_captured: None,
+                active_attempt_id: None,
+                active_attempt_id_type: Some(active_attempt_id_type),
+                active_attempts_group_id: Some(active_attempts_group_id),
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+            }),
+            PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
+                status: Some(status),
+                amount_captured: None,
+                active_attempt_id: None,
+                active_attempt_id_type: None,
+                active_attempts_group_id: None,
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                enable_partial_authorization: None,
+                state_metadata: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
             }),
         }
     }
@@ -795,7 +1100,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 metadata,
                 updated_by,
             } => Self {
-                metadata: Some(metadata),
+                metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 ..Default::default()
@@ -816,6 +1121,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix: value.statement_descriptor_suffix,
                 order_details: value.order_details,
                 metadata: value.metadata,
+                connector_metadata: value.connector_metadata,
                 payment_confirm_source: value.payment_confirm_source,
                 updated_by: value.updated_by,
                 session_expiry: value.session_expiry,
@@ -828,6 +1134,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                tax_details: value.tax_details,
+                tax_status: value.tax_status,
+                discount_amount: value.discount_amount,
+                order_date: value.order_date,
+                shipping_amount_tax: value.shipping_amount_tax,
+                duty_amount: value.duty_amount,
+                installment_options: value.installment_options,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -853,11 +1168,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -882,6 +1199,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -892,6 +1210,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -944,6 +1263,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
+            PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable,
+                updated_by,
+            } => Self {
+                external_surcharge_applicable: Some(external_surcharge_applicable),
+                updated_by,
+                ..Default::default()
+            },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
                 ..Default::default()
@@ -960,10 +1287,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
                 status,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                amount_captured,
                 ..Default::default()
             },
             PaymentIntentUpdate::SessionResponseUpdate {
@@ -977,6 +1309,127 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 shipping_details,
                 ..Default::default()
+            },
+            PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata,
+                updated_by,
+            } => Self {
+                state_metadata: Some(state_metadata),
+                updated_by,
+                amount: None,
+                currency: None,
+                status: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                connector_metadata: None,
+                billing_address_id: None,
+                shipping_address_id: None,
+                modified_at: None,
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                billing_descriptor: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                fingerprint_id: None,
+                session_expiry: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                payment_channel: None,
+                feature_metadata: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
+                enable_overcapture: None,
+                shipping_cost: None,
+                installment_options: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
+            },
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
+                status: Some(status),
+                updated_by,
+                session_expiry: None,
+                state_metadata: None,
+                amount: None,
+                currency: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                connector_metadata: None,
+                billing_address_id: None,
+                shipping_address_id: None,
+                modified_at: None,
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                billing_descriptor: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                fingerprint_id: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                payment_channel: None,
+                feature_metadata: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
+                enable_overcapture: None,
+                shipping_cost: None,
+                installment_options: None,
+                profile_acquirer_id: None,
+                external_surcharge_strategy: None,
+                external_surcharge_applicable: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
             },
         }
     }
@@ -1013,18 +1466,27 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::ResponseUpdate {
                 status,
                 amount_captured,
                 fingerprint_id,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
             } => Self::MetadataUpdate {
                 metadata,
+                updated_by,
+            },
+            PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata,
+                updated_by,
+            } => Self::StateMetadataUpdate {
+                state_metadata,
                 updated_by,
             },
             PaymentIntentUpdate::Update(value) => {
@@ -1042,8 +1504,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     description: value.description,
                     statement_descriptor_name: value.statement_descriptor_name,
                     statement_descriptor_suffix: value.statement_descriptor_suffix,
+                    billing_descriptor: value.billing_descriptor,
                     order_details: value.order_details,
                     metadata: value.metadata,
+                    connector_metadata: value.connector_metadata,
                     payment_confirm_source: value.payment_confirm_source,
                     updated_by: value.updated_by,
                     session_expiry: value.session_expiry,
@@ -1059,6 +1523,24 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
                     is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+                    payment_channel: value.payment_channel,
+                    feature_metadata: value.feature_metadata,
+                    tax_status: value.tax_status,
+                    discount_amount: value.discount_amount,
+                    order_date: value.order_date,
+                    shipping_amount_tax: value.shipping_amount_tax,
+                    duty_amount: value.duty_amount,
+                    enable_partial_authorization: value.enable_partial_authorization,
+                    enable_overcapture: value.enable_overcapture,
+                    shipping_cost: value.shipping_cost,
+                    installment_options: value
+                        .installment_options
+                        .map(common_types::payments::InstallmentOptions),
+                    profile_acquirer_id: value.profile_acquirer_id,
+                    external_surcharge_strategy: None,
+                    external_surcharge_applicable: None,
+                    is_account_funded_transaction: value.is_account_funded_transaction,
+                    recipient_details: value.recipient_details.map(Encryption::from),
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1093,10 +1575,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             } => Self::PGStatusUpdate {
                 status,
                 updated_by,
                 incremental_authorization_allowed,
+                feature_metadata,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1143,6 +1627,13 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 surcharge_applicable: Some(surcharge_applicable),
                 updated_by,
             },
+            PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable,
+                updated_by,
+            } => Self::ExternalSurchargeApplicableUpdate {
+                external_surcharge_applicable: Some(external_surcharge_applicable),
+                updated_by,
+            },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
                 Self::IncrementalAuthorizationAmountUpdate { amount }
             }
@@ -1156,9 +1647,15 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             } => Self::CompleteAuthorizeUpdate {
                 shipping_address_id,
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
-                Self::ManualUpdate { status, updated_by }
-            }
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
@@ -1170,6 +1667,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 shipping_details: shipping_details.map(Encryption::from),
             },
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => {
+                Self::RecurrenceUpdate { status, updated_by }
+            }
         }
     }
 }
@@ -1188,6 +1688,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             setup_future_usage,
             off_session,
             metadata,
+            connector_metadata,
             billing_address_id,
             shipping_address_id,
             modified_at: _,
@@ -1197,6 +1698,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             description,
             statement_descriptor_name,
             statement_descriptor_suffix,
+            billing_descriptor,
             order_details,
             attempt_count,
             merchant_decision,
@@ -1217,6 +1719,23 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             tax_details,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
+            payment_channel,
+            feature_metadata,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
+            enable_overcapture,
+            shipping_cost,
+            state_metadata,
+            installment_options,
+            profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = value;
         Self {
             amount,
@@ -1228,6 +1747,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             setup_future_usage,
             off_session,
             metadata,
+            connector_metadata,
             billing_address_id,
             shipping_address_id,
             modified_at,
@@ -1237,6 +1757,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             description,
             statement_descriptor_name,
             statement_descriptor_suffix,
+            billing_descriptor,
             order_details,
             attempt_count,
             merchant_decision,
@@ -1258,6 +1779,24 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             force_3ds_challenge,
             is_iframe_redirection_enabled,
             extended_return_url: return_url,
+            payment_channel,
+            feature_metadata,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
+            enable_overcapture,
+            shipping_cost,
+            state_metadata,
+            installment_options: installment_options
+                .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         }
     }
 }
@@ -1283,26 +1822,20 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v2")]
 pub enum PaymentIntentFetchConstraints {
-    Single {
-        payment_intent_id: id_type::GlobalPaymentId,
-    },
     List(Box<PaymentIntentListParams>),
 }
 
 #[cfg(feature = "v2")]
 impl PaymentIntentFetchConstraints {
     pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
-        if let Self::List(pi_list_params) = self {
-            pi_list_params.profile_id.clone()
-        } else {
-            None
-        }
+        let Self::List(pi_list_params) = self;
+        pi_list_params.profile_id.clone()
     }
 }
 
 #[cfg(feature = "v1")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1317,34 +1850,37 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<id_type::PaymentId>,
     pub ending_before_id: Option<id_type::PaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
+    pub customer_email: Option<Email>,
+    pub processor_merchant_id: Option<Vec<id_type::MerchantId>>,
 }
 
 #[cfg(feature = "v2")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
-    pub connector: Option<api_models::enums::Connector>,
-    pub currency: Option<common_enums::Currency>,
-    pub status: Option<common_enums::IntentStatus>,
-    pub payment_method_type: Option<common_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
-    pub authentication_type: Option<common_enums::AuthenticationType>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_subtype: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub starting_after_id: Option<id_type::GlobalPaymentId>,
     pub ending_before_id: Option<id_type::GlobalPaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
-    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
+    pub payment_id: Option<id_type::GlobalPaymentId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1362,7 +1898,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             created_gte,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: None,
@@ -1377,11 +1913,13 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: Default::default(),
             card_network: None,
             card_discovery: None,
             merchant_order_reference_id: None,
+            customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -1416,39 +1954,36 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             merchant_order_reference_id,
             offset,
         } = value;
-        if let Some(payment_intent_id) = payment_id {
-            Self::Single { payment_intent_id }
-        } else {
-            Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
-                starting_at: created_gte.or(created_gt).or(created),
-                ending_at: created_lte.or(created_lt).or(created),
-                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
-                    api_models::payments::AmountFilter {
-                        start_amount,
-                        end_amount,
-                    }
-                }),
-                connector,
-                currency,
-                status,
-                payment_method_type,
-                payment_method_subtype,
-                authentication_type,
-                merchant_connector_id,
-                profile_id,
-                customer_id,
-                starting_after_id: starting_after,
-                ending_before_id: ending_before,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-                order: api_models::payments::Order {
-                    on: order_on,
-                    by: order_by,
-                },
-                card_network,
-                merchant_order_reference_id,
-            }))
-        }
+        Self::List(Box::new(PaymentIntentListParams {
+            offset,
+            starting_at: created_gte.or(created_gt).or(created),
+            ending_at: created_lte.or(created_lt).or(created),
+            amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
+                api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                }
+            }),
+            connector,
+            currency,
+            status,
+            payment_method_type,
+            payment_method_subtype,
+            authentication_type,
+            merchant_connector_id,
+            profile_id,
+            customer_id,
+            starting_after_id: starting_after,
+            ending_before_id: ending_before,
+            limit,
+            order: api_models::payments::Order {
+                on: order_on,
+                by: order_by,
+            },
+            card_network,
+            merchant_order_reference_id,
+            payment_id,
+        }))
     }
 }
 
@@ -1456,7 +1991,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             amount_filter: None,
@@ -1471,11 +2006,13 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             customer_id: None,
             starting_after_id: None,
             ending_before_id: None,
-            limit: None,
+            limit: common_utils::types::list::PageSize::default(),
             order: Default::default(),
             card_network: None,
             card_discovery: None,
             merchant_order_reference_id: None,
+            customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -1484,6 +2021,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
 impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
         let api_models::payments::PaymentListFilterConstraints {
+            query: _query,
             payment_id,
             profile_id,
             customer_id,
@@ -1500,14 +2038,24 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            card_last_4: _card_last_4,
+            active_attempt_id: _active_attempt_id,
+            card_issuer: _card_issuer,
+            routing_approach: _routing_approach,
+            refunds_status: _refunds_status,
+            dispute_status: _dispute_status,
+            client_source: _client_source,
+            client_version: _client_version,
+            first_attempt: _first_attempt,
             card_discovery,
             merchant_order_reference_id,
+            customer_email,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
+                offset,
                 starting_at: time_range.map(|t| t.start_time),
                 ending_at: time_range.and_then(|t| t.end_time),
                 amount_filter,
@@ -1522,11 +2070,75 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                limit,
                 order,
                 card_network,
                 card_discovery,
                 merchant_order_reference_id,
+                customer_email,
+                processor_merchant_id: None,
+            }))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PlatformPaymentListConstraints) -> Self {
+        let api_models::payments::PlatformPaymentListConstraints {
+            payment_id,
+            profile_id,
+            processor_merchant_id,
+            customer_id,
+            limit,
+            offset,
+            time_range,
+            start_amount,
+            end_amount,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            card_network,
+            card_discovery,
+            merchant_order_reference_id,
+            order,
+        } = value;
+        if let Some(payment_intent_id) = payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List(Box::new(PaymentIntentListParams {
+                offset,
+                starting_at: time_range.map(|time_range| time_range.start_time),
+                ending_at: time_range.and_then(|time_range| time_range.end_time),
+                amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
+                    api_models::payments::AmountFilter {
+                        start_amount,
+                        end_amount,
+                    },
+                ),
+                connector,
+                currency,
+                status,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                merchant_connector_id,
+                profile_id: profile_id.map(|profile_id| vec![profile_id]),
+                customer_id,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit,
+                order: order.unwrap_or_default(),
+                card_network,
+                card_discovery,
+                merchant_order_reference_id,
+                customer_email: None,
+                processor_merchant_id: processor_merchant_id
+                    .map(|processor_merchant_id| vec![processor_merchant_id]),
             }))
         }
     }
@@ -1606,6 +2218,8 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage,
             active_attempt_id,
+            active_attempt_id_type,
+            active_attempts_group_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -1616,6 +2230,7 @@ impl behaviour::Conversion for PaymentIntent {
             frm_merchant_decision,
             updated_by,
             request_incremental_authorization,
+            split_txns_enabled,
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication,
@@ -1641,6 +2256,12 @@ impl behaviour::Conversion for PaymentIntent {
             created_by,
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            enable_partial_authorization,
+            profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1660,6 +2281,8 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage: Some(setup_future_usage),
             active_attempt_id,
+            active_attempt_id_type: Some(active_attempt_id_type),
+            active_attempts_group_id,
             order_details: order_details.map(|order_details| {
                 order_details
                     .into_iter()
@@ -1676,7 +2299,15 @@ impl behaviour::Conversion for PaymentIntent {
                 })
                 .transpose()?
                 .map(Secret::new),
-            connector_metadata,
+            connector_metadata: connector_metadata
+                .map(|cm| {
+                    cm.encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize connector_metadata".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
             feature_metadata,
             attempt_count,
             profile_id,
@@ -1685,6 +2316,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by,
 
             request_incremental_authorization: Some(request_incremental_authorization),
+            split_txns_enabled: Some(split_txns_enabled),
             authorization_count,
             session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1724,9 +2356,28 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge,
             force_3ds_challenge_trigger,
             processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|cb| cb.to_string()),
+            created_by: created_by.map(|created_by| created_by.to_string()),
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            order_date: None,
+            enable_partial_authorization: Some(enable_partial_authorization),
+            enable_overcapture: None,
+            mit_category: None,
+            billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            state_metadata: None,
+            installment_options: None,
+            profile_acquirer_id,
+            external_surcharge_strategy,
+            external_surcharge_applicable,
+            is_account_funded_transaction,
+            recipient_details: recipient_details.map(Encryption::from),
         })
     }
     async fn convert_back(
@@ -1747,6 +2398,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_address: storage_model.billing_address,
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -1814,6 +2466,8 @@ impl behaviour::Conversion for PaymentIntent {
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 active_attempt_id: storage_model.active_attempt_id,
+                active_attempt_id_type: storage_model.active_attempt_id_type.unwrap_or_default(),
+                active_attempts_group_id: storage_model.active_attempts_group_id,
                 order_details: storage_model.order_details.map(|order_details| {
                     order_details
                         .into_iter()
@@ -1821,7 +2475,12 @@ impl behaviour::Conversion for PaymentIntent {
                         .collect::<Vec<_>>()
                 }),
                 allowed_payment_method_types,
-                connector_metadata: storage_model.connector_metadata,
+                connector_metadata: storage_model
+                    .connector_metadata
+                    .map(|cm| cm.parse_value("ConnectorMetadata"))
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Failed to deserialize connector_metadata")?,
                 feature_metadata: storage_model.feature_metadata,
                 attempt_count: storage_model.attempt_count,
                 profile_id: storage_model.profile_id,
@@ -1831,6 +2490,7 @@ impl behaviour::Conversion for PaymentIntent {
                 request_incremental_authorization: storage_model
                     .request_incremental_authorization
                     .unwrap_or_default(),
+                split_txns_enabled: storage_model.split_txns_enabled.unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
                 request_external_three_ds_authentication: storage_model
@@ -1869,6 +2529,14 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+                enable_partial_authorization: storage_model
+                    .enable_partial_authorization
+                    .unwrap_or(false.into()),
+                profile_acquirer_id: storage_model.profile_acquirer_id,
+                external_surcharge_strategy: storage_model.external_surcharge_strategy,
+                external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -1910,7 +2578,16 @@ impl behaviour::Conversion for PaymentIntent {
                 })
                 .transpose()?
                 .map(Secret::new),
-            connector_metadata: self.connector_metadata,
+            connector_metadata: self
+                .connector_metadata
+                .map(|cm| {
+                    cm.encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize connector_metadata".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
@@ -1919,6 +2596,7 @@ impl behaviour::Conversion for PaymentIntent {
             updated_by: self.updated_by,
 
             request_incremental_authorization: Some(self.request_incremental_authorization),
+            split_txns_enabled: Some(self.split_txns_enabled),
             authorization_count: self.authorization_count,
             session_expiry: self.session_expiry,
             request_external_three_ds_authentication: Some(
@@ -1953,10 +2631,28 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             routing_algorithm_id: self.routing_algorithm_id,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            mit_category: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            order_date: None,
+            enable_partial_authorization: Some(self.enable_partial_authorization),
+            tokenization: None,
+            active_attempt_id_type: Some(self.active_attempt_id_type),
+            active_attempts_group_id: self.active_attempts_group_id,
+            state_metadata: None,
+            installment_options: None,
+            profile_acquirer_id: self.profile_acquirer_id,
+            external_surcharge_strategy: self.external_surcharge_strategy,
+            external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }
@@ -2026,12 +2722,33 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
+            tax_status: self.tax_status,
+            discount_amount: self.discount_amount,
+            order_date: self.order_date,
+            shipping_amount_tax: self.shipping_amount_tax,
+            duty_amount: self.duty_amount,
+            enable_partial_authorization: self.enable_partial_authorization,
+            enable_overcapture: self.enable_overcapture,
+            mit_category: self.mit_category,
+            billing_descriptor: self.billing_descriptor,
+            tokenization: self.tokenization,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            state_metadata: self.state_metadata,
+            installment_options: self
+                .installment_options
+                .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id: self.profile_acquirer_id,
+            external_surcharge_strategy: self.external_surcharge_strategy,
+            external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 
@@ -2053,6 +2770,7 @@ impl behaviour::Conversion for PaymentIntent {
                         billing_details: storage_model.billing_details,
                         shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
+                        recipient_details: storage_model.recipient_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2133,6 +2851,26 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
                 is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
+                payment_channel: storage_model.payment_channel,
+                tax_status: storage_model.tax_status,
+                discount_amount: storage_model.discount_amount,
+                shipping_amount_tax: storage_model.shipping_amount_tax,
+                duty_amount: storage_model.duty_amount,
+                order_date: storage_model.order_date,
+                enable_partial_authorization: storage_model.enable_partial_authorization,
+                enable_overcapture: storage_model.enable_overcapture,
+                mit_category: storage_model.mit_category,
+                billing_descriptor: storage_model.billing_descriptor,
+                tokenization: storage_model.tokenization,
+                partner_merchant_identifier_details: storage_model
+                    .partner_merchant_identifier_details,
+                state_metadata: storage_model.state_metadata,
+                installment_options: storage_model.installment_options.map(|o| o.0),
+                profile_acquirer_id: storage_model.profile_acquirer_id,
+                external_surcharge_strategy: storage_model.external_surcharge_strategy,
+                external_surcharge_applicable: storage_model.external_surcharge_applicable,
+                is_account_funded_transaction: storage_model.is_account_funded_transaction,
+                recipient_details: data.recipient_details,
             })
         }
         .await
@@ -2200,12 +2938,33 @@ impl behaviour::Conversion for PaymentIntent {
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
             platform_merchant_id: None,
             processor_merchant_id: Some(self.processor_merchant_id),
-            created_by: self.created_by.map(|cb| cb.to_string()),
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
             is_payment_id_from_merchant: self.is_payment_id_from_merchant,
+            payment_channel: self.payment_channel,
+            tax_status: self.tax_status,
+            discount_amount: self.discount_amount,
+            order_date: self.order_date,
+            shipping_amount_tax: self.shipping_amount_tax,
+            duty_amount: self.duty_amount,
+            enable_partial_authorization: self.enable_partial_authorization,
+            enable_overcapture: self.enable_overcapture,
+            mit_category: self.mit_category,
+            billing_descriptor: self.billing_descriptor,
+            tokenization: self.tokenization,
+            partner_merchant_identifier_details: self.partner_merchant_identifier_details,
+            state_metadata: self.state_metadata,
+            installment_options: self
+                .installment_options
+                .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id: self.profile_acquirer_id,
+            external_surcharge_strategy: self.external_surcharge_strategy,
+            external_surcharge_applicable: self.external_surcharge_applicable,
+            is_account_funded_transaction: self.is_account_funded_transaction,
+            recipient_details: self.recipient_details.map(Encryption::from),
         })
     }
 }

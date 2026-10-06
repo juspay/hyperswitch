@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
 use num_traits::ToPrimitive;
@@ -10,7 +10,6 @@ use rdkafka::{
     producer::{BaseRecord, DefaultProducerContext, Producer, ThreadedProducer},
 };
 use serde_json::Value;
-use storage_impl::config::TenantConfig;
 #[cfg(feature = "payouts")]
 pub mod payout;
 use diesel_models::fraud_check::FraudCheck;
@@ -18,6 +17,8 @@ use diesel_models::fraud_check::FraudCheck;
 use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
 mod authentication_event;
+#[cfg(feature = "deja")]
+pub mod deja_record_sink;
 mod dispute;
 mod dispute_event;
 mod fraud_check;
@@ -28,10 +29,11 @@ mod payment_intent;
 mod payment_intent_event;
 mod refund;
 mod refund_event;
-use diesel_models::{authentication::Authentication, refund::Refund};
+pub mod revenue_recovery;
+use diesel_models::refund::Refund;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use serde::Serialize;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::PrimitiveDateTime;
 
 #[cfg(feature = "payouts")]
 use self::payout::KafkaPayout;
@@ -162,9 +164,34 @@ pub struct KafkaSettings {
     consolidated_events_topic: String,
     authentication_analytics_topic: String,
     routing_logs_topic: String,
+    revenue_recovery_topic: String,
+    external_service_call_topic: String,
+    account_updater_topic: String,
+}
+
+/// Base rdkafka client configuration for this deployment's Kafka cluster.
+///
+/// Cluster-level settings (bootstrap servers, and any future deployment-wide
+/// security options) live here so every producer in the process points at the
+/// same provisioned cluster. The analytics producer uses it as-is; the Deja
+/// recording sink layers its own delivery-guarantee overrides on top while
+/// remaining a separate client with its own queue and delivery thread.
+pub(crate) fn base_client_config(brokers: &[String]) -> rdkafka::ClientConfig {
+    let mut config = rdkafka::ClientConfig::new();
+    config.set("bootstrap.servers", brokers.join(","));
+    config
 }
 
 impl KafkaSettings {
+    /// Brokers of the provisioned Kafka cluster this deployment's analytics
+    /// events use. The Deja recording sink inherits these when
+    /// `deja.recording.kafka.brokers` is left empty, so both producers share
+    /// cluster provisioning without sharing a client.
+    #[cfg(feature = "deja")]
+    pub fn brokers(&self) -> &[String] {
+        &self.brokers
+    }
+
     pub fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
@@ -255,7 +282,30 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Account Updater topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
+    }
+
+    pub fn validate_external_service_call_topic(
+        &self,
+    ) -> Result<(), crate::core::errors::ApplicationError> {
+        use common_utils::ext_traits::ConfigExt;
+
+        use crate::core::errors::ApplicationError;
+
+        common_utils::fp_utils::when(
+            self.external_service_call_topic.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Kafka External Service Call topic must not be empty".into(),
+                ))
+            },
+        )
     }
 }
 
@@ -277,6 +327,9 @@ pub struct KafkaProducer {
     authentication_analytics_topic: String,
     ckh_database_name: Option<String>,
     routing_logs_topic: String,
+    revenue_recovery_topic: String,
+    external_service_call_topic: String,
+    account_updater_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -306,10 +359,8 @@ impl KafkaProducer {
     pub async fn create(conf: &KafkaSettings) -> MQResult<Self> {
         Ok(Self {
             producer: Arc::new(RdKafkaProducer(
-                ThreadedProducer::from_config(
-                    rdkafka::ClientConfig::new().set("bootstrap.servers", conf.brokers.join(",")),
-                )
-                .change_context(KafkaError::InitializationError)?,
+                ThreadedProducer::from_config(&base_client_config(&conf.brokers))
+                    .change_context(KafkaError::InitializationError)?,
             )),
 
             fraud_check_analytics_topic: conf.fraud_check_analytics_topic.clone(),
@@ -327,6 +378,9 @@ impl KafkaProducer {
             authentication_analytics_topic: conf.authentication_analytics_topic.clone(),
             ckh_database_name: None,
             routing_logs_topic: conf.routing_logs_topic.clone(),
+            revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
+            external_service_call_topic: conf.external_service_call_topic.clone(),
+            account_updater_topic: conf.account_updater_topic.clone(),
         })
     }
 
@@ -340,12 +394,12 @@ impl KafkaProducer {
                     .key(&event.key())
                     .payload(&event.value()?)
                     .timestamp(event.creation_timestamp().unwrap_or_else(|| {
-                        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000)
+                        common_utils::date_time::now_unix_timestamp_millis()
                             .try_into()
                             .unwrap_or_else(|_| {
                                 // kafka producer accepts milliseconds
                                 // try converting nanos to millis if that fails convert seconds to millis
-                                OffsetDateTime::now_utc().unix_timestamp() * 1_000
+                                common_utils::date_time::now_unix_timestamp() * 1_000
                             })
                     })),
             )
@@ -435,8 +489,8 @@ impl KafkaProducer {
 
     pub async fn log_authentication(
         &self,
-        authentication: &Authentication,
-        old_authentication: Option<Authentication>,
+        authentication: &hyperswitch_domain_models::authentication::Authentication,
+        old_authentication: Option<hyperswitch_domain_models::authentication::Authentication>,
         tenant_id: TenantID,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_authentication {
@@ -665,6 +719,9 @@ impl KafkaProducer {
             EventType::Consolidated => &self.consolidated_events_topic,
             EventType::Authentication => &self.authentication_analytics_topic,
             EventType::RoutingApiLogs => &self.routing_logs_topic,
+            EventType::RevenueRecovery => &self.revenue_recovery_topic,
+            EventType::ExternalServiceCall => &self.external_service_call_topic,
+            EventType::AccountUpdater => &self.account_updater_topic,
         }
     }
 }
@@ -691,7 +748,7 @@ impl MessagingInterface for KafkaProducer {
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
-        T: Message<Class = Self::MessageClass> + masking::ErasedMaskSerialize,
+        T: Message<Class = Self::MessageClass> + hyperswitch_masking::ErasedMaskSerialize,
     {
         let topic = self.get_topic(data.get_message_class());
         let json_data = data

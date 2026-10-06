@@ -69,9 +69,19 @@ Hyperswitch handles the complex functionality of a comprehensive payments flow t
 | processing               | In case of automatic capture, the payments object transitions to processing state post confirm call and subsequent customer authentication if available.                                                    |
 | succeeded                | The payments object reaches success state post confirmation of successful processing from the payment processor.                                                                                            |
 | failed                   | The payments object transitions to a failed state when the payment processor confirms the processing failure.                                                                                               |
-| expired                  | You can expire the payments object while it is in any state except when it is under ‘processing’ or ‘succeeded’ state.                                                                                      |
 
 ![](assets/images/image.png)
+
+## Payment Lifecycle - more payment states
+
+| Payment Status           | Description                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Merchant Action Required | The payment is waiting on some action from the merchant (e.g., manual fraud approval)                                                                                                                       |
+| Partially Captured       | The payment has been captured partially, and the remaining amount cannot be captured                                                                                                                        |
+| Partially Captured and Capturable | The payment has been captured partially and the remaining amount is capturable                                                                                                                     |
+| Partially Authorized and Requires Capture | The payment has been authorized for a partial amount and requires capture                                                                                                              |
+| Conflicted               | There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor. Applicable for Crypto payments and Bank transfer payments (EU) where user can change the amount on Bank page |
+| Expired                  | The payment expired before it could be captured                                                                                                                                                             |
 
 ## Redirect URL
 

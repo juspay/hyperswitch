@@ -1,18 +1,87 @@
 use std::fmt::Debug;
 
+use common_enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_interfaces::{
+    api::{gateway, ConnectorSpecifications, ConnectorValidation},
+    consts as interfaces_consts,
+};
+use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments,
+        payments::{self, gateway::context as gateway_context},
+        unified_connector_service,
     },
     routes::{metrics, SessionState},
     services::{self, logger},
     types::{self, api as api_types, domain},
 };
+
+/// Get cached access token for UCS flows - only reads from cache, never generates
+pub async fn get_cached_access_token_for_ucs(
+    state: &SessionState,
+    connector: &api_types::ConnectorData,
+    platform: &domain::Platform,
+    payment_method: common_enums::PaymentMethod,
+    creds_identifier: Option<&str>,
+) -> RouterResult<Option<types::AccessToken>> {
+    if connector
+        .connector_name
+        .supports_access_token(payment_method)
+    {
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let store = &*state.store;
+
+        let merchant_connector_id_or_connector_name = connector
+            .merchant_connector_id
+            .clone()
+            .map(|mca_id| mca_id.get_string_repr().to_string())
+            .or(creds_identifier.map(|id| id.to_string()))
+            .unwrap_or(connector.connector_name.to_string());
+
+        let key = common_utils::access_token::get_default_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        );
+
+        let cached_access_token = store
+            .get_access_token(key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("DB error when accessing the access token")?;
+
+        if let Some(access_token) = cached_access_token {
+            router_env::logger::info!(
+                "Cached access token found for UCS flow - merchant_id: {:?}, connector: {} with expiry of: {} seconds",
+                platform.get_processor().get_account().get_id(),
+                connector.connector_name,
+                access_token.expires
+            );
+            metrics::ACCESS_TOKEN_CACHE_HIT.add(
+                1,
+                router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
+            );
+            Ok(Some(access_token))
+        } else {
+            router_env::logger::info!(
+                "No cached access token found for UCS flow - UCS will generate internally - merchant_id: {:?}, connector: {}",
+                platform.get_processor().get_account().get_id(),
+                connector.connector_name
+            );
+            metrics::ACCESS_TOKEN_CACHE_MISS.add(
+                1,
+                router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
+            );
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
+}
 
 /// After we get the access token, check if there was an error and if the flow should proceed further
 /// Returns bool
@@ -55,15 +124,16 @@ pub async fn add_access_token<
 >(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
+    gateway_context: &gateway_context::RouterGatewayContext,
+    current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
         .supports_access_token(router_data.payment_method)
     {
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = &router_data.merchant_id;
         let store = &*state.store;
 
         // `merchant_connector_id` may not be present in the below cases
@@ -79,8 +149,25 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
+        let key = connector
+            .connector
+            .get_access_token_key(
+                &router_data.merchant_id,
+                merchant_connector_id_or_connector_name.clone(),
+                current_flow.clone(),
+                router_data.payment_method_type,
+                Some(router_data.recurring_mandate_payment_data.is_some()),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Failed to get access token key for connector: {:?}",
+                connector.connector_name
+            ))?;
+
+        router_env::logger::debug!("Fetching access token from Redis using key: {key}");
+
         let old_access_token = store
-            .get_access_token(merchant_id, &merchant_connector_id_or_connector_name)
+            .get_access_token(key.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
@@ -89,7 +176,7 @@ pub async fn add_access_token<
             Some(access_token) => {
                 router_env::logger::debug!(
                     "Access token found in redis for merchant_id: {:?}, payment_id: {:?}, connector: {} which has expiry of: {} seconds",
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_id,
                     router_data.payment_id,
                     connector.connector_name,
                     access_token.expires
@@ -112,10 +199,16 @@ pub async fn add_access_token<
                     )),
                 );
 
+                let authentication_token =
+                    execute_authentication_token(state, connector, router_data).await?;
+
                 let cloned_router_data = router_data.clone();
-                let refresh_token_request_data = types::AccessTokenRequestData::try_from(
+
+                let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),
-                )
+                    authentication_token,
+                    current_flow,
+                ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",
                 )?;
@@ -137,8 +230,8 @@ pub async fn add_access_token<
                 refresh_connector_auth(
                     state,
                     connector,
-                    merchant_context,
                     &refresh_token_router_data,
+                    gateway_context,
                 )
                 .await?
                 .async_map(|access_token| async move {
@@ -162,11 +255,7 @@ pub async fn add_access_token<
                     );
 
                     if let Err(access_token_set_error) = store
-                        .set_access_token(
-                            merchant_id,
-                            &merchant_connector_id_or_connector_name,
-                            modified_access_token_with_expiry.clone(),
-                        )
+                        .set_access_token(key.clone(), modified_access_token_with_expiry.clone())
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("DB error when setting the access token")
@@ -194,15 +283,183 @@ pub async fn add_access_token<
     }
 }
 
+/// Reads the Redis cache first. On a cache miss, calls UCS via the
+/// `create_server_authentication_token` gRPC method to generate a fresh token, caches it,
+/// and returns it.
+#[allow(clippy::too_many_arguments)]
+pub async fn get_access_token_for_relay(
+    state: &SessionState,
+    connector_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    processor: &domain::Processor,
+    relay_id: &common_utils::id_type::RelayId,
+) -> RouterResult<Option<types::AccessToken>> {
+    let merchant_connector_id = merchant_connector_account
+        .get_id()
+        .get_string_repr()
+        .to_string();
+
+    let access_token_key = common_utils::access_token::get_default_access_token_key(
+        merchant_id,
+        merchant_connector_id,
+    );
+
+    let cached = state
+        .store
+        .get_access_token(access_token_key.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to read access token from cache")?;
+
+    match cached {
+        Some(access_token) => {
+            logger::info!(
+                connector = %connector_name,
+                "Cached access token found"
+            );
+            Ok(Some(access_token))
+        }
+        None => {
+            logger::info!(
+                connector = %connector_name,
+                "No cached access token — generating via UCS"
+            );
+            fetch_access_token_from_ucs(
+                state,
+                connector_name,
+                merchant_id,
+                profile_id,
+                merchant_connector_account,
+                processor,
+                relay_id,
+                access_token_key,
+            )
+            .await
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn fetch_access_token_from_ucs(
+    state: &SessionState,
+    connector_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    processor: &domain::Processor,
+    relay_id: &common_utils::id_type::RelayId,
+    access_token_key: String,
+) -> RouterResult<Option<types::AccessToken>> {
+    let client = state
+        .grpc_client
+        .unified_connector_service_client
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("UCS gRPC client not configured")?;
+
+    #[cfg(feature = "v1")]
+    let mca_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+        merchant_connector_account.clone(),
+    ));
+    #[cfg(feature = "v2")]
+    let mca_type =
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            merchant_connector_account.clone(),
+        ));
+
+    let connector_auth_metadata =
+        unified_connector_service::build_unified_connector_service_auth_metadata(
+            mca_type,
+            processor.get_account().get_id(),
+            connector_name.to_string(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build UCS auth metadata")?;
+
+    let lineage_ids =
+        external_services::grpc_client::LineageIds::new(merchant_id.clone(), profile_id.clone());
+
+    let grpc_headers = state
+        .get_grpc_headers_ucs(common_enums::ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None)
+        .resource_id(None)
+        .lineage_ids(lineage_ids)
+        .build();
+
+    #[cfg(feature = "v1")]
+    let test_mode = merchant_connector_account.test_mode;
+    #[cfg(feature = "v2")]
+    let test_mode = merchant_connector_account.get_connector_test_mode();
+
+    let create_request =
+        payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+            merchant_access_token_id: Some(relay_id.get_string_repr().to_string()),
+            // depricated field we have to remove this/ Default to unspecified connector
+            connector: 0_i32,
+            metadata: None,
+            connector_feature_data: None,
+            test_mode,
+            merchant_request_id: None,
+        };
+
+    let response = client
+        .create_access_token(
+            create_request,
+            connector_auth_metadata,
+            grpc_headers,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("UCS create_access_token gRPC call failed")?;
+
+    let (access_token_result, _status_code) =
+        unified_connector_service::handle_unified_connector_service_response_for_create_access_token(
+            response.into_inner(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse UCS access token response")?;
+
+    let access_token = access_token_result.map_err(|err| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError).attach_printable(
+            format!("UCS returned error for access token generation: {err:?}"),
+        )
+    })?;
+
+    // The expiry should be adjusted for network delays from the connector
+    let modified_token = types::AccessToken {
+        expires: access_token
+            .expires
+            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+        ..access_token
+    };
+
+    state
+        .store
+        .set_access_token(access_token_key, modified_token.clone())
+        .await
+        .map_err(|cache_err| {
+            logger::error!(error = ?cache_err, "Failed to cache access token — proceeding anyway");
+        })
+        .ok();
+
+    Ok(Some(modified_token))
+}
+
 pub async fn refresh_connector_auth(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    _merchant_context: &domain::MerchantContext,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,
         types::AccessToken,
     >,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
@@ -210,13 +467,14 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data_result = services::execute_connector_processing_step(
+    let access_token_router_data_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await;
 
@@ -228,15 +486,17 @@ pub async fn refresh_connector_auth(
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 };
 
                 Ok(Err(error_response))
@@ -253,4 +513,96 @@ pub async fn refresh_connector_auth(
         router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
     Ok(access_token_router_data)
+}
+
+pub async fn execute_authentication_token<
+    F: Clone + 'static,
+    Req: Debug + Clone + 'static,
+    Res: Debug + Clone + 'static,
+>(
+    state: &SessionState,
+    connector: &api_types::ConnectorData,
+    router_data: &types::RouterData<F, Req, Res>,
+) -> RouterResult<Option<types::AccessTokenAuthenticationResponse>> {
+    let should_create_authentication_token = connector
+        .connector
+        .authentication_token_for_token_creation();
+
+    if !should_create_authentication_token {
+        return Ok(None);
+    }
+
+    let authentication_token_request_data = types::AccessTokenAuthenticationRequestData::try_from(
+        router_data.connector_auth_type.clone(),
+    )
+    .attach_printable(
+        "Could not create authentication token request, invalid connector account credentials",
+    )?;
+
+    let authentication_token_response_data: Result<
+        types::AccessTokenAuthenticationResponse,
+        types::ErrorResponse,
+    > = Err(types::ErrorResponse::default());
+
+    let auth_token_router_data = payments::helpers::router_data_type_conversion::<
+        _,
+        api_types::AccessTokenAuthentication,
+        _,
+        _,
+        _,
+        _,
+    >(
+        router_data.clone(),
+        authentication_token_request_data,
+        authentication_token_response_data,
+    );
+
+    let connector_integration: services::BoxedAuthenticationTokenConnectorIntegrationInterface<
+        api_types::AccessTokenAuthentication,
+        types::AccessTokenAuthenticationRequestData,
+        types::AccessTokenAuthenticationResponse,
+    > = connector.connector.get_connector_integration();
+
+    let auth_token_router_data_result = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &auth_token_router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await;
+
+    let auth_token_result = match auth_token_router_data_result {
+        Ok(router_data) => router_data.response,
+        Err(connector_error) => {
+            // Handle timeout errors
+            if connector_error.current_context().is_connector_timeout() {
+                let error_response = types::ErrorResponse {
+                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    status_code: 504,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                };
+                Err(error_response)
+            } else {
+                return Err(connector_error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not get authentication token"));
+            }
+        }
+    };
+
+    let authentication_token = auth_token_result
+        .map_err(|_error| errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get authentication token")?;
+
+    Ok(Some(authentication_token))
 }

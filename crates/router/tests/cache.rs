@@ -1,8 +1,7 @@
-#![allow(clippy::unwrap_used, clippy::print_stdout)]
 use std::sync::Arc;
 
 use router::{configs::settings::Settings, routes, services};
-use storage_impl::redis::cache::{self, CacheKey};
+use storage_impl::redis::cache::CacheKey;
 
 mod utils;
 
@@ -15,6 +14,7 @@ async fn invalidate_existing_cache_success() {
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -36,7 +36,10 @@ async fn invalidate_existing_cache_success() {
     let api_key = ("api-key", "test_admin");
     let client = awc::Client::default();
 
-    cache::CONFIG_CACHE
+    state
+        .store
+        .caches()
+        .config
         .push(
             CacheKey {
                 key: cache_key.clone(),
@@ -46,7 +49,10 @@ async fn invalidate_existing_cache_success() {
         )
         .await;
 
-    cache::ACCOUNTS_CACHE
+    state
+        .store
+        .caches()
+        .accounts
         .push(
             CacheKey {
                 key: cache_key.clone(),
@@ -70,14 +76,20 @@ async fn invalidate_existing_cache_success() {
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
-    assert!(cache::CONFIG_CACHE
+    assert!(state
+        .store
+        .caches()
+        .config
         .get_val::<String>(CacheKey {
             key: cache_key.clone(),
             prefix: String::default()
         })
         .await
         .is_none());
-    assert!(cache::ACCOUNTS_CACHE
+    assert!(state
+        .store
+        .caches()
+        .accounts
         .get_val::<String>(CacheKey {
             key: cache_key,
             prefix: String::default()

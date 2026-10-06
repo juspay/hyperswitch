@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -9,6 +8,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address,
+    mandates::{MandateIds, MandateReferenceId},
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{Authorize, SetupMandate},
@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
@@ -85,7 +85,9 @@ fn fetch_payment_instrument(
                 card_number: card.card_number,
             },
             cvc: card.card_cvc,
-            card_holder_name: billing_address.and_then(|address| address.get_optional_full_name()),
+            card_holder_name: billing_address
+                .and_then(|address| address.get_optional_full_name())
+                .map(normalize_cardholder_name),
             billing_address: billing_address
                 .and_then(|addr| addr.address.clone())
                 .and_then(|address| {
@@ -134,14 +136,20 @@ fn fetch_payment_instrument(
             })
             .ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
+                    field_name: "connector_mandate_id".into(),
                 }
                 .into(),
             ),
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
-                wallet_token: Secret::new(data.tokenization_data.token),
+                wallet_token: Secret::new(
+                    data.tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "gpay wallet_token".into(),
+                        })?,
+                ),
                 ..WalletPayment::default()
             })),
             WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
@@ -152,12 +160,15 @@ fn fetch_payment_instrument(
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPay(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
+            | WalletData::Neteller(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
             | WalletData::GoPayRedirect(_)
+            | WalletData::BluecodeRedirect {}
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
@@ -197,10 +208,17 @@ fn fetch_payment_instrument(
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
-        | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("worldpay"),
-        )
-        .into()),
+        | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::CardWithOptionalCVC(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
+        | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into())
+        }
     }
 }
 
@@ -213,7 +231,7 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
             (enums::PaymentMethod::Card, _) => Ok(Self::Card),
             (enums::PaymentMethod::Wallet, pmt) => {
                 let pm = pmt.ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
+                    field_name: "payment_method_type".into(),
                 })?;
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
@@ -248,6 +266,10 @@ trait WorldpayPaymentsRequestData {
     fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType>;
     fn get_connector_request_reference_id(&self) -> String;
     fn get_is_mandate_payment(&self) -> bool;
+    fn get_optional_email(&self) -> Option<pii::Email>;
+    fn get_optional_phone_number(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_address(&self) -> Option<&address::Address>;
+    fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>>;
     fn get_settlement_info(&self, _amount: i64) -> Option<AutoSettlement> {
         None
     }
@@ -311,6 +333,30 @@ impl WorldpayPaymentsRequestData
     fn get_is_mandate_payment(&self) -> bool {
         true
     }
+
+    fn get_optional_email(&self) -> Option<pii::Email> {
+        self.request
+            .email
+            .clone()
+            .or_else(|| self.get_optional_billing_email())
+    }
+
+    fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_phone_number()
+            .or_else(|| self.get_optional_shipping_phone_number())
+    }
+
+    fn get_optional_shipping_address(&self) -> Option<&address::Address> {
+        self.get_optional_shipping()
+    }
+
+    fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>> {
+        self.request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address)
+            .map(|ip| Secret::new(ip.to_string()))
+    }
 }
 
 impl WorldpayPaymentsRequestData
@@ -372,6 +418,30 @@ impl WorldpayPaymentsRequestData
         self.request.is_mandate_payment()
     }
 
+    fn get_optional_email(&self) -> Option<pii::Email> {
+        self.request
+            .email
+            .clone()
+            .or_else(|| self.get_optional_billing_email())
+    }
+
+    fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_phone_number()
+            .or_else(|| self.get_optional_shipping_phone_number())
+    }
+
+    fn get_optional_shipping_address(&self) -> Option<&address::Address> {
+        self.get_optional_shipping()
+    }
+
+    fn get_optional_ip_address(&self) -> Option<Secret<String, pii::IpAddress>> {
+        self.request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address)
+            .map(|ip| Secret::new(ip.to_string()))
+    }
+
     fn get_settlement_info(&self, amount: i64) -> Option<AutoSettlement> {
         match (self.request.capture_method.unwrap_or_default(), amount) {
             (_, 0) => None,
@@ -383,6 +453,74 @@ impl WorldpayPaymentsRequestData
             _ => None,
         }
     }
+}
+
+// Mastercard requires the cardholder name to contain only English (ASCII)
+// characters and to match the name exactly as printed on the card. Accented
+// characters are transliterated to their closest ASCII equivalent.
+fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
+// Worldpay's `instruction.customer.phone` must contain digits only, so any
+// formatting characters (e.g. a leading `+` carried over from the country code)
+// are stripped. Returns `None` if nothing numeric remains.
+fn normalize_phone_number(phone: Secret<String>) -> Option<Secret<String>> {
+    let digits: String = phone
+        .expose()
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect();
+    (!digits.is_empty()).then(|| Secret::new(digits))
+}
+
+// Dangling helper function to build the optional `instruction.customer` object
+// holding the additional Mastercard authentication data (email, phone number
+// and IP address). Returns `None` when none of the fields are available so the
+// object is omitted entirely from the request.
+fn create_instruction_customer(
+    email: Option<pii::Email>,
+    phone: Option<Secret<String>>,
+    ip_address: Option<Secret<String, pii::IpAddress>>,
+) -> Option<InstructionCustomer> {
+    if email.is_some() || phone.is_some() || ip_address.is_some() {
+        Some(InstructionCustomer {
+            email,
+            phone,
+            ip_address,
+        })
+    } else {
+        None
+    }
+}
+
+// Dangling helper function to build the optional `instruction.shipping` object.
+// Worldpay requires the shipping address to contain at least address line 1,
+// city, postal code and country, so the object is omitted unless all of these
+// are present.
+fn create_shipping(shipping_address: Option<&address::Address>) -> Option<Shipping> {
+    shipping_address
+        .and_then(|addr| addr.address.clone())
+        .and_then(
+            |address| match (address.line1, address.city, address.zip, address.country) {
+                (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
+                    Some(Shipping {
+                        first_name: address.first_name,
+                        last_name: address.last_name,
+                        address: ShippingAddress {
+                            address1,
+                            address2: address.line2,
+                            address3: address.line3,
+                            city,
+                            state: address.state,
+                            postal_code,
+                            country_code,
+                        },
+                    })
+                }
+                _ => None,
+            },
+        )
 }
 
 // Dangling helper function to create ThreeDS request
@@ -400,7 +538,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.get_browser_info().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "browser_info",
+                    field_name: "browser_info".into(),
                 },
             )?;
 
@@ -409,7 +547,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 .clone()
                 .get_required_value("accept_header")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "accept_header",
+                    field_name: "accept_header".into(),
                 })?;
 
             let user_agent_header = browser_info
@@ -417,7 +555,7 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 .clone()
                 .get_required_value("user_agent")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "user_agent",
+                    field_name: "user_agent".into(),
                 })?;
 
             Ok(Some(ThreeDSRequest {
@@ -488,7 +626,9 @@ fn get_token_and_agreement(
                         MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                             Some(CustomerAgreement {
                                 agreement_type: CustomerAgreementType::Unscheduled,
-                                scheme_reference: Some(network_transaction_id.into()),
+                                scheme_reference: Some(
+                                    network_transaction_id.network_transaction_id.clone().into(),
+                                ),
                                 stored_card_usage: None,
                             })
                         }
@@ -527,6 +667,16 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
             item.router_data.get_mandate_id(),
         );
 
+        // Additional Mastercard authentication data, forwarded whenever available.
+        let customer = create_instruction_customer(
+            item.router_data.get_optional_email(),
+            item.router_data
+                .get_optional_phone_number()
+                .and_then(normalize_phone_number),
+            item.router_data.get_optional_ip_address(),
+        );
+        let shipping = create_shipping(item.router_data.get_optional_shipping_address());
+
         Ok(Self {
             instruction: Instruction {
                 settlement: item.router_data.get_settlement_info(item.amount),
@@ -550,6 +700,8 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
                 three_ds,
                 token_creation,
                 customer_agreement,
+                customer,
+                shipping,
             },
             merchant: Merchant {
                 entity: entity_id.clone(),
@@ -780,9 +932,12 @@ impl<F, T>
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: network_txn_id.map(|id| id.expose()),
+                network_txn_link_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
@@ -790,10 +945,12 @@ impl<F, T>
                 reason: Some(reason),
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
-                connector_transaction_id: optional_correlation_id,
+                connector_transaction_id: optional_correlation_id.clone(),
+                connector_response_reference_id: optional_correlation_id,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
                 code: code.clone(),
@@ -801,12 +958,14 @@ impl<F, T>
                 reason: Some(message.clone()),
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
-                connector_transaction_id: optional_correlation_id,
+                connector_transaction_id: optional_correlation_id.clone(),
+                connector_response_reference_id: optional_correlation_id,
                 network_advice_code: advice_code,
                 // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
                 // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
                 network_decline_code: Some(code),
                 network_error_message: Some(message),
+                connector_metadata: None,
             }),
         };
         Ok(Self {
@@ -823,7 +982,10 @@ impl TryFrom<(&types::PaymentsCaptureRouterData, MinorUnit)> for WorldpayPartial
     fn try_from(req: (&types::PaymentsCaptureRouterData, MinorUnit)) -> Result<Self, Self::Error> {
         let (item, amount) = req;
         Ok(Self {
-            reference: item.payment_id.clone().replace("_", "-"),
+            reference: item
+                .connector_request_reference_id
+                .clone()
+                .replace("_", "-"),
             value: PaymentValue {
                 amount: amount.get_amount_as_i64(),
                 currency: item.request.currency,
@@ -883,7 +1045,32 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for WorldpayCompleteAu
             .as_ref()
             .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        serde_urlencoded::from_str::<Self>(params.peek())
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+
+        let parsed_request = serde_urlencoded::from_str::<Self>(params.peek())
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        match item.status {
+            enums::AttemptStatus::DeviceDataCollectionPending => Ok(parsed_request),
+            enums::AttemptStatus::AuthenticationPending => {
+                if parsed_request.collection_reference.is_some() {
+                    return Err(
+                        errors::ConnectorError::InvalidDataFormat {
+                            field_name:
+                                "collection_reference not allowed in AuthenticationPending state"
+                                    .into(),
+                        }
+                        .into(),
+                    );
+                }
+                Ok(parsed_request)
+            }
+            _ => Err(
+                errors::ConnectorError::RequestEncodingFailedWithReason(format!(
+                    "Invalid payment status for complete authorize: {:?}",
+                    item.status
+                ))
+                .into(),
+            ),
+        }
     }
 }

@@ -9,18 +9,18 @@ use hyperswitch_domain_models::{
         KlarnaSdkResponse, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCaptureData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsResponseRouterData, PaymentsSessionResponseRouterData, RefundsResponseRouterData,
-        ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as _},
 };
@@ -190,7 +190,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                 intent: KlarnaSessionIntent::Buy,
                 purchase_country: request.country.ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.country",
+                        field_name: "billing.address.country".into(),
                     },
                 )?,
                 purchase_currency: request.currency,
@@ -210,7 +210,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                     .transpose()?,
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details",
+                field_name: "order_details".into(),
             })),
         }
     }
@@ -281,7 +281,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         payment_method_specifics: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details"
+                        field_name: "order_details".into()
                     })),
                 }
             }
@@ -332,7 +332,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         auto_capture: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                        field_name: "order_details"
+                        field_name: "order_details".into()
                     })),
                 }
             }
@@ -391,9 +391,12 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(response.order_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
+                        payment_account_reference: None,
                     }),
                     status: get_fraud_status(
                         response.fraud_status.clone(),
@@ -412,9 +415,12 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 status: get_checkout_status(
                     response.status.clone(),
@@ -572,11 +578,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response
                         .klarna_reference
                         .or(Some(response.order_id.clone())),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -588,9 +597,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             }),
@@ -627,23 +639,16 @@ pub struct KlarnaCaptureResponse {
     pub capture_id: Option<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, KlarnaCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
+    for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            KlarnaCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(KlarnaMeta {
             capture_id: item.response.capture_id,
         });
-
         // https://docs.klarna.com/api/ordermanagement/#operation/captureOrder
         // If 201 status code, then order is captured, other status codes are handled by the error handler
         let status = if item.http_code == 201 {
@@ -660,9 +665,12 @@ impl<F>
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             status,
             ..item.data

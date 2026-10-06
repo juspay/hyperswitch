@@ -1,7 +1,6 @@
-use common_utils::encryption::Encryption;
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
-use serde_json;
 
 use crate::schema::authentication;
 
@@ -61,13 +60,65 @@ pub struct Authentication {
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub challenge_request_key: Option<String>,
+    pub customer_details: Option<Encryption>,
+    pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub mcc: Option<common_enums::MerchantCategoryCode>,
+    pub platform: Option<String>,
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+    pub browser_name: Option<String>,
+    pub browser_version: Option<String>,
+    pub scheme_name: Option<String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
+    pub issuer_id: Option<String>,
+    pub issuer_country: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 impl Authentication {
-    pub fn is_separate_authn_required(&self) -> bool {
-        self.maximum_supported_version
-            .as_ref()
-            .is_some_and(|version| version.get_major() == 2)
+    /// Redis hash field key under which the authentication record is stored within its partition.
+    pub fn get_hash_key_for_kv_store(
+        authentication_id: &common_utils::id_type::AuthenticationId,
+    ) -> String {
+        format!("auth_{}", authentication_id.get_string_repr())
+    }
+
+    /// Reverse-lookup id to find an authentication by its id (scoped to the merchant).
+    pub fn get_authentication_id_lookup_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
+    ) -> String {
+        format!(
+            "mid_{}_authn_id_{}",
+            merchant_id.get_string_repr(),
+            authentication_id.get_string_repr()
+        )
+    }
+
+    /// Reverse-lookup id to find an authentication by its connector authentication id (webhook path).
+    pub fn get_connector_authentication_lookup_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_authentication_id: &str,
+    ) -> String {
+        format!(
+            "mid_{}_conn_authn_{}",
+            merchant_id.get_string_repr(),
+            connector_authentication_id
+        )
     }
 }
 
@@ -78,7 +129,7 @@ pub struct AuthenticationNew {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: Option<String>,
     pub connector_authentication_id: Option<String>,
-    // pub authentication_data: Option<serde_json::Value>,
+    pub authentication_data: Option<serde_json::Value>,
     pub payment_method_id: String,
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_status: common_enums::AuthenticationStatus,
@@ -121,6 +172,35 @@ pub struct AuthenticationNew {
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub challenge_request_key: Option<String>,
+    pub customer_details: Option<Encryption>,
+    pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub mcc: Option<common_enums::MerchantCategoryCode>,
+    pub platform: Option<String>,
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+    pub browser_name: Option<String>,
+    pub browser_version: Option<String>,
+    pub scheme_name: Option<String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
+    pub issuer_id: Option<String>,
+    pub issuer_country: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 #[derive(Debug)]
@@ -128,6 +208,7 @@ pub enum AuthenticationUpdate {
     PreAuthenticationVersionCallUpdate {
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
         message_version: common_utils::types::SemanticVersion,
+        updated_by: String,
     },
     PreAuthenticationThreeDsMethodCall {
         threeds_server_transaction_id: String,
@@ -136,6 +217,7 @@ pub enum AuthenticationUpdate {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        updated_by: String,
     },
     PreAuthenticationUpdate {
         threeds_server_transaction_id: String,
@@ -154,6 +236,14 @@ pub enum AuthenticationUpdate {
         shipping_address: Option<Encryption>,
         browser_info: Box<Option<serde_json::Value>>,
         email: Option<Encryption>,
+        scheme_id: Option<String>,
+        merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+        merchant_country_code: Option<String>,
+        billing_country: Option<String>,
+        shipping_country: Option<String>,
+        earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+        latest_supported_version: Option<common_utils::types::SemanticVersion>,
+        updated_by: String,
     },
     AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -167,66 +257,50 @@ pub enum AuthenticationUpdate {
         authentication_status: common_enums::AuthenticationStatus,
         ds_trans_id: Option<String>,
         eci: Option<String>,
+        challenge_code: Option<String>,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        message_extension: Option<pii::SecretSerdeValue>,
+        challenge_request_key: Option<String>,
+        device_type: Option<String>,
+        device_brand: Option<String>,
+        device_os: Option<String>,
+        device_display: Option<String>,
+        platform: Option<String>,
+        exemption_accepted: Option<bool>,
+        updated_by: String,
     },
     PostAuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         eci: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
+        challenge_cancel: Option<String>,
+        challenge_code_reason: Option<String>,
+        updated_by: String,
     },
     ErrorUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         authentication_status: common_enums::AuthenticationStatus,
         connector_authentication_id: Option<String>,
+        updated_by: String,
     },
     PostAuthorizationUpdate {
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
+        updated_by: String,
     },
     AuthenticationStatusUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
+        updated_by: String,
     },
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Serialize, Deserialize)]
-#[diesel(table_name = authentication)]
-pub struct AuthenticationUpdateInternal {
-    pub connector_authentication_id: Option<String>,
-    // pub authentication_data: Option<serde_json::Value>,
-    pub payment_method_id: Option<String>,
-    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
-    pub authentication_status: Option<common_enums::AuthenticationStatus>,
-    pub authentication_lifecycle_status: Option<common_enums::AuthenticationLifecycleStatus>,
-    pub modified_at: time::PrimitiveDateTime,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub maximum_supported_version: Option<common_utils::types::SemanticVersion>,
-    pub threeds_server_transaction_id: Option<String>,
-    pub authentication_flow_type: Option<String>,
-    pub message_version: Option<common_utils::types::SemanticVersion>,
-    pub eci: Option<String>,
-    pub trans_status: Option<common_enums::TransactionStatus>,
-    pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
-    pub three_ds_method_data: Option<String>,
-    pub three_ds_method_url: Option<String>,
-    pub acs_url: Option<String>,
-    pub challenge_request: Option<String>,
-    pub acs_reference_number: Option<String>,
-    pub acs_trans_id: Option<String>,
-    pub acs_signed_content: Option<String>,
-    pub ds_trans_id: Option<String>,
-    pub directory_server_id: Option<String>,
-    pub acquirer_country_code: Option<String>,
-    pub service_details: Option<serde_json::Value>,
-    pub force_3ds_challenge: Option<bool>,
-    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-    pub billing_address: Option<Encryption>,
-    pub shipping_address: Option<Encryption>,
-    pub browser_info: Option<serde_json::Value>,
-    pub email: Option<Encryption>,
-    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    /// Persists resolved acquirer details after bucket-based network lookup (eligibility_core)
+    AcquirerDetailsUpdate {
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        acquirer_country_code: Option<String>,
+        updated_by: String,
+    },
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -267,92 +341,100 @@ impl Default for AuthenticationUpdateInternal {
             browser_info: Default::default(),
             email: Default::default(),
             profile_acquirer_id: Default::default(),
+            challenge_code: Default::default(),
+            challenge_cancel: Default::default(),
+            challenge_code_reason: Default::default(),
+            message_extension: Default::default(),
+            challenge_request_key: Default::default(),
+            customer_details: Default::default(),
+            earliest_supported_version: Default::default(),
+            latest_supported_version: Default::default(),
+            mcc: Default::default(),
+            platform: Default::default(),
+            device_type: Default::default(),
+            device_brand: Default::default(),
+            device_os: Default::default(),
+            device_display: Default::default(),
+            browser_name: Default::default(),
+            browser_version: Default::default(),
+            scheme_name: Default::default(),
+            exemption_requested: Default::default(),
+            exemption_accepted: Default::default(),
+            issuer_id: Default::default(),
+            issuer_country: Default::default(),
+            merchant_country_code: Default::default(),
+            billing_country: Default::default(),
+            shipping_country: Default::default(),
+            updated_by: Default::default(),
         }
     }
 }
 
-impl AuthenticationUpdateInternal {
-    pub fn apply_changeset(self, source: Authentication) -> Authentication {
-        let Self {
-            connector_authentication_id,
-            payment_method_id,
-            authentication_type,
-            authentication_status,
-            authentication_lifecycle_status,
-            modified_at: _,
-            error_code,
-            error_message,
-            connector_metadata,
-            maximum_supported_version,
-            threeds_server_transaction_id,
-            authentication_flow_type,
-            message_version,
-            eci,
-            trans_status,
-            acquirer_bin,
-            acquirer_merchant_id,
-            three_ds_method_data,
-            three_ds_method_url,
-            acs_url,
-            challenge_request,
-            acs_reference_number,
-            acs_trans_id,
-            acs_signed_content,
-            ds_trans_id,
-            directory_server_id,
-            acquirer_country_code,
-            service_details,
-            force_3ds_challenge,
-            psd2_sca_exemption_type,
-            billing_address,
-            shipping_address,
-            browser_info,
-            email,
-            profile_acquirer_id,
-        } = self;
-        Authentication {
-            connector_authentication_id: connector_authentication_id
-                .or(source.connector_authentication_id),
-            payment_method_id: payment_method_id.unwrap_or(source.payment_method_id),
-            authentication_type: authentication_type.or(source.authentication_type),
-            authentication_status: authentication_status.unwrap_or(source.authentication_status),
-            authentication_lifecycle_status: authentication_lifecycle_status
-                .unwrap_or(source.authentication_lifecycle_status),
-            modified_at: common_utils::date_time::now(),
-            error_code: error_code.or(source.error_code),
-            error_message: error_message.or(source.error_message),
-            connector_metadata: connector_metadata.or(source.connector_metadata),
-            maximum_supported_version: maximum_supported_version
-                .or(source.maximum_supported_version),
-            threeds_server_transaction_id: threeds_server_transaction_id
-                .or(source.threeds_server_transaction_id),
-            authentication_flow_type: authentication_flow_type.or(source.authentication_flow_type),
-            message_version: message_version.or(source.message_version),
-            eci: eci.or(source.eci),
-            trans_status: trans_status.or(source.trans_status),
-            acquirer_bin: acquirer_bin.or(source.acquirer_bin),
-            acquirer_merchant_id: acquirer_merchant_id.or(source.acquirer_merchant_id),
-            three_ds_method_data: three_ds_method_data.or(source.three_ds_method_data),
-            three_ds_method_url: three_ds_method_url.or(source.three_ds_method_url),
-            acs_url: acs_url.or(source.acs_url),
-            challenge_request: challenge_request.or(source.challenge_request),
-            acs_reference_number: acs_reference_number.or(source.acs_reference_number),
-            acs_trans_id: acs_trans_id.or(source.acs_trans_id),
-            acs_signed_content: acs_signed_content.or(source.acs_signed_content),
-            ds_trans_id: ds_trans_id.or(source.ds_trans_id),
-            directory_server_id: directory_server_id.or(source.directory_server_id),
-            acquirer_country_code: acquirer_country_code.or(source.acquirer_country_code),
-            service_details: service_details.or(source.service_details),
-            force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
-            psd2_sca_exemption_type: psd2_sca_exemption_type.or(source.psd2_sca_exemption_type),
-            billing_address: billing_address.or(source.billing_address),
-            shipping_address: shipping_address.or(source.shipping_address),
-            browser_info: browser_info.or(source.browser_info),
-            email: email.or(source.email),
-            profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
-            ..source
-        }
-    }
+#[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Serialize, Deserialize)]
+#[diesel(table_name = authentication)]
+#[router_derive::apply_changeset(target = Authentication)]
+pub struct AuthenticationUpdateInternal {
+    pub connector_authentication_id: Option<String>,
+    // pub authentication_data: Option<serde_json::Value>,
+    pub payment_method_id: Option<String>,
+    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    pub authentication_status: Option<common_enums::AuthenticationStatus>,
+    pub authentication_lifecycle_status: Option<common_enums::AuthenticationLifecycleStatus>,
+    pub modified_at: time::PrimitiveDateTime,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub maximum_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub threeds_server_transaction_id: Option<String>,
+    pub authentication_flow_type: Option<String>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
+    pub eci: Option<String>,
+    pub trans_status: Option<common_enums::TransactionStatus>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub three_ds_method_data: Option<String>,
+    pub three_ds_method_url: Option<String>,
+    pub acs_url: Option<String>,
+    pub challenge_request: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub acs_signed_content: Option<String>,
+    pub ds_trans_id: Option<String>,
+    pub directory_server_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
+    pub service_details: Option<serde_json::Value>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    pub billing_address: Option<Encryption>,
+    pub shipping_address: Option<Encryption>,
+    pub browser_info: Option<serde_json::Value>,
+    pub email: Option<Encryption>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
+    pub challenge_request_key: Option<String>,
+    pub customer_details: Option<Encryption>,
+    pub earliest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub latest_supported_version: Option<common_utils::types::SemanticVersion>,
+    pub mcc: Option<common_enums::MerchantCategoryCode>,
+    pub platform: Option<String>,
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+    pub browser_name: Option<String>,
+    pub browser_version: Option<String>,
+    pub scheme_name: Option<String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
+    pub issuer_id: Option<String>,
+    pub issuer_country: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
+    pub updated_by: String,
 }
 
 impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
@@ -363,6 +445,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_code,
                 authentication_status,
                 connector_authentication_id,
+                updated_by,
             } => Self {
                 error_code,
                 error_message,
@@ -373,10 +456,12 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 payment_method_id: None,
                 connector_metadata: None,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status,
+                updated_by,
             } => Self {
                 connector_authentication_id: None,
 
@@ -388,6 +473,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 error_message: None,
                 error_code: None,
                 connector_metadata: None,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationUpdate {
@@ -407,6 +493,14 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 shipping_address,
                 browser_info,
                 email,
+                scheme_id,
+                merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
+                updated_by,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 maximum_supported_version: Some(maximum_supported_3ds_version),
@@ -424,6 +518,14 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 shipping_address,
                 browser_info: *browser_info,
                 email,
+                scheme_name: scheme_id,
+                mcc: merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
@@ -438,6 +540,18 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status,
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
+                challenge_request_key,
+                device_type,
+                device_brand,
+                device_os,
+                device_display,
+                platform,
+                exemption_accepted,
+                updated_by,
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_type: Some(authentication_type),
@@ -450,24 +564,44 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 authentication_status: Some(authentication_status),
                 ds_trans_id,
                 eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
+                challenge_request_key,
+                device_type,
+                device_brand,
+                device_os,
+                device_display,
+                platform,
+                exemption_accepted,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PostAuthenticationUpdate {
                 trans_status,
                 eci,
                 authentication_status,
+                challenge_cancel,
+                challenge_code_reason,
+                updated_by,
             } => Self {
                 trans_status: Some(trans_status),
                 eci,
                 authentication_status: Some(authentication_status),
+                challenge_cancel,
+                challenge_code_reason,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
                 maximum_supported_3ds_version,
                 message_version,
+                updated_by,
             } => Self {
                 maximum_supported_version: Some(maximum_supported_3ds_version),
                 message_version: Some(message_version),
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
@@ -477,6 +611,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                updated_by,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 three_ds_method_data,
@@ -484,14 +619,29 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                updated_by,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationStatusUpdate {
                 trans_status,
                 authentication_status,
+                updated_by,
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_status: Some(authentication_status),
+                updated_by,
+                ..Default::default()
+            },
+            AuthenticationUpdate::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+                updated_by,
+            } => Self {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+                updated_by,
                 ..Default::default()
             },
         }

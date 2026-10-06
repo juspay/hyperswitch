@@ -1,9 +1,4 @@
-use std::{
-    any::Any,
-    borrow::Cow,
-    fmt::Debug,
-    sync::{Arc, LazyLock},
-};
+use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use common_utils::{
     errors::{self, CustomResult},
@@ -12,7 +7,7 @@ use common_utils::{
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
+use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -21,91 +16,311 @@ use router_env::{
 use crate::{
     errors::StorageError,
     metrics,
-    redis::{PubSubInterface, RedisConnInterface},
+    redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface},
 };
 
-/// Redis channel name used for publishing invalidation messages
-pub const IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
+/// Default redis channel name used for publishing invalidation messages
+pub const DEFAULT_IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
 
-/// Time to live 30 mins
-const CACHE_TTL: u64 = 30 * 60;
+/// Default time to live 30 mins
+pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 
-/// Time to idle 10 mins
-const CACHE_TTI: u64 = 10 * 60;
+/// Default time to idle 10 mins
+pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
-/// Max Capacity of Cache in MB
-const MAX_CAPACITY: u64 = 30;
+/// Default entry ceiling, deliberately the number the caches have always been built with.
+///
+/// It was written as `30` and documented as megabytes, then multiplied by `1024 * 1024` on the
+/// way into moka — which, with no weigher configured, read it as a number of entries. So the
+/// effective ceiling has always been 31,457,280 entries, and these caches have never come
+/// close to it.
+///
+/// Kept verbatim rather than replaced with a tighter or byte-based default: at this size it
+/// binds nothing, which is exactly the point — the ceiling that ships must not start evicting
+/// where nothing evicted before. What bounds the resident set in normal operation is
+/// `time_to_idle`, since these caches are keyed per merchant and profile and an entry unread
+/// for its window is dropped.
+///
+/// Choosing a ceiling that actually binds is an operational decision rather than a default:
+/// set `max_capacity` per cache, in either unit, once the sizes involved are known.
+pub const DEFAULT_MAX_ENTRIES: u64 = 30 * 1024 * 1024;
 
-/// Config Cache with time_to_live as 30 mins and time_to_idle as 10 mins.
-pub static CONFIG_CACHE: LazyLock<Cache> =
-    LazyLock::new(|| Cache::new("CONFIG_CACHE", CACHE_TTL, CACHE_TTI, None));
+/// Runtime overrides for a single in-memory cache.
+///
+/// Every field is optional: whatever is left unset falls back to that cache's compiled-in
+/// default, so an absent (or partial) configuration reproduces the values the caches were
+/// previously hardcoded with.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize)]
+#[serde(default)]
+pub struct CacheSettings {
+    /// Time in seconds an entry is retained after it was inserted
+    pub ttl_in_secs: Option<u64>,
+    /// Time in seconds an entry is retained after it was last read or written
+    pub tti_in_secs: Option<u64>,
+    /// Maximum number of entries the cache may hold. `0` makes it unbounded, and leaving it
+    /// unset keeps the cache's own default.
+    pub max_entries: Option<u64>,
+}
 
-/// Accounts cache with time_to_live as 30 mins and size limit
-pub static ACCOUNTS_CACHE: LazyLock<Cache> =
-    LazyLock::new(|| Cache::new("ACCOUNTS_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+impl CacheSettings {
+    fn time_to_live(&self) -> u64 {
+        self.ttl_in_secs.unwrap_or(DEFAULT_CACHE_TTL)
+    }
 
-/// Routing Cache
-pub static ROUTING_CACHE: LazyLock<Cache> =
-    LazyLock::new(|| Cache::new("ROUTING_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+    fn time_to_idle(&self) -> u64 {
+        self.tti_in_secs.unwrap_or(DEFAULT_CACHE_TTI)
+    }
 
-/// 3DS Decision Manager Cache
-pub static DECISION_MANAGER_CACHE: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::new(
-        "DECISION_MANAGER_CACHE",
-        CACHE_TTL,
-        CACHE_TTI,
-        Some(MAX_CAPACITY),
-    )
-});
+    /// Resolves the entry ceiling against the cache's own default.
+    ///
+    /// `None` means unbounded, and an explicitly configured `0` is how a bounded cache is made
+    /// unbounded, since the key's absence already means "use the default".
+    fn max_entries(&self, default: Option<u64>) -> Option<u64> {
+        match self.max_entries {
+            Some(0) => None,
+            Some(entries) => Some(entries),
+            None => default,
+        }
+    }
 
-/// Surcharge Cache
-pub static SURCHARGE_CACHE: LazyLock<Cache> =
-    LazyLock::new(|| Cache::new("SURCHARGE_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+    /// Builds the cache this configuration describes.
+    ///
+    /// `default` is the cache's own ceiling when the configuration names none, `None` meaning
+    /// unbounded.
+    fn build(&self, name: &'static str, default: Option<u64>) -> Cache {
+        Cache::new(
+            name,
+            self.time_to_live(),
+            self.time_to_idle(),
+            self.max_entries(default),
+        )
+    }
+}
 
-/// CGraph Cache
-pub static CGRAPH_CACHE: LazyLock<Cache> =
-    LazyLock::new(|| Cache::new("CGRAPH_CACHE", CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+/// Runtime configuration of the in-memory caches, with per-cache granularity.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(default)]
+pub struct CacheConfig {
+    /// Redis channel the invalidation messages are published on and subscribed to.
+    /// All instances of a deployment must agree on this value.
+    pub invalidation_channel: Option<String>,
+    pub config: CacheSettings,
+    pub accounts: CacheSettings,
+    pub mca_list: CacheSettings,
+    pub routing: CacheSettings,
+    pub decision_manager: CacheSettings,
+    pub surcharge: CacheSettings,
+    pub cgraph: CacheSettings,
+    pub pm_filters_cgraph: CacheSettings,
+    pub success_based_dynamic_algorithm: CacheSettings,
+    pub elimination_based_dynamic_algorithm: CacheSettings,
+    pub contract_based_dynamic_algorithm: CacheSettings,
+}
 
-/// PM Filter CGraph Cache
-pub static PM_FILTERS_CGRAPH_CACHE: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::new(
-        "PM_FILTERS_CGRAPH_CACHE",
-        CACHE_TTL,
-        CACHE_TTI,
-        Some(MAX_CAPACITY),
-    )
-});
+/// The in-memory caches, together with the redis channel their invalidations travel on.
+///
+/// Built once per process and shared by every tenant's store through an [`Arc`]: entries are
+/// isolated by the tenant prefix carried in [`CacheKey`], and the single redis subscriber that
+/// applies invalidations has to reach the very same instances the stores read from. Handing a
+/// tenant its own set would both multiply the memory budget and strand every tenant but one
+/// with stale entries.
+#[derive(Debug)]
+pub struct Caches {
+    /// Redis channel invalidation messages are published on and subscribed to
+    pub invalidation_channel: String,
+    /// Config cache, unbounded by default
+    pub config: Cache,
+    /// Accounts cache
+    pub accounts: Cache,
+    /// Merchant connector account list cache.
+    ///
+    /// Holds whole-scope supersets of merchant connector account rows (every account of a
+    /// merchant, or of a profile) which the individual list queries project from. Kept
+    /// separate from [`Caches::accounts`] so that list hit rates and entry counts are
+    /// observable on their own, and so the two can be sized independently.
+    pub mca_list: Cache,
+    /// Routing cache
+    pub routing: Cache,
+    /// 3DS decision manager cache
+    pub decision_manager: Cache,
+    /// Surcharge cache
+    pub surcharge: Cache,
+    /// CGraph cache
+    pub cgraph: Cache,
+    /// PM filter CGraph cache
+    pub pm_filters_cgraph: Cache,
+    /// Success based dynamic algorithm cache
+    pub success_based_dynamic_algorithm: Cache,
+    /// Elimination based dynamic algorithm cache
+    pub elimination_based_dynamic_algorithm: Cache,
+    /// Contract routing based dynamic algorithm cache
+    pub contract_based_dynamic_algorithm: Cache,
+}
 
-/// Success based Dynamic Algorithm Cache
-pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::new(
-        "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
-        CACHE_TTL,
-        CACHE_TTI,
-        Some(MAX_CAPACITY),
-    )
-});
+impl Caches {
+    /// Builds every cache from `config`, falling back to the per-cache defaults for anything
+    /// left unset.
+    pub fn new(config: &CacheConfig) -> Self {
+        // Every cache defaults to the ceiling it has always had, so shipping this changes no
+        // eviction behaviour anywhere.
+        const DEFAULT: Option<u64> = Some(DEFAULT_MAX_ENTRIES);
+        // As before, the config cache is the one built with no ceiling at all.
+        const UNBOUNDED: Option<u64> = None;
 
-/// Elimination based Dynamic Algorithm Cache
-pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::new(
-        "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
-        CACHE_TTL,
-        CACHE_TTI,
-        Some(MAX_CAPACITY),
-    )
-});
+        Self {
+            invalidation_channel: config
+                .invalidation_channel
+                .clone()
+                .unwrap_or_else(|| DEFAULT_IMC_INVALIDATION_CHANNEL.to_string()),
+            config: config.config.build("CONFIG_CACHE", UNBOUNDED),
+            accounts: config.accounts.build("ACCOUNTS_CACHE", DEFAULT),
+            mca_list: config.mca_list.build("MCA_LIST_CACHE", DEFAULT),
+            routing: config.routing.build("ROUTING_CACHE", DEFAULT),
+            decision_manager: config
+                .decision_manager
+                .build("DECISION_MANAGER_CACHE", DEFAULT),
+            surcharge: config.surcharge.build("SURCHARGE_CACHE", DEFAULT),
+            cgraph: config.cgraph.build("CGRAPH_CACHE", DEFAULT),
+            pm_filters_cgraph: config
+                .pm_filters_cgraph
+                .build("PM_FILTERS_CGRAPH_CACHE", DEFAULT),
+            success_based_dynamic_algorithm: config
+                .success_based_dynamic_algorithm
+                .build("SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE", DEFAULT),
+            elimination_based_dynamic_algorithm: config
+                .elimination_based_dynamic_algorithm
+                .build("ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE", DEFAULT),
+            contract_based_dynamic_algorithm: config
+                .contract_based_dynamic_algorithm
+                .build("CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE", DEFAULT),
+        }
+    }
 
-/// Contract Routing based Dynamic Algorithm Cache
-pub static CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::new(
-        "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
-        CACHE_TTL,
-        CACHE_TTI,
-        Some(MAX_CAPACITY),
-    )
-});
+    /// The caches an invalidation of `kind` has to be applied to.
+    pub fn for_kind(&self, kind: &CacheKind<'_>) -> Vec<&Cache> {
+        match kind {
+            CacheKind::Config(_) => vec![&self.config],
+            CacheKind::Accounts(_) => vec![&self.accounts],
+            CacheKind::MerchantConnectorAccountList(_) => vec![&self.mca_list],
+            CacheKind::Routing(_) => vec![&self.routing],
+            CacheKind::DecisionManager(_) => vec![&self.decision_manager],
+            CacheKind::Surcharge(_) => vec![&self.surcharge],
+            CacheKind::CGraph(_) => vec![&self.cgraph],
+            CacheKind::PmFiltersCGraph(_) => vec![&self.pm_filters_cgraph],
+            CacheKind::SuccessBasedDynamicRoutingCache(_) => {
+                vec![&self.success_based_dynamic_algorithm]
+            }
+            CacheKind::EliminationBasedDynamicRoutingCache(_) => {
+                vec![&self.elimination_based_dynamic_algorithm]
+            }
+            CacheKind::ContractBasedDynamicRoutingCache(_) => {
+                vec![&self.contract_based_dynamic_algorithm]
+            }
+            CacheKind::All(_) => self.all().to_vec(),
+        }
+    }
 
+    /// The cache `id` names.
+    pub fn get(&self, id: CacheId) -> &Cache {
+        let Self {
+            config,
+            accounts,
+            mca_list,
+            routing,
+            decision_manager,
+            surcharge,
+            cgraph,
+            pm_filters_cgraph,
+            success_based_dynamic_algorithm,
+            elimination_based_dynamic_algorithm,
+            contract_based_dynamic_algorithm,
+            invalidation_channel: _,
+        } = self;
+        match id {
+            CacheId::Config => config,
+            CacheId::Accounts => accounts,
+            CacheId::McaList => mca_list,
+            CacheId::Routing => routing,
+            CacheId::DecisionManager => decision_manager,
+            CacheId::Surcharge => surcharge,
+            CacheId::CGraph => cgraph,
+            CacheId::PmFiltersCGraph => pm_filters_cgraph,
+            CacheId::SuccessBasedDynamicAlgorithm => success_based_dynamic_algorithm,
+            CacheId::EliminationBasedDynamicAlgorithm => elimination_based_dynamic_algorithm,
+            CacheId::ContractBasedDynamicAlgorithm => contract_based_dynamic_algorithm,
+        }
+    }
+
+    /// Every cache in the set, so that callers iterating over all of them — metrics
+    /// collection, say — cannot silently fall behind a newly added cache.
+    pub fn all(&self) -> [&Cache; 11] {
+        let Self {
+            config,
+            accounts,
+            mca_list,
+            routing,
+            decision_manager,
+            surcharge,
+            cgraph,
+            pm_filters_cgraph,
+            success_based_dynamic_algorithm,
+            elimination_based_dynamic_algorithm,
+            contract_based_dynamic_algorithm,
+            invalidation_channel: _,
+        } = self;
+        [
+            config,
+            accounts,
+            mca_list,
+            routing,
+            decision_manager,
+            surcharge,
+            cgraph,
+            pm_filters_cgraph,
+            success_based_dynamic_algorithm,
+            elimination_based_dynamic_algorithm,
+            contract_based_dynamic_algorithm,
+        ]
+    }
+}
+
+impl Default for Caches {
+    fn default() -> Self {
+        Self::new(&CacheConfig::default())
+    }
+}
+
+/// A store that owns a set of in-memory caches, the way [`RedisConnInterface`] gives one a
+/// redis connection. Deliberately independent of it: holding caches and holding a redis
+/// connection are separate capabilities, and the helpers below ask for both where they need
+/// both.
+pub trait CacheInterface {
+    fn caches(&self) -> &Caches;
+
+    /// The tenant prefix in-memory cache keys are namespaced by.
+    ///
+    /// Available without a redis connection, so an in-memory hit never has to acquire one.
+    fn cache_key_prefix(&self) -> &str;
+}
+
+/// Names one of the [`Caches`].
+///
+/// Lookups name the cache they want rather than passing an instance, so the cache they read
+/// is necessarily the one belonging to the store they are given.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheId {
+    Config,
+    Accounts,
+    McaList,
+    Routing,
+    DecisionManager,
+    Surcharge,
+    CGraph,
+    PmFiltersCGraph,
+    SuccessBasedDynamicAlgorithm,
+    EliminationBasedDynamicAlgorithm,
+    ContractBasedDynamicAlgorithm,
+}
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -121,6 +336,7 @@ pub struct CacheRedact<'a> {
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
+    MerchantConnectorAccountList(Cow<'a, str>),
     Routing(Cow<'a, str>),
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
@@ -137,6 +353,7 @@ impl CacheKind<'_> {
         match self {
             CacheKind::Config(key)
             | CacheKind::Accounts(key)
+            | CacheKind::MerchantConnectorAccountList(key)
             | CacheKind::Routing(key)
             | CacheKind::DecisionManager(key)
             | CacheKind::Surcharge(key)
@@ -193,6 +410,14 @@ pub struct Cache {
     inner: MokaCache<String, Arc<dyn Cacheable>>,
 }
 
+impl Debug for Cache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Cache")
+            .field("name", &self.name)
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CacheKey {
     pub key: String,
@@ -210,18 +435,41 @@ impl From<CacheKey> for String {
     }
 }
 
+/// The physical moka key for a logical [`CacheKey`].
+///
+/// During replay the in-memory cache is a process-global structure shared across correlations, so
+/// its keys are namespaced by correlation id — the same isolation
+/// `RedisConnectionPool::add_prefix` applies to physical redis keys. This keeps a replayed
+/// correlation from observing entries another one populated: the first lookup per correlation
+/// misses and falls through to the redis and database boundaries, which are instrumented and
+/// therefore deterministic.
+///
+/// Deliberately not folded into `From<CacheKey> for String`: that conversion also builds the
+/// recorded args for the `in_memory_get` boundary, which must stay un-namespaced so the args a
+/// replay computes still match the ones the recording captured.
+fn in_memory_cache_key(key: CacheKey) -> String {
+    let physical = String::from(key);
+
+    #[cfg(feature = "deja")]
+    if let Some(correlation_id) = deja::replay_key_namespace() {
+        return format!("{correlation_id}:{physical}");
+    }
+
+    physical
+}
+
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
     /// `name`        : Cache type name to be used as an attribute in metrics
     /// `time_to_live`: Time in seconds before an object is stored in a caching system before it’s deleted
     /// `time_to_idle`: Time in seconds before a `get` or `insert` operation an object is stored in a caching system before it's deleted
-    /// `max_capacity`: Max size in MB's that the cache can hold
+    /// `max_entries` : Maximum number of entries the cache can hold, `None` for unbounded
     pub fn new(
         name: &'static str,
         time_to_live: u64,
         time_to_idle: u64,
-        max_capacity: Option<u64>,
+        max_entries: Option<u64>,
     ) -> Self {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
@@ -238,8 +486,10 @@ impl Cache {
             .time_to_idle(std::time::Duration::from_secs(time_to_idle))
             .eviction_listener(eviction_listener);
 
-        if let Some(capacity) = max_capacity {
-            cache_builder = cache_builder.max_capacity(capacity * 1024 * 1024);
+        // No weigher is configured, so moka counts entries — which is what this number has
+        // always meant, and now says.
+        if let Some(entries) = max_entries {
+            cache_builder = cache_builder.max_capacity(entries);
         }
 
         Self {
@@ -248,12 +498,47 @@ impl Cache {
         }
     }
 
+    // Deja: recorded args-only for population accounting; the real moka insert
+    // still runs on replay (`replay = Execute`).
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_push",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
-        self.inner.insert(key.into(), Arc::new(val)).await;
+        self.inner
+            .insert(in_memory_cache_key(key), Arc::new(val))
+            .await;
     }
 
-    pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
-        let val = self.inner.get::<String>(&key.into()).await;
+    // Deja: the L1 seam, instrumented on the method itself so no call path can
+    // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
+    // re-triggers the caller's fallback. The serde bound is deliberately
+    // unconditional: a type that cannot be captured cannot be cached.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_get",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
+    pub async fn get_val<T>(&self, key: CacheKey) -> Option<T>
+    where
+        T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
+    {
+        let val = self.inner.get::<String>(&in_memory_cache_key(key)).await;
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
@@ -264,18 +549,48 @@ impl Cache {
                 .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         }
 
-        let val = (*val?).as_any().downcast_ref::<T>().cloned();
-
-        val
+        // The explicit deref is load-bearing. `Arc<dyn Cacheable>` satisfies the blanket
+        // `Cacheable` impl itself, so `val?.as_any()` would resolve to the `Arc`'s own impl and
+        // hand back a `&dyn Any` describing the `Arc` — downcasting which silently turns every
+        // read into a miss. Deref first so `as_any` comes from the value inside.
+        (*val?).as_any().downcast_ref::<T>().cloned()
     }
 
     /// Check if a key exists in cache
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_exists",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn exists(&self, key: CacheKey) -> bool {
-        self.inner.contains_key::<String>(&key.into())
+        self.inner.contains_key::<String>(&in_memory_cache_key(key))
     }
 
+    // Deja: recorded args-only so a missed or extra invalidation shows up as a
+    // call divergence; the real invalidation still runs on replay.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_remove",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn remove(&self, key: CacheKey) {
-        self.inner.invalidate::<String>(&key.into()).await;
+        self.inner
+            .invalidate::<String>(&in_memory_cache_key(key))
+            .await;
     }
 
     /// Performs any pending maintenance operations needed by the cache.
@@ -292,20 +607,34 @@ impl Cache {
         self.name
     }
 
-    pub async fn record_entry_count_metric(&self) {
+    /// Records everything moka exposes about this cache's occupancy.
+    ///
+    /// `entry_count` and `weighted_size` are the only runtime figures it publishes — there are
+    /// no built-in hit or miss statistics, which is why those are counted by hand in
+    /// [`Self::get_val`]. The configured ceiling is recorded alongside so that utilisation is
+    /// derivable from the metrics rather than from configuration.
+    pub async fn record_size_metrics(&self) {
         self.run_pending_tasks().await;
 
-        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(
-            self.get_entry_count(),
-            router_env::metric_attributes!(("cache_type", self.name)),
-        );
+        let attributes = router_env::metric_attributes!(("cache_type", self.name));
+
+        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(self.get_entry_count(), attributes);
+
+        // `weighted_size` is deliberately not recorded: with no weigher configured it is the
+        // entry count again, so it would be a second name for the gauge above.
+        //
+        // Absent for an unbounded cache, where there is no ceiling to be a fraction of.
+        if let Some(max_capacity) = self.inner.policy().max_capacity() {
+            metrics::IN_MEMORY_CACHE_MAX_CAPACITY.record(max_capacity, attributes);
+        }
     }
 }
 
 #[instrument(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
-    redis: &Arc<RedisConnectionPool>,
+    redis: &RedisConnectionWithContext,
     key: impl AsRef<str>,
+    ttl: Option<i64>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
@@ -320,10 +649,15 @@ where
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        redis
-            .serialize_and_set_key(&key.into(), &data)
-            .await
-            .change_context(StorageError::KVError)?;
+        match ttl {
+            Some(ttl) => {
+                redis
+                    .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
+                    .await
+            }
+            None => redis.serialize_and_set_key(&key.into(), &data).await,
+        }
+        .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
@@ -339,55 +673,61 @@ where
     }
 }
 
+/// Recorded args for the [`Cache`] boundaries: cache name + un-namespaced
+/// physical key, so the args a replay computes match the recording's.
+#[cfg(feature = "deja")]
+fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
+    serde_json::json!({ "cache": cache_name, "key": String::from(key.clone()) })
+}
+
 #[instrument(skip_all)]
-pub async fn get_or_populate_in_memory<T, F, Fut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
+pub async fn get_or_populate_in_memory<T, F, Fut, S>(
+    store: &S,
     key: &str,
     fun: F,
-    cache: &Cache,
+    cache: CacheId,
 ) -> CustomResult<T, StorageError>
 where
     T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + Debug + Clone,
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
+    let cache = store.caches().get(cache);
+    let cache_key = CacheKey {
+        key: key.to_string(),
+        prefix: store.cache_key_prefix().to_string(),
+    };
+
+    // An in-memory hit answers on its own. The redis connection is acquired only on a miss,
+    // so a redis outage degrades this to a cold cache rather than an error.
+    if let Some(val) = cache.get_val::<T>(cache_key.clone()).await {
+        return Ok(val);
+    }
+
     let redis = &store
         .get_redis_conn()
         .change_context(StorageError::RedisError(
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
-    let cache_val = cache
-        .get_val::<T>(CacheKey {
-            key: key.to_string(),
-            prefix: redis.key_prefix.clone(),
-        })
-        .await;
-    if let Some(val) = cache_val {
-        Ok(val)
-    } else {
-        let val = get_or_populate_redis(redis, key, fun).await?;
-        cache
-            .push(
-                CacheKey {
-                    key: key.to_string(),
-                    prefix: redis.key_prefix.clone(),
-                },
-                val.clone(),
-            )
-            .await;
-        Ok(val)
-    }
+    // The redis round trip already materialized the payload, so its size is free here and
+    // does not have to be recomputed to bound the cache.
+    let val = get_or_populate_redis(redis, key, None, fun).await?;
+    cache.push(cache_key, val.clone()).await;
+
+    Ok(val)
 }
 
 #[instrument(skip_all)]
-pub async fn redact_from_redis_and_publish<
-    'a,
-    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
->(
-    store: &(dyn RedisConnInterface + Send + Sync),
+pub async fn redact_from_redis_and_publish<'a, K, S>(
+    store: &S,
     keys: K,
-) -> CustomResult<usize, StorageError> {
+) -> CustomResult<usize, StorageError>
+where
+    K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
+{
     let redis_conn = store
         .get_redis_conn()
         .change_context(StorageError::RedisError(
@@ -413,10 +753,10 @@ pub async fn redact_from_redis_and_publish<
 
     logger::debug!(redis_deletion_result=?deletion_result);
 
-    let futures = keys.into_iter().map(|key| async {
+    let redis_conn = &redis_conn;
+    let futures = keys.into_iter().map(move |key| async move {
         redis_conn
-            .clone()
-            .publish(IMC_INVALIDATION_CHANNEL, key)
+            .publish(&store.caches().invalidation_channel, key)
             .await
             .change_context(StorageError::KVError)
     });
@@ -428,14 +768,15 @@ pub async fn redact_from_redis_and_publish<
 }
 
 #[instrument(skip_all)]
-pub async fn publish_and_redact<'a, T, F, Fut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
+pub async fn publish_and_redact<'a, T, F, Fut, S>(
+    store: &S,
     key: CacheKind<'a>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
     let data = fun().await?;
     redact_from_redis_and_publish(store, [key]).await?;
@@ -443,8 +784,8 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn publish_and_redact_multiple<'a, T, F, Fut, K>(
-    store: &(dyn RedisConnInterface + Send + Sync),
+pub async fn publish_and_redact_multiple<'a, T, F, Fut, K, S>(
+    store: &S,
     keys: K,
     fun: F,
 ) -> CustomResult<T, StorageError>
@@ -452,6 +793,7 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
     K: IntoIterator<Item = CacheKind<'a>> + Send + Clone,
+    S: RedisConnInterface + CacheInterface + Send + Sync + ?Sized,
 {
     let data = fun().await?;
     redact_from_redis_and_publish(store, keys).await?;
@@ -461,6 +803,81 @@ where
 #[cfg(test)]
 mod cache_tests {
     use super::*;
+
+    /// The `[cache]` documentation in `config/*.toml` promises this syntax.
+    #[test]
+    fn the_documented_toml_syntax_deserializes() {
+        let config: CacheConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                r#"
+                invalidation_channel = "channel_from_toml"
+
+                [accounts]
+                ttl_in_secs = 120
+                max_entries = 500000
+
+                [config]
+                max_entries = 0
+                "#,
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .expect("failed to build cache configuration")
+            .try_deserialize()
+            .expect("failed to deserialize cache configuration from TOML");
+
+        assert_eq!(
+            config.invalidation_channel.as_deref(),
+            Some("channel_from_toml")
+        );
+        assert_eq!(config.accounts.time_to_live(), 120);
+        assert_eq!(config.accounts.max_entries, Some(500_000));
+        assert_eq!(config.config.max_entries, Some(0));
+        // Untouched caches keep their own defaults.
+        assert_eq!(config.routing.max_entries, None);
+        assert_eq!(config.routing.time_to_live(), DEFAULT_CACHE_TTL);
+    }
+
+    /// Pinned against the same `Environment` source `Settings::with_config_path` builds.
+    ///
+    /// The registered list-parse keys are load-bearing: without any of them `list_separator`
+    /// applies to every key and silently turns plain string values into single-element arrays,
+    /// which no string field will accept.
+    #[test]
+    fn the_documented_env_vars_deserialize() {
+        let source: std::collections::HashMap<String, String> = [
+            ("ROUTER__ACCOUNTS__MAX_ENTRIES", "500000"),
+            ("ROUTER__CONFIG__MAX_ENTRIES", "0"),
+            ("ROUTER__CGRAPH__TTL_IN_SECS", "120"),
+            ("ROUTER__INVALIDATION_CHANNEL", "channel_from_env"),
+        ]
+        .into_iter()
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect();
+
+        let config: CacheConfig = config::Config::builder()
+            .add_source(
+                config::Environment::with_prefix("ROUTER")
+                    .try_parsing(true)
+                    .separator("__")
+                    .list_separator(",")
+                    .with_list_parse_key("log.telemetry.route_to_trace")
+                    .with_list_parse_key("redis.cluster_urls")
+                    .source(Some(source)),
+            )
+            .build()
+            .expect("failed to build cache configuration")
+            .try_deserialize()
+            .expect("failed to deserialize cache configuration from the environment");
+
+        assert_eq!(config.accounts.max_entries, Some(500_000));
+        assert_eq!(config.config.max_entries, Some(0));
+        assert_eq!(config.cgraph.time_to_live(), 120);
+        assert_eq!(
+            config.invalidation_channel.as_deref(),
+            Some("channel_from_env")
+        );
+    }
 
     #[tokio::test]
     async fn construct_and_get_cache() {

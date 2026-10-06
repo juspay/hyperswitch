@@ -38,6 +38,18 @@ macro_rules! counter_metric {
                 .build()
         });
     };
+    ($name:ident, $meter:ident, name: $metric_name:literal, description: $description:literal, unit: $unit:literal $(,)?) => {
+        #[doc = $description]
+        pub(crate) static $name: ::std::sync::LazyLock<
+            $crate::opentelemetry::metrics::Counter<u64>,
+        > = ::std::sync::LazyLock::new(|| {
+            $meter
+                .u64_counter($metric_name)
+                .with_description($description)
+                .with_unit($unit)
+                .build()
+        });
+    };
 }
 
 /// Create a [`Histogram`][Histogram] f64 metric with the specified name and an optional description,
@@ -65,6 +77,19 @@ macro_rules! histogram_metric_f64 {
             $meter
                 .f64_histogram(stringify!($name))
                 .with_description($description)
+                .with_boundaries($crate::metrics::f64_histogram_buckets())
+                .build()
+        });
+    };
+    ($name:ident, $meter:ident, name: $metric_name:literal, description: $description:literal, unit: $unit:literal $(,)?) => {
+        #[doc = $description]
+        pub(crate) static $name: ::std::sync::LazyLock<
+            $crate::opentelemetry::metrics::Histogram<f64>,
+        > = ::std::sync::LazyLock::new(|| {
+            $meter
+                .f64_histogram($metric_name)
+                .with_description($description)
+                .with_unit($unit)
                 .with_boundaries($crate::metrics::f64_histogram_buckets())
                 .build()
         });
@@ -139,12 +164,12 @@ mod helpers {
     /// Returns the buckets to be used for a f64 histogram
     #[inline(always)]
     pub fn f64_histogram_buckets() -> Vec<f64> {
-        let mut init = 0.01;
-        let mut buckets: [f64; 15] = [0.0; 15];
+        let mut init = 0.000_001;
+        let mut buckets: [f64; 30] = [0.0; 30];
 
         for bucket in &mut buckets {
-            init *= 2.0;
             *bucket = init;
+            init *= 2.0;
         }
 
         Vec::from(buckets)

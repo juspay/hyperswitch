@@ -12,24 +12,31 @@ use common_utils::ext_traits::{OptionExt, StringExt};
 use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
+use hyperswitch_domain_models::platform::ProviderMerchantId;
+use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-use masking::ExposeInterface;
-use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
+#[cfg(feature = "v1")]
+use router_env::logger;
+use storage_impl::redis::cache::CacheKey;
 
-use crate::{configs::settings, routes::SessionState};
+use crate::{
+    configs::settings, core::configs::dimension_state, routes::SessionState,
+    types::payment_methods as pm_types,
+};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
         errors,
         storage::{self, enums as storage_enums},
     },
+    routes::payment_methods as pm_routes,
     services::logger,
 };
 
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_methods: &[masking::Secret<serde_json::value::Value>],
+    payment_methods: &[hyperswitch_masking::Secret<serde_json::value::Value>],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
@@ -57,7 +64,10 @@ pub async fn get_merchant_pm_filter_graph(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>> {
-    PM_FILTERS_CGRAPH_CACHE
+    state
+        .store
+        .caches()
+        .pm_filters_cgraph
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>>(CacheKey {
             key: key.to_string(),
             prefix: state.tenant.redis_key_prefix.clone(),
@@ -71,7 +81,10 @@ pub async fn refresh_pm_filters_cache(
     graph: cgraph::ConstraintGraph<dir::DirValue>,
 ) -> Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>> {
     let pm_filter_graph = Arc::new(graph);
-    PM_FILTERS_CGRAPH_CACHE
+    state
+        .store
+        .caches()
+        .pm_filters_cgraph
         .push(
             CacheKey {
                 key: key.to_string(),
@@ -811,11 +824,163 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
+pub async fn get_should_call_pm_modular_service(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_call_pm_modular_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+/// Resolves when the payment method is written to durable storage.
+pub async fn get_payment_method_integration_type(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> pm_types::PaymentMethodIntegrationType {
+    dimensions
+        .get_payment_method_integration_type(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_perform_sdk_vaulting(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithOrgId,
+) -> bool {
+    dimensions
+        .get_should_perform_sdk_vaulting(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
+}
+
+pub async fn get_should_schedule_modular_forward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_schedule_modular_forward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_schedule_modular_backward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_schedule_modular_backward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_trigger_backwards_compatibility_inline(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_trigger_backwards_compatibility_inline(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+/// Timeout (in seconds) for fetching a network token from the tokenization service during a
+/// payment, resolved from superposition with database fallback (global key
+/// `network_token_fetch_timeout_in_secs`, default 4).
+pub async fn get_network_token_fetch_timeout_in_secs(state: &SessionState) -> u64 {
+    let dimensions = dimension_state::Dimensions::new();
+
+    let timeout_in_secs = dimensions
+        .get_network_token_fetch_timeout_in_secs(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    u64::from(timeout_in_secs)
+}
+
+pub async fn get_should_trigger_fingerprint_migration(
+    state: &SessionState,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    provider_merchant_id: ProviderMerchantId,
+) -> bool {
+    let dimensions =
+        dimension_state::Dimensions::new().with_provider_merchant_id(provider_merchant_id);
+
+    let should_trigger_fingerprint_migration = dimensions
+        .get_should_trigger_fingerprint_migration(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
+
+    logger::info!(
+        "should_trigger_fingerprint_migration in get_wallet_from_hs_locker: {}",
+        should_trigger_fingerprint_migration
+    );
+
+    should_trigger_fingerprint_migration
+}
+
+pub async fn get_sdk_next_action_for_payment_method_list(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    has_surcharge_processor: bool,
+    offers_enabled: bool,
+) -> api_models::payments::SdkNextAction {
+    let should_perform_eligibility = dimensions
+        .get_should_perform_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
+
+    if should_perform_eligibility {
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::EligibilityCheck,
+            should_block_confirm: Some(has_surcharge_processor || offers_enabled),
+        }
+    } else {
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: Some(false),
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
-    payment_method: Option<&storage_enums::PaymentMethod>,
 ) -> errors::RouterResult<storage::PaymentTokenData> {
     let redis_conn = state
         .store
@@ -823,14 +988,7 @@ pub(super) async fn retrieve_payment_token_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_{}_hyperswitch",
-        token,
-        payment_method
-            .get_required_value("payment_method")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment method is required")?
-    );
+    let key = format!("pm_token_{}_hyperswitch", token);
 
     let token_data_string = redis_conn
         .get_key::<Option<String>>(&key.into())
@@ -848,6 +1006,35 @@ pub(super) async fn retrieve_payment_token_data(
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data")
+}
+
+#[cfg(feature = "v2")]
+pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
+    state: &SessionState,
+    token: String,
+) -> errors::RouterResult<common_utils::id_type::GlobalPaymentMethodId> {
+    let payment_method_token_data =
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&token)
+            .get_data_for_token(state)
+            .await
+            .attach_printable("Failed to retrieve payment method token data")?;
+
+    let payment_method_id = match payment_method_token_data {
+        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
+            Some(card.payment_method_id)
+        }
+        storage::payment_method::PaymentTokenData::BankDebit(bank_debit) => {
+            Some(bank_debit.payment_method_id)
+        }
+        _ => None,
+    }
+    .get_required_value("payment_method_id from payment method token data")
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "payment_method_id".to_string(),
+    })
+    .attach_printable("Failed to get payment method id from payment method token data")?;
+
+    Ok(payment_method_id)
 }
 
 #[cfg(feature = "v2")]

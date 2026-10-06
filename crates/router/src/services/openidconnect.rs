@@ -1,10 +1,10 @@
 use common_utils::errors::ErrorSwitch;
 use error_stack::ResultExt;
 use external_services::http_client::client;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
-use redis_interface::RedisConnectionPool;
+use redis_interface::RedisConnectionWithContext;
 use storage_impl::errors::ApiClientError;
 
 use crate::{
@@ -76,7 +76,14 @@ pub async fn get_user_email_from_oidc_provider(
         .exchange_code(oidc::AuthorizationCode::new(authorization_code.expose()))
         .request_async(|req| get_oidc_reqwest_client(state, req))
         .await
-        .change_context(UserErrors::InternalServerError)
+        .map_err(|e| match e {
+            oidc::RequestTokenError::ServerResponse(resp)
+                if resp.error() == &oidc_core::CoreErrorResponseType::InvalidGrant =>
+            {
+                UserErrors::SSOFailed
+            }
+            _ => UserErrors::InternalServerError,
+        })
         .attach_printable("Failed to exchange code and fetch oidc token")?;
 
     // Fetch id token from response
@@ -191,7 +198,7 @@ fn get_oidc_redis_key(csrf: &str) -> String {
 
 fn get_redis_connection_for_global_tenant(
     state: &SessionState,
-) -> UserResult<std::sync::Arc<RedisConnectionPool>> {
+) -> UserResult<RedisConnectionWithContext> {
     state
         .global_store
         .get_redis_conn()

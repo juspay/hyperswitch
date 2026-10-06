@@ -1,4 +1,5 @@
 pub mod transformers;
+use std::sync::LazyLock;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
@@ -21,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -37,19 +41,18 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret, WithType};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret, WithType};
 use ring::hmac;
 use router_env::logger;
-use time::OffsetDateTime;
 use transformers as boku;
 
 use crate::{
     constants::{headers, UNSUPPORTED_ERROR_MESSAGE},
     metrics,
     types::ResponseRouterData,
-    utils::{construct_not_supported_error_report, convert_amount},
+    utils::convert_amount,
 };
 
 #[derive(Clone)]
@@ -92,7 +95,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let connector_auth = boku::BokuAuthType::try_from(&req.connector_auth_type)?;
 
         let boku_url = Self::get_url(self, req, connectors)?;
@@ -101,7 +105,7 @@ where
 
         let connector_method = Self::get_http_method(self);
 
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let timestamp = common_utils::date_time::now_unix_timestamp_millis();
 
         let secret_key = boku::BokuAuthType::try_from(&req.connector_auth_type)?
             .key_id
@@ -109,7 +113,7 @@ where
 
         let to_sign = format!(
             "{} {}\nContent-Type: {}\n{}",
-            connector_method, boku_url, &content_type, timestamp
+            connector_method, boku_url, content_type, timestamp
         );
 
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
@@ -163,9 +167,11 @@ impl ConnectorCommon for Boku {
                     reason: response.reason,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_metadata: None,
                 })
             }
             Err(_) => get_xml_deserialized(res, event_builder),
@@ -173,24 +179,7 @@ impl ConnectorCommon for Boku {
     }
 }
 
-impl ConnectorValidation for Boku {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                construct_not_supported_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Boku {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Boku {
     //TODO: implement sessions flow
@@ -216,7 +205,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -254,7 +244,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = boku::BokuRouterData::from((amount, req));
         let connector_req = boku::BokuPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -314,7 +304,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bok
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -341,7 +332,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bok
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuPsyncRequest::try_from(req)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -397,7 +388,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -478,7 +470,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Boku {
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -512,7 +505,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Boku {
 
         let connector_router_data = boku::BokuRouterData::from((refund_amount, req));
         let connector_req = boku::BokuRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -569,7 +562,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Boku {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -596,7 +590,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Boku {
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuRsyncRequest::try_from(req)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -657,6 +651,7 @@ impl IncomingWebhook for Boku {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -664,7 +659,8 @@ impl IncomingWebhook for Boku {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
@@ -708,12 +704,102 @@ fn get_xml_deserialized(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_metadata: None,
             })
         }
     }
 }
 
-impl ConnectorSpecifications for Boku {}
+static BOKU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let mut boku_supported_payment_methods = SupportedPaymentMethods::new();
+
+    boku_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Dana,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    boku_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Gcash,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    boku_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::GoPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    boku_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::KakaoPay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    boku_supported_payment_methods.add(
+        enums::PaymentMethod::Wallet,
+        enums::PaymentMethodType::Momo,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods,
+            specific_features: None,
+        },
+    );
+
+    boku_supported_payment_methods
+});
+
+static BOKU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Boku",
+    description: "Boku, Inc. is a mobile payments company that allows businesses to collect online payments through both carrier billing and mobile wallets.",
+    connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+};
+
+static BOKU_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Boku {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&BOKU_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*BOKU_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&BOKU_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

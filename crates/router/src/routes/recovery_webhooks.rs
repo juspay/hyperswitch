@@ -26,20 +26,16 @@ pub async fn recovery_receive_incoming_webhook<W: types::OutgoingWebhookType>(
     let (merchant_id, profile_id, connector_id) = path.into_inner();
 
     Box::pin(api::server_wrap(
-        flow.clone(),
+        flow,
         state,
         &req,
         (),
         |state, auth, _, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             webhooks::incoming_webhooks_wrapper::<W>(
-                &flow,
                 state.to_owned(),
                 req_state,
                 &req,
-                merchant_context,
+                auth.platform,
                 auth.profile,
                 &connector_id,
                 body.clone(),

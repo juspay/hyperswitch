@@ -1,10 +1,9 @@
 //! Connector API logs interface
 
 use common_utils::request::Method;
-use router_env::tracing_actix_web::RequestId;
+use router_env::RequestId;
 use serde::Serialize;
 use serde_json::json;
-use time::OffsetDateTime;
 
 /// struct ConnectorEvent
 #[derive(Debug, Serialize)]
@@ -17,15 +16,18 @@ pub struct ConnectorEvent {
     error: Option<String>,
     url: String,
     method: String,
-    payment_id: String,
     merchant_id: common_utils::id_type::MerchantId,
     created_at: i128,
     /// Connector Event Request ID
     pub request_id: String,
     latency: u128,
-    refund_id: Option<String>,
-    dispute_id: Option<String>,
     status_code: u16,
+    /// Whether this call went to the connector directly or to the Unified Connector Service.
+    destination: common_enums::EventDestination,
+    /// Whether this call is the real execution or a shadow mirror.
+    execution_mode: common_enums::EventExecutionMode,
+    #[serde(flatten)]
+    connector_event_type: common_utils::events::ConnectorEventsType,
 }
 
 impl ConnectorEvent {
@@ -44,8 +46,14 @@ impl ConnectorEvent {
         latency: u128,
         refund_id: Option<String>,
         dispute_id: Option<String>,
+        payout_id: Option<String>,
         status_code: u16,
+        destination: common_enums::EventDestination,
+        execution_mode: common_enums::EventExecutionMode,
     ) -> Self {
+        let connector_event_type = common_utils::events::ConnectorEventsType::new(
+            payment_id, refund_id, payout_id, dispute_id,
+        );
         Self {
             tenant_id,
             connector_name,
@@ -59,22 +67,22 @@ impl ConnectorEvent {
             error: None,
             url,
             method: method.to_string(),
-            payment_id,
             merchant_id,
-            created_at: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            created_at: common_utils::date_time::now_unix_timestamp_millis(),
             request_id: request_id
-                .map(|i| i.as_hyphenated().to_string())
+                .map(|i| i.to_string())
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
-            refund_id,
-            dispute_id,
             status_code,
+            destination,
+            execution_mode,
+            connector_event_type,
         }
     }
 
     /// fn set_response_body
     pub fn set_response_body<T: Serialize>(&mut self, response: &T) {
-        match masking::masked_serialize(response) {
+        match hyperswitch_masking::masked_serialize(response) {
             Ok(masked) => {
                 self.masked_response = Some(masked.to_string());
             }
@@ -84,7 +92,7 @@ impl ConnectorEvent {
 
     /// fn set_error_response_body
     pub fn set_error_response_body<T: Serialize>(&mut self, response: &T) {
-        match masking::masked_serialize(response) {
+        match hyperswitch_masking::masked_serialize(response) {
             Ok(masked) => {
                 self.error = Some(masked.to_string());
             }

@@ -18,7 +18,7 @@ use time::PrimitiveDateTime;
 use crate::{
     enums::{MandateDataType, MandateDetails},
     schema::payment_attempt,
-    ConnectorMandateReferenceId, PaymentAttemptNew,
+    ConnectorMandateReferenceId, NetworkDetails, PaymentAttemptNew,
 };
 
 // #[cfg(feature = "v2")]
@@ -177,6 +177,7 @@ pub struct PaymentAttemptBatchNew {
     pub payment_experience: Option<PaymentExperience>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub payment_method_data: Option<serde_json::Value>,
+    pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
@@ -199,6 +200,7 @@ pub struct PaymentAttemptBatchNew {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub fingerprint_type: Option<common_enums::FingerprintType>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -211,6 +213,8 @@ pub struct PaymentAttemptBatchNew {
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub tokenization: Option<common_enums::Tokenization>,
+    pub extended_authorization_last_applied_at: Option<PrimitiveDateTime>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
@@ -218,6 +222,12 @@ pub struct PaymentAttemptBatchNew {
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub routing_approach: Option<common_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
+    pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
+    pub network_details: Option<NetworkDetails>,
+    pub is_stored_credential: Option<bool>,
+    pub authorized_amount: Option<MinorUnit>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -266,6 +276,7 @@ impl PaymentAttemptBatchNew {
                 .and_then(|network| network.as_str())
                 .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
+            encrypted_payment_method_data: self.encrypted_payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
             preprocessing_step_id: self.preprocessing_step_id,
@@ -288,6 +299,7 @@ impl PaymentAttemptBatchNew {
             mandate_data: self.mandate_data,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
@@ -298,6 +310,7 @@ impl PaymentAttemptBatchNew {
             connector_mandate_detail: self.connector_mandate_detail,
             request_extended_authorization: self.request_extended_authorization,
             extended_authorization_applied: self.extended_authorization_applied,
+            extended_authorization_last_applied_at: self.extended_authorization_last_applied_at,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
             processor_merchant_id: self.processor_merchant_id,
@@ -305,6 +318,21 @@ impl PaymentAttemptBatchNew {
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
+            network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
+            network_details: self.network_details,
+            is_stored_credential: self.is_stored_credential,
+            authorized_amount: self.authorized_amount,
+            tokenization: self.tokenization,
+            error_details: None,
+            retry_type: None,
+            installment_data: None,
+            external_surcharge_details: None,
+            applied_offer_details: None,
+            payment_account_reference: None,
+            sender_payment_instrument_id: None,
+            external_threeds_authentication_type: None,
+            active_frm_id: None,
         }
     }
 }
