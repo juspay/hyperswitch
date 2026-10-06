@@ -26,16 +26,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile, rename } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { FixtureRecorder, recordedFetch } from "./sqlite.mjs";
+import { progress } from "./progress.mjs";
 
-// Real Stripe test-mode credentials — hardcoded per request rather than
-// pulled from config, since this script is meant to target one known sandbox.
-// Replace before pointing this at a different environment.
-const STRIPE_TEST_CONNECTOR = {
+// Defaults for connector shape; authentication must come from configuration.
+const DEFAULT_CONNECTOR = {
   connector_type: "payment_processor",
   connector_name: "stripe",
   connector_account_details: {
     auth_type: "HeaderKey",
-    api_key: "<STRIPE_TEST_SECRET_KEY>",
+    api_key: "",
   },
   test_mode: false,
   disabled: false,
@@ -95,24 +96,21 @@ const STRIPE_TEST_CONNECTOR = {
     city: "NY",
     unit: "245",
   },
-  connector_webhook_details: {
-    merchant_secret: "MyWebhookSecret",
-  },
   business_country: "US",
   business_label: "default",
 };
 
-// Router derives a merchant connector's connector_label as
-// `${connector_name}_${business_country}_${business_label}` and enforces
-// uniqueness per (profile_id, connector_label) — this is the label a create
-// against a merchant that already has this connector attached will collide
-// on (see createConnector's recovery path below).
-const CONNECTOR_LABEL = `${STRIPE_TEST_CONNECTOR.connector_name}_${STRIPE_TEST_CONNECTOR.business_country}_${STRIPE_TEST_CONNECTOR.business_label}`;
-
-function fail(message) {
-  console.error(`provision-merchants: ${message}`);
-  process.exit(1);
+let activeRecorder = null;
+export function setFixtureRecorder(recorder) { activeRecorder = recorder; }
+async function fixtureFetch(url, options = {}) {
+  const match = /\/(?:accounts|account|api_keys)\/([^/?]+)/.exec(url);
+  let body = {};
+  try { body = JSON.parse(options.body || "{}"); } catch (_) { /* optional body */ }
+  const merchantId = match?.[1] || body.merchant_id || null;
+  const operation = `${options.method || "GET"}_${new URL(url).pathname.replaceAll("/", "_")}`;
+  return recordedFetch(activeRecorder,url,options,{ flow_id: `${activeRecorder?.runId || "fixture"}:${merchantId || new URL(url).pathname}`, merchant_id: merchantId, operation, role: "fixture" });
 }
+function fail(message) { throw new Error(`provision-merchants: ${message}`); }
 
 function resolvePath(p) {
   return path.resolve(process.cwd(), p);
@@ -126,8 +124,7 @@ function sleep(ms) {
 // Config
 // ---------------------------------------------------------------------------
 
-function loadConfig() {
-  const configPath = process.env.PROVISION_CONFIG || "./provision-config.json";
+export function loadConfig(configPath = process.env.PROVISION_CONFIG || "./provision-config.json") {
   let raw;
   try {
     raw = readFileSync(resolvePath(configPath), "utf8");
@@ -136,17 +133,28 @@ function loadConfig() {
   }
   let cfg;
   try {
-    cfg = JSON.parse(raw);
+    cfg = JSON.parse(raw,(_key,value) => {
+      if (typeof value !== "string") return value;
+      const reference = /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(value);
+      if (!reference) return value;
+      if (!process.env[reference[1]]) throw new Error(`Environment variable ${reference[1]} is required`);
+      return process.env[reference[1]];
+    });
   } catch (error) {
     fail(`config at "${configPath}" is not valid JSON: ${error.message}`);
   }
   if (!cfg.router) fail("router is required");
   if (!cfg.admin_api_key) fail("admin_api_key is required");
   const merchantCount = Number(cfg.merchant_count);
-  if (!(merchantCount > 0)) fail("merchant_count must be a number > 0");
+  if (!Number.isSafeInteger(merchantCount) || merchantCount <= 0) fail("merchant_count must be a number > 0");
   const prefix = cfg.merchant_id_prefix || "loadtest_mix";
   if (!/^[A-Za-z0-9_]+$/.test(prefix)) fail("merchant_id_prefix must use only letters, digits and underscores");
-  const concurrency = Number(cfg.concurrency) || 20;
+  const concurrency = cfg.concurrency === undefined ? 20 : Number(cfg.concurrency);
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) fail("concurrency must be a positive integer");
+  if (!cfg.connector?.connector_account_details) fail("connector.connector_account_details is required");
+  const attempts = cfg.retry?.attempts ?? 3;
+  const backoff = cfg.retry?.backoff_ms ?? 500;
+  if (!Number.isSafeInteger(attempts) || attempts < 1 || !Number.isFinite(backoff) || backoff < 0) fail("retry attempts/backoff_ms are invalid");
   const output = cfg.output || "merchants.json";
   if (cfg.organization_id !== undefined && typeof cfg.organization_id !== "string") {
     fail("organization_id must be a string when set");
@@ -166,9 +174,11 @@ function loadConfig() {
     // have, or to pin the same org across manifest files/output paths.
     organization_id: cfg.organization_id || null,
     organization_name: cfg.organization_name || `${prefix} loadtest org`,
+    connector: { ...DEFAULT_CONNECTOR, ...cfg.connector },
+    superposition: cfg.superposition || null,
     retry: {
-      attempts: Number(cfg.retry?.attempts) || 3,
-      backoff_ms: Number(cfg.retry?.backoff_ms) || 500,
+      attempts,
+      backoff_ms: backoff,
     },
   };
 }
@@ -200,15 +210,14 @@ function loadManifest(manifestPath) {
 
 let writeChain = Promise.resolve();
 function scheduleWrite(manifestPath, manifest) {
-  const snapshot = manifest.slice();
+  const snapshot = structuredClone(manifest);
   writeChain = writeChain
-    .then(() => writeManifestAtomic(manifestPath, snapshot))
-    .catch((error) => console.error(`manifest write failed: ${error.message}`));
+    .then(() => writeManifestAtomic(manifestPath, snapshot));
   return writeChain;
 }
 async function writeManifestAtomic(manifestPath, manifest) {
   const tmpPath = `${manifestPath}.tmp`;
-  await writeFile(tmpPath, JSON.stringify(manifest, null, 2));
+  await writeFile(tmpPath, JSON.stringify(manifest, null, 2), { mode: 0o600 });
   await rename(tmpPath, manifestPath);
 }
 
@@ -238,6 +247,7 @@ async function withRetry(fn, retry, label) {
     try {
       return await fn();
     } catch (error) {
+      if (error.recordingFatal) throw error;
       lastError = error;
       if (attempt < retry.attempts) await sleep(retry.backoff_ms * attempt);
     }
@@ -293,7 +303,7 @@ function accountBody(merchantId, orgId) {
 }
 
 async function createOrganization(cfg) {
-  const res = await fetch(`${cfg.router}/organization`, {
+  const res = await fixtureFetch(`${cfg.router}/organization`, {
     method: "POST",
     headers: adminHeaders(cfg),
     body: JSON.stringify({ organization_name: cfg.organization_name }),
@@ -319,7 +329,8 @@ async function resolveOrganizationId(cfg, manifestPath) {
   }
   console.log(`no organization_id configured — creating one organization ("${cfg.organization_name}") for this batch...`);
   const org = await createOrganization(cfg);
-  await writeFile(cachePath, JSON.stringify({ organization_id: org.organization_id }, null, 2));
+  if (typeof org.organization_id !== "string" || !org.organization_id) throw new Error("organization response missing organization_id");
+  await writeFile(cachePath, JSON.stringify({ organization_id: org.organization_id }, null, 2),{ mode: 0o600 });
   console.log(`created organization ${org.organization_id} (cached at ${cachePath}) — every merchant will be created under it. Set "organization_id" in provision-config.json to pin or reuse this value explicitly.`);
   return org.organization_id;
 }
@@ -328,19 +339,23 @@ async function resolveOrganizationId(cfg, manifestPath) {
 // run that crashed between account creation and the manifest write) is
 // recovered via GET rather than treated as a failure, so reruns stay safe.
 async function createOrRecoverAccount(merchantId, orgId, cfg) {
-  const createRes = await fetch(`${cfg.router}/accounts`, {
+  const createRes = await fixtureFetch(`${cfg.router}/accounts`, {
     method: "POST",
     headers: adminHeaders(cfg),
     body: JSON.stringify(accountBody(merchantId, orgId)),
   });
   if (createRes.ok) return createRes.json();
-  const recoverRes = await fetch(`${cfg.router}/accounts/${merchantId}`, { headers: adminHeaders(cfg) });
-  if (recoverRes.ok) return recoverRes.json();
+  const recoverRes = await fixtureFetch(`${cfg.router}/accounts/${merchantId}`, { headers: adminHeaders(cfg) });
+  if (recoverRes.ok) {
+    const account = await recoverRes.json();
+    if (account.organization_id !== orgId) throw new Error(`recovered ${merchantId} belongs to another organization`);
+    return account;
+  }
   throw new Error(`account create failed (${createRes.status}) and recovery GET also failed (${recoverRes.status}): ${await safeText(createRes)}`);
 }
 
 async function createApiKey(merchantId, cfg) {
-  const res = await fetch(`${cfg.router}/api_keys/${merchantId}`, {
+  const res = await fixtureFetch(`${cfg.router}/api_keys/${merchantId}`, {
     method: "POST",
     headers: adminHeaders(cfg),
     body: JSON.stringify({ name: "scenario-mix loadtest", expiration: "2069-09-23T01:02:03.000Z" }),
@@ -356,11 +371,12 @@ async function createApiKey(merchantId, cfg) {
 // entry, not the admin key. Must use the key this merchant's createApiKey()
 // just minted.
 async function findExistingConnector(merchantId, apiKey, cfg) {
-  const res = await fetch(`${cfg.router}/account/${merchantId}/connectors`, { headers: merchantHeaders(apiKey) });
+  const label = `${cfg.connector.connector_name}_${cfg.connector.business_country}_${cfg.connector.business_label}`;
+  const res = await fixtureFetch(`${cfg.router}/account/${merchantId}/connectors`, { headers: merchantHeaders(apiKey) });
   if (!res.ok) throw new Error(`connector list failed (${res.status}): ${await safeText(res)}`);
   const list = await res.json();
-  const match = Array.isArray(list) ? list.find((c) => c.connector_label === CONNECTOR_LABEL) : null;
-  if (!match) throw new Error(`connector list has no "${CONNECTOR_LABEL}" entry to recover`);
+  const match = Array.isArray(list) ? list.find((c) => c.connector_label === label) : null;
+  if (!match) throw new Error(`connector list has no "${label}" entry to recover`);
   return match;
 }
 
@@ -370,10 +386,10 @@ async function findExistingConnector(merchantId, apiKey, cfg) {
 // 400 rather than upserting. Recover the existing merchant_connector_id
 // instead of failing, same spirit as createOrRecoverAccount above.
 async function createConnector(merchantId, apiKey, cfg) {
-  const res = await fetch(`${cfg.router}/account/${merchantId}/connectors`, {
+  const res = await fixtureFetch(`${cfg.router}/account/${merchantId}/connectors`, {
     method: "POST",
     headers: merchantHeaders(apiKey),
-    body: JSON.stringify(STRIPE_TEST_CONNECTOR),
+    body: JSON.stringify({ ...cfg.connector, profile_id: cfg.checkpoints[merchantId].profile_id }),
   });
   if (res.ok) return res.json();
   const body = await safeText(res);
@@ -384,7 +400,7 @@ async function createConnector(merchantId, apiKey, cfg) {
 }
 
 async function deleteAccount(merchantId, cfg) {
-  const res = await fetch(`${cfg.router}/accounts/${merchantId}`, { method: "DELETE", headers: adminHeaders(cfg) });
+  const res = await fixtureFetch(`${cfg.router}/accounts/${merchantId}`, { method: "DELETE", headers: adminHeaders(cfg) });
   if (!res.ok) throw new Error(`delete failed (${res.status}): ${await safeText(res)}`);
 }
 
@@ -403,7 +419,9 @@ async function mapLimit(items, limit, worker) {
       await worker(items[index], index);
     }
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  const results = await Promise.allSettled(Array.from({ length: Math.min(limit, items.length) }, run));
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure) throw failure.reason;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,9 +439,12 @@ async function provisionOne(index, cfg, existing, orgId) {
       throw new Error(`account response missing default_profile/publishable_key: ${JSON.stringify(account)}`);
     }
 
-    const apiKeyResp = await withRetry(() => createApiKey(merchantId, cfg), cfg.retry, `api_key ${merchantId}`);
+    const cached = cfg.checkpoints[merchantId];
+    const apiKeyResp = cached?.api_key ? cached : await withRetry(() => createApiKey(merchantId, cfg), cfg.retry, `api_key ${merchantId}`);
     if (!apiKeyResp.api_key) throw new Error(`api_key response missing api_key: ${JSON.stringify(apiKeyResp)}`);
 
+    cfg.checkpoints[merchantId] = { api_key: apiKeyResp.api_key, profile_id: profileId, publishable_key: publishableKey };
+    await scheduleWrite(cfg.checkpointPath, cfg.checkpoints);
     const connectorResp = await withRetry(() => createConnector(merchantId, apiKeyResp.api_key, cfg), cfg.retry, `connector ${merchantId}`);
     if (!connectorResp.merchant_connector_id) {
       throw new Error(`connector response missing merchant_connector_id: ${JSON.stringify(connectorResp)}`);
@@ -441,14 +462,21 @@ async function provisionOne(index, cfg, existing, orgId) {
       },
     };
   } catch (error) {
+    if (error.recordingFatal) throw error;
     return { status: "failed", merchantId, error: error.message };
   }
 }
 
-async function provision(cfg) {
+export async function provision(cfg) {
+  cfg.checkpointPath = `${resolvePath(cfg.output)}.checkpoints`;
+  cfg.checkpoints = existsSync(cfg.checkpointPath) ? JSON.parse(readFileSync(cfg.checkpointPath,"utf8")) : {};
   const manifestPath = resolvePath(cfg.output);
   const manifest = loadManifest(manifestPath);
   const existing = new Map(manifest.map((entry) => [entry.merchant_id, entry]));
+  const expectedIds = new Set(Array.from({ length: cfg.merchant_count },(_,index) => merchantIdFor(cfg,index)));
+  if (existing.size !== manifest.length || manifest.some((entry) => !expectedIds.has(entry.merchant_id) || !entry.api_key || !entry.profile_id || !entry.publishable_key || !entry.merchant_connector_id)) {
+    throw new Error("Existing fixture manifest has invalid, duplicate, or unexpected merchants; use a new output directory");
+  }
   const failures = [];
   let createdCount = 0;
   let skippedCount = 0;
@@ -457,33 +485,41 @@ async function provision(cfg) {
   console.log(`provisioning up to ${cfg.merchant_count} merchants under organization ${orgId} (${existing.size} already in manifest) at concurrency ${cfg.concurrency}...`);
 
   const indices = Array.from({ length: cfg.merchant_count }, (_, i) => i);
-  await mapLimit(indices, cfg.concurrency, async (index) => {
-    const result = await provisionOne(index, cfg, existing, orgId);
-    if (result.status === "skipped") {
-      skippedCount += 1;
-      return;
-    }
-    if (result.status === "created") {
-      manifest.push(result.entry);
-      existing.set(result.merchantId, result.entry);
-      createdCount += 1;
-      await scheduleWrite(manifestPath, manifest);
-      if (createdCount % 50 === 0) console.log(`created ${createdCount}...`);
-      return;
-    }
-    failures.push({ merchant_id: result.merchantId, error: result.error });
-    console.error(`FAILED ${result.merchantId}: ${result.error}`);
-  });
+  const bar = progress("Merchants", cfg.merchant_count);
+  let completed = 0;
+  try {
+    await mapLimit(indices, cfg.concurrency, async (index) => {
+      try {
+        const result = await provisionOne(index, cfg, existing, orgId);
+        if (result.status === "skipped") {
+          skippedCount += 1;
+          return;
+        }
+        if (result.status === "created") {
+          manifest.push(result.entry);
+          existing.set(result.merchantId, result.entry);
+          createdCount += 1;
+          await scheduleWrite(manifestPath, manifest);
+          return;
+        }
+        failures.push({ merchant_id: result.merchantId, error: result.error });
+        console.error(`FAILED ${result.merchantId}: ${result.error}`);
+      } finally {
+        bar.update(++completed, `created=${createdCount} reused=${skippedCount} failed=${failures.length}`);
+      }
+    });
+  } finally { bar.finish(); }
 
   await writeChain;
   if (failures.length) {
-    await writeFile(resolvePath("provision-failures.json"), JSON.stringify(failures, null, 2));
+    await writeFile(path.join(path.dirname(manifestPath), "provision-failures.json"), JSON.stringify(failures, null, 2));
   }
 
   console.log(`\ndone: created=${createdCount} skipped=${skippedCount} failed=${failures.length} total_in_manifest=${manifest.length}`);
   if (failures.length) {
-    console.log(`failures written to provision-failures.json — rerun this script to retry them (they were never added to the manifest, so they won't be skipped).`);
+    throw new Error(`${failures.length} fixtures failed; rerun to resume`);
   }
+  return { merchants: manifest, organization_id: orgId };
 }
 
 // ---------------------------------------------------------------------------
@@ -523,8 +559,16 @@ async function cleanup(cfg) {
 async function main() {
   const cfg = loadConfig();
   const mode = process.argv.includes("--mode=cleanup") ? "cleanup" : "provision";
-  if (mode === "cleanup") await cleanup(cfg);
-  else await provision(cfg);
+  const recorder = new FixtureRecorder(path.join(path.dirname(resolvePath(cfg.output)),"fixtures.sqlite"),{ kind: mode });
+  setFixtureRecorder(recorder);
+  try {
+    if (mode === "cleanup") await cleanup(cfg);
+    else await provision(cfg);
+    recorder.close();
+  } catch (error) { recorder.close(error); throw error; }
+  finally { setFixtureRecorder(null); }
 }
 
-main().catch((error) => fail(error.stack || error.message));
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });
+}

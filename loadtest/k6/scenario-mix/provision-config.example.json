@@ -1,10 +1,30 @@
 {
   "router": "http://127.0.0.1:8080",
-  "admin_api_key": "admin_api_key_here",
+  "admin_api_key": "${ROUTER_ADMIN_API_KEY}",
   "merchant_count": 1500,
   "merchant_id_prefix": "loadtest_mix",
   "concurrency": 20,
   "output": "merchants.json",
+  "connector": {
+    "connector_name": "stripe",
+    "connector_account_details": {
+      "auth_type": "HeaderKey",
+      "api_key": "${STRIPE_TEST_API_KEY}"
+    },
+    "test_mode": true,
+    "business_country": "US",
+    "business_label": "default"
+  },
+  "superposition": {
+    "endpoint": "http://127.0.0.1:8082",
+    "token": "${SUPERPOSITION_TOKEN}",
+    "organization_id": "localorg",
+    "workspace_id": "dev",
+    "refresh_interval_seconds": 300,
+    "defaults": {
+      "system.should_trigger_backwards_compatibility_inline": true
+    }
+  },
   "retry": {
     "attempts": 3,
     "backoff_ms": 500

@@ -17,8 +17,8 @@
     "duration_seconds": 60,
     "request_timeout_ms": 30000,
     "think_time_ms": 0,
-    "pre_allocated_vus_multiplier": 3,
-    "max_vus_multiplier": 10
+    "pre_allocated_vus_multiplier": 0.5,
+    "max_vus_multiplier": 2
   },
   "payment": {
     "amount": 1000,

@@ -25,6 +25,7 @@ import { sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
 import exec from "k6/execution";
 import encoding from "k6/encoding";
+import recorder from "./recording-client.js";
 
 // ---------------------------------------------------------------------------
 // Configuration loading and validation (fails fast, before any traffic)
@@ -42,6 +43,7 @@ const configPath = __ENV.SCENARIO_MIX_CONFIG || "./config.json";
 // --out web-dashboard=export=..., which are k6 CLI flags this script has no
 // control over; see README "Collecting everything into one output directory".
 const outputDir = __ENV.OUTPUT_DIR || "output";
+const recordingEnabled = Boolean(__ENV.SQLITE_RECORDER_REQUIRED) && !__ENV.RECORDING_DISABLED;
 
 function joinPath(dir, file) {
   if (!dir) return file;
@@ -462,16 +464,42 @@ function json(response) {
 }
 
 function requestParams(headers, operation) {
-  return { headers, timeout: `${requestTimeoutMs}ms`, redirects: 0, tags: { operation } };
+  return { headers, timeout: `${requestTimeoutMs}ms`, redirects: 0, tags: { operation, name: operation } };
 }
 
-function post(url, body, headers, operation) {
-  return http.post(url, JSON.stringify(body), requestParams(headers, operation));
+// VU-local flow context. Every request, including polling, passes through here.
+let flowContext = null;
+let lastEvent = null;
+function request(method, url, body, headers, operation) {
+  const started = Date.now();
+  let response;
+  let transportError;
+  let attemptId = null;
+  if (recordingEnabled) {
+    // Primitive arguments avoid constructing/exporting a second response object per call.
+    try { attemptId = recorder.begin(flowContext.flow_id,flowContext.merchant_id || null,operation,method,url,
+      body?.customer_id || flowContext.customer_id || null,body?.merchant_reference_id || null,
+      flowContext.payment_id || null,Number.isSafeInteger(body?.amount) ? body.amount : null,started); } catch (error) {
+      exec.test.abort(`SQLite recorder cannot begin request: ${error.message || error}`); throw error;
+    }
+  }
+  try {
+    response = http.request(method,url,body === null ? null : JSON.stringify(body),requestParams(headers,operation));
+  } catch (error) { transportError = error; }
+  if (!recordingEnabled) { if (transportError) throw transportError; return response; }
+  let record;
+  try { record = recorder.complete(attemptId,response || null,transportError?.message || ""); } catch (error) {
+    // runScenario catches ordinary flow errors; recorder failures must stop every VU.
+    exec.test.abort(`SQLite recording failed: ${error.message || error}`); throw error;
+  }
+  lastEvent = { attempt_id: attemptId, flow_id: flowContext.flow_id, operation, request_id: record.request_id };
+  if (record.entity_type === "customer" && record.customer_id) flowContext.customer_id = record.customer_id;
+  if (record.entity_type === "payment" && record.payment_id && record.role === "measured") flowContext.payment_id = record.payment_id;
+  if (transportError) throw transportError;
+  return response;
 }
-
-function get(url, headers, operation) {
-  return http.get(url, requestParams(headers, operation));
-}
+function post(url, body, headers, operation) { return request("POST",url,body,headers,operation); }
+function get(url, headers, operation) { return request("GET",url,null,headers,operation); }
 
 function apiKeyHeaders(merchant) {
   return {
@@ -578,6 +606,8 @@ function mitConfirmBody(merchant, customerId, savedPaymentMethodId, description)
 // and every console.error call below lands there as its own line instead of
 // the terminal — see README "Logging failures to a file".
 function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage) {
+  // SQLite preserves every failure. Per-flow terminal output can throttle a failure storm.
+  if (recordingEnabled && load.log_failures !== true) return;
   const record = {
     time: new Date().toISOString(),
     scenario: plan.name,
@@ -595,8 +625,7 @@ function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage) {
     record.status = response.status;
     record.url = response.url;
     record.error = response.error || undefined;
-    record.headers = response.headers;
-    record.body = response.body;
+    record.event = lastEvent;
   }
   if (errorMessage) record.error_message = errorMessage;
   console.error(JSON.stringify(record));
@@ -613,7 +642,7 @@ function failIteration(merchant, plan, startedAt, reason, phaseInfo, response, e
 // payment until the saved payment method surfaces (fixtures.js behavior).
 function findSavedPaymentMethod(merchant, paymentId) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    const response = http.get(`${routerUrl}/payments/${paymentId}`, requestParams(apiKeyHeaders(merchant), "baseline_poll"));
+    const response = get(`${routerUrl}/payments/${paymentId}`, apiKeyHeaders(merchant), "baseline_poll");
     const paymentMethodId = json(response).payment_method_id;
     if (paymentMethodId) return paymentMethodId;
     sleep(0.1);
@@ -634,6 +663,9 @@ export function runScenario() {
   // merchant, and so a merchant_pool run is a uniform-random pick over the
   // whole pool per iteration rather than per request.
   const merchant = pickMerchant();
+  flowContext = { flow_id: `${__ENV.SQLITE_RECORDER_RUN_ID || "unrecorded"}:${exec.scenario.name}:${__VU}:${exec.scenario.iterationInTest}`,
+    merchant_id: merchant.merchant_id, customer_id: null, payment_id: null };
+  lastEvent = null;
   // Never let an unexpected exception kill an iteration invisibly: k6 would
   // count it as complete with no success/failure recorded, silently
   // understating the failure rate.
@@ -845,7 +877,7 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
     if (listResponse.status >= 200 && listResponse.status < 300 && !token) {
       for (let attempt = 0; attempt < 50 && !token; attempt += 1) {
         sleep(0.1);
-        listResponse = http.get(`${routerUrl}/payments/${payment.payment_id}/client`, requestParams(sdkAuthHeaders(merchant, payment), "payment_method_list_poll"));
+        listResponse = get(`${routerUrl}/payments/${payment.payment_id}/client`, sdkAuthHeaders(merchant, payment), "payment_method_list_poll");
         token = json(listResponse).customer_payment_methods?.[0]?.payment_token;
       }
     }
@@ -1110,6 +1142,7 @@ export function handleSummary(data) {
   injectAchievedTpsMetrics(data);
   const header = `scenario-mix | config=${configPath} | ${loadDescription}`;
   const rows = [header, globalSummaryRow(data)];
+  if (!__ENV.RECORDING_DISABLED && __ENV.SQLITE_RECORDER_REQUIRED) rows.push(`recorder: ${JSON.stringify(recorder.stats())}`);
   if (phaseSchedule) {
     for (const plan of enabledPlans) rows.push(...rampSummaryRows(data, plan));
   } else {

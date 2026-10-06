@@ -1,0 +1,100 @@
+{
+  "output": "artifacts/local",
+  "fixtures": {
+    "router": "http://127.0.0.1:8080",
+    "admin_api_key": "${ROUTER_ADMIN_API_KEY}",
+    "merchant_id_prefix": "loadtest_local",
+    "concurrency": 20,
+    "connector": {
+      "connector_name": "stripe_test",
+      "connector_account_details": {
+        "auth_type": "HeaderKey",
+        "api_key": "local-test"
+      },
+      "test_mode": true,
+      "business_country": "US",
+      "business_label": "default"
+    },
+    "superposition": {
+      "endpoint": "http://127.0.0.1:8082",
+      "token": "${SUPERPOSITION_TOKEN}",
+      "organization_id": "localorg",
+      "workspace_id": "dev",
+      "refresh_interval_seconds": 300,
+      "defaults": {
+        "system.should_call_pm_modular_service": true,
+        "system.payment_method_integration_type": "pay_then_vault",
+        "vaulting.should_trigger_fingerprint_migration": true
+      }
+    },
+    "retry": {
+      "attempts": 3,
+      "backoff_ms": 500
+    }
+  },
+  "services": {
+    "router": "http://127.0.0.1:8080",
+    "modular_pm": "http://127.0.0.1:8081/v2"
+  },
+  "target_headers": {
+    "router": {},
+    "modular_pm": {}
+  },
+  "load": {
+    "total_rps": 10,
+    "duration_seconds": 60,
+    "request_timeout_ms": 30000,
+    "think_time_ms": 0,
+    "pre_allocated_vus_multiplier": 3,
+    "max_vus_multiplier": 10
+  },
+  "payment": {
+    "amount": 1000,
+    "currency": "USD",
+    "session_expiry": 900,
+    "card": {
+      "card_number": "4242424242424242",
+      "card_exp_month": "10",
+      "card_exp_year": "35",
+      "card_holder_name": "Load Test",
+      "card_cvc": "123"
+    },
+    "card_pool": [],
+    "metadata_update": {
+      "card_exp_month": "11",
+      "card_exp_year": "36",
+      "card_holder_name": "Updated Load Test"
+    }
+  },
+  "sdk": {
+    "wallets": []
+  },
+  "scenarios": [
+    {
+      "name": "mod_cit_off",
+      "merchant_path": "modular",
+      "scenario": "cit_off_session",
+      "weight": 50
+    },
+    {
+      "name": "nomod_sdk",
+      "merchant_path": "non_modular",
+      "scenario": "sdk_checkout",
+      "weight": 30
+    },
+    {
+      "name": "nomod_guest",
+      "merchant_path": "non_modular",
+      "scenario": "guest",
+      "weight": 20
+    }
+  ],
+  "thresholds": {
+    "http_req_failed": [
+      "rate<0.01"
+    ],
+    "dropped_iterations": [
+      "count==0"
+    ]
+  }
+}

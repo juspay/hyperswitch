@@ -1,3 +1,50 @@
+# Two-step payment-flow load test
+
+Requires Node 24.19+. From the repository root, use the same configuration for either **single**
+(1 merchant) or **tenancy** (1,500 merchants):
+
+```bash
+# Once: build the recorded k6 binary and configure credentials.
+bash loadtest/k6/scenario-mix/recorder/build.sh
+cp loadtest/loadtest.config.example.json loadtest/loadtest.config.json
+# Set ROUTER_ADMIN_API_KEY and SUPERPOSITION_TOKEN; edit flags/load settings.
+
+node loadtest/loadtest.mjs fixtures single
+node loadtest/loadtest.mjs load single
+
+node loadtest/loadtest.mjs fixtures tenancy
+node loadtest/loadtest.mjs load tenancy
+```
+
+The config defaults to Router **8080**, PM **8081**, Superposition **8082**, and
+**10 payment flows/sec for 60 seconds**. `fixtures` creates merchant accounts,
+API keys, profiles and MCAs, applies configured workspace flags, waits for service
+refresh, and saves a ready manifest. It resumes when rerun. `load` uses that
+manifest, chooses merchants uniformly per iteration, and records every API attempt
+to SQLite. Tenancy TPS is the total across 1,500 merchants. Increase
+`load.total_rps` and `load.duration_seconds` in the config for larger runs.
+Tune VU multipliers to the full-flow latency; long polling or timeouts need more
+concurrent VUs. Default thresholds fail a run with dropped iterations or at least
+1% HTTP failures, while retaining its recorded responses for investigation.
+Load execution shows k6's live progress and prints a reconciliation command for
+its database when finished, including failed tests. Fixture setup shows progress
+for merchants, flag resolution, service refresh, and final verification. Redirected
+fixture output uses periodic progress lines instead of terminal redraws.
+The example uses the local `stripe_test` dummy connector; replace its configuration
+with your desired connector for external connector testing.
+
+Outputs go into ignored `loadtest/artifacts/local/{single,tenancy}/`; every load
+gets a fresh timestamped run directory. Add `--config /path/to/config.json` to
+either command to use another config. See
+[recording and reconciliation details](k6/scenario-mix/README.md).
+
+The supplied mix is 50% modular CIT off-session, 30% SDK checkout, and 20%
+non-modular guest. Workspace defaults enable PM modular calls, select
+`pay_then_vault`, and enable fingerprint migration. Changes to these defaults
+require rerunning `fixtures` for the selected mode before `load` will accept them.
+
+---
+
 ## Performance Benchmarking Setup
 
 The setup uses docker compose to get the required components up and running. It also handles running database migration

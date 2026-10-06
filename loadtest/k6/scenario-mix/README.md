@@ -14,7 +14,120 @@ state files, no deployment tooling required; all you need is k6, a running
 Router (and payment-method service for customer/modular scenarios), and
 merchant credentials.
 
-## Quick start
+## Recorded load workflow
+
+Requires Node **24.19+** and the custom k6 binary. Build with Go **1.24.4** and a C compiler
+(Clang on macOS, GCC on Linux; SQLite is bundled by the driver):
+
+```bash
+cd loadtest/k6/scenario-mix
+bash recorder/build.sh
+cp provision-config.example.json provision-config.json
+cp config.example.json config.json
+# Export ROUTER_ADMIN_API_KEY, STRIPE_TEST_API_KEY, SUPERPOSITION_TOKEN;
+# edit endpoints, flags, refresh interval, and the scenario mix.
+node run.mjs fixtures --config provision-config.json --output fixtures/
+node run.mjs load --config config.json --fixtures fixtures/ --output runs/run-001/
+node run.mjs reconcile --db runs/run-001/results.sqlite --csv payments.csv --output reconciliation.csv
+```
+
+Fixture setup creates/reuses the organization and merchant profiles, creates API
+keys and connector accounts, and checkpoints credentials between steps. Rerun the
+same command/output directory to resume; changed provisioning identity requires a
+new directory. Individual fixture failures make setup fail and keep its manifest
+unready. Customers, payment intents, and baseline saved-card payments remain part
+of the measured scenario iterations.
+
+`superposition` is optional: remove the block to leave flags alone. When present,
+`defaults` specifies existing workspace keys and values; values are PATCHed without
+changing their schemas. No merchant overrides are created. Every provisioned
+merchant/profile context is resolved before and after waiting
+`refresh_interval_seconds` (set it to the deployed services' longest polling
+interval). Conflicting overrides or a changing config version fail readiness.
+Additional resolution dimensions belong in `superposition.context`.
+`organization_id` in this block is the **Superposition tenant**, distinct from the
+organization created in Router. Readiness is a setup snapshot; configure fixtures
+again if external flags/credentials change before a run.
+
+Provisioning config strings of the form `${ENV_NAME}` are resolved from the
+environment. Manifests/checkpoints contain merchant credentials and are created
+with restricted file permissions. Store fixture/run output on local SSD and keep
+it outside version control. `--k6 /path/to/k6-sqlite` overrides the default binary.
+The legacy plain `k6 run scenario-mix.js` remains an **unrecorded** workflow.
+
+### SQLite data and completeness
+
+Provisioning records every attempt in `fixtures/fixtures.sqlite`. Each load
+creates a fresh `results.sqlite`; an existing run database is never overwritten.
+Both share the schema in `recorder/schema.sql`:
+
+- `request_events`: append-only API attempts, including polling and transport
+  errors, with run/attempt/flow IDs, merchant, operation, baseline/measured role,
+  entity fields, HTTP status, request ID, latency, and error message/body.
+- `customers`: customer ID, merchant reference, response metadata, and event link.
+- `payments`: payment/customer IDs, amount, latest observed payment status,
+  baseline/measured role, response metadata, and event link. Failed creates without
+  IDs remain in the event table. Responses without a status preserve the last
+  known status. Successful raw bodies and request headers/card data are not stored.
+- `runs`: recording completeness, persisted/enqueued counts, configuration hashes,
+  Superposition version, and recorder queue/commit statistics. Queue statistics are
+  also emitted every 10 seconds during load.
+
+The native recorder uses one writer per generator, WAL + `synchronous=FULL`,
+native k6 response access with cached JSON, prepared inserts/upserts,
+operation-level HTTP metric names to avoid unique-URL
+cardinality, batches of 1,000 events or 50 ms, and a queue bounded by
+64 MiB or 100,000 events (including pending requests). HTTP latencies measure only
+the target calls; total-flow timing includes recorder handoff. Queue exhaustion or
+write failure stops the whole test and leaves an incomplete run. Graceful shutdown
+drains accepted events and records interrupted attempts; forced k6 termination may
+lose buffered responses and always leaves the run incomplete. This is buffered
+recording, so enqueueing is not a durability acknowledgment.
+
+Reconciliation accepts a streamed CSV with exactly `payment_id,status` columns
+(quoted CSV supported). Output reports `match`, `mismatch`, `missing`, `duplicate`,
+and `conflicting_duplicate` per row. It compares the recorded status exactly,
+without fetching final status from the server. A non-2xx response is represented
+separately by `api_status_code`; it is not a payment status. Exit codes: 0 clean,
+2 discrepancies, 1 invalid input/runtime failure. Incomplete databases require
+`--allow-incomplete`; databases containing multiple runs require `--run-id`.
+
+### Capacity validation
+
+`load.total_rps` counts **payment flows/sec**, not HTTP requests/sec. For 2,000
+flows/sec use `total_rps: 2000`, `duration_seconds: 1800`. Size the existing VU
+multipliers from observed full-flow duration; polling can greatly increase both
+concurrency and event rate. The script fallback preallocation multiplier of 3 may allocate 6,000 VUs at this
+rate. The example explicitly uses 0.5 and max multiplier 2; tune them for your
+full-flow latency and polling behavior.
+
+```bash
+node --test test/*.test.mjs
+K6_SQLITE_BINARY="$PWD/bin/k6-sqlite" node --test test/*.test.mjs
+(cd recorder && go test -race ./...)
+(cd recorder && go test -run '^$' -bench BenchmarkWriter -benchtime=20000x)
+# Local HTTP mock: recorded/unrecorded comparison, including polling paths.
+node benchmark.mjs --rps 2000 --seconds 30 --output runs/mock-benchmark/
+# Longer local soak (still a mock, not service-capacity validation):
+node benchmark.mjs --rps 2000 --seconds 1800 --output runs/mock-soak/
+```
+
+For target-environment acceptance, run the configured mix for 30 minutes, require
+zero recording gaps and stable queue depth, report offered flow rate versus actual
+successful TPS and dropped iterations, and compare generator CPU with recording
+on/off. Target under 5% added CPU; the benchmark report flags failures rather than
+assuming this target is met. Polling-delay tests must be included: a saved-card
+iteration can issue up to 50 baseline GETs plus 50 token-list GETs.
+
+Local validation on an Apple M3 Pro sustained 2,000 offered flows/sec for 30
+seconds, with 2,000.2 successful flows/sec, 288,034 persisted attempts, zero gaps,
+and zero dropped iterations. Peak backlog was 720 events / 403,384 bytes. Added
+generator CPU was **25.1%**, so the under-5% acceptance target is **not met**.
+The isolated writer benchmark with representative fields reached about 90,753
+events/sec. These mock results do not replace the 30-minute target-environment
+test, which remains unverified.
+
+## Quick start (unrecorded)
 
 ```bash
 cd loadtest/k6/scenario-mix
@@ -559,7 +672,7 @@ Without thresholds the run always exits 0.
 
 To load-test against many merchants instead of one (see `merchant_pool`
 above), first create them with `provision-merchants.mjs` — a plain Node.js
-script (Node 18+, zero dependencies), **not** a k6 script. Merchant creation
+script (Node 24.19+, built-in SQLite), **not** a k6 script. Merchant creation
 is one-time admin orchestration, not traffic: it makes a handful of
 sequential admin-API calls per merchant, needs to persist progress
 incrementally so a crash doesn't lose everything, and must never run inside
@@ -587,10 +700,8 @@ For each merchant (default 1500, configurable) it calls, in order: `POST
 `default_profile` and `publishable_key` are used directly, no separate
 business-profile call needed; `POST /api_keys/{merchant_id}` for a scoped API
 key; `POST /account/{merchant_id}/connectors` to attach a **Stripe test-mode
-connector** so payments actually authorize (credentials are hardcoded near
-the top of the script rather than read from config — replace
-`STRIPE_TEST_CONNECTOR.connector_account_details.api_key` with a real test
-secret key before running). Successful merchants are appended to
+connector** so payments actually authorize (credentials and connector shape
+come from `connector` in provisioning config). Successful merchants are appended to
 `merchants.json` (`{ merchant_id, api_key, publishable_key, profile_id,
 merchant_connector_id }` per entry) — this is the file `merchant_pool.file`
 in `scenario-mix.js`'s config points at.
@@ -606,7 +717,7 @@ before the api_key/connector steps or before the manifest write), the script
 recovers it via `GET /accounts/{merchant_id}` instead of failing.
 
 Merchants that fail after retries are logged to `provision-failures.json`
-and skipped rather than aborting the batch — rerun the script to retry them
+and make provisioning exit unsuccessfully after the batch — rerun the script to retry them
 (they were never added to the manifest, so they aren't skipped).
 
 **Cleanup:** `node provision-merchants.mjs --mode=cleanup` deletes every
@@ -635,7 +746,8 @@ overrides the default `./provision-config.json`, same convention as
 
 **Do not commit `provision-config.json` or `merchants.json`** — the former
 holds the admin API key, the latter a live API key *per merchant* (1500 of
-them at full scale). Both are gitignored.
+them at full scale). Both are gitignored. The recorded workflow above also stores
+API-key checkpoints and gates load execution on a ready manifest.
 
 ## Finding maximum RPS
 
@@ -886,14 +998,17 @@ below.)
 
 The `scenario_failure_X[_pN]` counters (and the summary's `failure` column)
 tell you *how many* iterations failed and *why* in aggregate (the `reason`
-tag), but not the detail behind any individual failure. For that,
+tag), but not the detail behind any individual failure.
+The recorded command stores all failures in SQLite and uses counters in its
+summary. Set `load.log_failures: true` to additionally print compact event references
+while debugging; leave it disabled at high load. The unrecorded
 `scenario-mix.js` logs one JSON record per failed iteration via
 `console.error` — scenario name, merchant path, phase (ramp mode), VU,
 iteration number, the same `reason` string used in the counters, and, when
 the failure came from an HTTP call, that response's status, URL, connector/
-network error, full response headers, and the full, untruncated response
-body — so a failed confirm's exact connector error message is always
-there, however long.
+network error, and a compact event reference. Full non-2xx response bodies
+are stored in SQLite by the recorded workflow; they are not duplicated in console
+output.
 
 k6 VU code can't write files directly — `open()` is read-only and only
 usable during init — so getting these into a file means redirecting k6's own
@@ -906,11 +1021,8 @@ K6_CONSOLE_OUTPUT=failures.log SCENARIO_MIX_CONFIG=config.json k6 run scenario-m
 ```
 
 Only failures go to `failures.log` — the end-of-run table still prints to
-the terminal as usual. Each line looks like:
-
-```
-time="2026-09-08T13:29:10+05:30" level=error msg="{\"time\":\"2026-09-08T07:59:10.867Z\",\"scenario\":\"mod_cit_off\",\"merchant_path\":\"modular\",\"scenario_type\":\"cit_off_session\",\"phase\":2,\"vu\":6,\"iteration\":14,\"reason\":\"payment_confirm_400_failed\",\"status\":400,\"url\":\"http://127.0.0.1:8080/payments/pay_.../confirm\",\"headers\":{\"Content-Type\":\"application/json\",\"X-Request-Id\":\"...\"},\"body\":\"{...}\"}"
-```
+the terminal as usual. Each failure record includes an `event` object with `attempt_id`, `flow_id`,
+`operation`, and `request_id`, linking it to the SQLite event history.
 
 k6 wraps each record in its own log line (`time=... level=error msg="..."`)
 with the JSON escaped inside `msg`; pull it back out with `jq`, e.g.
@@ -926,7 +1038,7 @@ terminal interleaved with k6's own progress output instead.
 | Purpose | Regression-grade per-scenario benchmarks with fixture isolation | Quick mixed-traffic characterization of a running stack |
 | Iterations | Fixture stage pre-creates payments; measured stage confirms only | Fully self-contained; create + confirm inline |
 | Load shape | Ramps (start → target with steps and idle gaps) | Flat RPS per entry, or stepped ramp with per-phase metrics |
-| Environment | Deploys/configures services, merchants, Superposition | Nothing provisioned; existing credentials only |
+| Environment | Deploys/configures services, merchants, Superposition | Fixture command provisions merchants and Superposition; services must already run |
 
 Both honor the same scenario definitions; if you add a flow to
 `runner/lib/scenarios.js`, mirror it in the `SCENARIOS` table at the top of
