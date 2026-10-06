@@ -2,9 +2,13 @@ use hyperswitch_domain_models::mandates;
 pub mod access_token;
 pub mod conditional_configs;
 pub mod customers;
+#[cfg(feature = "olap")]
+pub mod filters;
 pub mod flows;
 pub mod gateway;
 pub mod helpers;
+#[cfg(feature = "olap")]
+pub mod list;
 pub mod operations;
 pub mod session_token;
 
@@ -34,8 +38,6 @@ pub mod payment_methods;
 #[cfg(feature = "v2")]
 use std::future;
 
-#[cfg(feature = "olap")]
-use api_models::admin::MerchantConnectorInfo;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::{
@@ -88,8 +90,6 @@ use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
 pub use session_operation::payments_session_core;
-#[cfg(feature = "olap")]
-use strum::IntoEnumIterator;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
@@ -893,19 +893,6 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    operation
-        .to_domain()?
-        .create_payment_method(
-            state,
-            &req,
-            platform,
-            &mut payment_data,
-            customer.as_ref(),
-            &business_profile,
-            &feature_config,
-        )
-        .await?;
-
     let connector_customer_map = customer
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
@@ -980,6 +967,19 @@ where
     .await?;
 
     payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            platform,
+            &mut payment_data,
+            customer.as_ref(),
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     let (connector, debit_routing_output) = debit_routing::perform_debit_routing(
         &operation,
@@ -11000,529 +11000,6 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub async fn list_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
-    constraints: api::PaymentListConstraints,
-) -> RouterResponse<api::PaymentListResponse> {
-    let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let db = state.store.as_ref();
-    let payment_intents = helpers::filter_by_constraints(
-        &state,
-        &(constraints, profile_id_list).try_into()?,
-        processor_merchant_id,
-        platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    let collected_futures = payment_intents.into_iter().map(|pi| {
-        async {
-            match db
-                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                    &pi.payment_id,
-                    processor_merchant_id,
-                    &pi.active_attempt.get_id(),
-                    // since OLAP doesn't have KV. Force to get the data from PSQL.
-                    storage_enums::MerchantStorageScheme::PostgresOnly,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-            {
-                Ok(pa) => Some(Ok((pi, pa))),
-                Err(error) => {
-                    if matches!(
-                        error.current_context(),
-                        errors::StorageError::ValueNotFound(_)
-                    ) {
-                        logger::warn!(
-                            ?error,
-                            "payment_attempts missing for payment_id : {:?}",
-                            pi.payment_id,
-                        );
-                        return None;
-                    }
-                    Some(Err(error))
-                }
-            }
-        }
-    });
-
-    //If any of the response are Err, we will get Result<Err(_)>
-    let pi_pa_tuple_vec: Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _> =
-        join_all(collected_futures)
-            .await
-            .into_iter()
-            .flatten() //Will ignore `None`, will only flatten 1 level
-            .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
-    //Will collect responses in same order async, leading to sorted responses
-
-    //Converting Intent-Attempt array to Response if no error
-    let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .into_iter()
-        .map(ForeignFrom::foreign_from)
-        .collect();
-
-    Ok(services::ApplicationResponse::Json(
-        api::PaymentListResponse {
-            size: data.len(),
-            data,
-        },
-    ))
-}
-
-#[cfg(all(feature = "v2", feature = "olap"))]
-pub async fn list_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    constraints: api::PaymentListConstraints,
-) -> RouterResponse<payments_api::PaymentListResponse> {
-    common_utils::metrics::utils::record_operation_time(
-        async {
-            let db: &dyn StorageInterface = state.store.as_ref();
-            let fetch_constraints = constraints.clone().into();
-            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
-                .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let data: Vec<api_models::payments::PaymentsListResponseItem> =
-                list.into_iter().map(ForeignFrom::foreign_from).collect();
-
-            let active_attempt_ids = db
-                .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while retrieving active_attempt_ids for merchant")?;
-
-            let total_count = if constraints.has_no_attempt_filters() {
-                i64::try_from(active_attempt_ids.len())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while converting from usize to i64")
-            } else {
-                let active_attempt_ids = active_attempt_ids
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<String>>();
-
-                db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
-                    &active_attempt_ids,
-                    constraints.connector,
-                    constraints.payment_method_type,
-                    constraints.payment_method_subtype,
-                    constraints.authentication_type,
-                    constraints.merchant_connector_id,
-                    constraints.card_network,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while retrieving total count of payment attempts")
-            }?;
-
-            Ok(services::ApplicationResponse::Json(
-                api_models::payments::PaymentListResponse {
-                    count: data.len(),
-                    total_count,
-                    data,
-                },
-            ))
-        },
-        &metrics::PAYMENT_LIST_LATENCY,
-        router_env::metric_attributes!((
-            "merchant_id",
-            platform.get_processor().get_account().get_id().clone()
-        )),
-    )
-    .await
-}
-
-#[cfg(all(feature = "v2", feature = "olap"))]
-pub async fn revenue_recovery_list_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    constraints: api::PaymentListConstraints,
-) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
-    common_utils::metrics::utils::record_operation_time(
-        async {
-            // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
-            let db: &dyn StorageInterface = state.store.as_ref();
-            let fetch_constraints = constraints.clone().into();
-            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
-                .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-            // Get all billing connector account IDs
-            let billing_connector_ids: Vec<_> = list
-                .iter()
-                .map(|(payment_intent, _)| {
-                    payment_intent.get_billing_merchant_connector_account_id()
-                })
-                .collect();
-
-            // Create futures for workflow lookups
-            let workflow_futures: Vec<_> = list
-                .iter()
-                .map(|(payment_intent, _)| get_workflow_entries(&state, &payment_intent.id))
-                .collect();
-
-            let billing_connector_futures: Vec<_> = billing_connector_ids
-                .into_iter()
-                .map(|billing_mca_id| {
-                    let platform_clone = platform.clone(); // Clone for each future
-                    async move {
-                        if let Some(billing_mca_id) = billing_mca_id {
-                            db.find_merchant_connector_account_by_id(
-                                &billing_mca_id,
-                                platform_clone.get_processor().get_key_store(),
-                            )
-                            .await
-                            .ok()
-                        } else {
-                            None
-                        }
-                    }
-                })
-                .collect();
-
-            let workflow_results = join_all(workflow_futures).await;
-            let billing_connector_results = join_all(billing_connector_futures).await;
-
-            let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> = list
-                .into_iter()
-                .zip(workflow_results)
-                .zip(billing_connector_results)
-                .map(
-                    |(
-                        ((payment_intent, payment_attempt), workflow_result),
-                        billing_connector_account,
-                    )| {
-                        let (calculate_workflow, execute_workflow) =
-                            workflow_result.unwrap_or((None, None));
-
-                        // Get retry threshold from billing connector account
-                        let max_retry_threshold = billing_connector_account
-                            .as_ref()
-                            .and_then(|mca| mca.get_retry_threshold())
-                            .unwrap_or(0); // Default fallback
-
-                        // Use custom mapping function
-                        map_to_recovery_payment_item(
-                            payment_intent,
-                            payment_attempt,
-                            calculate_workflow,
-                            execute_workflow,
-                            max_retry_threshold.try_into().unwrap_or(0),
-                        )
-                    },
-                )
-                .collect();
-
-            let active_attempt_ids = db
-                .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while retrieving active_attempt_ids for merchant")?;
-
-            let total_count = if constraints.has_no_attempt_filters() {
-                i64::try_from(active_attempt_ids.len())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while converting from usize to i64")
-            } else {
-                let active_attempt_ids = active_attempt_ids
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<String>>();
-
-                db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
-                    &active_attempt_ids,
-                    constraints.connector,
-                    constraints.payment_method_type,
-                    constraints.payment_method_subtype,
-                    constraints.authentication_type,
-                    constraints.merchant_connector_id,
-                    constraints.card_network,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while retrieving total count of payment attempts")
-            }?;
-
-            Ok(services::ApplicationResponse::Json(
-                api_models::payments::RecoveryPaymentListResponse {
-                    count: data.len(),
-                    total_count,
-                    data,
-                },
-            ))
-        },
-        &metrics::PAYMENT_LIST_LATENCY,
-        router_env::metric_attributes!((
-            "merchant_id",
-            platform.get_processor().get_account().get_id().clone()
-        )),
-    )
-    .await
-}
-
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub async fn apply_filters_on_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    _profile_id_list: Option<Vec<id_type::ProfileId>>,
-    constraints: api::PaymentListFilterConstraints,
-) -> RouterResponse<api::PaymentListResponseV2> {
-    common_utils::metrics::utils::record_operation_time(
-        async {
-            let db: &dyn StorageInterface = state.store.as_ref();
-            let fetch_constraints = constraints.clone().into();
-            let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
-                .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let data: Vec<api::PaymentsResponse> =
-                list.into_iter().map(ForeignFrom::foreign_from).collect();
-
-            let active_attempt_ids = db
-                .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
-
-            let total_count = if constraints.has_no_attempt_filters() {
-                i64::try_from(active_attempt_ids.len())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while converting from usize to i64")
-            } else {
-                db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
-                    &active_attempt_ids,
-                    constraints.connector,
-                    constraints.payment_method,
-                    constraints.payment_method_type,
-                    constraints.authentication_type,
-                    constraints.merchant_connector_id,
-                    constraints.card_network,
-                    constraints.card_discovery,
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-            }?;
-
-            Ok(services::ApplicationResponse::Json(
-                api::PaymentListResponseV2 {
-                    count: data.len(),
-                    total_count,
-                    data,
-                },
-            ))
-        },
-        &metrics::PAYMENT_LIST_LATENCY,
-        router_env::metric_attributes!((
-            "merchant_id",
-            platform.get_processor().get_account().get_id().clone()
-        )),
-    )
-    .await
-}
-
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub async fn get_filters_for_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    time_range: common_utils::types::TimeRange,
-) -> RouterResponse<api::PaymentListFilters> {
-    let db = state.store.as_ref();
-    let pi = db
-        .filter_payment_intents_by_time_range_constraints(
-            platform.get_processor().get_account().get_id(),
-            &time_range,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    let filters = db
-        .get_filters_for_payments(
-            pi.as_slice(),
-            platform.get_processor().get_account().get_id(),
-            // since OLAP doesn't have KV. Force to get the data from PSQL.
-            storage_enums::MerchantStorageScheme::PostgresOnly,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    Ok(services::ApplicationResponse::Json(
-        api::PaymentListFilters {
-            connector: filters.connector,
-            currency: filters.currency,
-            status: filters.status,
-            payment_method: filters.payment_method,
-            payment_method_type: filters.payment_method_type,
-            authentication_type: filters.authentication_type,
-        },
-    ))
-}
-
-#[cfg(feature = "olap")]
-pub async fn get_payment_filters(
-    state: SessionState,
-    platform: domain::Platform,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
-) -> RouterResponse<api::PaymentListFiltersV2> {
-    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(
-            state,
-            platform.get_processor().clone(),
-            profile_id_list,
-        )
-        .await?
-    {
-        data
-    } else {
-        return Err(errors::ApiErrorResponse::InternalServerError.into());
-    };
-
-    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
-    let mut payment_method_types_map: HashMap<
-        enums::PaymentMethod,
-        HashSet<enums::PaymentMethodType>,
-    > = HashMap::new();
-
-    // populate connector map
-    merchant_connector_accounts
-        .iter()
-        .filter_map(|merchant_connector_account| {
-            merchant_connector_account
-                .connector_label
-                .as_ref()
-                .map(|label| {
-                    let info = merchant_connector_account.to_merchant_connector_info(label);
-                    (merchant_connector_account.get_connector_name(), info)
-                })
-        })
-        .for_each(|(connector_name, info)| {
-            connector_map
-                .entry(connector_name.to_string())
-                .or_default()
-                .push(info);
-        });
-
-    // populate payment method type map
-    merchant_connector_accounts
-        .iter()
-        .flat_map(|merchant_connector_account| {
-            merchant_connector_account.payment_methods_enabled.as_ref()
-        })
-        .map(|payment_methods_enabled| {
-            payment_methods_enabled
-                .iter()
-                .filter_map(|payment_method_enabled| {
-                    payment_method_enabled
-                        .get_payment_method_type()
-                        .map(|types_vec| {
-                            (
-                                payment_method_enabled.get_payment_method(),
-                                types_vec.clone(),
-                            )
-                        })
-                })
-        })
-        .for_each(|payment_methods_enabled| {
-            payment_methods_enabled.for_each(
-                |(payment_method_option, payment_method_types_vec)| {
-                    if let Some(payment_method) = payment_method_option {
-                        payment_method_types_map
-                            .entry(payment_method)
-                            .or_default()
-                            .extend(payment_method_types_vec.iter().filter_map(
-                                |req_payment_method_types| {
-                                    req_payment_method_types.get_payment_method_type()
-                                },
-                            ));
-                    }
-                },
-            );
-        });
-
-    Ok(services::ApplicationResponse::Json(
-        api::PaymentListFiltersV2 {
-            connector: connector_map,
-            currency: enums::Currency::iter().collect(),
-            status: enums::IntentStatus::iter().collect(),
-            payment_method: payment_method_types_map,
-            authentication_type: enums::AuthenticationType::iter().collect(),
-            card_network: enums::CardNetwork::iter().collect(),
-            card_discovery: enums::CardDiscovery::iter().collect(),
-        },
-    ))
-}
-
-#[cfg(feature = "olap")]
-pub async fn get_aggregates_for_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
-    time_range: common_utils::types::TimeRange,
-) -> RouterResponse<api::PaymentsAggregateResponse> {
-    let db = state.store.as_ref();
-    let intent_status_with_count = db
-        .get_intent_status_with_count(
-            platform.get_processor().get_account().get_id(),
-            profile_id_list,
-            &time_range,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    let mut status_map: HashMap<enums::IntentStatus, i64> =
-        intent_status_with_count.into_iter().collect();
-    for status in enums::IntentStatus::iter() {
-        status_map.entry(status).or_default();
-    }
-
-    Ok(services::ApplicationResponse::Json(
-        api::PaymentsAggregateResponse {
-            status_with_count: status_map,
-        },
-    ))
-}
-
 #[cfg(feature = "v1")]
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
@@ -15193,6 +14670,7 @@ async fn store_external_surcharge_in_redis(
 fn build_surcharge_response(
     surcharge_amount: MinorUnit,
     currency: storage_enums::Currency,
+    surcharge_percentage: Option<f64>,
 ) -> api_models::payment_methods::SurchargeDetailsResponse {
     let surcharge_f64 = currency
         .to_currency_base_unit_asf64(surcharge_amount.get_amount_as_i64())
@@ -15203,6 +14681,7 @@ fn build_surcharge_response(
         display_surcharge_amount: surcharge_f64,
         display_tax_on_surcharge_amount: 0.0,
         display_total_surcharge_amount: surcharge_f64,
+        surcharge_percentage,
     }
 }
 
@@ -15285,7 +14764,11 @@ async fn calculate_external_surcharge(
                         .attach_printable(
                             "eligibility: failed to set external_surcharge_applicable on payment_intent",
                         )?;
-                    Some(build_surcharge_response(surcharge_amount, currency))
+                    Some(build_surcharge_response(
+                        surcharge_amount,
+                        currency,
+                        surcharge_percentage,
+                    ))
                 }
                 None => None,
             }
