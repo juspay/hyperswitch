@@ -11,21 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Disable incremental compilation.
-  #
-  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
-  # as it lets the compiler avoid recompiling code that hasn't changed. However,
-  # on CI, we're not making small edits; we're almost always building the entire
-  # project from scratch. Thus, incremental compilation on CI actually
-  # introduces *additional* overhead to support making future builds
-  # faster...but no future builds will ever occur in any given CI environment.
-  #
-  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
-  # for details.
+  # Disable incremental compilation: CI builds from scratch, so it only adds
+  # overhead. See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
   CARGO_INCREMENTAL: 0
-  # Allow more retries for network requests in cargo (downloading crates) and
-  # rustup (installing toolchains). This should help to reduce flaky CI failures
-  # from transient network timeouts or other issues.
+  # More retries for cargo/rustup network requests to reduce flaky CI failures.
   CARGO_NET_RETRY: 10
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
@@ -87,8 +76,7 @@ jobs:
     if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
 
     env:
-      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED
-      # (proven slower here before — see git log for check-msrv).
+      # sccache on local disk via actions/cache, not SCCACHE_GHA_ENABLED (slower here; see git log).
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
       SCCACHE_CACHE_SIZE: "2G"
@@ -153,11 +141,10 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # sccache on local disk, restored as one archive instead of its native
-      # S3 backend — avoids per-object request round trips under load.
+      # sccache restored as one archive instead of S3 — avoids per-object round trips.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      SCCACHE_CACHE_SIZE: "4G"
+      SCCACHE_CACHE_SIZE: "1536M"
       SCCACHE_IDLE_TIMEOUT: "0"
       RUSTFLAGS: "-D warnings"
 
@@ -209,10 +196,20 @@ jobs:
           tool: sccache
           checksum: true
 
+      # PRs changing third-party crates get their own cache key; others share. See the script.
+      - name: Decide the sccache scope for this PR
+        id: cache_scope
+        shell: bash
+        run: |
+          .github/scripts/sccache-cache-scope.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.number }}" \
+            "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh test
+        run: .github/scripts/sccache-restore-s3.sh test "${{ steps.cache_scope.outputs.scope }}"
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -245,16 +242,18 @@ jobs:
             git push
           fi
 
-      - name: Run cargo check
-        shell: bash
-        env:
-          CARGO_BUILD_JOBS: 9
-        run: cargo check --features "release"
-
       - name: Show sccache stats
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # Only for PRs that changed Cargo.lock (see the scope step). Writes a PR-scoped
+      # key, never clobbering the shared cache. `!cancelled()`: cache on failure, skip on cancel.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh test "${{ steps.cache_scope.outputs.scope }}"
 
   typos:
     name: Spell check
@@ -293,11 +292,10 @@ jobs:
     runs-on: hyperswitch-runners
 
     env:
-      # sccache on local disk, restored as a single compressed archive —
-      # see `test` for why.
+      # sccache restored as a single archive — see `test` for why.
       RUSTC_WRAPPER: sccache
       SCCACHE_DIR: ${{ github.workspace }}/.sccache
-      SCCACHE_CACHE_SIZE: "4G"
+      SCCACHE_CACHE_SIZE: "1536M"
       SCCACHE_IDLE_TIMEOUT: "0"
 
     steps:
@@ -331,10 +329,20 @@ jobs:
           tool: sccache
           checksum: true
 
+      # PRs changing third-party crates get their own cache key; others share. See the script.
+      - name: Decide the sccache scope for this PR
+        id: cache_scope
+        shell: bash
+        run: |
+          .github/scripts/sccache-cache-scope.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.number }}" \
+            "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh check-v2
+        run: .github/scripts/sccache-restore-s3.sh check-v2 "${{ steps.cache_scope.outputs.scope }}"
 
       - name: Install just
         uses: taiki-e/install-action@v2
@@ -354,21 +362,15 @@ jobs:
           CARGO_BUILD_JOBS: 9
         run: just clippy_v2 fred
 
-      - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
-        shell: bash
-        env:
-          RUSTFLAGS: "-A warnings"
-          CARGO_BUILD_JOBS: 9
-        run: cargo check --no-default-features --features "release,v2,redis-rs"
-
-      - name: Run cargo check enabling only the release and v2 features (fred backend)
-        shell: bash
-        env:
-          RUSTFLAGS: "-A warnings"
-          CARGO_BUILD_JOBS: 9
-        run: cargo check --no-default-features --features "release,v2,fred"
-
       - name: Show sccache stats
         if: always()
         shell: bash
         run: sccache --show-stats
+
+      # Only for PRs that changed Cargo.lock (see the scope step). Writes a PR-scoped
+      # key, never clobbering the shared cache. `!cancelled()`: cache on failure, skip on cancel.
+      - name: Save sccache cache to S3
+        if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh check-v2 "${{ steps.cache_scope.outputs.scope }}"

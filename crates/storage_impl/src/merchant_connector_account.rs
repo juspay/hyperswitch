@@ -102,7 +102,7 @@ async fn list_all_by_merchant_id<T: DatabaseStore>(
             store,
             &list_cache::merchant_scope_key(merchant_id),
             find_call,
-            &cache::MCA_LIST_CACHE,
+            cache::CacheId::McaList,
         )
         .await
     }
@@ -140,7 +140,7 @@ async fn list_all_by_merchant_id_profile_id<T: DatabaseStore>(
             store,
             &list_cache::merchant_profile_scope_key(merchant_id, profile_id),
             find_call,
-            &cache::MCA_LIST_CACHE,
+            cache::CacheId::McaList,
         )
         .await
     }
@@ -457,7 +457,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 self,
                 &format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 find_call,
-                &cache::ACCOUNTS_CACHE,
+                cache::CacheId::Accounts,
             )
             .await
             .async_and_then(|item| async {
@@ -513,7 +513,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 self,
                 &format!("{}_{}", profile_id.get_string_repr(), connector_name),
                 find_call,
-                &cache::ACCOUNTS_CACHE,
+                cache::CacheId::Accounts,
             )
             .await
             .async_and_then(|item| async {
@@ -590,7 +590,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     merchant_connector_id.get_string_repr()
                 ),
                 find_call,
-                &cache::ACCOUNTS_CACHE,
+                cache::CacheId::Accounts,
             )
             .await?
             .convert(
@@ -638,7 +638,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 self,
                 id.get_string_repr(),
                 find_call,
-                &cache::ACCOUNTS_CACHE,
+                cache::CacheId::Accounts,
             )
             .await?
             .convert(

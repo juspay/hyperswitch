@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.06.0
+
+### Features
+
+- **ucs:** Add shadow_rollout_percent to control shadow traffic independently of primary ([#14504](https://github.com/juspay/hyperswitch/pull/14504)) ([`a5c2ef1`](https://github.com/juspay/hyperswitch/commit/a5c2ef1d8c31422aa572a5f4223c2a014c4ea6b2))
+
+### Bug Fixes
+
+- **connector:** [Worldpayxml] fall back to billing name when cardholder name is absent ([#14588](https://github.com/juspay/hyperswitch/pull/14588)) ([`59c3249`](https://github.com/juspay/hyperswitch/commit/59c3249bf29bc3800ce391de49fab00590c0cf9e))
+- **cypress:** Fixed payment account reference for stripe ([#14600](https://github.com/juspay/hyperswitch/pull/14600)) ([`063bf0c`](https://github.com/juspay/hyperswitch/commit/063bf0ca0fcb8574d9d8238c6df76420e37df1c7))
+
+**Full Changelog:** [`2026.10.02.0...2026.10.06.0`](https://github.com/juspay/hyperswitch/compare/2026.10.02.0...2026.10.06.0)
+
+- - -
+
+## 2026.10.02.0
+
+### Features
+
+- **connector:** [Datatrans] Google Pay / Apple Pay card-on-file mandate routing via UCS + feature matrix wallet entries ([#14530](https://github.com/juspay/hyperswitch/pull/14530)) ([`e2f120b`](https://github.com/juspay/hyperswitch/commit/e2f120b847b26313797c8656b8c42e24bfd98efc))
+- **router:** [Stripe] forward error_on_requires_action to UCS ([#14490](https://github.com/juspay/hyperswitch/pull/14490)) ([`8f900ad`](https://github.com/juspay/hyperswitch/commit/8f900adc04b374fa4ab7f33b868558bcc7811f92))
+- **superposition:** Require all scoping dimensions in proxy requests ([#14560](https://github.com/juspay/hyperswitch/pull/14560)) ([`cfbeb2b`](https://github.com/juspay/hyperswitch/commit/cfbeb2bedf523da301d7d7b0a8dcbeaf2263c696))
+
+### Bug Fixes
+
+- **payments:** Update apply_filters_on_payments to include profile_id… ([#14567](https://github.com/juspay/hyperswitch/pull/14567)) ([`c934d28`](https://github.com/juspay/hyperswitch/commit/c934d28c22cb7dbf3e6fcf58e39305556cc177ea))
+- **revenue-recovery:** Fix the token fetch for A/B routing ([#14539](https://github.com/juspay/hyperswitch/pull/14539)) ([`d206fe9`](https://github.com/juspay/hyperswitch/commit/d206fe969f54a1101062f71612652da8bb39f00b))
+
+### Refactors
+
+- **cache:** Make in-memory caches runtime-configurable and store-owned ([#14509](https://github.com/juspay/hyperswitch/pull/14509)) ([`0fd3020`](https://github.com/juspay/hyperswitch/commit/0fd3020ba7c905787fcf20655d3259bdb3ba1025))
+
+### Testing
+
+- **cypress:**
+  - Add platform refund list and filter coverage ([#14533](https://github.com/juspay/hyperswitch/pull/14533)) ([`15e707e`](https://github.com/juspay/hyperswitch/commit/15e707e770e9e6ec561278509bbe9cb26f1d6aa9))
+  - Reorder VaultTokenizationDisable spec before ExternalThreeDS ([#14558](https://github.com/juspay/hyperswitch/pull/14558)) ([`6d1a159`](https://github.com/juspay/hyperswitch/commit/6d1a159d256f6d39b5bb2ae86c07a722eeedc515))
+
+**Full Changelog:** [`2026.10.01.0...2026.10.02.0`](https://github.com/juspay/hyperswitch/compare/2026.10.01.0...2026.10.02.0)
+
+- - -
+
 ## 2026.10.01.0
 
 ### Features
