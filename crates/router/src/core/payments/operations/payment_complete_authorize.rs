@@ -18,6 +18,7 @@ use crate::{
             self, helpers, operations, CustomerDetails, OperationSessionGetters, PaymentAddress,
             PaymentData,
         },
+        utils::get_feature_config,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -52,7 +53,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
@@ -117,6 +118,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        let feature_config = get_feature_config(state, platform, dimensions).await;
+
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
             request.off_session,
@@ -141,7 +144,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request,
             mandate_type.to_owned(),
             platform,
-            payment_attempt.payment_method_id.clone(),
+            // Modular callbacks use cached tokens; skip legacy PM lookup.
+            if feature_config.is_payment_method_modular_allowed {
+                None
+            } else {
+                payment_attempt.payment_method_id.clone()
+            },
             payment_intent.customer_id.as_ref(),
             None,
         ))
