@@ -373,6 +373,9 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// The standardised code from the global status map record for this error.
+    /// Persisted in the `error_details` column, under `unified_details`.
+    pub standardised_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -1233,8 +1236,6 @@ impl PaymentAttempt {
                     // Populated later, when the payment is recorded back to the
                     // billing connector.
                     billing_connector_transaction_id: None,
-                    // Populated later, if the attempt fails.
-                    standardised_error_code: None,
                 }
             }),
         };
@@ -3048,8 +3049,6 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub charge_id: Option<String>,
     /// Transaction id returned by the billing connector at record-back time.
     pub billing_connector_transaction_id: Option<String>,
-    /// Standardised error code of this attempt, resolved from the GSM table when it fails.
-    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -3064,7 +3063,6 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id
                         .clone(),
-                    standardised_error_code: recovery_data.standardised_error_code,
                 });
         Self { revenue_recovery }
     }
@@ -3080,7 +3078,6 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id,
-                    standardised_error_code: recovery_data.standardised_error_code,
                 });
         Self { revenue_recovery }
     }

@@ -1337,6 +1337,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: None,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1664,6 +1665,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: None,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2001,6 +2003,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: None,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2297,6 +2300,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: None,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2549,6 +2553,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: None,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -2734,6 +2739,7 @@ impl
                     network_advice_code,
                     network_decline_code,
                     network_error_message,
+                    standardised_code: None,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {

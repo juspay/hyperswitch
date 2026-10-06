@@ -354,13 +354,12 @@ impl RevenueRecoveryPaymentIntentStatus {
                 )
                 .await;
 
-                let reopened_standardised_error_code = resolve_and_persist_standardised_error_code(
-                    state,
-                    &psync_response.payment_attempt,
-                    revenue_recovery_metadata.get_card_network(),
-                    revenue_recovery_payment_data,
-                )
-                .await;
+                // Written with the failed status by the payments core.
+                let reopened_standardised_error_code = psync_response
+                    .payment_attempt
+                    .error
+                    .as_ref()
+                    .and_then(|error| error.standardised_code);
                 Box::pin(reopen_calculate_workflow_on_payment_failure(
                     state,
                     &process_tracker,
@@ -761,15 +760,13 @@ impl Action {
     )
     .await;
 
-                        // Reopen calculate workflow on payment failure
-                        let reopened_standardised_error_code =
-                            resolve_and_persist_standardised_error_code(
-                                state,
-                                &payment_data.payment_attempt,
-                                revenue_recovery_metadata.get_card_network(),
-                                revenue_recovery_payment_data,
-                            )
-                            .await;
+                        // Reopen calculate workflow on payment failure. The code was written with
+                        // the failed status by the payments core.
+                        let reopened_standardised_error_code = payment_data
+                            .payment_attempt
+                            .error
+                            .as_ref()
+                            .and_then(|error| error.standardised_code);
                         Box::pin(reopen_calculate_workflow_on_payment_failure(
                             state,
                             process,
@@ -1088,24 +1085,13 @@ impl Action {
                     .await;
 
                     // Reopen calculate workflow on payment failure
-                    let card_network = payment_intent
-                        .feature_metadata
-                        .as_ref()
-                        .and_then(|feature_metadata| {
-                            feature_metadata.payment_revenue_recovery_metadata.clone()
-                        })
-                        .and_then(|metadata| metadata.convert_back().get_card_network());
-
                     // The synced attempt, not the `payment_attempt` passed in: that copy predates
-                    // the sync, so it may lack the error that the sync just recorded.
-                    let reopened_standardised_error_code =
-                        resolve_and_persist_standardised_error_code(
-                            state,
-                            &payment_data.payment_attempt,
-                            card_network,
-                            revenue_recovery_payment_data,
-                        )
-                        .await;
+                    // the sync, so it lacks the code written with the sync's status update.
+                    let reopened_standardised_error_code = payment_data
+                        .payment_attempt
+                        .error
+                        .as_ref()
+                        .and_then(|error| error.standardised_code);
                     Box::pin(reopen_calculate_workflow_on_payment_failure(
                         state,
                         process,
@@ -1682,63 +1668,48 @@ async fn persist_billing_connector_transaction_id(
     }
 }
 
-/// Resolves a failed attempt's standardised error code and records it on the attempt, so the
-/// code can be read from the attempt row as well as from the CALCULATE task's tracking data.
-async fn resolve_and_persist_standardised_error_code(
+/// Resolves the standardised code for a failed revenue recovery attempt's error and carries it on
+/// the status update, so the payments core writes the code in the same statement as the status.
+///
+/// Leaves the update untouched unless it marks a revenue recovery attempt as failed, so other
+/// payments make no GSM lookup. The code is resolved from the error carried by the update — the
+/// one the connector just returned — not from whatever error the attempt held before.
+pub async fn attach_standardised_code_to_error_update(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
-    card_network: Option<common_enums::CardNetwork>,
-    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-) -> Option<common_enums::StandardisedCode> {
-    // Nothing to record when the GSM table has no rule for this error.
-    let standardised_error_code =
-        retry_stats::events::resolve_standardised_error_code_from_attempt(
-            state,
-            payment_attempt,
-            card_network,
-        )
-        .await?;
-
-    // Merge rather than replace: the rest of the attempt's recovery metadata must survive.
-    let Some(mut feature_metadata) = payment_attempt.feature_metadata.clone() else {
-        logger::warn!(
-            "No feature metadata on the attempt; cannot store the standardised error code"
-        );
-        return Some(standardised_error_code);
-    };
-    let Some(revenue_recovery) = feature_metadata.revenue_recovery.as_mut() else {
-        logger::warn!(
-            "No revenue recovery metadata on the attempt; cannot store the standardised error code"
-        );
-        return Some(standardised_error_code);
-    };
-    revenue_recovery.standardised_error_code = Some(standardised_error_code);
-
-    let storage_scheme = revenue_recovery_payment_data
-        .merchant_account
-        .storage_scheme;
-    let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RecordBackUpdate {
-        feature_metadata: Some(feature_metadata),
-        updated_by: storage_scheme.to_string(),
+    payment_intent: &PaymentIntent,
+    payment_attempt_update: &mut hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate,
+) {
+    let hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
+        status,
+        error,
+        ..
+    } = payment_attempt_update
+    else {
+        return;
     };
 
-    if let Err(error) = state
-        .store
-        .update_payment_attempt(
-            &revenue_recovery_payment_data.key_store,
-            payment_attempt.clone(),
-            update,
-            storage_scheme,
-        )
-        .await
-    {
-        logger::error!(
-            ?error,
-            "Failed to persist the standardised error code on the payment attempt"
-        );
+    let is_revenue_recovery_attempt = payment_attempt
+        .feature_metadata
+        .as_ref()
+        .is_some_and(|feature_metadata| feature_metadata.revenue_recovery.is_some());
+    if !status.is_payment_terminal_failure() || !is_revenue_recovery_attempt {
+        return;
     }
 
-    Some(standardised_error_code)
+    let card_network = payment_intent
+        .get_revenue_recovery_metadata()
+        .and_then(|metadata| metadata.convert_back().get_card_network());
+
+    error.standardised_code = retry_stats::events::resolve_standardised_error_code(
+        state,
+        payment_attempt.connector.clone(),
+        Some(error.code.clone()),
+        Some(error.message.clone()),
+        error.network_decline_code.clone(),
+        card_network,
+    )
+    .await;
 }
 
 pub fn construct_invoice_record_back_router_data(

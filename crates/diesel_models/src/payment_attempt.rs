@@ -1090,6 +1090,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub error_details: Option<ErrorDetails>,
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -1286,6 +1287,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1338,6 +1340,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1386,6 +1389,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1432,6 +1436,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1474,6 +1479,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1522,6 +1528,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
         }
@@ -4813,9 +4820,6 @@ pub struct PaymentAttemptRecoveryData {
     /// Transaction id returned by the billing connector when the payment was recorded
     /// back to it. Used to issue an offline refund if a dispute is later lost.
     pub billing_connector_transaction_id: Option<String>,
-    /// Standardised error code of this attempt, resolved from the GSM table when the attempt
-    /// fails.
-    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);

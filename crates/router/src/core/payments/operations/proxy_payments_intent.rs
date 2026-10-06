@@ -490,8 +490,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
+        let mut payment_attempt_update = response_router_data
             .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+
+        // A failed revenue recovery attempt gets its error's standardised code in this same update.
+        crate::core::revenue_recovery::types::attach_standardised_code_to_error_update(
+            state,
+            &payment_data.payment_attempt,
+            &payment_data.payment_intent,
+            &mut payment_attempt_update,
+        )
+        .await;
 
         let updated_payment_intent = db
             .update_payment_intent(
