@@ -11,6 +11,7 @@ pub struct BlacklistEntryNew {
     pub rule_id: String,
     pub merchant_id: String,
     pub profile_id: String,
+    pub scope: serde_json::Value,
     pub reason: String,
     pub created_by: String,
     pub is_deleted: bool,
@@ -19,13 +20,14 @@ pub struct BlacklistEntryNew {
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
 #[diesel(
     table_name = alert_blacklist,
-    primary_key(rule_id, merchant_id, profile_id),
+    primary_key(rule_id, merchant_id, profile_id, scope),
     check_for_backend(diesel::pg::Pg)
 )]
 pub struct BlacklistEntry {
     pub rule_id: String,
     pub merchant_id: String,
     pub profile_id: String,
+    pub scope: serde_json::Value,
     pub reason: String,
     pub created_by: String,
     pub last_updated_at: PrimitiveDateTime,

@@ -47,6 +47,7 @@ impl BlacklistEntryNew {
                     .filter(dsl::rule_id.eq(self.rule_id.clone()))
                     .filter(dsl::merchant_id.eq(self.merchant_id.clone()))
                     .filter(dsl::profile_id.eq(self.profile_id.clone()))
+                    .filter(dsl::scope.eq(self.scope.clone()))
                     .select(dsl::is_deleted)
                     .first_async::<bool>(&connection)
                     .await
@@ -66,7 +67,7 @@ impl BlacklistEntryNew {
 
                 diesel::insert_into(alert_blacklist::table)
                     .values(self)
-                    .on_conflict((dsl::rule_id, dsl::merchant_id, dsl::profile_id))
+                    .on_conflict((dsl::rule_id, dsl::merchant_id, dsl::profile_id, dsl::scope))
                     .do_update()
                     .set((
                         dsl::reason.eq(diesel::upsert::excluded(dsl::reason)),
@@ -89,7 +90,7 @@ impl BlacklistEntryNew {
     ) -> StorageResult<BlacklistEntry> {
         diesel::insert_into(alert_blacklist::table)
             .values(self)
-            .on_conflict((dsl::rule_id, dsl::merchant_id, dsl::profile_id))
+            .on_conflict((dsl::rule_id, dsl::merchant_id, dsl::profile_id, dsl::scope))
             .do_update()
             .set((
                 dsl::reason.eq(diesel::upsert::excluded(dsl::reason)),
