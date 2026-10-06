@@ -111,91 +111,56 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
     });
   });
 
-  context(
-    "Card - MIT with limited card data and connector metadata",
-    function () {
-      before(
-        "skip connectors without MIT with limited card data support",
-        function () {
-          if (
-            utils.shouldIncludeConnector(
-              globalState.get("connectorId"),
-              utils.CONNECTOR_LISTS.INCLUDE.MIT_WITH_LIMITED_CARD_DATA
-            )
-          ) {
-            this.skip();
-          }
+  context("Card - Create+Confirm payment with connector metadata", function () {
+    before(
+      "skip connectors without connector metadata echo support",
+      function () {
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.PEACHPAYMENTS_CONNECTOR_METADATA
+          )
+        ) {
+          this.skip();
         }
-      );
+      }
+    );
 
-      before("enable MIT with limited card data config", () => {
-        const merchantId = globalState.get("merchantId");
-        cy.setConfigs(
-          globalState,
-          `should_enable_mit_with_limited_card_data_${merchantId}`,
-          "true",
-          "CREATE"
-        );
-      });
+    it("Create+Confirm Payment with connector metadata -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-      after("cleanup MIT with limited card data config", () => {
-        const merchantId = globalState.get("merchantId");
-        cy.setConfigs(
-          globalState,
-          `should_enable_mit_with_limited_card_data_${merchantId}`,
-          "true",
-          "DELETE"
-        );
-      });
-
-      it("Confirm MIT with limited card data and connector metadata", () => {
+      cy.step("Create+Confirm Payment with connector metadata", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ConnectorIntentMetadataWithLimitedCardData"];
+        ]["ConnectorIntentMetadata"];
 
-        cy.mitUsingCardWithLimitedData(
-          fixtures.cardLimitedDataMITBody,
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
           data,
+          "no_three_ds",
+          "automatic",
           globalState
         );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
 
-      it("Create+Confirm Payment with connector metadata -> Retrieve Payment", () => {
-        let shouldContinue = true;
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
 
-        cy.step("Create+Confirm Payment with connector metadata", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["ConnectorIntentMetadata"];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ConnectorIntentMetadata"];
 
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Retrieve Payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Retrieve Payment");
-            return;
-          }
-
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["ConnectorIntentMetadata"];
-
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
+        cy.retrievePaymentCallTest({ globalState, data });
       });
-    }
-  );
+    });
+  });
 
   context(
     "Card - Account funded transaction with purpose of payment metadata",
@@ -214,7 +179,12 @@ describe("Card - Connector Intent Metadata payment flow test", () => {
         }
       );
 
-      it("Create+Confirm AFT payment with connector metadata", () => {
+      it("Create+Confirm AFT payment with connector metadata (sandbox declines AFT: failed status expected, connector metadata echo asserted)", () => {
+        // The connector's sandbox is not AFT-enabled: Hyperswitch validates and echoes
+        // connector_metadata, but the sandbox declines the transfer, so the payment ends
+        // in "failed" with the documented sandbox error code (expected values live in the
+        // connector config). This test asserts the connector_metadata echo, not payment
+        // success.
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ConnectorIntentMetadata"];

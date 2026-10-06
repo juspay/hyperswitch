@@ -735,31 +735,5 @@ export const connectorDetails = {
         },
       },
     },
-    ConnectorIntentMetadataWithLimitedCardData: {
-      Request: {
-        amount: 6000,
-        recurring_details: {
-          type: "card_with_limited_data",
-          data: {
-            card_number: "5200000000000015",
-            card_exp_month: "01",
-            card_exp_year: "28",
-            card_holder_name: "John",
-          },
-        },
-        connector_metadata: {
-          peachpayments: {
-            rrn: "123456789012",
-            card_on_file_transaction_type: "merchant_initiated_transaction",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
   },
 };

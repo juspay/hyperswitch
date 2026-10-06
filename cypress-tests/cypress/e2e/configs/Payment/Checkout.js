@@ -1038,7 +1038,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -1055,6 +1054,10 @@ export const connectorDetails = {
           },
         },
       },
+      // Sandbox caveat: the Checkout.com sandbox is not AFT-enabled. Hyperswitch validates
+      // and echoes connector_metadata, but the sandbox declines the transfer with
+      // error_code "aft_processor_not_matched" (HTTP 200, status "failed"). The test
+      // asserts the connector_metadata echo — payment success is not expected here.
       Response: {
         status: 200,
         body: {
@@ -1099,7 +1102,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -1144,7 +1146,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",

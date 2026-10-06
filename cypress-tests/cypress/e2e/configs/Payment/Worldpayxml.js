@@ -653,7 +653,6 @@ export const connectorDetails = {
     ConnectorIntentMetadata: {
       Request: {
         amount: 6000,
-        description: "Test payment for AFT",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -671,7 +670,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -682,7 +680,6 @@ export const connectorDetails = {
             country: "US",
           },
         },
-        business_country: "US",
         connector_metadata: {
           worldpayxml: {
             funding_transaction_type: "funds_transfer_me_to_me",
@@ -690,6 +687,11 @@ export const connectorDetails = {
           },
         },
       },
+      // Sandbox caveat: the Worldpay sandbox test card does not permit AFT pull-from-card.
+      // Hyperswitch validates and echoes connector_metadata, but the sandbox declines the
+      // transfer with error_code "5" / "Pull from card transaction is not permitted"
+      // (HTTP 200, status "failed"). The test asserts the connector_metadata echo —
+      // payment success is not expected here.
       Response: {
         status: 200,
         body: {
@@ -718,7 +720,6 @@ export const connectorDetails = {
     ConnectorIntentMetadataMissing: {
       Request: {
         amount: 6000,
-        description: "Test payment for AFT",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -736,7 +737,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -747,7 +747,6 @@ export const connectorDetails = {
             country: "US",
           },
         },
-        business_country: "US",
         connector_metadata: null,
       },
       Response: {
@@ -764,7 +763,6 @@ export const connectorDetails = {
     ConnectorIntentMetadataMissingFundingTransactionType: {
       Request: {
         amount: 6000,
-        description: "Test payment for AFT",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -782,7 +780,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -793,7 +790,6 @@ export const connectorDetails = {
             country: "US",
           },
         },
-        business_country: "US",
         connector_metadata: {
           worldpayxml: {
             payment_purpose: "family_support",
@@ -815,7 +811,6 @@ export const connectorDetails = {
     ConnectorIntentMetadataMissingPaymentPurpose: {
       Request: {
         amount: 6000,
-        description: "Test payment for AFT",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -833,7 +828,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -844,7 +838,6 @@ export const connectorDetails = {
             country: "US",
           },
         },
-        business_country: "US",
         connector_metadata: {
           worldpayxml: {
             funding_transaction_type: "funds_transfer_me_to_me",
@@ -866,7 +859,6 @@ export const connectorDetails = {
     ConnectorIntentMetadataUnknownField: {
       Request: {
         amount: 6000,
-        description: "Test payment for AFT",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -884,7 +876,6 @@ export const connectorDetails = {
             type: "card",
             card_number: "4111111111111111",
           },
-          phone_number: "9123456789",
           address: {
             first_name: "Jane",
             last_name: "Doe",
@@ -895,7 +886,6 @@ export const connectorDetails = {
             country: "US",
           },
         },
-        business_country: "US",
         connector_metadata: {
           worldpayxml: {
             funding_transaction_type: "funds_transfer_me_to_me",
