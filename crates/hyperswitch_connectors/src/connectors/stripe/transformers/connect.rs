@@ -499,7 +499,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
             api_models::payouts::PayoutMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via GiftCard are not supported".to_string(),
-                    connector: "stripe",
+                    connector: "stripe".into(),
                 }
                 .into())
             }

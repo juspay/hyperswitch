@@ -243,7 +243,7 @@ impl<F> TryFrom<&EbanxRouterData<&PayoutsRouterData<F>>> for EbanxPayoutFulfillR
             }
             PayoutType::GiftCard => Err(ConnectorError::NotSupported {
                 message: "Payout Method Not Supported".to_string(),
-                connector: "Ebanx",
+                connector: "Ebanx".into(),
             })?,
         }
     }
@@ -341,7 +341,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for EbanxPayoutCancelRequest {
             }
             PayoutType::GiftCard => Err(ConnectorError::NotSupported {
                 message: "Payout Method Not Supported".to_string(),
-                connector: "Ebanx",
+                connector: "Ebanx".into(),
             })?,
         }
     }

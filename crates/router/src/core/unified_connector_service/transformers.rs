@@ -9556,8 +9556,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             gift_card_type: Some(
                                 payments_grpc::gift_card_payout_data::GiftCardType::PaysafeCard(
                                     payments_grpc::PaysafeCardData {
-                                        consumer_id: paysafe_card.consumer_id.clone(),
-                                        date_of_birth: paysafe_card.date_of_birth.clone(),
+                                        paysafecard_account_id: paysafe_card.paysafecard_id.clone(),
                                     },
                                 ),
                             ),

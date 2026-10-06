@@ -5312,7 +5312,7 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
             })?,
             enums::PayoutType::GiftCard => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutType is not supported".to_string(),
-                connector: "Cybersource",
+                connector: "Cybersource".into(),
             })?,
         }
     }

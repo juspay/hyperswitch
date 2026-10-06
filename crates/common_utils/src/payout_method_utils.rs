@@ -474,13 +474,9 @@ pub enum GiftCardAdditionalData {
 )]
 #[diesel(sql_type = Jsonb)]
 pub struct PaySafeCardAdditionalData {
-    /// The consumer's gift-card account identifier at PaysafeCard
-    /// (the "my paysafecard" consumer id)
-    #[schema(value_type = Option<String>, example = "consumer_12345")]
-    pub consumer_id: Option<Secret<String>>,
-    /// The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
-    #[schema(value_type = Option<String>, example = "1990-01-01")]
-    pub date_of_birth: Option<Secret<String>>,
+    /// Paysafecard account ID, used to identify the consumer's account for payout.
+    #[schema(value_type = String, example = "1234567890")]
+    pub paysafecard_id: Option<Secret<String>>,
 }
 
 impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {

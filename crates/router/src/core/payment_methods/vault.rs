@@ -1806,8 +1806,7 @@ impl Vaultable for api::GiftCardPayout {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::PaySafeCard(paysafe_card) => TokenizedGiftCardSensitiveValues {
-                consumer_id: paysafe_card.consumer_id.clone(),
-                date_of_birth: paysafe_card.date_of_birth.clone(),
+                paysafecard_id: paysafe_card.paysafecard_id.clone(),
             },
         };
 
@@ -1844,8 +1843,7 @@ impl Vaultable for api::GiftCardPayout {
             .attach_printable("Could not deserialize into gift card data value2")?;
 
         let gift_card = Self::PaySafeCard(api::PaysafeCardPayout {
-            consumer_id: value1.consumer_id,
-            date_of_birth: value1.date_of_birth,
+            paysafecard_id: value1.paysafecard_id,
         });
 
         let supp_data = SupplementaryVaultData {
@@ -1859,8 +1857,7 @@ impl Vaultable for api::GiftCardPayout {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedGiftCardSensitiveValues {
-    pub consumer_id: Option<hyperswitch_masking::Secret<String>>,
-    pub date_of_birth: Option<hyperswitch_masking::Secret<String>>,
+    pub paysafecard_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

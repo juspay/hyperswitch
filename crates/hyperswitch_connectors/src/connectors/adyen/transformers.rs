@@ -6435,7 +6435,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             })?,
             PayoutMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Gift card payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
                 error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
@@ -6491,7 +6491,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutFulfillR
             }
             storage_enums::PayoutType::GiftCard => Err(errors::ConnectorError::NotSupported {
                 message: "Gift card payout fulfillment is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
         }
     }

@@ -738,13 +738,9 @@ pub enum GiftCardPayout {
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct PaysafeCardPayout {
-    /// The consumer's gift-card account identifier at PaysafeCard
-    /// (the "my paysafecard" consumer id)
-    #[schema(value_type = Option<String>, example = "consumer_12345")]
-    pub consumer_id: Option<Secret<String>>,
-    /// The consumer's date of birth registered on the gift-card account (YYYY-MM-DD)
-    #[schema(value_type = Option<String>, example = "1990-01-01")]
-    pub date_of_birth: Option<Secret<String>>,
+    // Paysafecard account ID, used to identify the consumer's account for payout.
+    #[schema(value_type = String, example = "1234567890")]
+    pub paysafecard_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1725,11 +1721,9 @@ impl From<GiftCardPayout> for payout_method_utils::GiftCardAdditionalData {
     fn from(gift_card_data: GiftCardPayout) -> Self {
         match gift_card_data {
             GiftCardPayout::PaySafeCard(PaysafeCardPayout {
-                consumer_id,
-                date_of_birth,
+                paysafecard_id
             }) => Self::PaySafeCard(Box::new(payout_method_utils::PaySafeCardAdditionalData {
-                consumer_id,
-                date_of_birth,
+                paysafecard_id,
             })),
         }
     }

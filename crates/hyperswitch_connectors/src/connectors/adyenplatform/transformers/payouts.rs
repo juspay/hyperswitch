@@ -740,7 +740,7 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
             }
             enums::PayoutType::GiftCard => Err(report!(ConnectorError::NotSupported {
                 message: "Gift card payouts".to_string(),
-                connector: "Adyenplatform",
+                connector: "Adyenplatform".into(),
             })),
         }
     }
