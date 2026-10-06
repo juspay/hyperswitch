@@ -681,6 +681,239 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone + router_types::Capturable + 'static + serde::Serialize,
 {
+    // FIXTURE (never merge): one site per newly-armed entropy seam, each shaped
+    // so a replay MISSES it rather than being served a recorded value, and each
+    // value then used, so an arm that answers outside the shape its caller was
+    // promised fails the request here and names the seam. Values are logged
+    // rather than returned, so a new response field cannot read as a mismatch.
+    //
+    // Being an added call is not what makes a call miss. `loci_for` appends an
+    // unlocated floor address — identity, arguments and occurrence with no
+    // location — so a call at a brand-new site is addressed exactly like a
+    // recorded call of the same operation and is SERVED that call's value. Three
+    // different levers are used here instead, and which one applies is noted at
+    // each site. Every seam below is `deja::id` or `deja::time`, which
+    // `is_pure_boundary` excludes from the moved-arguments serve, so arguments
+    // the recording never carried leave a call with no address at all.
+    let deja_fixture = |what: String| {
+        report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(format!("FIXTURE: {what}"))
+    };
+
+    // GcmAes256::nonce. Argless, and a payment path encrypts columns through it,
+    // so the recording holds events for the operation and the first calls here
+    // are served them. The only lever left is the shared unlocated sequence: run
+    // it past the end of the recording's and the tail has nowhere to resolve.
+    // One nonce is drawn per `encode_message`, so the draw count is the loop
+    // count. 128 is chosen to clear a payment's recorded nonce count with room
+    // to spare; it is the one number in this fixture that is a guess rather than
+    // a property, and if a recording ever holds more than 128 nonce draws in one
+    // correlation this site stops missing and goes quiet rather than failing.
+    {
+        use common_utils::crypto::EncodeMessage;
+
+        const FIXTURE_NONCE_DRAWS: usize = 128;
+        const FIXTURE_NONCE_PLAINTEXT: &[u8] = b"deja fixture plaintext";
+        // The nonce is prepended and the tag appended by `seal_in_place_append_tag`.
+        const FIXTURE_SEALED_LEN: usize = 12 + FIXTURE_NONCE_PLAINTEXT.len() + 16;
+
+        let key = [0x5a_u8; 32];
+        for draw in 0..FIXTURE_NONCE_DRAWS {
+            let sealed = common_utils::crypto::GcmAes256
+                .encode_message(&key, FIXTURE_NONCE_PLAINTEXT)
+                .map_err(|err| {
+                    deja_fixture(format!("GcmAes256::nonce draw {draw} failed: {err:?}"))
+                })?;
+            if sealed.len() != FIXTURE_SEALED_LEN {
+                return Err(deja_fixture(format!(
+                    "GcmAes256::nonce draw {draw} sealed {} bytes, not {FIXTURE_SEALED_LEN}",
+                    sealed.len()
+                )));
+            }
+        }
+        logger::info!(
+            draws = FIXTURE_NONCE_DRAWS,
+            "FIXTURE: the request continued on these nonce draws"
+        );
+    }
+
+    // generate_cryptographically_secure_random_string. `length` is in the seam's
+    // inferred arguments and every caller in the tree asks for 64, 32 or the
+    // OIDC auth-code length, so 61 is an argument no recording carries: no
+    // address, miss at occurrence zero. `alphanumeric` promises exactly `length`
+    // characters drawn from the same 62 symbols `Alphanumeric` draws from.
+    const FIXTURE_SECURE_STRING_LEN: usize = 61;
+    let secure_string = common_utils::crypto::generate_cryptographically_secure_random_string(
+        FIXTURE_SECURE_STRING_LEN,
+    );
+    if secure_string.len() != FIXTURE_SECURE_STRING_LEN
+        || !secure_string.chars().all(|c| c.is_ascii_alphanumeric())
+    {
+        return Err(deja_fixture(format!(
+            "generate_cryptographically_secure_random_string({FIXTURE_SECURE_STRING_LEN}) gave {secure_string}"
+        )));
+    }
+
+    // secure_random_bytes. Private, and only `SeamedOsRng` draws through it, so
+    // the public path is RSA-OAEP encryption: the `rsa` crate fills a 32-byte
+    // seed through that RNG. One connector relay is the only caller in the tree,
+    // so a payment recording from any other connector holds no event for the
+    // operation at all — miss at occurrence zero, with no argument lever needed.
+    // The key is a throwaway minted for this fixture and only its public half is
+    // here; the modulus size is what makes the ciphertext length assertion a
+    // property rather than a guess.
+    {
+        use base64::Engine;
+
+        const FIXTURE_RSA_SPKI_DER_BASE64: &str = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnM+W4UGQFbGbjzf79yJ0wWIGiAiE2/ugNseo9Iz4u6IzDzE4rLSrfcK+elUJeHj3d/xfnd4J3jpa7gPlmaxVokfibLW7C+gGqLlpEgfddRqw0Pjt/wMr/AT8+p0X7NEtNFTbxPi7WZurR2BhkNfWAsizG44c/DB6TN/7GpbhSvuiKE74hyyI9anQNzHPU/tEpDyVEuaDKDR9zVXYkgnkPhQw4CF7s5CPq8/wAKqysw8hcGdvigMYCgIBLl6/yXl6IvhK2WgRChmrS602/2/2eb6OzX6w+4qZgqaXAUozX7f8zo3MZBiIl81jseggl3oCqB0OIKgmzatJcMhU83R4yQIDAQAB";
+        const FIXTURE_RSA_MODULUS_BYTES: usize = 256;
+
+        let spki_der = base64::engine::general_purpose::STANDARD
+            .decode(FIXTURE_RSA_SPKI_DER_BASE64)
+            .map_err(|err| deja_fixture(format!("the fixture SPKI did not decode: {err}")))?;
+        let ciphertext =
+            common_utils::crypto::encrypt_rsa_oaep_sha256(&spki_der, b"deja fixture oaep input")
+                .map_err(|err| deja_fixture(format!("encrypt_rsa_oaep_sha256 failed: {err:?}")))?;
+        if ciphertext.len() != FIXTURE_RSA_MODULUS_BYTES {
+            return Err(deja_fixture(format!(
+                "encrypt_rsa_oaep_sha256 produced {} bytes, not the {FIXTURE_RSA_MODULUS_BYTES} an RSA-2048 modulus holds",
+                ciphertext.len()
+            )));
+        }
+    }
+
+    // generate_aes256_key. Argless, and only merchant-account creation draws a
+    // key, so a payment recording holds no event for the operation: miss at
+    // occurrence zero. Thirty-two bytes is the return type rather than a
+    // property, so what is checked is that they are not the all-zero array a
+    // degenerate arm would hand back.
+    let aes256_key = services::generate_aes256_key()
+        .map_err(|err| deja_fixture(format!("generate_aes256_key failed: {err:?}")))?;
+    if aes256_key.iter().all(|byte| *byte == 0) {
+        return Err(deja_fixture(
+            "generate_aes256_key gave thirty-two zero bytes".to_string(),
+        ));
+    }
+
+    // encrypt_jwe. The payload's blake3 digest is in the seam's declared
+    // arguments, so a payload no recording carried has no address: miss at
+    // occurrence zero. The load-bearing part of the arm's shape is that a JWE
+    // has five dot-separated segments, which is what `mk_add_card_request_hs`
+    // indexes before anything reaches the wire, so that is what is checked. The
+    // public key is the same throwaway as above, so the live body would also
+    // succeed and the two sides differ in the value and not in whether they ran.
+    {
+        const FIXTURE_RSA_PUBLIC_KEY_PEM: &str = concat!(
+            "-----BEGIN PUBLIC KEY-----\n",
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnM+W4UGQFbGbjzf79yJ0\n",
+            "wWIGiAiE2/ugNseo9Iz4u6IzDzE4rLSrfcK+elUJeHj3d/xfnd4J3jpa7gPlmaxV\n",
+            "okfibLW7C+gGqLlpEgfddRqw0Pjt/wMr/AT8+p0X7NEtNFTbxPi7WZurR2BhkNfW\n",
+            "AsizG44c/DB6TN/7GpbhSvuiKE74hyyI9anQNzHPU/tEpDyVEuaDKDR9zVXYkgnk\n",
+            "PhQw4CF7s5CPq8/wAKqysw8hcGdvigMYCgIBLl6/yXl6IvhK2WgRChmrS602/2/2\n",
+            "eb6OzX6w+4qZgqaXAUozX7f8zo3MZBiIl81jseggl3oCqB0OIKgmzatJcMhU83R4\n",
+            "yQIDAQAB\n",
+            "-----END PUBLIC KEY-----\n",
+        );
+
+        let jwe = services::encryption::encrypt_jwe(
+            b"deja fixture jwe payload",
+            FIXTURE_RSA_PUBLIC_KEY_PEM,
+            services::encryption::EncryptionAlgorithm::A256GCM,
+            Some("deja-fixture"),
+        )
+        .await
+        .map_err(|err| deja_fixture(format!("encrypt_jwe failed: {err:?}")))?;
+        let segments = jwe.split('.').count();
+        if segments != 5 {
+            return Err(deja_fixture(format!(
+                "encrypt_jwe gave {segments} dot-separated segments, not five"
+            )));
+        }
+    }
+
+    // RecoveryCodes::generate_new_inner. Argless, and only two-factor enrolment
+    // draws codes, so a payment recording holds no event for the operation: miss
+    // at occurrence zero. The count is the property the arm has to get right —
+    // the caller zips eight codes into a row — and pairwise distinctness is the
+    // one a shape check would miss, which is why it is checked here and not just
+    // the length.
+    {
+        let codes = domain::user::RecoveryCodes::generate_new();
+        if codes.0.len() != crate::consts::user::RECOVERY_CODES_COUNT {
+            return Err(deja_fixture(format!(
+                "RecoveryCodes::generate_new gave {} codes, not {}",
+                codes.0.len(),
+                crate::consts::user::RECOVERY_CODES_COUNT
+            )));
+        }
+        let mut distinct: Vec<&str> = codes.0.iter().map(|code| code.peek().as_str()).collect();
+        distinct.sort_unstable();
+        distinct.dedup();
+        if distinct.len() != codes.0.len() {
+            return Err(deja_fixture(
+                "RecoveryCodes::generate_new repeated a code".to_string(),
+            ));
+        }
+    }
+
+    // generate_password_hash_inner. The password masks to "***" in the recorded
+    // arguments, so arguments are no lever here; what makes it miss is that no
+    // payment path hashes a password, so the operation is absent from the
+    // recording entirely. The arm produces its hash through Argon2 itself rather
+    // than assembling a string, so the PHC prefix is correct by construction;
+    // checking it is what catches an arm that stopped doing that, because a value
+    // `PasswordHash::new` cannot parse is a worse answer than a wrong password.
+    {
+        let hash = utils::user::password::generate_password_hash(Secret::new(
+            "deja-fixture-password".to_string(),
+        ))
+        .map_err(|err| deja_fixture(format!("generate_password_hash failed: {err:?}")))?;
+        if !hash.peek().starts_with("$argon2") {
+            return Err(deja_fixture(
+                "generate_password_hash gave a value that is not a PHC string".to_string(),
+            ));
+        }
+    }
+
+    // decode_jwt_verified. A `deja::time` seam, so pure, so the moved-arguments
+    // serve is excluded; the token digest is in the declared arguments and no
+    // recording carries this token, so it misses at occurrence zero.
+    //
+    // The token is EXPIRED, deliberately, and that is what makes the two sides
+    // locally distinguishable rather than only distinguishable from the ledger.
+    // The live body validates `exp` and answers `JwtDecodeOutcome::Expired`; the
+    // arm re-decodes with `validate_exp` off and answers `Ok`. So an `Ok` on this
+    // line is the arm and nothing else, and an `Err` is the seam running live.
+    // Neither fails the request, because both are real answers.
+    {
+        const FIXTURE_JWT: &str = concat!(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.",
+            "eyJzdWIiOiJkZWphLWZpeHR1cmUiLCJleHAiOjE1Nzc4MzY4MDB9.",
+            "hu09QGdOdbRTwpKo9Ey7n3SwP6XCQmcGLYHnXCFUIwg",
+        );
+        const FIXTURE_JWT_SECRET: &[u8] = b"deja-fixture-jwt-secret";
+
+        match services::authentication::decode_jwt_verified::<serde_json::Value>(
+            FIXTURE_JWT,
+            FIXTURE_JWT_SECRET,
+        ) {
+            Ok(claims) => logger::info!(
+                claims = ?claims,
+                "FIXTURE: the jwt arm answered an expired token"
+            ),
+            Err(error) => logger::info!(
+                error = ?error,
+                "FIXTURE: the jwt seam ran live and refused the expired token"
+            ),
+        }
+    }
+
+    logger::info!(
+        secure_string = %secure_string,
+        aes256_key_len = aes256_key.len(),
+        "FIXTURE: request continued on these entropy values"
+    );
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     tracing::Span::current().record(
