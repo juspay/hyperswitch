@@ -8011,6 +8011,8 @@ Cypress.Commands.add(
       expectedProcessorMerchantIds = null, // every listed payment's processor_merchant_id must be in this array
       expectedPaymentId = null, // list must contain exactly this payment
       expectedPaymentIds = null, // list must contain exactly these payments
+      expectedContainsPaymentIds = null, // list must include these payments (other payments may also be present)
+      expectedPaymentStatus = null, // every listed payment must have this status
       expectAmountAscending = false, // data must be sorted by amount ascending
     } = options;
 
@@ -8091,6 +8093,9 @@ Cypress.Commands.add(
               "processor_merchant_id"
             ).to.include(payment.processor_merchant_id);
           }
+          if (expectedPaymentStatus) {
+            expect(payment.status, "status").to.equal(expectedPaymentStatus);
+          }
         }
 
         if (expectedPaymentId) {
@@ -8110,6 +8115,15 @@ Cypress.Commands.add(
           expect(actualPaymentIds, "payment_ids").to.deep.equal(
             [...expectedPaymentIds].sort()
           );
+        }
+
+        if (expectedContainsPaymentIds) {
+          const actualPaymentIds = response.body.data.map(
+            (payment) => payment.payment_id
+          );
+          for (const paymentId of expectedContainsPaymentIds) {
+            expect(actualPaymentIds, "payment_ids").to.include(paymentId);
+          }
         }
 
         if (expectAmountAscending) {
