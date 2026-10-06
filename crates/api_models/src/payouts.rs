@@ -1720,11 +1720,11 @@ impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
 impl From<GiftCardPayout> for payout_method_utils::GiftCardAdditionalData {
     fn from(gift_card_data: GiftCardPayout) -> Self {
         match gift_card_data {
-            GiftCardPayout::PaySafeCard(PaysafeCardPayout {
-                paysafecard_id
-            }) => Self::PaySafeCard(Box::new(payout_method_utils::PaySafeCardAdditionalData {
-                paysafecard_id,
-            })),
+            GiftCardPayout::PaySafeCard(PaysafeCardPayout { paysafecard_id }) => {
+                Self::PaySafeCard(Box::new(payout_method_utils::PaySafeCardAdditionalData {
+                    paysafecard_id,
+                }))
+            }
         }
     }
 }
