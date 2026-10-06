@@ -20,15 +20,10 @@ pub fn generate_password_hash(
         .change_context(UserErrors::InternalServerError)
 }
 
-/// The decision Argon2 reaches about a password, as something that can be
-/// recorded.
-///
-/// [`UserErrors`] cannot be: it derives neither `Serialize` nor `Deserialize`,
-/// and it carries payload-bearing variants that have nothing to do with this
-/// call. Every `hash_password` failure is reported as
-/// `UserErrors::InternalServerError`, which is all a caller can tell apart, so
-/// that is this one variant and nothing else crosses the boundary. The mapping
-/// back to the public error type stays in [`generate_password_hash`].
+/// Argon2's decision about a password, in a form a tape can carry.
+/// [`UserErrors`] cannot be: no serde derives, and payload-bearing variants
+/// unrelated to this call. Every `hash_password` failure reports as
+/// `InternalServerError`, so one variant covers the boundary.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
 )]
@@ -57,22 +52,17 @@ enum PasswordHashOutcome {
         codec = deja::codec::ResultCodec::<String, PasswordHashOutcome>,
         // The value has to be a PHC string, because `is_correct_password` hands
         // it to `PasswordHash::new` and a string that does not parse there comes
-        // back as `InternalServerError` — a worse answer than the one below. So
-        // the synthesized hash is produced by Argon2 itself, over derived
-        // material and a derived salt, rather than assembled by hand: the format
-        // is then correct by construction and cannot drift from whatever
-        // parameters `Argon2::default()` encodes.
+        // back as `InternalServerError`. So the hash is produced by Argon2 itself
+        // over derived material and a derived salt, rather than assembled by
+        // hand: the format is then correct by construction and cannot drift from
+        // whatever `Argon2::default()` encodes.
         //
         // What it costs: the hash is of the derived material and not of the
-        // password, so a later `is_correct_password` against it answers
-        // `Ok(false)` — "wrong password", a value the caller already handles —
-        // rather than erroring. A login in the same correlation as a synthesized
-        // signup therefore diverges, and that divergence is attributable to this
-        // substitution, which is the trade the fail-stop did not offer.
-        //
-        // The salt is drawn through `deja::synth::bytes` and the material
-        // through `alphanumeric`; the two use different domain separators, so
-        // neither is a projection of the other.
+        // password, so a later `is_correct_password` answers `Ok(false)` —
+        // "wrong password", which the caller already handles — rather than
+        // erroring, and the divergence is attributable to this substitution.
+        // The salt and the material use different domain separators, so neither
+        // is a projection of the other.
         on_miss = {
             use common_utils::synth_shape::Synthesize as _;
             let material = __deja_miss.alphanumeric(32);
@@ -182,13 +172,9 @@ mod deja_tests {
         <deja::codec::ResultCodec<String, PasswordHashOutcome> as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// A recorded hashing failure rebuilds as the same variant.
-    ///
-    /// The Ok-only codec this site used wrote an `Err` as
-    /// `{"deja_err": "<Debug>"}`, which names no variant and so cannot rebuild
-    /// one -- the second case is that document, and it must still refuse. The
-    /// third case is what makes the first mean anything: a single-variant enum
-    /// whose `kind` went unread would accept any string at all.
+    /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
+    /// so it must still refuse; and the third case is what makes the first mean
+    /// anything, since a `kind` that went unread would accept any string.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
@@ -219,17 +205,10 @@ mod deja_tests {
         );
     }
 
-    /// The seam still SELECTS that codec.
-    ///
-    /// The test above names the codec directly, so it answers what
-    /// `ResultCodec` does and not what this site asked for: reverting the
-    /// attribute to `ResultOkCodec` leaves it green, which left the conversion
-    /// this file carries unpinned. The selector is not observable at run time
-    /// either -- the macro expands it into the generated body and leaves
-    /// `BoundaryDeclaration::codec` as `None` -- so it is read from the
-    /// declaration that carries it. The slice stops at the attribute's own
-    /// `)]`, well before this module, so the assertion cannot be satisfied by
-    /// its own text.
+    /// The test above names the codec directly, so reverting the attribute to
+    /// `ResultOkCodec` would leave it green. The selection is not observable at
+    /// run time -- the macro expands it into the generated body -- so it is read
+    /// out of the declaration, whose slice ends at the attribute's own `)]`.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("password.rs");

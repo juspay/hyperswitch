@@ -1137,11 +1137,9 @@ impl OpenSearchQueryBuilder {
             .collect::<Vec<Value>>())
     }
     /// Args for the OpenSearch seam: everything about the query that a replay
-    /// must reproduce, and nothing that moves on its own.
-    ///
-    /// Built field by field rather than from `Debug` on the builder, because the
-    /// builder holds a `HashSet` whose rendering order is per-process random —
-    /// that would make the same query look different on each run.
+    /// must reproduce, and nothing that moves on its own. Built field by field
+    /// rather than from `Debug` on the builder, whose `HashSet` renders in a
+    /// per-process random order.
     #[cfg(feature = "deja")]
     pub fn deja_args(&self) -> Value {
         let mut auth_scope = self.build_auth_array();

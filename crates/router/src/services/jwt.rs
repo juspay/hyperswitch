@@ -5,16 +5,10 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 
 use crate::{configs::Settings, core::errors::UserErrors};
 
-/// The decision computing a JWT's absolute expiry reaches, as something that
-/// can be recorded.
-///
-/// [`UserErrors`] cannot be: it derives neither `Serialize` nor `Deserialize`,
-/// and it carries payload-bearing variants that have nothing to do with this
-/// call. Both ways this can fail -- an overflowing `checked_add` and a clock
-/// reading before the epoch -- are reported as
-/// `UserErrors::InternalServerError`, which is all a caller can tell apart, so
-/// that is this one variant and nothing else crosses the boundary. The mapping
-/// back to the public error type stays in [`generate_exp`].
+/// A JWT's absolute expiry, in a form a tape can carry. [`UserErrors`] cannot
+/// be: no serde derives, and payload-bearing variants unrelated to this call.
+/// Both failures here report as `InternalServerError`, all a caller can tell
+/// apart, so one variant covers the boundary; [`generate_exp`] maps it back.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
 )]
@@ -84,13 +78,9 @@ mod deja_tests {
         <deja::codec::ResultCodec<std::time::Duration, JwtExpiryOutcome> as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// A recorded expiry failure rebuilds as the same variant.
-    ///
-    /// The Ok-only codec this site used wrote an `Err` as
-    /// `{"deja_err": "<Debug>"}`, which names no variant and so cannot rebuild
-    /// one -- the second case is that document, and it must still refuse. The
-    /// third case is what makes the first mean anything: a single-variant enum
-    /// whose `kind` went unread would accept any string at all.
+    /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
+    /// so it must still refuse; and the third case is what makes the first mean
+    /// anything, since a `kind` that went unread would accept any string.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
@@ -121,17 +111,10 @@ mod deja_tests {
         );
     }
 
-    /// The seam still SELECTS that codec.
-    ///
-    /// The test above names the codec directly, so it answers what
-    /// `ResultCodec` does and not what this site asked for: reverting the
-    /// attribute to `ResultOkCodec` leaves it green, which left the conversion
-    /// this file carries unpinned. The selector is not observable at run time
-    /// either -- the macro expands it into the generated body and leaves
-    /// `BoundaryDeclaration::codec` as `None` -- so it is read from the
-    /// declaration that carries it. The slice stops at the attribute's own
-    /// `)]`, well before this module, so the assertion cannot be satisfied by
-    /// its own text.
+    /// The test above names the codec directly, so reverting the attribute to
+    /// `ResultOkCodec` would leave it green. The selection is not observable at
+    /// run time -- the macro expands it into the generated body -- so it is read
+    /// out of the declaration, whose slice ends at the attribute's own `)]`.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("jwt.rs");

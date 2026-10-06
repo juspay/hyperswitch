@@ -182,11 +182,9 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
     }
 }
 
-/// Rebuilds a recorded `send_request` error from its typed variant.
-///
-/// A recording made before errors were typed holds only report text under
-/// `error`; it has no `result` tag, so it reaches `replay_response`, which
-/// refuses it, and the call fail-stops as it did before.
+/// Rebuilds a recorded `send_request` error from its typed variant. A recording
+/// made before errors were typed holds only report text and has no `result` tag,
+/// so it reaches `replay_response`, which refuses it, and the call fail-stops.
 fn replay_error(recorded: &serde_json::Value) -> Option<error_stack::Report<HttpClientError>> {
     let kind = recorded.get("kind")?.clone();
     serde_json::from_value::<HttpClientError>(kind)
@@ -224,11 +222,9 @@ pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::R
     }
     let body = bytes::Bytes::from(raw_bytes);
     let mut http_response = builder.body(body.clone()).ok()?;
-    // Restore the extension the body is captured from. Without it, capturing a
-    // reconstructed response reports "body not captured (missing extension)"
-    // instead of the body just rebuilt, so `capture(reconstruct(v))` does not
-    // equal `v`. Nothing re-captures on a replay hit today, so this is inert at
-    // runtime; the codec should not depend on that staying true.
+    // Restore the extension the body is captured from, or `capture(reconstruct(v))`
+    // reports "body not captured" instead of the body just rebuilt. Nothing
+    // re-captures on a replay hit today; the codec should not depend on that.
     http_response
         .extensions_mut()
         .insert(CapturedResponseBody(body));
@@ -334,14 +330,9 @@ mod tests {
     }
 
     /// Capturing a reconstructed response must reproduce the recording it came
-    /// from.
-    ///
-    /// Fails without the extension restore in `replay_response`: the rebuilt
-    /// response carried the body but not the extension the capture reads it
-    /// from, so the second capture reported "body not captured" where the first
-    /// had reported the bytes. Stated over the whole payload rather than over
-    /// the body alone, because asserting only on the field under suspicion is
-    /// how this stayed hidden.
+    /// from; it fails without the extension restore in `replay_response`. Stated
+    /// over the whole payload rather than the body alone, because asserting only
+    /// on the field under suspicion is how this stayed hidden.
     #[test]
     fn capturing_a_reconstructed_response_reproduces_the_recording() {
         const BODY: &[u8] = b"{\"ok\":true}";

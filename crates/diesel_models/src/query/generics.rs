@@ -618,8 +618,8 @@ where
 
 // Deja: no `on_miss`. The honest arm is to run the count against the replay
 // schema, and a miss arm cannot — the reconstruct closure is sync and this is
-// async (juspay/deja#195). What is left is to synthesize a number nobody
-// counted, which a caller branches on as fact. A miss stops.
+// async. What is left is to synthesize a number nobody counted, which a caller
+// branches on as fact. A miss stops.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -1296,9 +1296,8 @@ mod capture_tests {
             .set(payment_attempt::straight_through_algorithm.eq(Some(value)))
     }
 
-    /// The shape behind most of the order-only db divergences: one routing map,
-    /// written twice with its keys in two orders. Its debug rendering differs, so
-    /// it used to record two different args; the capture records one.
+    /// One routing map, written twice with its keys in two orders: its debug
+    /// rendering differs where the capture records one.
     #[test]
     fn one_routing_map_in_two_orders_records_the_same_args() {
         let (forward, backward) = (

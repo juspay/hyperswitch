@@ -90,16 +90,11 @@ mod deja_boundary {
         input: deja::__private::ReconstructInput<'_>,
     ) -> deja::__private::Reconstructed<CustomResult<T, SuperpositionError>> {
         use deja::__private::{ReconstructInput, Reconstructed};
-        // The miss arm, which used to be a separate `on_miss` thunk selected by
-        // `MissPolicy::Absorb`. It hands the caller an error it already knows how
-        // to survive: the DB->default fallback runs and the correlation
-        // continues. `Synthesized` rather than `Value` is what makes that
-        // legible on the scorecard — the miss is still scored, and the
-        // observation now records that the request carried on rather than
-        // asserting it in advance.
-        //
-        // The message is built from the miss ALONE, which is the property the
-        // signature exists to enforce: same query, same value, every run.
+        // The miss arm hands the caller an error it already knows how to
+        // survive: the DB->default fallback runs and the correlation continues.
+        // `Synthesized` rather than `Value` keeps that legible on the scorecard,
+        // so the miss is still scored. The message is built from the miss ALONE:
+        // same query, same value, every run.
         let recorded = match input {
             ReconstructInput::Hit(recorded) => recorded,
             ReconstructInput::Miss(miss) => {
@@ -227,9 +222,8 @@ mod deja_boundary {
             correlation,
         );
 
-        // One seam for both arms now: `reconstruct` answers a hit and a miss, so
-        // there is no second dispatch function and no declared policy to keep in
-        // step with what the miss arm actually returns.
+        // One seam for both arms: `reconstruct` answers a hit and a miss, so no
+        // declared policy can drift from what the miss arm returns.
         deja::__private::dispatch_async(
             observation,
             move || args,

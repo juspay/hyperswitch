@@ -727,22 +727,17 @@ impl Cache {
     // instead of fail-stopping the request. A candidate under review adds cache
     // reads — that is what a change is — and the fail-stop default answers the
     // first one by unwinding, which actix does not contain, so the worker writes
-    // nothing and the whole correlation scores as a 500. One added read that way
-    // took almost every correlation in a run to `500 vs 200`: a single regression
-    // censoring every other signal.
+    // nothing and the whole correlation scores as a 500, censoring every other
+    // signal in it.
     //
-    // `None` is honest here in a way a fabricated value never is. It asserts only
-    // that this key is not in the process-local cache, which IS true under replay
-    // — the moka is cold and correlation-namespaced — and the caller's fallback
-    // to Redis or the database is separately instrumented, so the work that
-    // follows the miss is scored on its own boundaries rather than hidden behind
-    // a substituted value. Egress keeps the fail-stop default: synthesizing an
-    // http/grpc response would claim a third party answered when none did.
-    //
-    // The miss is not swallowed. The lookup emits its blocking novel-call
-    // divergence before `on_miss` is reached, so the scorecard still shows the
-    // added read; what changes is that the divergence localises to the subtree
-    // that depended on it instead of taking the request down with it.
+    // `None` is honest in a way a fabricated value never is: it asserts only that
+    // this key is not in the process-local cache, which IS true under replay —
+    // the moka is cold and correlation-namespaced — and the caller's fallback to
+    // Redis or the database is separately instrumented. Egress keeps the
+    // fail-stop default, because synthesizing an http/grpc response would claim a
+    // third party answered when none did. The miss is not swallowed: the lookup
+    // emits its blocking novel-call divergence before `on_miss` is reached, so
+    // the divergence localises instead of taking the request down with it.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -777,18 +772,11 @@ impl Cache {
     /// Check if a key exists in cache
     //
     // Deja: `on_miss = false` is the same honest absence `get_val` answers with,
-    // in this method's own type. "Not in cache" is TRUE under replay — the moka
-    // is cold and correlation-namespaced — and a `false` sends the caller down
-    // the fallback path, which is instrumented on its own boundaries.
-    //
-    // Without it, this sibling still takes the correlation down. `get_val`'s
-    // declaration covers reads made THROUGH `get_val`, so a candidate that adds
-    // an existence check fail-stops exactly the way an added read did before
-    // that declaration existed: the same incident, one method over.
-    //
-    // As there, the miss is not swallowed — the lookup emits its blocking
-    // novel-call divergence before `on_miss` is reached, so the added read still
-    // shows on the scorecard; what changes is that it stops being fatal.
+    // in this method's own type. `get_val`'s declaration covers only reads made
+    // THROUGH `get_val`, so without this a candidate that adds an existence check
+    // fail-stops the correlation exactly as an added read did before that
+    // declaration existed. As there, the lookup emits its blocking novel-call
+    // divergence before `on_miss` is reached.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(

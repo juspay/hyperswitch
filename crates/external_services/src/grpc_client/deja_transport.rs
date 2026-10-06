@@ -305,9 +305,7 @@ where
         // here (replay + Substitute neither runs nor re-runs); an error rather
         // than an `unreachable!` so a broken invariant stays legible.
         None => {
-            // Same seam as the arm above; the difference that used to be carried
-            // by a second dispatch function plus a declared `MissPolicy` now
-            // lives entirely in this arm's miss branch.
+            // Same seam as the arm above; the difference lives in the miss branch.
             deja::__private::dispatch_async(
                 observation,
                 move || args_value,
@@ -319,12 +317,9 @@ where
                     // with nothing beneath the boundary there is nothing to run. The
                     // target names the rpc and authority because `BOUNDARY` and
                     // `OPERATION` are module constants shared by every transport this
-                    // wrapper is installed on.
-                    //
-                    // This diverges rather than returning, so the stop keeps its own
-                    // reason instead of collapsing into the generic one that
-                    // `NoValue` produces. That distinction used to be the whole
-                    // point of declaring `FailStop` here with a thunk beside it.
+                    // wrapper is installed on. Diverging rather than returning keeps
+                    // the stop's own reason instead of collapsing it into the generic
+                    // one `NoValue` produces.
                     deja::__private::ReconstructInput::Miss(_) => {
                         let target = match authority.as_deref() {
                             Some(authority) => format!("{rpc} at {authority}"),
@@ -412,19 +407,14 @@ fn reconstruct_from_recorded(
     match input {
         deja::__private::ReconstructInput::Hit(recorded) => reconstruct_hit(recorded),
         // Transport PRESENT and the call is novel: answer with the transport
-        // failure it is, rather than stopping the request.
-        //
-        // Same reasoning as `http_client::send_request`, in this boundary's own
-        // type. An `Err` on the transport says no peer answered, which is true
-        // of a call the recording never made, so it does not claim a third
-        // party responded — the thing a fabricated gRPC response would do, and
-        // the thing the in-memory-cache seam's rule exists to forbid. tonic
-        // surfaces it to the caller as a transport error, which the routing and
-        // UCS flows already handle, so the request continues and the calls
-        // after this one stay observable instead of becoming a pruned subtree.
-        //
-        // The message names the miss so the failure is attributable in a log
-        // without having to pair it against the ledger by hand.
+        // failure it is, rather than stopping the request. Same reasoning as
+        // `http_client::send_request`, in this boundary's own type — an `Err` on
+        // the transport says no peer answered, which is true of a call the
+        // recording never made, so it does not claim a third party responded.
+        // tonic surfaces it as a transport error, which the routing and UCS flows
+        // already handle, so the calls after this one stay observable instead of
+        // becoming a pruned subtree. The message names the miss so the failure is
+        // attributable without pairing it against the ledger by hand.
         deja::__private::ReconstructInput::Miss(miss) => {
             deja::__private::Reconstructed::Synthesized(Err(format!(
                 "deja: no recorded gRPC response for {}::{} (occurrence {})",

@@ -184,19 +184,12 @@ where
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
 // A miss answers with a transport failure, not with a response body. Nothing on
-// the Ok side is constructible — `R` is only `DeserializeOwned`, and a
-// synthesized ciphertext or plaintext would claim the key manager answered when
-// it did not, which every decryption downstream would then consume as recorded
-// truth. The Err side is concrete, and it is the true statement: no key manager
-// answered a call the recording never made.
-//
-// Both callers already handle it, which is what makes this safe at the generic
-// seam rather than needing one arm per typed call site. `encrypt_via_api` logs,
-// counts the failure and falls back to application encryption — a real code
-// path, whose own AES nonce is separately seamed — so the request continues on
-// locally-encrypted bytes that differ from the recording's, attributably.
-// `decrypt_via_api` maps it to `CryptoError::DecodingFailed` and the caller's
-// error path runs instead of the process unwinding with no response at all.
+// the Ok side is constructible — `R` is only `DeserializeOwned` — and a
+// synthesized ciphertext would claim the key manager answered when it did not,
+// which every decryption downstream would consume as recorded truth. The Err
+// side is the true statement: no key manager answered a call the recording never
+// made. Both callers already handle it, which is what makes this safe at the
+// generic seam rather than needing one arm per typed call site.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(

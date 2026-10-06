@@ -1,83 +1,52 @@
 //! Deterministic stand-ins for a generator's output when a replay finds no
-//! recorded value.
+//! recorded value. Every shape here is total: a panic on the miss path would
+//! take down the correlation the arm exists to keep alive.
 //!
-//! [`deja::synth::id`] is the usual answer, and the right one where the shape is
-//! unconstrained — it carries a visible marker. It is wrong here: its marker
-//! contains `-` and its length is fixed, while `consts::ALPHABETS` forbids `-`
-//! and `_`, `generate_random_numeric_string` promises digits, and connectors put
-//! a nanoid on the wire. Deja's rule is that a value the service rejects is
-//! worse than a stop, because the rejection is attributed to the candidate.
-//!
-//! So these derive over the CALLER's alphabet and length. Every value is a
-//! function of the miss alone, so a replay gets the same answer every run —
-//! without that, two replays of one candidate disagree and a divergence cannot
-//! be attributed. The cost is the human-readable marker; the ledger still
-//! records the outcome as synthesized, so the scorer is unaffected.
+//! Not [`deja::synth::id`], whose marker contains `-` and whose length is
+//! fixed, where `consts::ALPHABETS` forbids `-` and `_` and connectors put a
+//! nanoid on the wire. A value the service rejects is worse than a stop,
+//! because the rejection is attributed to the candidate. So these derive over
+//! the CALLER's alphabet and length, and every value is a function of the miss
+//! alone — without that, two replays of one candidate disagree.
 
 /// Decimal digits, for the generators that promise only these.
 const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-/// How far a synthesized clock advances between two misses at one call site.
-///
-/// `monotonic` is unit-agnostic, so this fixes the unit: one millisecond, in
-/// nanoseconds. Kept small deliberately — a step above the timing rule's
-/// evidential floor (`MIN_EVIDENTIAL_MS`, juspay/deja#188) would let a derived
-/// value coincide with a span's duration and read as a measured one.
+/// How far a synthesized clock advances between two misses at one call site:
+/// one millisecond, in nanoseconds, since `monotonic` is unit-agnostic.
+/// Deliberately small, so a derived value cannot read as a measured duration.
 const CLOCK_STEP_NS: i64 = 1_000_000;
 
 /// The shapes a miss arm can synthesize, as methods on the miss itself.
 ///
-/// A miss arm is written inside an attribute, far from anything that could give
-/// it a home, and the values it needs are all functions of one argument. Hanging
-/// them off that argument is what keeps them findable: a reader who has a
-/// [`deja::SubstituteMiss`] can ask what it will answer with, instead of having
-/// to know that a module called `synth_shape` exists and that three different
-/// path prefixes reach it.
+/// A miss arm is written inside an attribute, and the values it needs are all
+/// functions of one argument; hanging them off that argument keeps them findable.
 ///
-/// **Inherent methods win over trait methods, silently.** If deja ever grows an
-/// inherent `uuid` or `instant` on `SubstituteMiss`, a call site here would
-/// start resolving to it with no error and no warning, and the synthesized value
-/// would change shape. Nothing in this repo can prevent that; the defence is the
-/// golden-value test below, which pins every one of these outputs and fails on
-/// the byte.
+/// **Inherent methods win over trait methods, silently.** An inherent `uuid` or
+/// `instant` later added to `SubstituteMiss` would start resolving here with no
+/// error and no warning. The defence is the golden-value test below.
 pub trait Synthesize {
-    /// `length` characters drawn from `alphabet`.
-    ///
-    /// Returns an empty string for an empty alphabet rather than panicking: this
-    /// runs on the miss path, where a panic would take down a correlation that
-    /// the whole point is to keep alive.
+    /// `length` characters drawn from `alphabet`; empty for an empty alphabet.
     fn over(&self, alphabet: &[char], length: usize) -> String;
 
-    /// `length` characters over `consts::ALPHABETS` — 62 symbols, no `-` or `_`.
-    ///
-    /// The shape `generate_id_with_len` and its relatives promise. Folds the
-    /// alphabet in so no call site has to name it, and so no call site can name
-    /// a different one by accident.
+    /// `length` characters over `consts::ALPHABETS` — 62 symbols, no `-` or `_`,
+    /// the shape `generate_id_with_len` promises. Folded in here so no call site
+    /// can name a different alphabet by accident.
     fn alphanumeric(&self, length: usize) -> String;
 
     /// `prefix`, an underscore, then [`Self::alphanumeric`] of `length`.
     fn prefixed(&self, prefix: &str, length: usize) -> String;
 
-    /// `count` mutually distinct alphanumeric words of `length` characters.
-    ///
-    /// For a body that draws `count` INDEPENDENT values and returns them
-    /// together — recovery codes are the standing case. Every other shape here
-    /// answers with one value, and calling one of them `count` times would
-    /// answer with `count` copies of the same value, because a shape is a
-    /// function of the miss and the miss does not change between the draws. So
-    /// this makes ONE draw of `count * length` characters and carves it, which
-    /// also keeps the words from being prefixes of one another the way two
-    /// draws of different lengths at one site would be.
+    /// `count` mutually distinct alphanumeric words of `length` characters. ONE
+    /// draw of `count * length`, carved: a shape is a function of the miss, so
+    /// calling one `count` times would answer with `count` copies of one value.
     fn alphanumeric_words(&self, count: usize, length: usize) -> Vec<String>;
 
     /// `length` decimal digits, for the generators that promise only these.
     fn digits(&self, length: usize) -> String;
 
-    /// A deterministic `f64` in `[0, 1)`.
-    ///
-    /// The half-open range matters: this seam feeds a comparison against a
-    /// rollout percentage, and a value of exactly `1.0` would fire a
-    /// 100%-exclusive branch that the live generator can never reach.
+    /// A deterministic `f64` in `[0, 1)`. Half-open matters: this feeds a rollout
+    /// percentage, and `1.0` would fire a branch the live generator cannot.
     fn unit_f64(&self) -> f64;
 
     /// A deterministic value in `min..=max`, inclusive, matching `gen_range`.
@@ -87,72 +56,40 @@ pub trait Synthesize {
     /// is what the live generator answers.
     fn index(&self, length: usize) -> Option<usize>;
 
-    /// `length` deterministic bytes.
-    ///
-    /// Not [`deja::synth::bytes`], whose length is a const generic: these
-    /// callers choose a length at runtime.
+    /// `length` deterministic bytes. Not [`deja::synth::bytes`], whose length is
+    /// a const generic: these callers choose a length at runtime.
     fn byte_vec(&self, length: usize) -> Vec<u8>;
 
-    /// A deterministic permutation of `0..length`.
-    ///
-    /// Fisher-Yates driven by the miss, so the result is a genuine permutation —
-    /// every index present exactly once — rather than a sequence of independent
-    /// draws, which is what the caller's `shuffle` promises.
+    /// A deterministic permutation of `0..length`. Fisher-Yates, so every index
+    /// is present exactly once, which is what the caller's `shuffle` promises.
     fn permutation(&self, length: usize) -> Vec<usize>;
 
-    /// A deterministic UUID in the **version 8** space.
-    ///
-    /// Version 8 is RFC 9562's custom space, so a synthesized uuid is
-    /// structurally disjoint from the v4 and v7 values real code produces — a
-    /// synthesized id can never satisfy a lookup keyed on a recorded one. Falls
-    /// back to nil rather than panicking if the formatted value ever fails to
-    /// parse.
-    /// A caller wanting the 32-character hex rendering asks for `.as_simple()`,
-    /// the same way the live bodies do.
+    /// A deterministic UUID in the **version 8** space — RFC 9562's custom
+    /// space, so a synthesized uuid is structurally disjoint from the v4 and v7
+    /// values real code produces and can never satisfy a lookup keyed on a
+    /// recorded one.
     fn uuid(&self) -> uuid::Uuid;
 
-    /// A deterministic `u32`, for a seam standing in for an ambient numeric
-    /// identifier rather than for a value with a shape.
-    ///
-    /// `process_id` is the only caller. Unlike everything else here the value
-    /// carries no marker at all, because the thing it replaces has no room for
-    /// one — which is a reason to keep its use to seams nothing derives from.
+    /// A deterministic `u32` for an ambient numeric identifier. It carries no
+    /// marker, so keep its use to seams nothing derives from.
     fn opaque_u32(&self) -> u32;
 
     /// Nanoseconds since the Unix epoch, advancing with the occurrence at this
-    /// site.
-    ///
-    /// `base` is **zero**, not a correlation's time origin. The doc for
-    /// [`deja::synth::monotonic`] offers a correlation-scoped origin, but no such
-    /// origin is available at a miss, and inventing one would reintroduce exactly
-    /// the ambient dependency these arms exist to remove. Zero also makes the
-    /// value read as obviously synthetic to a human, which is a feature rather
-    /// than a cost.
+    /// site. `base` is **zero** because no correlation origin is available at a
+    /// miss, and inventing one would reintroduce the ambient dependency.
     fn epoch_nanos(&self) -> i64;
 
-    /// A deterministic UTC instant for this miss, advancing by
-    /// [`CLOCK_STEP_NS`].
-    ///
-    /// Total: falls back to the epoch rather than panicking, because a panic
-    /// inside a miss arm would stop the request the arm exists to keep alive.
+    /// A deterministic UTC instant for this miss, advancing by [`CLOCK_STEP_NS`].
     fn instant(&self) -> time::OffsetDateTime;
 
-    /// A deterministic UTC instant advancing by a whole second per miss.
-    ///
-    /// For the arms whose consumer renders only whole seconds — a unix timestamp
-    /// and an RFC 7231 HTTP date. Through those, [`Self::instant`] holds still
-    /// for a thousand consecutive misses, which merges calls the tape treats as
-    /// distinct; the step has to be at least the consumer's resolution for the
-    /// value to stay distinguishing.
+    /// A deterministic UTC instant advancing by a whole second per miss, for the
+    /// arms whose consumer renders only whole seconds. Through those,
+    /// [`Self::instant`] holds still and merges calls the tape treats as distinct.
     fn instant_at_second_resolution(&self) -> time::OffsetDateTime;
 
-    /// Milliseconds of elapsed time, advancing by one per miss.
-    ///
-    /// A duration counter rather than a clock: `common_utils::elapsed` measures
-    /// an interval, so the value is a difference and not a point in time. The
-    /// step is deliberately below the timing rule's evidential floor
-    /// (`MIN_EVIDENTIAL_MS`, juspay/deja#188); above it, a derived value could
-    /// coincide with a span's duration and read as a measured one.
+    /// Milliseconds of elapsed time, advancing by one per miss. A duration
+    /// counter, not a clock: `elapsed` measures an interval, so this is a
+    /// difference and not a point in time.
     fn elapsed_millis(&self) -> u128;
 }
 
@@ -277,17 +214,13 @@ impl Synthesize for deja::SubstituteMiss {
     }
 }
 
-/// One digest per position.
-///
-/// Mixing the index in rather than walking a single digest means two positions
-/// never correlate, and extending the length never rewrites the characters
-/// already produced — the same property [`deja::synth::bytes`] documents for its
-/// blocks, which matters because a caller may ask for 8 characters at one site
-/// and 40 at another from the same seed.
+/// One digest per position: mixing the index in rather than walking a single
+/// digest means two positions never correlate, and extending the length never
+/// rewrites the characters already produced, which one seed must serve.
 fn mix(seed: u64, index: u64) -> u64 {
-    // splitmix64's finalizer. Chosen for having no fixed points worth worrying
-    // about at this size, not for any cryptographic property: everything here is
-    // derivable by anyone holding the query, which is the point.
+    // splitmix64's finalizer, chosen for its mixing and not for any
+    // cryptographic property: everything here is derivable by anyone holding the
+    // query, which is the point.
     let mut state = seed ^ index.wrapping_mul(0x9E37_79B9_7F4A_7C15);
     state = (state ^ (state >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     state = (state ^ (state >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
@@ -314,9 +247,7 @@ mod tests {
         }
     }
 
-    /// The property replay depends on: one query, one answer, every run. Without
-    /// it two replays of an unchanged candidate disagree and a divergence cannot
-    /// be attributed.
+    /// The property replay depends on: one query, one answer, every run.
     #[test]
     fn the_same_miss_gives_the_same_string() {
         let first = miss(serde_json::json!({"len": 12})).over(&HEX, 12);
@@ -325,8 +256,7 @@ mod tests {
         assert!(!first.is_empty(), "and it must not be vacuously equal");
     }
 
-    /// Two different queries must not collide, or a downstream lookup keyed on
-    /// one fabricated id would resolve another's.
+    /// Or a downstream lookup keyed on one fabricated id resolves another's.
     #[test]
     fn a_different_miss_gives_a_different_string() {
         let first = miss(serde_json::json!({"len": 12})).over(&HEX, 12);
@@ -334,8 +264,7 @@ mod tests {
         assert_ne!(first, second, "different args must synthesize differently");
     }
 
-    /// The whole reason this exists rather than `deja::synth::id`: the value has
-    /// to satisfy the alphabet and length its caller promised.
+    /// The whole reason this exists rather than `deja::synth::id`.
     #[test]
     fn the_value_honours_the_alphabet_and_the_length() {
         for length in [1_usize, 8, 32, 64] {
@@ -352,8 +281,7 @@ mod tests {
         }
     }
 
-    /// Lengthening a value must not rewrite the characters already produced, so
-    /// one seed serves an 8-character site and a 40-character site coherently.
+    /// So one seed serves an 8-character site and a 40-character site.
     #[test]
     fn extending_the_length_keeps_the_earlier_characters() {
         let short = miss(serde_json::json!({})).over(&HEX, 8);
@@ -364,21 +292,14 @@ mod tests {
         );
     }
 
-    /// An empty alphabet is a caller error, but the miss path is the wrong place
-    /// to panic — that would stop the correlation this exists to keep alive.
     #[test]
     fn an_empty_alphabet_yields_an_empty_string_rather_than_a_panic() {
         assert_eq!(miss(serde_json::json!({})).over(&[], 8), "");
     }
 
     /// Positions must differ from each other, not merely be drawn from the
-    /// alphabet.
-    ///
-    /// Written because every other test here passes when `mix` ignores its
-    /// index: `"0000000000000000"` is deterministic, in-alphabet, the right
-    /// length, and prefix-stable, so the whole suite stays green while the value
-    /// carries four bits of information. A downstream uniqueness assumption
-    /// would then be violated by a value that looks well-formed.
+    /// alphabet: every other test here passes when `mix` ignores its index, so a
+    /// run of one repeated character would keep the whole suite green.
     #[test]
     fn positions_do_not_all_collapse_to_one_character() {
         let value = miss(serde_json::json!({})).over(&HEX, 32);
@@ -395,16 +316,10 @@ mod tests {
 /// produces today.
 ///
 /// The tests above state properties; these state values. A property test stays
-/// green when a refactor silently moves a value, and a value that moves changes
-/// what a candidate puts on the wire — a replay would then diverge from its own
-/// recording for a reason that has nothing to do with the candidate. So each
-/// arm's output is frozen here, and any change to one has to be made by editing
-/// this file, deliberately, in a diff a reviewer can read.
-///
-/// The clock arms are pinned at their CONSUMER's resolution rather than in
-/// nanoseconds, because that is where a collapse would show: two arms render
-/// only whole seconds, and their assertions below say what consecutive misses
-/// look like through them.
+/// green when a refactor silently moves a value, and a moved value changes what
+/// a candidate puts on the wire — a replay would then diverge from its own
+/// recording for no candidate-related reason. The clock arms are pinned at their
+/// CONSUMER's resolution, because that is where a collapse would show.
 #[cfg(test)]
 mod golden {
     use std::num::NonZeroU8;
@@ -416,8 +331,7 @@ mod golden {
     use super::*;
     use crate::consts;
 
-    /// One fixed miss, varied only by occurrence. Every value below is a
-    /// function of this and nothing else.
+    /// One fixed miss, varied only by occurrence.
     fn miss(occurrence: u32) -> deja::SubstituteMiss {
         deja::SubstituteMiss {
             boundary: "id",
@@ -454,10 +368,8 @@ mod golden {
         assert_eq!(miss(0).alphanumeric_words(2, 0), ["", ""]);
     }
 
-    /// The property the recovery-code arm depends on: the words differ from each
-    /// other. A shape called once per word would return one value repeated,
-    /// because the miss does not change between the calls — and eight identical
-    /// recovery codes are well-formed, deterministic and useless.
+    /// The property the recovery-code arm depends on: a shape called once per
+    /// word returns one value repeated, and identical recovery codes are useless.
     #[test]
     fn the_words_differ_from_one_another() {
         let words = miss(0).alphanumeric_words(8, 8);
@@ -494,13 +406,9 @@ mod golden {
         );
     }
 
-    /// The two time-ordered id arms used to strip hyphens off
-    /// [`deja::synth::uuid_v8`]'s string rather than parse it, on the belief
-    /// that parsing would add a `Uuid::nil` failure path. It cannot:
-    /// `uuid_v8` assembles 8-4-4-4-12 hex digits by construction, so the parse
-    /// is total and the two renderings are the same bytes. Asserted over a
-    /// sweep rather than argued, because it is what lets those arms share
-    /// [`Synthesize::uuid`] with every other uuid seam.
+    /// [`deja::synth::uuid_v8`] assembles its hex digits by construction, so the
+    /// parse is total and the nil fallback unreachable — which is what lets the
+    /// time-ordered id arms share [`Synthesize::uuid`] with every other seam.
     #[test]
     fn stripping_the_hyphens_and_parsing_agree() {
         for occurrence in 0..512_u32 {
@@ -518,12 +426,9 @@ mod golden {
         }
     }
 
-    /// The clock, read the way each of the five arms reads it.
-    ///
-    /// Occurrence 1 is what matters: every one of these five values must differ
-    /// from its occurrence-0 counterpart, or the arm has merged two distinct
-    /// calls. The two second-resolution arms read
-    /// [`Synthesize::instant_at_second_resolution`] for exactly that reason.
+    /// The clock, read the way each arm reads it. The second occurrence is what
+    /// matters: every value must differ from its counterpart at the first, or the
+    /// arm has merged two distinct calls.
     #[test]
     fn the_clock_arms_are_pinned() {
         let rfc7231 = time::macros::format_description!(
@@ -571,11 +476,8 @@ mod golden {
         );
     }
 
-    /// Two consecutive misses at one clock arm must not synthesize one value.
-    ///
-    /// The assertion neither repo had. A synthesized value that merges two
-    /// distinct calls defeats deja's second synthesis property, and it fails
-    /// quietly: the value is well-formed, in range, and deterministic.
+    /// Two consecutive misses at one clock arm must not synthesize one value: a
+    /// merge fails quietly, being well-formed, in range and deterministic.
     #[test]
     fn consecutive_misses_at_a_clock_arm_differ() {
         for occurrence in [0_u32, 1, 998, 12_345] {
@@ -593,8 +495,7 @@ mod golden {
         }
     }
 
-    /// The duration counter behind `elapsed::millis_since`, whose step is one
-    /// millisecond rather than this module's `CLOCK_STEP_NS`.
+    /// The counter behind `elapsed::millis_since`, stepping one millisecond.
     #[test]
     fn the_elapsed_counter_is_pinned() {
         let derived: Vec<u128> = (0..4_u32).map(|n| miss(n).elapsed_millis()).collect();

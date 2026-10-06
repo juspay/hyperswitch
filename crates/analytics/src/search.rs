@@ -42,15 +42,10 @@ mod tests {
     /// The missed-query body has to deserialize into BOTH shapes this seam's
     /// callers ask for, because the arm cannot tell which one asked: the real
     /// call moves the query builder, so the miss arm cannot read `query_type`.
-    ///
-    /// Asserted rather than argued. The arm rests on two serde properties that
-    /// are invisible at the call site — `OpensearchOutput` is untagged and
-    /// carries no `deny_unknown_fields`, so it ignores `responses`; and
-    /// `OpenMsearchOutput::responses` is `#[serde(default)]` while its `error` is
-    /// an `Option`, so both are satisfied by absence. Either property could be
-    /// removed by someone editing `api_models` who never reads this file, and a
-    /// body the caller cannot deserialize turns a survivable miss back into a
-    /// failed request.
+    /// Asserted rather than argued — the arm rests on two serde properties in
+    /// `api_models` that someone could remove without ever reading this file,
+    /// and a body the caller cannot deserialize turns a survivable miss back
+    /// into a failed request.
     #[test]
     fn the_missed_query_body_deserializes_for_both_callers() {
         let body = super::deja_empty_result_body();
@@ -145,10 +140,8 @@ macro_rules! append_filter {
 ///
 /// A module-private function rather than a method on the miss, because the value
 /// is not derived from the miss: it is a fixed document belonging to this
-/// boundary's response type. Named so the arm and the test below read the same
-/// bytes — the arm's whole safety claim is that both of this seam's callers
-/// deserialize it, and a literal duplicated into a test can drift away from the
-/// one that ships.
+/// boundary's response type. Named so the arm and the test read the same bytes,
+/// since a literal duplicated into a test can drift from the one that ships.
 #[cfg(feature = "deja")]
 fn deja_empty_result_body() -> String {
     serde_json::json!({
@@ -161,35 +154,23 @@ fn deja_empty_result_body() -> String {
 /// The OpenSearch query, resolved to the response text.
 ///
 /// The seam sits here rather than on `OpenSearchClient::execute` because that
-/// returns a streaming response body, which cannot be captured or compared.
-/// This is also the honest boundary: the text IS the third-party state that
-/// reaches the response, and it is what diverges when the live index has moved
-/// on from the recording.
+/// returns a streaming body, which cannot be captured or compared. The text IS
+/// the third-party state that reaches the response.
 ///
 /// `Http` rather than `Db`: the index is external state read over HTTP and
 /// substituted from the tape, not part of the seeded store, so the seed planner
-/// must not try to reconstruct it. A live query is the honest arm and a miss arm
-/// cannot issue one — the reconstruct closure is sync and this is async
-/// (juspay/deja#195) — and running it live would reach a third-party index
-/// anyway, which is what this boundary exists to keep out of a replay.
+/// must not try to reconstruct it. A miss arm cannot issue a live query — the
+/// reconstruct closure is sync and this is async — and running one would reach a
+/// third-party index anyway, which is what this boundary exists to keep out.
 ///
 /// So the miss arm answers with a well-formed empty result set, and that is a
-/// declared fabrication rather than a true fact: it asserts nothing matched,
-/// which the recording never showed. An analytics search that returns no
-/// results where the recording had results is a user-visible false negative,
-/// contained to a replay. Its provenance is the ledger's
-/// `SubstituteOutcome::Synthesized`, not anything in the value — a marker field
-/// added to the body would be a one-sided change to one side of a comparison,
-/// which destroys the evidence instead of carrying it.
-///
-/// It is the third constant arm in this tree, and deliberately not justified the
-/// way the other two are. `Cache::get_val`'s `None` is TRUE under replay; this
-/// is not. What makes a constant tolerable here instead is where the value goes:
-/// into a response body, never into a downstream lookup key. The property a
-/// derived value buys — that two misses cannot merge into one — protects against
-/// a false resync on fabricated data, and there is nothing here to resync. The
-/// alternative, a derived non-zero count beside an empty hit list, is internally
-/// inconsistent in a way a reader would have to debug.
+/// declared fabrication: it asserts nothing matched, which the recording never
+/// showed, making the search a false negative contained to a replay. Its
+/// provenance is the ledger's `SubstituteOutcome::Synthesized`, not a marker
+/// field in the body, which would be a one-sided change to one side of a
+/// comparison and would destroy the evidence rather than carry it. A constant
+/// is tolerable only because of where the value goes: into a response body,
+/// never into a lookup key.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -204,22 +185,15 @@ fn deja_empty_result_body() -> String {
         args = query_builder.deja_args(),
         // One body that both callers deserialize, and deliberately not a
         // function of `query_builder`: the real call MOVES it, so an arm that
-        // read `query_type` to pick a shape would not compile. Reading the
-        // variant back out of the recorded args image would compile and is the
-        // wrong trade — it would be a string match against a `Debug` rendering,
-        // and getting it wrong would hand the caller a body it cannot
-        // deserialize. This body cannot be wrong for either caller.
-        //
-        // `search_results` reads `OpensearchOutput`, which is `#[serde(untagged)]`
-        // and has no `deny_unknown_fields`, so it matches `Success` on `hits` and
-        // ignores `responses`. `msearch_results` reads `OpenMsearchOutput`, whose
-        // `responses` is `#[serde(default)]`, so it matches on an empty list and
-        // ignores `hits`.
-        //
-        // What that costs: `msearch_results` zips `responses` against its index
-        // list, so an empty list makes it return no index entries at all rather
-        // than one empty entry per index. Both say "nothing matched"; this one
-        // says it with a shorter list.
+        // read `query_type` to pick a shape would not compile, and reading the
+        // variant back out of the recorded args image would be a string match
+        // against a `Debug` rendering. This body cannot be wrong for either
+        // caller — `OpensearchOutput` is `#[serde(untagged)]` with no
+        // `deny_unknown_fields`, so it matches `Success` on `hits`, and
+        // `OpenMsearchOutput::responses` is `#[serde(default)]`, so it matches on
+        // an empty list. What that costs: `msearch_results` zips `responses`
+        // against its index list, so it returns no index entries at all rather
+        // than one empty entry per index.
         on_miss = Ok(deja_empty_result_body()),
     )
 )]

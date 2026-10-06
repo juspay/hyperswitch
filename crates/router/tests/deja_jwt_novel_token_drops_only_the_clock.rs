@@ -7,12 +7,10 @@
 //! The clock that decides a JWT's expiry is read by `jsonwebtoken` itself, from
 //! `SystemTime::now()`, so the instrumented `date_time::now` boundary never
 //! sees it and a replay cannot hold it still. That is the whole reason the
-//! decode is a boundary. It also leaves the miss arm one answer that is neither
+//! decode is a boundary, and it leaves the miss arm one answer that is neither
 //! a constant nor a lie about the claims: drop the clock and keep everything
-//! else. Refusing is not an alternative — a fail-stop blinds the run from that
-//! point to the end of the request, which is every comparison the replay
-//! existed to make, and a constant `Err(JwtDecodeOutcome::Invalid)` answers
-//! every unrecorded token with a 401 and ends the request a few frames later.
+//! else. A fail-stop would blind the run from that point to the end of the
+//! request, which is every comparison the replay existed to make.
 //!
 //! Dropping the clock does mean an expired token is accepted here. Dropping the
 //! signature check would mean a forged one is, and that is not on the table:
@@ -23,9 +21,8 @@
 //!
 //! An empty lookup table makes every call a miss, so both halves are reachable
 //! without a recorded entry, and the two tokens below differ only in the key
-//! they were signed with.
-//!
-//! Own test binary: `set_global_runtime_hook` is a one-shot `OnceLock`.
+//! they were signed with. Own test binary: `set_global_runtime_hook` is a
+//! one-shot `OnceLock`.
 #![cfg(feature = "deja")]
 
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
@@ -34,8 +31,8 @@ use router::services::authentication::{decode_jwt_verified, JwtDecodeOutcome};
 /// The secret the caller holds. The forged token is signed with another one.
 const SECRET: &[u8] = b"test-secret";
 
-/// 2020-09-13. Fixed, because an expiry computed from the clock drifts back
-/// into validity and stops testing anything.
+/// Fixed, because an expiry computed from the clock drifts back into validity
+/// and stops testing anything.
 const EXPIRED_AT: u64 = 1_600_000_000;
 
 /// Only a decode of the token can produce this, so the claims assertion cannot

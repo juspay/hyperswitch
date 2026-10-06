@@ -58,22 +58,17 @@ pub enum EncryptionAlgorithm {
         }),
         // The load-bearing part of a JWE's shape is that it has FIVE
         // dot-separated base64url segments: `mk_add_card_request_hs` and
-        // `mk_vault_req` split on `.` and index 0 through 4, and a shorter value
-        // is rejected as `RequestEncodingFailed` before it reaches the wire. So
-        // the five segments are built here, in josekit's order — protected
-        // header, encrypted key, IV, ciphertext, tag.
+        // `mk_vault_req` index into all five, and a shorter value is rejected as
+        // `RequestEncodingFailed` before it reaches the wire. So the five are
+        // built here in josekit's order, with the real protected header — the one
+        // segment whose content is known — and opaque bytes for the rest, whose
+        // lengths are what the configured `RSA_OAEP_256` encrypter produces.
+        // Nothing in this process reads them, and the locker that could is itself
+        // a Substitute boundary that never runs on replay.
         //
-        // The header is the one segment whose content is known, so it is the
-        // real header rather than noise. The other three are opaque: nothing in
-        // this process reads them, and the locker that could is itself a
-        // Substitute boundary that never runs on replay. Their lengths assume
-        // RSA-2048 (a 256-byte wrapped key) and AES-GCM's 12-byte IV and 16-byte
-        // tag, which is what the configured `RSA_OAEP_256` encrypter produces.
-        //
-        // One draw, carved. A shape method is a function of the miss, so calling
-        // `byte_vec` three times at one site returns three values that are
-        // prefixes of one another — the IV would be the first twelve bytes of
-        // the wrapped key.
+        // One draw, carved: a shape method is a function of the miss, so three
+        // `byte_vec` calls at one site return values that are prefixes of one
+        // another.
         on_miss = {
             use base64::Engine as _;
             use common_utils::synth_shape::Synthesize as _;

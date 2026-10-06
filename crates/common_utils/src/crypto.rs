@@ -63,26 +63,21 @@ impl NonceSequence {
     //
     // deja: the AEAD nonce is the single source of ciphertext non-determinism.
     // Recording it and replaying it in call order makes `encode_message`
-    // reproduce byte-identical ciphertext for the same key+plaintext, so
-    // encrypted DB columns and HTTP bodies match the recording exactly. Real AES
-    // still runs; only the random nonce is substituted. The error side is
-    // `CryptoError` rather than ring's non-serializable `Unspecified`, so a
-    // recorded failure replays as that failure rather than as an
-    // unreconstructable sentinel -- and the caller already reported this exact
-    // variant, so nothing is lost by narrowing to it here.
+    // reproduce byte-identical ciphertext for the same key+plaintext. Real AES
+    // still runs; only the nonce is substituted. The error side is `CryptoError`
+    // rather than ring's non-serializable `Unspecified`, so a recorded failure
+    // replays as that failure and not as an unreconstructable sentinel.
     #[cfg_attr(
         feature = "deja",
         deja::id(
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
             codec = deja::codec::ResultCodec::<NonceSequence, errors::CryptoError>,
-            // The live body fills the LOW 96 bits of the u128 and leaves the top
-            // four bytes zero, which is what `current` then reads back out, so
-            // the synthesized nonce is built through `from_bytes` from exactly
-            // `NONCE_LEN` bytes rather than from a whole u128. Content is never
-            // inspected: AES-GCM takes the nonce as opaque input and the real
-            // cipher still runs over the candidate's own plaintext, so a changed
-            // message still diverges.
+            // The live body fills only the low 96 bits of the u128, which is
+            // what `current` reads back, so the nonce is built from exactly
+            // `NONCE_LEN` bytes. Content is never inspected: AES-GCM takes it as
+            // opaque input and the real cipher still runs over the candidate's
+            // own plaintext, so a changed message still diverges.
             on_miss = Ok(Self::from_bytes(deja::synth::bytes::<{ aead::NONCE_LEN }>(
                 &__deja_miss,
             ))),
@@ -667,11 +662,8 @@ impl EncodeMessage for TripleDesEde3CBC {
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
         // `rand::distributions::Alphanumeric` draws from the same 62 symbols as
-        // `consts::ALPHABETS` — `[A-Za-z0-9]`, no `-` and no `_` — and returns
-        // exactly `length` of them, which is what `alphanumeric` promises. The
-        // synthesized value is predictable by anyone holding the query, as
-        // everything in `deja::synth` is; that is a property of a replay and not
-        // of this function, and it is reached only on a replay lookup miss.
+        // `consts::ALPHABETS` — `[A-Za-z0-9]` — and returns exactly `length` of
+        // them, which is what `alphanumeric` promises.
         on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.alphanumeric(length) },
         codec = SerdeCodec,
     )
@@ -940,10 +932,9 @@ pub fn extract_rsa_public_key_components(
     deja::id(
         component = "common_utils::crypto",
         operation = "secure_random_bytes",
-        // `length` bytes, the length the caller asked for: `SeamedOsRng` turns a
-        // short vector into zeros via `try_into`, and the `rsa` crate reads this
-        // through that RNG. Same shape as the nonce above, and the same
-        // reasoning — the primitive still runs over the candidate's own input.
+        // `length` bytes, because `SeamedOsRng` turns a short vector into zeros
+        // via `try_into` and the `rsa` crate reads this through that RNG. As with
+        // the nonce, the primitive still runs over the candidate's own input.
         on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.byte_vec(length) },
         codec = SerdeCodec,
     )
@@ -1496,13 +1487,9 @@ mod deja_tests {
         <deja::codec::ResultCodec<NonceSequence, errors::CryptoError> as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// A recorded nonce failure rebuilds as the same variant.
-    ///
-    /// The Ok-only codec this site used wrote an `Err` as
-    /// `{"deja_err": "<Debug>"}`, which names no variant and so cannot rebuild
-    /// one -- the second case is that document, and it must still refuse. The
-    /// third case is what makes the first mean anything: a `kind` that went
-    /// unread would accept any string at all.
+    /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
+    /// so it must still refuse; and the third case is what makes the first mean
+    /// anything, since a `kind` that went unread would accept any string.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
@@ -1539,17 +1526,10 @@ mod deja_tests {
         );
     }
 
-    /// The seam still SELECTS that codec.
-    ///
-    /// The test above names the codec directly, so it answers what
-    /// `ResultCodec` does and not what this site asked for: reverting the
-    /// attribute to `ResultOkCodec` leaves it green, which left the conversion
-    /// this file carries unpinned. The selector is not observable at run time
-    /// either -- the macro expands it into the generated body and leaves
-    /// `BoundaryDeclaration::codec` as `None` -- so it is read from the
-    /// declaration that carries it. The slice stops at the attribute's own
-    /// `)]`, well before this module, so the assertion cannot be satisfied by
-    /// its own text.
+    /// The test above names the codec directly, so reverting the attribute to
+    /// `ResultOkCodec` would leave it green. The selection is not observable at
+    /// run time -- the macro expands it into the generated body -- so it is read
+    /// out of the declaration, whose slice ends at the attribute's own `)]`.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("crypto.rs");

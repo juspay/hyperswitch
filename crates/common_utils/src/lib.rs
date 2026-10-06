@@ -177,15 +177,13 @@ pub mod date_time {
             component = "common_utils",
             operation = "date_time::date_as_yyyymmddthhmmssmmmz",
             // Without a codec the capture mode is Debug, whose replay hit arm is
-            // unconditionally a reconstruction failure — so on this Substitute preset
-            // EVERY replayed call fail-stopped, the Ok path included, not just the
-            // errors. `SerdeCodec` cannot serve here because `time::error::Format` is
-            // foreign and not `Serialize`; `ResultOkCodec` needs only `Debug` of the
-            // error and restores the Ok path. The error side is left with no typed
-            // outcome of its own, unlike the seams that carry one, because the `Err`
-            // arm is unreachable: the format is a `const ISO_CONFIG` naming only
+            // unconditionally a reconstruction failure, so every replayed call
+            // fail-stops including the Ok path. `SerdeCodec` cannot serve because
+            // `time::error::Format` is foreign and not `Serialize`; `ResultOkCodec`
+            // needs only `Debug` of the error. The error side carries no typed
+            // outcome because the `Err` arm is unreachable: `ISO_CONFIG` names only
             // components a `PrimitiveDateTime` always carries, and `time` is built
-            // without `large-dates`, so the year is four digits by construction.
+            // without `large-dates`.
             codec = ResultOkCodec,
             on_miss = {
                 const SYNTH_ISO: EncodedConfig = Config::DEFAULT

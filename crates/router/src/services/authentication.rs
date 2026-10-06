@@ -6257,25 +6257,21 @@ fn token_digest(token: &str) -> String {
 /// calls a replay exists to compare.
 ///
 /// A token absent from the recording is decoded with expiry validation turned
-/// off. That is the one answer here that is neither a constant nor a lie about
-/// the claims: this seam exists because the clock `jsonwebtoken` reads is one
-/// deja cannot reach, so removing that clock is removing the entropy, not
-/// reintroducing it — the usual objection to answering a miss by running the
-/// real computation inverts at this site. Every other input stays as it was,
-/// `required_spec_claims` included, so a malformed or wrongly-signed token still
-/// comes back `Invalid`.
+/// off, and with nothing else changed. This seam exists because the clock
+/// `jsonwebtoken` reads is one deja cannot reach, so removing that clock is
+/// removing the entropy rather than reintroducing it. The arm decodes with the
+/// real `DecodingKey::from_secret` and turns off `validate_exp` and nothing
+/// else; `required_spec_claims` is untouched, so a malformed or wrongly-signed
+/// token still comes back `Invalid`.
 ///
-/// It does mean an expired token is accepted. The arm is the Substitute-miss
-/// branch of the replay lookup and nothing else reaches it: there is no lookup
-/// while recording and none when deja is inactive, so no deployment that serves
-/// real traffic can take this path.
+/// It does mean an expired token is accepted. Only the Substitute-miss branch of
+/// a replay lookup reaches this arm — there is no lookup while recording and
+/// none when deja is inactive — so no deployment serving real traffic can take
+/// the path.
 ///
-/// The value is not derived from `__deja_miss`, which every other arm in this
-/// tree is. It does not need to be: the rule exists so two different misses
-/// cannot synthesize one value, and this value is a function of the token, which
-/// is what the miss is addressed by. A constant here would be
-/// `Err(JwtDecodeOutcome::Invalid)`, which answers every unrecorded token with a
-/// 401 and ends the request a few frames later than the fail-stop did.
+/// The value is not derived from `__deja_miss`, as every other arm here is, and
+/// does not need to be: the rule exists so two misses cannot synthesize one
+/// value, and this value is a function of the token the miss is addressed by.
 ///
 /// `pub` only so the boundary can be exercised from an integration test:
 /// `set_global_runtime_hook` is a one-shot `OnceLock`, so record and replay
