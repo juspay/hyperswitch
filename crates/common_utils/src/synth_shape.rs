@@ -526,7 +526,9 @@ mod golden {
     /// [`Synthesize::instant_at_second_resolution`] for exactly that reason.
     #[test]
     fn the_clock_arms_are_pinned() {
-        let rfc7231 = time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT");
+        let rfc7231 = time::macros::format_description!(
+            "[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT"
+        );
         let render = |occurrence: u32| {
             let at = miss(occurrence).instant();
             let per_second = miss(occurrence).instant_at_second_resolution();

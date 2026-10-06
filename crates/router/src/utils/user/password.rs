@@ -218,4 +218,31 @@ mod deja_tests {
             "a kind naming no variant must refuse rather than fabricate one"
         );
     }
+
+    /// The seam still SELECTS that codec.
+    ///
+    /// The test above names the codec directly, so it answers what
+    /// `ResultCodec` does and not what this site asked for: reverting the
+    /// attribute to `ResultOkCodec` leaves it green, which left the conversion
+    /// this file carries unpinned. The selector is not observable at run time
+    /// either -- the macro expands it into the generated body and leaves
+    /// `BoundaryDeclaration::codec` as `None` -- so it is read from the
+    /// declaration that carries it. The slice stops at the attribute's own
+    /// `)]`, well before this module, so the assertion cannot be satisfied by
+    /// its own text.
+    #[test]
+    fn the_seam_selects_the_typed_result_codec() {
+        let source = include_str!("password.rs");
+        let (_, after_operation) = source
+            .split_once("operation = \"generate_password_hash\",")
+            .expect("the seam must declare its operation");
+        let (declaration, _) = after_operation
+            .split_once(")]")
+            .expect("the seam's attribute must be closed");
+        assert!(
+            declaration.contains("codec = deja::codec::ResultCodec::<String, PasswordHashOutcome>"),
+            "the password-hash seam must select the typed result codec, or a \
+             recorded failure replays as an unreconstructable sentinel: {declaration}"
+        );
+    }
 }

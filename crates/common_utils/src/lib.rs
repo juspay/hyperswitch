@@ -180,10 +180,23 @@ pub mod date_time {
             // unconditionally a reconstruction failure — so on this Substitute preset
             // EVERY replayed call fail-stopped, the Ok path included, not just the
             // errors. `SerdeCodec` cannot serve here because `time::error::Format` is
-            // not `Serialize`; `ResultOkCodec` needs only `Debug` of the error and
-            // restores the Ok path, leaving a recorded error a stop as intended.
+            // foreign and not `Serialize`; `ResultOkCodec` needs only `Debug` of the
+            // error and restores the Ok path. The error side is left with no typed
+            // outcome of its own, unlike the seams that carry one, because the `Err`
+            // arm is unreachable: the format is a `const ISO_CONFIG` naming only
+            // components a `PrimitiveDateTime` always carries, and `time` is built
+            // without `large-dates`, so the year is four digits by construction.
             codec = ResultOkCodec,
-            on_miss = { const SYNTH_ISO: EncodedConfig = Config::DEFAULT.set_time_precision(TimePrecision::Second { decimal_digits: NonZeroU8::new(3) }).encode(); convert_to_pdt(__deja_miss.instant()).assume_utc().format(&Iso8601::<SYNTH_ISO>) },
+            on_miss = {
+                const SYNTH_ISO: EncodedConfig = Config::DEFAULT
+                    .set_time_precision(TimePrecision::Second {
+                        decimal_digits: NonZeroU8::new(3),
+                    })
+                    .encode();
+                convert_to_pdt(__deja_miss.instant())
+                    .assume_utc()
+                    .format(&Iso8601::<SYNTH_ISO>)
+            },
         )
     )]
     pub fn date_as_yyyymmddthhmmssmmmz() -> Result<String, time::error::Format> {
@@ -208,9 +221,15 @@ pub mod date_time {
             component = "common_utils",
             operation = "date_time::now_rfc7231_http_date",
             // As above: no codec meant Debug capture, and a Substitute site whose hit
-            // arm always fails is a site that cannot be replayed at all.
+            // arm always fails is a site that cannot be replayed at all. The `Err`
+            // arm is unreachable for the same reason: a constant description naming
+            // only components an `OffsetDateTime` always carries.
             codec = ResultOkCodec,
-            on_miss = __deja_miss.instant_at_second_resolution().format(&time::macros::format_description!("[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT")),
+            on_miss = __deja_miss.instant_at_second_resolution().format(
+                &time::macros::format_description!(
+                    "[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT"
+                )
+            ),
         )
     )]
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {

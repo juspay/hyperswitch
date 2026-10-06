@@ -404,8 +404,8 @@ fn extract_envelope(
     (value, is_error)
 }
 
-/// The `reconstruct` closure: recorded envelope → the identical wire response
-/// through tonic's own decoder, or the recorded transport failure.
+/// The `reconstruct` closure: a tape HIT goes to [`reconstruct_hit`], a MISS
+/// becomes a synthesized transport failure naming the call that missed.
 fn reconstruct_from_recorded(
     input: deja::__private::ReconstructInput<'_>,
 ) -> deja::__private::Reconstructed<Result<http::Response<TonicBody>, BoxError>> {

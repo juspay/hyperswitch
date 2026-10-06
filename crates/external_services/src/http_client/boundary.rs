@@ -187,9 +187,7 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
 /// A recording made before errors were typed holds only report text under
 /// `error`; it has no `result` tag, so it reaches `replay_response`, which
 /// refuses it, and the call fail-stops as it did before.
-pub(super) fn replay_error(
-    recorded: &serde_json::Value,
-) -> Option<error_stack::Report<HttpClientError>> {
+fn replay_error(recorded: &serde_json::Value) -> Option<error_stack::Report<HttpClientError>> {
     let kind = recorded.get("kind")?.clone();
     serde_json::from_value::<HttpClientError>(kind)
         .ok()
@@ -397,14 +395,14 @@ mod tests {
         }
     }
 
-    /// The error a real aps2 recording holds for the unreachable `decision`
-    /// service, in the typed form this codec now writes.
+    /// The error a real recording holds for an unreachable internal service, in
+    /// the typed form this codec now writes.
     #[test]
     fn the_recorded_dns_failure_rebuilds() {
         let recorded = serde_json::json!({
             "version": 1,
             "result": "Err",
-            "kind": {"RequestNotSent": "error sending request for url (http://decision-svc.decision-sbx.svc.cluster.local/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known"},
+            "kind": {"RequestNotSent": "error sending request for url (http://service.internal/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known"},
             "response_body": {"captured": false},
         });
         let rebuilt = <HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(recorded)
@@ -420,7 +418,7 @@ mod tests {
     #[test]
     fn a_text_only_error_recording_is_refused() {
         let recorded = serde_json::json!({
-            "error": "Failed to send request to connector error sending request for url (http://decision-svc.decision-sbx.svc.cluster.local/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known",
+            "error": "Failed to send request to connector error sending request for url (http://service.internal/rule): error trying to connect: dns error: failed to lookup address information: Name or service not known",
             "response_body": {"captured": false},
         });
         assert!(<HttpResponseCodec as deja::codec::ReplayCodec>::reconstruct(recorded).is_none());

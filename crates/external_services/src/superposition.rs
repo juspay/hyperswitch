@@ -46,7 +46,7 @@ use crate::config_metrics;
 // the tape on replay — no live Superposition service is consulted in replay. The
 // WHOLE `CustomResult<T, SuperpositionError>` round-trips ("recording threw ⇒
 // replay throws"). Identity is rank-2 span-path (no call-site id). A genuine tape
-// MISS returns `Err(SuperpositionError)` (via `dispatch_async_or_miss`) so the
+// MISS returns `Err(SuperpositionError)` (the `Miss` arm of `reconstruct`) so the
 // caller's `fetch_db_config` ladder degrades to DB/default and replay progresses,
 // instead of the egress fail-stop. Reads are deja's per-request business config;
 // writes are deliberately NOT wrapped (they are leaving the OLTP path).

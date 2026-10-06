@@ -73,7 +73,14 @@ use crate::{
     deja::id(
         component = "router::admin",
         operation = "create_merchant_publishable_key",
-        on_miss = { use common_utils::synth_shape::Synthesize as _; format!("pk_{}_{}", router_env::env::prefix_for_env(), __deja_miss.uuid().simple()) },
+        on_miss = {
+            use common_utils::synth_shape::Synthesize as _;
+            format!(
+                "pk_{}_{}",
+                router_env::env::prefix_for_env(),
+                __deja_miss.uuid().simple()
+            )
+        },
         codec = SerdeCodec,
     )
 )]

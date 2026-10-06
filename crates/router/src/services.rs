@@ -138,7 +138,7 @@ pub async fn get_cache_store(
 // deja: the per-merchant data-encryption key (DEK) is random. It is stored
 // (master-key-encrypted) in merchant_key_store AND used to encrypt the merchant's
 // own columns, so it must replay to the recorded value or the substituted DB rows
-// and the response body diverge. Ok-only: the ring error type is non-serializable.
+// and the response body diverge.
 #[inline]
 #[cfg_attr(
     feature = "deja",

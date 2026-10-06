@@ -1308,6 +1308,7 @@ mod tests {
                 policy_version: 1,
                 event_schema_version: Some(deja::CURRENT_EVENT_SCHEMA_VERSION),
                 entries: Vec::new(),
+                identity_entries: Vec::new(),
             })
         }
     }

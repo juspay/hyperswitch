@@ -728,8 +728,8 @@ impl Cache {
     // reads — that is what a change is — and the fail-stop default answers the
     // first one by unwinding, which actix does not contain, so the worker writes
     // nothing and the whole correlation scores as a 500. One added read that way
-    // took 45 of 52 correlations to `500 vs 200` and left one correlation
-    // matched: a single regression censoring every other signal in the run.
+    // took almost every correlation in a run to `500 vs 200`: a single regression
+    // censoring every other signal.
     //
     // `None` is honest here in a way a fabricated value never is. It asserts only
     // that this key is not in the process-local cache, which IS true under replay

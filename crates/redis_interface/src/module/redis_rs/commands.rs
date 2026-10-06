@@ -1172,6 +1172,18 @@ impl super::RedisConnectionWithContext {
     #[cfg_attr(
         feature = "deja",
         deja::redis(
+            // Substitute, where every other seam in this file inherits the preset's
+            // Execute. The reply IS the verdict here, not a side effect:
+            // `check_for_constraints` reads the added-member count as the collision
+            // answer, so re-running SADD would also mutate the set it is testing.
+            // Execute could not answer it correctly in any case — this key is
+            // write-only at this seam (`state_write`, no `state_read`), and a replay
+            // store is seeded from what the recording READ, so the set starts empty,
+            // every member looks new, and the count comes back equal to the
+            // constraints offered on every call: always "no collision", even against
+            // a recording that captured one. Substitute serves the recorded verdict
+            // instead, and the `on_miss` arm below answers only the calls no
+            // recording made at all.
             replay = Substitute,
             operation = "sadd",
             codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
