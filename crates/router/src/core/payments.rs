@@ -12121,6 +12121,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    processor.get_key_store(),
                     dimensions,
                     business_profile,
                     txn_data,
@@ -13117,6 +13118,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
@@ -13135,6 +13137,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
+        key_store,
         business_profile,
         dimensions,
         &payment_dsl_input,
