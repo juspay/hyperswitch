@@ -45,7 +45,7 @@ const parPositiveCardDetails = {
   card_cvc: "737",
 };
 
-const parNegativeCardDetails = {
+const parAmexCardDetails = {
   card_number: "378282246310005",
   card_exp_month: "10",
   card_exp_year: "50",
@@ -428,7 +428,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: parNegativeCardDetails,
+          card: parAmexCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -438,7 +438,10 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_account_reference: null,
+          // Stripe now returns a payment_account_reference for Amex cards as
+          // well (connector-side behaviour change), so this scenario also
+          // verifies that the PAR is populated.
+          payment_account_reference: "dynamic_par",
         },
       },
     },
@@ -808,6 +811,26 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
     }),
+    // MIT payment with `error_on_requires_action` passed through
+    // connector_metadata. With a no-3DS saved card the payment succeeds
+    // normally; the flag only changes behaviour when the card would
+    // otherwise return `requires_action` (fail outright instead).
+    MITAutoCaptureWithErrorOnRequiresAction: {
+      Request: {
+        amount: 6000,
+        connector_metadata: {
+          stripe: {
+            error_on_requires_action: true,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: { amount: 6000 },
       Response: {

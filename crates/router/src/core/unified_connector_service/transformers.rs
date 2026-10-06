@@ -84,7 +84,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
-            stripe: _,
+            stripe,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -105,6 +105,11 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                     payment_purpose: data.payment_purpose.and_then(to_snake_case_string),
                 }
             }),
+            stripe: stripe
+                .as_ref()
+                .map(|data| payments_grpc::StripeAdditionalInformation {
+                    error_on_requires_action: data.error_on_requires_action,
+                }),
         }
     }
 }
@@ -1337,13 +1342,14 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                 _ => None,
             }
         });
-
         let connector_mandate_id = structured
             .and_then(|r| r.get_connector_mandate_id())
+            .or_else(|| router_data.request.connector_mandate_id.clone())
             .or_else(|| router_data.connector_mandate_request_reference_id.clone());
         let payment_method_id = structured.and_then(|r| r.get_payment_method_id());
-        let connector_mandate_request_reference_id =
-            structured.and_then(|r| r.get_connector_mandate_request_reference_id());
+        let connector_mandate_request_reference_id = structured
+            .and_then(|r| r.get_connector_mandate_request_reference_id())
+            .or_else(|| router_data.connector_mandate_request_reference_id.clone());
 
         if connector_mandate_id.is_none()
             && payment_method_id.is_none()
@@ -2774,6 +2780,27 @@ impl
     }
 }
 
+/// Connectors whose connector-service SetupMandate builder accepts raw card data.
+///
+/// `build_unified_connector_service_payment_method` substitutes the connector token for
+/// *any* payment method, so a card SetupMandate reaches the connector service as a token
+/// and the card itself is lost -- the gRPC `PaymentMethod.payment_method` oneof is card
+/// XOR token, so it cannot carry both. Our own connectors do not behave that way: Stripe's
+/// SetupMandate builder consumes `payment_method_token` on the wallet arm and ignores it
+/// for cards, re-sending the card. Shadow validation sees the difference as UCS sending
+/// `payment_method=<pm_id>` where the direct call sends `payment_method_data[card][*]`,
+/// `payment_method_data[type]`, `payment_method_options[card][network]`,
+/// `[request_three_d_secure]` and `payment_method_types[0]`.
+///
+/// An allow-list rather than a deny-list on purpose: some connectors genuinely require a
+/// token on this flow and reject raw cards (billwerk's `source` must be a `ct_`/`ca_`
+/// token; stax resolves a mandate token or errors), so an unverified connector keeps
+/// today's behaviour. Extend one connector at a time, after confirming its
+/// connector-service SetupMandate builder handles `PaymentMethodData::Card`.
+fn setup_mandate_accepts_raw_card(connector: &str) -> bool {
+    matches!(connector, "stripe")
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
@@ -2785,11 +2812,23 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        // Drop the token ONLY for a raw card on an allow-listed connector. Everything else
+        // -- wallets, mandate payments, bank debits, anything the helper below has no arm
+        // for -- keeps today's behaviour, because the helper answers NotImplemented for
+        // variants it cannot build and the token short-circuit is what rescues them today.
+        let payment_method_token = match router_data.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+                if setup_mandate_accepts_raw_card(router_data.connector.as_str()) =>
+            {
+                None
+            }
+            _ => router_data.payment_method_token.as_ref(),
+        };
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-                router_data.payment_method_token.as_ref(),
+                payment_method_token,
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -2836,6 +2875,13 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Stripe's setup_intents needs this for on_behalf_of on a destination charge,
+            // and echoes the charge details back as mandate_reference.mandate_metadata.
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             test_mode: router_data.test_mode,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             mit_category: None,
@@ -4410,6 +4456,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::Paysera => Ok(Self::Paysera),
             common_enums::PaymentMethodType::Payshap => Ok(Self::Payshap),
             common_enums::PaymentMethodType::PayshapProxy => Ok(Self::PayshapProxy),
+            common_enums::PaymentMethodType::Ted => Ok(Self::Ted),
             common_enums::PaymentMethodType::PixAutomaticoPush => Ok(Self::PixAutomaticoPush),
             common_enums::PaymentMethodType::PixAutomaticoQr => Ok(Self::PixAutomaticoQr),
             common_enums::PaymentMethodType::PixEmv => Ok(Self::PixEmv),
@@ -4443,6 +4490,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
+            common_enums::CardNetwork::AirPlus
+            | common_enums::CardNetwork::Aurore
+            | common_enums::CardNetwork::EftposAustralia
+            | common_enums::CardNetwork::GeCapital
+            | common_enums::CardNetwork::Uatp => Self::Unspecified,
         }
     }
 }
@@ -6585,6 +6637,7 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::Oxxo => Self::Oxxo,
             common_enums::PaymentMethodType::PagoEfectivo => Self::PagoEfectivo,
             common_enums::PaymentMethodType::PermataBankTransfer => Self::PermataBankTransfer,
+            common_enums::PaymentMethodType::OpenBanking => Self::OpenBanking,
             common_enums::PaymentMethodType::OpenBankingUk => Self::OpenBankingUk,
             common_enums::PaymentMethodType::PayBright => Self::PayBright,
             common_enums::PaymentMethodType::Paypal => Self::PayPal,
@@ -6623,6 +6676,7 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::DirectCarrierBilling => Self::DirectCarrierBilling,
             common_enums::PaymentMethodType::InstantBankTransfer => Self::InstantBankTransfer,
             common_enums::PaymentMethodType::RevolutPay => Self::RevolutPay,
+            common_enums::PaymentMethodType::Ted => Self::Ted,
             // Variants that don't have direct proto equivalents
             _ => {
                 tracing::warn!(
@@ -8733,6 +8787,9 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_connector_metadata: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -8961,6 +9018,15 @@ impl
                 .transpose()?,
             description: router_data.description.clone(),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(|descriptor| payments_grpc::BillingDescriptor {
+                    reference: descriptor.reference.clone(),
+                    statement_descriptor: descriptor.statement_descriptor.clone(),
+                    ..Default::default()
+                }),
         })
     }
 }
@@ -9014,6 +9080,10 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Arrived with the 2026.09.30.2 client bump; the router does not populate
+            // it yet, and None reproduces the behaviour from before the field existed.
+            payout_method_data: None,
+            test_mode: None,
             merchant_quote_id: router_data.quote_id.clone(),
             address,
             amount: Some(money),
@@ -9086,6 +9156,7 @@ impl
                 ),
             ),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            vendor_account_details: None,
         })
     }
 }
@@ -9148,6 +9219,8 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            destination_currency: None,
+            vendor_account_details: None,
         })
     }
 }
@@ -9183,7 +9256,10 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            payout_method_type: None,
+            customer: None,
+            payout_method_type: router_data
+                .payment_method_type
+                .map(|pmt| payments_grpc::PaymentMethodType::foreign_from(pmt).into()),
         })
     }
 }
@@ -9374,12 +9450,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
                     )
                 }
-                api_models::payouts::Bank::OpenBanking(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "OpenBanking bank transfer not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Bank::OpenBanking(open_banking) => {
+                    payments_grpc::payout_method::PayoutMethodData::OpenBanking(
+                        payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
+                    )
+                }
                 api_models::payouts::Bank::Payshap(payshap) => {
                     payments_grpc::payout_method::PayoutMethodData::Payshap(
                         payments_grpc::PayshapBankTransferPayout::foreign_try_from(payshap)?,
@@ -9388,6 +9463,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                 api_models::payouts::Bank::PayshapProxy(payshap_proxy) => {
                     payments_grpc::payout_method::PayoutMethodData::PayshapProxy(
                         payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
+                    )
+                }
+                api_models::payouts::Bank::Ted(ted) => {
+                    payments_grpc::payout_method::PayoutMethodData::Ted(
+                        payments_grpc::TedBankTransferPayout::foreign_try_from(ted)?,
                     )
                 }
             },
@@ -9428,13 +9508,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                         )
                     }
-                    api_models::payouts::BankTransfer::OpenBanking(_) => {
-                        Err(error_stack::Report::new(
-                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                                "OpenBanking bank transfer not supported for Unified Connector Service"
-                                    .to_string(),
-                            ),
-                        ))?
+                    api_models::payouts::BankTransfer::OpenBanking(open_banking) => {
+                        payments_grpc::payout_method::PayoutMethodData::OpenBanking(
+                            payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
+                        )
                     }
                     api_models::payouts::BankTransfer::Payshap(payshap) => {
                         payments_grpc::payout_method::PayoutMethodData::Payshap(
@@ -9443,7 +9520,14 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     }
                     api_models::payouts::BankTransfer::PayshapProxy(payshap_proxy) => {
                         payments_grpc::payout_method::PayoutMethodData::PayshapProxy(
-                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
+                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(
+                                payshap_proxy,
+                            ),
+                        )
+                    }
+                    api_models::payouts::BankTransfer::Ted(ted) => {
+                        payments_grpc::payout_method::PayoutMethodData::Ted(
+                            payments_grpc::TedBankTransferPayout::foreign_try_from(ted)?,
                         )
                     }
                 }
@@ -9454,12 +9538,14 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::ApplePayDecrypt::foreign_try_from(apple_pay)?,
                     )
                 }
-                 api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Googlepay wallet not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => {
+                    Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Googlepay wallet not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?
+                }
                 api_models::payouts::Wallet::Paypal(paypal) => {
                     payments_grpc::payout_method::PayoutMethodData::Paypal(
                         payments_grpc::Paypal::foreign_try_from(paypal)?,
@@ -9470,7 +9556,6 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::Venmo::foreign_try_from(venmo)?,
                     )
                 }
-
             },
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
                 match bank_redirect {
@@ -9708,6 +9793,34 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
 }
 
 #[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::TedBankTransfer>
+    for payments_grpc::TedBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::TedBankTransfer) -> Result<Self, Self::Error> {
+        let bank_name = item
+            .bank_name
+            .map(payments_grpc::BankNames::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            bank_name: bank_name.map(Into::into),
+            bank_code: item.bank_code.clone(),
+            ispb: item.ispb.clone().map(Secret::new),
+            bank_branch: item.bank_branch.clone(),
+            bank_account_number: Some(item.bank_account_number.clone()),
+            bank_account_type: item
+                .bank_account_type
+                .as_ref()
+                .map(|bank_type| i32::from(payments_grpc::BankType::foreign_from(bank_type))),
+            tax_id: item.tax_id.clone(),
+            account_holder_name: item.account_holder_name.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl transformers::ForeignTryFrom<&api_models::payouts::ApplePayDecrypt>
     for payments_grpc::ApplePayDecrypt
 {
@@ -9768,6 +9881,20 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Interac> for payments_gr
     fn foreign_try_from(item: &api_models::payouts::Interac) -> Result<Self, Self::Error> {
         Ok(Self {
             email: Some(Secret::new(item.email.clone().expose().expose())),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::OpenBanking>
+    for payments_grpc::OpenBankingPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::OpenBanking) -> Result<Self, Self::Error> {
+        Ok(Self {
+            account_holder_name: Some(item.account_holder_name.clone()),
+            iban: Some(item.iban.clone()),
         })
     }
 }
@@ -9859,6 +9986,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
                     payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
                 ),
             ),
+            api_models::payouts::BankTransfer::Ted(ted) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Ted(
+                    payments_grpc::TedBankTransferPayout::foreign_try_from(ted)?,
+                ))
+            }
         };
         Ok(Self { source_bank_data })
     }
