@@ -8282,7 +8282,7 @@ where
         .get_payment_blocklist_guard(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(payment_data.get_payment_intent().get_id()),
+            None,
         )
         .await;
 
@@ -14288,7 +14288,7 @@ impl EligibilityCheck for BlockListCheck {
             .get_payment_blocklist_guard(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
-                Some(&payment_elgibility_data.payment_intent.payment_id),
+                None,
             )
             .await)
     }

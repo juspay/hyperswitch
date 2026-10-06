@@ -316,7 +316,7 @@ config! {
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    targeting_key = id_type::PaymentId
+    targeting_key = id_type::ProfileId
 }
 
 impl DatabaseBackedConfig for PaymentBlocklistGuard {

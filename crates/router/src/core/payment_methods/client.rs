@@ -578,7 +578,6 @@ fn filter_customer_pms_by_enabled(
 async fn filter_customer_pms_by_blocklist(
     state: &routes::SessionState,
     platform: &domain::Platform,
-    payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
     customer_pms: Vec<CustomerPaymentMethodForClient>,
 ) -> Vec<CustomerPaymentMethodForClient> {
@@ -590,7 +589,7 @@ async fn filter_customer_pms_by_blocklist(
         .get_payment_blocklist_guard(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(payment_id),
+            None,
         )
         .await;
 
@@ -763,7 +762,6 @@ pub async fn list_payment_methods_client(
     let customer_payment_methods_filtered = filter_customer_pms_by_blocklist(
         &state,
         &platform,
-        &payment_id,
         payment_intent_context.business_profile.get_id(),
         customer_payment_methods_filtered,
     )
