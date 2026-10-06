@@ -14219,7 +14219,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        payment_elgibility_data: &PaymentEligibilityData,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -14271,14 +14271,8 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        payment_elgibility_data: &PaymentEligibilityData,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let profile_id = payment_elgibility_data
-            .payment_intent
-            .profile_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
         let dimensions = Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -14385,7 +14379,7 @@ impl EligibilityCheck for CardTestingCheck {
         &self,
         _state: &SessionState,
         _platform: &domain::Platform,
-        _payment_elgibility_data: &PaymentEligibilityData,
+        _profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         // This check is always run as there is no runtime config enablement
         Ok(true)
@@ -14468,7 +14462,11 @@ impl EligibilityHandler {
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
         let should_run = check
-            .should_run(&self.state, &self.platform, &self.payment_eligibility_data)
+            .should_run(
+                &self.state,
+                &self.platform,
+                self.business_profile.get_id(),
+            )
             .await?;
         Ok(match should_run {
             true => check
