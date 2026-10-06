@@ -6068,12 +6068,11 @@ pub async fn retrieve_payment_method(
     when(
         matches!(
             payment_method.status,
-            common_enums::PaymentMethodStatus::Inactive
-                | common_enums::PaymentMethodStatus::Redacted
+            common_enums::PaymentMethodStatus::Redacted
         ),
         || {
             Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
-                .attach_printable("Payment method is inactive or redacted"))
+                .attach_printable("Payment method is redacted"))
         },
     )?;
 
