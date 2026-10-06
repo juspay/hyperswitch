@@ -7718,7 +7718,12 @@ Cypress.Commands.add(
 
 /**
  * Confirms a payout via POST /payouts/{payout_id}/confirm, supporting both
- * authentication modes of the payout confirm API:
+ * authentication modes of the payout confirm API. This is the payout-side
+ * analogue of confirmCallTest (payments): it confirms an EXISTING payout on
+ * its dedicated confirm endpoint. It cannot be replaced by
+ * createConfirmPayoutTest, which always creates a NEW payout on
+ * POST /payouts/create — a route with merchant-key-only auth where the
+ * client-authenticated confirm flow is unreachable.
  * - client-authenticated (clientAuth=true): publishable key in the api-key
  *   header and the client_secret (stashed in globalState as
  *   payoutClientSecret by createConfirmPayoutTest) in the request body.
