@@ -214,7 +214,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         "Attempting to send webhook"
     );
 
-    let trigger_webhook_result = trigger_webhook_to_merchant(
+    let trigger_webhook_result = Box::pin(trigger_webhook_to_merchant(
         state.clone(),
         business_profile,
         merchant_key_store,
@@ -223,7 +223,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         request_content,
         delivery_attempt,
         process_tracker,
-    )
+    ))
     .await;
 
     let _ = raise_webhooks_analytics_event(
@@ -237,6 +237,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     .await;
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
