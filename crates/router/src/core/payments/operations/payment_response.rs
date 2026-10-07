@@ -3684,10 +3684,10 @@ fn get_vaultable_payment_method_data(
     payment_method: Option<enums::PaymentMethod>,
     connector_returned_payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> Option<&domain::PaymentMethodData> {
-    match (payment_method?, connector_returned_payment_method_data?) {
+    match (payment_method, connector_returned_payment_method_data) {
         (
-            enums::PaymentMethod::BankRedirect,
-            payment_method_data @ domain::PaymentMethodData::BankRedirect(_),
+            Some(enums::PaymentMethod::BankRedirect),
+            Some(payment_method_data @ domain::PaymentMethodData::BankRedirect(_)),
         ) => Some(payment_method_data),
         _ => None,
     }
@@ -3708,32 +3708,33 @@ async fn vault_deferred_payment_method<F: Clone>(
     customer_id: &common_utils::id_type::CustomerId,
     additional_payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> RouterResult<Option<DeferredVaultResponse>> {
-    let Some(payment_method_data) = get_vaultable_payment_method_data(
+    match get_vaultable_payment_method_data(
         payment_data.payment_attempt.payment_method,
         additional_payment_method_data,
-    ) else {
-        return Ok(None);
-    };
+    ) {
+        Some(payment_method_data) => {
+            let payment_method_create_request = payment_methods::get_payment_method_create_request(
+                Some(payment_method_data),
+                payment_data.payment_attempt.payment_method,
+                payment_data.payment_attempt.payment_method_type,
+                &Some(customer_id.clone()),
+                None,
+                None,
+            )
+            .await?;
 
-    let payment_method_create_request = payment_methods::get_payment_method_create_request(
-        Some(payment_method_data),
-        payment_data.payment_attempt.payment_method,
-        payment_data.payment_attempt.payment_method_type,
-        &Some(customer_id.clone()),
-        None,
-        None,
-    )
-    .await?;
-
-    tokenization::save_in_locker(
-        state,
-        platform,
-        payment_method_create_request,
-        None,
-        business_profile,
-    )
-    .await
-    .map(Some)
+            tokenization::save_in_locker(
+                state,
+                platform,
+                payment_method_create_request,
+                None,
+                business_profile,
+            )
+            .await
+            .map(Some)
+        }
+        None => Ok(None),
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -3883,72 +3884,71 @@ async fn create_deferred_payment_method<F: Clone>(
             })
             .flatten();
 
-    let Some((customer_acceptance, customer_id)) = deferred_save_details else {
-        return Ok(());
-    };
+    if let Some((customer_acceptance, customer_id)) = deferred_save_details {
+        let provider = platform.get_provider();
+        let key_store = provider.get_key_store();
 
-    let provider = platform.get_provider();
-    let key_store = provider.get_key_store();
+        let vault_response = vault_deferred_payment_method(
+            state,
+            payment_data,
+            platform,
+            business_profile,
+            &customer_id,
+            additional_payment_method_data,
+        )
+        .await?;
 
-    let vault_response = vault_deferred_payment_method(
-        state,
-        payment_data,
-        platform,
-        business_profile,
-        &customer_id,
-        additional_payment_method_data,
-    )
-    .await?;
-
-    let payment_method =
-        match find_deduplicated_payment_method(state, key_store, vault_response.as_ref()).await {
-            Some(deduplicated_payment_method) => {
-                payment_methods::cards::update_last_used_at(
-                    &deduplicated_payment_method,
-                    state,
-                    provider.get_account().storage_scheme,
-                    key_store,
-                )
-                .await
-                .map_err(|error| {
-                    logger::error!(?error, "Failed to update last used at");
-                })
-                .ok();
-
-                logger::info!(
-                    payment_method_id = %deduplicated_payment_method.get_id(),
-                    "Reusing the existing payment method the instrument was deduplicated to"
-                );
-
-                deduplicated_payment_method
-            }
-            None => {
-                let (locker_id, locker_fingerprint_id) = vault_response
-                    .map(|(vault_response, _)| {
-                        (
-                            Some(vault_response.payment_method_id),
-                            vault_response.locker_fingerprint_id,
-                        )
+        let payment_method =
+            match find_deduplicated_payment_method(state, key_store, vault_response.as_ref()).await
+            {
+                Some(deduplicated_payment_method) => {
+                    payment_methods::cards::update_last_used_at(
+                        &deduplicated_payment_method,
+                        state,
+                        provider.get_account().storage_scheme,
+                        key_store,
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to update last used at");
                     })
-                    .unwrap_or((None, None));
+                    .ok();
 
-                insert_deferred_payment_method(
-                    state,
-                    platform,
-                    &customer_id,
-                    customer_acceptance,
-                    payment_data.payment_attempt.payment_method,
-                    payment_data.payment_attempt.payment_method_type,
-                    payment_data.address.get_payment_method_billing().cloned(),
-                    locker_id,
-                    locker_fingerprint_id,
-                )
-                .await?
-            }
-        };
+                    logger::info!(
+                        payment_method_id = %deduplicated_payment_method.get_id(),
+                        "Reusing the existing payment method the instrument was deduplicated to"
+                    );
 
-    payment_data.payment_attempt.payment_method_id = Some(payment_method.get_id().clone());
-    payment_data.payment_method_info = Some(payment_method);
+                    deduplicated_payment_method
+                }
+                None => {
+                    let (locker_id, locker_fingerprint_id) = vault_response
+                        .map(|(vault_response, _)| {
+                            (
+                                Some(vault_response.payment_method_id),
+                                vault_response.locker_fingerprint_id,
+                            )
+                        })
+                        .unwrap_or((None, None));
+
+                    insert_deferred_payment_method(
+                        state,
+                        platform,
+                        &customer_id,
+                        customer_acceptance,
+                        payment_data.payment_attempt.payment_method,
+                        payment_data.payment_attempt.payment_method_type,
+                        payment_data.address.get_payment_method_billing().cloned(),
+                        locker_id,
+                        locker_fingerprint_id,
+                    )
+                    .await?
+                }
+            };
+
+        payment_data.payment_attempt.payment_method_id = Some(payment_method.get_id().clone());
+        payment_data.payment_method_info = Some(payment_method);
+    }
 
     Ok(())
 }
