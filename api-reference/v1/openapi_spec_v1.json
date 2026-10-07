@@ -34755,6 +34755,7 @@
           "viet_qr",
           "venmo",
           "walley",
+          "wero",
           "we_chat_pay",
           "seven_eleven",
           "lawson",
@@ -50705,6 +50706,18 @@
               "vipps_redirect": {
                 "type": "object",
                 "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "WeroRedirect",
+            "required": [
+              "wero_redirect"
+            ],
+            "properties": {
+              "wero_redirect": {
+                "type": "object"
               }
             }
           },
