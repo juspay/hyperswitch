@@ -2054,6 +2054,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     ConfirmUpdate {
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         net_amount: NetAmount,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
@@ -2404,6 +2405,7 @@ impl PaymentAttemptUpdate {
                 updated_by,
             },
             Self::ConfirmUpdate {
+                setup_future_usage_applied,
                 net_amount,
                 currency,
                 status,
@@ -2447,6 +2449,7 @@ impl PaymentAttemptUpdate {
                 applied_offer_details,
                 active_frm_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
+                setup_future_usage_applied,
                 amount: net_amount.get_order_amount(),
                 currency,
                 status,

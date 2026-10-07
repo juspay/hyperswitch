@@ -511,6 +511,9 @@ pub mod superposition {
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
     pub const SHOULD_PERFORM_SDK_VAULTING: &str = "vaulting.should_perform_sdk_vaulting";
+    /// Override applied future usage for merchant and payment method scoped contexts.
+    pub const SHOULD_OVERRIDE_SETUP_FUTURE_USAGE_TO_OFF_SESSION: &str =
+        "payments.should_override_setup_future_usage_to_off_session";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key

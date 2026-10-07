@@ -12407,11 +12407,7 @@ where
                 )
                 .await
             } else {
-                helpers::override_setup_future_usage_to_on_session(
-                    state.store.as_ref(),
-                    payment_data,
-                )
-                .await?;
+                helpers::override_setup_feature_usage(state, payment_data).await?;
 
                 let first_choice = connectors
                     .first()
@@ -15532,7 +15528,18 @@ pub trait OperationSessionSetters<F> {
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
     );
     fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds);
+    #[cfg(feature = "v1")]
+    fn set_customer_acceptance(
+        &mut self,
+        customer_acceptance: common_payments_types::CustomerAcceptance,
+    );
     fn set_setup_future_usage_in_payment_intent(
+        &mut self,
+        setup_future_usage: storage_enums::FutureUsage,
+    );
+
+    #[cfg(feature = "v1")]
+    fn set_setup_future_usage_applied_in_payment_attempt(
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
     );
@@ -15893,6 +15900,21 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
+    }
+
+    fn set_customer_acceptance(
+        &mut self,
+        customer_acceptance: common_payments_types::CustomerAcceptance,
+    ) {
+        self.customer_acceptance = Some(customer_acceptance);
+    }
+
+    #[cfg(feature = "v1")]
+    fn set_setup_future_usage_applied_in_payment_attempt(
+        &mut self,
+        setup_future_usage: storage_enums::FutureUsage,
+    ) {
+        self.payment_attempt.setup_future_usage_applied = Some(setup_future_usage);
     }
 
     #[cfg(feature = "v1")]

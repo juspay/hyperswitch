@@ -551,6 +551,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
+                    setup_future_usage_applied: payment_data
+                        .payment_attempt
+                        .setup_future_usage_applied,
                     currency: payment_data.currency,
                     status: attempt_status,
                     payment_method,

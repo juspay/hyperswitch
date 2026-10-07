@@ -627,6 +627,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
     },
     ConfirmUpdate {
+        setup_future_usage_applied: Option<storage_enums::FutureUsage>,
         amount: MinorUnit,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
@@ -2680,6 +2681,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 active_frm_id: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
+                setup_future_usage_applied,
                 amount,
                 currency,
                 authentication_type,
@@ -2788,7 +2790,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 charges: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
-                setup_future_usage_applied: None,
+                setup_future_usage_applied,
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,

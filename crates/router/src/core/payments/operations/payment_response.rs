@@ -503,7 +503,9 @@ where
             });
 
         let is_off_session = matches!(
-            payment_intent.setup_future_usage,
+            payment_attempt
+                .setup_future_usage_applied
+                .or(payment_intent.setup_future_usage),
             Some(common_enums::FutureUsage::OffSession)
         );
 
