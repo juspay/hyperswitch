@@ -203,8 +203,22 @@ type Captured<T> = T;
 /// The statement and the bind values a db boundary records as its args: the
 /// binds as plain JSON rather than as `debug_query`'s rendering, which printed a
 /// map in its iteration order. Feature-off nothing is captured.
+///
+/// Gated: a seam attribute's args cost nothing when nothing observes, but body
+/// work is paid on every query, and the boundary reads these only on the same
+/// predicate.
 #[cfg(feature = "deja")]
 fn capture<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
+    if deja::__private::observation_is_active() {
+        capture_statement(query)
+    } else {
+        (String::new(), serde_json::Value::Null)
+    }
+}
+
+/// What an observing call records.
+#[cfg(feature = "deja")]
+fn capture_statement<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
     let captured = deja::db::capture_query(query);
     (captured.sql, captured.binds)
 }
@@ -1276,7 +1290,7 @@ fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
 mod capture_tests {
     use diesel::{debug_query, pg::Pg, ExpressionMethods, QueryDsl};
 
-    use super::capture;
+    use super::{capture, capture_statement};
     use crate::schema::payment_attempt;
 
     /// `pre_routing_results` as an iterated HashMap serializes it, in `order`.
@@ -1309,7 +1323,7 @@ mod capture_tests {
             debug_query::<Pg, _>(&backward).to_string(),
             "premise: diesel renders the map in its iteration order"
         );
-        let (left, right) = (capture(&forward), capture(&backward));
+        let (left, right) = (capture_statement(&forward), capture_statement(&backward));
         assert_eq!(left, right);
         assert!(!left.0.contains("-- binds"), "{}", left.0);
         assert_eq!(
@@ -1319,6 +1333,16 @@ mod capture_tests {
             "the bound document is captured as a document: {}",
             left.1
         );
+    }
+
+    /// Nothing observes in a test binary, so the gate answers the feature-off
+    /// pair for a query the capture would otherwise have read.
+    #[test]
+    fn an_unobserved_query_builds_no_statement() {
+        let query = update(routing(["ach", "przelewy24"]));
+        let idle = (String::new(), serde_json::Value::Null);
+        assert_eq!(capture(&query), idle);
+        assert_ne!(capture_statement(&query), idle);
     }
 }
 
