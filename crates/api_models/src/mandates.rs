@@ -412,10 +412,7 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub transaction_link_id: Option<String>,
 }
 
-/// Card details held in an external vault and referenced by vault aliases rather than by PAN.
-///
-/// `card_number` is the vault's alias for the card, not the card number itself, so this
-/// payload stays non-PCI and is authorized through the external vault proxy.
+/// Card details held in an external vault, referenced by a vault alias rather than by PAN.
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
 )]
@@ -482,8 +479,7 @@ pub struct VaultCardData {
     pub last_four: Option<String>,
 }
 
-/// Network transaction ID and external vault card details for MIT payments where the card is
-/// held in an external vault. Authorized through the external vault proxy.
+/// Network transaction ID and external vault card details for an MIT.
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
 )]

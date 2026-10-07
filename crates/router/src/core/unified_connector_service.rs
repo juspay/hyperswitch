@@ -2520,11 +2520,8 @@ pub fn build_unified_connector_service_payment_method(
 
 /// The MIT counterpart of [`build_unified_connector_service_payment_method_for_external_proxy`].
 ///
-/// Emits `ProxyCardDetailsForNetworkTransactionId` rather than `CardProxy`: a merchant initiated
-/// transaction has no cardholder present, so no CVC is sent, and UCS routes this variant to the
-/// vault-token holder on its recurring charge flow so the alias is substituted at the proxy. The
-/// network transaction ID that authorizes the MIT travels separately, as the mandate reference on
-/// `connector_recurring_payment_id`.
+/// Emits `ProxyCardDetailsForNetworkTransactionId` rather than `CardProxy`, so UCS substitutes the
+/// alias on its recurring charge flow. No CVC: an MIT has no cardholder present.
 pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
     payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,

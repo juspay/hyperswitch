@@ -118,10 +118,6 @@ pub fn should_call_proxy_for_payments_core(payment_request: api::PaymentsRequest
 }
 
 /// The external vault counterpart of [`should_call_proxy_for_payments_core`].
-///
-/// A card held in an external vault is referenced by a non-PCI alias rather than a PAN, so it
-/// authorizes through the external vault proxy core instead of the plain proxy core. It arrives
-/// as recurring details and carries no `payment_method_data` of its own.
 #[cfg(feature = "v1")]
 pub fn should_call_external_vault_proxy_for_payments_core(
     payment_request: &api::PaymentsRequest,

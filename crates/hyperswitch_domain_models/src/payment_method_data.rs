@@ -937,9 +937,8 @@ impl CardDetailsForNetworkTransactionId {
 }
 
 impl VaultCardDetails {
-    /// The vault alias counterpart of
-    /// `CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow`: same network
-    /// mandate reference, but the card payload is the non-PCI external vault form.
+    /// The external vault counterpart of
+    /// `CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow`.
     pub fn get_nti_and_vault_card_details_for_mit_flow(
         network_transaction_id_and_vault_card_details: NetworkTransactionIdAndVaultCardDetails,
     ) -> (mandates::MandateReferenceId, ExternalVaultPaymentMethodData) {
@@ -966,9 +965,8 @@ impl VaultCardDetails {
 }
 
 impl From<VaultCardDetails> for ExternalVaultCard {
-    /// A merchant initiated transaction has no cardholder present, so no CVC is collected and the
-    /// field is sent empty. The transaction authorizes on the network transaction ID carried
-    /// alongside the vault alias, not on the CVC.
+    /// `card_cvc` is deliberately empty: an MIT has no cardholder present, and the transaction
+    /// authorizes on the network transaction ID.
     fn from(vault_card_details: VaultCardDetails) -> Self {
         Self {
             card_number: vault_card_details.vault_card_token,
@@ -4972,12 +4970,8 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
 
 impl RecurringDetails {
     /// The external vault counterpart of
-    /// `get_mandate_reference_id_and_payment_method_data_for_proxy_flow`.
-    ///
-    /// The raw-card flow pairs its network mandate reference with a domain `PaymentMethodData`
-    /// and authorizes through the plain proxy core. A vault alias is non-PCI and has no such
-    /// form, so it pairs the same mandate reference with `ExternalVaultPaymentMethodData` and
-    /// authorizes through the external vault proxy core instead.
+    /// `get_mandate_reference_id_and_payment_method_data_for_proxy_flow`, pairing the same mandate
+    /// reference with `ExternalVaultPaymentMethodData`.
     pub fn get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow(
         &self,
     ) -> Option<(mandates::MandateReferenceId, ExternalVaultPaymentMethodData)> {
