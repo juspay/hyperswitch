@@ -62,6 +62,12 @@ describe("Offer Engine", () => {
   });
 
   after("flush global state", () => {
+    // Clear so a stale quote id can never leak into a later spec/run via
+    // persisted globalState if some future eligibility call here ever
+    // returns zero eligible offers (the "set only if present" pattern in
+    // paymentsOfferEligibilityCheck would otherwise just leave the old
+    // value in place rather than failing loudly).
+    globalState.set("offerQuoteId", undefined);
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -77,6 +83,10 @@ describe("Offer Engine", () => {
     });
 
     it("payment eligibility check surfaces an eligible offer", () => {
+      // Clear before each cycle so a stale quote id from a previous
+      // context can never silently be reused if this call were to return
+      // zero eligible offers.
+      globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
         connectorDetails.offer_engine.OfferEligibilityCheck,
@@ -190,6 +200,10 @@ describe("Offer Engine", () => {
     });
 
     it("payment eligibility check surfaces an eligible offer", () => {
+      // Clear before each cycle so a stale quote id from a previous
+      // context can never silently be reused if this call were to return
+      // zero eligible offers.
+      globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
         connectorDetails.offer_engine.OfferEligibilityCheck,
