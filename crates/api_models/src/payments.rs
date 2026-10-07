@@ -10667,6 +10667,78 @@ pub struct ConnectorMetadata {
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+    #[smithy(value_type = "Option<JpmorganConnectorMetadata>")]
+    pub jpmorgan: Option<JpmorganConnectorMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct JpmorganConnectorMetadata {
+    pub authentication_use_case: Option<JpmorganAuthenticationUseCase>,
+    pub merchant_fraud_risk_score: Option<String>,
+    pub requested_challenge_preference: Option<JpmorganChallengePreference>,
+    pub original_three_ds: Option<JpmorganOriginalThreeDs>,
+    pub trans_status_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum JpmorganAuthenticationUseCase {
+    SinglePayment,
+    RecurringPaymentFixed,
+    InstallmentPayment,
+    PaymentOnShipment,
+    RecurringPaymentOther,
+    PreauthorizationRental,
+    PreauthorizationNoRental,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum JpmorganChallengePreference {
+    NoPreference,
+    NoChallenge,
+    ChallengeRequested,
+    ChallengeMandate,
+    NoChallengeLvp,
+    NoChallengeTra,
+    NoChallengeMit,
+    NoChallengeData,
+    NoChallengeDa,
+    NoChallengeTrusted,
+    ChallengeTrusted,
+    NoChallengeScp,
+    ChallengeDeviceBinding,
+    ChallengeIssuerRequested,
+    ChallengeMit,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct JpmorganOriginalThreeDs {
+    pub program_protocol: Option<String>,
+    /// The original authentication time in RFC3339 format, including its UTC offset.
+    pub authentication_timestamp: Option<String>,
+    pub authentication_amount: Option<JpmorganAuthenticationAmount>,
+    pub directory_server_transaction_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub authentication_method: Option<common_enums::DecoupledAuthenticationType>,
+    pub requested_challenge_preference: Option<JpmorganChallengePreference>,
+    pub issuer_fraud_score: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct JpmorganAuthenticationAmount {
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub minor_amount: MinorUnit,
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
