@@ -748,7 +748,7 @@ impl DatabaseBackedConfig for RevenueRecoveryAbEnabled {
 config! {
     superposition_key = REVENUE_RECOVERY_AB_ALGORITHM,
     output = common_enums::RevenueRecoveryABAlgorithm,
-    default = common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry,
+    default = common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore,
     string_enum = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
     targeting_key = id_type::GlobalPaymentId

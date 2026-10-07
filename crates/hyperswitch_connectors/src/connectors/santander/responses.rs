@@ -397,9 +397,11 @@ pub struct SantanderCalendarResponse {
 #[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
+    PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
+    PixQrWebhook(Box<SantanderPixQrWebhookResponse>),
+    PixAutomaticoRecWebhook(Box<SantanderPixAutomaticoRecWebhookBody>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
     PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
-    PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -912,6 +914,49 @@ pub struct SantanderPaymentDetails {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixQrWebhookBody {
+    pub pix: Vec<SantanderPix>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SantanderPixQrWebhookResponse {
+    pub pix: Vec<SantanderPix>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecWebhookEntry {
+    /// Recurrence ID (maps to Hyperswitch connector_mandate_id)
+    pub id_rec: String,
+    /// Current status of the recurrence
+    pub status: RecurrenceStatus,
+    /// Status update history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atualizacao: Option<Vec<SantanderPixAutomaticoAtualizacao>>,
+    /// Activation journey details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ativacao: Option<SantanderPixAutomaticoAtivacao>,
+    /// Closure details (present on cancellation/rejection)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encerramento: Option<SantanderPixAutomaticoEncerramento>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecWebhookBody {
+    pub recs: Vec<SantanderPixAutomaticoRecWebhookEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderWebhookBody {
+    PixQr(SantanderPixQrWebhookBody),
+    Recurrence(SantanderPixAutomaticoRecWebhookBody),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderBoletoStatus {
     /// The boleto is registered and waiting for payment.
@@ -1100,6 +1145,8 @@ pub struct SantanderPixAutomaticoLoc {
 pub struct SantanderPixAutomaticoEncerramento {
     /// Rejection information if the recurrence was closed due to rejection
     pub rejeicao: Option<SantanderPixAutomaticoRejeicao>,
+    /// Cancellation information if the recurrence was cancelled
+    pub cancelamento: Option<SantanderPixAutomaticoCancelamento>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1113,9 +1160,20 @@ pub struct SantanderPixAutomaticoRejeicao {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCancelamento {
+    /// Who requested the cancellation (e.g. "USUARIO_PAGADOR")
+    pub solicitante: Option<String>,
+    /// Cancellation code
+    pub codigo: Option<String>,
+    /// Description of the cancellation reason
+    pub descricao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoAtivacao {
     /// Type of journey/flow used to activate the recurrence
-    pub tipo_jornada: Option<String>,
+    pub tipo_jornada: Option<SantanderJourneyType>,
     /// Data associated with the activation journey
     pub dados_jornada: Option<SantanderPixAutomaticoDadosJornada>,
 }
