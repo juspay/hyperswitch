@@ -10967,6 +10967,42 @@ impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
     }
 }
 
+impl From<AttemptStatus> for ConnectorTokenStatus {
+    fn from(status: AttemptStatus) -> Self {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PartiallyAuthorized => Self::Active,
+            AttemptStatus::Failure
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::Started
+            | AttemptStatus::Pending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
+        }
+    }
+}
+
 impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
     fn from(status: ConnectorTokenStatus) -> Self {
         match status {
