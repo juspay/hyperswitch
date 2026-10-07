@@ -7855,18 +7855,9 @@ impl ForeignFrom<&common_types::payouts::PayoutsBillingDescriptor>
 {
     fn foreign_from(billing_descriptor: &common_types::payouts::PayoutsBillingDescriptor) -> Self {
         Self {
-            name: billing_descriptor
-                .name
-                .clone()
-                .map(|name| name.expose().into()),
-            city: billing_descriptor
-                .city
-                .clone()
-                .map(|city| city.expose().into()),
-            phone: billing_descriptor
-                .phone
-                .clone()
-                .map(|phone| phone.expose().into()),
+            name: billing_descriptor.name.clone(),
+            city: billing_descriptor.city.clone(),
+            phone: billing_descriptor.phone.clone(),
             statement_descriptor: billing_descriptor.statement_descriptor.clone(),
             statement_descriptor_suffix: None,
             reference: billing_descriptor.reference.clone(),
@@ -9052,8 +9043,8 @@ impl
             payout_connector_metadata: router_data
                 .request
                 .payout_connector_metadata
-                .clone()
-                .map(|secret| Secret::new(secret.expose().to_string())),
+                .as_ref()
+                .map(|secret| Secret::new(secret.peek().to_string())),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
