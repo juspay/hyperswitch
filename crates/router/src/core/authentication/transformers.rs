@@ -205,6 +205,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -233,6 +234,7 @@ impl ForeignFrom<common_enums::TransactionStatus> for common_enums::Authenticati
             | common_enums::TransactionStatus::NotVerified => Self::Failed,
             common_enums::TransactionStatus::ChallengeRequired
             | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::SecurePaymentConfirmationRequired
             | common_enums::TransactionStatus::InformationOnly => Self::Pending,
         }
     }

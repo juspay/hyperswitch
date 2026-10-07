@@ -69,7 +69,9 @@ use router_env::logger;
 #[cfg(feature = "v2")]
 use storage_impl::revenue_recovery_retry_stats;
 use storage_impl::{
-    errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
+    errors::StorageError,
+    redis::{cache::CacheInterface, kv_store::RedisConnInterface},
+    tokenization, MockDb,
 };
 
 pub use self::kafka_store::KafkaStore;
@@ -137,6 +139,7 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
@@ -182,6 +185,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + 'static
 {
@@ -199,6 +203,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + 'static
 {

@@ -452,6 +452,10 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether A/B routing decides which retry implementation an invoice runs.
+    pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
+    /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.
+    pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
     /// Days from the first attempt during which an invoice may still be retried
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
@@ -556,6 +560,10 @@ pub mod superposition {
         "routing.preferred_connectors_enabled_payment_method_types";
     /// Payout blocklist guard configuration key
     pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
+    /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
+    /// and payment method type). When enabled, a connector-reported payment amount that differs
+    /// from the requested amount does not fail the integrity check. Refunds are not affected.
+    pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.
