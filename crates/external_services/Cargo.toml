@@ -10,9 +10,9 @@ license.workspace = true
 [features]
 aws_kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 email = ["dep:aws-config"]
-aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
+aws_s3 = ["dep:cloud_services", "cloud_services/s3"]
 gcp_kms = ["dep:google-cloud-kms"]
-oci_kms = ["dep:oci_kms"]
+oci_kms = ["dep:cloud_services", "cloud_services/oci_kms"]
 hashicorp-vault = ["dep:vaultrs"]
 superposition = [
     "dep:open-feature",
@@ -58,7 +58,6 @@ aws-config = { version = "1.5.10", optional = true, features = [
 aws-sdk-kms = { version = "1.51.0", optional = true }
 aws-sdk-sesv2 = "1.57.0"
 aws-sdk-sts = "1.51.0"
-aws-sdk-s3 = { version = "1.65.0", optional = true }
 aws-smithy-runtime = "1.8.3"
 aws-smithy-runtime-api = { version = "1.7", features = ["client"] }
 aws-smithy-types = "1.3.1"
@@ -107,7 +106,7 @@ superposition_sdk = { version = "0.115.5", optional = true }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
-oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
+cloud_services = { version = "0.1.0", path = "../cloud_services", optional = true }
 hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", features = [
     "log_extra_implicit_fields",

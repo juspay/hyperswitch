@@ -1,4 +1,4 @@
-//! Hyperswitch adapter over the shared [`oci_kms`](::oci_kms) client.
+//! Hyperswitch adapter over the shared OCI KMS client in [`cloud_services::kms::oci`].
 //!
 //! The client itself (authentication, request signing, timeouts and retries) lives in the
 //! standalone `oci_kms` crate so other services can share it. This adapter routes its clock
@@ -6,9 +6,9 @@
 
 use std::{sync::Arc, time::Instant};
 
+pub use cloud_services::kms::oci::OciKmsConfig;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
-pub use oci_kms::OciKmsConfig;
 use router_env::logger;
 
 use crate::metrics;
@@ -16,14 +16,17 @@ use crate::metrics;
 /// Client for OCI Vault KMS crypto operations.
 #[derive(Clone, Debug)]
 pub struct OciKmsClient {
-    inner: oci_kms::OciKmsClient,
+    inner: cloud_services::kms::oci::OciKmsClient,
 }
 
 impl OciKmsClient {
     /// Constructs a new client; credentials are resolved lazily per call, not eagerly.
     pub async fn new(config: &OciKmsConfig) -> CustomResult<Self, OciKmsError> {
-        let inner = oci_kms::OciKmsClient::with_environment(config, Arc::new(CommonUtilsSeams))
-            .map_err(|error| report!(error).change_context(OciKmsError::ClientCreationFailed))?;
+        let inner = cloud_services::kms::oci::OciKmsClient::with_environment(
+            config,
+            Arc::new(CommonUtilsSeams),
+        )
+        .map_err(|error| report!(error).change_context(OciKmsError::ClientCreationFailed))?;
         Ok(Self { inner })
     }
 
@@ -68,7 +71,7 @@ impl OciKmsClient {
 #[derive(Debug)]
 struct CommonUtilsSeams;
 
-impl oci_kms::Environment for CommonUtilsSeams {
+impl cloud_services::kms::oci::Environment for CommonUtilsSeams {
     fn now_unix_timestamp(&self) -> i64 {
         common_utils::date_time::now_unix_timestamp()
     }
