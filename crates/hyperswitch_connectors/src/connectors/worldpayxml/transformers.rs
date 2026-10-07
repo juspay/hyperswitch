@@ -1930,16 +1930,21 @@ fn get_worldpayxml_sender_account_number(
 
 fn build_worldpayxml_funding_transfer<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
-    card_number: Secret<String>,
+    payment_method_data: Option<&PaymentMethodData>,
     recipient_details: Option<&api_models::payments::RecipientDetails>,
     business_country: Option<common_enums::CountryAlpha2>,
     connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,
-) -> Result<FundingTransfer, error_stack::Report<errors::ConnectorError>> {
-    let worldpayxml_data = connector_intent_metadata
-        .and_then(|metadata| metadata.worldpayxml.clone())
-        .ok_or_else(connector_utils::missing_field_err(
-            "connector_metadata.worldpayxml",
-        ))?;
+) -> Result<Option<FundingTransfer>, error_stack::Report<errors::ConnectorError>> {
+    let Some(worldpayxml_data) =
+        connector_intent_metadata.and_then(|metadata| metadata.worldpayxml.as_ref())
+    else {
+        return Ok(None);
+    };
+
+    let card_number = get_worldpayxml_sender_account_number(
+        payment_method_data,
+        router_data.payment_method_token.as_ref(),
+    )?;
 
     let transfer_type = worldpayxml_data
         .funding_transaction_type
@@ -1955,7 +1960,7 @@ fn build_worldpayxml_funding_transfer<F, Req, Res>(
             "connector_metadata.worldpayxml.payment_purpose",
         ))?;
 
-    Ok(FundingTransfer {
+    Ok(Some(FundingTransfer {
         transfer_type: transfer_type.to_string(),
         category: worldpayxml_constants::WORLDPAYXML_FUNDING_CATEGORY.to_string(),
         payment_purpose: payment_purpose.to_string(),
@@ -1963,7 +1968,7 @@ fn build_worldpayxml_funding_transfer<F, Req, Res>(
             build_worldpayxml_sender_party(router_data, card_number)?,
             build_worldpayxml_recipient_party(recipient_details, business_country)?,
         ],
-    })
+    }))
 }
 
 impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentService {
@@ -2113,26 +2118,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             None
         };
 
-        let funding_transfer = item
-            .router_data
-            .request
-            .is_account_funded_transaction
-            .unwrap_or(false)
-            .then(|| {
-                let card_number = get_worldpayxml_sender_account_number(
-                    Some(&item.router_data.request.payment_method_data),
-                    item.router_data.payment_method_token.as_ref(),
-                )?;
-
-                build_worldpayxml_funding_transfer(
-                    item.router_data,
-                    card_number,
-                    item.router_data.request.recipient_details.as_ref(),
-                    item.router_data.request.business_country,
-                    item.router_data.request.connector_intent_metadata.as_ref(),
-                )
-            })
-            .transpose()?;
+        let funding_transfer = build_worldpayxml_funding_transfer(
+            item.router_data,
+            Some(&item.router_data.request.payment_method_data),
+            item.router_data.request.recipient_details.as_ref(),
+            item.router_data.request.business_country,
+            item.router_data.request.connector_intent_metadata.as_ref(),
+        )?;
 
         let submit = Some(Submit {
             order: Order {
@@ -3127,26 +3119,13 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 None
             };
 
-            let funding_transfer = item
-                .router_data
-                .request
-                .is_account_funded_transaction
-                .unwrap_or(false)
-                .then(|| {
-                    let card_number = get_worldpayxml_sender_account_number(
-                        item.router_data.request.payment_method_data.as_ref(),
-                        item.router_data.payment_method_token.as_ref(),
-                    )?;
-
-                    build_worldpayxml_funding_transfer(
-                        item.router_data,
-                        card_number,
-                        item.router_data.request.recipient_details.as_ref(),
-                        item.router_data.request.business_country,
-                        item.router_data.request.connector_intent_metadata.as_ref(),
-                    )
-                })
-                .transpose()?;
+            let funding_transfer = build_worldpayxml_funding_transfer(
+                item.router_data,
+                item.router_data.request.payment_method_data.as_ref(),
+                item.router_data.request.recipient_details.as_ref(),
+                item.router_data.request.business_country,
+                item.router_data.request.connector_intent_metadata.as_ref(),
+            )?;
 
             Some(Submit {
                 order: Order {
