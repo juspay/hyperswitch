@@ -85,6 +85,8 @@ pub enum RedisError {
     IncrementHashFieldFailed,
     #[error("Failed to increment key in Redis")]
     IncrementKeyFailed,
+    #[error("Failed to decrement key in Redis")]
+    DecrementKeyFailed,
     #[error("Failed to evaluate Lua script in Redis")]
     ScriptExecutionFailed,
 }

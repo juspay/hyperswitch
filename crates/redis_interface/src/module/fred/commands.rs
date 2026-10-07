@@ -2356,8 +2356,7 @@ impl super::RedisConnectionWithContext {
         }
     }
 
-    /// Increments `key` by `increment` (a negative value decrements it) and returns the value after
-    /// the increment.
+    /// Increments `key` by one and returns the value after the increment.
     ///
     /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
     /// written by this command always has an expiry. A key that already exists keeps the expiry it
@@ -2367,7 +2366,6 @@ impl super::RedisConnectionWithContext {
     pub async fn increment_key_with_expiry(
         &self,
         key: &RedisKey,
-        increment: i64,
         ttl_in_secs: i64,
     ) -> CustomResult<i64, errors::RedisError> {
         let redis_key = key.tenant_aware_key(&self.redis_conn);
@@ -2384,7 +2382,7 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::IncrementKeyFailed)
         .attach_printable("Failed to queue set command")?;
 
-        trx.incr_by::<(), _>(&redis_key, increment)
+        trx.incr::<(), _>(&redis_key)
             .await
             .change_context(errors::RedisError::IncrementKeyFailed)
             .attach_printable("Failed to queue increment command")?;
@@ -2399,7 +2397,7 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::IncrementKeyFailed)
         .attach_printable("Failed to execute the redis transaction")?;
 
-        // The results are the SET reply followed by the INCRBY reply
+        // The results are the SET reply followed by the INCR reply
         let value_after_increment = results
             .pop()
             .ok_or(errors::RedisError::IncrementKeyFailed)
@@ -2407,6 +2405,58 @@ impl super::RedisConnectionWithContext {
 
         i64::from_value(value_after_increment)
             .change_context(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Failed to convert from redis value")
+    }
+
+    /// Decrements `key` by one and returns the value after the decrement.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the decrement without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn decrement_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let trx = self.get_transaction();
+
+        trx.set::<(), _, _>(
+            &redis_key,
+            0,
+            Some(Expiration::EX(ttl_in_secs)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to queue set command")?;
+
+        trx.decr::<(), _>(&redis_key)
+            .await
+            .change_context(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Failed to queue decrement command")?;
+
+        let mut results: Vec<RedisValue> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::DecrementKeyWithExpiry,
+            trx.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        // The results are the SET reply followed by the DECR reply
+        let value_after_decrement = results
+            .pop()
+            .ok_or(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Got unexpected number of results from transaction")?;
+
+        i64::from_value(value_after_decrement)
+            .change_context(errors::RedisError::DecrementKeyFailed)
             .attach_printable("Failed to convert from redis value")
     }
 }

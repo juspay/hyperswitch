@@ -260,7 +260,7 @@ async fn increment_and_check(
     // counted, and later webhooks leave that expiry untouched, which makes the window fixed
     let counts = futures::future::try_join_all(
         keys.iter()
-            .map(|key| redis_conn.increment_key_with_expiry(key, 1, window_in_secs)),
+            .map(|key| redis_conn.increment_key_with_expiry(key, window_in_secs)),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -276,7 +276,7 @@ async fn increment_and_check(
         .map(|(bucket, _)| bucket.level);
 
     // A rejected webhook was already counted in every bucket by the increment above. Take it
-    // back out with an increment of -1, so that rejected webhooks do not use up the allowance.
+    // back out with a decrement, so that rejected webhooks do not use up the allowance.
     // This runs in the background because the response does not need to wait for it
     if exceeded_level.is_some() {
         tokio::spawn(
@@ -285,7 +285,7 @@ async fn increment_and_check(
                 // the other buckets from being decremented
                 futures::future::join_all(
                     keys.iter()
-                        .map(|key| redis_conn.increment_key_with_expiry(key, -1, window_in_secs)),
+                        .map(|key| redis_conn.decrement_key_with_expiry(key, window_in_secs)),
                 )
                 .await
                 .into_iter()

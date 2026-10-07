@@ -34,6 +34,7 @@ pub(crate) enum RedisOperation {
     SetKeyIfNotExistsWithExpiry,
     SetKeyIfNotExistsAndGetValue,
     IncrementKeyWithExpiry,
+    DecrementKeyWithExpiry,
     GetKey,
     GetMultipleKeys,
     Exists,
