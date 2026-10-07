@@ -328,6 +328,7 @@ pub async fn construct_payout_router_data<'a, F>(
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
             billing_descriptor: payouts.billing_descriptor.clone(),
+            external_vault_pmd: None,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -656,7 +657,7 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
-    let capture_method = payment_attempt.capture_method;
+    let capture_method = payment_attempt.get_effective_capture_method();
 
     let braintree_metadata = payment_intent
         .connector_metadata

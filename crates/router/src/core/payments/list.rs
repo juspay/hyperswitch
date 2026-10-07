@@ -380,13 +380,13 @@ pub async fn revenue_recovery_list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     platform: domain::Platform,
-    _profile_id_list: Option<Vec<id_type::ProfileId>>,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     common_utils::metrics::utils::record_operation_time(
         async {
             let db: &dyn StorageInterface = state.store.as_ref();
-            let fetch_constraints = constraints.clone().into();
+            let fetch_constraints = (constraints.clone(), profile_id_list).try_into()?;
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
                     platform.get_processor().get_account().get_id(),
