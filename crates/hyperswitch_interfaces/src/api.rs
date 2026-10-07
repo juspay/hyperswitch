@@ -572,6 +572,13 @@ pub trait ConnectorSpecifications {
         Some(false)
     }
 
+    /// Whether MIT payments may proceed when the selected connector mandate is inactive.
+    /// `None` keeps the existing permissive behaviour for connectors that have not opted in to
+    /// connector-mandate-status validation.
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        None
+    }
+
     /// Whether SDK session token generation is enabled for this connector
     fn is_sdk_client_token_generation_enabled(&self) -> bool {
         false
