@@ -14,8 +14,8 @@ use api_models::{
         Granularity,
     },
     enums::{
-        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
-        PaymentMethod, PaymentMethodType, RoutingApproach,
+        AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, FutureUsage,
+        IntentStatus, PaymentMethod, PaymentMethodType, RoutingApproach,
     },
     refunds::RefundStatus,
 };
@@ -521,7 +521,8 @@ impl_to_sql_for_to_string!(
     &u64,
     u64,
     Order,
-    RoutingApproach
+    RoutingApproach,
+    FutureUsage
 );
 
 impl_to_sql_for_to_string!(
