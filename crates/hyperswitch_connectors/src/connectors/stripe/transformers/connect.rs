@@ -4,7 +4,7 @@ use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::ErrorDetails;
@@ -332,6 +332,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
             payout_vendor_details.vendor_details,
             payout_vendor_details.individual_details,
         );
+        let date_of_birth = individual_details
+            .date_of_birth
+            .as_ref()
+            .map(|date| date.peek());
         Ok(Self {
             account_type: vendor_details.account_type,
             country: address.country,
@@ -355,9 +359,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
             company_owners_provided: vendor_details.company_owners_provided,
             individual_first_name: address.first_name,
             individual_last_name: address.last_name,
-            individual_dob_day: individual_details.individual_dob_day,
-            individual_dob_month: individual_details.individual_dob_month,
-            individual_dob_year: individual_details.individual_dob_year,
+            individual_dob_day: date_of_birth.map(|date| Secret::new(date.day().to_string())),
+            individual_dob_month: date_of_birth
+                .map(|date| Secret::new(u8::from(date.month()).to_string())),
+            individual_dob_year: date_of_birth.map(|date| Secret::new(date.year().to_string())),
             individual_address_line1: address.line1,
             individual_address_line2: address.line2,
             individual_address_postal_code: address.zip,

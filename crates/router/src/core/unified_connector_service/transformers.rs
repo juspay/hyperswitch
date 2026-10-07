@@ -9217,16 +9217,11 @@ impl<F>
                     .individual_id_number
                     .as_ref()
                     .map(|id_number| id_number.peek().to_string().into()),
-                date_of_birth: match (
-                    individual_details.individual_dob_year.as_ref(),
-                    individual_details.individual_dob_month.as_ref(),
-                    individual_details.individual_dob_day.as_ref(),
-                ) {
-                    (Some(year), Some(month), Some(day)) => Some(
-                        format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek()).into(),
-                    ),
-                    _ => None,
-                },
+                date_of_birth: individual_details
+                    .date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth)
+                    .transpose()?,
                 tos_acceptance_ip: individual_details
                     .tos_acceptance_ip
                     .as_ref()
