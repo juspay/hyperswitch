@@ -7858,9 +7858,9 @@ impl ForeignFrom<&common_types::payouts::PayoutsBillingDescriptor>
 {
     fn foreign_from(billing_descriptor: &common_types::payouts::PayoutsBillingDescriptor) -> Self {
         Self {
-            name: billing_descriptor.name.clone(),
-            city: billing_descriptor.city.clone(),
-            phone: billing_descriptor.phone.clone(),
+            name: None,
+            city: None,
+            phone: None,
             statement_descriptor: billing_descriptor.statement_descriptor.clone(),
             statement_descriptor_suffix: None,
             reference: billing_descriptor.reference.clone(),
@@ -8642,20 +8642,20 @@ impl ForeignFrom<common_enums::PayoutSendPriority> for payments_grpc::payout_enu
 }
 
 #[cfg(feature = "payouts")]
-impl transformers::ForeignTryFrom<&router_request_types::CustomerDetails>
+impl transformers::ForeignTryFrom<(&router_request_types::CustomerDetails, Option<String>)>
     for payments_grpc::Customer
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        customer: &router_request_types::CustomerDetails,
+        (customer, connector_customer_id): (&router_request_types::CustomerDetails, Option<String>),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             id: customer
                 .customer_id
                 .clone()
                 .map(|id| id.get_string_repr().to_string()),
-            connector_customer_id: None,
+            connector_customer_id,
             name: customer.name.clone().map(|s| s.expose()),
             email: customer.email.clone().map(|e| e.expose().expose().into()),
             phone_number: customer.phone.clone(),
@@ -8768,12 +8768,13 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_try_from)
-            .transpose()?
-            .map(|customer| payments_grpc::Customer {
-                connector_customer_id: router_data.connector_customer.clone(),
-                ..customer
-            });
+            .map(|customer| {
+                payments_grpc::Customer::foreign_try_from((
+                    customer,
+                    router_data.connector_customer.clone(),
+                ))
+            })
+            .transpose()?;
 
         let priority = router_data
             .request
@@ -8907,7 +8908,7 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_try_from)
+            .map(|customer| payments_grpc::Customer::foreign_try_from((customer, None)))
             .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
@@ -8983,12 +8984,13 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_try_from)
-            .transpose()?
-            .map(|mut customer| {
-                customer.connector_customer_id = router_data.connector_customer.clone();
-                customer
+            .map(|customer| {
+                payments_grpc::Customer::foreign_try_from((
+                    customer,
+                    router_data.connector_customer.clone(),
+                ))
             })
+            .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer".into(),
@@ -9013,14 +9015,14 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
+            payout_connector_metadata: router_data
+                .request
+                .payout_connector_metadata
+                .as_ref()
+                .map(|secret| Secret::new(secret.peek().to_string())),
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            billing_descriptor: router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(payments_grpc::BillingDescriptor::foreign_from),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             connector_eligibility_reference_id: router_data
                 .request
@@ -9043,12 +9045,12 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            payout_connector_metadata: router_data
-                .request
-                .payout_connector_metadata
-                .as_ref()
-                .map(|secret| Secret::new(secret.peek().to_string())),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
         })
     }
 }
@@ -9086,7 +9088,7 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_try_from)
+            .map(|customer| payments_grpc::Customer::foreign_try_from((customer, None)))
             .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
@@ -9264,7 +9266,7 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_try_from)
+            .map(|customer| payments_grpc::Customer::foreign_try_from((customer, None)))
             .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
@@ -9355,7 +9357,12 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_try_from)
+            .map(|customer| {
+                payments_grpc::Customer::foreign_try_from((
+                    customer,
+                    router_data.connector_customer.clone(),
+                ))
+            })
             .transpose()?
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
@@ -9386,10 +9393,7 @@ impl
             address,
             payout_method_data,
             amount: Some(money),
-            customer: Some(payments_grpc::Customer {
-                connector_customer_id: router_data.connector_customer.clone(),
-                ..customer
-            }),
+            customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             vendor_account_details,
             destination_currency: Some(destination_currency.into()),
@@ -9421,16 +9425,14 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            customer: Some(payments_grpc::Customer {
-                connector_customer_id: router_data.connector_customer.clone(),
-                ..router_data
+            customer: Some(payments_grpc::Customer::foreign_try_from((
+                router_data
                     .request
                     .customer_details
                     .as_ref()
-                    .map(payments_grpc::Customer::foreign_try_from)
-                    .transpose()?
-                    .unwrap_or_default()
-            }),
+                    .unwrap_or(&router_request_types::CustomerDetails::default()),
+                router_data.connector_customer.clone(),
+            ))?),
             // Debtor account for connectors that need it to perform a status enquiry
             source_bank_data: router_data
                 .request
