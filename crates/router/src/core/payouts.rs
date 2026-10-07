@@ -123,6 +123,7 @@ pub struct PayoutData {
     pub billing_address: Option<domain_models::address::Address>,
     pub business_profile: domain::Profile,
     pub customer_details: Option<domain::Customer>,
+    pub customer_request_details: Option<domain_models::router_request_types::CustomerDetails>,
     pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
@@ -3643,6 +3644,7 @@ pub async fn payout_create_db_entries(
         billing_address,
         business_profile,
         customer_details: customer.map(ToOwned::to_owned),
+        customer_request_details: Some(helpers::get_customer_details_from_request(req)),
         merchant_connector_account: None,
         payouts,
         payout_attempt,
@@ -3700,6 +3702,14 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutActionRequest(_) => None,
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.browser_info.clone().map(Into::into),
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
+    };
+
+    let customer_request_details = match req {
+        payouts::PayoutRequest::PayoutCreateRequest(r) => {
+            Some(helpers::get_customer_details_from_request(r))
+        }
+        payouts::PayoutRequest::PayoutActionRequest(_)
+        | payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
     let attempts = match req {
@@ -4002,6 +4012,7 @@ pub async fn make_payout_data(
         billing_address,
         business_profile,
         customer_details,
+        customer_request_details,
         payouts,
         payout_attempt,
         payout_method_data: payout_method_data_req.to_owned(),

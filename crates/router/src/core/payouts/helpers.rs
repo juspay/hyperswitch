@@ -1586,6 +1586,11 @@ pub(super) fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.document_details.clone());
 
+    let customer_date_of_birth = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.date_of_birth.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
@@ -1594,7 +1599,7 @@ pub(super) fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
-        date_of_birth: None,
+        date_of_birth: customer_date_of_birth,
     }
 }
 
