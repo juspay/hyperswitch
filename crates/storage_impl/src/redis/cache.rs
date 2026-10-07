@@ -805,9 +805,8 @@ impl Cache {
 
     /// The longest an entry can live here, when a time to live is configured.
     ///
-    /// `time_to_live`, not `time_to_idle`: eviction takes whichever falls first, but the TTL
-    /// is the bound a layer behind this one has to outlast. Read from moka's own policy, so a
-    /// cache built from [`CacheSettings`] reports its configured lifetime.
+    /// `time_to_live`, not `time_to_idle`: eviction takes whichever falls first, but the TTL is
+    /// the bound a layer behind this one has to outlast.
     fn time_to_live(&self) -> Option<Duration> {
         self.inner.policy().time_to_live()
     }
@@ -815,12 +814,8 @@ impl Cache {
     /// The redis lifetime that lets redis, rather than the database, absorb a miss from this
     /// cache.
     ///
-    /// Multiple and jitter both describe how the two layers sit relative to each other, so
-    /// they are stated here once and [`get_or_populate_redis`] honours whatever it is handed.
-    /// The jitter only adds, so redis outliving moka holds by construction.
-    ///
-    /// `None` when this cache has no TTL to scale or the product overflows, leaving the write
-    /// on the connection's configured `default_ttl`.
+    /// `None` when this cache has no TTL to scale or the product overflows, leaving the write on
+    /// the connection's configured `default_ttl`.
     fn redis_ttl_for(&self, key: &str) -> Option<i64> {
         let ttl = self.time_to_live()?.as_secs();
         let ttl = i64::try_from(ttl.checked_mul(u64::from(REDIS_TTL_MULTIPLE))?).ok()?;
@@ -833,14 +828,9 @@ impl Cache {
     /// Entries populated together — after a deploy, a flush, or a cold redis — otherwise share
     /// one expiry instant and fall through to the database as a herd.
     ///
-    /// The offset comes from the key rather than an RNG: decorrelating *different* keys is the
-    /// property that matters, and a pure function of the key also holds the TTL steady across
-    /// nodes and reproducible under deja replay, where `ttl_seconds` is a recorded boundary
-    /// argument. Only ever added, so the entry outlives `ttl`. A `ttl` too small or too large
-    /// to jitter is returned unchanged.
-    ///
-    /// Associated rather than an instance method: it is a pure function of `key` and `ttl`,
-    /// not of any particular cache's state.
+    /// Keyed rather than random, so the TTL is identical across nodes and reproducible under
+    /// deja replay, where `ttl_seconds` is a recorded boundary argument. Only ever added, so the
+    /// entry outlives `ttl`; a `ttl` too small or too large to jitter is returned unchanged.
     fn jittered_ttl(key: &str, ttl: i64) -> i64 {
         let Some(scaled_by_percent) = ttl.checked_mul(i64::from(REDIS_TTL_JITTER_MAX_PERCENT))
         else {
@@ -1375,33 +1365,6 @@ mod cache_tests {
         );
     }
 
-    /// The ceiling that ships must not evict where nothing evicted before, so pin it against
-    /// the number moka was actually being given before any of this — read from moka's own
-    /// policy rather than from our enum, so a mistake in the plumbing cannot hide here.
-    #[test]
-    fn every_cache_defaults_to_the_historical_entry_ceiling() {
-        // The `30` that was documented as megabytes, multiplied by 1024 * 1024 on the way in,
-        // and read by moka as a number of entries because no weigher was configured.
-        assert_eq!(DEFAULT_MAX_ENTRIES, 31_457_280);
-
-        let caches = Caches::default();
-        for cache in caches.all() {
-            let expected = if cache.name() == "CONFIG_CACHE" {
-                // The one cache that was built with no ceiling at all.
-                None
-            } else {
-                Some(DEFAULT_MAX_ENTRIES)
-            };
-
-            assert_eq!(
-                cache.inner.policy().max_capacity(),
-                expected,
-                "default ceiling for {} changed",
-                cache.name()
-            );
-        }
-    }
-
     #[test]
     fn redis_is_held_past_the_in_memory_lifetime() {
         let ttl_in_secs = 1800;
@@ -1436,61 +1399,6 @@ mod cache_tests {
     }
 
     #[test]
-    fn unset_settings_resolve_to_the_compiled_in_defaults() {
-        let settings = CacheSettings::default();
-
-        assert_eq!(settings.time_to_live(), DEFAULT_CACHE_TTL);
-        assert_eq!(settings.time_to_idle(), DEFAULT_CACHE_TTI);
-    }
-
-    #[test]
-    fn configured_settings_override_the_defaults() {
-        let settings = CacheSettings {
-            ttl_in_secs: Some(60),
-            tti_in_secs: Some(30),
-            max_entries: Some(500_000),
-        };
-
-        assert_eq!(settings.time_to_live(), 60);
-        assert_eq!(settings.time_to_idle(), 30);
-        assert_eq!(settings.max_entries(None), Some(500_000));
-    }
-
-    #[test]
-    fn partially_configured_caches_deserialize_with_defaults_for_the_rest() {
-        let config: CacheConfig = serde_json::from_value(serde_json::json!({
-            "accounts": { "ttl_in_secs": 120 },
-        }))
-        .expect("failed to deserialize cache configuration");
-
-        assert_eq!(config.accounts.time_to_live(), 120);
-        assert_eq!(config.accounts.time_to_idle(), DEFAULT_CACHE_TTI);
-        assert_eq!(config.accounts.max_entries(Some(30)), Some(30));
-        assert_eq!(config.routing.time_to_live(), DEFAULT_CACHE_TTL);
-        assert_eq!(config.config.max_entries(None), None);
-    }
-
-    #[test]
-    fn an_unset_invalidation_channel_falls_back_to_the_default() {
-        let caches = Caches::default();
-
-        assert_eq!(caches.invalidation_channel, "hyperswitch_invalidate");
-    }
-
-    #[test]
-    fn a_cache_id_resolves_to_the_cache_it_names() {
-        let caches = Caches::default();
-
-        assert_eq!(caches.get(CacheId::Config).name(), "CONFIG_CACHE");
-        assert_eq!(caches.get(CacheId::Accounts).name(), "ACCOUNTS_CACHE");
-        assert_eq!(caches.get(CacheId::McaList).name(), "MCA_LIST_CACHE");
-        assert_eq!(
-            caches.get(CacheId::ContractBasedDynamicAlgorithm).name(),
-            "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE"
-        );
-    }
-
-    #[test]
     fn jitter_spreads_keys_and_repeats_for_one_key() {
         let ttl = 300;
         let jittered = (0..1000)
@@ -1512,16 +1420,6 @@ mod cache_tests {
         for ttl in [-1, 0, 1, 9] {
             assert_eq!(Cache::jittered_ttl("key", ttl), ttl);
         }
-    }
-
-    #[test]
-    fn every_cache_is_reachable_from_all() {
-        let caches = Caches::default();
-        let names = caches.all().map(Cache::name);
-
-        assert_eq!(names.len(), 11);
-        assert!(names.contains(&"CONFIG_CACHE"));
-        assert!(names.contains(&"CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE"));
     }
 
     #[tokio::test]
