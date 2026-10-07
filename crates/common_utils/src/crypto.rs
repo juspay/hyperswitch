@@ -72,9 +72,13 @@ impl NonceSequence {
         deja::id(
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
-            // The error side carries no typed outcome because the `Err` arm is
-            // unreachable: ring fills the buffer from `getrandom`, and a
-            // 12-byte read into a valid stack array has no errno to report.
+            // Ok-only. The typed codec wants `Result<T, Report<E>>` with a
+            // serializable error, and `ring::error::Unspecified` is foreign on
+            // both counts, so capturing it would mean moving this signature. It
+            // would also tell a caller nothing, since `encode_message` flattens
+            // it to `EncodingFailed`. The `Err` arm is reachable — `getrandom`
+            // fails under seccomp or with no `/dev` — but that fails every
+            // encrypt in the process, and a recorded one fail-stops replay.
             codec = ResultOkCodec,
             // The live body fills only the low 96 bits of the u128, which is
             // what `current` reads back, so the nonce is built from exactly
