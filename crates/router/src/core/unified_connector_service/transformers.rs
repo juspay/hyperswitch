@@ -8997,6 +8997,33 @@ impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
 }
 
 #[cfg(feature = "payouts")]
+fn payout_method_for_ucs<F>(
+    router_data: &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
+) -> Result<Option<payments_grpc::PayoutMethod>, error_stack::Report<UnifiedConnectorServiceError>>
+{
+    match (
+        router_data.request.external_vault_pmd.as_ref(),
+        router_data.payout_method_data.as_ref(),
+    ) {
+        (Some(_), Some(_)) => Err(report!(UnifiedConnectorServiceError::RequestEncodingFailed)
+            .attach_printable(
+                "Normal payout method data and external vault tokens are mutually exclusive",
+            )),
+        // CardProxyPayout support must be pinned before encoding opaque vault tokens.
+        (Some(_), None) => Err(report!(UnifiedConnectorServiceError::NotImplemented(
+            "External vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
+        ))),
+        (None, Some(payout_method_data)) => {
+            transformers::ForeignTryFrom::foreign_try_from(payout_method_data).map(Some)
+        }
+        (None, None) => Err(report!(UnifiedConnectorServiceError::MissingRequiredField {
+            field_name: "payout_method_data".into(),
+        })
+        .attach_printable("Payout method data or external vault tokens must be provided")),
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -9045,13 +9072,7 @@ impl
             .clone()
             .map(|secret| Secret::new(secret.expose().to_string()));
 
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
 
         let address = Some(payments_grpc::PayoutAddress::foreign_try_from(
             router_data.address.clone(),
@@ -9173,13 +9194,7 @@ impl
                 })
                 .attach_printable("Missing customer details in Payout Eligibility Request"),
             )?;
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
         let source_bank_data = router_data
             .request
             .source_bank_data
@@ -9249,13 +9264,7 @@ impl
                 })
                 .attach_printable("Missing customer details in Payout Transfer Request"),
             )?;
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
         let browser_info = router_data
             .request
             .browser_info
@@ -9409,13 +9418,7 @@ impl
                 })
                 .attach_printable("Missing customer details in Payout Create Recipient Request"),
             )?;
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
         let source_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
         let amount = payments_grpc::Money {
@@ -9462,13 +9465,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let address =
             payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone()).ok();
-        let payout_method_data = router_data
-            .payout_method_data
-            .as_ref()
-            .map(|payout_method_data| {
-                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
-            })
-            .transpose()?;
+        let payout_method_data = payout_method_for_ucs(router_data)?;
 
         let source_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
