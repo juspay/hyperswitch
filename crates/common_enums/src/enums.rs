@@ -9741,13 +9741,18 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+    /// Challenge using Secure Payment Confirmation (SPC); Available for supporting EMV 3DS 2.3.1 and later versions.
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 impl TransactionStatus {
     pub fn is_pending(self) -> bool {
         matches!(
             self,
-            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+            Self::ChallengeRequired
+                | Self::ChallengeRequiredDecoupledAuthentication
+                | Self::SecurePaymentConfirmationRequired
         )
     }
 
@@ -9760,7 +9765,8 @@ impl From<TransactionStatus> for DecoupledAuthenticationType {
     fn from(trans_status: TransactionStatus) -> Self {
         match trans_status {
             TransactionStatus::ChallengeRequired
-            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::Challenge,
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | TransactionStatus::SecurePaymentConfirmationRequired => Self::Challenge,
             _ => Self::Frictionless,
         }
     }
