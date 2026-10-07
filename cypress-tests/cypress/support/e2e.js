@@ -1,7 +1,6 @@
 import "cypress-mochawesome-reporter/register";
 import "./commands";
 import "./redirectionHandler";
-import "./graceRecord";
 
 Cypress.on("window:before:load", (win) => {
   win.headers = {

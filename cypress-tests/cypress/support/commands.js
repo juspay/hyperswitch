@@ -192,23 +192,18 @@ function createIndividualRolloutConfig(
   // UCS-only connectors (no working classic direct-integration fallback)
   // must route "primary" so the classic connector is never invoked; every
   // other connector keeps mirroring to UCS via "shadow" for comparison.
-  // UCS_EXECUTION_MODE overrides the default. A gate run must use "primary":
-  // "shadow" runs UCS and then discards its response, so the assertions see
-  // the direct result.
-  const executionMode =
-    Cypress.env("UCS_EXECUTION_MODE") ||
-    (CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS.includes(connector)
-      ? "primary"
-      : "shadow");
+  const executionMode = CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS.includes(
+    connector
+  )
+    ? "primary"
+    : "shadow";
 
-  // http_url/https_url are Option in the router's RolloutConfig; omit them
-  // when no proxy is configured instead of writing null.
   const configValue = configValueOverride
     ? { ...configValueOverride }
     : {
         rollout_percent: rolloutPercent,
-        ...(httpUrl && { http_url: httpUrl }),
-        ...(httpsUrl && { https_url: httpsUrl }),
+        http_url: httpUrl,
+        https_url: httpsUrl,
         execution_mode: executionMode,
       };
   const value = JSON.stringify(configValue);
@@ -276,8 +271,7 @@ function createIndividualRolloutConfig(
     };
 
     return makeRequest("POST", url, requestBody, "created").then((response) => {
-      // makeRequest resolves to {success: true} on a 200, not to the response
-      if (response.success || response.status === 200) {
+      if (response.status === 200) {
         return cy.wrap({ success: true, flow: methodFlow });
       }
 
@@ -295,7 +289,7 @@ function createIndividualRolloutConfig(
   const updateConfig = () => {
     return makeRequest("POST", `${url}${key}`, { value }, "updated").then(
       (updateResponse) => {
-        if (updateResponse.success || updateResponse.status === 200) {
+        if (updateResponse.status === 200) {
           return cy.wrap({ success: true, flow: methodFlow });
         }
 
@@ -396,12 +390,9 @@ function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   const connector = getConnectorIdForRedirect(globalState);
   const methodFlowInput = flow || globalState.get("methodFlow");
 
-  // The proxy is optional (http_url/https_url are Option in the router);
-  // an absent proxy is simply omitted from the rollout config.
   if ((!httpUrl || !httpsUrl) && !configValueOverride) {
-    cy.task(
-      "cli_log",
-      `INFO: no proxyHttp/proxyHttps configured; ${type} configs are written without a proxy`
+    throw new Error(
+      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
     );
   }
 
@@ -425,36 +416,6 @@ function createUcsConfigs(globalState, flow, type, configValueOverride = null) {
   }
 
   const methodFlows = parseMethodFlows(methodFlowInput, connector);
-
-  // Record exactly which rollout keys this run writes, so cleanupUCSConfigs
-  // removes those and nothing else.
-  const createdKeys = globalState.get("ucsRolloutKeys") || [];
-  methodFlows.forEach((methodFlow) => {
-    const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
-    if (!createdKeys.includes(key)) createdKeys.push(key);
-  });
-  globalState.set("ucsRolloutKeys", createdKeys);
-
-  // check_ucs_availability short-circuits to Disabled unless the global
-  // `ucs_enabled` flag is set, so the main payments path must set it too.
-  // Only create it when absent (never DELETE a global flag another run may
-  // rely on), and remember that this run created it.
-  cy.request({
-    method: "GET",
-    url: `${baseUrl}/configs/ucs_enabled`,
-    headers: { "Content-Type": "application/json", "api-key": adminApiKey },
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.status !== 200 || response.body?.value !== "true") {
-      globalState.set("ucsEnabledCreatedByRun", response.status !== 200);
-      cy.setConfigs(
-        globalState,
-        "ucs_enabled",
-        "true",
-        response.status === 200 ? "UPDATE" : "CREATE"
-      );
-    }
-  });
 
   return cy
     .task(
@@ -8816,38 +8777,28 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
 });
 
 // UCS Configuration Commands
-// Flows routed to UCS by default. Refund keys carry no payment method, so
-// Execute/RSync are listed bare. METHOD_FLOW overrides the list.
-const DEFAULT_UCS_METHOD_FLOWS =
-  "card_Authorize,card_SetupMandate,card_PSync,card_Capture,card_Void,Execute,RSync";
-
 Cypress.Commands.add("setupUCSConfigs", (globalState) => {
-  // createUcsConfigs also ensures the global `ucs_enabled` flag is set.
+  cy.setupConfigs(globalState, "ucs_enabled", "true");
+
   cy.createRolloutConfig(
     globalState,
-    globalState.get("methodFlow") || DEFAULT_UCS_METHOD_FLOWS
+    "card_Authorize,card_SetupMandate,card_PSync"
   );
 });
 
-Cypress.Commands.add("cleanupUCSConfigs", (globalState) => {
-  // Delete only the rollout keys this run created (see createUcsConfigs).
-  (globalState.get("ucsRolloutKeys") || []).forEach((key) => {
-    cy.request({
-      method: "DELETE",
-      url: `${globalState.get("baseUrl")}/configs/${key}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-      },
-      failOnStatusCode: false,
-    }).then((response) => logRequestId(response.headers["x-request-id"]));
-  });
-  globalState.set("ucsRolloutKeys", []);
+Cypress.Commands.add("cleanupUCSConfigs", (globalState, connector) => {
+  const merchantId = globalState.get("merchantId");
+  const rolloutConfigs = [
+    `ucs_rollout_config_${merchantId}_${connector}_card_Authorize`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_SetupMandate`,
+    `ucs_rollout_config_${merchantId}_${connector}_card_PSync`,
+  ];
 
-  if (globalState.get("ucsEnabledCreatedByRun")) {
-    cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
-    globalState.set("ucsEnabledCreatedByRun", false);
-  }
+  rolloutConfigs.forEach((key) => {
+    cy.setConfigs(globalState, key, "1.0", "DELETE");
+  });
+
+  cy.setConfigs(globalState, "ucs_enabled", "true", "DELETE");
 });
 
 Cypress.Commands.add(
