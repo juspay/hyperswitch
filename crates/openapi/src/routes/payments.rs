@@ -675,7 +675,7 @@ pub fn payments_create() {}
         )
     ),
     responses(
-        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
+        (status = 200, description = "Gets the payment with final status", body = PaymentsRetrieveResponse),
         (status = 404, description = "No payment found")
     ),
     tag = "Payments",
@@ -885,7 +885,7 @@ pub fn payments_update() {}
      )
     ),
     responses(
-        (status = 200, description = "Payment confirmed", body = PaymentsCreateResponseOpenApi),
+        (status = 200, description = "Payment confirmed", body = PaymentsConfirmResponse),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
