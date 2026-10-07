@@ -1390,25 +1390,25 @@ fn decrypt_resolving_format_ambiguity<V: crypto::DecodeMessage>(
     key: &[u8],
     crypt_algo: &V,
 ) -> CustomResult<Vec<u8>, CryptoError> {
-    // No prefix match at all means there was never a second interpretation to try — this *is*
-    // the local-format attempt. Skip straight to it: no retry, no extra clone.
-    if split_version_prefix(original.peek()).is_none() {
-        return crypt_algo.decode_message(key, original);
-    }
+    if split_version_prefix(original.peek()).is_some() {
+        let remote_format_attempt = obtain_data_to_decrypt_locally(original.clone())
+            .and_then(|stripped| crypt_algo.decode_message(key, stripped));
 
-    let remote_format_attempt = obtain_data_to_decrypt_locally(original.clone())
-        .and_then(|stripped| crypt_algo.decode_message(key, stripped));
-
-    match remote_format_attempt {
-        Ok(data) => Ok(data),
-        Err(first_err) => match crypt_algo.decode_message(key, original) {
-            Ok(data) => {
-                metrics::LOCAL_DECRYPT_PREFIX_COLLISION_RECOVERED.add(1, &[]);
-                logger::debug!("Recovered from a version-prefix collision on local ciphertext");
-                Ok(data)
-            }
-            Err(_) => Err(first_err),
-        },
+        match remote_format_attempt {
+            Ok(data) => Ok(data),
+            Err(first_err) => match crypt_algo.decode_message(key, original) {
+                Ok(data) => {
+                    metrics::LOCAL_DECRYPT_PREFIX_COLLISION_RECOVERED.add(1, &[]);
+                    logger::info!("Recovered from a version-prefix collision on local ciphertext");
+                    Ok(data)
+                }
+                Err(_) => Err(first_err),
+            },
+        }
+    } else {
+        // No prefix match at all means there was never a second interpretation to try — this
+        // *is* the local-format attempt. Decode directly: no retry, no extra clone.
+        crypt_algo.decode_message(key, original)
     }
 }
 
