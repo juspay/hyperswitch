@@ -9592,7 +9592,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         },
                     )
                 }
-            }
+            },
         };
 
         Ok(Self {
