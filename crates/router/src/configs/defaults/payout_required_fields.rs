@@ -88,6 +88,13 @@ impl Default for PayoutRequiredFields {
                             fields(vec![], vec![], wise_billing_fields(bacs_fields())),
                         )]),
                     ),
+                    (
+                        PaymentMethodType::Ted,
+                        connectors(vec![(
+                            PayoutConnectors::Santander,
+                            fields(vec![], vec![], ted_fields()),
+                        )]),
+                    ),
                 ])),
             ),
             (
@@ -227,6 +234,66 @@ fn pix_fields() -> Vec<(String, RequiredFieldInfo)> {
             RequiredFieldInfo {
                 required_field: "payout_method_data.bank.pix_key".to_string(),
                 display_name: "pix_key".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+    ]
+}
+
+#[cfg(feature = "v1")]
+fn ted_fields() -> Vec<(String, RequiredFieldInfo)> {
+    vec![
+        (
+            "payout_method_data.bank.bank_account_number".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.bank_account_number".to_string(),
+                display_name: "bank_account_number".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "payout_method_data.bank.bank_code".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.bank_code".to_string(),
+                display_name: "bank_code".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "payout_method_data.bank.bank_account_type".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.bank_account_type".to_string(),
+                display_name: "bank_account_type".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "payout_method_data.bank.tax_id".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.tax_id".to_string(),
+                display_name: "tax_id".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "payout_method_data.bank.account_holder_name".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.account_holder_name".to_string(),
+                display_name: "account_holder_name".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
+            "payout_method_data.bank.bank_branch".to_string(),
+            RequiredFieldInfo {
+                required_field: "payout_method_data.bank.bank_branch".to_string(),
+                display_name: "bank_branch".to_string(),
                 field_type: FieldType::Text,
                 value: None,
             },
