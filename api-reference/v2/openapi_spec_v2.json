@@ -20996,7 +20996,7 @@
       },
       "NetworkTransactionIdAndVaultCardDetails": {
         "type": "object",
-        "description": "Network transaction ID and external vault card details for MIT payments where the card is\nheld in an external vault. Authorized through the external vault proxy.",
+        "description": "Network transaction ID and external vault card details for an MIT.",
         "required": [
           "vault_card_data",
           "network_transaction_id"
@@ -35653,7 +35653,7 @@
       },
       "VaultCardData": {
         "type": "object",
-        "description": "Card details held in an external vault and referenced by vault aliases rather than by PAN.\n\n`card_number` is the vault's alias for the card, not the card number itself, so this\npayload stays non-PCI and is authorized through the external vault proxy.",
+        "description": "Card details held in an external vault, referenced by a vault alias rather than by PAN.",
         "required": [
           "card_number",
           "card_exp_month",
