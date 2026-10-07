@@ -28,6 +28,7 @@ use crate::{
 /// `TTL` returns -2 for a key that does not exist and -1 for a key that exists without an expiry.
 /// Only -1 needs an expiry: a missing key is just an empty bucket.
 ///
+/// Lua arrays start at 1, so the first key is KEYS[1] and the first argument is ARGV[1].
 /// KEYS[i]: bucket keys, ARGV[1]: window in seconds, ARGV[i + 1]: limit for KEYS[i].
 /// Returns 0 when allowed, otherwise the 1-based index of the first full bucket.
 const CHECK_AND_INCREMENT_SCRIPT: &str = r#"
@@ -264,6 +265,9 @@ async fn count_against_limits(
 }
 
 /// Runs the check-and-increment script and returns the level of the first full bucket, if any.
+///
+/// `Ok(None)` means every bucket had room and all of them were incremented. `Ok(Some(level))`
+/// means the bucket of that level was full and nothing was incremented.
 async fn check_and_increment(
     state: &SessionState,
     buckets: &[RateLimitBucket],
@@ -280,16 +284,25 @@ async fn check_and_increment(
         .iter()
         .map(|bucket| redis_conn.add_prefix(&bucket.key))
         .collect::<Vec<_>>();
+
+    // Lua arrays start at 1, so the first element here is ARGV[1] in the script. ARGV[1] is the window,
+    // followed by one limit per key in the same order as `keys`, which is how the script pairs
+    // KEYS[i] with ARGV[i + 1]
     let args = std::iter::once(window_in_secs.to_string())
         .chain(buckets.iter().map(|bucket| bucket.limit.to_string()))
         .collect::<Vec<_>>();
 
+    // Redis runs the script as one atomic step, so webhooks handled concurrently cannot both
+    // read a count below the limit and then both increment past it
     let exceeded_index: i64 = redis_conn
         .evaluate_redis_script(CHECK_AND_INCREMENT_SCRIPT, keys, args)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to run the unverified webhook rate limit script")?;
 
+    // The script returns 0 when the webhook is allowed, otherwise the 1-based (Lua) position of
+    // the first full bucket, so 1 is subtracted to index `buckets`. 0 has no position before it,
+    // so it maps to `None`
     Ok(usize::try_from(exceeded_index)
         .ok()
         .and_then(|index| index.checked_sub(1))
