@@ -547,7 +547,7 @@ async fn api_client_error_handler(
         error_message: Some("Unable to send request to merchant server".to_string()),
     };
     let updated_event = update_event_in_storage(
-        state,
+        state.clone(),
         is_webhook_notified,
         response_to_store,
         merchant_key_store,
