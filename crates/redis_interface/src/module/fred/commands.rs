@@ -2356,70 +2356,57 @@ impl super::RedisConnectionWithContext {
         }
     }
 
-    /// Increments each key by `increment` (a negative value decrements it) and returns the values
-    /// after the increment, in the order of `keys`.
+    /// Increments `key` by `increment` (a negative value decrements it) and returns the value after
+    /// the increment.
     ///
-    /// A key that does not exist is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
     /// written by this command always has an expiry. A key that already exists keeps the expiry it
-    /// has. All keys are updated in one transaction, so on a cluster they must hash to the same slot.
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the increment without an expiry.
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn increment_keys_with_expiry(
+    pub async fn increment_key_with_expiry(
         &self,
-        keys: &[RedisKey],
+        key: &RedisKey,
         increment: i64,
         ttl_in_secs: i64,
-    ) -> CustomResult<Vec<i64>, errors::RedisError> {
-        if keys.is_empty() {
-            Ok(Vec::new())
-        } else {
-            let trx = self.get_transaction();
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let trx = self.get_transaction();
 
-            for key in keys {
-                let redis_key = key.tenant_aware_key(&self.redis_conn);
+        trx.set::<(), _, _>(
+            &redis_key,
+            0,
+            Some(Expiration::EX(ttl_in_secs)),
+            Some(SetOptions::NX),
+            false,
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to queue set command")?;
 
-                trx.set::<(), _, _>(
-                    &redis_key,
-                    0,
-                    Some(Expiration::EX(ttl_in_secs)),
-                    Some(SetOptions::NX),
-                    false,
-                )
-                .await
-                .change_context(errors::RedisError::IncrementKeyFailed)
-                .attach_printable("Failed to queue set command")?;
-
-                trx.incr_by::<(), _>(&redis_key, increment)
-                    .await
-                    .change_context(errors::RedisError::IncrementKeyFailed)
-                    .attach_printable("Failed to queue increment command")?;
-            }
-
-            let results: Vec<RedisValue> = track_redis_call(
-                self.request_id.as_deref(),
-                self.redis_conn.event_emitter.as_ref(),
-                RedisOperation::IncrementKeysWithExpiry,
-                trx.exec(true),
-            )
+        trx.incr_by::<(), _>(&redis_key, increment)
             .await
             .change_context(errors::RedisError::IncrementKeyFailed)
-            .attach_printable("Failed to execute the redis transaction")?;
+            .attach_printable("Failed to queue increment command")?;
 
-            if results.len() == keys.len() * 2 {
-                // Each key contributes its SET reply followed by its INCRBY reply
-                results
-                    .into_iter()
-                    .skip(1)
-                    .step_by(2)
-                    .map(|value| {
-                        i64::from_value(value)
-                            .change_context(errors::RedisError::IncrementKeyFailed)
-                            .attach_printable("Failed to convert from redis value")
-                    })
-                    .collect()
-            } else {
-                Err(report!(errors::RedisError::IncrementKeyFailed))
-                    .attach_printable("Got unexpected number of results from transaction")
-            }
-        }
+        let mut results: Vec<RedisValue> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::IncrementKeyWithExpiry,
+            trx.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        // The results are the SET reply followed by the INCRBY reply
+        let value_after_increment = results
+            .pop()
+            .ok_or(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Got unexpected number of results from transaction")?;
+
+        i64::from_value(value_after_increment)
+            .change_context(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Failed to convert from redis value")
     }
 }

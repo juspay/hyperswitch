@@ -151,19 +151,18 @@ async fn count_against_limits(
         )
         .await;
 
-    // The merchant id is the hash tag of every key, so all buckets of a webhook map to the same
-    // Redis Cluster slot, which a multi-key transaction requires. A limit of 0 disables its level.
-    let merchant_tag = format!("{REDIS_KEY_PREFIX}:{{{}}}", merchant_id.get_string_repr());
+    // A limit of 0 disables its level
+    let merchant_prefix = format!("{REDIS_KEY_PREFIX}:{}", merchant_id.get_string_repr());
     let buckets: Vec<RateLimitBucket> = [
         (
             RateLimitLevel::Merchant,
-            format!("{merchant_tag}:merchant"),
+            format!("{merchant_prefix}:merchant"),
             merchant_limit,
         ),
         (
             RateLimitLevel::Profile,
             format!(
-                "{merchant_tag}:profile:{}",
+                "{merchant_prefix}:profile:{}",
                 merchant_connector_account.profile_id.get_string_repr()
             ),
             profile_limit,
@@ -171,7 +170,7 @@ async fn count_against_limits(
         (
             RateLimitLevel::MerchantConnectorAccount,
             format!(
-                "{merchant_tag}:mca:{}",
+                "{merchant_prefix}:mca:{}",
                 merchant_connector_id.get_string_repr()
             ),
             merchant_connector_account_limit,
@@ -235,13 +234,17 @@ async fn count_against_limits(
 /// Counts the webhook in every bucket and returns the level of the first bucket that went over
 /// its limit, if any.
 ///
-/// All buckets are incremented in one transaction, before any limit is checked. `Ok(None)` means
-/// every bucket was still within its limit. `Ok(Some(level))` means the bucket of that level was
+/// Each bucket is incremented with its own command and the commands run concurrently, before any
+/// limit is checked. `Ok(None)` means every bucket was still within its limit. `Ok(Some(level))` means the bucket of that level was
 /// already full, in which case the webhook is rejected and a background task takes it back out
 /// of every bucket, so that rejected webhooks do not use up the allowance.
 ///
 /// Until that task has run, the counts are one too high. Another webhook checked in that moment
 /// can be rejected although there was room for it, which only happens close to a limit.
+///
+/// The buckets are independent keys, so if incrementing one of them fails, the others can already
+/// have been incremented. The webhook is then let through and stays counted in those buckets
+/// until their window ends.
 async fn increment_and_check(
     state: &SessionState,
     buckets: &[RateLimitBucket],
@@ -261,11 +264,13 @@ async fn increment_and_check(
 
     // A bucket is created with the window as its expiry when the first webhook of a window is
     // counted, and later webhooks leave that expiry untouched, which makes the window fixed
-    let counts = redis_conn
-        .increment_keys_with_expiry(&keys, 1, window_in_secs)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to increment the unverified webhook rate limit buckets")?;
+    let counts = futures::future::try_join_all(
+        keys.iter()
+            .map(|key| redis_conn.increment_key_with_expiry(key, 1, window_in_secs)),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to increment the unverified webhook rate limit buckets")?;
 
     // The count includes this webhook, so a bucket is over its limit only when the count is
     // greater than the limit
@@ -281,10 +286,12 @@ async fn increment_and_check(
     if exceeded_level.is_some() {
         tokio::spawn(
             async move {
-                redis_conn
-                    .increment_keys_with_expiry(&keys, -1, window_in_secs)
-                    .await
-                    .inspect_err(|error| {
+                futures::future::try_join_all(
+                    keys.iter()
+                        .map(|key| redis_conn.increment_key_with_expiry(key, -1, window_in_secs)),
+                )
+                .await
+                .inspect_err(|error| {
                         logger::error!(
                             ?error,
                             "Failed to take a rejected webhook out of the unverified webhook rate limit buckets"

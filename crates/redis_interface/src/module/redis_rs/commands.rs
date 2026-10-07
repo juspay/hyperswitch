@@ -1785,61 +1785,50 @@ impl super::RedisConnectionWithContext {
         })
     }
 
-    /// Increments each key by `increment` (a negative value decrements it) and returns the values
-    /// after the increment, in the order of `keys`.
+    /// Increments `key` by `increment` (a negative value decrements it) and returns the value after
+    /// the increment.
     ///
-    /// A key that does not exist is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
     /// written by this command always has an expiry. A key that already exists keeps the expiry it
-    /// has. All keys are updated in one transaction, so on a cluster they must hash to the same slot.
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the increment without an expiry.
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn increment_keys_with_expiry(
+    pub async fn increment_key_with_expiry(
         &self,
-        keys: &[RedisKey],
+        key: &RedisKey,
         increment: i64,
         ttl_in_secs: i64,
-    ) -> CustomResult<Vec<i64>, errors::RedisError> {
-        if keys.is_empty() {
-            Ok(Vec::new())
-        } else {
-            let mut conn = self.redis_conn.pool.clone();
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let mut conn = self.redis_conn.pool.clone();
 
-            // Build an atomic pipeline (MULTI/EXEC)
-            let mut pipe = redis::pipe();
-            pipe.atomic();
+        // Build an atomic pipeline (MULTI/EXEC)
+        let mut pipe = redis::pipe();
+        pipe.atomic();
 
-            for key in keys {
-                let redis_key = key.tenant_aware_key(&self.redis_conn);
+        // SET key 0 EX ttl NX, its reply is left out of the results
+        pipe.cmd(REDIS_COMMAND_SET)
+            .arg(&redis_key)
+            .arg(0)
+            .arg(REDIS_ARG_EX)
+            .arg(ttl_in_secs)
+            .arg(REDIS_ARG_NX)
+            .ignore();
 
-                // SET key 0 EX ttl NX, its reply is left out of the results
-                pipe.cmd(REDIS_COMMAND_SET)
-                    .arg(&redis_key)
-                    .arg(0)
-                    .arg(REDIS_ARG_EX)
-                    .arg(ttl_in_secs)
-                    .arg(REDIS_ARG_NX)
-                    .ignore();
+        pipe.cmd(REDIS_COMMAND_INCRBY)
+            .arg(&redis_key)
+            .arg(increment);
 
-                pipe.cmd(REDIS_COMMAND_INCRBY)
-                    .arg(&redis_key)
-                    .arg(increment);
-            }
+        let (value_after_increment,): (i64,) = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::IncrementKeyWithExpiry,
+            pipe.query_async(&mut conn),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
 
-            let values_after_increment: Vec<i64> = track_redis_call(
-                self.request_id.as_deref(),
-                self.redis_conn.event_emitter.as_ref(),
-                RedisOperation::IncrementKeysWithExpiry,
-                pipe.query_async(&mut conn),
-            )
-            .await
-            .change_context(errors::RedisError::IncrementKeyFailed)
-            .attach_printable("Failed to execute the redis transaction")?;
-
-            if values_after_increment.len() == keys.len() {
-                Ok(values_after_increment)
-            } else {
-                Err(report!(errors::RedisError::IncrementKeyFailed))
-                    .attach_printable("Got unexpected number of results from transaction")
-            }
-        }
+        Ok(value_after_increment)
     }
 }
