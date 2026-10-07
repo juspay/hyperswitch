@@ -265,21 +265,35 @@ fn get_crypto_specific_payment_data(
     })
 }
 
+/// OpenNode's charge callback, as the connector consumes it.
+///
+/// Only `id`, `status` and `hashed_order` are read anywhere — they carry the
+/// reference id, the event, and the signature. Every other field was declared
+/// required, so a callback missing any one of them failed
+/// `WebhookBodyDecodingFailed` before dispatch, over a value nothing goes on to
+/// look at. Three of them (`payment_method`, `fiat_value`, `net_fiat_value`)
+/// are not in OpenNode's documented callback contract at all, so a payload
+/// matching their docs could never be decoded.
+///
+/// The unread fields stay declared rather than deleted: they document the shape
+/// OpenNode sends, and keeping them optional means adding a reader later needs
+/// no change here. Requiring a field is a claim that the connector cannot work
+/// without it, and for these that claim was false.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpennodeWebhookDetails {
     pub id: String,
-    pub callback_url: String,
-    pub success_url: String,
     pub status: OpennodePaymentStatus,
-    pub payment_method: String,
-    pub missing_amt: String,
-    pub order_id: String,
-    pub description: String,
-    pub price: String,
-    pub fee: String,
-    pub auto_settle: String,
-    pub fiat_value: String,
-    pub net_fiat_value: String,
-    pub overpaid_by: String,
     pub hashed_order: String,
+    pub callback_url: Option<String>,
+    pub success_url: Option<String>,
+    pub payment_method: Option<String>,
+    pub missing_amt: Option<String>,
+    pub order_id: Option<String>,
+    pub description: Option<String>,
+    pub price: Option<String>,
+    pub fee: Option<String>,
+    pub auto_settle: Option<String>,
+    pub fiat_value: Option<String>,
+    pub net_fiat_value: Option<String>,
+    pub overpaid_by: Option<String>,
 }
