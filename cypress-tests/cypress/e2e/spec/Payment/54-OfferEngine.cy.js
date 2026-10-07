@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import { connectorDetails } from "../../../e2e/configs/Payment/Commons";
+import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -165,7 +166,9 @@ describe("Offer Engine", () => {
     it("save a card via a plain create+confirm payment", () => {
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        connectorDetails.card_pm.SaveCardUseNo3DSAutoCapture,
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "SaveCardUseNo3DSAutoCapture"
+        ],
         "no_three_ds",
         "automatic",
         globalState
