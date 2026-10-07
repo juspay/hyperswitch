@@ -12085,6 +12085,13 @@ where
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
     let state_ref = &state;
+    let mca_accounts = routing::get_active_merchant_connector_accounts(
+        &state,
+        processor.get_key_store(),
+        business_profile.get_id(),
+    )
+    .await;
+    let mca_accounts_ref = &mca_accounts;
     let fallback_outcome = (
         fallback.clone(),
         common_enums::RoutingApproach::DefaultFallback,
@@ -12129,6 +12136,7 @@ where
                     backend_input,
                     fallback.clone(),
                     preferred_connector,
+                    mca_accounts_ref,
                 )
                 .await
                 .inspect_err(|err| {
@@ -12157,6 +12165,7 @@ where
             &txn,
             eligible_connectors.clone(),
             business_profile,
+            Some(&mca_accounts),
         )
         .await
         .inspect_err(|err| {
@@ -13094,6 +13103,7 @@ pub async fn route_connector_v2_for_payments(
         &TransactionData::Payment(transaction_data),
         None,
         business_profile,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -13126,6 +13136,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
+    mca_accounts: &routing::RoutingResult<domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13147,6 +13158,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &static_connectors,
         static_approach,
         preferred_connector,
+        mca_accounts,
     )
     .await;
 
@@ -13212,6 +13224,7 @@ pub async fn route_connector_v1_for_payouts(
         &TransactionData::Payout(transaction_data),
         eligible_connectors,
         business_profile,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

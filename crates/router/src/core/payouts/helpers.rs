@@ -1106,6 +1106,7 @@ pub async fn decide_payout_connector(
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1155,6 +1156,7 @@ pub async fn decide_payout_connector(
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
