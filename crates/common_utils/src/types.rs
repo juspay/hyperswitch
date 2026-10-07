@@ -642,19 +642,27 @@ impl FloatMajorUnit {
         let amount_decimal =
             Decimal::from_f64(self.0).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
 
-        let amount = if currency.is_zero_decimal_currency() {
-            amount_decimal
-        } else if currency.is_three_decimal_currency() {
-            amount_decimal * Decimal::from(1000)
-        } else {
-            amount_decimal * Decimal::from(100)
-        };
-
-        let amount_i64 = amount
-            .to_i64()
+        let amount_i64 = scale_major_to_minor(amount_decimal, currency)
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
     }
+}
+
+/// Scales a major-unit decimal amount to minor units for the given currency and narrows it to
+/// `i64`, returning `None` when the scaled amount does not fit in either `Decimal` or `i64`.
+///
+/// `Decimal`'s `Mul` implementation panics on overflow, so the multiplication has to be checked:
+/// a connector response amount close to `Decimal::MAX` would otherwise take the process down
+/// instead of surfacing as a conversion error.
+fn scale_major_to_minor(amount_decimal: Decimal, currency: enums::Currency) -> Option<i64> {
+    let amount = if currency.is_zero_decimal_currency() {
+        amount_decimal
+    } else if currency.is_three_decimal_currency() {
+        amount_decimal.checked_mul(Decimal::from(1000))?
+    } else {
+        amount_decimal.checked_mul(Decimal::from(100))?
+    };
+    amount.to_i64()
 }
 
 /// Connector specific types to send
@@ -678,15 +686,7 @@ impl StringMajorUnit {
             }
         })?;
 
-        let amount = if currency.is_zero_decimal_currency() {
-            amount_decimal
-        } else if currency.is_three_decimal_currency() {
-            amount_decimal * Decimal::from(1000)
-        } else {
-            amount_decimal * Decimal::from(100)
-        };
-        let amount_i64 = amount
-            .to_i64()
+        let amount_i64 = scale_major_to_minor(amount_decimal, currency)
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
     }
@@ -888,6 +888,44 @@ mod amount_conversion_tests {
             .convert_back(converted_amount, currency)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_back_from_major_unit_overflow_is_an_error() {
+        // `Decimal::MAX` is ~7.9e28. Scaling anything above `Decimal::MAX / 1000` to minor
+        // units overflows `Decimal` itself, which must surface as a conversion error rather
+        // than a panic from `Decimal`'s `Mul`.
+        let float_amount = FloatMajorUnit::new(1e27);
+        for currency in [TWO_DECIMAL_CURRENCY, THREE_DECIMAL_CURRENCY] {
+            let error = FloatMajorUnitForConnector
+                .convert_back(float_amount, currency)
+                .unwrap_err();
+            assert!(matches!(
+                error.current_context(),
+                ParsingError::DecimalToI64ConversionFailure
+            ));
+        }
+
+        let string_amount = StringMajorUnit::new("792281625142643375935439503.36".to_string());
+        for currency in [TWO_DECIMAL_CURRENCY, THREE_DECIMAL_CURRENCY] {
+            let error = StringMajorUnitForConnector
+                .convert_back(string_amount.clone(), currency)
+                .unwrap_err();
+            assert!(matches!(
+                error.current_context(),
+                ParsingError::DecimalToI64ConversionFailure
+            ));
+        }
+
+        // Amounts that fit in `Decimal` but not in `i64` keep reporting the same error.
+        let string_amount = StringMajorUnit::new("92233720368547758.08".to_string());
+        let error = StringMajorUnitForConnector
+            .convert_back(string_amount, TWO_DECIMAL_CURRENCY)
+            .unwrap_err();
+        assert!(matches!(
+            error.current_context(),
+            ParsingError::DecimalToI64ConversionFailure
+        ));
     }
 }
 
