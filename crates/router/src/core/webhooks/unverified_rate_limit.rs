@@ -21,7 +21,7 @@ use crate::{
     types::domain,
 };
 
-const REDIS_KEY_PREFIX: &str = "webhook_rate_limit";
+const WEBHOOK_RATE_LIMIT_KEY_PREFIX: &str = "webhook_rate_limit";
 
 #[derive(Clone, Copy, Debug, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
@@ -143,17 +143,19 @@ async fn count_against_limits(
         .await;
 
     // A limit of 0 disables its level
-    let merchant_prefix = format!("{REDIS_KEY_PREFIX}:{}", merchant_id.get_string_repr());
     let buckets: Vec<RateLimitBucket> = [
         (
             RateLimitLevel::Merchant,
-            format!("{merchant_prefix}:merchant"),
+            format!(
+                "{WEBHOOK_RATE_LIMIT_KEY_PREFIX}:merchant:{}",
+                merchant_id.get_string_repr()
+            ),
             merchant_limit,
         ),
         (
             RateLimitLevel::Profile,
             format!(
-                "{merchant_prefix}:profile:{}",
+                "{WEBHOOK_RATE_LIMIT_KEY_PREFIX}:profile:{}",
                 merchant_connector_account.profile_id.get_string_repr()
             ),
             profile_limit,
@@ -161,7 +163,7 @@ async fn count_against_limits(
         (
             RateLimitLevel::MerchantConnectorAccount,
             format!(
-                "{merchant_prefix}:mca:{}",
+                "{WEBHOOK_RATE_LIMIT_KEY_PREFIX}:mca:{}",
                 merchant_connector_id.get_string_repr()
             ),
             merchant_connector_account_limit,
@@ -264,8 +266,9 @@ async fn increment_and_check(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to increment the unverified webhook rate limit buckets")?;
 
-    // The count includes this webhook, so a bucket is over its limit only when the count is
-    // greater than the limit
+    // `try_join_all` returns the counts in the order of `keys`, which is the order of `buckets`,
+    // regardless of which future finishes first. The count includes this webhook, so a bucket is over
+    // its limit only when the count is greater than the limit
     let exceeded_level = buckets
         .iter()
         .zip(counts)
@@ -278,18 +281,24 @@ async fn increment_and_check(
     if exceeded_level.is_some() {
         tokio::spawn(
             async move {
-                futures::future::try_join_all(
+                // `join_all` attempts every decrement, so a failure for one bucket does not stop
+                // the other buckets from being decremented
+                futures::future::join_all(
                     keys.iter()
                         .map(|key| redis_conn.increment_key_with_expiry(key, -1, window_in_secs)),
                 )
                 .await
-                .inspect_err(|error| {
-                        logger::error!(
-                            ?error,
-                            "Failed to take a rejected webhook out of the unverified webhook rate limit buckets"
-                        )
-                    })
-                    .ok();
+                .into_iter()
+                .for_each(|result| {
+                    result
+                        .inspect_err(|error| {
+                            logger::error!(
+                                ?error,
+                                "Failed to decrement an unverified webhook rate limit bucket"
+                            )
+                        })
+                        .ok();
+                });
             }
             .in_current_span(),
         );
