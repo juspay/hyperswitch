@@ -2218,6 +2218,57 @@ function bankRedirectRedirection(
     cy.wait(5000);
 
     verifyUrl = false;
+  } else if (
+    connectorId === "fiuu" &&
+    paymentMethodType === "online_banking_fpx"
+  ) {
+    // Fiuu FPX: sandbox-payment.fiuu.com auto-redirects to bank-simulator.fiuu.com
+    // which is a different origin. Use cy.origin() to handle the cross-origin bank
+    // login, TAC request, OTP entry, and payment confirmation.
+    cy.origin(
+      "https://bank-simulator.fiuu.com",
+      { args: { timeout: CONSTANTS.TIMEOUT } },
+      ({ timeout }) => {
+        // Wait for the login form to render before typing — the simulator
+        // renders fields asynchronously, so the fields must be awaited.
+        cy.get("#username", { timeout }).should("be.visible");
+        cy.get("#username").clear().type("Gaara", { delay: 10 });
+        cy.get("#password").clear().type("Letmepaywithsand", { delay: 10 });
+        cy.get("#login-btn", { timeout }).should("be.visible").click();
+
+        // Wait for the TAC screen to render after the async verify-login POST
+        cy.get("#tac-btn", { timeout }).should("be.visible");
+
+        // Request TAC — the click handler generates a random 6-digit code
+        // into the readonly #otp display field and reveals the pay button
+        cy.get("#tac-btn").click();
+
+        // Read the generated TAC from #otp and enter it into #tac_no
+        cy.get("#otp")
+          .invoke("val")
+          .then((tacValue) => {
+            const tac = (tacValue || "").match(/\d+/);
+            if (!tac) {
+              throw new Error(
+                `FIUU FPX: no TAC digits found in #otp (got: ${JSON.stringify(
+                  tacValue
+                )})`
+              );
+            }
+            cy.get("#tac_no", { timeout })
+              .should("be.visible")
+              .should("be.enabled")
+              .clear()
+              .type(tac[0]);
+          });
+
+        // Set payment status to Approved ("00" is the default selection)
+        cy.get("#status_code", { timeout }).select("Approved");
+
+        cy.get("#pay-btn", { timeout }).should("be.visible").click();
+      }
+    );
+    verifyUrl = true;
   } else {
     handleFlow(
       redirectionUrl,
@@ -2907,7 +2958,7 @@ function bankRedirectRedirection(
                 if ($body.find("#txtPassword").length > 0) {
                   cy.get("#txtPassword")
                     .clear()
-                    .type("letmepaywithsand", { delay: 10 });
+                    .type("Letmepaywithsand", { delay: 10 });
                 }
 
                 if ($body.find("#login-btn").length > 0) {
@@ -3356,6 +3407,30 @@ function threeDsRedirection(
     return;
   }
 
+  // Fiuu 3DS: sandbox-payment.fiuu.com auto-submits a form to bank-simulator.fiuu.com.
+  // handleFlow's host-change detection races with the auto-submit, so we handle Fiuu
+  // explicitly with cy.origin targeting the bank simulator origin.
+  if (connectorId === "fiuu") {
+    cy.origin(
+      "https://bank-simulator.fiuu.com",
+      { args: { timeout: CONSTANTS.TIMEOUT } },
+      ({ timeout }) => {
+        cy.get('form[id="otpForm"]', { timeout })
+          .should("exist")
+          .then(() => {
+            cy.get("input#otpInput").should("not.be.disabled").type("123456");
+            cy.get('button[type="submit"].cil-btn.pay-btn').click();
+          });
+      }
+    );
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      new URL(expectedUrl.href).origin
+    );
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
@@ -3575,17 +3650,11 @@ function threeDsRedirection(
           break;
 
         case "fiuu":
-          cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
+          cy.get('form[id="otpForm"]', { timeout: constants.TIMEOUT })
             .should("exist")
             .then(() => {
-              cy.get('button.pay-btn[name="pay"]').click();
-              cy.get("div.otp")
-                .invoke("text")
-                .then((otpText) => {
-                  const otp = otpText.match(/\d+/)[0];
-                  cy.get("input#otp-input").should("not.be.disabled").type(otp);
-                  cy.get("button.pay-btn").click();
-                });
+              cy.get("input#otpInput").should("not.be.disabled").type("123456");
+              cy.get('button[type="submit"].cil-btn.pay-btn').click();
             });
           break;
         case "redsys":

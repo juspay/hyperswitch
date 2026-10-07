@@ -457,6 +457,7 @@ impl MigrationBatch<EligibilityVerified> {
                                     &row.merchant_id,
                                     platform.get_provider().get_key_store(),
                                     platform.get_provider().get_account().storage_scheme,
+                                    false,
                                 )
                                 .await
                             {
