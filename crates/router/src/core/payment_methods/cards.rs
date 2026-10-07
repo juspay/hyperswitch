@@ -321,9 +321,12 @@ impl PaymentMethodsController for PmCards<'_> {
             Ok(pm) => Ok(pm),
             Err(err) => {
                 if err.current_context().is_db_not_found() {
+                    // The vault already holds this data, but no payment method refers to it,
+                    // so create one
+                    let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                     self.insert_payment_method(
                         resp,
-                        &generate_id(consts::ID_LENGTH, "pm"),
+                        &payment_method_id,
                         &req,
                         key_store,
                         self.provider.get_account().get_id(),
@@ -2046,25 +2049,19 @@ impl PaymentMethodsController for PmCards<'_> {
             None => {
                 let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
 
-                let locker_id = if resp.payment_method == Some(api_enums::PaymentMethod::Card)
-                    || resp.payment_method == Some(api_enums::PaymentMethod::BankTransfer)
-                    || resp.payment_method == Some(api_enums::PaymentMethod::BankDebit)
-                {
-                    resp.locker_id.clone()
-                } else {
-                    None
-                };
+                // Id of the new payment method being created
+                let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                 let pm = self
                     .insert_payment_method(
                         &resp,
-                        &generate_id(consts::ID_LENGTH, "pm"),
+                        &payment_method_id,
                         req,
                         self.provider.get_key_store(),
                         merchant_id,
                         &customer_id,
                         pm_metadata.cloned(),
                         None,
-                        locker_id,
+                        resp.locker_id.clone(),
                         connector_mandate_details,
                         req.network_transaction_id.clone(),
                         payment_method_billing_address,

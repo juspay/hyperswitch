@@ -576,6 +576,8 @@ where
                                 .await;
                             payment_method_id = match &payment_method {
                                 Ok(pm) => pm.payment_method_id.clone(),
+                                // The vault already holds this data, but no payment method refers to it,
+                                // so create one
                                 Err(_) => generate_id(consts::ID_LENGTH, "pm"),
                             };
 
@@ -679,6 +681,8 @@ where
                                 .await;
                             payment_method_id = match &payment_method {
                                 Ok(pm) => pm.payment_method_id.clone(),
+                                // The vault already holds this data, but no payment method refers to it,
+                                // so create one
                                 Err(_) => generate_id(consts::ID_LENGTH, "pm"),
                             };
 
@@ -1010,6 +1014,7 @@ where
                                 }
                             });
 
+                            // Id of the new payment method being created
                             payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                             cards
                                 .create_payment_method(

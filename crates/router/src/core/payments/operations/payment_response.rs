@@ -3795,7 +3795,7 @@ async fn create_deferred_payment_method<F: Clone>(
                 let (locker_id, locker_fingerprint_id) = vault_response
                     .map(|(vault_response, _)| {
                         (
-                            Some(vault_response.payment_method_id),
+                            vault_response.locker_id,
                             vault_response.locker_fingerprint_id,
                         )
                     })
