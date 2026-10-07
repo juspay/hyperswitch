@@ -596,7 +596,9 @@ directory), or set `merchant_pool.file` to an **absolute path**.
 
 ### `load`
 
-Two mutually exclusive load shapes — flat or a stepped ramp:
+Three mutually exclusive load shapes — flat, a single ramp (`phases`), or an arbitrary stage list (`stages`).
+Every shape runs as **one continuous `ramping-arrival-rate` executor per entry**, so there is no VU/connection
+churn at a boundary.
 
 **Flat:**
 
@@ -605,16 +607,38 @@ Two mutually exclusive load shapes — flat or a stepped ramp:
 | `total_rps` | — (required) | Total iterations per second across all entries |
 | `duration_seconds` | — (required) | How long every entry's executor runs |
 
-**Stepped ramp** (`phases`, cannot be combined with `total_rps`/`duration_seconds`;
-same knob names and semantics as `loadtest/runner`'s load phases):
+**Ramp** (`phases`, cannot be combined with `total_rps`/`duration_seconds`). Hold at `starting_rps`, ramp
+linearly to `target_rps`, hold at `target_rps`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `phases.starting_rps` | — (required) | Total RPS of the first phase |
-| `phases.target_rps` | `starting_rps` | Total RPS of the last phase |
-| `phases.step_rps` | `0` | RPS increment between phases (required when ramping) |
-| `phases.hold_seconds` | — (required) | How long each phase is held |
-| `phases.idle_seconds` | `0` | Gap with no traffic between phases |
+| `phases.starting_rps` | — (required) | Total RPS of the initial hold |
+| `phases.target_rps` | `starting_rps` | Total RPS of the final hold |
+| `phases.initial_hold_seconds` | `hold_seconds` | How long the initial hold lasts |
+| `phases.ramp_duration_seconds` | — (required when `target_rps` > `starting_rps`) | Length of the linear ramp |
+| `phases.final_hold_seconds` | `initial_hold_seconds` | How long the final hold lasts |
+| `phases.hold_seconds` | — | Shorthand for `initial_hold_seconds` |
+| `phases.idle_seconds` | `0` | Accepted and validated (≥ 0) for compatibility with older configs; it has **no effect** on the curve, which starts immediately |
+
+> **Behaviour change vs. the earlier stepped ramp.** `phases.step_rps` and the per-level phase summary are gone:
+> a ramp is now one continuous curve, and the summary is per scenario over the whole run (use `stages` below
+> and slice by stage, e.g. from the `RUNSTART` marker and the timestamps on the log lines, to get per-level
+> percentiles). A config that sets `step_rps` without `ramp_duration_seconds` now fails fast at load time.
+
+**Stages** (`stages`, cannot be combined with `phases`, `total_rps` or `duration_seconds`): any number of
+consecutive stages, e.g. calibration → ramp → hold → ramp → hold. The rate moves linearly from the previous
+stage's `target_rps` to this stage's over `duration_seconds` (so a flat hold is a stage whose target equals the
+previous one).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `start_rps` | first stage's `target_rps` | Rate the first stage starts from |
+| `stages[].name` | `stage_<n>` | Label, used by reports |
+| `stages[].target_rps` | — (required, > 0) | Total RPS at the end of the stage |
+| `stages[].duration_seconds` | — (required, ≥ 1) | Length of the stage |
+
+Rates must split evenly across the entry weights (the run refuses otherwise). `target_rps` is **per load
+generator** when several machines run the same config.
 
 **Shared:**
 
@@ -622,8 +646,8 @@ same knob names and semantics as `loadtest/runner`'s load phases):
 | --- | --- | --- |
 | `request_timeout_ms` | `30000` | Per-request timeout |
 | `think_time_ms` | `0` | Pause between the preparation steps and the measured requests |
-| `pre_allocated_vus_multiplier` | `3` | `preAllocatedVUs = ceil(rate × this)` per entry (per phase in ramp mode) |
-| `max_vus_multiplier` | `10` | `maxVUs = ceil(rate × this)` per entry (per phase in ramp mode). Generous on purpose: iteration duration balloons at saturation, which is exactly when extra VUs are needed. It is a ceiling, not a reservation. |
+| `pre_allocated_vus_multiplier` | `3` | `preAllocatedVUs = ceil(rate × this)` per entry (at the peak rate in ramp / stages mode) |
+| `max_vus_multiplier` | `10` | `maxVUs = ceil(rate × this)` per entry (at the peak rate in ramp / stages mode). Generous on purpose: iteration duration balloons at saturation, which is exactly when extra VUs are needed. It is a ceiling, not a reservation. |
 
 Each iteration issues up to ~6 sequential requests, so a VU is busy much
 longer than `1/rate`. If k6 reports `dropped_iterations`, raise the VU
@@ -750,6 +774,11 @@ them at full scale). Both are gitignored. The recorded workflow above also store
 API-key checkpoints and gates load execution on a ready manifest.
 
 ## Finding maximum RPS
+
+> **Note:** this section was written for the stepped ramp (`phases.step_rps`, per-level summaries), which has been
+> replaced by a continuous ramp and `stages` (see the `load` reference above). The method still applies — climb
+> in steps and read steady-state percentiles per level — but build the steps as `stages` and slice the logs by
+> stage; the script no longer prints a per-level table itself.
 
 Use ramp mode: the run steps the **total** RPS up level by level (your weight
 split is applied at every level), and the summary prints confirm p50/p90/p99,
@@ -993,6 +1022,17 @@ directly — no extra provisioning needed on the k6 side. (The
 this repo was built for the older docker-compose `loadtest/loadtest.sh`
 flow, not for `scenario-mix.js` — see *Relationship to `loadtest/runner`*
 below.)
+
+## Run marker and failure-line fields
+
+- **`RUNSTART`** — `setup()` logs one line, `RUNSTART ts=<ISO-8601> epoch_ms=<ms>`, immediately before the load
+  curve starts. Anything that schedules work relative to the run (fault injection, per-stage reports) should
+  anchor on it rather than on when `k6` was launched.
+- **Failure lines** (`level=error`, one JSON record per failed flow) carry `flow_ms` (how long the flow ran
+  before it failed, so a flow can be bucketed by when it *started*) and, when the failing request has one,
+  `payment_id` — taken from a `/payments/pay_…` URL or the response body — so failures can be reconciled
+  against the database the same way `RECON` success lines are. Without the SQLite recorder the record also keeps
+  the response `headers` and `body`; with the recorder those live in SQLite (`event`).
 
 ## Logging failures to a file
 
