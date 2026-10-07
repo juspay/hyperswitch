@@ -5,7 +5,7 @@
 //! merchant's credentials. This caps how many unverified webhooks each merchant, profile and
 //! merchant connector account can push through per window. Verified webhooks are never counted.
 //!
-//! The mode, the window and the limit for each level are read from Superposition, so they can be
+//! Enablement, the window and the limit for each level are read from Superposition, so they can be
 //! overridden per merchant, profile, connector or merchant connector account.
 
 use std::str::FromStr;
@@ -29,6 +29,11 @@ use crate::{
 /// Returns 0 when allowed, otherwise the 1-based index of the first full bucket.
 const CHECK_AND_INCREMENT_SCRIPT: &str = r#"
 local window = tonumber(ARGV[1])
+for _, key in ipairs(KEYS) do
+  if redis.call('TTL', key) == -1 then
+    redis.call('EXPIRE', key, window)
+  end
+end
 for i, key in ipairs(KEYS) do
   local current = tonumber(redis.call('GET', key) or '0')
   if current >= tonumber(ARGV[i + 1]) then
@@ -45,31 +50,6 @@ return 0
 "#;
 
 const REDIS_KEY_PREFIX: &str = "webhook_unverified_rl";
-
-/// How the unverified webhook rate limits are applied.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum RateLimitMode {
-    /// Unverified webhooks are not counted.
-    #[default]
-    Disabled,
-    /// Unverified webhooks are counted and webhooks over a limit are recorded, but not rejected.
-    Shadow,
-    /// Unverified webhooks over a limit are rejected.
-    Enforce,
-}
 
 #[derive(Clone, Copy, Debug)]
 enum RateLimitLevel {
@@ -97,7 +77,7 @@ struct RateLimitBucket {
 /// Counts an unverified webhook against the merchant, profile and merchant connector account
 /// limits.
 ///
-/// Returns `WebhookRateLimited` only in enforce mode, when one of the limits has been reached.
+/// Returns `WebhookRateLimited` when enabled and one of the limits has been reached.
 /// Any failure while checking the limits lets the webhook through.
 pub async fn check_unverified_webhook_rate_limit(
     state: &SessionState,
@@ -108,52 +88,62 @@ pub async fn check_unverified_webhook_rate_limit(
     let connector_name = merchant_connector_account.get_connector_name_as_string();
     let merchant_connector_id = merchant_connector_account.get_id();
 
-    let dimensions = dimension_state::DimensionsWithMerchantConnectorAccount::new(
-        dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_profile_id(merchant_connector_account.profile_id.clone()),
-        Connector::from_str(&connector_name)
-            .inspect_err(|error| {
-                logger::warn!(
-                    ?error,
-                    connector = %connector_name,
-                    "Failed to parse connector for unverified webhook rate limit dimensions"
-                )
-            })
-            .ok(),
-        merchant_connector_id.clone(),
-    );
+    // Each limit is resolved with only the dimensions of its own level, so an override set at a
+    // narrower level can never change the limit of a bucket shared by a wider one
+    let merchant_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let profile_dimensions =
+        merchant_dimensions.with_profile_id(merchant_connector_account.profile_id.clone());
+    let merchant_connector_account_dimensions =
+        dimension_state::DimensionsWithMerchantConnectorAccount::new(
+            profile_dimensions.clone(),
+            Connector::from_str(&connector_name)
+                .inspect_err(|error| {
+                    logger::warn!(
+                        ?error,
+                        connector = %connector_name,
+                        "Failed to parse connector for unverified webhook rate limit dimensions"
+                    )
+                })
+                .ok(),
+            merchant_connector_id.clone(),
+        );
 
     let storage = state.store.as_ref();
     let superposition_client = state.superposition_service.as_ref();
     let targeting_key = Some(merchant_id);
 
-    let mode = dimensions
-        .get_unverified_webhook_rate_limit_mode(storage, superposition_client, targeting_key)
+    let enabled = merchant_connector_account_dimensions
+        .get_unverified_webhook_rate_limit_enabled(storage, superposition_client, targeting_key)
         .await;
-    if mode == RateLimitMode::Disabled {
+    if !enabled {
         return Ok(());
     }
 
-    let window_in_secs = dimensions
+    // The window is shared by all buckets of a merchant, so it is resolved at the merchant level
+    let window_in_secs = merchant_dimensions
         .get_unverified_webhook_rate_limit_window_in_secs(
             storage,
             superposition_client,
             targeting_key,
         )
         .await;
-    let merchant_limit = dimensions
+    let merchant_limit = merchant_dimensions
         .get_unverified_webhook_merchant_rate_limit(storage, superposition_client, targeting_key)
         .await;
-    let profile_limit = dimensions
-        .get_unverified_webhook_profile_rate_limit(storage, superposition_client, targeting_key)
+    let profile_limit = profile_dimensions
+        .get_unverified_webhook_profile_rate_limit(
+            storage,
+            superposition_client,
+            Some(&merchant_connector_account.profile_id),
+        )
         .await;
-    let merchant_connector_account_limit = dimensions
+    let merchant_connector_account_limit = merchant_connector_account_dimensions
         .get_unverified_webhook_merchant_connector_account_rate_limit(
             storage,
             superposition_client,
-            targeting_key,
+            Some(&merchant_connector_id),
         )
         .await;
 
@@ -196,8 +186,7 @@ pub async fn check_unverified_webhook_rate_limit(
         1,
         router_env::metric_attributes!(
             (MERCHANT_ID, merchant_id.clone()),
-            ("connector", connector_name.clone()),
-            ("mode", mode.to_string())
+            ("connector", connector_name.clone())
         ),
     );
 
@@ -228,22 +217,17 @@ pub async fn check_unverified_webhook_rate_limit(
         router_env::metric_attributes!(
             (MERCHANT_ID, merchant_id.clone()),
             ("connector", connector_name.clone()),
-            ("level", level.as_str()),
-            ("mode", mode.to_string())
+            ("level", level.as_str())
         ),
     );
     logger::info!(
         rate_limit_level = level.as_str(),
-        ?mode,
         profile_id = %merchant_connector_account.profile_id.get_string_repr(),
         merchant_connector_id = %merchant_connector_id.get_string_repr(),
         "Unverified webhook rate limit reached"
     );
 
-    match mode {
-        RateLimitMode::Enforce => Err(report!(errors::ApiErrorResponse::WebhookRateLimited)),
-        RateLimitMode::Shadow | RateLimitMode::Disabled => Ok(()),
-    }
+    Err(report!(errors::ApiErrorResponse::WebhookRateLimited))
 }
 
 /// Runs the check-and-increment script and returns the level of the first full bucket, if any.

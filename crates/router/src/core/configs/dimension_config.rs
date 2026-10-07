@@ -948,16 +948,15 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
 }
 
 config! {
-    superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_MODE,
-    output = crate::core::webhooks::unverified_rate_limit::RateLimitMode,
-    default = crate::core::webhooks::unverified_rate_limit::RateLimitMode::Disabled,
-    string_enum = true,
+    superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED,
+    output = bool,
+    default = false,
     requires = dimension_state::DimensionsWithMerchantConnectorAccount,
     targeting_key = id_type::MerchantId
 }
 
-impl DatabaseBackedConfig for UnverifiedWebhookRateLimitMode {
-    const KEY: &'static str = "unverified_webhook_rate_limit_mode";
+impl DatabaseBackedConfig for UnverifiedWebhookRateLimitEnabled {
+    const KEY: &'static str = "unverified_webhook_rate_limit_enabled";
 
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         // Unverified webhook rate limiting is configured only in superposition, so there is no db fallback.
@@ -969,7 +968,7 @@ config! {
     superposition_key = UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS,
     output = u32,
     default = 60u32,
-    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::MerchantId
 }
 
@@ -984,8 +983,8 @@ impl DatabaseBackedConfig for UnverifiedWebhookRateLimitWindowInSecs {
 config! {
     superposition_key = UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT,
     output = u32,
-    default = 0u32,
-    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
+    default = 60u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::MerchantId
 }
 
@@ -1001,8 +1000,8 @@ config! {
     superposition_key = UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT,
     output = u32,
     default = 0u32,
-    requires = dimension_state::DimensionsWithMerchantConnectorAccount,
-    targeting_key = id_type::MerchantId
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
 }
 
 impl DatabaseBackedConfig for UnverifiedWebhookProfileRateLimit {
@@ -1018,7 +1017,7 @@ config! {
     output = u32,
     default = 0u32,
     requires = dimension_state::DimensionsWithMerchantConnectorAccount,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::MerchantConnectorAccountId
 }
 
 impl DatabaseBackedConfig for UnverifiedWebhookMerchantConnectorAccountRateLimit {

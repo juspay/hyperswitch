@@ -864,4 +864,8 @@ impl DimensionsBase for DimensionsWithMerchantConnectorAccount {
     fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent> {
         self.dimensions.get_incoming_webhook_event()
     }
+
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
+        self.dimensions.get_payment_method_type()
+    }
 }
