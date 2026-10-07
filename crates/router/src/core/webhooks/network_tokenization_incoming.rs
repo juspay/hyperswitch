@@ -333,7 +333,7 @@ pub async fn handle_metadata_update(
 
             let pm_update = if is_pan_update {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
-                    locker_id: Some(res.payment_method_id),
+                    locker_id: res.locker_id,
                     locker_fingerprint_id: None,
                     payment_method_data: pm_data_encrypted.map(Into::into),
                     status: None,
@@ -363,7 +363,7 @@ pub async fn handle_metadata_update(
                     payment_method_type: None,
                     payment_method_issuer: None,
                     network_token_requestor_reference_id: None,
-                    network_token_locker_id: Some(res.payment_method_id),
+                    network_token_locker_id: res.locker_id,
                     network_token_payment_method_data: pm_data_encrypted.map(Into::into),
                     last_modified_by: platform
                         .get_initiator()
