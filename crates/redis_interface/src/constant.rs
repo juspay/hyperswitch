@@ -7,6 +7,7 @@
 pub mod redis_rs_commands {
     pub const REDIS_COMMAND_SET: &str = "SET";
     pub const REDIS_COMMAND_GET: &str = "GET";
+    pub const REDIS_COMMAND_INCRBY: &str = "INCRBY";
     pub const REDIS_COMMAND_HSCAN: &str = "HSCAN";
     pub const REDIS_COMMAND_SCAN: &str = "SCAN";
 

@@ -83,6 +83,8 @@ pub enum RedisError {
     PopListElementsFailed,
     #[error("Failed to increment hash field in Redis")]
     IncrementHashFieldFailed,
+    #[error("Failed to increment key in Redis")]
+    IncrementKeyFailed,
     #[error("Failed to evaluate Lua script in Redis")]
     ScriptExecutionFailed,
 }

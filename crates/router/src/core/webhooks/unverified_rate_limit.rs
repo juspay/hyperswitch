@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 use common_enums::connector_enums::Connector;
 use error_stack::{report, ResultExt};
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 
 use super::MERCHANT_ID;
 use crate::{
@@ -20,38 +20,6 @@ use crate::{
     routes::SessionState,
     types::domain,
 };
-
-/// Checks every bucket and increments all of them only when none of them is full, so a rejected
-/// webhook is not counted. The expiry is set whenever a bucket has none, which covers a new bucket
-/// and one whose expiry was lost.
-///
-/// `TTL` returns -2 for a key that does not exist and -1 for a key that exists without an expiry.
-/// Only -1 needs an expiry: a missing key is just an empty bucket.
-///
-/// Lua arrays start at 1, so the first key is KEYS[1] and the first argument is ARGV[1].
-/// KEYS[i]: bucket keys, ARGV[1]: window in seconds, ARGV[i + 1]: limit for KEYS[i].
-/// Returns 0 when allowed, otherwise the 1-based index of the first full bucket.
-const CHECK_AND_INCREMENT_SCRIPT: &str = r#"
-local window = tonumber(ARGV[1])
-for _, key in ipairs(KEYS) do
-  if redis.call('TTL', key) == -1 then
-    redis.call('EXPIRE', key, window)
-  end
-end
-for i, key in ipairs(KEYS) do
-  local current = tonumber(redis.call('GET', key) or '0')
-  if current >= tonumber(ARGV[i + 1]) then
-    return i
-  end
-end
-for _, key in ipairs(KEYS) do
-  redis.call('INCR', key)
-  if redis.call('TTL', key) < 0 then
-    redis.call('EXPIRE', key, window)
-  end
-end
-return 0
-"#;
 
 const REDIS_KEY_PREFIX: &str = "webhook_rate_limit";
 
@@ -184,7 +152,7 @@ async fn count_against_limits(
         .await;
 
     // The merchant id is the hash tag of every key, so all buckets of a webhook map to the same
-    // Redis Cluster slot, which a multi-key script requires. A limit of 0 disables its level.
+    // Redis Cluster slot, which a multi-key transaction requires. A limit of 0 disables its level.
     let merchant_tag = format!("{REDIS_KEY_PREFIX}:{{{}}}", merchant_id.get_string_repr());
     let buckets: Vec<RateLimitBucket> = [
         (
@@ -225,7 +193,7 @@ async fn count_against_limits(
             ),
         );
 
-        match check_and_increment(state, &buckets, window_in_secs).await {
+        match increment_and_check(state, &buckets, window_in_secs).await {
             Ok(None) => Ok(()),
             Ok(Some(level)) => {
                 metrics::WEBHOOK_UNVERIFIED_RATE_LIMITED_COUNT.add(
@@ -264,11 +232,17 @@ async fn count_against_limits(
     }
 }
 
-/// Runs the check-and-increment script and returns the level of the first full bucket, if any.
+/// Counts the webhook in every bucket and returns the level of the first bucket that went over
+/// its limit, if any.
 ///
-/// `Ok(None)` means every bucket had room and all of them were incremented. `Ok(Some(level))`
-/// means the bucket of that level was full and nothing was incremented.
-async fn check_and_increment(
+/// All buckets are incremented in one transaction, before any limit is checked. `Ok(None)` means
+/// every bucket was still within its limit. `Ok(Some(level))` means the bucket of that level was
+/// already full, in which case the webhook is rejected and a background task takes it back out
+/// of every bucket, so that rejected webhooks do not use up the allowance.
+///
+/// Until that task has run, the counts are one too high. Another webhook checked in that moment
+/// can be rejected although there was room for it, which only happens close to a limit.
+async fn increment_and_check(
     state: &SessionState,
     buckets: &[RateLimitBucket],
     window_in_secs: u32,
@@ -279,33 +253,48 @@ async fn check_and_increment(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    // Scripts receive their keys as given, so the tenant prefix has to be added here.
     let keys = buckets
         .iter()
-        .map(|bucket| redis_conn.add_prefix(&bucket.key))
+        .map(|bucket| redis_interface::RedisKey::from(&bucket.key))
         .collect::<Vec<_>>();
+    let window_in_secs = i64::from(window_in_secs);
 
-    // Lua arrays start at 1, so the first element here is ARGV[1] in the script. ARGV[1] is the window,
-    // followed by one limit per key in the same order as `keys`, which is how the script pairs
-    // KEYS[i] with ARGV[i + 1]
-    let args = std::iter::once(window_in_secs.to_string())
-        .chain(buckets.iter().map(|bucket| bucket.limit.to_string()))
-        .collect::<Vec<_>>();
-
-    // Redis runs the script as one atomic step, so webhooks handled concurrently cannot both
-    // read a count below the limit and then both increment past it
-    let exceeded_index: i64 = redis_conn
-        .evaluate_redis_script(CHECK_AND_INCREMENT_SCRIPT, keys, args)
+    // A bucket is created with the window as its expiry when the first webhook of a window is
+    // counted, and later webhooks leave that expiry untouched, which makes the window fixed
+    let counts = redis_conn
+        .increment_keys_with_expiry(&keys, 1, window_in_secs)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to run the unverified webhook rate limit script")?;
+        .attach_printable("Failed to increment the unverified webhook rate limit buckets")?;
 
-    // The script returns 0 when the webhook is allowed, otherwise the 1-based (Lua) position of
-    // the first full bucket, so 1 is subtracted to index `buckets`. 0 has no position before it,
-    // so it maps to `None`
-    Ok(usize::try_from(exceeded_index)
-        .ok()
-        .and_then(|index| index.checked_sub(1))
-        .and_then(|index| buckets.get(index))
-        .map(|bucket| bucket.level))
+    // The count includes this webhook, so a bucket is over its limit only when the count is
+    // greater than the limit
+    let exceeded_level = buckets
+        .iter()
+        .zip(counts)
+        .find(|(bucket, count)| *count > i64::from(bucket.limit))
+        .map(|(bucket, _)| bucket.level);
+
+    // A rejected webhook was already counted in every bucket by the increment above. Take it
+    // back out with an increment of -1, so that rejected webhooks do not use up the allowance.
+    // This runs in the background because the response does not need to wait for it
+    if exceeded_level.is_some() {
+        tokio::spawn(
+            async move {
+                redis_conn
+                    .increment_keys_with_expiry(&keys, -1, window_in_secs)
+                    .await
+                    .inspect_err(|error| {
+                        logger::error!(
+                            ?error,
+                            "Failed to take a rejected webhook out of the unverified webhook rate limit buckets"
+                        )
+                    })
+                    .ok();
+            }
+            .in_current_span(),
+        );
+    }
+
+    Ok(exceeded_level)
 }
