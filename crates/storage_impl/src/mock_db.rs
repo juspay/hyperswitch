@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
 };
 use redis_interface::RedisSettings;
 
-use crate::{errors::StorageError, redis::RedisStore};
+use crate::{
+    errors::StorageError,
+    redis::{cache::Caches, RedisStore},
+};
 
 pub mod payment_attempt;
 pub mod payment_intent;
@@ -36,6 +39,9 @@ pub struct MockDb {
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
     pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
     pub redis: Arc<RedisStore>,
+    /// In-memory caches, built with the defaults — a mock store has no configuration to
+    /// take them from.
+    pub caches: Arc<Caches>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<store::CardInfo>>>,
@@ -98,6 +104,7 @@ impl MockDb {
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
+            caches: Arc::new(Caches::default()),
             api_keys: Default::default(),
             ephemeral_keys: Default::default(),
             cards_info: Default::default(),

@@ -5,6 +5,8 @@ pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
+#[cfg(feature = "v1")]
+pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
 pub mod transformers;
@@ -3622,6 +3624,7 @@ pub async fn payout_create_db_entries(
         additional_source_bank_data,
         connector_request_reference_id: None,
         active_frm_id: None,
+        execution_kind: storage_enums::PayoutExecutionKind::Normal,
     };
     let payout_attempt = db
         .insert_payout_attempt(
