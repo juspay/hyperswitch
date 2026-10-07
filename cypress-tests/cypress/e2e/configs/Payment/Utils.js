@@ -834,6 +834,7 @@ export const CONNECTOR_LISTS = {
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
+    SURCHARGE_PERCENTAGE: ["stripe"],
     // Add more inclusion lists
   },
 };
