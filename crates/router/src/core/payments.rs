@@ -744,6 +744,7 @@ async fn restore_pre_call_state<F, D>(
         request_extended_authorization: attempt.request_extended_authorization,
         external_surcharge_details: attempt.external_surcharge_details.clone(),
         applied_offer_details: attempt.applied_offer_details.clone(),
+        applied_overrides: attempt.applied_overrides.clone(),
         active_frm_id: attempt.active_frm_id.clone(),
     };
 
@@ -913,12 +914,12 @@ where
 
     payment_data.set_connector_customer_id(connector_customer_id);
 
-    let authentication_type = call_decision_manager(
+    let authentication_type = Box::pin(call_decision_manager(
         state,
         platform.get_processor(),
         &business_profile,
         &payment_data,
-    )
+    ))
     .await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
@@ -1109,6 +1110,13 @@ where
             )
             .await?;
 
+        // Post-FRM keeps the payment authorised-only until the FRM decision, so the capture
+        // method must not fall back to automatic while this hold is in place.
+        #[cfg(feature = "frm")]
+        let post_frm_capture_hold = !should_continue_capture;
+        #[cfg(not(feature = "frm"))]
+        let post_frm_capture_hold = false;
+
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -1181,6 +1189,7 @@ where
                             false,
                             None,
                             &feature_config,
+                            post_frm_capture_hold,
                         ))
                         .await?;
 
@@ -1386,6 +1395,7 @@ where
                             false,
                             routing_decision,
                             &feature_config,
+                            post_frm_capture_hold,
                         ))
                         .await?;
 
@@ -1491,6 +1501,7 @@ where
                                 &business_profile,
                                 &feature_config,
                                 &dimensions,
+                                post_frm_capture_hold,
                             )
                             .await?;
                         };
@@ -1578,7 +1589,7 @@ where
 
                 ConnectorCallType::SessionMultiple(connectors) => {
                     let session_surcharge_details =
-                        call_surcharge_decision_management_for_session_flow(
+                        Box::pin(call_surcharge_decision_management_for_session_flow(
                             state,
                             platform.get_processor(),
                             &business_profile,
@@ -1586,7 +1597,7 @@ where
                             payment_data.get_payment_intent(),
                             payment_data.get_billing_address(),
                             &connectors,
-                        )
+                        ))
                         .await?;
 
                     vault_session::populate_vault_session_details(
@@ -2433,12 +2444,12 @@ where
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let output = perform_decision_management(
+    let output = Box::pin(perform_decision_management(
         state,
         algorithm_ref,
         processor.get_account().get_id(),
         &payment_dsl_data,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not decode the conditional config")?;
@@ -2932,7 +2943,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
         #[cfg(feature = "v2")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
-        let surcharge_results =
+        let surcharge_results = Box::pin(
             surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
                 state,
                 algorithm_ref,
@@ -2940,10 +2951,11 @@ pub async fn call_surcharge_decision_management_for_session_flow(
                 payment_intent,
                 billing_address,
                 &payment_method_type_list,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error performing surcharge decision operation")?;
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing surcharge decision operation")?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -6102,16 +6114,14 @@ where
     )
     .await?;
 
-    if let Some(connector_customer_id) = {
-        core_utils::get_connector_customer_id(
-            &state.conf,
-            &connector.connector_name.to_string(),
-            payment_data.get_connector_customer_id(),
-            &payment_data.get_payment_intent().customer_id,
-            &payment_data.get_payment_method_info().cloned(),
-            payment_data.get_payment_attempt(),
-        )?
-    } {
+    if let Some(connector_customer_id) = core_utils::get_connector_customer_id(
+        &state.conf,
+        &connector.connector_name.to_string(),
+        payment_data.get_connector_customer_id(),
+        &payment_data.get_payment_intent().customer_id,
+        &payment_data.get_payment_method_info().cloned(),
+        payment_data.get_payment_attempt(),
+    )? {
         router_data.connector_customer = Some(connector_customer_id);
     }
 
@@ -6315,6 +6325,96 @@ where
 }
 
 #[cfg(feature = "v1")]
+/// Records the capture method this attempt is sent to the connector with, in
+/// `applied_overrides.capture_method_applied`.
+///
+/// That is the requested `capture_method`, except when the connector routing chose does not
+/// support it and the profile has `auto_fallback_capture_method` enabled: then `automatic` is
+/// used instead, provided the connector supports it. Support is decided by both the connector's
+/// capture validation and its declared `supported_capture_methods` for this payment method
+/// type. When it does not, the requested method is kept and connector validation rejects the
+/// payment as it does today. `capture_method` itself
+/// always keeps what the merchant requested, so a retry on another connector re-evaluates it.
+///
+/// No fallback while a post-FRM capture hold is in place (`post_frm_capture_hold`): the hold
+/// keeps the payment authorised-only until FRM decides whether to capture, so a connector that
+/// cannot hold must reject the payment rather than take the money first. The hold is passed in
+/// because `frm_message` is only populated after the connector call in the post-FRM flow.
+fn apply_auto_fallback_capture_method<F, D>(
+    payment_data: &mut D,
+    connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
+    post_frm_capture_hold: bool,
+) where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    use crate::services::api::ConnectorValidation;
+
+    let is_enabled = business_profile
+        .auto_fallback_capture_method
+        .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled);
+    let attempt = payment_data.get_payment_attempt();
+    let requested = attempt.capture_method.unwrap_or_default();
+    let fallback = common_enums::AutoFallbackCaptureMethod::FALLBACK;
+
+    let should_fall_back = is_enabled
+        && !post_frm_capture_hold
+        && requested != fallback
+        && attempt.payment_method.is_some_and(|payment_method| {
+            // Some connectors override `validate_connector_against_payment_request` with a check
+            // that ignores the payment method type, so their `supported_capture_methods`
+            // declaration is consulted too: a capture method counts as supported only when
+            // neither source rejects it.
+            let declared_capture_methods = connector
+                .connector
+                .get_supported_payment_methods()
+                .and_then(|supported| supported.get(&payment_method))
+                .zip(attempt.payment_method_type)
+                .and_then(|(by_type, payment_method_type)| by_type.get(&payment_method_type))
+                .map(|details| &details.supported_capture_methods);
+            let is_supported = |capture_method| {
+                declared_capture_methods.is_none_or(|declared| declared.contains(&capture_method))
+                    && connector
+                        .connector
+                        .validate_connector_against_payment_request(
+                            Some(capture_method),
+                            payment_method,
+                            attempt.payment_method_type,
+                        )
+                        .is_ok()
+            };
+            !is_supported(requested) && is_supported(fallback)
+        });
+
+    let applied = if should_fall_back {
+        logger::info!(
+            payment_id = ?attempt.payment_id,
+            connector = %connector.connector_name,
+            payment_method_type = ?attempt.payment_method_type,
+            %requested,
+            %fallback,
+            "capture method not supported by connector; falling back as auto_fallback_capture_method is enabled"
+        );
+        metrics::AUTO_FALLBACK_CAPTURE_METHOD_APPLIED.add(
+            1,
+            router_env::metric_attributes!(
+                ("connector", connector.connector_name.to_string()),
+                ("requested", requested.to_string()),
+                ("applied", fallback.to_string()),
+            ),
+        );
+        fallback
+    } else {
+        requested
+    };
+
+    payment_data.set_applied_overrides_in_attempt(Some(common_types::payments::AppliedOverrides {
+        capture_method_applied: Some(applied),
+    }));
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
@@ -6328,6 +6428,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     feature_config: &core_utils::FeatureConfig,
+    post_frm_capture_hold: bool,
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -6479,6 +6580,13 @@ where
         business_profile,
     )
     .await?;
+
+    apply_auto_fallback_capture_method(
+        payment_data,
+        &connector,
+        business_profile,
+        post_frm_capture_hold,
+    );
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
@@ -8264,6 +8372,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
     Ok(final_recipient_data)
 }
 
+#[cfg(feature = "v1")]
 async fn blocklist_guard<F, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
@@ -8276,24 +8385,14 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let processor_merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
+    let blocklist_guard_enabled = dimensions
+        .with_profile_id(business_profile.get_id().clone())
+        .get_payment_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -8307,6 +8406,10 @@ where
             )
             .await?)
     } else {
+        operation
+            .to_domain()?
+            .populate_payment_fingerprint(state, processor, payment_data)
+            .await;
         Ok(false)
     }
 }
@@ -12012,6 +12115,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    processor.get_key_store(),
                     dimensions,
                     business_profile,
                     txn_data,
@@ -12298,6 +12402,11 @@ where
                         .attach_printable("No mandate record found for merchant connector ID")
                 })?;
 
+            validate_connector_mandate_status_for_mit(
+                &connector_routing_data.connector_data,
+                mandate_reference_record,
+            )?;
+
             if let Some(mandate_currency) =
                 mandate_reference_record.original_payment_authorized_currency
             {
@@ -12372,6 +12481,11 @@ where
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            validate_connector_mandate_status_for_mit(
+                                &connector_data,
+                                mandate_reference_record,
+                            )?;
+
                             common_utils::fp_utils::when(
                                 mandate_reference_record
                                     .original_payment_authorized_currency
@@ -12449,6 +12563,28 @@ where
     Ok(ConnectorCallType::PreDetermined(
         chosen_connector_data.into(),
     ))
+}
+
+#[cfg(feature = "v1")]
+fn validate_connector_mandate_status_for_mit(
+    connector_data: &api::ConnectorData,
+    mandate_reference_record: &mandates::PaymentsMandateReferenceRecord,
+) -> RouterResult<()> {
+    let should_allow_inactive_connector_mandate = connector_data
+        .connector
+        .should_allow_mit_when_connector_mandate_status_is_inactive()
+        .unwrap_or(true);
+
+    common_utils::fp_utils::when(
+        !should_allow_inactive_connector_mandate
+            && mandate_reference_record.connector_mandate_status
+                == Some(common_enums::ConnectorMandateStatus::Inactive),
+        || {
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "connector mandate is inactive".into(),
+            }))
+        },
+    )
 }
 
 pub fn filter_ntid_supported_connectors(
@@ -13008,6 +13144,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
@@ -13026,6 +13163,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
+        key_store,
         business_profile,
         dimensions,
         &payment_dsl_input,
@@ -13512,7 +13650,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
                 |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
-                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
                     }
                     common_enums::TransactionStatus::Success => {
@@ -14228,6 +14367,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -14279,9 +14419,20 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        Ok(blocklist_utils::is_blocklist_guard_enabled(state, merchant_id).await)
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile_id.clone());
+
+        Ok(dimensions
+            .get_payment_blocklist_guard(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await)
     }
 
     async fn execute_check(
@@ -14376,6 +14527,7 @@ impl EligibilityCheck for CardTestingCheck {
         &self,
         _state: &SessionState,
         _platform: &domain::Platform,
+        _profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         // This check is always run as there is no runtime config enablement
         Ok(true)
@@ -14457,7 +14609,9 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let should_run = check
+            .should_run(&self.state, &self.platform, self.business_profile.get_id())
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(
@@ -15445,6 +15599,11 @@ pub trait OperationSessionSetters<F> {
     );
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
+    #[cfg(feature = "v1")]
+    fn set_applied_overrides_in_attempt(
+        &mut self,
+        applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    );
     fn set_frm_message(&mut self, frm_message: FraudCheck);
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus);
     fn set_authentication_type_in_attempt(
@@ -15651,7 +15810,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     #[cfg(feature = "v1")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        self.payment_attempt.capture_method
+        self.payment_attempt.get_effective_capture_method()
     }
 
     #[cfg(feature = "v1")]
@@ -15796,6 +15955,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod) {
         self.payment_attempt.capture_method = Some(capture_method);
+    }
+
+    #[cfg(feature = "v1")]
+    fn set_applied_overrides_in_attempt(
+        &mut self,
+        applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    ) {
+        self.payment_attempt.applied_overrides = applied_overrides;
     }
 
     fn set_frm_message(&mut self, frm_message: FraudCheck) {
