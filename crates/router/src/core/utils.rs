@@ -327,6 +327,7 @@ pub async fn construct_payout_router_data<'a, F>(
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
             billing_descriptor: payouts.billing_descriptor.clone(),
+            external_vault_pmd: None,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

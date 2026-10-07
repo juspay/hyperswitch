@@ -6477,6 +6477,8 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+            // UCS proto has no SPC variant yet
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => Self::Unspecified,
         }
     }
 }
@@ -6637,6 +6639,7 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::Oxxo => Self::Oxxo,
             common_enums::PaymentMethodType::PagoEfectivo => Self::PagoEfectivo,
             common_enums::PaymentMethodType::PermataBankTransfer => Self::PermataBankTransfer,
+            common_enums::PaymentMethodType::OpenBanking => Self::OpenBanking,
             common_enums::PaymentMethodType::OpenBankingUk => Self::OpenBankingUk,
             common_enums::PaymentMethodType::PayBright => Self::PayBright,
             common_enums::PaymentMethodType::Paypal => Self::PayPal,
@@ -9139,89 +9142,101 @@ impl ForeignFrom<api_models::payouts::PayoutBusinessType> for payments_grpc::Ban
 }
 
 #[cfg(feature = "payouts")]
-fn convert_payout_vendor_account_details_to_grpc<F>(
-    router_data: &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
-) -> Option<payments_grpc::PayoutVendorAccountDetails> {
-    let vendor_account_details = router_data.request.vendor_details.as_ref()?;
-    let vendor_details = &vendor_account_details.vendor_details;
-    let individual_details = &vendor_account_details.individual_details;
+impl<F>
+    transformers::ForeignTryFrom<(
+        &api_models::payouts::PayoutVendorAccountDetails,
+        &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
+    )> for payments_grpc::PayoutVendorAccountDetails
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    let billing_details = router_data
-        .address
-        .get_payment_method_billing()
-        .and_then(|billing_address| billing_address.address.as_ref());
+    fn foreign_try_from(
+        (vendor_account_details, router_data): (
+            &api_models::payouts::PayoutVendorAccountDetails,
+            &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let vendor_details = &vendor_account_details.vendor_details;
+        let individual_details = &vendor_account_details.individual_details;
 
-    let business_profile_name = vendor_details
-        .business_profile_name
-        .as_ref()
-        .map(|name| name.peek().to_string().into());
+        let billing_details = router_data
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing_address| billing_address.address.as_ref());
 
-    Some(payments_grpc::PayoutVendorAccountDetails {
-        vendor_details: Some(payments_grpc::VendorDetails {
-            account_type: Some(
-                payments_grpc::payout_enums::PayoutAccountType::foreign_from(
-                    vendor_details.account_type,
-                )
-                .into(),
-            ),
-            vendor_category_code: vendor_details
-                .business_profile_mcc
-                .map(|mcc| mcc.to_string()),
-            vendor_url: vendor_details
-                .business_profile_url
-                .as_ref()
-                .map(|url| url.clone().into()),
-            vendor_name: business_profile_name.clone(),
-            statement_descriptor: business_profile_name,
-            owners_provided: vendor_details.company_owners_provided,
-            vendor_type: Some(
-                payments_grpc::BankHolderType::foreign_from(vendor_details.business_type).into(),
-            ),
-            card_payments_enabled: vendor_details.capabilities_card_payments,
-            transfers_enabled: vendor_details.capabilities_transfers,
-        }),
-        individual_details: Some(payments_grpc::IndividualDetails {
-            first_name: billing_details
-                .and_then(|billing_details| billing_details.first_name.as_ref())
-                .map(|first_name| first_name.peek().to_string().into()),
-            last_name: billing_details
-                .and_then(|billing_details| billing_details.last_name.as_ref())
-                .map(|last_name| last_name.peek().to_string().into()),
-            phone: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|customer_details| customer_details.phone.as_ref())
-                .map(|phone| phone.peek().to_string().into()),
-            ssn_last_4: individual_details
-                .individual_ssn_last_4
-                .as_ref()
-                .map(|ssn| ssn.peek().to_string().into()),
-            id_number: individual_details
-                .individual_id_number
-                .as_ref()
-                .map(|id_number| id_number.peek().to_string().into()),
-            date_of_birth: match (
-                individual_details.individual_dob_year.as_ref(),
-                individual_details.individual_dob_month.as_ref(),
-                individual_details.individual_dob_day.as_ref(),
-            ) {
-                (Some(year), Some(month), Some(day)) => {
-                    Some(format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek()).into())
-                }
-                _ => None,
-            },
-            tos_acceptance_ip: individual_details
-                .tos_acceptance_ip
-                .as_ref()
-                .map(|ip| ip.peek().to_string().into()),
-            external_account_account_holder_type: individual_details
-                .external_account_account_holder_type
-                .map(payments_grpc::BankHolderType::foreign_from)
-                .map(i32::from),
-            tos_acceptance_date: individual_details.tos_acceptance_date,
-        }),
-    })
+        let business_profile_name = vendor_details
+            .business_profile_name
+            .as_ref()
+            .map(|name| name.peek().to_string().into());
+
+        Ok(Self {
+            vendor_details: Some(payments_grpc::VendorDetails {
+                account_type: Some(
+                    payments_grpc::payout_enums::PayoutAccountType::foreign_from(
+                        vendor_details.account_type,
+                    )
+                    .into(),
+                ),
+                vendor_category_code: vendor_details
+                    .business_profile_mcc
+                    .map(|mcc| mcc.to_string()),
+                vendor_url: vendor_details
+                    .business_profile_url
+                    .as_ref()
+                    .map(|url| url.clone().into()),
+                vendor_name: business_profile_name.clone(),
+                statement_descriptor: business_profile_name,
+                owners_provided: vendor_details.company_owners_provided,
+                vendor_type: Some(
+                    payments_grpc::BankHolderType::foreign_from(vendor_details.business_type)
+                        .into(),
+                ),
+                card_payments_enabled: vendor_details.capabilities_card_payments,
+                transfers_enabled: vendor_details.capabilities_transfers,
+            }),
+            individual_details: Some(payments_grpc::IndividualDetails {
+                first_name: billing_details
+                    .and_then(|billing_details| billing_details.first_name.as_ref())
+                    .map(|first_name| first_name.peek().to_string().into()),
+                last_name: billing_details
+                    .and_then(|billing_details| billing_details.last_name.as_ref())
+                    .map(|last_name| last_name.peek().to_string().into()),
+                phone: router_data
+                    .request
+                    .customer_details
+                    .as_ref()
+                    .and_then(|customer_details| customer_details.phone.as_ref())
+                    .map(|phone| phone.peek().to_string().into()),
+                ssn_last_4: individual_details
+                    .individual_ssn_last_4
+                    .as_ref()
+                    .map(|ssn| ssn.peek().to_string().into()),
+                id_number: individual_details
+                    .individual_id_number
+                    .as_ref()
+                    .map(|id_number| id_number.peek().to_string().into()),
+                date_of_birth: match (
+                    individual_details.individual_dob_year.as_ref(),
+                    individual_details.individual_dob_month.as_ref(),
+                    individual_details.individual_dob_day.as_ref(),
+                ) {
+                    (Some(year), Some(month), Some(day)) => Some(
+                        format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek()).into(),
+                    ),
+                    _ => None,
+                },
+                tos_acceptance_ip: individual_details
+                    .tos_acceptance_ip
+                    .as_ref()
+                    .map(|ip| ip.peek().to_string().into()),
+                external_account_account_holder_type: individual_details
+                    .external_account_account_holder_type
+                    .map(payments_grpc::BankHolderType::foreign_from)
+                    .map(i32::from),
+                tos_acceptance_date: individual_details.tos_acceptance_date,
+            }),
+        })
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -9271,7 +9286,17 @@ impl
             currency: source_currency.into(),
         };
 
-        let vendor_account_details = convert_payout_vendor_account_details_to_grpc(router_data);
+        let vendor_account_details = router_data
+            .request
+            .vendor_details
+            .as_ref()
+            .map(|vendor_details| {
+                payments_grpc::PayoutVendorAccountDetails::foreign_try_from((
+                    vendor_details,
+                    router_data,
+                ))
+            })
+            .transpose()?;
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
@@ -9341,7 +9366,17 @@ impl
                 ),
             )?;
 
-        let vendor_account_details = convert_payout_vendor_account_details_to_grpc(router_data);
+        let vendor_account_details = router_data
+            .request
+            .vendor_details
+            .as_ref()
+            .map(|vendor_details| {
+                payments_grpc::PayoutVendorAccountDetails::foreign_try_from((
+                    vendor_details,
+                    router_data,
+                ))
+            })
+            .transpose()?;
 
         let destination_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.destination_currency)?;
@@ -9597,12 +9632,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::TrustlyBankTransferPayout::foreign_try_from(trustly)?,
                     )
                 }
-                api_models::payouts::Bank::OpenBanking(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "OpenBanking bank transfer not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Bank::OpenBanking(open_banking) => {
+                    payments_grpc::payout_method::PayoutMethodData::OpenBanking(
+                        payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
+                    )
+                }
                 api_models::payouts::Bank::Payshap(payshap) => {
                     payments_grpc::payout_method::PayoutMethodData::Payshap(
                         payments_grpc::PayshapBankTransferPayout::foreign_try_from(payshap)?,
@@ -9656,13 +9690,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                         )
                     }
-                    api_models::payouts::BankTransfer::OpenBanking(_) => {
-                        Err(error_stack::Report::new(
-                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                                "OpenBanking bank transfer not supported for Unified Connector Service"
-                                    .to_string(),
-                            ),
-                        ))?
+                    api_models::payouts::BankTransfer::OpenBanking(open_banking) => {
+                        payments_grpc::payout_method::PayoutMethodData::OpenBanking(
+                            payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
+                        )
                     }
                     api_models::payouts::BankTransfer::Payshap(payshap) => {
                         payments_grpc::payout_method::PayoutMethodData::Payshap(
@@ -9671,7 +9702,9 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     }
                     api_models::payouts::BankTransfer::PayshapProxy(payshap_proxy) => {
                         payments_grpc::payout_method::PayoutMethodData::PayshapProxy(
-                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(payshap_proxy),
+                            payments_grpc::PayshapProxyBankTransferPayout::foreign_from(
+                                payshap_proxy,
+                            ),
                         )
                     }
                     api_models::payouts::BankTransfer::Ted(ted) => {
@@ -9687,12 +9720,14 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::ApplePayDecrypt::foreign_try_from(apple_pay)?,
                     )
                 }
-                 api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Googlepay wallet not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => {
+                    Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Googlepay wallet not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?
+                }
                 api_models::payouts::Wallet::Paypal(paypal) => {
                     payments_grpc::payout_method::PayoutMethodData::Paypal(
                         payments_grpc::Paypal::foreign_try_from(paypal)?,
@@ -9703,7 +9738,6 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::Venmo::foreign_try_from(venmo)?,
                     )
                 }
-
             },
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
                 match bank_redirect {
@@ -10029,6 +10063,20 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Interac> for payments_gr
     fn foreign_try_from(item: &api_models::payouts::Interac) -> Result<Self, Self::Error> {
         Ok(Self {
             email: Some(Secret::new(item.email.clone().expose().expose())),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::OpenBanking>
+    for payments_grpc::OpenBankingPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::OpenBanking) -> Result<Self, Self::Error> {
+        Ok(Self {
+            account_holder_name: Some(item.account_holder_name.clone()),
+            iban: Some(item.iban.clone()),
         })
     }
 }

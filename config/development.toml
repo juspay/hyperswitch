@@ -1365,7 +1365,7 @@ wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
-wallet.gcash.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
@@ -1393,7 +1393,7 @@ wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authori
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
-wallet.gcash.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
@@ -1406,6 +1406,8 @@ bank_redirect.bancontact_card.connector_list = "adyen,stripe"
 bank_redirect.trustly.connector_list = "adyen,aci"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 bank_redirect.eps.connector_list = "globalpay,nexinets,aci,multisafepay"
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
@@ -1681,14 +1683,16 @@ request_timeout = 35
 keep_alive_interval = 30
 keep_alive_timeout = 20
 tcp_keepalive = 60
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
-default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the mathmodel retries at when a cluster has no hour-of-day history
+default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history
+exploration_floor = 0.10 # minimum probability the systematic-k sampler gives every candidate day
+tie_tolerance = 1e-4     # day values within this distance count as tied and split their share equally
 
 [revenue_recovery.recovery_timestamp]
 initial_timestamp_in_seconds = 3600

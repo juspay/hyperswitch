@@ -282,7 +282,7 @@ wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
-wallet.gcash.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
@@ -309,7 +309,7 @@ wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authori
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
-wallet.gcash.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
@@ -322,6 +322,8 @@ bank_redirect.bancontact_card.connector_list="adyen,stripe"
 bank_redirect.trustly.connector_list="adyen,aci"
 bank_redirect.open_banking_uk.connector_list="adyen"
 bank_redirect.eps.connector_list="globalpay,nexinets,aci,multisafepay"
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card
@@ -1098,7 +1100,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
