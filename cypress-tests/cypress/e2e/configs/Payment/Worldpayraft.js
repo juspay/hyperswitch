@@ -360,7 +360,17 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
-        amount: 6000,
+        amount: 4321,
+        recurring_details: {
+          type: "network_transaction_id_and_card_details",
+          data: {
+            card_number: "5555555555554444",
+            card_exp_month: "08",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doe",
+            network_transaction_id: "AB1CD2EF30118",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -371,7 +381,17 @@ export const connectorDetails = {
     },
     MITManualCapture: {
       Request: {
-        amount: 6000,
+        amount: 4321,
+        recurring_details: {
+          type: "network_transaction_id_and_card_details",
+          data: {
+            card_number: "5555555555554444",
+            card_exp_month: "08",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doe",
+            network_transaction_id: "AB1CD2EF30118",
+          },
+        },
       },
       Response: {
         status: 200,
