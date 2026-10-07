@@ -2529,33 +2529,13 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
             external_vault_card,
-        ) => {
-            let card_network = external_vault_card
-                .card_network
-                .clone()
-                .map(payments_grpc::CardNetwork::foreign_from);
-
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
-                    payments_grpc::ProxyCardDetailsForNetworkTransactionId {
-                        card_number: Some(external_vault_card.card_number.expose().into()),
-                        card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
-                        card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
-                        card_issuer: external_vault_card.card_issuer.clone(),
-                        card_network: card_network.map(|card_network| card_network.into()),
-                        card_type: external_vault_card.card_type.clone(),
-                        card_issuing_country: external_vault_card.card_issuing_country.clone(),
-                        bank_code: external_vault_card.bank_code.clone(),
-                        nick_name: external_vault_card
-                            .nick_name
-                            .map(|nick_name| nick_name.expose().into()),
-                        card_holder_name: external_vault_card
-                            .card_holder_name
-                            .map(|card_holder_name| card_holder_name.expose().into()),
-                    },
-                )),
-            })
-        }
+        ) => Ok(payments_grpc::PaymentMethod {
+            payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
+                payments_grpc::ProxyCardDetailsForNetworkTransactionId::foreign_from(
+                    *external_vault_card,
+                ),
+            )),
+        }),
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
             Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented payment method subtype: {payment_method_type:?}"

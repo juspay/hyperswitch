@@ -4726,6 +4726,38 @@ impl
     }
 }
 
+/// The vault-alias counterpart of the `CardDetailsForNetworkTransactionId` conversion. Infallible:
+/// the alias is already a string, so unlike a PAN there is nothing to parse.
+impl ForeignFrom<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
+    for payments_grpc::ProxyCardDetailsForNetworkTransactionId
+{
+    fn foreign_from(
+        external_vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
+    ) -> Self {
+        let card_network = external_vault_card
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
+        Self {
+            card_number: Some(external_vault_card.card_number.expose().into()),
+            card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+            card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+            card_issuer: external_vault_card.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: external_vault_card.card_type.clone(),
+            card_issuing_country: external_vault_card.card_issuing_country.clone(),
+            bank_code: external_vault_card.bank_code.clone(),
+            nick_name: external_vault_card
+                .nick_name
+                .map(|nick_name| nick_name.expose().into()),
+            card_holder_name: external_vault_card
+                .card_holder_name
+                .map(|card_holder_name| card_holder_name.expose().into()),
+        }
+    }
+}
+
 impl ForeignFrom<common_types::payments::TokenSource> for payments_grpc::TokenSource {
     fn foreign_from(token_source: common_types::payments::TokenSource) -> Self {
         match token_source {
