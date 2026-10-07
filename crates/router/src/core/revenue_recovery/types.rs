@@ -1668,50 +1668,6 @@ async fn persist_billing_connector_transaction_id(
     }
 }
 
-/// Resolves the standardised code for a failed revenue recovery attempt's error and carries it on
-/// the status update, so the payments core writes the code in the same statement as the status.
-///
-/// Leaves the update untouched unless it marks a revenue recovery attempt as failed, so other
-/// payments make no GSM lookup. The code is resolved from the error carried by the update — the
-/// one the connector just returned — not from whatever error the attempt held before.
-pub async fn attach_standardised_code_to_error_update(
-    state: &SessionState,
-    payment_attempt: &PaymentAttempt,
-    payment_intent: &PaymentIntent,
-    payment_attempt_update: &mut hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate,
-) {
-    let hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
-        status,
-        error,
-        ..
-    } = payment_attempt_update
-    else {
-        return;
-    };
-
-    let is_revenue_recovery_attempt = payment_attempt
-        .feature_metadata
-        .as_ref()
-        .is_some_and(|feature_metadata| feature_metadata.revenue_recovery.is_some());
-    if !status.is_payment_terminal_failure() || !is_revenue_recovery_attempt {
-        return;
-    }
-
-    let card_network = payment_intent
-        .get_revenue_recovery_metadata()
-        .and_then(|metadata| metadata.convert_back().get_card_network());
-
-    error.standardised_code = retry_stats::events::resolve_standardised_error_code(
-        state,
-        payment_attempt.connector.clone(),
-        Some(error.code.clone()),
-        Some(error.message.clone()),
-        error.network_decline_code.clone(),
-        card_network,
-    )
-    .await;
-}
-
 pub fn construct_invoice_record_back_router_data(
     state: &SessionState,
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,

@@ -2491,30 +2491,6 @@ impl Conversion for PaymentAttempt {
     }
 }
 
-/// v2 stores only the standardised code in the `error_details` column, under `unified_details`.
-#[cfg(feature = "v2")]
-fn standardised_code_to_error_details(
-    standardised_code: Option<common_enums::StandardisedCode>,
-) -> Option<diesel_models::payment_attempt::ErrorDetails> {
-    standardised_code.map(|standardised_code| diesel_models::payment_attempt::ErrorDetails {
-        unified_details: Some(diesel_models::payment_attempt::UnifiedErrorDetails {
-            standardised_code: Some(standardised_code),
-            ..Default::default()
-        }),
-        issuer_details: None,
-        connector_details: None,
-    })
-}
-
-#[cfg(feature = "v2")]
-fn standardised_code_from_error_details(
-    error_details: Option<&diesel_models::payment_attempt::ErrorDetails>,
-) -> Option<common_enums::StandardisedCode> {
-    error_details
-        .and_then(|error_details| error_details.unified_details.as_ref())
-        .and_then(|unified_details| unified_details.standardised_code)
-}
-
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for PaymentAttempt {
@@ -2692,9 +2668,7 @@ impl Conversion for PaymentAttempt {
             tokenization: None,
             amount_captured,
             encrypted_payment_method_data: None,
-            error_details: standardised_code_to_error_details(
-                error.as_ref().and_then(|error| error.standardised_code),
-            ),
+            error_details: error.as_ref().map(diesel_models::payment_attempt::ErrorDetails::from),
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
@@ -2760,8 +2734,11 @@ impl Conversion for PaymentAttempt {
                 amount_captured: storage_model.amount_captured,
             };
 
-            let standardised_code =
-                standardised_code_from_error_details(storage_model.error_details.as_ref());
+            let standardised_code = storage_model
+                .error_details
+                .as_ref()
+                .and_then(|error_details| error_details.unified_details.as_ref())
+                .and_then(|unified_details| unified_details.standardised_code);
 
             let error = storage_model
                 .error_code
@@ -3009,11 +2986,9 @@ impl Conversion for PaymentAttempt {
             authorized_amount,
             amount_captured: amount_details.get_amount_captured(),
             encrypted_payment_method_data: None,
-            error_details: standardised_code_to_error_details(
-                error_details
-                    .as_ref()
-                    .and_then(|error_details| error_details.standardised_code),
-            ),
+            error_details: error_details
+                .as_ref()
+                .map(diesel_models::payment_attempt::ErrorDetails::from),
             retry_type: None,
             external_surcharge_details: None,
             applied_offer_details: None,
@@ -3082,8 +3057,8 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
 
-                // Written in the same statement as the status. `None` leaves the column untouched.
-                let standardised_code = error.standardised_code;
+                // Built before the fields below are moved out of `error`.
+                let error_details = diesel_models::payment_attempt::ErrorDetails::from(error.as_ref());
 
                 Self {
                     status: Some(status),
@@ -3095,8 +3070,8 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     error_reason: error.reason,
                     updated_by,
                     merchant_connector_id: None,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: error.unified_code,
+                    unified_message: error.unified_message,
                     connector_payment_id,
                     connector_payment_data,
                     connector: None,
@@ -3115,7 +3090,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
-                    error_details: standardised_code_to_error_details(standardised_code),
+                    error_details: Some(error_details),
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
