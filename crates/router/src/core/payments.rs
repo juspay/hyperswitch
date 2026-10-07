@@ -744,6 +744,7 @@ async fn restore_pre_call_state<F, D>(
         request_extended_authorization: attempt.request_extended_authorization,
         external_surcharge_details: attempt.external_surcharge_details.clone(),
         applied_offer_details: attempt.applied_offer_details.clone(),
+        applied_overrides: attempt.applied_overrides.clone(),
         active_frm_id: attempt.active_frm_id.clone(),
     };
 
@@ -1109,6 +1110,13 @@ where
             )
             .await?;
 
+        // Post-FRM keeps the payment authorised-only until the FRM decision, so the capture
+        // method must not fall back to automatic while this hold is in place.
+        #[cfg(feature = "frm")]
+        let post_frm_capture_hold = !should_continue_capture;
+        #[cfg(not(feature = "frm"))]
+        let post_frm_capture_hold = false;
+
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -1181,6 +1189,7 @@ where
                             false,
                             None,
                             &feature_config,
+                            post_frm_capture_hold,
                         ))
                         .await?;
 
@@ -1386,6 +1395,7 @@ where
                             false,
                             routing_decision,
                             &feature_config,
+                            post_frm_capture_hold,
                         ))
                         .await?;
 
@@ -1491,6 +1501,7 @@ where
                                 &business_profile,
                                 &feature_config,
                                 &dimensions,
+                                post_frm_capture_hold,
                             )
                             .await?;
                         };
@@ -6314,6 +6325,96 @@ where
 }
 
 #[cfg(feature = "v1")]
+/// Records the capture method this attempt is sent to the connector with, in
+/// `applied_overrides.capture_method_applied`.
+///
+/// That is the requested `capture_method`, except when the connector routing chose does not
+/// support it and the profile has `auto_fallback_capture_method` enabled: then `automatic` is
+/// used instead, provided the connector supports it. Support is decided by both the connector's
+/// capture validation and its declared `supported_capture_methods` for this payment method
+/// type. When it does not, the requested method is kept and connector validation rejects the
+/// payment as it does today. `capture_method` itself
+/// always keeps what the merchant requested, so a retry on another connector re-evaluates it.
+///
+/// No fallback while a post-FRM capture hold is in place (`post_frm_capture_hold`): the hold
+/// keeps the payment authorised-only until FRM decides whether to capture, so a connector that
+/// cannot hold must reject the payment rather than take the money first. The hold is passed in
+/// because `frm_message` is only populated after the connector call in the post-FRM flow.
+fn apply_auto_fallback_capture_method<F, D>(
+    payment_data: &mut D,
+    connector: &api::ConnectorData,
+    business_profile: &domain::Profile,
+    post_frm_capture_hold: bool,
+) where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    use crate::services::api::ConnectorValidation;
+
+    let is_enabled = business_profile
+        .auto_fallback_capture_method
+        .is_some_and(common_enums::AutoFallbackCaptureMethod::is_enabled);
+    let attempt = payment_data.get_payment_attempt();
+    let requested = attempt.capture_method.unwrap_or_default();
+    let fallback = common_enums::AutoFallbackCaptureMethod::FALLBACK;
+
+    let should_fall_back = is_enabled
+        && !post_frm_capture_hold
+        && requested != fallback
+        && attempt.payment_method.is_some_and(|payment_method| {
+            // Some connectors override `validate_connector_against_payment_request` with a check
+            // that ignores the payment method type, so their `supported_capture_methods`
+            // declaration is consulted too: a capture method counts as supported only when
+            // neither source rejects it.
+            let declared_capture_methods = connector
+                .connector
+                .get_supported_payment_methods()
+                .and_then(|supported| supported.get(&payment_method))
+                .zip(attempt.payment_method_type)
+                .and_then(|(by_type, payment_method_type)| by_type.get(&payment_method_type))
+                .map(|details| &details.supported_capture_methods);
+            let is_supported = |capture_method| {
+                declared_capture_methods.is_none_or(|declared| declared.contains(&capture_method))
+                    && connector
+                        .connector
+                        .validate_connector_against_payment_request(
+                            Some(capture_method),
+                            payment_method,
+                            attempt.payment_method_type,
+                        )
+                        .is_ok()
+            };
+            !is_supported(requested) && is_supported(fallback)
+        });
+
+    let applied = if should_fall_back {
+        logger::info!(
+            payment_id = ?attempt.payment_id,
+            connector = %connector.connector_name,
+            payment_method_type = ?attempt.payment_method_type,
+            %requested,
+            %fallback,
+            "capture method not supported by connector; falling back as auto_fallback_capture_method is enabled"
+        );
+        metrics::AUTO_FALLBACK_CAPTURE_METHOD_APPLIED.add(
+            1,
+            router_env::metric_attributes!(
+                ("connector", connector.connector_name.to_string()),
+                ("requested", requested.to_string()),
+                ("applied", fallback.to_string()),
+            ),
+        );
+        fallback
+    } else {
+        requested
+    };
+
+    payment_data.set_applied_overrides_in_attempt(Some(common_types::payments::AppliedOverrides {
+        capture_method_applied: Some(applied),
+    }));
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
@@ -6327,6 +6428,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     feature_config: &core_utils::FeatureConfig,
+    post_frm_capture_hold: bool,
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -6478,6 +6580,13 @@ where
         business_profile,
     )
     .await?;
+
+    apply_auto_fallback_capture_method(
+        payment_data,
+        &connector,
+        business_profile,
+        post_frm_capture_hold,
+    );
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
@@ -12011,6 +12120,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    processor.get_key_store(),
                     dimensions,
                     business_profile,
                     txn_data,
@@ -13007,6 +13117,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
@@ -13025,6 +13136,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
+        key_store,
         business_profile,
         dimensions,
         &payment_dsl_input,
@@ -13511,7 +13623,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
                 |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
-                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
                     }
                     common_enums::TransactionStatus::Success => {
@@ -15444,6 +15557,11 @@ pub trait OperationSessionSetters<F> {
     );
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
+    #[cfg(feature = "v1")]
+    fn set_applied_overrides_in_attempt(
+        &mut self,
+        applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    );
     fn set_frm_message(&mut self, frm_message: FraudCheck);
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus);
     fn set_authentication_type_in_attempt(
@@ -15650,7 +15768,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     #[cfg(feature = "v1")]
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        self.payment_attempt.capture_method
+        self.payment_attempt.get_effective_capture_method()
     }
 
     #[cfg(feature = "v1")]
@@ -15795,6 +15913,14 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     #[cfg(feature = "v1")]
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod) {
         self.payment_attempt.capture_method = Some(capture_method);
+    }
+
+    #[cfg(feature = "v1")]
+    fn set_applied_overrides_in_attempt(
+        &mut self,
+        applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    ) {
+        self.payment_attempt.applied_overrides = applied_overrides;
     }
 
     fn set_frm_message(&mut self, frm_message: FraudCheck) {
