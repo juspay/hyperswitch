@@ -996,7 +996,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsRetrieveResponse"
                 }
               }
             }
@@ -1075,7 +1075,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsConfirmResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsConfirmResponse"
                 }
               }
             }
@@ -1146,7 +1146,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsResponse"
                 }
               }
             }
@@ -1322,7 +1322,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsResponse"
                 }
               }
             }
@@ -1368,7 +1368,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsResponse"
                 }
               }
             }
@@ -1598,7 +1598,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsResponse"
                 }
               }
             }
@@ -1890,7 +1890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsResponseOpenApi"
+                  "$ref": "#/components/schemas/PaymentsResponse"
                 }
               }
             }
@@ -34611,7 +34611,7 @@
           }
         }
       },
-      "PaymentsConfirmResponseOpenApi": {
+      "PaymentsConfirmResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -38708,7 +38708,67 @@
           }
         }
       },
-      "PaymentsResponseOpenApi": {
+      "PaymentsRetrieveRequest": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "force_sync"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
+            "nullable": true
+          },
+          "force_sync": {
+            "type": "boolean",
+            "description": "Decider to enable or disable the connector call for retrieve request"
+          },
+          "param": {
+            "type": "string",
+            "description": "Optional query parameters that might be specific to a connector or flow, passed through during the retrieve operation. Use with caution and refer to specific connector documentation if applicable.",
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "description": "Optionally specifies the connector to be used for a 'force_sync' retrieve operation. If provided, Hyperswitch will attempt to sync the payment status from this specific connector.",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "If enabled provides list of attempts linked to payment intent",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsRetrieveResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -39532,66 +39592,6 @@
             "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true,
             "maxLength": 255
-          }
-        }
-      },
-      "PaymentsRetrieveRequest": {
-        "type": "object",
-        "required": [
-          "resource_id",
-          "force_sync"
-        ],
-        "properties": {
-          "resource_id": {
-            "type": "string",
-            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account.",
-            "nullable": true
-          },
-          "force_sync": {
-            "type": "boolean",
-            "description": "Decider to enable or disable the connector call for retrieve request"
-          },
-          "param": {
-            "type": "string",
-            "description": "Optional query parameters that might be specific to a connector or flow, passed through during the retrieve operation. Use with caution and refer to specific connector documentation if applicable.",
-            "nullable": true
-          },
-          "connector": {
-            "type": "string",
-            "description": "Optionally specifies the connector to be used for a 'force_sync' retrieve operation. If provided, Hyperswitch will attempt to sync the payment status from this specific connector.",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
-            "nullable": true
-          },
-          "expand_captures": {
-            "type": "boolean",
-            "description": "If enabled provides list of captures linked to latest attempt",
-            "nullable": true
-          },
-          "expand_attempts": {
-            "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
-            "nullable": true
-          },
-          "all_keys_required": {
-            "type": "boolean",
-            "description": "If enabled, provides whole connector response",
-            "nullable": true
           }
         }
       },

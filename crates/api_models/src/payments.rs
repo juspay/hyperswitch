@@ -7441,8 +7441,8 @@ pub struct ReceiverDetails {
 )]
 #[generate_schemas(
     PaymentsCreateResponseOpenApi,
-    PaymentsResponseOpenApi,
-    PaymentsConfirmResponseOpenApi
+    PaymentsRetrieveResponse,
+    PaymentsConfirmResponse
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentsResponse {
@@ -7514,7 +7514,7 @@ pub struct PaymentsResponse {
 
     /// The combined payment-method list, returned only for `X-Integration-Type: server`.
     #[cfg(feature = "errors")]
-    #[remove_in(PaymentsResponseOpenApi, PaymentsConfirmResponseOpenApi)]
+    #[remove_in(PaymentsRetrieveResponse, PaymentsConfirmResponse)]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<PaymentMethodListResult>)]
     #[smithy(value_type = "Option<Object>")]
@@ -7522,7 +7522,7 @@ pub struct PaymentsResponse {
 
     /// Wallet session tokens for this payment, returned only for `X-Integration-Type: server`.
     #[cfg(feature = "errors")]
-    #[remove_in(PaymentsResponseOpenApi, PaymentsConfirmResponseOpenApi)]
+    #[remove_in(PaymentsRetrieveResponse, PaymentsConfirmResponse)]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<SessionTokensResult>)]
     #[smithy(value_type = "Option<Object>")]
@@ -7631,7 +7631,7 @@ pub struct PaymentsResponse {
     /// Providing this field will automatically set `capture` to true
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    #[remove_in(PaymentsCreateResponseOpenApi, PaymentsConfirmResponseOpenApi)]
+    #[remove_in(PaymentsCreateResponseOpenApi, PaymentsConfirmResponse)]
     #[smithy(value_type = "Option<String>")]
     pub capture_on: Option<PrimitiveDateTime>,
 
@@ -7730,12 +7730,12 @@ pub struct PaymentsResponse {
     pub error_message: Option<String>,
 
     /// error code unified across the connectors is received here if there was an error while calling connector
-    #[remove_in(PaymentsCreateResponseOpenApi, PaymentsConfirmResponseOpenApi)]
+    #[remove_in(PaymentsCreateResponseOpenApi, PaymentsConfirmResponse)]
     #[smithy(value_type = "Option<String>")]
     pub unified_code: Option<String>,
 
     /// error message unified across the connectors is received here if there was an error while calling connector
-    #[remove_in(PaymentsCreateResponseOpenApi, PaymentsConfirmResponseOpenApi)]
+    #[remove_in(PaymentsCreateResponseOpenApi, PaymentsConfirmResponse)]
     #[smithy(value_type = "Option<String>")]
     pub unified_message: Option<String>,
 
