@@ -489,10 +489,39 @@ impl ConnectorCommon for Santander {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: SantanderErrorResponse = res
-            .response
-            .parse_struct("SantanderErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let attempt_status = (400..500)
+            .contains(&res.status_code)
+            .then_some(enums::AttemptStatus::Failure);
+
+        let response: SantanderErrorResponse =
+            match res.response.parse_struct("SantanderErrorResponse") {
+                Ok(response) => response,
+                Err(error_msg) => {
+                    event_builder.map(|event| {
+                        event.set_error(serde_json::json!({
+                            "error": res.response.escape_ascii().to_string(),
+                            "status_code": res.status_code,
+                        }))
+                    });
+                    router_env::logger::error!(deserialization_error =? error_msg);
+                    let response_data = String::from_utf8(res.response.to_vec())
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+                    return Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: res.status_code.to_string(),
+                        message: NO_ERROR_MESSAGE.to_string(),
+                        reason: Some(response_data),
+                        attempt_status,
+                        connector_transaction_id: None,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    });
+                }
+            };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -521,7 +550,7 @@ impl ConnectorCommon for Santander {
                     code: response.status.to_string(),
                     message,
                     reason,
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
                     network_advice_code: None,
@@ -557,7 +586,7 @@ impl ConnectorCommon for Santander {
                     code,
                     message,
                     reason: Some(description),
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
                     network_advice_code: None,
@@ -578,7 +607,7 @@ impl ConnectorCommon for Santander {
                         .map(|e| e.message.clone())
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 ),
-                attempt_status: None,
+                attempt_status,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
                 network_advice_code: None,
@@ -602,7 +631,7 @@ impl ConnectorCommon for Santander {
                             .to_string(),
                         message,
                         reason: response.detail.clone(),
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -621,7 +650,7 @@ impl ConnectorCommon for Santander {
                         code: NO_ERROR_CODE.to_string(),
                         message: message.clone(),
                         reason: Some(message),
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -638,7 +667,7 @@ impl ConnectorCommon for Santander {
                         code: detail.clone(),
                         message: response.fault.fault_string,
                         reason: Some(detail),
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -655,7 +684,7 @@ impl ConnectorCommon for Santander {
                         code: detail.clone().unwrap_or(NO_ERROR_CODE.to_string()),
                         message: detail.unwrap_or(NO_ERROR_MESSAGE.to_string()),
                         reason: None,
-                        attempt_status: None,
+                        attempt_status,
                         connector_transaction_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
@@ -808,6 +837,22 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
