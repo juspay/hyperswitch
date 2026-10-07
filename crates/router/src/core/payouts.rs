@@ -6,8 +6,6 @@ pub mod gateway;
 pub mod guards;
 pub mod helpers;
 #[cfg(feature = "v1")]
-pub mod payout_utils;
-#[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -50,6 +48,7 @@ use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
 use time::Duration;
+use validator::PayoutExecutionKindValidation;
 
 #[cfg(all(feature = "olap", feature = "payouts"))]
 use crate::consts as payout_consts;
@@ -562,7 +561,10 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
@@ -615,7 +617,7 @@ pub async fn payouts_create_core_wrapper(
     let mut req = req;
     let profile = match auth_profile {
         Some(profile) => {
-            payout_utils::validate_payout_condition(
+            validator::validate_payout_condition(
                 profile.merchant_id != *platform.get_processor().get_account().get_id()
                     || req
                         .profile_id
@@ -1519,7 +1521,10 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 
@@ -3831,7 +3836,9 @@ pub async fn make_payout_data(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     // Reject proxy mutations before normal method or locker resolution.
-    validator::validate_persisted_execution_kind(payout_attempt.execution_kind, req)?;
+    payout_attempt
+        .execution_kind
+        .validate_persisted_execution_kind(req)?;
 
     let customer_id = payouts.customer_id.as_ref();
 

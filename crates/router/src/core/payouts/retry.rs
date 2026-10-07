@@ -8,7 +8,7 @@ use router_env::{
     tracing::{self, instrument},
 };
 
-use super::{call_connector_payout, PayoutData};
+use super::{call_connector_payout, validator::PayoutExecutionKindValidation, PayoutData};
 use crate::{
     consts,
     core::{
@@ -234,7 +234,10 @@ pub async fn modify_trackers(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    super::validator::validate_normal_execution_kind(payout_data.payout_attempt.execution_kind)?;
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let new_attempt_count = payout_data.payouts.attempt_count + 1;
 
     let db = &*state.store;

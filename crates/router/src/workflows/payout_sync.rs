@@ -11,6 +11,8 @@ use scheduler::{
     errors, utils as scheduler_utils,
 };
 
+#[cfg(feature = "v1")]
+use crate::core::payouts::validator::PayoutExecutionKindValidation;
 use crate::{
     core::{configs::dimension_state, payouts, webhooks},
     errors as core_errors,
@@ -148,9 +150,10 @@ impl PayoutSyncWorkFlow {
         application_source: common_enums::ApplicationSource,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     ) -> common_utils::errors::CustomResult<(), core_errors::ApiErrorResponse> {
-        payouts::validator::validate_normal_execution_kind(
-            payout_data.payout_attempt.execution_kind,
-        )?;
+        payout_data
+            .payout_attempt
+            .execution_kind
+            .validate_normal_execution_kind()?;
         let db = &*state.store;
         let scheduled_time = Self::get_payout_sync_process_schedule_time(
             state,

@@ -14,8 +14,8 @@ use hyperswitch_masking::PeekInterface;
 
 use super::{
     gateway::context::RouterGatewayContext,
-    payout_utils::{invalid_payout_request, validate_payout_condition},
-    validator, PayoutData,
+    validator::{self, invalid_payout_request, validate_payout_condition},
+    PayoutData,
 };
 use crate::{
     core::{
