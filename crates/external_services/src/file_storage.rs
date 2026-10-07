@@ -13,6 +13,10 @@ mod aws_s3;
 
 mod file_system;
 
+/// Trait-boundary recording decorator applied to whichever backend is built.
+#[cfg(feature = "deja")]
+mod recording;
+
 /// Enum representing different file storage configurations, allowing for multiple storage schemes.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(tag = "file_storage_backend")]
@@ -41,11 +45,17 @@ impl FileStorageConfig {
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
     pub async fn get_file_storage_client(&self) -> Arc<dyn FileStorageInterface> {
-        match self {
+        let client: Arc<dyn FileStorageInterface> = match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
             Self::FileSystem => Arc::new(file_system::FileSystem),
-        }
+        };
+
+        #[cfg(feature = "deja")]
+        let client: Arc<dyn FileStorageInterface> =
+            Arc::new(recording::RecordingFileStorage::new(client));
+
+        client
     }
 }
 
@@ -122,6 +132,7 @@ impl Display for InvalidFileStorageConfig {
 
 /// Represents errors that can occur during file storage operations.
 #[derive(Debug, thiserror::Error, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum FileStorageError {
     /// Indicates that the file upload operation failed.
     #[error("Failed to upload file")]
