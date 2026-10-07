@@ -45,6 +45,10 @@ impl AwsKmsClient {
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
         let start = Instant::now();
         let data = consts::BASE64_ENGINE
@@ -87,6 +91,10 @@ impl AwsKmsClient {
     /// the SDK has the values required to interact with the AWS KMS APIs (`AWS_ACCESS_KEY_ID` and
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
         let start = Instant::now();
         let plaintext_blob = Blob::new(data.as_ref());

@@ -261,6 +261,10 @@ pub mod core {
     }
 
     #[instrument(skip_all)]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     pub async fn send_request(
         client_proxy: &Proxy,
         request: common_utils::request::Request,

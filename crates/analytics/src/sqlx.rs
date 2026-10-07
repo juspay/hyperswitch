@@ -178,6 +178,10 @@ impl super::auth_events::filters::AuthEventFilterAnalytics for SqlxClient {}
 impl AnalyticsDataSource for SqlxClient {
     type Row = PgRow;
 
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     async fn load_results<T>(&self, query: &str) -> CustomResult<Vec<T>, QueryExecutionError>
     where
         Self: LoadRow<T>,
@@ -195,6 +199,10 @@ impl AnalyticsDataSource for SqlxClient {
 }
 #[async_trait::async_trait]
 impl HealthCheck for SqlxClient {
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     async fn deep_health_check(&self) -> CustomResult<(), QueryExecutionError> {
         sqlx::query("SELECT 1")
             .fetch_all(&self.pool)

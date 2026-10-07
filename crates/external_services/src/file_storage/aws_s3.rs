@@ -65,6 +65,10 @@ impl AwsFileStorageClient {
     }
 
     /// Uploads a file to AWS S3.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn upload_file(
         &self,
         file_key: &str,
@@ -82,6 +86,10 @@ impl AwsFileStorageClient {
     }
 
     /// Deletes a file from AWS S3.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn delete_file(&self, file_key: &str) -> CustomResult<(), AwsS3StorageError> {
         self.inner_client
             .delete_object()
@@ -94,6 +102,10 @@ impl AwsFileStorageClient {
     }
 
     /// Retrieves a file from AWS S3.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, AwsS3StorageError> {
         Ok(self
             .inner_client
@@ -111,6 +123,10 @@ impl AwsFileStorageClient {
     }
 
     /// Begins a multipart upload on AWS S3.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn create_multipart_upload(
         &self,
         file_key: &str,
@@ -128,6 +144,10 @@ impl AwsFileStorageClient {
     }
 
     /// Uploads a single part of an in-progress multipart upload to AWS S3.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn upload_part(
         &self,
         file_key: &str,
@@ -150,6 +170,10 @@ impl AwsFileStorageClient {
     }
 
     /// Assembles the uploaded parts into a single S3 object, in part number order.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn complete_multipart_upload(
         &self,
         file_key: &str,
@@ -184,6 +208,10 @@ impl AwsFileStorageClient {
     }
 
     /// Discards an in-progress multipart upload and the parts already uploaded for it.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "reached only through the deja seam over FileStorageInterface, which the single client factory wraps around every backend"
+    )]
     async fn abort_multipart_upload(
         &self,
         file_key: &str,

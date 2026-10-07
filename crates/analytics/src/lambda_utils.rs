@@ -55,6 +55,10 @@ fn deja_args(function_name: &str, region: &str, json_bytes: &[u8]) -> serde_json
         args = deja_args(function_name, region, json_bytes),
     )
 )]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "this function IS the seam: the deja::boundary attribute above records and replays the Lambda invocation"
+)]
 pub async fn invoke_lambda(
     function_name: &str,
     region: &str,

@@ -90,6 +90,10 @@ fn get_api_encryption_client(
 
 /// Generic function to send the request to keymanager
 #[instrument(skip_all)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "reached only through call_encryption_service, which is the deja seam for the key manager"
+)]
 pub async fn send_encryption_request<T>(
     state: &KeyManagerState,
     headers: HeaderMap,
