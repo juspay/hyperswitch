@@ -8417,6 +8417,10 @@ where
             )
             .await?)
     } else {
+        operation
+            .to_domain()?
+            .populate_payment_fingerprint(state, processor, payment_data)
+            .await;
         Ok(false)
     }
 }
