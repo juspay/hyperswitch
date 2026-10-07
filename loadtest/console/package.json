@@ -1,0 +1,29 @@
+{
+  "name": "hyperswitch-loadtest-console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4174",
+    "build": "vite build",
+    "start": "node --env-file-if-exists=.env start.mjs",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
+    "test": "node --test test/*.test.mjs",
+    "password": "node scripts/password.mjs"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "pg": "^8.16.3",
+    "svelte": "^5.39.6",
+    "vite": "^7.1.9"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "2.70.3",
+    "@sveltejs/adapter-node": "5.5.7",
+    "@opentelemetry/api": "1.9.0",
+    "@types/node": "24.0.0",
+    "svelte-check": "^4.3.2",
+    "typescript": "^5.9.3"
+  },
+  "overrides": { "cookie": "0.7.2" }
+}

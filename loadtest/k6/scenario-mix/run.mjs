@@ -71,9 +71,12 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
   await writeFile(script,source,{ mode: 0o600 });
   const runId = randomUUID();
   const metadata = { fixtures_sha256: digest(JSON.stringify(manifest)), load_config_sha256: digest(JSON.stringify(config)),
+    mode: config.mode ?? null, offered_tps: config.load.total_rps,
     superposition: manifest.superposition, load: config.load, scenarios: config.scenarios };
   const args = ["run",...(recording ? ["--out","sqlite-recorder"] : []),script];
-  const child = spawn(timing ? "/usr/bin/time" : binary,timing ? ["-p",binary,...args] : args,{
+  const timingArgs = process.platform === 'darwin' ? ['-l','-p',binary,...args]
+    : ['-f','real %e\nuser %U\nsys %S\nmax_rss_kb %M',binary,...args];
+  const child = spawn(timing ? "/usr/bin/time" : binary,timing ? timingArgs : args,{
     detached: process.platform !== "win32",
     stdio: timing ? ["inherit","inherit","pipe"] : "inherit", env: { ...process.env, RECORDING_DISABLED: recording ? "" : "1", SQLITE_RECORDER_REQUIRED: recording ? "1" : "",
       SCENARIO_MIX_CONFIG: generatedConfig, OUTPUT_DIR: output,SUMMARY_OUTPUT: "summary.json",
@@ -87,14 +90,19 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
     catch (error) { if (error.code !== "ESRCH") throw error; }
   };
   const handlers = signals.map((signal) => { const handler = () => forward(signal); process.on(signal,handler); return handler; });
+  if (process.env.K6_PID_FILE) await atomicJson(process.env.K6_PID_FILE,{ pid:child.pid });
   let code;
   try {
     code = await new Promise((resolve,reject) => { child.once("error",reject); child.once("close",(exitCode) => resolve(exitCode ?? 1)); });
   } finally { signals.forEach((signal,i) => process.removeListener(signal,handlers[i])); }
   const cpu = timing ? Object.fromEntries([...stderr.matchAll(/^(real|user|sys)\s+(\d+(?:\.\d+)?)$/gm)].map((m) => [m[1],Number(m[2])])) : null;
+  if (cpu) {
+    const rss = /(?:^max_rss_kb (\d+)|^\s*(\d+)\s+maximum resident set size)/m.exec(stderr);
+    cpu.max_rss_kb = rss ? Number(rss[1] || rss[2]) / (rss[1] ? 1 : 1024) : null;
+  }
   if (!recording) return { run_id: runId, exitCode: code,cpu };
   const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
-  console.log(`\nReconcile this run (replace payments.csv with your CSV):\nnode ${quote(path.join(root,"run.mjs"))} reconcile --db ${quote(database)} --csv payments.csv --output ${quote(path.join(output,"reconciliation.csv"))}\n`);
+  if (!process.env.LOADTEST_CONSOLE_JOB) console.log(`\nReconcile this run (replace payments.csv with your CSV):\nnode ${quote(path.join(root,"run.mjs"))} reconcile --db ${quote(database)} --csv payments.csv --output ${quote(path.join(output,"reconciliation.csv"))}\n`);
   const db = new DatabaseSync(database,{ readOnly: true });
   try {
     const run = db.prepare("SELECT * FROM runs WHERE run_id=?").get(runId);

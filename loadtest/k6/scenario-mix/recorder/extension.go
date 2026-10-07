@@ -60,11 +60,13 @@ func snapshot() (Stats, error) {
 }
 
 type sqliteOutput struct {
-	params      output.Params
-	writer      *Writer
-	stop        func(error)
-	monitorStop chan struct{}
-	monitorDone chan struct{}
+	params       output.Params
+	writer       *Writer
+	stop         func(error)
+	monitorStop  chan struct{}
+	monitorDone  chan struct{}
+	progressFile string
+	progress     *progressCollector
 }
 
 func newOutput(params output.Params) (output.Output, error) {
@@ -90,6 +92,10 @@ func (o *sqliteOutput) Start() error {
 	}
 	w.SetStop(o.stop)
 	o.writer = w
+	o.progressFile = o.params.Environment["SQLITE_RECORDER_PROGRESS_FILE"]
+	if o.progressFile != "" {
+		o.progress = newProgressCollector(metadata)
+	}
 	active.Lock()
 	active.writer = w
 	active.Unlock()
@@ -97,13 +103,21 @@ func (o *sqliteOutput) Start() error {
 	o.monitorDone = make(chan struct{})
 	go func() {
 		defer close(o.monitorDone)
-		ticker := time.NewTicker(10 * time.Second)
+		interval := 10 * time.Second
+		if o.progressFile != "" {
+			interval = time.Second
+		}
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-o.monitorStop:
 				return
 			case <-ticker.C:
+				if o.progressFile != "" {
+					o.writeProgress()
+					continue
+				}
 				raw, _ := json.Marshal(w.Snapshot())
 				fmt.Fprintf(o.params.StdErr, "SQLite recorder progress: %s\n", raw)
 			}
@@ -111,8 +125,12 @@ func (o *sqliteOutput) Start() error {
 	}()
 	return nil
 }
-func (*sqliteOutput) AddMetricSamples(_ []metrics.SampleContainer) {}
-func (o *sqliteOutput) Stop() error                                { return o.StopWithTestError(nil) }
+func (o *sqliteOutput) AddMetricSamples(samples []metrics.SampleContainer) {
+	if o.progress != nil {
+		o.progress.add(samples)
+	}
+}
+func (o *sqliteOutput) Stop() error { return o.StopWithTestError(nil) }
 func (o *sqliteOutput) StopWithTestError(err error) error {
 	if o.writer == nil {
 		return nil
@@ -120,6 +138,7 @@ func (o *sqliteOutput) StopWithTestError(err error) error {
 	close(o.monitorStop)
 	<-o.monitorDone
 	result := o.writer.Close(recordingError(err))
+	o.writeProgress()
 	stats := o.writer.Snapshot()
 	raw, _ := json.Marshal(stats)
 	fmt.Fprintf(o.params.StdErr, "SQLite recorder: %s\n", raw)

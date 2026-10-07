@@ -43,6 +43,24 @@ non-modular guest. Workspace defaults enable PM modular calls, select
 `pay_then_vault`, and enable fingerprint migration. Changes to these defaults
 require rerunning `fixtures` for the selected mode before `load` will accept them.
 
+## Load-test console
+
+The authenticated SvelteKit console manages the same fixture and load commands,
+streams live progress, embeds Grafana panels, and reconciles recorded payments
+directly against a read-only PostgreSQL connection:
+
+```bash
+cd loadtest/console
+npm ci
+cp .env.example .env
+# Generate ADMIN_PASSWORD_HASH with npm run password and configure runtime secrets.
+npm run dev
+```
+
+Open `http://127.0.0.1:4174`. The first start imports the current load configuration;
+console settings and jobs then persist in `.data`. See [console setup](console/README.md)
+and [EC2 deployment](console/DEPLOYMENT.md) for login, Docker Compose, EBS and HTTPS.
+
 ---
 
 ## Performance Benchmarking Setup
