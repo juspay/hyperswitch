@@ -592,6 +592,13 @@ pub trait ConnectorSpecifications {
         Some(false)
     }
 
+    /// Whether MIT payments may proceed when the selected connector mandate is inactive.
+    /// `None` keeps the existing permissive behaviour for connectors that have not opted in to
+    /// connector-mandate-status validation.
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        None
+    }
+
     /// Whether SDK session token generation is enabled for this connector
     fn is_sdk_client_token_generation_enabled(&self) -> bool {
         false
@@ -968,7 +975,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         } else {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
-                connector: self.id(),
+                connector: self.id().into(),
             }
             .into())
         }
@@ -1047,7 +1054,7 @@ fn get_connector_payment_method_type_info(
             .get(&payment_method)
             .ok_or_else(|| errors::ConnectorError::NotSupported {
                 message: payment_method.to_string(),
-                connector,
+                connector: connector.into(),
             })?;
 
     payment_method_type
@@ -1055,7 +1062,7 @@ fn get_connector_payment_method_type_info(
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
                     message: format!("{payment_method} {pmt}"),
-                    connector,
+                    connector: connector.into(),
                 }
                 .into()
             })

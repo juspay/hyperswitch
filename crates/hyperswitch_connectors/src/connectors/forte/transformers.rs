@@ -100,7 +100,7 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
                 if item.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Forte",
+                        connector: "Forte".into(),
                     })?
                 }
                 let action = match item.request.is_auto_capture()? {

@@ -378,7 +378,9 @@ pub async fn perform_pre_authentication(
 
 #[cfg(feature = "v1")]
 struct ProxyUcsGatewayContext {
-    execution_mode: common_enums::ExecutionMode,
+    /// The gate's read of this scope's rollout config, so a failure on the proxy path counts
+    /// against the threshold the gate used. Carries the execution mode.
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     session_state: SessionState,
     platform: domain::Platform,
     external_vault_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
@@ -399,7 +401,7 @@ async fn resolve_proxy_ucs_gateway_and_vault_mca<PayF: Clone, RdF: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -468,7 +470,13 @@ where
             ));
 
         Ok(Some(ProxyUcsGatewayContext {
-            execution_mode,
+            rollout_settings: unified_connector_service::kill_switch::RolloutSettings {
+                execution_mode,
+                kill_switch_enabled: rollout_result.kill_switch_enabled,
+                kill_switch_threshold: rollout_result.kill_switch_threshold,
+                connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
+            },
             session_state: updated_state,
             platform,
             external_vault_merchant_connector_account,
@@ -496,7 +504,7 @@ async fn call_ucs_pre_authenticate_proxy(
     external_vault_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
     connector_enum: common_enums::connector_enums::Connector,
-    execution_mode: common_enums::ExecutionMode,
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
 ) -> CustomResult<
     Result<core_types::authentication::AuthenticationResponseData, core_types::ErrorResponse>,
     ApiErrorResponse,
@@ -512,7 +520,7 @@ async fn call_ucs_pre_authenticate_proxy(
             external_vault_merchant_connector_account,
             processor,
             connector_enum,
-            execution_mode,
+            rollout_settings,
         ),
     )
     .await;
@@ -626,13 +634,15 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
 
     let pre_authenticate_request_data = core_types::PaymentsPreAuthenticateData {
         payment_method_data: domain::PaymentMethodData::Card(domain::Card::default()),
+        // Standalone authentication has no preceding order-create leg.
+        order_id: None,
         amount: payment_data
             .payment_attempt
             .get_total_amount()
             .get_amount_as_i64(),
         minor_amount: payment_data.payment_attempt.get_total_amount(),
         email: None,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         currency: payment_data.payment_intent.currency,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
         router_return_url: payment_data.payment_intent.return_url.clone(),
@@ -661,7 +671,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     )?;
 
     let ProxyUcsGatewayContext {
-        execution_mode,
+        rollout_settings,
         session_state: updated_state,
         platform: _,
         external_vault_merchant_connector_account,
@@ -758,7 +768,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         external_vault_merchant_connector_account,
         processor,
         connector_enum,
-        execution_mode,
+        rollout_settings,
     )
     .await?;
 
@@ -876,7 +886,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         minor_amount: Some(amount),
         email: None,
         currency: payment_data.payment_intent.currency,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         browser_info,
         connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
         redirect_response: authentication
@@ -910,7 +920,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
     )?;
 
     let Some(ProxyUcsGatewayContext {
-        execution_mode,
+        rollout_settings,
         session_state: updated_state,
         platform,
         external_vault_merchant_connector_account,
@@ -970,7 +980,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             auth_merchant_connector_account,
             external_vault_merchant_connector_account,
             processor,
-            execution_mode,
+            rollout_settings,
         ),
     )
     .await;
@@ -1332,7 +1342,7 @@ async fn call_ucs_authenticate_proxy(
         complete_authorize_url: None,
         browser_info: browser_info.clone(),
         redirect_response: None,
-        capture_method: payment_attempt.capture_method,
+        capture_method: payment_attempt.get_effective_capture_method(),
         authentication_data: Some(ucs_authentication_data),
         sdk_information: sdk_information.clone(),
         device_channel: Some(device_channel.clone()),
@@ -1383,7 +1393,7 @@ async fn call_ucs_authenticate_proxy(
             )
         });
 
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -1465,7 +1475,13 @@ async fn call_ucs_authenticate_proxy(
             auth_merchant_connector_account.clone(),
             external_vault_merchant_connector_account,
             processor,
-            execution_mode,
+            unified_connector_service::kill_switch::RolloutSettings {
+                execution_mode,
+                kill_switch_enabled: rollout_result.kill_switch_enabled,
+                kill_switch_threshold: rollout_result.kill_switch_threshold,
+                connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
+            },
             Some(
                 payment_intent
                     .force_3ds_challenge

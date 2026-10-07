@@ -134,15 +134,16 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        // Change the authentication_type to ThreeDs, for google_pay wallet if card_holder_authenticated or account_verified in assurance_details is false
+        // Change the authentication_type to ThreeDs, for google_pay wallet if card_holder_authenticated or account_verified in assurance_details is false,
+        // unless the merchant requested `no_three_ds` — the merchant's requested authentication type is always respected
         if let hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
             hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(google_pay_data),
         ) = &self.request.payment_method_data
         {
             if let Some(assurance_details) = google_pay_data.info.assurance_details.as_ref() {
                 // Step up the transaction to 3DS when either assurance_details.card_holder_authenticated or assurance_details.account_verified is false
-                if !assurance_details.card_holder_authenticated
-                    || !assurance_details.account_verified
+                if (!assurance_details.card_holder_authenticated)
+                    && self.auth_type != diesel_models::enums::AuthenticationType::NoThreeDs
                 {
                     logger::info!("Googlepay transaction stepped up to 3DS");
                     self.auth_type = diesel_models::enums::AuthenticationType::ThreeDs;
