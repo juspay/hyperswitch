@@ -135,6 +135,46 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 unresponsive_check_interval = 2
 max_feed_count = 200
+
+# In-memory (moka) cache tuning, with per-cache granularity.
+#
+# Every key below is optional, and each default is the value the corresponding cache is built
+# with when this section is absent — so uncomment only what you want to change.
+#
+# [cache]
+# invalidation_channel = "hyperswitch_invalidate" # Redis pub/sub channel used to invalidate in-memory cache entries across instances; must be identical on every instance of a deployment
+#
+# Each of the caches below accepts the same keys:
+#   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
+#   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
+#   max_entries        # Maximum number of entries the cache may hold. `0` makes it unbounded.
+#                      #
+#                      # Default for every cache except `config`: 31457280. That is the ceiling these
+#                      # caches have always had — a `30` that was documented as megabytes but reached moka
+#                      # as an entry count, because no weigher was ever configured — kept so that enabling
+#                      # this section changes no eviction behaviour. It binds nothing in practice; pick a
+#                      # real ceiling per cache once you know the numbers involved. `config` defaults to
+#                      # unbounded, as before.
+#                      #
+#                      # As an environment variable:
+#                      #   ROUTER__CACHE__ACCOUNTS__MAX_ENTRIES=500000
+#
+# Note that `time_to_idle` is what bounds the resident set in normal operation — these caches are
+# keyed per merchant and profile, so an entry unread for its window is dropped. `max_entries` is a
+# backstop against runaway growth, and an eviction attributable to it shows up on
+# IN_MEMORY_CACHE_EVICTION_COUNT with removal_cause=Size.
+#
+# [cache.config]                              # CONFIG_CACHE, unbounded by default
+# [cache.accounts]                            # ACCOUNTS_CACHE
+# [cache.mca_list]                            # MCA_LIST_CACHE
+# [cache.routing]                             # ROUTING_CACHE
+# [cache.decision_manager]                    # DECISION_MANAGER_CACHE
+# [cache.surcharge]                           # SURCHARGE_CACHE
+# [cache.cgraph]                              # CGRAPH_CACHE
+# [cache.pm_filters_cgraph]                   # PM_FILTERS_CGRAPH_CACHE
+# [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.contract_based_dynamic_algorithm]    # CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
 max_failure_threshold_seconds = 5
 
 [trace_header]
@@ -766,6 +806,10 @@ debit = { country = "DE, DK, FR, SE", currency = "DKK, NOK" }
 credit = { country = "DE, FR, IT, NL, PL, ES, ZA, GB, AE", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
 debit = { country = "DE, FR, IT, NL, PL, ES, ZA, GB, AE", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
 
+[pm_filters.fiservcommercehub]
+apple_pay = { country = "AE, AF, AL, AO, AR, AT, AU, AW, AZ, BA, BB, BD, BE, BG, BH, BI, BM, BN, BO, BR, BT, BY, BZ, CH, CL, CN, CO, CR, CU, CV, CY, CZ, DE, DJ, DK, DO, DZ, EE, EG, ES, FI, FJ, FR, GB, GE, GI, GM, GN, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JM, JO, JP, KE, KM, KR, KW, KY, KZ, LA, LK, LR, LS, LV, LT, LU, MA, MD, MG, MK, MO, MR, MT, MU, MV, MW, MX, MY, MZ, NA, NG, NI, NL, NO, NP, NZ, OM, PE, PG, PK, PL, PT, PY, QA, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SK, SL, SR, SV, SZ, TH, TJ, TM, TN, TR, TT, TW, TZ, UG, US, UY, UZ, VN, VU, WS, ZA, ZM", currency = "AED, AFN, ALL, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BTN, BYN, BZD, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, EUR, FJD, GBP, GEL, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, ISK, JMD, JOD, JPY, KES, KMF, KRW, KWD, KYD, KZT, LAK, LKR, LRD, LSL, MAD, MDL, MGA, MKD, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SLL, SRD, SVC, SZL, THB, TJS, TMT, TND, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VND, VUV, WST, XCD, XOF, XPF, ZAR, ZMW" }
+google_pay = { country = "AE, AF, AL, AO, AR, AT, AU, AW, AZ, BA, BB, BD, BE, BG, BH, BI, BM, BN, BO, BR, BT, BY, BZ, CH, CL, CN, CO, CR, CU, CV, CY, CZ, DE, DJ, DK, DO, DZ, EE, EG, ES, FI, FJ, FR, GB, GE, GI, GM, GN, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JM, JO, JP, KE, KM, KR, KW, KY, KZ, LA, LK, LR, LS, LV, LT, LU, MA, MD, MG, MK, MO, MR, MT, MU, MV, MW, MX, MY, MZ, NA, NG, NI, NL, NO, NP, NZ, OM, PE, PG, PK, PL, PT, PY, QA, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SK, SL, SR, SV, SZ, TH, TJ, TM, TN, TR, TT, TW, TZ, UG, US, UY, UZ, VN, VU, WS, ZA, ZM", currency = "AED, AFN, ALL, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BTN, BYN, BZD, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, EUR, FJD, GBP, GEL, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, ISK, JMD, JOD, JPY, KES, KMF, KRW, KWD, KYD, KZT, LAK, LKR, LRD, LSL, MAD, MDL, MGA, MKD, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SLL, SRD, SVC, SZL, THB, TJS, TMT, TND, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VND, VUV, WST, XCD, XOF, XPF, ZAR, ZMW" }
+
 [pm_filters.getnet]
 credit = { country = "AR, BR, CL, MX, UY, ES, PT, DE, IT, FR, NL, BE, AT, PL, CH, GB, IE, LU, DK, SE, NO, FI, IN, AE", currency = "ARS, BRL, CLP, MXN, UYU, EUR, PLN, CHF, GBP, DKK, SEK, NOK, INR, AED" }
 
@@ -945,7 +989,7 @@ klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,C
 flexiti = { country = "CA", currency = "CAD" }
 
 [pm_filters.mifinity]
-mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL,PT,SE,RU,TR,TW,HK,MO,AX,AL,DZ,AS,AO,AI,AG,AM,AW,AU,AT,AZ,BS,BH,BD,BB,BE,BZ,BJ,BM,BT,BQ,BA,BW,IO,BN,BG,BF,BI,KH,CM,CA,CV,KY,CF,TD,CX,CC,KM,CG,CK,CI,CW,CY,CZ,DJ,DM,EG,GQ,ER,EE,ET,FK,FO,FJ,GF,PF,TF,GA,GM,GE,GH,GL,GD,GP,GU,GG,GN,GW,GY,HT,HM,VA,IS,IN,ID,IE,IM,IL,JE,JO,KZ,KE,KI,KW,KG,LA,LV,LB,LS,LI,LT,LU,MK,MG,MW,MV,ML,MT,MH,MQ,MR,MU,YT,FM,MD,MC,MN,ME,MS,MA,MZ,NA,NR,NP,NC,NZ,NE,NG,NU,NF,MP,OM,PK,PW,PS,PG,PH,PN,QA,RE,RO,RW,BL,SH,KN,LC,MF,PM,VC,WS,SM,ST,SA,SN,RS,SC,SL,SX,SK,SI,SB,SO,ZA,GS,KR,LK,SR,SJ,SZ,TH,TL,TG,TK,TO,TT,TN,TM,TC,TV,UG,UA,AE,UZ,VU,VN,VG,VI,WF,EH,ZM", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD,EGP,UYU,UZS" }
+mifinity = { not_available_flows = { capture_method = "manual" }, country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL,PT,SE,RU,TR,TW,HK,MO,AX,AL,DZ,AS,AO,AI,AG,AM,AW,AU,AT,AZ,BS,BH,BD,BB,BE,BZ,BJ,BM,BT,BQ,BA,BW,IO,BN,BG,BF,BI,KH,CM,CA,CV,KY,CF,TD,CX,CC,KM,CG,CK,CI,CW,CY,CZ,DJ,DM,EG,GQ,ER,EE,ET,FK,FO,FJ,GF,PF,TF,GA,GM,GE,GH,GL,GD,GP,GU,GG,GN,GW,GY,HT,HM,VA,IS,IN,ID,IE,IM,IL,JE,JO,KZ,KE,KI,KW,KG,LA,LV,LB,LS,LI,LT,LU,MK,MG,MW,MV,ML,MT,MH,MQ,MR,MU,YT,FM,MD,MC,MN,ME,MS,MA,MZ,NA,NR,NP,NC,NZ,NE,NG,NU,NF,MP,OM,PK,PW,PS,PG,PH,PN,QA,RE,RO,RW,BL,SH,KN,LC,MF,PM,VC,WS,SM,ST,SA,SN,RS,SC,SL,SX,SK,SI,SB,SO,ZA,GS,KR,LK,SR,SJ,SZ,TH,TL,TG,TK,TO,TT,TN,TM,TC,TV,UG,UA,AE,UZ,VU,VN,VG,VI,WF,EH,ZM", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD,EGP,UYU,UZS" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -1325,7 +1369,7 @@ wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
-wallet.gcash.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
@@ -1346,14 +1390,14 @@ bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
 card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4"
 card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3"
+wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,fiservcommercehub"
 wallet.samsung_pay.connector_list = "aci,cybersource"
-wallet.google_pay.connector_list = "aci,checkout,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3"
+wallet.google_pay.connector_list = "aci,checkout,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,fiservcommercehub"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
 wallet.go_pay.connector_list = "adyen"
-wallet.gcash.connector_list = "adyen"
+wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
@@ -1366,6 +1410,8 @@ bank_redirect.bancontact_card.connector_list = "adyen,stripe"
 bank_redirect.trustly.connector_list = "adyen,aci"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 bank_redirect.eps.connector_list = "globalpay,nexinets,aci,multisafepay"
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }
@@ -1641,14 +1687,16 @@ request_timeout = 35
 keep_alive_interval = 30
 keep_alive_timeout = 20
 tcp_keepalive = 60
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
-default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the mathmodel retries at when a cluster has no hour-of-day history
+default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history
+exploration_floor = 0.10 # minimum probability the systematic-k sampler gives every candidate day
+tie_tolerance = 1e-4     # day values within this distance count as tied and split their share equally
 
 [revenue_recovery.recovery_timestamp]
 initial_timestamp_in_seconds = 3600

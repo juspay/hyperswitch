@@ -46,7 +46,7 @@ const parPositiveCardDetails = {
   card_cvc: "737",
 };
 
-const parNegativeCardDetails = {
+const parAmexCardDetails = {
   card_number: "378282246310005",
   card_exp_month: "10",
   card_exp_year: "50",
@@ -429,7 +429,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: parNegativeCardDetails,
+          card: parAmexCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -439,7 +439,10 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_account_reference: null,
+          // Stripe now returns a payment_account_reference for Amex cards as
+          // well (connector-side behaviour change), so this scenario also
+          // verifies that the PAR is populated.
+          payment_account_reference: "dynamic_par",
         },
       },
     },
