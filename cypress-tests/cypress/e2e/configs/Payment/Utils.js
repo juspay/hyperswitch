@@ -837,7 +837,6 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_INTENT_METADATA: [
       "checkout",
       "peachpayments",
-      "stripe",
       "worldpayxml",
     ],
     AFT_PURPOSE_OF_PAYMENT: ["checkout"],
