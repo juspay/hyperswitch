@@ -83,6 +83,13 @@ export const connectorDetails = {
      * frm_message details (frm_status, frm_score, frm_error) are asserted
      * separately in the spec since they contain non-deterministic ids and
      * can't be part of a fixed deep-equal Response body.
+     *
+     * These scenarios run create+confirm in a single call, so
+     * payout_method_data has to be present on Create (unlike the two-step
+     * `payshap` scenario above, where it's only added on Confirm). As with
+     * `payshap`, only payout_method_type is declared here — the actual bank
+     * account fields are injected at request time by
+     * injectGotymePayoutBankTransfer (see the file-level comment above).
      */
     frm_legit: {
       Create: {

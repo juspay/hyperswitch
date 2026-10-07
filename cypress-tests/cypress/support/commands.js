@@ -2379,10 +2379,12 @@ Cypress.Commands.add("setFrmRoutingAlgorithm", (body, globalState) => {
 // force the FRM connector itself to fail (4xx) - used to test
 // fail_open/fail_closed behavior when pre-FRM is unreachable.
 Cypress.Commands.add("breakFrmConnectorCredentials", (globalState) => {
+  const mcaUrl = `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`;
+
   return cy
     .request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/connectors/${globalState.get("frmConnectorId")}`,
+      url: mcaUrl,
       headers: {
         "Content-Type": "application/json",
         "api-key": globalState.get("apiKey"),
@@ -7506,25 +7508,6 @@ Cypress.Commands.add(
   }
 );
 
-// Plain GET /payouts/{payoutID}, returning the response for callers that
-// need targeted assertions (nested fields, inequality checks) rather than
-// retrievePayoutCallTest's whole-object deep-equal below.
-Cypress.Commands.add("getPayoutDetails", (globalState) => {
-  return cy
-    .request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      return cy.wrap(response);
-    });
-});
-
 // Fetches the current payout and asserts against an `expected` shape:
 // - top-level or one-level-nested (e.g. `frm_message.frm_status`) keys are
 //   compared with `.to.equal`
@@ -7538,7 +7521,15 @@ Cypress.Commands.add("verifyPayoutFrmDetails", (globalState, expected = {}) => {
   const getByPath = (obj, path) =>
     path.split(".").reduce((value, key) => value?.[key], obj);
 
-  cy.getPayoutDetails(globalState).then((response) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
     Object.entries(expected).forEach(([key, value]) => {
       if (key === "greaterThan") {
         Object.entries(value).forEach(([path, threshold]) => {
