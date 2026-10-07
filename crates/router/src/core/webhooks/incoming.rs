@@ -25,6 +25,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, HeaderPayload, PaymentIntent},
     router_flow_types::{PaymentAttemptAssociatedData, WebhookAssociatedData},
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
+    vault::PaymentMethodVaultingData,
 };
 use hyperswitch_interfaces::{
     unified_connector_service::get_payments_response_from_ucs_webhook_content,
@@ -2822,30 +2823,25 @@ async fn resolve_payment_method_for_associated_data(
     billing_address_id: Option<&str>,
     connector_disclosed_details: &domain::PaymentMethodData,
 ) -> CustomResult<Option<domain::PaymentMethod>, errors::ApiErrorResponse> {
-    let Some(vaulting_data) = connector_disclosed_details.get_payment_method_vaulting_data() else {
-        return Ok(None);
-    };
+    match (
+        connector_disclosed_details.get_payment_method_vaulting_data(),
+        customer_id,
+        payment_attempt.customer_acceptance.clone(),
+    ) {
+        (
+            Some(
+                vaulting_data @ PaymentMethodVaultingData::BankRedirect(
+                    domain::BankRedirectDetail::Trustly { .. },
+                ),
+            ),
+            Some(customer_id),
+            Some(customer_acceptance),
+        ) => {
+            let provider = platform.get_provider();
 
-    let (Some(customer_id), Some(customer_acceptance)) =
-        (customer_id, payment_attempt.customer_acceptance.clone())
-    else {
-        logger::info!(
-            "Connector disclosed an instrument with nothing to save it against, skipping the payment method"
-        );
-        return Ok(None);
-    };
-
-    let provider = platform.get_provider();
-
-    let (locker_id, locker_fingerprint_id): (Option<String>, String) = match &vaulting_data {
-        // Trustly discloses a reference it resolves on its own rather than the account itself, so
-        // there is nothing to keep - the fingerprint alone recognises the instrument, and the
-        // payment method has no locker entry to point at.
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(
-            hyperswitch_domain_models::payment_method_data::BankRedirectDetail::Trustly { .. },
-        ) => (
-            None,
-            cards::get_vault_fingerprint(
+            // Trustly resolves the instrument reference itself, so only its fingerprint is needed.
+            // The payment method has no locker entry to point at.
+            let locker_fingerprint_id = cards::get_vault_fingerprint(
                 state,
                 provider.get_account().get_id(),
                 customer_id,
@@ -2853,79 +2849,88 @@ async fn resolve_payment_method_for_associated_data(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to derive the fingerprint for the disclosed instrument")?,
-        ),
-        _ => return Ok(None),
-    };
+            .attach_printable("Failed to derive the fingerprint for the disclosed instrument")?;
 
-    let existing_payment_method = payment_response::find_payment_method_by_fingerprint(
-        state,
-        provider.get_key_store(),
-        &locker_fingerprint_id,
-    )
-    .await;
+            let existing_payment_method = payment_response::find_payment_method_by_fingerprint(
+                state,
+                provider.get_key_store(),
+                &locker_fingerprint_id,
+            )
+            .await;
 
-    if let Some(existing_payment_method) = existing_payment_method {
-        cards::update_last_used_at(
-            &existing_payment_method,
-            state,
-            provider.get_account().storage_scheme,
-            provider.get_key_store(),
-        )
-        .await
-        .map_err(|error| {
-            logger::error!(?error, "Failed to update last used at");
-        })
-        .ok();
+            match existing_payment_method {
+                Some(existing_payment_method) => {
+                    cards::update_last_used_at(
+                        &existing_payment_method,
+                        state,
+                        provider.get_account().storage_scheme,
+                        provider.get_key_store(),
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to update last used at");
+                    })
+                    .ok();
 
-        logger::info!(
-            payment_method_id = %existing_payment_method.get_id(),
-            "Reusing the payment method the customer already saved for this instrument"
-        );
+                    logger::info!(
+                        payment_method_id = %existing_payment_method.get_id(),
+                        "Reusing the payment method the customer already saved for this instrument"
+                    );
 
-        return Ok(Some(existing_payment_method));
+                    Ok(Some(existing_payment_method))
+                }
+                None => {
+                    let billing_address = match payment_attempt
+                        .payment_method_billing_address_id
+                        .as_deref()
+                        .or(billing_address_id)
+                    {
+                        Some(address_id) => state
+                            .store
+                            .find_address_by_address_id(address_id, provider.get_key_store())
+                            .await
+                            .map_err(|error| {
+                                logger::info!(
+                                    ?error,
+                                    "Could not read the billing address, creating the payment method without it"
+                                );
+                            })
+                            .ok()
+                            .as_ref()
+                            .map(From::from),
+                        None => None,
+                    };
+
+                    let payment_method = payment_response::insert_deferred_payment_method(
+                        state,
+                        platform,
+                        customer_id,
+                        customer_acceptance,
+                        payment_attempt.payment_method,
+                        payment_attempt.payment_method_type,
+                        billing_address,
+                        None,
+                        Some(locker_fingerprint_id),
+                    )
+                    .await?;
+
+                    logger::info!(
+                        payment_method_id = %payment_method.get_id(),
+                        "Created the payment method for the instrument the connector disclosed"
+                    );
+
+                    Ok(Some(payment_method))
+                }
+            }
+        }
+        (Some(_), None, _) | (Some(_), _, None) => {
+            logger::info!(
+                "Connector disclosed an instrument with nothing to save it against, skipping the payment method"
+            );
+            Ok(None)
+        }
+        _ => Ok(None),
     }
-
-    let billing_address = match payment_attempt
-        .payment_method_billing_address_id
-        .as_deref()
-        .or(billing_address_id)
-    {
-        Some(address_id) => state
-            .store
-            .find_address_by_address_id(address_id, provider.get_key_store())
-            .await
-            .map_err(|error| {
-                logger::info!(
-                    ?error,
-                    "Could not read the billing address, creating the payment method without it"
-                );
-            })
-            .ok()
-            .as_ref()
-            .map(From::from),
-        None => None,
-    };
-
-    let payment_method = payment_response::insert_deferred_payment_method(
-        state,
-        platform,
-        customer_id,
-        customer_acceptance,
-        payment_attempt.payment_method,
-        payment_attempt.payment_method_type,
-        billing_address,
-        locker_id,
-        Some(locker_fingerprint_id),
-    )
-    .await?;
-
-    logger::info!(
-        payment_method_id = %payment_method.get_id(),
-        "Created the payment method for the instrument the connector disclosed"
-    );
-
-    Ok(Some(payment_method))
 }
 
 async fn update_payment_method_associated_data(
@@ -2937,80 +2942,86 @@ async fn update_payment_method_associated_data(
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     connector_disclosed_details: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let Some(connector_disclosed_details) = connector_disclosed_details else {
-        return Ok(None);
-    };
+    match connector_disclosed_details {
+        Some(connector_disclosed_details) => {
+            let provider = platform.get_provider();
 
-    let provider = platform.get_provider();
+            let payment_method = match payment_attempt.payment_method_id.as_deref() {
+                Some(payment_method_id) => Some(
+                    state
+                        .store
+                        .find_payment_method(
+                            provider.get_key_store(),
+                            payment_method_id,
+                            provider.get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                ),
+                None => {
+                    resolve_payment_method_for_associated_data(
+                        state,
+                        platform,
+                        payment_attempt,
+                        payment_intent.customer_id.as_ref(),
+                        payment_intent.billing_address_id.as_deref(),
+                        &connector_disclosed_details,
+                    )
+                    .await?
+                }
+            };
 
-    let payment_method = match payment_attempt.payment_method_id.as_deref() {
-        Some(payment_method_id) => Some(
-            state
-                .store
-                .find_payment_method(
-                    provider.get_key_store(),
-                    payment_method_id,
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
-        ),
-        None => {
-            resolve_payment_method_for_associated_data(
-                state,
-                platform,
-                payment_attempt,
-                payment_intent.customer_id.as_ref(),
-                payment_intent.billing_address_id.as_deref(),
-                &connector_disclosed_details,
-            )
-            .await?
+            match payment_method {
+                Some(payment_method) => {
+                    let payment_method_id = payment_method.get_id().clone();
+
+                    let payment_method_update =
+                        cards::prepare_payment_method_update_from_connector_details(
+                            state,
+                            platform,
+                            &payment_method,
+                            merchant_connector_id,
+                            &connector_disclosed_details,
+                            business_profile,
+                        )
+                        .await?;
+
+                    let compat_action =
+                        payment_methods::payment_method_modular_forward_compat_action(
+                            state,
+                            &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
+                            payment_method.customer_id.as_ref(),
+                        )
+                        .await;
+
+                    state
+                        .store
+                        .update_payment_method(
+                            provider.get_key_store(),
+                            payment_method,
+                            payment_method_update,
+                            provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to write the associated bank redirect details to the payment method",
+                        )?;
+
+                    Ok(Some(payment_method_id))
+                }
+                None => {
+                    logger::info!(
+                        "No payment method to write the connector returned instrument to, skipping the update"
+                    );
+                    Ok(None)
+                }
+            }
         }
-    };
-
-    let Some(payment_method) = payment_method else {
-        logger::info!(
-            "No payment method to write the connector returned instrument to, skipping the update"
-        );
-        return Ok(None);
-    };
-
-    let payment_method_id = payment_method.get_id().clone();
-
-    let payment_method_update = cards::prepare_payment_method_update_from_connector_details(
-        state,
-        platform,
-        &payment_method,
-        merchant_connector_id,
-        &connector_disclosed_details,
-        business_profile,
-    )
-    .await?;
-
-    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
-        state,
-        &payment_method.merchant_id,
-        &provider.get_account().organization_id,
-        payment_method.customer_id.as_ref(),
-    )
-    .await;
-
-    state
-        .store
-        .update_payment_method(
-            provider.get_key_store(),
-            payment_method,
-            payment_method_update,
-            provider.get_account().storage_scheme,
-            compat_action,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to write the associated bank redirect details to the payment method",
-        )?;
-
-    Ok(Some(payment_method_id))
+        None => Ok(None),
+    }
 }
 
 fn resolve_write_once_field(

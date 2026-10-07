@@ -2670,6 +2670,7 @@ pub enum PaymentMethodType {
     VietQr,
     Venmo,
     Walley,
+    Wero,
     WeChatPay,
     SevenEleven,
     Lawson,
@@ -2847,6 +2848,7 @@ impl PaymentMethodType {
             Self::NetworkToken => "Network Token",
             Self::Payshap => "PayShap",
             Self::PayshapProxy => "PayShap Proxy",
+            Self::Wero => "Wero",
             Self::Ted => "TED",
         };
         display_name.to_string()

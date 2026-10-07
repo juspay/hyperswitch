@@ -45,6 +45,8 @@ pub struct PaymentIntentMetricRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub off_session: Option<bool>,
+    pub setup_future_usage: Option<DBEnumWrapper<storage_enums::FutureUsage>>,
     pub first_attempt: Option<i64>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,

@@ -423,6 +423,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     | WalletData::AmazonPay(_)
                     | WalletData::TwintRedirect {}
                     | WalletData::VippsRedirect {}
+                    | WalletData::WeroRedirect {}
                     | WalletData::TouchNGoRedirect(_)
                     | WalletData::WeChatPayRedirect(_)
                     | WalletData::WeChatPayQr(_)
@@ -2755,6 +2756,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         | WalletData::PaypalSdk(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
+                        | WalletData::WeroRedirect {}
                         | WalletData::TouchNGoRedirect(_)
                         | WalletData::WeChatPayRedirect(_)
                         | WalletData::WeChatPayQr(_)
