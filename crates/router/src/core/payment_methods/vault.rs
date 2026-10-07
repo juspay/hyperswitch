@@ -2404,15 +2404,10 @@ async fn get_fingerprint_ids_from_vault_batch(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultBatchFingerprintRequest")?;
 
-    let response = call_to_vault::<pm_types::GetVaultFingerprint>(
-        state,
-        payload,
-        None,
-        None,
-    )
-    .await
-    .change_context(errors::VaultError::VaultAPIError)
-    .attach_printable("Call to vault failed")?;
+    let response = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
 
     let batch_response: pm_types::VaultBatchFingerprintResponse = response
         .parse_struct("VaultBatchFingerprintResponse")
@@ -2438,15 +2433,10 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(
-        state,
-        payload,
-        None,
-        None,
-    )
-    .await
-    .change_context(errors::VaultError::VaultAPIError)
-    .attach_printable("Call to vault failed")?;
+    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResponse")
