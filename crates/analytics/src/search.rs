@@ -113,6 +113,33 @@ mod tests {
         assert_eq!(expected, reversed.deja_args());
         assert_ne!(expected, different.deja_args());
     }
+
+    /// The tests above call the helpers; this one reads the seam's own
+    /// declaration, so naming a different `on_miss` body or `args` expression
+    /// on `execute_search_to_text` fails here rather than passing unnoticed.
+    #[test]
+    fn the_seam_names_the_helpers_the_tests_exercise() {
+        let source = include_str!("search.rs");
+        // The last match: this test's own text repeats the anchor above the seam.
+        let (_, after_operation) = source
+            .rsplit_once("operation = \"execute_search\",")
+            .expect("the seam must declare its operation");
+        let (declaration, _) = after_operation
+            // Not a bare `)]`: the comment inside the attribute quotes `#[serde(...)]`.
+            .split_once("\n)]")
+            .expect("the seam's attribute must be closed");
+        for expected in [
+            "on_miss = Ok(deja_empty_result_body())",
+            "args = query_builder.deja_args()",
+        ] {
+            assert!(
+                declaration.contains(expected),
+                "the seam must name `{expected}`: these two expressions are what the \
+                 attribute names, and a test that calls the helpers directly would not \
+                 notice them being swapped: {declaration}"
+            );
+        }
+    }
 }
 
 pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
