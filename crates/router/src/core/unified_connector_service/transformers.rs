@@ -4976,9 +4976,9 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         .map(|cryptogram| cryptogram.expose().into()),
                     eci_indicator: decrypted_data.eci_indicator.clone(),
                     auth_method: decrypted_data.auth_method.map(|method| match method {
-                        common_enums::GooglePayAuthMethod::PanOnly => "PAN_ONLY".to_owned(),
+                        common_enums::GooglePayAuthMethod::PanOnly => payments_grpc::GooglePayAuthMethod::PanOnly.into(),
                         common_enums::GooglePayAuthMethod::Cryptogram => {
-                            "CRYPTOGRAM_3DS".to_owned()
+                            payments_grpc::GooglePayAuthMethod::Cryptogram3ds.into()
                         }
                     }),
                 }))
