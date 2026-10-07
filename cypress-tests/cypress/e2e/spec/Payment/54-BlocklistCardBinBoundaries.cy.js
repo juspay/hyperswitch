@@ -119,7 +119,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     it("should enable blocklist functionality using configs API", () => {
       const merchantId = globalState.get("merchantId");
       const key = `guard_blocklist_for_${merchantId}`;
-      cy.setConfigs(globalState, key, "true", "CREATE");
+      cy.setupConfigs(globalState, key, "true");
     });
 
     it("should deny payment for a card matching the blocked 8 digit generic_card_bin", () => {
