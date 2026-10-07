@@ -27,7 +27,8 @@ pub(crate) use self::{
 };
 #[cfg(feature = "v2")]
 pub(crate) use self::{
-    incoming_v2::incoming_webhooks_wrapper, outgoing_v2::create_event_and_trigger_outgoing_webhook,
+    incoming_v2::incoming_webhooks_wrapper,
+    outgoing_v2::{create_event_and_trigger_outgoing_webhook, trigger_webhook_and_raise_event},
 };
 
 const MERCHANT_ID: &str = "merchant_id";
