@@ -715,7 +715,7 @@ fn get_xml_deserialized(
 }
 
 static BOKU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-   // `Manual` is deliberately absent. The `Capture` flow is not implemented
+    // `Manual` is deliberately absent. The `Capture` flow is not implemented
     // (`get_url` returns `NotImplemented`), and the authorize response only maps
     // to `Charged`, `Failure` or `Pending`, never `Authorized`. A manual-capture
     // request would therefore be charged in full on authorize, with nothing to
