@@ -20,6 +20,36 @@ pub enum AnalyticsError {
     InvalidReturnUrl(String),
 }
 
+// Read back by hand under `deja` so the lambda seam can replay a recorded
+// failure as the same variant. The derive cannot be used: `NotImplemented`
+// holds a `&'static str`, which no recording can supply, and serde ties the
+// whole enum to `'static` for it. That variant is left out of the reader, so a
+// tape holding one fails to load rather than inventing a string. The call that
+// is seamed only produces `UnknownError`.
+#[cfg(feature = "deja")]
+impl<'de> serde::Deserialize<'de> for AnalyticsError {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        enum Recorded {
+            UnknownError,
+            AccessForbiddenError,
+            ForexFetchFailed,
+            MissingEmail,
+            InvalidReturnUrl(String),
+        }
+        Ok(match Recorded::deserialize(deserializer)? {
+            Recorded::UnknownError => Self::UnknownError,
+            Recorded::AccessForbiddenError => Self::AccessForbiddenError,
+            Recorded::ForexFetchFailed => Self::ForexFetchFailed,
+            Recorded::MissingEmail => Self::MissingEmail,
+            Recorded::InvalidReturnUrl(url) => Self::InvalidReturnUrl(url),
+        })
+    }
+}
+
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
