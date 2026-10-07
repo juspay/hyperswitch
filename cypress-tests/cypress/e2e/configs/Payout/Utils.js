@@ -3,6 +3,7 @@ import { validateConfig } from "../../../utils/featureFlags.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
@@ -13,6 +14,7 @@ const connectorDetails = {
   adyen: adyenConnectorDetails,
   adyenplatform: adyenPlatformConnectorDetails,
   commons: CommonConnectorDetails,
+  deutschebank: deutschebankConnectorDetails,
   gotyme_sanlam: gotymeSanlamConnectorDetails,
   nomupay: nomupayConnectorDetails,
   truelayer: truelayerConnectorDetails,
@@ -108,6 +110,12 @@ export const CONNECTOR_LISTS = {
     // Payout recurring feature - only verified connectors
     PAYOUT_RECURRING: ["adyenplatform"],
     PAYOUT_LINK: ["wise"],
+    // Payout sync (force_sync / PoSync) feature - only verified connectors.
+    // deutschebank's SEPA payouts stay `pending` after auto-fulfill and only
+    // reach `success` via PoSync, so it is tested through the dedicated
+    // 00009-PayoutSync.cy.js spec rather than the generic BANK_TRANSFER_SEPA
+    // flow in 00004-BankTransfer.cy.js.
+    PAYOUT_SYNC: ["deutschebank"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL: ["trustly"],
@@ -157,53 +165,90 @@ export const should_continue_further = (data) => {
 
 /*
  * Injects sensitive payout bank transfer details (bank_account_number,
- * account_holder_name, bank_name, shap_id) from the gitignored `creds.json`
- * (`<connector>_payout` -> `payout_bank_transfer`, stashed into globalState by
- * `createPayoutConnectorCallTest`) into the bank_transfer payout_method_data
- * of a payout create/confirm request body. Connector configs only declare the
- * payout_method_type; the sensitive values never live in committed code.
- * `creds.json` may group multiple account variants under one payout method
- * type (e.g. `payshap` -> `intrabank` / `interbank`), but the payout API
- * accepts only the flat bank fields, so a variant group is flattened to a
- * single variant (interbank preferred: full field set) before injection.
- * No-op for every connector other than `gotyme_sanlam`.
+ * account_holder_name, bank_name, shap_id, iban, bic) from the gitignored
+ * `creds.json` (`<connector>_payout` -> `payout_bank_transfer`, stashed into
+ * globalState by `createPayoutConnectorCallTest`) into a payout
+ * create/confirm request body. Connector configs only declare the
+ * payout_method_type (and, for deutschebank, a couple of non-sensitive
+ * literals like account_holder_name for the negative-case variants); the
+ * sensitive values never live in committed code.
+ * No-op for every connector other than `gotyme_sanlam` and `deutschebank`.
  */
-export const injectGotymePayoutBankTransfer = (body, globalState) => {
-  if (globalState.get("connectorId") !== "gotyme_sanlam") {
-    return body;
-  }
-
+export const injectPayoutBankTransferDetails = (body, globalState) => {
+  const connectorId = globalState.get("connectorId");
   const payoutBankTransferDetails = globalState.get(
     "payoutBankTransferDetails"
   );
-  const bankTransferData = body?.payout_method_data?.bank_transfer;
 
-  if (!payoutBankTransferDetails || !bankTransferData) {
+  if (!payoutBankTransferDetails) {
     return body;
   }
 
-  let credsForType =
-    payoutBankTransferDetails[bankTransferData.payout_method_type];
+  if (connectorId === "gotyme_sanlam") {
+    const bankTransferData = body?.payout_method_data?.bank_transfer;
 
-  // A variant group (e.g. payshap -> {intrabank: {...}, interbank: {...}})
-  // holds only object values, unlike flat creds (e.g. {shap_id: "..."}).
-  // Select one variant so its fields are spread flat into the request below.
-  const isVariantGroup =
-    credsForType &&
-    Object.keys(credsForType).length > 0 &&
-    Object.values(credsForType).every(
-      (variant) => variant && typeof variant === "object"
-    );
+    if (!bankTransferData) {
+      return body;
+    }
 
-  if (isVariantGroup) {
-    credsForType = credsForType.interbank || credsForType.intrabank;
+    let credsForType =
+      payoutBankTransferDetails[bankTransferData.payout_method_type];
+
+    // A variant group (e.g. payshap -> {intrabank: {...}, interbank: {...}})
+    // holds only object values, unlike flat creds (e.g. {shap_id: "..."}).
+    // Select one variant so its fields are spread flat into the request below.
+    const isVariantGroup =
+      credsForType &&
+      Object.keys(credsForType).length > 0 &&
+      Object.values(credsForType).every(
+        (variant) => variant && typeof variant === "object"
+      );
+
+    if (isVariantGroup) {
+      credsForType = credsForType.interbank || credsForType.intrabank;
+    }
+
+    if (credsForType) {
+      body.payout_method_data.bank_transfer = {
+        ...bankTransferData,
+        ...credsForType,
+      };
+    }
+
+    return body;
   }
 
-  if (credsForType) {
-    body.payout_method_data.bank_transfer = {
-      ...bankTransferData,
-      ...credsForType,
-    };
+  if (connectorId === "deutschebank") {
+    // A single "sepa" variant covers both the success and the
+    // missing-debtor-name negative case: creds.json's source_bank_data has
+    // no account_holder_name, so whether the request ends up with one
+    // depends entirely on whether the connector config's own local
+    // placeholder set it before injection (spreading creds over it never
+    // removes a key creds doesn't have).
+    const sepaCreds = payoutBankTransferDetails.sepa;
+
+    if (!sepaCreds) {
+      return body;
+    }
+
+    if (
+      body?.payout_method_data?.bank_transfer &&
+      sepaCreds.payout_method_data
+    ) {
+      body.payout_method_data.bank_transfer = {
+        ...body.payout_method_data.bank_transfer,
+        ...sepaCreds.payout_method_data,
+      };
+    }
+
+    if (body?.source_bank_data && sepaCreds.source_bank_data) {
+      body.source_bank_data = {
+        ...body.source_bank_data,
+        ...sepaCreds.source_bank_data,
+      };
+    }
+
+    return body;
   }
 
   return body;
