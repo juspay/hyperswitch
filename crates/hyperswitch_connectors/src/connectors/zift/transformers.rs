@@ -90,6 +90,7 @@ pub enum PaymentRequestType {
     #[serde(rename = "sale-auth")]
     Auth,
     Capture,
+    Void,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -227,6 +228,7 @@ impl TryFrom<&hyperswitch_domain_models::router_request_types::AuthenticationDat
             | Some(common_enums::TransactionStatus::Failure)
             | Some(common_enums::TransactionStatus::ChallengeRequired)
             | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            | Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired)
             | None => Self::Unavailable,
         };
         Ok(authentication_status)
@@ -745,6 +747,14 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                     common_enums::AttemptStatus::CaptureInitiated
                 }
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::CaptureFailed,
+            },
+
+            PaymentRequestType::Void => match item.response.transaction_status {
+                TransactionStatus::Processed => common_enums::AttemptStatus::Voided,
+                TransactionStatus::Pending | TransactionStatus::InRebill => {
+                    common_enums::AttemptStatus::VoidInitiated
+                }
+                TransactionStatus::Cancelled => common_enums::AttemptStatus::VoidFailed,
             },
         };
         // Populate the previous connector transaction id. If it is empty,
