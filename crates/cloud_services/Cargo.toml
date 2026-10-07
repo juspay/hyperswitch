@@ -11,13 +11,19 @@ license.workspace = true
 [features]
 default = []
 s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:url"]
+aws_kms = ["dep:aws-config", "dep:aws-sdk-kms", "dep:base64"]
+gcp_kms = ["dep:google-cloud-kms", "dep:google-cloud-gax", "dep:base64"]
 oci_kms = ["dep:oci_kms"]
 
 [dependencies]
 aws-config = { version = "1.5.10", optional = true, features = [
     "behavior-version-latest",
 ] }
+aws-sdk-kms = { version = "1.51.0", optional = true }
 aws-sdk-s3 = { version = "1.65.0", optional = true }
+base64 = { version = "0.22.1", optional = true }
+google-cloud-gax = { version = "0.19.2", optional = true }
+google-cloud-kms = { version = "0.6.0", optional = true }
 oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"

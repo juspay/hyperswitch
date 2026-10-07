@@ -6,6 +6,8 @@
 //! | Feature   | Module                | Backend                                                  |
 //! |-----------|-----------------------|----------------------------------------------------------|
 //! | `s3`      | [`storage::s3`]       | AWS S3 and S3-compatible stores (OCI Object Storage, ...) |
+//! | `aws_kms` | [`kms::aws`]          | AWS KMS                                                  |
+//! | `gcp_kms` | [`kms::gcp`]          | GCP Cloud KMS                                            |
 //! | `oci_kms` | [`kms::oci`]          | OCI Vault KMS                                            |
 //!
 //! Errors are plain [`std::error::Error`] types so callers can wrap them in whatever error

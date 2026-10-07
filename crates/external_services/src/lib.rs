@@ -83,11 +83,6 @@ pub mod consts {
     /// service. OS-level backstop for the HTTP/2 PING keepalive.
     pub(crate) const DEFAULT_UCS_TCP_KEEPALIVE_SECS: u64 = 60;
 
-    /// General purpose base64 engine
-    #[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
-    pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-        base64::engine::general_purpose::STANDARD;
-
     /// Header key used to specify the connector name in UCS requests.
     pub(crate) const UCS_HEADER_CONNECTOR: &str = "x-connector";
 
