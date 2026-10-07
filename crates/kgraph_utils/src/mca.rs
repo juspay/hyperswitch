@@ -195,6 +195,7 @@ fn get_dir_value_payment_method(
             Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
         }
         api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+        api_enums::PaymentMethodType::Wero => Ok(dirval!(WalletType = Wero)),
         api_enums::PaymentMethodType::OpenBanking => Ok(dirval!(BankRedirectType = OpenBanking)),
         api_enums::PaymentMethodType::NetworkToken => Ok(dirval!(NetworkTokenType = NetworkToken)),
     }
