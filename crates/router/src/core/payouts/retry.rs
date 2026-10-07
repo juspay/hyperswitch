@@ -302,6 +302,7 @@ pub async fn modify_trackers(
             .clone(),
         connector_request_reference_id: None,
         active_frm_id: payout_data.payout_attempt.active_frm_id.clone(),
+        execution_kind: payout_data.payout_attempt.execution_kind,
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

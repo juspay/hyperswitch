@@ -641,7 +641,7 @@ pub async fn payment_intent_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(state, auth.platform, None, req)
+            payments::list::list_payments(state, auth.platform, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: true,

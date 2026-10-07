@@ -32,7 +32,10 @@ use hyperswitch_interfaces::{
 };
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{redis::RedisStore, MockDb};
+use storage_impl::{
+    redis::{cache::Caches, RedisStore},
+    MockDb,
+};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
@@ -362,6 +365,9 @@ pub struct AppState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// In-memory caches, shared with every tenant's store and with the redis subscriber
+    /// that invalidates them.
+    pub caches: Arc<Caches>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -499,6 +505,9 @@ impl AppState {
             )
             .await
             .expect("Failed to create store");
+            // One set for the whole process: every tenant store and the single redis
+            // subscriber that invalidates entries must point at the same caches.
+            let caches = Arc::new(Caches::new(&conf.cache));
             let global_store: Box<dyn GlobalStorageInterface> =
                 Box::pin(Self::get_store_interface(
                     &storage_impl,
@@ -508,6 +517,7 @@ impl AppState {
                     conf.global_database_config(),
                     conf.global_database_config(),
                     Arc::clone(&cache_store),
+                    Arc::clone(&caches),
                     testable,
                 ))
                 .await
@@ -521,7 +531,13 @@ impl AppState {
             let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .get_store_interface_maps(
+                    &storage_impl,
+                    &conf,
+                    Arc::clone(&cache_store),
+                    Arc::clone(&caches),
+                    testable,
+                )
                 .await;
 
             #[cfg(feature = "email")]
@@ -564,6 +580,7 @@ impl AppState {
                 infra_components: infra_component_values,
                 enhancement,
                 superposition_service,
+                caches,
             }
         })
         .await
@@ -581,6 +598,7 @@ impl AppState {
         master_config: settings::Database,
         accounts_config: settings::Database,
         cache_store: Arc<RedisStore>,
+        caches: Arc<Caches>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
         let km_conf = conf.key_manager.get_inner();
@@ -615,6 +633,7 @@ impl AppState {
                             master_config.clone(),
                             accounts_config.clone(),
                             Arc::clone(&cache_store),
+                            Arc::clone(&caches),
                             testable,
                             key_manager_state,
                         )
@@ -634,6 +653,7 @@ impl AppState {
                         master_config,
                         accounts_config,
                         Arc::clone(&cache_store),
+                        caches,
                         testable,
                         key_manager_state,
                     )
@@ -984,6 +1004,14 @@ impl Payments {
                         .route(web::post().to(payments::payments_list_by_filter)),
                 )
                 .service(
+                    web::resource("/platform/list")
+                        .route(web::get().to(payments::payments_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(payments::payments_list_for_platform_filters)),
+                )
+                .service(
                     web::resource("/profile/list")
                         .route(web::get().to(payments::profile_payments_list))
                         .route(web::post().to(payments::profile_payments_list_by_filter)),
@@ -1021,7 +1049,11 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/manual-status-update")
-                        .route(web::post().to(payments::payments_manual_status_update)),
+                        .route(web::post().to(payments::payments_manual_status_update))
+                        .route(
+                            web::get()
+                                .to(payments::payments_manual_status_update_eligible_statuses),
+                        ),
                 )
         }
         #[cfg(feature = "oltp")]
@@ -1180,10 +1212,6 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
-            .service(
-                web::resource("/decision-engine/{profile_id}/diff-counter")
-                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
-            )
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -1572,6 +1600,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(
+                    web::resource("/platform/list").route(web::get().to(refunds_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(refunds_filter_list_for_platform)),
+                )
                 .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
@@ -2485,6 +2520,14 @@ impl Disputes {
             .service(
                 web::resource("/profile/filter")
                     .route(web::get().to(disputes::get_disputes_filters_profile)),
+            )
+            .service(
+                web::resource("/platform/list")
+                    .route(web::get().to(disputes::retrieve_disputes_list_for_platform)),
+            )
+            .service(
+                web::resource("/platform/filter")
+                    .route(web::get().to(disputes::get_platform_disputes_filters)),
             )
             .service(
                 web::resource("/accept/{dispute_id}")

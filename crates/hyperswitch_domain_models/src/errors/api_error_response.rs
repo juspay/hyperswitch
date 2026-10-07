@@ -336,6 +336,7 @@ pub enum ApiErrorResponse {
     WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
+        payment_id: Option<common_utils::id_type::PaymentId>,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
@@ -744,13 +745,15 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::IntegrityCheckFailed {
                 reason,
                 field_names,
-                connector_transaction_id
-            } => AER::InternalServerError(ApiError::new(
+                connector_transaction_id,
+                payment_id
+            } => AER::DomainError(ApiError::new(
                 "IE",
                 0,
                 format!("{reason} as data mismatched for {field_names}"),
                 Some(Extra {
                     connector_transaction_id: connector_transaction_id.to_owned(),
+                    payment_id: payment_id.to_owned(),
                     ..Default::default()
                 })
             )),
