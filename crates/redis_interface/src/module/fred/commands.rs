@@ -1467,6 +1467,12 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::DeleteHashFieldFailed)
     }
 
+    // Deja: no `on_miss`, where the redis-rs twin has one.
+    // `check_for_constraints` compares `KeySet(n)` against the number of
+    // members it sent — equal proceeds, anything else reports a collision — so
+    // an arm has to answer with that count, and the twin reads it off the
+    // `members` its identity carries. This identity carries the key alone, so
+    // arming the site means moving its identity. A miss stops.
     #[cfg_attr(
         feature = "deja",
         deja::redis(
