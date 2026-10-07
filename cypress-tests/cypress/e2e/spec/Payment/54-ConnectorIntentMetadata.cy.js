@@ -5,28 +5,10 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Card - Connector Intent Metadata payment flow test", () => {
-  before("seed global state", function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connectorId = globalState.get("connectorId");
-
-        if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.CONNECTOR_INTENT_METADATA
-          )
-        ) {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
   });
 
   after("flush global state", () => {
