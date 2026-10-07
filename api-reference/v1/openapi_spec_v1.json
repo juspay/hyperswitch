@@ -41186,6 +41186,21 @@
         "type": "object",
         "description": "Billing descriptor information for a payout.",
         "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name displayed in the billing descriptor.",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "description": "City displayed in the billing descriptor.",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number displayed in the billing descriptor.",
+            "nullable": true
+          },
           "reference": {
             "type": "string",
             "description": "Reference displayed on the beneficiary's bank statement.",
