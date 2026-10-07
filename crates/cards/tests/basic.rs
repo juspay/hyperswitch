@@ -31,10 +31,7 @@ fn test_card_expiration_month() {
 
     assert_eq!(*card_exp_month.peek(), 12);
     assert_eq!(card_exp_month.two_digits(), "12");
-    assert_eq!(
-        CardExpirationMonth::try_from(5).unwrap().two_digits(),
-        "05"
-    );
+    assert_eq!(CardExpirationMonth::try_from(5).unwrap().two_digits(), "05");
     assert!(invalid_card_exp_month.is_err());
 
     let serialized = serde_json::to_string(&card_exp_month).unwrap();
