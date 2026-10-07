@@ -4924,7 +4924,7 @@ impl ForeignFrom<hyperswitch_domain_models::payment_method_data::ExternalVaultCa
             card_issuer: external_vault_card.card_issuer.clone(),
             card_network: card_network.map(|card_network| card_network.into()),
             card_type: external_vault_card.card_type.clone(),
-            card_issuing_country: external_vault_card.card_issuing_country.clone(),
+            card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
             bank_code: external_vault_card.bank_code.clone(),
             nick_name: external_vault_card
                 .nick_name
@@ -6729,7 +6729,8 @@ impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus>
                 Ok(Self::ChallengeRequiredDecoupledAuthentication)
             }
             payments_grpc::TransactionStatus::InformationOnly => Ok(Self::InformationOnly),
-            payments_grpc::TransactionStatus::Unspecified => {
+            payments_grpc::TransactionStatus::SecurePaymentConfirmationRequired
+            | payments_grpc::TransactionStatus::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into())
             }
         }
