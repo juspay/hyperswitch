@@ -6,12 +6,11 @@
 use std::time::Instant;
 
 use cloud_services::kms::aws as shared;
-pub use cloud_services::kms::aws::AwsKmsConfig;
+pub use cloud_services::kms::aws::{AwsKmsConfig, AwsKmsError};
 use common_utils::errors::CustomResult;
-use error_stack::{report, Report};
 use router_env::logger;
 
-use crate::metrics;
+use crate::{metrics, report_with_cause};
 
 /// Client for AWS KMS operations.
 #[derive(Debug, Clone)]
@@ -35,13 +34,13 @@ impl AwsKmsClient {
         let start = Instant::now();
 
         let output = self.inner.decrypt(data).await.map_err(|error| {
-            if let shared::AwsKmsError::DecryptionFailed(sdk_error) = &error {
+            if let AwsKmsError::DecryptionFailed(sdk_error) = &error {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(aws_kms_sdk_error=?sdk_error, "Failed to AWS KMS decrypt data");
                 metrics::AWS_KMS_DECRYPTION_FAILURES.add(1, &[]);
             }
-            into_report(error)
+            report_with_cause(error)
         })?;
 
         let time_taken = start.elapsed();
@@ -58,13 +57,13 @@ impl AwsKmsClient {
         let start = Instant::now();
 
         let output = self.inner.encrypt(data).await.map_err(|error| {
-            if let shared::AwsKmsError::EncryptionFailed(sdk_error) = &error {
+            if let AwsKmsError::EncryptionFailed(sdk_error) = &error {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(aws_kms_sdk_error=?sdk_error, "Failed to AWS KMS encrypt data");
                 metrics::AWS_KMS_ENCRYPTION_FAILURES.add(1, &[]);
             }
-            into_report(error)
+            report_with_cause(error)
         })?;
 
         let time_taken = start.elapsed();
@@ -72,72 +71,6 @@ impl AwsKmsClient {
 
         Ok(output)
     }
-}
-
-/// Converts a shared client error into a report with the same frames as before: the underlying
-/// error, if any, followed by the matching [`AwsKmsError`].
-fn into_report(error: shared::AwsKmsError) -> Report<AwsKmsError> {
-    match error {
-        shared::AwsKmsError::Base64DecodingFailed(source) => {
-            report!(source).change_context(AwsKmsError::Base64DecodingFailed)
-        }
-        shared::AwsKmsError::DecryptionFailed(source) => {
-            report!(*source).change_context(AwsKmsError::DecryptionFailed)
-        }
-        shared::AwsKmsError::EncryptionFailed(source) => {
-            report!(*source).change_context(AwsKmsError::EncryptionFailed)
-        }
-        shared::AwsKmsError::MissingPlaintextDecryptionOutput => {
-            report!(AwsKmsError::MissingPlaintextDecryptionOutput)
-        }
-        shared::AwsKmsError::MissingCiphertextEncryptionOutput => {
-            report!(AwsKmsError::MissingCiphertextEncryptionOutput)
-        }
-        shared::AwsKmsError::Utf8DecodingFailed(source) => {
-            report!(source).change_context(AwsKmsError::Utf8DecodingFailed)
-        }
-        shared::AwsKmsError::MissingKeyId => report!(AwsKmsError::MissingKeyId),
-    }
-}
-
-/// Errors that could occur during KMS operations.
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    /// An error occurred when base64 encoding input data.
-    #[error("Failed to base64 encode input data")]
-    Base64EncodingFailed,
-
-    /// An error occurred when base64 decoding input data.
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-
-    /// An error occurred when AWS KMS decrypting input data.
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-
-    /// An error occurred when AWS KMS encrypting input data.
-    #[error("Failed to AWS KMS encrypt input data")]
-    EncryptionFailed,
-
-    /// The AWS KMS decrypted output does not include a plaintext output.
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-
-    /// The AWS KMS encrypted output does not include a ciphertext output.
-    #[error("Missing ciphertext AWS KMS encryption output")]
-    MissingCiphertextEncryptionOutput,
-
-    /// An error occurred UTF-8 decoding AWS KMS decrypted output.
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
-
-    /// The AWS KMS client has not been initialized.
-    #[error("The AWS KMS client has not been initialized")]
-    AwsKmsClientNotInitialized,
-
-    /// AWS KMS key id not provided.
-    #[error("AWS KMS key id not provided")]
-    MissingKeyId,
 }
 
 #[cfg(test)]
@@ -186,20 +119,12 @@ mod tests {
     }
 
     mod error_reports {
+        use error_stack::{AttachmentKind, FrameKind};
+
         use super::super::*;
 
-        fn frames(report: &Report<AwsKmsError>) -> Vec<String> {
-            report
-                .frames()
-                .filter_map(|frame| match frame.kind() {
-                    error_stack::FrameKind::Context(context) => Some(context.to_string()),
-                    error_stack::FrameKind::Attachment(_) => None,
-                })
-                .collect()
-        }
-
         #[tokio::test]
-        async fn invalid_base64_reports_decode_error_under_base64_decoding_failed() {
+        async fn invalid_base64_report_keeps_the_decode_error() {
             let client = AwsKmsClient::new(&AwsKmsConfig {
                 key_id: Some("key".to_owned()),
                 region: "us-east-1".to_owned(),
@@ -214,14 +139,14 @@ mod tests {
 
             assert!(matches!(
                 report.current_context(),
-                AwsKmsError::Base64DecodingFailed
+                AwsKmsError::Base64DecodingFailed(_)
             ));
-            let frames = frames(&report);
-            assert_eq!(frames.len(), 2, "{frames:?}");
-            assert_eq!(
-                frames.first().map(String::as_str),
-                Some("Failed to base64 decode input data")
+            let printed = format!("{report:?}");
+            assert!(
+                printed.contains("Failed to base64 decode input data"),
+                "{printed}"
             );
+            assert!(printed.contains("Invalid symbol"), "{printed}");
         }
 
         #[tokio::test]
@@ -238,38 +163,20 @@ mod tests {
                 .await
                 .expect_err("encrypting without a key id must fail");
 
-            assert_eq!(frames(&report), ["AWS KMS key id not provided"]);
-        }
-
-        #[test]
-        fn errors_without_a_source_map_to_a_single_frame() {
-            for (error, message) in [
-                (
-                    shared::AwsKmsError::MissingPlaintextDecryptionOutput,
-                    "Missing plaintext AWS KMS decryption output",
-                ),
-                (
-                    shared::AwsKmsError::MissingCiphertextEncryptionOutput,
-                    "Missing ciphertext AWS KMS encryption output",
-                ),
-            ] {
-                assert_eq!(frames(&into_report(error)), [message]);
-            }
-        }
-
-        #[test]
-        fn utf8_error_is_kept_under_utf8_decoding_failed() {
-            #[allow(clippy::expect_used)]
-            let utf8_error = String::from_utf8(vec![0xff]).expect_err("0xff is not UTF-8");
-
-            let report = into_report(shared::AwsKmsError::Utf8DecodingFailed(utf8_error));
-
-            let frames = frames(&report);
-            assert_eq!(frames.len(), 2, "{frames:?}");
-            assert_eq!(
-                frames.first().map(String::as_str),
-                Some("Failed to UTF-8 decode decryption output")
-            );
+            assert!(matches!(
+                report.current_context(),
+                AwsKmsError::MissingKeyId
+            ));
+            let printable_attachments = report
+                .frames()
+                .filter(|frame| {
+                    matches!(
+                        frame.kind(),
+                        FrameKind::Attachment(AttachmentKind::Printable(_))
+                    )
+                })
+                .count();
+            assert_eq!(printable_attachments, 0);
         }
     }
 }

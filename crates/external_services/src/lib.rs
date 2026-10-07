@@ -28,6 +28,22 @@ pub mod superposition;
 /// deserializers module_path
 pub mod utils;
 
+/// Builds a report from a shared [`cloud_services`] client error, attaching the error's cause as
+/// text: `error-stack` prints only a context's own message, so the cause would otherwise be
+/// missing from logged reports.
+#[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
+fn report_with_cause<E>(error: E) -> error_stack::Report<E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let cause = error.source().map(ToString::to_string);
+    let report = error_stack::Report::new(error);
+    match cause {
+        Some(cause) => report.attach_printable(cause),
+        None => report,
+    }
+}
+
 #[cfg(feature = "revenue_recovery")]
 /// date_time module
 pub mod date_time {

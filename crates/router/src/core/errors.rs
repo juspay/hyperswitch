@@ -122,18 +122,6 @@ pub enum HealthCheckOutGoing {
     OutGoingFailed { message: String },
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
-}
-
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum WebhooksFlowError {
     #[error("Merchant webhook config not found")]
