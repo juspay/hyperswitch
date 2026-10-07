@@ -3963,6 +3963,7 @@ pub fn get_applepay_wallet_info(
         card_exp_year,
         // To be populated after connector response
         auth_code: None,
+        paypal_id: None,
         email: None,
     }
 }
@@ -3987,6 +3988,7 @@ pub fn get_googlepay_wallet_info(
         card_exp_year,
         // to be populated after connector response
         auth_code: None,
+        paypal_id: None,
         email: None,
     }
 }

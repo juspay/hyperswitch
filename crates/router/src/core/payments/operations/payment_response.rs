@@ -1268,6 +1268,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             business_profile,
         )
         .await?;
+        if let Some(payment_method) = tokenization::update_paypal_wallet_from_response(
+            state,
+            platform,
+            payment_data.payment_attempt.payment_method_id.as_deref(),
+            resp,
+        )
+        .await?
+        {
+            payment_data.payment_method_info = Some(payment_method);
+        }
         Ok(())
     }
 
@@ -1653,6 +1663,31 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     for PaymentResponse
 {
+    async fn save_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        platform: &domain::Platform,
+        payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    ) -> RouterResult<()>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        if let Some(payment_method) = tokenization::update_paypal_wallet_from_response(
+            state,
+            platform,
+            payment_data.payment_attempt.payment_method_id.as_deref(),
+            resp,
+        )
+        .await?
+        {
+            payment_data.payment_method_info = Some(payment_method);
+        }
+        Ok(())
+    }
+
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
@@ -2302,6 +2337,16 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             _business_profile,
         )
         .await?;
+        if let Some(payment_method) = tokenization::update_paypal_wallet_from_response(
+            state,
+            platform,
+            payment_data.payment_attempt.payment_method_id.as_deref(),
+            resp,
+        )
+        .await?
+        {
+            payment_data.payment_method_info = Some(payment_method);
+        }
         Ok(())
     }
 

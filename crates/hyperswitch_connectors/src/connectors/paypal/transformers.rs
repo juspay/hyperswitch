@@ -3479,7 +3479,8 @@ impl Payer {
     }
 }
 
-/// Builds the connector response with the payer details received from paypal.
+/// Builds the connector response with the payer details received from PayPal.
+/// Reads email and the PayPal identifier only from `payer.email_address` and `payer.payer_id`.
 /// This should only be populated for paypal wallet payments (PaypalRedirect and PaypalSdk
 /// flows, both of which use `PaymentMethodType::Paypal`), and not for payments processed
 /// via paypal as a card processor.
@@ -3487,12 +3488,12 @@ fn get_connector_response_with_payer_details(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     payer: Option<&Payer>,
 ) -> Option<ConnectorResponseData> {
-    match payment_method_type {
-        Some(common_enums::PaymentMethodType::Paypal) => payer
-            .and_then(|payer| payer.get_wallet_additional_data())
-            .map(ConnectorResponseData::with_additional_payment_method_data),
-        _ => None,
+    if payment_method_type != Some(common_enums::PaymentMethodType::Paypal) {
+        return None;
     }
+    payer
+        .and_then(|payer| payer.get_wallet_additional_data())
+        .map(ConnectorResponseData::with_additional_payment_method_data)
 }
 
 fn get_payment_attempt_status(

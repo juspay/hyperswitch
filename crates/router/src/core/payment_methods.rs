@@ -4214,6 +4214,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                             card_exp_month: None,
                             card_exp_year: None,
                             auth_code: None,
+                            paypal_id: None,
                             email: data.email,
                         },
                     ))

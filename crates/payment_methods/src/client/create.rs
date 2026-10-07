@@ -242,6 +242,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
+                        paypal_id: None,
                         email: None,
                     };
                     Ok(Self::Wallet(WalletPaymentMethodData::ApplePay(Box::new(
@@ -258,6 +259,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
+                        paypal_id: None,
                         email: None,
                     };
                     Ok(Self::Wallet(WalletPaymentMethodData::GooglePay(Box::new(

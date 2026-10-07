@@ -45,7 +45,7 @@ pub struct PaymentMethodResponseItemV1 {
 pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
-    PayPal(Box<api_models::payments::PaypalRedirection>),
+    Paypal(Box<api_models::payment_methods::PaypalWalletInfo>),
 }
 
 /// V2 PaymentMethodResponseData enum
@@ -169,7 +169,7 @@ impl From<WalletPaymentMethodData>
         match wallet_info {
             WalletPaymentMethodData::ApplePay(apple_pay_info) => Self::ApplePay(apple_pay_info),
             WalletPaymentMethodData::GooglePay(google_pay_info) => Self::GooglePay(google_pay_info),
-            WalletPaymentMethodData::PayPal(paypal_info) => Self::PayPal(paypal_info),
+            WalletPaymentMethodData::Paypal(paypal_info) => Self::Paypal(paypal_info),
         }
     }
 }

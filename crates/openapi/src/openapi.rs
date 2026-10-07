@@ -450,6 +450,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::CustomerPaymentMethodForClient,
         api_models::payment_methods::CustomerPaymentMethodDataForClient,
         api_models::payment_methods::WalletPaymentMethodDataForClient,
+        api_models::payment_methods::PaypalWalletInfo,
         api_models::payment_methods::BankDebitDataForClient,
         api_models::payment_methods::PaymentMethodDeleteResponse,
         api_models::payment_methods::PaymentMethodUpdate,
