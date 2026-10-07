@@ -824,11 +824,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Shift4 {
 impl IncomingWebhook for Shift4 {
     async fn verify_webhook_source(
         &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
-        connector_name: &str,
+        _request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         // Shift4 does not cryptographically sign incoming webhook notifications, so we cannot verify the source of the webhook.
         // On returning false we will trigger a Psync call to the connector to get the latest status of the payment.
