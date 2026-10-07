@@ -3055,6 +3055,212 @@ impl
     }
 }
 
+/// An MIT against a card held in an external vault. `PaymentServiceAuthorizeRequest` carries no
+/// mandate reference, so it would drop the network transaction ID; the recurring charge request is
+/// the MIT shape.
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
+    > for payments_grpc::RecurringPaymentServiceChargeRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            ExternalVaultProxy,
+            ExternalVaultProxyPaymentsData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+        let browser_info = router_data
+            .request
+            .browser_info
+            .clone()
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
+            .transpose()?;
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+        let payment_method_type = router_data
+            .request
+            .payment_method_type
+            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .transpose()?
+            .map(|payment_method_type| payment_method_type.into());
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+        let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
+            .attach_printable("Failed to convert authentication type")?;
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+        let additional_payment_data = router_data
+            .request
+            .additional_payment_method_data
+            .clone()
+            .map(payments_grpc::AdditionalPaymentData::foreign_from);
+
+        // The MIT shape: the vault alias with no CVC, which UCS routes to the vault-token
+        // holder so the alias is substituted at the proxy. The network transaction ID rides on
+        // `connector_recurring_payment_id` below, not on the payment method.
+        let payment_method = Some(
+            unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy_mit(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+            )?,
+        );
+
+        // The whole point of this request: carry the network transaction ID that authorizes the
+        // MIT. Only a network mandate reference is meaningful for a vault alias — there is no
+        // connector mandate, because the card was never stored at the connector.
+        let connector_recurring_payment_id = match &router_data.request.mandate_id {
+            Some(mandate_ids) => match &mandate_ids.mandate_reference_id {
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_mandate_id)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
+                                payments_grpc::NetworkMandateId {
+                                    network_transaction_id: network_mandate_id
+                                        .network_transaction_id
+                                        .clone(),
+                                    transaction_link_id: network_mandate_id
+                                        .transaction_link_id
+                                        .clone(),
+                                },
+                            ),
+                        ),
+                    })
+                }
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
+                | None => None,
+            },
+            None => None,
+        };
+
+        Ok(Self {
+            merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_recurring_payment_id,
+            payment_method,
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
+            original_payment_authorized_amount: None,
+            merchant_order_id: router_data
+                .request
+                .merchant_order_reference_id
+                .as_ref()
+                .map(|reference_id| reference_id.get_string_repr().to_owned()),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|metadata| metadata.into()),
+            webhook_url: router_data.request.webhook_url.clone(),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            email: router_data
+                .request
+                .email
+                .clone()
+                .map(|email| email.expose().expose().into()),
+            browser_info,
+            test_mode: router_data.test_mode,
+            payment_method_type,
+            state,
+            return_url: router_data.request.router_return_url.clone(),
+            description: router_data.description.clone(),
+            connector_customer_id: router_data.connector_customer.clone(),
+            address: Some(address),
+            off_session: router_data.request.off_session,
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            authentication_data,
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
+            merchant_account_id: router_data
+                .request
+                .merchant_account_id
+                .as_ref()
+                .map(|merchant_account_id| Secret::new(merchant_account_id.clone().expose())),
+            merchant_configured_currency: router_data
+                .request
+                .merchant_config_currency
+                .map(payments_grpc::Currency::foreign_try_from)
+                .transpose()?
+                .map(|currency| currency.into()),
+            customer_document_details: to_grpc_customer_document_details(router_data),
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|email| email.expose().expose().into()),
+                id: router_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+                date_of_birth: router_data
+                    .customer_date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth)
+                    .transpose()?,
+            }),
+            additional_payment_data,
+            auth_type: Some(auth_type.into()),
+            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            split_payments: router_data
+                .request
+                .split_payments
+                .as_ref()
+                .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            // Not carried on the external vault proxy request.
+            split_settlement: None,
+            enable_partial_authorization: None,
+            billing_descriptor: None,
+            mit_category: None,
+            connector_feature_data: None,
+            locale: None,
+            l2_l3_data: None,
+            partner_merchant_identifier_details: None,
+            payment_channel: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
+            additional_connector_details: None,
+        })
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
@@ -4698,6 +4904,38 @@ impl
         };
 
         Ok(card_details_for_nti)
+    }
+}
+
+/// The vault-alias counterpart of the `CardDetailsForNetworkTransactionId` conversion. Infallible:
+/// the alias is already a string, so unlike a PAN there is nothing to parse.
+impl ForeignFrom<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
+    for payments_grpc::ProxyCardDetailsForNetworkTransactionId
+{
+    fn foreign_from(
+        external_vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
+    ) -> Self {
+        let card_network = external_vault_card
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
+        Self {
+            card_number: Some(external_vault_card.card_number.expose().into()),
+            card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+            card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+            card_issuer: external_vault_card.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: external_vault_card.card_type.clone(),
+            card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
+            bank_code: external_vault_card.bank_code.clone(),
+            nick_name: external_vault_card
+                .nick_name
+                .map(|nick_name| nick_name.expose().into()),
+            card_holder_name: external_vault_card
+                .card_holder_name
+                .map(|card_holder_name| card_holder_name.expose().into()),
+        }
     }
 }
 
@@ -6494,7 +6732,8 @@ impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus>
                 Ok(Self::ChallengeRequiredDecoupledAuthentication)
             }
             payments_grpc::TransactionStatus::InformationOnly => Ok(Self::InformationOnly),
-            payments_grpc::TransactionStatus::Unspecified => {
+            payments_grpc::TransactionStatus::SecurePaymentConfirmationRequired
+            | payments_grpc::TransactionStatus::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into())
             }
         }
