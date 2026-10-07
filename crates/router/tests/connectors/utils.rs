@@ -487,6 +487,7 @@ pub trait ConnectorActions: Connector {
                 additional_payout_method_data: None,
                 source_bank_data: None,
                 billing_descriptor: None,
+                external_vault_pmd: None,
             },
             payment_info,
         )

@@ -914,12 +914,12 @@ where
 
     payment_data.set_connector_customer_id(connector_customer_id);
 
-    let authentication_type = call_decision_manager(
+    let authentication_type = Box::pin(call_decision_manager(
         state,
         platform.get_processor(),
         &business_profile,
         &payment_data,
-    )
+    ))
     .await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
@@ -1589,7 +1589,7 @@ where
 
                 ConnectorCallType::SessionMultiple(connectors) => {
                     let session_surcharge_details =
-                        call_surcharge_decision_management_for_session_flow(
+                        Box::pin(call_surcharge_decision_management_for_session_flow(
                             state,
                             platform.get_processor(),
                             &business_profile,
@@ -1597,7 +1597,7 @@ where
                             payment_data.get_payment_intent(),
                             payment_data.get_billing_address(),
                             &connectors,
-                        )
+                        ))
                         .await?;
 
                     vault_session::populate_vault_session_details(
@@ -2444,12 +2444,12 @@ where
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let output = perform_decision_management(
+    let output = Box::pin(perform_decision_management(
         state,
         algorithm_ref,
         processor.get_account().get_id(),
         &payment_dsl_data,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not decode the conditional config")?;
@@ -2943,7 +2943,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
         #[cfg(feature = "v2")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
-        let surcharge_results =
+        let surcharge_results = Box::pin(
             surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
                 state,
                 algorithm_ref,
@@ -2951,10 +2951,11 @@ pub async fn call_surcharge_decision_management_for_session_flow(
                 payment_intent,
                 billing_address,
                 &payment_method_type_list,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error performing surcharge decision operation")?;
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing surcharge decision operation")?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -8373,6 +8374,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
     Ok(final_recipient_data)
 }
 
+#[cfg(feature = "v1")]
 async fn blocklist_guard<F, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
@@ -8385,24 +8387,14 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let processor_merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
+    let blocklist_guard_enabled = dimensions
+        .with_profile_id(business_profile.get_id().clone())
+        .get_payment_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -8416,6 +8408,10 @@ where
             )
             .await?)
     } else {
+        operation
+            .to_domain()?
+            .populate_payment_fingerprint(state, processor, payment_data)
+            .await;
         Ok(false)
     }
 }
@@ -12121,6 +12117,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    processor.get_key_store(),
                     dimensions,
                     business_profile,
                     txn_data,
@@ -13117,6 +13114,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
@@ -13135,6 +13133,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
+        key_store,
         business_profile,
         dimensions,
         &payment_dsl_input,
@@ -13621,7 +13620,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
                 |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
-                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
                     }
                     common_enums::TransactionStatus::Success => {
@@ -14337,6 +14337,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -14388,9 +14389,20 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        Ok(blocklist_utils::is_blocklist_guard_enabled(state, merchant_id).await)
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile_id.clone());
+
+        Ok(dimensions
+            .get_payment_blocklist_guard(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await)
     }
 
     async fn execute_check(
@@ -14485,6 +14497,7 @@ impl EligibilityCheck for CardTestingCheck {
         &self,
         _state: &SessionState,
         _platform: &domain::Platform,
+        _profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         // This check is always run as there is no runtime config enablement
         Ok(true)
@@ -14566,7 +14579,9 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let should_run = check
+            .should_run(&self.state, &self.platform, self.business_profile.get_id())
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(

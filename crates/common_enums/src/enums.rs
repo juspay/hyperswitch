@@ -9097,6 +9097,30 @@ pub enum BrazilStatesAbbreviation {
     Tocantins,
 }
 
+/// Internal execution marker; not a merchant-supplied payout request selector.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutExecutionKind {
+    #[default]
+    Normal,
+    ExternalVaultProxy,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9717,13 +9741,18 @@ pub enum TransactionStatus {
     /// Informational Only; 3DS Requestor challenge preference acknowledged.
     #[serde(rename = "I")]
     InformationOnly,
+    /// Challenge using Secure Payment Confirmation (SPC); Available for supporting EMV 3DS 2.3.1 and later versions.
+    #[serde(rename = "S")]
+    SecurePaymentConfirmationRequired,
 }
 
 impl TransactionStatus {
     pub fn is_pending(self) -> bool {
         matches!(
             self,
-            Self::ChallengeRequired | Self::ChallengeRequiredDecoupledAuthentication
+            Self::ChallengeRequired
+                | Self::ChallengeRequiredDecoupledAuthentication
+                | Self::SecurePaymentConfirmationRequired
         )
     }
 
@@ -9736,7 +9765,8 @@ impl From<TransactionStatus> for DecoupledAuthenticationType {
     fn from(trans_status: TransactionStatus) -> Self {
         match trans_status {
             TransactionStatus::ChallengeRequired
-            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::Challenge,
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | TransactionStatus::SecurePaymentConfirmationRequired => Self::Challenge,
             _ => Self::Frictionless,
         }
     }
@@ -11203,6 +11233,42 @@ impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
         match status {
             ConnectorMandateStatus::Active => Self::Active,
             ConnectorMandateStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
+impl From<AttemptStatus> for ConnectorTokenStatus {
+    fn from(status: AttemptStatus) -> Self {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::PartiallyAuthorized => Self::Active,
+            AttemptStatus::Failure
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::Started
+            | AttemptStatus::Pending
+            | AttemptStatus::Unresolved
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Authorizing
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
         }
     }
 }
