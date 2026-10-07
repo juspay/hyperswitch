@@ -914,12 +914,12 @@ where
 
     payment_data.set_connector_customer_id(connector_customer_id);
 
-    let authentication_type = call_decision_manager(
+    let authentication_type = Box::pin(call_decision_manager(
         state,
         platform.get_processor(),
         &business_profile,
         &payment_data,
-    )
+    ))
     .await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
@@ -1589,7 +1589,7 @@ where
 
                 ConnectorCallType::SessionMultiple(connectors) => {
                     let session_surcharge_details =
-                        call_surcharge_decision_management_for_session_flow(
+                        Box::pin(call_surcharge_decision_management_for_session_flow(
                             state,
                             platform.get_processor(),
                             &business_profile,
@@ -1597,7 +1597,7 @@ where
                             payment_data.get_payment_intent(),
                             payment_data.get_billing_address(),
                             &connectors,
-                        )
+                        ))
                         .await?;
 
                     vault_session::populate_vault_session_details(
@@ -2444,12 +2444,12 @@ where
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    let output = perform_decision_management(
+    let output = Box::pin(perform_decision_management(
         state,
         algorithm_ref,
         processor.get_account().get_id(),
         &payment_dsl_data,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not decode the conditional config")?;
@@ -2943,7 +2943,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
         #[cfg(feature = "v2")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
-        let surcharge_results =
+        let surcharge_results = Box::pin(
             surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
                 state,
                 algorithm_ref,
@@ -2951,10 +2951,11 @@ pub async fn call_surcharge_decision_management_for_session_flow(
                 payment_intent,
                 billing_address,
                 &payment_method_type_list,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error performing surcharge decision operation")?;
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing surcharge decision operation")?;
 
         Ok(if surcharge_results.is_empty_result() {
             None
@@ -12121,6 +12122,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    processor.get_key_store(),
                     dimensions,
                     business_profile,
                     txn_data,
@@ -13117,6 +13119,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
@@ -13135,6 +13138,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
+        key_store,
         business_profile,
         dimensions,
         &payment_dsl_input,
@@ -13621,7 +13625,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
                 |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
-                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+                    | common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
                     }
                     common_enums::TransactionStatus::Success => {

@@ -23,6 +23,8 @@ use serde_with::serde_as;
 
 use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{
     address,
     errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
@@ -174,6 +176,16 @@ pub struct PaymentsAuthorizeData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+}
+
+impl PaymentsAuthorizeData {
+    pub fn is_connector_mandate(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && matches!(
+                self.setup_future_usage,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1705,6 +1717,9 @@ pub struct PayoutsData {
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub connector_eligibility_reference_id: Option<String>,
+    /// Exclude replayable vault tokens from serialized router comparisons.
+    #[serde(skip)]
+    pub external_vault_pmd: Option<payouts::proxy::ExternalVaultPayoutMethodData>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1908,6 +1923,16 @@ pub struct SetupMandateRequestData {
     /// The merchant's business country for this payment. Connectors use it for requirements that
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
+}
+
+impl SetupMandateRequestData {
+    pub fn is_connector_mandate(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && matches!(
+                self.setup_future_usage,
+                Some(storage_enums::FutureUsage::OffSession)
+            )
+    }
 }
 
 #[derive(Debug, Clone)]
