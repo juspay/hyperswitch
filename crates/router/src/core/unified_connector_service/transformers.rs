@@ -8735,10 +8735,13 @@ fn payout_method_for_ucs<F>(
         (Some(_), None) => Err(report!(UnifiedConnectorServiceError::NotImplemented(
             "External vault proxy payouts require the UCS CardProxyPayout contract".to_owned(),
         ))),
-        // Normal payouts retain the existing optional payment-method conversion.
-        (None, payout_method_data) => payout_method_data
-            .map(transformers::ForeignTryFrom::foreign_try_from)
-            .transpose(),
+        (None, Some(payout_method_data)) => {
+            transformers::ForeignTryFrom::foreign_try_from(payout_method_data).map(Some)
+        }
+        (None, None) => Err(report!(UnifiedConnectorServiceError::MissingRequiredField {
+            field_name: "payout_method_data".into(),
+        })
+        .attach_printable("Payout method data or external vault tokens must be provided")),
     }
 }
 
