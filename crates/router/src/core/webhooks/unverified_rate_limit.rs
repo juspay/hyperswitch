@@ -25,6 +25,9 @@ use crate::{
 /// webhook is not counted. The expiry is set whenever a bucket has none, which covers a new bucket
 /// and one whose expiry was lost.
 ///
+/// `TTL` returns -2 for a key that does not exist and -1 for a key that exists without an expiry.
+/// Only -1 needs an expiry: a missing key is just an empty bucket.
+///
 /// KEYS[i]: bucket keys, ARGV[1]: window in seconds, ARGV[i + 1]: limit for KEYS[i].
 /// Returns 0 when allowed, otherwise the 1-based index of the first full bucket.
 const CHECK_AND_INCREMENT_SCRIPT: &str = r#"
@@ -49,7 +52,7 @@ end
 return 0
 "#;
 
-const REDIS_KEY_PREFIX: &str = "webhook_unverified_rl";
+const REDIS_KEY_PREFIX: &str = "webhook_rate_limit";
 
 #[derive(Clone, Copy, Debug)]
 enum RateLimitLevel {
@@ -86,7 +89,6 @@ pub async fn check_unverified_webhook_rate_limit(
 ) -> errors::RouterResult<()> {
     let merchant_id = platform.get_processor().get_account().get_id();
     let connector_name = merchant_connector_account.get_connector_name_as_string();
-    let merchant_connector_id = merchant_connector_account.get_id();
 
     // Each limit is resolved with only the dimensions of its own level, so an override set at a
     // narrower level can never change the limit of a bucket shared by a wider one
@@ -107,39 +109,72 @@ pub async fn check_unverified_webhook_rate_limit(
                     )
                 })
                 .ok(),
-            merchant_connector_id.clone(),
+            merchant_connector_account.get_id(),
         );
 
+    let enabled = merchant_connector_account_dimensions
+        .get_unverified_webhook_rate_limit_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(merchant_id),
+        )
+        .await;
+
+    if enabled {
+        let limits = RateLimitDimensions {
+            merchant: merchant_dimensions,
+            profile: profile_dimensions,
+            merchant_connector_account: merchant_connector_account_dimensions,
+        };
+        count_against_limits(state, merchant_id, merchant_connector_account, &limits).await
+    } else {
+        Ok(())
+    }
+}
+
+/// The dimensions each level's configs are resolved with.
+struct RateLimitDimensions {
+    merchant: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    profile: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    merchant_connector_account: dimension_state::DimensionsWithMerchantConnectorAccount,
+}
+
+/// Resolves the window and limits, then counts the webhook against every level that has a limit.
+async fn count_against_limits(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    dimensions: &RateLimitDimensions,
+) -> errors::RouterResult<()> {
+    let connector_name = merchant_connector_account.get_connector_name_as_string();
+    let merchant_connector_id = merchant_connector_account.get_id();
     let storage = state.store.as_ref();
     let superposition_client = state.superposition_service.as_ref();
     let targeting_key = Some(merchant_id);
 
-    let enabled = merchant_connector_account_dimensions
-        .get_unverified_webhook_rate_limit_enabled(storage, superposition_client, targeting_key)
-        .await;
-    if !enabled {
-        return Ok(());
-    }
-
     // The window is shared by all buckets of a merchant, so it is resolved at the merchant level
-    let window_in_secs = merchant_dimensions
+    let window_in_secs = dimensions
+        .merchant
         .get_unverified_webhook_rate_limit_window_in_secs(
             storage,
             superposition_client,
             targeting_key,
         )
         .await;
-    let merchant_limit = merchant_dimensions
+    let merchant_limit = dimensions
+        .merchant
         .get_unverified_webhook_merchant_rate_limit(storage, superposition_client, targeting_key)
         .await;
-    let profile_limit = profile_dimensions
+    let profile_limit = dimensions
+        .profile
         .get_unverified_webhook_profile_rate_limit(
             storage,
             superposition_client,
             Some(&merchant_connector_account.profile_id),
         )
         .await;
-    let merchant_connector_account_limit = merchant_connector_account_dimensions
+    let merchant_connector_account_limit = dimensions
+        .merchant_connector_account
         .get_unverified_webhook_merchant_connector_account_rate_limit(
             storage,
             superposition_client,
@@ -179,55 +214,53 @@ pub async fn check_unverified_webhook_rate_limit(
     .collect();
 
     if buckets.is_empty() || window_in_secs == 0 {
-        return Ok(());
-    }
+        Ok(())
+    } else {
+        metrics::WEBHOOK_UNVERIFIED_RATE_LIMIT_CHECKED_COUNT.add(
+            1,
+            router_env::metric_attributes!(
+                (MERCHANT_ID, merchant_id.clone()),
+                ("connector", connector_name.clone())
+            ),
+        );
 
-    metrics::WEBHOOK_UNVERIFIED_RATE_LIMIT_CHECKED_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            (MERCHANT_ID, merchant_id.clone()),
-            ("connector", connector_name.clone())
-        ),
-    );
+        match check_and_increment(state, &buckets, window_in_secs).await {
+            Ok(None) => Ok(()),
+            Ok(Some(level)) => {
+                metrics::WEBHOOK_UNVERIFIED_RATE_LIMITED_COUNT.add(
+                    1,
+                    router_env::metric_attributes!(
+                        (MERCHANT_ID, merchant_id.clone()),
+                        ("connector", connector_name),
+                        ("level", level.as_str())
+                    ),
+                );
+                logger::info!(
+                    rate_limit_level = level.as_str(),
+                    profile_id = %merchant_connector_account.profile_id.get_string_repr(),
+                    merchant_connector_id = %merchant_connector_id.get_string_repr(),
+                    "Unverified webhook rate limit reached"
+                );
 
-    let exceeded_level = match check_and_increment(state, &buckets, window_in_secs).await {
-        Ok(exceeded_level) => exceeded_level,
-        Err(error) => {
-            logger::error!(
-                ?error,
-                "Failed to check unverified webhook rate limit, letting the webhook through"
-            );
-            metrics::WEBHOOK_UNVERIFIED_RATE_LIMITER_ERROR_COUNT.add(
-                1,
-                router_env::metric_attributes!(
-                    (MERCHANT_ID, merchant_id.clone()),
-                    ("connector", connector_name.clone())
-                ),
-            );
-            return Ok(());
+                Err(report!(errors::ApiErrorResponse::WebhookRateLimited))
+            }
+            Err(error) => {
+                logger::error!(
+                    ?error,
+                    "Failed to check unverified webhook rate limit, letting the webhook through"
+                );
+                metrics::WEBHOOK_UNVERIFIED_RATE_LIMITER_ERROR_COUNT.add(
+                    1,
+                    router_env::metric_attributes!(
+                        (MERCHANT_ID, merchant_id.clone()),
+                        ("connector", connector_name)
+                    ),
+                );
+
+                Ok(())
+            }
         }
-    };
-
-    let Some(level) = exceeded_level else {
-        return Ok(());
-    };
-
-    metrics::WEBHOOK_UNVERIFIED_RATE_LIMITED_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            (MERCHANT_ID, merchant_id.clone()),
-            ("connector", connector_name.clone()),
-            ("level", level.as_str())
-        ),
-    );
-    logger::info!(
-        rate_limit_level = level.as_str(),
-        profile_id = %merchant_connector_account.profile_id.get_string_repr(),
-        merchant_connector_id = %merchant_connector_id.get_string_repr(),
-        "Unverified webhook rate limit reached"
-    );
-
-    Err(report!(errors::ApiErrorResponse::WebhookRateLimited))
+    }
 }
 
 /// Runs the check-and-increment script and returns the level of the first full bucket, if any.
