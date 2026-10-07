@@ -11,10 +11,11 @@ use scheduler::{
     errors, utils as scheduler_utils,
 };
 
-#[cfg(feature = "v1")]
-use crate::core::payouts::validator::PayoutExecutionKindValidation;
 use crate::{
-    core::{configs::dimension_state, payouts, webhooks},
+    core::{
+        configs::dimension_state, payouts, payouts::validator::PayoutExecutionKindValidation,
+        webhooks,
+    },
     errors as core_errors,
     routes::SessionState,
     types::{api, domain, storage},
