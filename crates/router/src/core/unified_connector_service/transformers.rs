@@ -7849,6 +7849,31 @@ impl ForeignFrom<&common_types::payments::BillingDescriptor> for payments_grpc::
     }
 }
 
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&common_types::payouts::PayoutsBillingDescriptor>
+    for payments_grpc::BillingDescriptor
+{
+    fn foreign_from(billing_descriptor: &common_types::payouts::PayoutsBillingDescriptor) -> Self {
+        Self {
+            name: billing_descriptor
+                .name
+                .clone()
+                .map(|name| name.expose().into()),
+            city: billing_descriptor
+                .city
+                .clone()
+                .map(|city| city.expose().into()),
+            phone: billing_descriptor
+                .phone
+                .clone()
+                .map(|phone| phone.expose().into()),
+            statement_descriptor: billing_descriptor.statement_descriptor.clone(),
+            statement_descriptor_suffix: None,
+            reference: billing_descriptor.reference.clone(),
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<&common_enums::PaymentChannel> for payments_grpc::PaymentChannel {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -8997,16 +9022,11 @@ impl
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(
-                |billing_descriptor| payments_grpc::BillingDescriptor {
-                    name: None,
-                    city: None,
-                    phone: None,
-                    statement_descriptor: billing_descriptor.statement_descriptor.clone(),
-                    statement_descriptor_suffix: None,
-                    reference: billing_descriptor.reference.clone(),
-                },
-            ),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             connector_eligibility_reference_id: router_data
                 .request
