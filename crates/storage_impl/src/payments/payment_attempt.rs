@@ -2668,7 +2668,9 @@ impl Conversion for PaymentAttempt {
             tokenization: None,
             amount_captured,
             encrypted_payment_method_data: None,
-            error_details: error.as_ref().map(diesel_models::payment_attempt::ErrorDetails::from),
+            error_details: error
+                .as_ref()
+                .map(diesel_models::payment_attempt::ErrorDetails::from),
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
@@ -3058,7 +3060,8 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     .unwrap_or((None, None));
 
                 // Built before the fields below are moved out of `error`.
-                let error_details = diesel_models::payment_attempt::ErrorDetails::from(error.as_ref());
+                let error_details =
+                    diesel_models::payment_attempt::ErrorDetails::from(error.as_ref());
 
                 Self {
                     status: Some(status),
