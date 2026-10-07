@@ -62,17 +62,20 @@ impl NonceSequence {
     /// Generate a random nonce sequence.
     //
     // deja: the AEAD nonce is the single source of ciphertext non-determinism.
-    // Recording it and replaying it in call order makes `encode_message`
-    // reproduce byte-identical ciphertext for the same key+plaintext. Real AES
-    // still runs; only the nonce is substituted. The error side is `CryptoError`
-    // rather than ring's non-serializable `Unspecified`, so a recorded failure
-    // replays as that failure and not as an unreconstructable sentinel.
+    // Recording it (Ok-only; the ring error type is non-serializable) and
+    // replaying it in call order makes `encode_message` reproduce byte-identical
+    // ciphertext for the same key+plaintext, so encrypted DB columns and HTTP
+    // bodies match the recording exactly. Real AES still runs; only the random
+    // nonce is substituted.
     #[cfg_attr(
         feature = "deja",
         deja::id(
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
-            codec = deja::codec::ResultCodec::<NonceSequence, errors::CryptoError>,
+            // The error side carries no typed outcome because the `Err` arm is
+            // unreachable: ring fills the buffer from `getrandom`, and a
+            // 12-byte read into a valid stack array has no errno to report.
+            codec = ResultOkCodec,
             // The live body fills only the low 96 bits of the u128, which is
             // what `current` reads back, so the nonce is built from exactly
             // `NONCE_LEN` bytes. Content is never inspected: AES-GCM takes it as
@@ -83,15 +86,14 @@ impl NonceSequence {
             ))),
         )
     )]
-    fn new() -> CustomResult<Self, errors::CryptoError> {
+    fn new() -> Result<Self, ring::error::Unspecified> {
         use ring::rand::{SecureRandom, SystemRandom};
 
         let rng = SystemRandom::new();
 
         // 96-bit sequence number, stored in a 128-bit unsigned integer in big-endian order
         let mut sequence_number = [0_u8; 128 / 8];
-        rng.fill(&mut sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..])
-            .change_context(errors::CryptoError::EncodingFailed)?;
+        rng.fill(&mut sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..])?;
         let sequence_number = u128::from_be_bytes(sequence_number);
 
         Ok(Self(sequence_number))
@@ -344,7 +346,8 @@ impl EncodeMessage for GcmAes256 {
         secret: &[u8],
         msg: &[u8],
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        let nonce_sequence = NonceSequence::new()?;
+        let nonce_sequence =
+            NonceSequence::new().change_context(errors::CryptoError::EncodingFailed)?;
         let current_nonce = nonce_sequence.current();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .change_context(errors::CryptoError::EncodingFailed)?;
@@ -1478,60 +1481,14 @@ mod crypto_tests {
 
 #[cfg(all(test, feature = "deja"))]
 mod deja_tests {
-    use super::NonceSequence;
-    use crate::errors;
-
-    fn reconstruct(
-        recorded: serde_json::Value,
-    ) -> Option<errors::CustomResult<NonceSequence, errors::CryptoError>> {
-        <deja::codec::ResultCodec<NonceSequence, errors::CryptoError> as deja::codec::ReplayCodec>::reconstruct(recorded)
-    }
-
-    /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
-    /// so it must still refuse; and the third case is what makes the first mean
-    /// anything, since a `kind` that went unread would accept any string.
+    /// The seam captures the `Ok` side only, which is what an unreachable `Err`
+    /// arm asks for. The choice is not observable at run time -- the macro
+    /// expands it into the generated body -- so it is read out of the
+    /// declaration, whose slice ends at the attribute's own `)]`, and pinned
+    /// here so that widening the capture stays a decision somebody takes about
+    /// the production signature rather than one the codec asks for.
     #[test]
-    fn a_recorded_error_rebuilds_its_variant() {
-        let rebuilt = reconstruct(serde_json::json!({
-            "version": 1,
-            "result": "Err",
-            "kind": "EncodingFailed",
-            "message": "Failed to encode given message",
-        }))
-        .expect("a typed error must reconstruct");
-        let Err(report) = &rebuilt else {
-            panic!("a recorded error must rebuild as an error");
-        };
-        assert!(
-            matches!(
-                report.current_context(),
-                errors::CryptoError::EncodingFailed
-            ),
-            "the rebuilt error must carry the recorded variant"
-        );
-
-        assert!(
-            reconstruct(serde_json::json!({"deja_err": "Unspecified"})).is_none(),
-            "the Ok-only sentinel names no variant and must refuse"
-        );
-        assert!(
-            reconstruct(serde_json::json!({
-                "version": 1,
-                "result": "Err",
-                "kind": "NotAVariant",
-                "message": "",
-            }))
-            .is_none(),
-            "a kind naming no variant must refuse rather than fabricate one"
-        );
-    }
-
-    /// The test above names the codec directly, so reverting the attribute to
-    /// `ResultOkCodec` would leave it green. The selection is not observable at
-    /// run time -- the macro expands it into the generated body -- so it is read
-    /// out of the declaration, whose slice ends at the attribute's own `)]`.
-    #[test]
-    fn the_seam_selects_the_typed_result_codec() {
+    fn the_seam_selects_the_ok_only_codec() {
         let source = include_str!("crypto.rs");
         let (_, after_operation) = source
             .split_once("operation = \"GcmAes256::nonce\",")
@@ -1540,10 +1497,8 @@ mod deja_tests {
             .split_once(")]")
             .expect("the seam's attribute must be closed");
         assert!(
-            declaration
-                .contains("codec = deja::codec::ResultCodec::<NonceSequence, errors::CryptoError>"),
-            "the nonce seam must select the typed result codec, or a recorded \
-             failure replays as an unreconstructable sentinel: {declaration}"
+            declaration.contains("codec = ResultOkCodec"),
+            "the nonce seam captures the Ok side only: {declaration}"
         );
     }
 }

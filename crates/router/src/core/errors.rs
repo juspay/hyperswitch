@@ -278,7 +278,11 @@ pub enum GooglePayDecryptionError {
     InvalidGatewayMerchantId,
 }
 
+// Serialize/Deserialize under `deja` so a seam returning `RoutingError` can
+// capture the error it threw and replay it as the same variant. Every payload is
+// a `String` or a `u16`, so this adds no shape of its own.
 #[derive(Debug, Clone, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum RoutingError {
     #[error("Merchant routing algorithm not found in cache")]
     CacheMiss,

@@ -6,7 +6,11 @@ pub type UserResult<T> = CustomResult<T, UserErrors>;
 pub type UserResponse<T> = CustomResult<ApplicationResponse<T>, UserErrors>;
 pub mod sample_data;
 
+// Serialize/Deserialize under `deja` so a seam returning `UserErrors` can
+// capture the error it threw and replay it as the same variant. Every variant is
+// either fieldless or carries one `String`, so this adds no shape of its own.
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum UserErrors {
     #[error("User InternalServerError")]
     InternalServerError,

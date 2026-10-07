@@ -2255,8 +2255,7 @@ pub fn perform_dynamic_routing_volume_split(
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(hash);
         weighted_index.sample(&mut rng)
     } else {
-        sample_volume_split_index(&weights)
-            .change_context(errors::RoutingError::VolumeSplitFailed)?
+        sample_volume_split_index(&weights)?
     };
 
     let routing_choice = *splits
@@ -2267,27 +2266,12 @@ pub fn perform_dynamic_routing_volume_split(
     Ok(routing_choice)
 }
 
-/// The volume-split draw's decision, in a form a tape can carry.
-/// [`errors::RoutingError`] cannot be: no serde derives, and payload-bearing
-/// variants unrelated to this call. The draw fails only on a weight set
-/// `WeightedIndex` refuses, so one variant covers it; the callers map it back.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
-)]
-enum VolumeSplitOutcome {
-    /// The weights do not describe a distribution that can be sampled.
-    #[error("volume split failed")]
-    SplitFailed,
-}
-
 /// Draw the volume-split index for `weights`.
 ///
 /// deja: this draw decides which connector a payment is routed to, so it changes
 /// the outbound request. It is seamed at the index rather than at the chosen
 /// connector because a `usize` records losslessly and the weights key the call —
-/// a candidate that changed the split therefore still diverges on the args. The
-/// error side is its own narrow outcome type so a recorded failure replays as
-/// that failure rather than as an unreconstructable sentinel.
+/// a candidate that changed the split therefore still diverges on the args.
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
@@ -2295,14 +2279,16 @@ enum VolumeSplitOutcome {
         component = "router::routing",
         operation = "volume_split_index",
         on_miss = { use common_utils::synth_shape::Synthesize as _; Ok(__deja_miss.index(weights.len()).unwrap_or(0)) },
-        codec = deja::codec::ResultCodec::<usize, VolumeSplitOutcome>,
+        // The typed codec, so the seam keeps the uniform contract: a recording
+        // that threw replays as the same typed throw. It captures the
+        // `RoutingError` this function already returns, rather than an outcome
+        // type invented to suit the tape.
+        codec = deja::codec::ResultCodec::<usize, errors::RoutingError>,
     )
 )]
-fn sample_volume_split_index(
-    weights: &[u8],
-) -> oss_errors::CustomResult<usize, VolumeSplitOutcome> {
+fn sample_volume_split_index(weights: &[u8]) -> RoutingResult<usize> {
     let weighted_index = distributions::WeightedIndex::new(weights)
-        .change_context(VolumeSplitOutcome::SplitFailed)
+        .change_context(errors::RoutingError::VolumeSplitFailed)
         .attach_printable("Error creating weighted distribution for volume split")?;
 
     #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
@@ -2314,8 +2300,7 @@ pub fn perform_volume_split(
     mut splits: Vec<routing_types::ConnectorVolumeSplit>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let weights: Vec<u8> = splits.iter().map(|sp| sp.split).collect();
-    let idx = sample_volume_split_index(&weights)
-        .change_context(errors::RoutingError::VolumeSplitFailed)?;
+    let idx = sample_volume_split_index(&weights)?;
 
     splits
         .get(idx)
@@ -4625,12 +4610,63 @@ pub async fn get_active_mca_ids_for_session(
 
 #[cfg(all(test, feature = "deja"))]
 mod deja_tests {
-    use super::{oss_errors, VolumeSplitOutcome};
+    use super::{errors, oss_errors};
+
+    type Seam = deja::codec::ResultCodec<usize, errors::RoutingError>;
+
+    fn capture(
+        value: &oss_errors::CustomResult<usize, errors::RoutingError>,
+    ) -> (serde_json::Value, bool) {
+        <Seam as deja::codec::ReplayCodec>::capture(value)
+    }
 
     fn reconstruct(
         recorded: serde_json::Value,
-    ) -> Option<oss_errors::CustomResult<usize, VolumeSplitOutcome>> {
-        <deja::codec::ResultCodec<usize, VolumeSplitOutcome> as deja::codec::ReplayCodec>::reconstruct(recorded)
+    ) -> Option<oss_errors::CustomResult<usize, errors::RoutingError>> {
+        <Seam as deja::codec::ReplayCodec>::reconstruct(recorded)
+    }
+
+    /// The `Ok` envelope is the half of this seam's shape that an existing
+    /// recording at this address holds, so it is pinned here: `type_name` is a
+    /// function of the codec's `T`, and moving `T` would make those recordings
+    /// unreadable.
+    #[test]
+    fn the_ok_envelope_records_a_bare_index() {
+        let (recorded, is_error) = capture(&Ok(3));
+        assert!(!is_error, "an Ok must not be captured as an error");
+        assert_eq!(
+            recorded.get("result").and_then(serde_json::Value::as_str),
+            Some("Ok")
+        );
+        assert_eq!(recorded.get("value"), Some(&serde_json::json!(3)));
+        assert_eq!(
+            recorded
+                .get("type_name")
+                .and_then(serde_json::Value::as_str),
+            Some("usize"),
+            "the Ok envelope's type_name must stay `usize`: {recorded}"
+        );
+    }
+
+    /// What the recorder writes for an `Err` is what the fixture below assumes:
+    /// a `kind` naming the variant. Captured rather than typed out, so the
+    /// fixture cannot describe a shape the codec never produces.
+    #[test]
+    fn a_captured_error_round_trips_as_its_variant() {
+        let (recorded, is_error) = capture(&Err(errors::RoutingError::VolumeSplitFailed.into()));
+        assert!(is_error, "an Err must be captured as an error");
+        assert_eq!(
+            recorded.get("kind").and_then(serde_json::Value::as_str),
+            Some("VolumeSplitFailed"),
+            "the recorded kind must name the variant: {recorded}"
+        );
+        let Some(Err(report)) = reconstruct(recorded) else {
+            panic!("a captured error must reconstruct as an error");
+        };
+        assert!(matches!(
+            report.current_context(),
+            errors::RoutingError::VolumeSplitFailed
+        ));
     }
 
     /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
@@ -4641,17 +4677,23 @@ mod deja_tests {
         let rebuilt = reconstruct(serde_json::json!({
             "version": 1,
             "result": "Err",
-            "kind": "SplitFailed",
-            "message": "volume split failed",
+            "kind": "VolumeSplitFailed",
+            "message": "Volume split failed",
         }))
         .expect("a typed error must reconstruct");
         let Err(report) = &rebuilt else {
             panic!("a recorded error must rebuild as an error");
         };
-        assert_eq!(report.current_context(), &VolumeSplitOutcome::SplitFailed);
+        assert!(
+            matches!(
+                report.current_context(),
+                errors::RoutingError::VolumeSplitFailed
+            ),
+            "the rebuilt error must carry the recorded variant"
+        );
 
         assert!(
-            reconstruct(serde_json::json!({"deja_err": "SplitFailed"})).is_none(),
+            reconstruct(serde_json::json!({"deja_err": "VolumeSplitFailed"})).is_none(),
             "the Ok-only sentinel names no variant and must refuse"
         );
         assert!(
@@ -4666,8 +4708,8 @@ mod deja_tests {
         );
     }
 
-    /// The test above names the codec directly, so reverting the attribute to
-    /// `ResultOkCodec` would leave it green. The selection is not observable at
+    /// The tests above name the codec directly, so reverting the attribute to
+    /// `ResultOkCodec` would leave them green. The selection is not observable at
     /// run time -- the macro expands it into the generated body -- so it is read
     /// out of the declaration, whose slice ends at the attribute's own `)]`.
     #[test]
@@ -4680,7 +4722,7 @@ mod deja_tests {
             .split_once(")]")
             .expect("the seam's attribute must be closed");
         assert!(
-            declaration.contains("codec = deja::codec::ResultCodec::<usize, VolumeSplitOutcome>"),
+            declaration.contains("codec = deja::codec::ResultCodec::<usize, errors::RoutingError>"),
             "the volume-split seam must select the typed result codec, or a \
              recorded failure replays as an unreconstructable sentinel: {declaration}"
         );

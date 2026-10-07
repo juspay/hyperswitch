@@ -15,22 +15,7 @@ use crate::core::errors::UserErrors;
 pub fn generate_password_hash(
     password: Secret<String>,
 ) -> CustomResult<Secret<String>, UserErrors> {
-    generate_password_hash_inner(password)
-        .map(Secret::new)
-        .change_context(UserErrors::InternalServerError)
-}
-
-/// Argon2's decision about a password, in a form a tape can carry.
-/// [`UserErrors`] cannot be: no serde derives, and payload-bearing variants
-/// unrelated to this call. Every `hash_password` failure reports as
-/// `InternalServerError`, so one variant covers the boundary.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, thiserror::Error,
-)]
-enum PasswordHashOutcome {
-    /// Argon2 refused to hash the password.
-    #[error("failed to hash the password")]
-    HashFailed,
+    generate_password_hash_inner(password).map(Secret::new)
 }
 
 // deja: the Argon2 salt is random (OsRng), so the hash is non-deterministic. On
@@ -41,15 +26,17 @@ enum PasswordHashOutcome {
 // serializes lossily to "***", which would record/replay a useless masked value;
 // the plain String records the real hash losslessly. The `password` arg still
 // masks to "***" in the recorded args — that's fine, it's consistent across
-// record/replay and avoids leaking the secret. The error side is its own narrow
-// outcome type so a recorded failure replays as that failure rather than as an
-// unreconstructable sentinel.
+// record/replay and avoids leaking the secret.
 #[cfg_attr(
     feature = "deja",
     deja::id(
         component = "router::user::password",
         operation = "generate_password_hash",
-        codec = deja::codec::ResultCodec::<String, PasswordHashOutcome>,
+        // The typed codec, so the seam keeps the uniform contract: a recording
+        // that threw replays as the same typed throw. It captures the
+        // `UserErrors` this function already returns, rather than an outcome
+        // type invented to suit the tape.
+        codec = deja::codec::ResultCodec::<String, UserErrors>,
         // The value has to be a PHC string, because `is_correct_password` hands
         // it to `PasswordHash::new` and a string that does not parse there comes
         // back as `InternalServerError`. So the hash is produced by Argon2 itself
@@ -76,20 +63,18 @@ enum PasswordHashOutcome {
                 Ok(hash) => Ok(hash),
                 // Unreachable for a well-formed 16-byte salt; here so the arm is
                 // total, the same way the uuid shape falls back to nil.
-                Err(_) => Err(PasswordHashOutcome::HashFailed.into()),
+                Err(_) => Err(UserErrors::InternalServerError.into()),
             }
         },
     )
 )]
-fn generate_password_hash_inner(
-    password: Secret<String>,
-) -> CustomResult<String, PasswordHashOutcome> {
+fn generate_password_hash_inner(password: Secret<String>) -> CustomResult<String, UserErrors> {
     let salt = SaltString::generate(&mut OsRng);
 
     let argon2 = Argon2::default();
     let password_hash = argon2
         .hash_password(password.expose().as_bytes(), &salt)
-        .change_context(PasswordHashOutcome::HashFailed)?;
+        .change_context(UserErrors::InternalServerError)?;
     Ok(password_hash.to_string())
 }
 
@@ -164,33 +149,66 @@ fn get_temp_password_inner() -> String {
 
 #[cfg(all(test, feature = "deja"))]
 mod deja_tests {
-    use super::PasswordHashOutcome;
+    use super::UserErrors;
+
+    type Seam = deja::codec::ResultCodec<String, UserErrors>;
+
+    fn capture(
+        value: &common_utils::errors::CustomResult<String, UserErrors>,
+    ) -> (serde_json::Value, bool) {
+        <Seam as deja::codec::ReplayCodec>::capture(value)
+    }
 
     fn reconstruct(
         recorded: serde_json::Value,
-    ) -> Option<common_utils::errors::CustomResult<String, PasswordHashOutcome>> {
-        <deja::codec::ResultCodec<String, PasswordHashOutcome> as deja::codec::ReplayCodec>::reconstruct(recorded)
+    ) -> Option<common_utils::errors::CustomResult<String, UserErrors>> {
+        <Seam as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
-    /// so it must still refuse; and the third case is what makes the first mean
-    /// anything, since a `kind` that went unread would accept any string.
+    /// What the recorder writes for an `Err` is what the fixture below assumes:
+    /// a `kind` naming the variant. Captured rather than typed out, so the
+    /// fixture cannot describe a shape the codec never produces.
+    #[test]
+    fn a_captured_error_round_trips_as_its_variant() {
+        let (recorded, is_error) = capture(&Err(UserErrors::InternalServerError.into()));
+        assert!(is_error, "an Err must be captured as an error");
+        assert_eq!(
+            recorded.get("kind").and_then(serde_json::Value::as_str),
+            Some("InternalServerError"),
+            "the recorded kind must name the variant: {recorded}"
+        );
+        let Some(Err(report)) = reconstruct(recorded) else {
+            panic!("a captured error must reconstruct as an error");
+        };
+        assert!(matches!(
+            report.current_context(),
+            UserErrors::InternalServerError
+        ));
+    }
+
+    /// A recorded failure rebuilds as the variant it was recorded as. The two
+    /// refusals are what make that mean anything: the Ok-only codec's sentinel
+    /// names no variant, and a `kind` naming none must refuse rather than pick
+    /// one.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
             "version": 1,
             "result": "Err",
-            "kind": "HashFailed",
-            "message": "failed to hash the password",
+            "kind": "InternalServerError",
+            "message": "User InternalServerError",
         }))
         .expect("a typed error must reconstruct");
         let Err(report) = &rebuilt else {
             panic!("a recorded error must rebuild as an error");
         };
-        assert_eq!(report.current_context(), &PasswordHashOutcome::HashFailed);
+        assert!(
+            matches!(report.current_context(), UserErrors::InternalServerError),
+            "the rebuilt error must carry the recorded variant"
+        );
 
         assert!(
-            reconstruct(serde_json::json!({"deja_err": "HashFailed"})).is_none(),
+            reconstruct(serde_json::json!({"deja_err": "InternalServerError"})).is_none(),
             "the Ok-only sentinel names no variant and must refuse"
         );
         assert!(
@@ -205,10 +223,11 @@ mod deja_tests {
         );
     }
 
-    /// The test above names the codec directly, so reverting the attribute to
-    /// `ResultOkCodec` would leave it green. The selection is not observable at
-    /// run time -- the macro expands it into the generated body -- so it is read
-    /// out of the declaration, whose slice ends at the attribute's own `)]`.
+    /// The test above names the codec directly, so swapping the attribute back
+    /// to `ResultOkCodec` would leave it green. The selection is not observable
+    /// at run time -- the macro expands it into the generated body -- so it is
+    /// read out of the declaration, whose slice ends at the attribute's own
+    /// `)]`.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("password.rs");
@@ -219,7 +238,7 @@ mod deja_tests {
             .split_once(")]")
             .expect("the seam's attribute must be closed");
         assert!(
-            declaration.contains("codec = deja::codec::ResultCodec::<String, PasswordHashOutcome>"),
+            declaration.contains("codec = deja::codec::ResultCodec::<String, UserErrors>"),
             "the password-hash seam must select the typed result codec, or a \
              recorded failure replays as an unreconstructable sentinel: {declaration}"
         );
