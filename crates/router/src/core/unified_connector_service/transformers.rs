@@ -4501,6 +4501,9 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::Qris => Ok(Self::Qris),
             common_enums::PaymentMethodType::SepaGuarenteedDebit => Ok(Self::SepaGuaranteedDebit),
             common_enums::PaymentMethodType::Neteller => Ok(Self::Neteller),
+            common_enums::PaymentMethodType::Wero => Err(error_stack::report!(
+                UnifiedConnectorServiceError::NotImplemented("Wero".to_string())
+            )),
         }
     }
 }
