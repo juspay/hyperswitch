@@ -2223,7 +2223,6 @@ Cypress.Commands.add(
       createConnectorBody.test_mode = false;
     }
 
-
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
