@@ -822,7 +822,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Shift4 {
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Shift4 {
-     async fn verify_webhook_source(
+    async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
