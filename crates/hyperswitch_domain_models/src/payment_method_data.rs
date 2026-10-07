@@ -277,6 +277,27 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_vaulting_data(
+        &self,
+    ) -> Option<crate::vault::PaymentMethodVaultingData> {
+        match self {
+            Self::BankRedirect(BankRedirectData::Trustly {
+                connector_instrument_id,
+                ..
+            }) => connector_instrument_id
+                .clone()
+                .map(|connector_instrument_id| {
+                    crate::vault::PaymentMethodVaultingData::BankRedirect(
+                        BankRedirectDetail::Trustly {
+                            connector_instrument_id,
+                        },
+                    )
+                }),
+            _ => None,
+        }
+    }
+
     /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
@@ -459,6 +480,11 @@ impl EligibilityCardBin {
         self.card_bin.get_card_isin()
     }
 
+    /// The BIN digits sent to Offer Engine, or all of them when fewer were provided
+    pub fn get_offer_card_bin(&self) -> String {
+        self.card_bin.get_offer_card_bin()
+    }
+
     /// Every blocklist-relevant prefix derivable from this BIN (lengths 6 up to the
     /// number of digits provided)
     pub fn get_blocklist_bin_prefixes(&self) -> Vec<String> {
@@ -499,6 +525,14 @@ impl EligibilityPaymentMethodData {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
             Self::CardBin(card_bin) => Some(card_bin.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    pub fn get_offer_card_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_offer_card_bin()),
+            Self::CardBin(card_bin) => Some(card_bin.get_offer_card_bin()),
             _ => None,
         }
     }
@@ -1527,6 +1561,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<api_enums::CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -1567,6 +1606,18 @@ impl BankRedirectData {
                 masked_sort_code: sort_code.map(|sort_code| {
                     common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                 }),
+                account_holder_name,
+                bank_name,
+            }),
+            Self::Trustly {
+                country: _,
+                account_holder_name,
+                bank_name,
+                additional_details: _,
+                bank_last_digits,
+                connector_instrument_id: _,
+            } => Some(BankRedirectDetailsPaymentMethod::Trustly {
+                bank_last_digits: bank_last_digits.map(|digits| digits.peek().to_owned()),
                 account_holder_name,
                 bank_name,
             }),
@@ -1994,7 +2045,26 @@ pub enum WalletDetail {
     },
 }
 
-#[cfg(feature = "v1")]
+impl From<common_types::payments::ApplePayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::ApplePayPredecryptData) -> Self {
+        Self::ApplePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.application_expiration_month,
+            expiry_year: data.application_expiration_year,
+        }
+    }
+}
+
+impl From<common_types::payments::GPayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::GPayPredecryptData) -> Self {
+        Self::GooglePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.card_exp_month,
+            expiry_year: data.card_exp_year,
+        }
+    }
+}
+
 impl From<payment_methods::WalletDetail> for WalletDetail {
     fn from(wallet: payment_methods::WalletDetail) -> Self {
         match wallet {
@@ -2020,6 +2090,31 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
     }
 }
 
+impl From<WalletDetail> for payment_methods::WalletDetail {
+    fn from(wallet: WalletDetail) -> Self {
+        match wallet {
+            WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectDetail {
@@ -2027,6 +2122,9 @@ pub enum BankRedirectDetail {
         iban: Option<Secret<String>>,
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
+    },
+    Trustly {
+        connector_instrument_id: Secret<String>,
     },
 }
 
@@ -2049,24 +2147,6 @@ impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
     }
 }
 
-#[cfg(feature = "v1")]
-impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
-    fn from(bank_redirect: BankRedirectDetailsPaymentMethod) -> Self {
-        match bank_redirect {
-            BankRedirectDetailsPaymentMethod::OpenBanking {
-                masked_account_number,
-                masked_sort_code,
-                account_holder_name: _,
-                masked_iban,
-                bank_name: _,
-            } => Self::OpenBanking {
-                account_number: masked_account_number.map(Secret::new),
-                iban: masked_iban.map(Secret::new),
-                sort_code: masked_sort_code.map(Secret::new),
-            },
-        }
-    }
-}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
@@ -2510,6 +2590,27 @@ impl From<CardWithOptionalCVC> for EligibilityCard {
             nick_name: card.nick_name,
             card_holder_name: card.card_holder_name,
             co_badged_card_data: card.co_badged_card_data,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl From<&api_models::payouts::CardPayout> for EligibilityCard {
+    fn from(card: &api_models::payouts::CardPayout) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: Some(card.expiry_month.clone()),
+            card_exp_year: Some(card.expiry_year.clone()),
+            card_cvc: None,
+            card_issuer: None,
+            card_network: card.card_network.clone(),
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: card.card_holder_name.clone(),
+            co_badged_card_data: None,
         }
     }
 }
@@ -3056,9 +3157,14 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             },
-            api_models::payments::BankRedirectData::Trustly { country } => {
-                Self::Trustly { country }
-            }
+            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
+                country,
+                account_holder_name: None,
+                bank_name: None,
+                additional_details: None,
+                bank_last_digits: None,
+                connector_instrument_id: None,
+            },
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -4206,6 +4312,11 @@ pub enum BankRedirectDetailsPaymentMethod {
         masked_sort_code: Option<String>,
         account_holder_name: Option<Secret<String>>,
         masked_iban: Option<String>,
+        bank_name: Option<common_enums::BankNames>,
+    },
+    Trustly {
+        bank_last_digits: Option<String>,
+        account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
     },
 }

@@ -150,6 +150,26 @@ export const connectorDetails = {
         },
       },
     },
+    AuthCodeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        amount: 6000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: {},
+        },
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,

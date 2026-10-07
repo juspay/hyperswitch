@@ -261,6 +261,8 @@ pub struct PaymentIntentRequest {
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_on_requires_action: Option<bool>,
     #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: Option<StripePaymentMethodType>,
     #[serde(rename = "expand[0]")]
@@ -1076,7 +1078,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Breadpay
             | enums::PaymentMethodType::UpiQr
             | enums::PaymentMethodType::OpenBanking
-            | enums::PaymentMethodType::NetworkToken => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::NetworkToken
+            | enums::PaymentMethodType::Ted => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1740,7 +1743,12 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -2434,7 +2442,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                             Err(ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
-                                connector: "Stripe",
+                                connector: "Stripe".into(),
                             })?
                         }
                     };
@@ -2494,7 +2502,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     Err(ConnectorError::NotSupported {
                         message: "Card Only MIT for payment method".to_string(),
-                        connector: "Stripe",
+                        connector: "Stripe".into(),
                     })?
                 }
             }
@@ -2673,6 +2681,18 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None) => None,
         };
 
+        let is_mit_payment = item.request.mandate_id.is_some()
+            || matches!(
+                item.request.payment_method_data,
+                PaymentMethodData::MandatePayment
+            );
+        let error_on_requires_action = item
+            .request
+            .connector_intent_metadata
+            .as_ref()
+            .and_then(|connector_metadata| connector_metadata.stripe.as_ref())
+            .and_then(|stripe_metadata| stripe_metadata.error_on_requires_action);
+
         let is_moto = if matches!(
             item.request.payment_method_data,
             PaymentMethodData::Card { .. }
@@ -2715,6 +2735,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             customer: item.connector_customer.clone().map(Secret::new),
             setup_mandate_details,
             off_session: item.request.off_session,
+            // Only meaningful for MIT (merchant-initiated) payments: no customer is present to
+            // complete additional authentication, so fail outright instead of coming back as
+            // `requires_action`.
+            error_on_requires_action: is_mit_payment.then_some(error_on_requires_action).flatten(),
             setup_future_usage: match (
                 item.request.split_payments.as_ref(),
                 setup_future_usage,
@@ -3360,6 +3384,13 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
             card_network: None,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
@@ -5065,6 +5096,43 @@ pub struct WebhookEventObjectData {
     pub status: Option<WebhookEventStatus>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
+    pub network_details: Option<StripeDisputeNetworkDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeDisputeNetworkDetails {
+    Visa {
+        visa: Option<StripeVisaDisputeNetworkDetails>,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StripeVisaDisputeNetworkDetails {
+    pub rapid_dispute_resolution: Option<bool>,
+}
+
+impl From<StripeDisputeNetworkDetails> for Option<common_types::disputes::AdditionalDetails> {
+    fn from(network_details: StripeDisputeNetworkDetails) -> Self {
+        match network_details {
+            StripeDisputeNetworkDetails::Visa { visa } => visa
+                .and_then(|visa| visa.rapid_dispute_resolution)
+                .map(|applied| common_types::disputes::AdditionalDetails {
+                    network_details: Some(common_types::disputes::DisputeNetworkDetails::Visa {
+                        rapid_dispute_resolution: Some(
+                            common_types::disputes::RapidDisputeResolution {
+                                applied: primitive_wrappers::RapidDisputeResolutionAppliedBool::new(
+                                    applied,
+                                ),
+                            },
+                        ),
+                    }),
+                }),
+            StripeDisputeNetworkDetails::Unknown => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]

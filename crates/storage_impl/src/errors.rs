@@ -41,6 +41,12 @@ pub enum StorageError {
     RedisError(error_stack::Report<RedisError>),
     #[error("InvalidDataFormat: {0}")]
     InvalidDataFormat(String),
+    #[error("In-memory cache compute returned an operation it was never asked for")]
+    CacheInvariantViolation,
+    #[error("In-memory cache populate was cut off at the configured cap")]
+    CachePopulateTimedOut,
+    #[error("In-memory cache entry could not be downcast to the expected type")]
+    CacheTypeMismatch,
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {

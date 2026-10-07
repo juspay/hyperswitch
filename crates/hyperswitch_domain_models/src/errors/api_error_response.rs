@@ -85,6 +85,8 @@ pub enum ApiErrorResponse {
     DuplicatePayout {
         payout_id: common_utils::id_type::PayoutId,
     },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The fraud check with the specified frm_id '{frm_id}' already exists in our records")]
+    DuplicateFraudCheck { frm_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
     DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
@@ -97,6 +99,8 @@ pub enum ApiErrorResponse {
     ConfigNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment does not exist in our records")]
     PaymentNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Fraud check does not exist in our records")]
+    FraudCheckNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method does not exist in our records")]
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
@@ -332,6 +336,7 @@ pub enum ApiErrorResponse {
     WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
+        payment_id: Option<common_utils::id_type::PaymentId>,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
@@ -433,6 +438,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id:?}' already exists in our records"), None))
             }
+            Self::DuplicateFraudCheck { frm_id } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The fraud check with the specified frm_id '{frm_id}' already exists in our records"), None))
+            }
             Self::DuplicateConfig => {
                 AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
             }
@@ -450,6 +458,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::PaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))
+            }
+            Self::FraudCheckNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Fraud check does not exist in our records", None))
             }
             Self::PaymentMethodNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment method does not exist in our records", None))
@@ -734,13 +745,15 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::IntegrityCheckFailed {
                 reason,
                 field_names,
-                connector_transaction_id
-            } => AER::InternalServerError(ApiError::new(
+                connector_transaction_id,
+                payment_id
+            } => AER::DomainError(ApiError::new(
                 "IE",
                 0,
                 format!("{reason} as data mismatched for {field_names}"),
                 Some(Extra {
                     connector_transaction_id: connector_transaction_id.to_owned(),
+                    payment_id: payment_id.to_owned(),
                     ..Default::default()
                 })
             )),

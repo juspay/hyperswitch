@@ -30,15 +30,16 @@ pub async fn delete_entry_from_blocklist(
     request: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResult<api_blocklist::DeleteFromBlocklistResponse> {
     let processor_merchant_id = processor.get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         processor,
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let blocklist_entry = match request {
         #[allow(deprecated)]
@@ -70,13 +71,13 @@ pub async fn toggle_blocklist_guard_for_merchant(
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = processor_merchant_id.get_blocklist_guard_key();
-    let maybe_guard = state.store.find_config_by_key_from_db(&key).await;
+    let maybe_guard = state.store.find_config_by_key_optional(&key).await;
     let new_config = configs::ConfigNew {
         key: key.clone(),
         config: query.status.to_string(),
     };
     match maybe_guard {
-        Ok(_config) => {
+        Ok(Some(_config)) => {
             let updated_config = configs::ConfigUpdate::Update {
                 config: Some(query.status.to_string()),
             };
@@ -87,7 +88,7 @@ pub async fn toggle_blocklist_guard_for_merchant(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error enabling the blocklist guard")?;
         }
-        Err(e) if e.current_context().is_db_not_found() => {
+        Ok(None) => {
             state
                 .store
                 .insert_config(new_config)
@@ -185,15 +186,16 @@ pub async fn get_blocklist_count(
     query: api_blocklist::BlocklistCountQuery,
 ) -> RouterResult<api_blocklist::BlocklistCountResponse> {
     let processor_merchant_id = processor.get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         processor,
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let (total_count, counts_by_length) = match query.data_kind {
         // Fingerprints are fixed-width hashes, so there is no breakdown worth grouping for.
@@ -261,15 +263,16 @@ pub async fn lookup_blocklist_entry(
     query: api_blocklist::BlocklistLookupQuery,
 ) -> RouterResult<api_blocklist::BlocklistLookupResponse> {
     let processor_merchant_id = processor.get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         processor,
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let result = state
         .store
@@ -303,15 +306,16 @@ pub async fn insert_entry_into_blocklist(
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
         profile_id.as_ref(),
         &*state.store,
-        true,
     )
-    .await?;
+    .await?
+    .get_id()
+    .to_owned();
 
     let blocklist_entry = match &to_block {
         #[allow(deprecated)]
@@ -523,7 +527,7 @@ async fn delete_card_bin_blocklist_entry(
         })
 }
 
-pub async fn should_payment_be_blocked(
+pub async fn check_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
@@ -607,44 +611,18 @@ pub async fn should_payment_be_blocked(
             .as_ref()
             .is_some_and(|pmd| pmd.is_eligible_for_profile_config_blocklist())
     {
-        block_reason = should_payment_be_blocked_by_profile_config(
-            state,
-            payment_method_data,
-            business_profile,
-        )
-        .await?;
+        block_reason =
+            check_profile_blocking_config(state, payment_method_data, business_profile).await?;
     }
 
     Ok(block_reason)
-}
-
-/// Whether the merchant has enabled the blocklist guard (the same config key that gates
-/// confirm-time and eligibility-time blocklist checks). Defaults to `false` when unset.
-pub async fn is_blocklist_guard_enabled(
-    state: &SessionState,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    match state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-        .await
-    {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-        Err(error) => {
-            if !error.current_context().is_db_not_found() {
-                logger::error!(?error, "Error fetching blocklist guard enabled config");
-            }
-            false
-        }
-    }
 }
 
 /// Returns the subset of `bins` (card ISINs / extended BINs) that have an active BIN
 /// blocklist entry (BIN kinds only — PAN-fingerprint entries cannot be matched from a
 /// BIN) for this merchant/profile, resolved with a single batched query. Merchant-wide
 /// entries (NULL `profile_id`) match every profile. DB errors are logged and treated as
-/// not blocked, mirroring [`should_payment_be_blocked`].
+/// not blocked, mirroring [`check_blocklist`].
 pub async fn get_blocked_bins(
     state: &SessionState,
     processor: &domain::Processor,
@@ -683,7 +661,7 @@ where
     F: Send + Clone,
 {
     let db = &state.store;
-    let block_reason = should_payment_be_blocked(
+    let block_reason = check_blocklist(
         state,
         processor,
         &payment_data
@@ -740,14 +718,7 @@ where
         }
         .into())
     } else {
-        let (fingerprint_id, fingerprint_type) = generate_payment_fingerprint(
-            state,
-            processor.get_account(),
-            payment_data.payment_method_data.clone(),
-        )
-        .await?;
-        payment_data.payment_attempt.fingerprint_id = fingerprint_id;
-        payment_data.payment_attempt.fingerprint_type = fingerprint_type;
+        populate_payment_fingerprint(state, processor.get_account(), payment_data).await;
         Ok(false)
     }
 }
@@ -788,7 +759,7 @@ fn resolve_blocking_config_and_bin<'a>(
     }
 }
 
-pub async fn should_payment_be_blocked_by_profile_config(
+pub async fn check_profile_blocking_config(
     state: &SessionState,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
@@ -931,9 +902,6 @@ pub async fn generate_payment_fingerprint(
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<(Option<String>, Option<common_enums::FingerprintType>), errors::ApiErrorResponse>
 {
-    let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, merchant_account).await?;
-
     let fingerprint_source = payment_method_data
         .as_ref()
         .and_then(|payment_method_data| match payment_method_data {
@@ -968,29 +936,56 @@ pub async fn generate_payment_fingerprint(
             _ => None,
         });
 
-    let (fingerprint_id, fingerprint_type) = match fingerprint_source {
+    match fingerprint_source {
         Some((pan, fingerprint_type)) => {
+            let merchant_fingerprint_secret =
+                get_merchant_fingerprint_secret(state, merchant_account).await?;
+
             let fingerprint_id = generate_fingerprint_and_get_id(
                 state,
                 StrongSecret::new(pan.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
             )
             .await
-            .attach_printable("error in pm fingerprint creation")
-            .inspect_err(|error| logger::error!(?error))
-            .ok()
-            .map(|payload| payload.fingerprint_id);
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error in pm fingerprint creation")?
+            .fingerprint_id;
 
-            let fingerprint_type = fingerprint_id.is_some().then_some(fingerprint_type);
-            (fingerprint_id, fingerprint_type)
+            Ok((Some(fingerprint_id), Some(fingerprint_type)))
         }
         None => {
             logger::debug!("payment method does not contain a PAN that can be fingerprinted");
-            (None, None)
+            Ok((None, None))
         }
-    };
+    }
+}
 
-    Ok((fingerprint_id, fingerprint_type))
+/// Best-effort fingerprinting: a failure is logged and the payment proceeds without a fingerprint.
+pub async fn populate_payment_fingerprint<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+) where
+    F: Send + Clone,
+{
+    match generate_payment_fingerprint(
+        state,
+        merchant_account,
+        payment_data.payment_method_data.clone(),
+    )
+    .await
+    {
+        Ok((fingerprint_id, fingerprint_type)) => {
+            payment_data.payment_attempt.fingerprint_id = fingerprint_id;
+            payment_data.payment_attempt.fingerprint_type = fingerprint_type;
+        }
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "failed to generate payment fingerprint, proceeding without it"
+            );
+        }
+    }
 }
 
 #[cfg(test)]

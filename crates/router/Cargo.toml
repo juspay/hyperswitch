@@ -59,6 +59,7 @@ frm = [
 ]
 stripe = []
 gcp_kms = ["external_services/gcp_kms"]
+oci_kms = ["external_services/oci_kms"]
 release = [
     "stripe",
     "email",
@@ -67,6 +68,7 @@ release = [
     "vergen",
     "external_services/aws_kms",
     "gcp_kms",
+    "oci_kms",
     "external_services/aws_s3",
     "keymanager_mtls",
     "keymanager_create",
@@ -192,6 +194,7 @@ async-bb8-diesel = "0.2.1"
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bb8 = "0.8"
+heck = "0.5.0"
 open-feature = { version = "0.2.5" }
 blake3 = "1.8.2"
 bytes = "1.10.1"
@@ -300,8 +303,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "de0a42a42248fc22722bc5a385d9fa6a39449e91", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "de0a42a42248fc22722bc5a385d9fa6a39449e91", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "ade8fd16c1d8a4d23ca8fa3397bf70fe94e80510", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [

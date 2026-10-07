@@ -16,7 +16,7 @@ use hyperswitch_masking::ExposeInterface;
 use prost::Message;
 
 use crate::{
-    errors::ConnectorError,
+    errors::{not_supported_message, ConnectorError},
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
@@ -162,6 +162,15 @@ pub enum UnifiedConnectorServiceError {
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
 
+    /// The connector does not support this operation.
+    #[error("{}", not_supported_message(.message, .connector))]
+    NotSupported {
+        /// What the connector refused.
+        message: String,
+        /// Connector that refused the request.
+        connector: String,
+    },
+
     /// Parsing of some value or input failed.
     #[error("Parsing failed")]
     ParsingFailed,
@@ -189,6 +198,9 @@ pub enum UnifiedConnectorServiceError {
         code: tonic::Code,
         /// Error message from UCS
         message: String,
+        /// Present only when the status was produced by the router's own transport layer.
+        /// `None` for statuses returned by UCS as a gRPC response.
+        transport: Option<Box<UcsTransportFailure>>,
     },
 
     /// Connector error received through UCS.
@@ -528,13 +540,10 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
         let response = if let Some(error_code) =
             connector_details.and_then(|details| details.code.clone())
         {
-            let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::Unspecified => None,
-                _ => Some(AttemptStatus::foreign_try_from((
-                    response.status(),
-                    prev_status,
-                ))?),
-            };
+            let attempt_status = Some(AttemptStatus::foreign_try_from((
+                response.status(),
+                prev_status,
+            ))?);
 
             Err(ErrorResponse {
                 code: error_code,
@@ -697,6 +706,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
             payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
+            payments_grpc::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
         }
     }
 }
@@ -787,6 +797,14 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 card_network: card_data.card_network,
                 domestic_network: card_data.domestic_network,
                 auth_code: card_data.auth_code,
+                // The gRPC contract carries no normalized card attributes yet
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 let upi_mode = upi_data
@@ -806,15 +824,33 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
-                // UCS's GooglePayConnectorResponse proto does not carry bin/issuer data yet
-                device_pan_bin: None,
-                card_bin: None,
-                card_subtype: None,
-                card_segment_type: None,
-                funding_source: None,
-                card_type: None,
-                issuer_name: None,
-                issuer_country: None,
+                device_pan_bin: google_pay_data.device_pan_bin,
+                card_bin: google_pay_data.card_bin,
+                card_subtype: google_pay_data.card_subtype,
+                card_segment_type: google_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: google_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                card_type: google_pay_data.card_type.and_then(|raw| {
+                    payments_grpc::CardType::try_from(raw)
+                        .ok()
+                        .and_then(|ct| common_enums::CardType::foreign_try_from(ct).ok())
+                }),
+                issuer_name: google_pay_data.issuer_name,
+                issuer_country: google_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
@@ -822,14 +858,28 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
-                // UCS's ApplePayConnectorResponse proto does not carry bin/issuer data yet
-                device_pan_bin: None,
-                card_bin: None,
-                card_subtype: None,
-                card_segment_type: None,
-                funding_source: None,
-                issuer_name: None,
-                issuer_country: None,
+                device_pan_bin: apple_pay_data.device_pan_bin,
+                card_bin: apple_pay_data.card_bin,
+                card_subtype: apple_pay_data.card_subtype,
+                card_segment_type: apple_pay_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: apple_pay_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                issuer_name: apple_pay_data.issuer_name,
+                issuer_country: apple_pay_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
                 let interac = bank_redirect_data.interac.map(|proto_interac| {
@@ -1035,6 +1085,59 @@ impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderT
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankHolderType unspecified")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardSegmentType> for common_enums::CardSegmentType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardSegmentType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardSegmentType::Consumer => Ok(Self::Consumer),
+            payments_grpc::CardSegmentType::Commercial => Ok(Self::Commercial),
+            payments_grpc::CardSegmentType::Business => Ok(Self::Business),
+            payments_grpc::CardSegmentType::Government => Ok(Self::Government),
+            payments_grpc::CardSegmentType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardSegmentType from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::FundingSource> for common_enums::FundingSource {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::FundingSource) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::FundingSource::Credit => Ok(Self::Credit),
+            payments_grpc::FundingSource::Debit => Ok(Self::Debit),
+            payments_grpc::FundingSource::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::FundingSource::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::FundingSource::DeferredDebit => Ok(Self::DeferredDebit),
+            payments_grpc::FundingSource::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified FundingSource from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::CardType> for common_enums::CardType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::CardType) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::CardType::Credit => Ok(Self::Credit),
+            payments_grpc::CardType::Debit => Ok(Self::Debit),
+            payments_grpc::CardType::Prepaid => Ok(Self::Prepaid),
+            payments_grpc::CardType::Store => Ok(Self::Store),
+            payments_grpc::CardType::ChargeCard => Ok(Self::ChargeCard),
+            payments_grpc::CardType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified CardType from gRPC")),
         }
     }
 }
@@ -1781,6 +1884,112 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::Seb => Ok(Self::Seb),
             payments_grpc::BankNames::Swedbank => Ok(Self::Swedbank),
             payments_grpc::BankNames::MockUkPayments => Ok(Self::MockUkPayments),
+            payments_grpc::BankNames::Abanca => Ok(Self::Abanca),
+            payments_grpc::BankNames::AlmBrand => Ok(Self::AlmBrand),
+            payments_grpc::BankNames::AlphaFx => Ok(Self::AlphaFx),
+            payments_grpc::BankNames::ArbejdernesLandsbank => Ok(Self::ArbejdernesLandsbank),
+            payments_grpc::BankNames::ArbuthnotLatham => Ok(Self::ArbuthnotLatham),
+            payments_grpc::BankNames::BancoPopular => Ok(Self::BancoPopular),
+            payments_grpc::BankNames::BankPocztowy => Ok(Self::BankPocztowy),
+            payments_grpc::BankNames::Bankia => Ok(Self::Bankia),
+            payments_grpc::BankNames::BnBank => Ok(Self::BnBank),
+            payments_grpc::BankNames::CaterAllen => Ok(Self::CaterAllen),
+            payments_grpc::BankNames::ChelseaBuildingSociety => Ok(Self::ChelseaBuildingSociety),
+            payments_grpc::BankNames::Citadele => Ok(Self::Citadele),
+            payments_grpc::BankNames::CoopPank => Ok(Self::CoopPank),
+            payments_grpc::BankNames::CooperativeBank => Ok(Self::CooperativeBank),
+            payments_grpc::BankNames::Cumberland => Ok(Self::Cumberland),
+            payments_grpc::BankNames::DabBank => Ok(Self::DabBank),
+            payments_grpc::BankNames::DjurslandsBank => Ok(Self::DjurslandsBank),
+            payments_grpc::BankNames::Dnb => Ok(Self::Dnb),
+            payments_grpc::BankNames::EtneSparebank => Ok(Self::EtneSparebank),
+            payments_grpc::BankNames::FanaSparebank => Ok(Self::FanaSparebank),
+            payments_grpc::BankNames::FidorBank => Ok(Self::FidorBank),
+            payments_grpc::BankNames::FlekkefjordSparebank => Ok(Self::FlekkefjordSparebank),
+            payments_grpc::BankNames::ForexBank => Ok(Self::ForexBank),
+            payments_grpc::BankNames::HaugesundSparebank => Ok(Self::HaugesundSparebank),
+            payments_grpc::BankNames::HoareAndCo => Ok(Self::HoareAndCo),
+            payments_grpc::BankNames::IcaBanken => Ok(Self::IcaBanken),
+            payments_grpc::BankNames::JyskeBank => Ok(Self::JyskeBank),
+            payments_grpc::BankNames::KleinwortHambros => Ok(Self::KleinwortHambros),
+            payments_grpc::BankNames::KlpBanken => Ok(Self::KlpBanken),
+            payments_grpc::BankNames::Kreditbanken => Ok(Self::Kreditbanken),
+            payments_grpc::BankNames::LandkredittBank => Ok(Self::LandkredittBank),
+            payments_grpc::BankNames::Lansforsakringar => Ok(Self::Lansforsakringar),
+            payments_grpc::BankNames::LhvPank => Ok(Self::LhvPank),
+            payments_grpc::BankNames::LillesandsSparebank => Ok(Self::LillesandsSparebank),
+            payments_grpc::BankNames::Luminor => Ok(Self::Luminor),
+            payments_grpc::BankNames::LusterSparebank => Ok(Self::LusterSparebank),
+            payments_grpc::BankNames::MetroBank => Ok(Self::MetroBank),
+            payments_grpc::BankNames::NordfynsBank => Ok(Self::NordfynsBank),
+            payments_grpc::BankNames::NordjyskeBank => Ok(Self::NordjyskeBank),
+            payments_grpc::BankNames::Norisbank => Ok(Self::Norisbank),
+            payments_grpc::BankNames::NykreditBank => Ok(Self::NykreditBank),
+            payments_grpc::BankNames::ObosBanken => Ok(Self::ObosBanken),
+            payments_grpc::BankNames::OrangeFinanse => Ok(Self::OrangeFinanse),
+            payments_grpc::BankNames::ParetoBank => Ok(Self::ParetoBank),
+            payments_grpc::BankNames::PkoBankPolski => Ok(Self::PkoBankPolski),
+            payments_grpc::BankNames::RingkjobingLandbobank => Ok(Self::RingkjobingLandbobank),
+            payments_grpc::BankNames::Sbanken => Ok(Self::Sbanken),
+            payments_grpc::BankNames::SiauliuBankas => Ok(Self::SiauliuBankas),
+            payments_grpc::BankNames::SiliconValleyBank => Ok(Self::SiliconValleyBank),
+            payments_grpc::BankNames::Skandiabanken => Ok(Self::Skandiabanken),
+            payments_grpc::BankNames::SkjernBank => Ok(Self::SkjernBank),
+            payments_grpc::BankNames::SkudenesOgAakraSparebank => {
+                Ok(Self::SkudenesOgAakraSparebank)
+            }
+            payments_grpc::BankNames::SogneOgGreipstadSparebank => {
+                Ok(Self::SogneOgGreipstadSparebank)
+            }
+            payments_grpc::BankNames::SparNordBank => Ok(Self::SparNordBank),
+            payments_grpc::BankNames::SparbankenSyd => Ok(Self::SparbankenSyd),
+            payments_grpc::BankNames::SpardaBank => Ok(Self::SpardaBank),
+            payments_grpc::BankNames::SpareBank1 => Ok(Self::SpareBank1),
+            payments_grpc::BankNames::SparebankenMore => Ok(Self::SparebankenMore),
+            payments_grpc::BankNames::SparebankenOst => Ok(Self::SparebankenOst),
+            payments_grpc::BankNames::SparebankenSognOgFjordane => {
+                Ok(Self::SparebankenSognOgFjordane)
+            }
+            payments_grpc::BankNames::SparebankenSor => Ok(Self::SparebankenSor),
+            payments_grpc::BankNames::SparebankenVest => Ok(Self::SparebankenVest),
+            payments_grpc::BankNames::SparekassenDanmark => Ok(Self::SparekassenDanmark),
+            payments_grpc::BankNames::SparekassenSjaellandFyn => Ok(Self::SparekassenSjaellandFyn),
+            payments_grpc::BankNames::Spareskillingsbanken => Ok(Self::Spareskillingsbanken),
+            payments_grpc::BankNames::Sydbank => Ok(Self::Sydbank),
+            payments_grpc::BankNames::VanquisBank => Ok(Self::VanquisBank),
+            payments_grpc::BankNames::VestjyskBank => Ok(Self::VestjyskBank),
+            payments_grpc::BankNames::VossSparebank => Ok(Self::VossSparebank),
+            payments_grpc::BankNames::YorkshireBuildingSociety => {
+                Ok(Self::YorkshireBuildingSociety)
+            }
+            payments_grpc::BankNames::SpareBank1Gudbrandsdal => Ok(Self::SpareBank1Gudbrandsdal),
+            payments_grpc::BankNames::SpareBank1HallingdalValdres => {
+                Ok(Self::SpareBank1HallingdalValdres)
+            }
+            payments_grpc::BankNames::SpareBank1LomOgSkjak => Ok(Self::SpareBank1LomOgSkjak),
+            payments_grpc::BankNames::SpareBank1Modum => Ok(Self::SpareBank1Modum),
+            payments_grpc::BankNames::SpareBank1Nordmore => Ok(Self::SpareBank1Nordmore),
+            payments_grpc::BankNames::SpareBank1RingerikeHadeland => {
+                Ok(Self::SpareBank1RingerikeHadeland)
+            }
+            payments_grpc::BankNames::SpareBank1Smn => Ok(Self::SpareBank1Smn),
+            payments_grpc::BankNames::SpareBank1SrBank => Ok(Self::SpareBank1SrBank),
+            payments_grpc::BankNames::SpareBank1SoreSunnmore => Ok(Self::SpareBank1SoreSunnmore),
+            payments_grpc::BankNames::SpareBank1SorostNorgeBv => Ok(Self::SpareBank1SorostNorgeBv),
+            payments_grpc::BankNames::SpareBank1SorostNorgeTelemark => {
+                Ok(Self::SpareBank1SorostNorgeTelemark)
+            }
+            payments_grpc::BankNames::SpareBank1OstfoldAkershus => {
+                Ok(Self::SpareBank1OstfoldAkershus)
+            }
+            payments_grpc::BankNames::SpareBank1Ostlandet => Ok(Self::SpareBank1Ostlandet),
+            payments_grpc::BankNames::CitiHandlowy => Ok(Self::CitiHandlowy),
+            payments_grpc::BankNames::DeutscheBankPolska => Ok(Self::DeutscheBankPolska),
+            payments_grpc::BankNames::IngBankSlaski => Ok(Self::IngBankSlaski),
+            payments_grpc::BankNames::IngDiba => Ok(Self::IngDiba),
+            payments_grpc::BankNames::NordeaDirect => Ok(Self::NordeaDirect),
+            payments_grpc::BankNames::SantanderUk => Ok(Self::SantanderUk),
+            payments_grpc::BankNames::SwedbankSparbankerna => Ok(Self::SwedbankSparbankerna),
             payments_grpc::BankNames::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
@@ -1935,7 +2144,68 @@ impl ForeignFrom<payments_grpc::UpiSource>
     }
 }
 
+/// Detail of a gRPC status that the router's own transport produced, rather than one UCS
+/// returned as a response.
+///
+/// Holds the [`std::error::Error::source`] chain verbatim. Nothing is interpreted or classified:
+/// the chain already names the layer that failed and why, whether that is an `io::ErrorKind`, an
+/// HTTP/2 reason and initiator, a DNS failure or something a future hyper or tonic version
+/// introduces. Recording it whole is what makes the next transport failure diagnosable without
+/// having shipped code that anticipated it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UcsTransportFailure {
+    /// The `source()` chain, outermost first, root cause last, joined with " -> ". Router logs
+    /// only: an inner layer may render the UCS authority or a peer address.
+    pub source_chain: String,
+    /// The root cause alone, the last element of the chain. This is the part that names what
+    /// actually failed (`connection reset by peer (os error 104)`, `stream error received:
+    /// PROTOCOL_ERROR`, ...) and, unlike the outer layers, never carries an address or authority,
+    /// so it is what goes on the merchant-visible connector event.
+    pub root_cause: String,
+}
+
+impl UcsTransportFailure {
+    /// Builds from a [`tonic::Status`].
+    ///
+    /// Returns `None` when the status carries no error source, which is every status UCS returns
+    /// as a normal gRPC response. A `Some` means the status was produced locally by the transport.
+    /// That covers both a connection that was unusable before the request was written and a stream
+    /// that failed after UCS had already processed the request, so it does not by itself say the
+    /// request was unsent; the chain does.
+    pub fn from_status(status: &tonic::Status) -> Option<Self> {
+        let mut source: &(dyn std::error::Error + 'static) = std::error::Error::source(status)?;
+        let mut parts: Vec<String> = Vec::new();
+
+        loop {
+            parts.push(source.to_string());
+            match source.source() {
+                Some(next) => source = next,
+                None => break,
+            }
+        }
+
+        let root_cause = parts.last().cloned().unwrap_or_default();
+
+        Some(Self {
+            source_chain: parts.join(" -> "),
+            root_cause,
+        })
+    }
+}
+
 impl UnifiedConnectorServiceError {
+    /// Client-side transport failure detail, present only when the status was produced by the
+    /// router's own transport rather than returned by UCS.
+    pub fn transport_failure(&self) -> Option<&UcsTransportFailure> {
+        match self {
+            Self::TonicStatus {
+                transport: Some(transport),
+                ..
+            } => Some(transport.as_ref()),
+            _ => None,
+        }
+    }
+
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
@@ -1979,6 +2249,7 @@ impl UnifiedConnectorServiceError {
             | Self::RequestEncodingFailedWithReason(_)
             | Self::InvalidConnectorName
             | Self::MissingConnectorName
+            | Self::NotSupported { .. }
             | Self::FailedToObtainAuthType => 400,
             Self::NotImplemented(_) => 501,
             _ => 500,
@@ -1999,6 +2270,7 @@ impl UnifiedConnectorServiceError {
             .unwrap_or_else(|| Self::TonicStatus {
                 code: status.code(),
                 message: status.message().to_string(),
+                transport: UcsTransportFailure::from_status(status).map(Box::new),
             })
     }
 
@@ -2116,7 +2388,7 @@ impl UnifiedConnectorServiceError {
                 );
             })
             .ok()
-            .and_then(|ie| Self::integration_error_code_to_variant(&ie))
+            .and_then(|ie| Self::integration_error_code_to_variant(&ie, connector_name))
     }
 
     /// Maps a decoded `IntegrationError` proto to the corresponding
@@ -2129,11 +2401,15 @@ impl UnifiedConnectorServiceError {
     /// |-------------------------|---------------------------------|-------|
     /// | MissingRequiredField    | MissingRequiredField            | IR_04 |
     /// | MissingRequiredFields   | MissingRequiredFields           | IR_21 |
-    /// | InvalidDataFormat       | InvalidDataValue                | IR_06 |
+    /// | InvalidDataFormat       | InvalidDataFormat               | IR_05 |
     /// | NotImplemented          | NotImplemented                  | IR_00 |
+    /// | NotSupported            | NotSupported                    | IR_19 |
     /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
     /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
-    fn integration_error_code_to_variant(ie: &payments_grpc::IntegrationError) -> Option<Self> {
+    fn integration_error_code_to_variant(
+        ie: &payments_grpc::IntegrationError,
+        connector_name: &str,
+    ) -> Option<Self> {
         use UcsIntegrationErrorCode as Code;
 
         UcsIntegrationErrorCode::parse(&ie.error_code).map(|code| match code {
@@ -2151,7 +2427,7 @@ impl UnifiedConnectorServiceError {
             Code::MissingRequiredFields => Self::MissingRequiredFields {
                 field_names: vec![Cow::Owned(ie.error_message.clone())],
             },
-            // Invalid data / validation errors → IR_06
+            // Invalid data / validation errors → IR_05
             Code::InvalidDataFormat
             | Code::MismatchedPaymentData
             | Code::InvalidWallet
@@ -2166,12 +2442,16 @@ impl UnifiedConnectorServiceError {
             | Code::InvalidConnectorConfig
             | Code::NoConnectorMetaData
             | Code::ConfigurationError => Self::FailedToObtainAuthType,
-            // Unsupported flow / feature → IR_00
-            Code::NotImplemented
-            | Code::NotSupported
+            // Not implemented → IR_00
+            Code::NotImplemented => Self::NotImplemented(ie.error_message.clone()),
+            // Unsupported flow / method / currency → IR_19
+            Code::NotSupported
             | Code::FlowNotSupported
             | Code::CaptureMethodNotSupported
-            | Code::CurrencyNotSupported => Self::NotImplemented(ie.error_message.clone()),
+            | Code::CurrencyNotSupported => Self::NotSupported {
+                message: ie.error_message.clone(),
+                connector: connector_name.to_string(),
+            },
             // UCS internal failures → HE_00
             Code::RequestEncodingFailed
             | Code::HeaderMapConstructionFailed
@@ -2187,7 +2467,7 @@ impl UnifiedConnectorServiceError {
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
                     ApiErrorResponse::InvalidRequestData {
                         message: message.clone(),
@@ -2218,6 +2498,24 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 status_code: inner.status_code,
                 reason: inner.reason.clone(),
             },
+            Self::NotSupported { message, .. } => ApiErrorResponse::NotSupported {
+                message: message.clone(),
+            },
+            Self::NotImplemented(message) => ApiErrorResponse::NotImplemented {
+                message: NotImplementedMessage::Reason(message.clone()),
+            },
+            Self::MissingRequiredField { field_name } => ApiErrorResponse::MissingRequiredField {
+                field_name: field_name.clone(),
+            },
+            Self::MissingRequiredFields { field_names } => {
+                ApiErrorResponse::MissingRequiredFields {
+                    field_names: field_names.clone(),
+                }
+            }
+            Self::InvalidDataFormat { field_name } => ApiErrorResponse::InvalidDataFormat {
+                field_name: field_name.to_string(),
+                expected_format: "a valid value".to_string(),
+            },
             _ => ApiErrorResponse::InternalServerError,
         }
     }
@@ -2230,7 +2528,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             // recognize the error_code (or details were empty/undecodable).
             // Server errors → ResponseHandlingFailed, Unimplemented → NotImplemented,
             // anything else → RequestEncodingFailed as a safe client-error default.
-            Self::TonicStatus { code, message } => match code {
+            Self::TonicStatus { code, message, .. } => match code {
                 _ if Self::tonic_status_is_ucs_server_error(*code) => {
                     ConnectorError::ResponseHandlingFailed
                 }
@@ -2279,6 +2577,11 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
             // Not implemented
             Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            // Not supported
+            Self::NotSupported { message, connector } => ConnectorError::NotSupported {
+                message: message.clone(),
+                connector: connector.clone().into(),
+            },
             // Invalid connector name
             Self::InvalidConnectorName | Self::MissingConnectorName => {
                 ConnectorError::InvalidConnectorName
@@ -2347,7 +2650,11 @@ pub enum UcsKillSwitchReason {
     /// The connector rejected the request. May be a legitimate decline or a request UCS built
     /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
     /// to the battle-tested direct path is always safe.
-    ConnectorOutcome,
+    ConnectorRejected,
+    /// UCS answered gRPC OK with a connector 2xx, and the connector still refused the payment.
+    /// A business outcome rather than a failure: the issuer would say the same on the direct
+    /// path, so this is counted against its own threshold.
+    ConnectorDeclined,
 }
 
 impl UnifiedConnectorServiceError {
@@ -2380,6 +2687,9 @@ impl UnifiedConnectorServiceError {
 
             // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
+
+            // UCS rejected a request it does not support.
+            Self::NotSupported { .. } => Some(UcsKillSwitchReason::UcsRejectedRequest),
 
             // UCS-side by construction: `from_grpc_error` extracts connector errors first.
             Self::TonicStatus { code, .. } => match code {
@@ -2423,7 +2733,7 @@ impl UnifiedConnectorServiceError {
             // wrongly — indistinguishable here. We trip conservatively: a false bypass to the
             // direct path is safe (it served merchants for years), while a missed trip leaves
             // merchants on a potentially broken UCS path.
-            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorOutcome),
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorRejected),
 
             // Per-flow failure markers carrying no further detail.
             Self::WebhookProcessingFailure
@@ -2469,6 +2779,7 @@ mod ucs_kill_switch_reason_tests {
         UnifiedConnectorServiceError::TonicStatus {
             code,
             message: "from ucs".to_string(),
+            transport: None,
         }
     }
 

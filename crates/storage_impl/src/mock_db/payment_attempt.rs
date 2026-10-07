@@ -3,14 +3,14 @@ use common_utils::errors::CustomResult;
 use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
 
 use super::MockDb;
+#[cfg(feature = "v1")]
+use crate::behaviour::Conversion;
 use crate::errors::StorageError;
 
 #[async_trait::async_trait]
@@ -256,8 +256,10 @@ impl PaymentAttemptInterface for MockDb {
             installment_data: payment_attempt.installment_data,
             external_surcharge_details: payment_attempt.external_surcharge_details,
             applied_offer_details: payment_attempt.applied_offer_details,
+            applied_overrides: payment_attempt.applied_overrides,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
             payment_account_reference: payment_attempt.payment_account_reference,
+            active_frm_id: payment_attempt.active_frm_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
