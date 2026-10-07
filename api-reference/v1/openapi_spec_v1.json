@@ -13890,6 +13890,9 @@
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/TedBankTransfer"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -13919,6 +13922,9 @@
           },
           {
             "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TedBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -15035,7 +15041,97 @@
           "sns",
           "seb",
           "swedbank",
-          "mock_uk_payments"
+          "mock_uk_payments",
+          "abanca",
+          "alm_brand",
+          "alpha_fx",
+          "arbejdernes_landsbank",
+          "arbuthnot_latham",
+          "banco_popular",
+          "bank_pocztowy",
+          "bankia",
+          "bn_bank",
+          "cater_allen",
+          "chelsea_building_society",
+          "citadele",
+          "coop_pank",
+          "cooperative_bank",
+          "cumberland",
+          "dab_bank",
+          "djurslands_bank",
+          "dnb",
+          "etne_sparebank",
+          "fana_sparebank",
+          "fidor_bank",
+          "flekkefjord_sparebank",
+          "forex_bank",
+          "haugesund_sparebank",
+          "hoare_and_co",
+          "ica_banken",
+          "jyske_bank",
+          "kleinwort_hambros",
+          "klp_banken",
+          "kreditbanken",
+          "landkreditt_bank",
+          "lansforsakringar",
+          "lhv_pank",
+          "lillesands_sparebank",
+          "luminor",
+          "luster_sparebank",
+          "metro_bank",
+          "nordfyns_bank",
+          "nordjyske_bank",
+          "norisbank",
+          "nykredit_bank",
+          "obos_banken",
+          "orange_finanse",
+          "pareto_bank",
+          "pko_bank_polski",
+          "ringkjobing_landbobank",
+          "sbanken",
+          "siauliu_bankas",
+          "silicon_valley_bank",
+          "skandiabanken",
+          "skjern_bank",
+          "skudenes_og_aakra_sparebank",
+          "sogne_og_greipstad_sparebank",
+          "spar_nord_bank",
+          "sparbanken_syd",
+          "sparda_bank",
+          "spare_bank1",
+          "sparebanken_more",
+          "sparebanken_ost",
+          "sparebanken_sogn_og_fjordane",
+          "sparebanken_sor",
+          "sparebanken_vest",
+          "sparekassen_danmark",
+          "sparekassen_sjaelland_fyn",
+          "spareskillingsbanken",
+          "sydbank",
+          "vanquis_bank",
+          "vestjysk_bank",
+          "voss_sparebank",
+          "yorkshire_building_society",
+          "spare_bank1_gudbrandsdal",
+          "spare_bank1_hallingdal_valdres",
+          "spare_bank1_lom_og_skjak",
+          "spare_bank1_modum",
+          "spare_bank1_nordmore",
+          "spare_bank1_ringerike_hadeland",
+          "spare_bank1_smn",
+          "spare_bank1_sr_bank",
+          "spare_bank1_sore_sunnmore",
+          "spare_bank1_sorost_norge_bv",
+          "spare_bank1_sorost_norge_telemark",
+          "spare_bank1_ostfold_akershus",
+          "spare_bank1_ostlandet",
+          "citi_handlowy",
+          "deutsche_bank_polska",
+          "ing_bank_slaski",
+          "ing_diba",
+          "nordea_direct",
+          "santander_uk",
+          "swedbank_sparbankerna"
         ]
       },
       "BankRedirect": {
@@ -15835,6 +15931,27 @@
                     "type": "string",
                     "enum": [
                       "payshap_proxy"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TedBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ted"
                     ]
                   }
                 }
@@ -18477,7 +18594,12 @@
           "Nyce",
           "Prop",
           "PrivateLabel",
-          "Dinacard"
+          "Dinacard",
+          "AirPlus",
+          "Aurore",
+          "EftposAustralia",
+          "GeCapital",
+          "Uatp"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -19649,6 +19771,7 @@
           "envoy",
           "elavon",
           "etisalat",
+          "elavon_pg",
           "facilitapay",
           "finix",
           "fiserv",
@@ -32292,6 +32415,17 @@
             "description": "Currency code for the payment",
             "example": "USD"
           },
+          "preferredConnectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ordered preferred connector account identities in `connector:mca_id` format.",
+            "example": [
+              "adyen:mca_5678"
+            ],
+            "nullable": true
+          },
           "paymentType": {
             "type": "string",
             "description": "Type of payment transaction being processed",
@@ -34610,7 +34744,8 @@
           "open_banking",
           "network_token",
           "payshap",
-          "payshap_proxy"
+          "payshap_proxy",
+          "ted"
         ]
       },
       "PaymentMethodUpdate": {
@@ -36362,6 +36497,14 @@
             "nullable": true
           },
           "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method_applied": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CaptureMethod"
@@ -38231,6 +38374,14 @@
             "nullable": true
           },
           "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_method_applied": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/CaptureMethod"
@@ -43049,6 +43200,12 @@
             "description": "Indicates if manual retry for payment is enabled or not",
             "nullable": true
           },
+          "auto_fallback_capture_method": {
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
+            "nullable": true
+          },
           "always_enable_overcapture": {
             "type": "boolean",
             "description": "Bool indicating if overcapture  must be requested for all payments",
@@ -43446,6 +43603,12 @@
           "is_manual_retry_enabled": {
             "type": "boolean",
             "description": "Indicates if manual retry for payment is enabled or not",
+            "nullable": true
+          },
+          "auto_fallback_capture_method": {
+            "type": "boolean",
+            "description": "When `true`, a payment whose requested `capture_method` is not supported by the\nconnector chosen for it is processed with `automatic` capture instead of being rejected,\nand the payment method list does not hide payment methods based on `capture_method`.",
+            "example": true,
             "nullable": true
           },
           "always_enable_overcapture": {
@@ -45708,6 +45871,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "elavon_pg",
           "envoy",
           "etisalat",
           "facilitapay",
@@ -48227,6 +48391,12 @@
             "type": "number",
             "format": "double",
             "description": "sum of display_surcharge_amount and display_tax_on_surcharge_amount"
+          },
+          "surcharge_percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Surcharge percentage returned by the external surcharge connector, if provided.",
+            "nullable": true
           }
         }
       },
@@ -48302,6 +48472,117 @@
           "taxable",
           "exempt"
         ]
+      },
+      "TedBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code (COMPE code) used to identify the bank",
+            "example": "033",
+            "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution",
+            "example": "90400888",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "The branch code",
+            "example": "0001",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number",
+            "example": "000123456"
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "Individual taxpayer identification number (CPF for individuals, CNPJ for companies)",
+            "example": "123.456.789-09",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "João Silva",
+            "nullable": true
+          }
+        }
+      },
+      "TedBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for TED bank transfer payout method",
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Partially masked bank account number",
+            "example": "0001****3456",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code (COMPE code)",
+            "example": "033",
+            "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution",
+            "example": "90400888",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "The branch code",
+            "example": "0001",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "João Silva",
+            "nullable": true
+          }
+        }
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",

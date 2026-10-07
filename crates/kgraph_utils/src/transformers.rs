@@ -237,6 +237,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::PayshapProxy => {
                 Ok(dirval!(BankTransferType = PayshapProxy))
             }
+            api_enums::PaymentMethodType::Ted => Ok(dirval!(BankTransferType = Ted)),
             api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
             api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
@@ -384,6 +385,11 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Prop => Ok(dirval!(CardNetwork = Prop)),
             Self::PrivateLabel => Ok(dirval!(CardNetwork = PrivateLabel)),
             Self::Dinacard => Ok(dirval!(CardNetwork = Dinacard)),
+            Self::AirPlus => Ok(dirval!(CardNetwork = AirPlus)),
+            Self::Aurore => Ok(dirval!(CardNetwork = Aurore)),
+            Self::EftposAustralia => Ok(dirval!(CardNetwork = EftposAustralia)),
+            Self::GeCapital => Ok(dirval!(CardNetwork = GeCapital)),
+            Self::Uatp => Ok(dirval!(CardNetwork = Uatp)),
         }
     }
 }

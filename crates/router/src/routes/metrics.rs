@@ -9,6 +9,7 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
+counter_metric!(PREFERRED_CONNECTORS_UPDATE_FAILURES, GLOBAL_METER);
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
@@ -136,6 +137,9 @@ counter_metric!(PAYMENT_CANCEL_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 
 counter_metric!(PAYMENT_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
+// Number of attempts sent to the connector with automatic capture
+// because the requested capture method was unsupported.
+counter_metric!(AUTO_FALLBACK_CAPTURE_METHOD_APPLIED, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_EXTEND_AUTHORIZATION_COUNT, GLOBAL_METER);
 
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);
@@ -295,3 +299,25 @@ counter_metric!(VAULT_CALL_FAILURES, GLOBAL_METER);
 
 // Encryption/keymanager latency for payment_methods operations
 histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);
+
+// Revenue recovery A/B routing
+//
+// Both count invoices the A/B arm could not price, which it treats as an error. They matter for
+// experiment validity rather than availability: an arm that drops invoices for reasons correlated
+// with the arm itself biases the comparison, and the logs alone make that invisible in aggregate.
+counter_metric!(
+    REVENUE_RECOVERY_AB_MISSING_ERROR_CODE,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.missing_error_code",
+    description: "Invoices whose assigned algorithm needed the previous attempt's error code to \
+                  pick a retry time, but the CALCULATE task carried none",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM,
+    GLOBAL_METER,
+    name: "revenue_recovery.ab.unassigned_algorithm",
+    description: "Invoices that reached the A/B arm with no retry implementation recorded on the \
+                  intent, so no algorithm could be replayed",
+    unit: "1",
+);
