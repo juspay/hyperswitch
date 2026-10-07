@@ -13454,6 +13454,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             HeaderPayload::default(),
             req.device_channel,
             req.sdk_information,
+            req.threeds_method_comp_ind,
         ))
         .await?
     } else if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)

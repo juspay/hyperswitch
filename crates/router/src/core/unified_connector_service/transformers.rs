@@ -1568,6 +1568,7 @@ impl
             sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
             three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
                 router_data.request.force_3ds_challenge,
+                router_data.psd2_sca_exemption_type,
             ),
             three_ds_requestor_authentication_indicator: None,
             message_category: None,
@@ -1612,19 +1613,44 @@ fn ucs_sdk_information(
         sdk_max_timeout: u32::from(sdk.sdk_max_timeout),
         sdk_reference_number: sdk.sdk_reference_number,
         sdk_trans_id: sdk.sdk_trans_id,
-        sdk_type: None,
+        sdk_type: sdk.sdk_type.map(|sdk_type| {
+            i32::from(match sdk_type {
+                api_models::payments::SdkType::DefaultSdk => payments_grpc::ThreeDsSdkType::Default,
+                api_models::payments::SdkType::SplitSdk => payments_grpc::ThreeDsSdkType::Split,
+                api_models::payments::SdkType::LimitedSdk => payments_grpc::ThreeDsSdkType::Limited,
+                api_models::payments::SdkType::BrowserSdk => payments_grpc::ThreeDsSdkType::Browser,
+                api_models::payments::SdkType::ShellSdk => payments_grpc::ThreeDsSdkType::Shell,
+            })
+        }),
         sdk_server_signed_content: None,
-        device_details: None,
+        device_details: sdk
+            .device_details
+            .map(|details| payments_grpc::ThreeDsSdkDeviceDetails {
+                device_type: details.device_type,
+                device_brand: details.device_brand,
+                device_os: details.device_os,
+                device_display: details.device_display,
+            }),
     })
 }
 
-/// EMVCo `threeDSRequestorChallengeInd`. `force_3ds_challenge` is a merchant-level
-/// preference, so it maps to "challenge mandated" (04) when set and is otherwise absent,
-/// leaving the decision to the DS/ACS.
-fn ucs_challenge_indicator(force_3ds_challenge: Option<bool>) -> Option<i32> {
-    force_3ds_challenge
-        .filter(|force| *force)
-        .map(|_| i32::from(payments_grpc::ThreeDsRequestorChallengeIndicator::ChallengeMandated))
+/// EMVCo `threeDSRequestorChallengeInd`, in the same precedence as the direct Netcetera
+/// connector: `force_3ds_challenge` maps to "challenge mandated" (04), otherwise a TRA
+/// exemption maps to "no challenge, TRA performed" (05); absent leaves the decision to the DS/ACS.
+fn ucs_challenge_indicator(
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+) -> Option<i32> {
+    if force_3ds_challenge.unwrap_or(false) {
+        Some(payments_grpc::ThreeDsRequestorChallengeIndicator::ChallengeMandated)
+    } else if psd2_sca_exemption_type
+        == Some(common_enums::ScaExemptionType::TransactionRiskAnalysis)
+    {
+        Some(payments_grpc::ThreeDsRequestorChallengeIndicator::NoChallengeTra)
+    } else {
+        None
+    }
+    .map(i32::from)
 }
 
 /// Builds the typed 3DS `merchant_details` (UCS proto field 17) from the connector's own
@@ -1777,6 +1803,7 @@ impl
             sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
             three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
                 router_data.request.force_3ds_challenge,
+                router_data.psd2_sca_exemption_type,
             ),
             three_ds_requestor_authentication_indicator: None,
             message_category: None,
@@ -6503,10 +6530,10 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             network_params: _,
             created_at: _,
             authentication_type: _,
-            acs_signed_content: _,
-            acs_reference_number: _,
-            directory_server_id: _,
-            scheme_id: _,
+            acs_signed_content,
+            acs_reference_number,
+            directory_server_id,
+            scheme_id,
         } = response;
         let message_extension = message_extension
             .map(|value| {
@@ -6543,6 +6570,10 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             challenge_cancel,
             challenge_code_reason,
             message_extension,
+            acs_signed_content: acs_signed_content.map(|content| content.expose()),
+            acs_reference_number,
+            directory_server_id,
+            scheme_id,
         })
     }
 }

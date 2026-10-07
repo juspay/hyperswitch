@@ -565,9 +565,16 @@ async fn call_ucs_pre_authenticate_proxy(
                 .attach_printable(
                     "UCS pre-authenticate response missing threeds_server_transaction_id",
                 )?;
-            let directory_server_id = ucs_authentication_data
+            // UCS returns the card-range directory server id in its own field; older UCS builds
+            // only wrote it into `ds_trans_id`.
+            let directory_server_id = ucs_authentication_data.as_ref().and_then(|data| {
+                data.directory_server_id
+                    .clone()
+                    .or_else(|| data.ds_trans_id.clone())
+            });
+            let scheme_id = ucs_authentication_data
                 .as_ref()
-                .and_then(|data| data.ds_trans_id.clone());
+                .and_then(|data| data.scheme_id.clone());
 
             Ok(Ok(
                 core_types::authentication::AuthenticationResponseData::PreAuthNResponse {
@@ -579,7 +586,7 @@ async fn call_ucs_pre_authenticate_proxy(
                     message_version,
                     connector_metadata: None,
                     directory_server_id,
-                    scheme_id: None,
+                    scheme_id,
                 },
             ))
         }
@@ -1225,6 +1232,7 @@ async fn call_ucs_authenticate_proxy(
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     device_channel: payments::DeviceChannel,
     sdk_information: Option<payments::SdkInformation>,
+    threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
 ) -> CustomResult<AuthenticateProxyContext, ApiErrorResponse> {
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
@@ -1321,6 +1329,10 @@ async fn call_ucs_authenticate_proxy(
             challenge_cancel: authentication.challenge_cancel.clone(),
             challenge_code_reason: authentication.challenge_code_reason.clone(),
             message_extension: authentication.message_extension.clone(),
+            acs_signed_content: authentication.acs_signed_content.clone(),
+            acs_reference_number: authentication.acs_reference_number.clone(),
+            directory_server_id: authentication.directory_server_id.clone(),
+            scheme_id: None,
         };
 
     let browser_info: Option<core_types::BrowserInformation> = authentication
@@ -1487,6 +1499,7 @@ async fn call_ucs_authenticate_proxy(
             ),
             notification_url,
             acquirer_metadata,
+            threeds_method_comp_ind,
         ),
     )
     .await
@@ -1563,10 +1576,18 @@ fn parse_ucs_authenticate_response(
         ),
         _ => (None, None),
     };
-    let acs_signed_content = app_acs.as_ref().and_then(|m| m.acs_signed_content.clone());
-    let acs_reference_number = app_acs
+    let acs_signed_content = areq_authentication_data
         .as_ref()
-        .and_then(|m| m.acs_reference_number.clone());
+        .and_then(|data| data.acs_signed_content.clone())
+        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
+    let acs_reference_number = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.acs_reference_number.clone())
+        .or_else(|| {
+            app_acs
+                .as_ref()
+                .and_then(|m| m.acs_reference_number.clone())
+        });
 
     let trans_status = areq_authentication_data
         .as_ref()
@@ -1674,6 +1695,7 @@ pub async fn perform_authentication_proxy(
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     device_channel: payments::DeviceChannel,
     sdk_information: Option<payments::SdkInformation>,
+    threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
@@ -1700,6 +1722,7 @@ pub async fn perform_authentication_proxy(
         &header_payload,
         device_channel.clone(),
         sdk_information.clone(),
+        threeds_method_comp_ind,
     ))
     .await?;
 

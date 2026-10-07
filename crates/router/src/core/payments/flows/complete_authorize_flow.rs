@@ -33,7 +33,10 @@ use crate::{
     logger,
     routes::SessionState,
     services,
-    types::{self, api, domain, transformers::ForeignTryFrom},
+    types::{
+        self, api, domain,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
 };
 
 #[async_trait]
@@ -901,6 +904,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
     force_3ds_challenge: Option<bool>,
     notification_url: Option<common_utils::types::Url>,
     acquirer_metadata: Option<serde_json::Value>,
+    threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
 ) -> errors::CustomResult<
     types::RouterData<
         api::Authenticate,
@@ -931,6 +935,10 @@ pub async fn call_unified_connector_service_authenticate_proxy(
             mca_id.get_string_repr(),
         )
     });
+
+    payment_authenticate_request.threeds_completion_indicator = Some(
+        payments_grpc::ThreeDsCompletionIndicator::foreign_from(threeds_method_comp_ind).into(),
+    );
 
     // UCS reads acquirer data for the typed 3DS request only from `acquirer_details` (proto
     // field 18); the `connector_feature_data` passthrough below is a separate, legacy channel
