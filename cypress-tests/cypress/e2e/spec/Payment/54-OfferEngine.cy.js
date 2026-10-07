@@ -12,6 +12,24 @@ describe("Offer Engine", () => {
       .then((state) => {
         globalState = new State(state);
 
+        return cy.setMerchantOfferEngineConfig(globalState);
+      })
+      .then(() => {
+        // Scoped per merchant (processor_merchant_id), since the untargeted
+        // default is "none"/false for all three keys. Only this spec's
+        // merchant needs offers enabled, so this lives here rather than in
+        // 01-AccountCreate.cy.js's common setup.
+        cy.createSuperpositionOverrides(
+          globalState,
+          {
+            "offer_engine.enabled": true,
+            "offer_engine.credential_source": "merchant",
+            "payments.should_perform_eligibility": true,
+          },
+          { processor_merchant_id: globalState.get("merchantId") }
+        );
+      })
+      .then(() => {
         return cy.offerEngineConnectivityCheck(globalState);
       })
       .then((reachable) => {
@@ -19,8 +37,7 @@ describe("Offer Engine", () => {
         // offer_engine.credential_source is "merchant", since that check has
         // no merchant context to resolve credentials against. Fall back to a
         // merchant-scoped signal: does this run's merchant have its own
-        // offer_engine_config set (e.g. via setMerchantOfferEngineConfig in
-        // 01-AccountCreate.cy.js)?
+        // offer_engine_config set (via setMerchantOfferEngineConfig above).
         if (reachable) {
           return cy.wrap(true);
         }
