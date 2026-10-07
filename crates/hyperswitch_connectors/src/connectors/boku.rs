@@ -715,9 +715,14 @@ fn get_xml_deserialized(
 }
 
 static BOKU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    // The Capture flow is not implemented (`get_url` returns `NotImplemented`), so manual
-    // capture cannot be completed. `SequentialAutomatic` stays: a charge never reports
-    // `Authorized`, so no follow-up capture call is ever made for it.
+   // `Manual` is deliberately absent. The `Capture` flow is not implemented
+    // (`get_url` returns `NotImplemented`), and the authorize response only maps
+    // to `Charged`, `Failure` or `Pending`, never `Authorized`. A manual-capture
+    // request would therefore be charged in full on authorize, with nothing to
+    // capture later and nothing to void. Leaving `Manual` out of the declaration
+    // lets `validate_connector_against_payment_request` reject such requests up
+    // front. `SequentialAutomatic` stays: because a charge never reports
+    // `Authorized`, no follow-up capture is ever attempted for it.
     let supported_capture_methods = vec![
         enums::CaptureMethod::Automatic,
         enums::CaptureMethod::SequentialAutomatic,
