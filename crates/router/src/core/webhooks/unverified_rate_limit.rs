@@ -23,21 +23,12 @@ use crate::{
 
 const REDIS_KEY_PREFIX: &str = "webhook_rate_limit";
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
 enum RateLimitLevel {
     Merchant,
     Profile,
     MerchantConnectorAccount,
-}
-
-impl RateLimitLevel {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Merchant => "merchant",
-            Self::Profile => "profile",
-            Self::MerchantConnectorAccount => "merchant_connector_account",
-        }
-    }
 }
 
 struct RateLimitBucket {
@@ -195,16 +186,17 @@ async fn count_against_limits(
         match increment_and_check(state, &buckets, window_in_secs).await {
             Ok(None) => Ok(()),
             Ok(Some(level)) => {
+                let level: &'static str = level.into();
                 metrics::WEBHOOK_UNVERIFIED_RATE_LIMITED_COUNT.add(
                     1,
                     router_env::metric_attributes!(
                         (MERCHANT_ID, merchant_id.clone()),
                         ("connector", connector_name),
-                        ("level", level.as_str())
+                        ("level", level)
                     ),
                 );
                 logger::info!(
-                    rate_limit_level = level.as_str(),
+                    rate_limit_level = level,
                     profile_id = %merchant_connector_account.profile_id.get_string_repr(),
                     merchant_connector_id = %merchant_connector_id.get_string_repr(),
                     "Unverified webhook rate limit reached"
