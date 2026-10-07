@@ -175,34 +175,104 @@ if (!(maxVusMultiplier >= preAllocatedVusMultiplier && preAllocatedVusMultiplier
 }
 
 // Flat mode: fixed load.total_rps for load.duration_seconds.
-// Ramp mode: load.phases schedules increasing RPS levels, each held long
-// enough to reach steady state (same semantics as loadtest/runner's
-// loadPhases), and the summary reports per-phase percentiles — the workflow
-// for finding the maximum sustainable RPS.
-let phaseSchedule = null;
+// Ramp mode: load.phases describes ONE continuous ramping-arrival-rate curve
+// (hold at starting_rps, smoothly ramp to target_rps, hold at target_rps) -
+// a single persistent k6 scenario per traffic entry for the whole test.
+//
+// 2026-09-24: restructured from the previous discrete-step design (a brand
+// new constant-arrival-rate scenario, with its own fresh VU pool and
+// connections, spun up at every phase boundary). That design was root-
+// caused as the trigger for a k6-client-side connection-establishment
+// failure burst: two full 1000 TPS runs both aborted within ~40s of the
+// transition into the final (highest-rate) phase specifically, while
+// server-side p95 latency (Envoy/router/PMM) stayed completely flat
+// through the whole test both times - ruling out any real hyperswitch-side
+// cause and pointing at the burst of brand-new VUs/connections created at
+// each phase boundary (up to ~3000 at once, across 3 scenarios) as the
+// actual trigger. ramping-arrival-rate keeps ONE VU pool/connection set
+// alive for the scenario's entire lifetime and interpolates smoothly
+// between stages instead of jumping in discrete steps, eliminating that
+// churn at the design level (not just raising a failure-count threshold).
+//
+// load.stages generalizes the same single-executor design to any number of
+// stages (e.g. calibration -> ramp -> hold -> ramp -> hold, which load.phases'
+// one-ramp shape cannot express): an ordered list of
+// { name, target_rps, duration_seconds }, still ONE ramping-arrival-rate
+// scenario per traffic entry. Each stage's target_rps is the rate reached at
+// the END of that stage, interpolated linearly from the previous stage's
+// target (k6 semantics); a stage whose target equals the previous one is a
+// flat hold. load.start_rps (default: first stage's target_rps) is the rate
+// at t=0, so a first stage with the same target is a flat hold from the start.
+// load.phases is converted to the equivalent stage list below, so the
+// executor/summary code has a single path.
+let rampPlan = null;
 let flatTotalRps = null;
 let flatDurationSeconds = null;
-if (load.phases && typeof load.phases === "object") {
+if (load.stages !== undefined) {
+  if (load.phases !== undefined || load.total_rps !== undefined || load.duration_seconds !== undefined) {
+    fail("load.stages cannot be combined with load.phases, load.total_rps or load.duration_seconds");
+  }
+  if (!Array.isArray(load.stages) || !load.stages.length) fail("load.stages must be a non-empty array");
+  const stages = load.stages.map((stage, index) => {
+    if (!stage || typeof stage !== "object") fail(`load.stages[${index}] must be an object`);
+    const targetRps = numberOr(stage.target_rps, NaN);
+    if (!(targetRps > 0)) fail(`load.stages[${index}].target_rps must be a number > 0`);
+    const durationSeconds = numberOr(stage.duration_seconds, NaN);
+    if (!(durationSeconds >= 1)) fail(`load.stages[${index}].duration_seconds must be >= 1`);
+    return { name: String(stage.name || `stage_${index + 1}`), targetRps, durationSeconds };
+  });
+  const startRps = numberOr(load.start_rps, stages[0].targetRps);
+  if (!(startRps > 0)) fail("load.start_rps must be a number > 0");
+  rampPlan = {
+    startRps,
+    stages,
+    strict: true,
+    totalSeconds: stages.reduce((sum, stage) => sum + stage.durationSeconds, 0),
+    peakRps: Math.max(startRps, ...stages.map((stage) => stage.targetRps)),
+  };
+} else if (load.phases && typeof load.phases === "object") {
   if (load.total_rps !== undefined || load.duration_seconds !== undefined) {
     fail("load.total_rps and load.duration_seconds cannot be combined with load.phases");
   }
   const startRps = numberOr(load.phases.starting_rps, NaN);
   if (!(startRps > 0)) fail("load.phases.starting_rps must be a number > 0");
   const targetRps = numberOr(load.phases.target_rps, startRps);
-  const stepRps = numberOr(load.phases.step_rps, 0);
-  const holdSeconds = numberOr(load.phases.hold_seconds, NaN);
-  if (!(holdSeconds >= 1)) fail("load.phases.hold_seconds must be >= 1");
+  if (startRps > targetRps) fail("load.phases.starting_rps cannot exceed load.phases.target_rps");
+  // initial_hold_seconds/final_hold_seconds keep their existing names/
+  // semantics from the previous design. hold_seconds (no initial_/final_
+  // prefix) is accepted as a fallback for initial_hold_seconds only, for
+  // continuity with older configs; it no longer sizes anything else since
+  // there are no more discrete ramp steps to hold.
+  const initialHoldSeconds = numberOr(load.phases.initial_hold_seconds, numberOr(load.phases.hold_seconds, NaN));
+  if (!(initialHoldSeconds >= 1)) fail("load.phases.initial_hold_seconds (or hold_seconds) must be >= 1");
+  const finalHoldSeconds = numberOr(load.phases.final_hold_seconds, initialHoldSeconds);
+  if (!(finalHoldSeconds >= 1)) fail("load.phases.final_hold_seconds must be >= 1");
+  // New knob replacing step_rps: the ramp is one smooth interpolation from
+  // starting_rps to target_rps over this many seconds, not a staircase of
+  // step_rps-sized jumps each held for hold_seconds.
+  const rampDurationSeconds = numberOr(load.phases.ramp_duration_seconds, startRps < targetRps ? NaN : 0);
+  if (startRps < targetRps && !(rampDurationSeconds >= 1)) {
+    fail("load.phases.ramp_duration_seconds must be >= 1 when target_rps exceeds starting_rps");
+  }
   const idleSeconds = numberOr(load.phases.idle_seconds, 0);
   if (idleSeconds < 0) fail("load.phases.idle_seconds must be >= 0");
-  if (startRps > targetRps) fail("load.phases.starting_rps cannot exceed load.phases.target_rps");
-  if (startRps < targetRps && stepRps <= 0) {
-    fail("load.phases.step_rps must be > 0 when target_rps exceeds starting_rps");
-  }
-  phaseSchedule = [];
-  for (let rps = startRps; ; rps = Math.min(targetRps, rps + stepRps)) {
-    phaseSchedule.push({ rps, holdSeconds, idleSeconds });
-    if (rps >= targetRps) break;
-  }
+  const legacyStages = [{ name: "initial_hold", targetRps: startRps, durationSeconds: initialHoldSeconds }];
+  if (targetRps > startRps) legacyStages.push({ name: "ramp", targetRps, durationSeconds: rampDurationSeconds });
+  legacyStages.push({ name: "final_hold", targetRps, durationSeconds: finalHoldSeconds });
+  rampPlan = {
+    startRps,
+    targetRps,
+    initialHoldSeconds,
+    rampDurationSeconds,
+    finalHoldSeconds,
+    idleSeconds,
+    stages: legacyStages,
+    strict: false,
+    // Same window formula the summary always used for load.phases, kept as-is
+    // so legacy configs print identical numbers.
+    totalSeconds: initialHoldSeconds + rampDurationSeconds + finalHoldSeconds,
+    peakRps: targetRps,
+  };
 } else {
   flatTotalRps = numberOr(load.total_rps, NaN);
   if (!(flatTotalRps > 0)) {
@@ -212,8 +282,10 @@ if (load.phases && typeof load.phases === "object") {
   if (!(flatDurationSeconds >= 1)) fail("load.duration_seconds must be >= 1");
 }
 
-const loadDescription = phaseSchedule
-  ? `phases: ${phaseSchedule.map((phase) => phase.rps).join(" -> ")} total rps x ${phaseSchedule[0].holdSeconds}s hold + ${phaseSchedule[0].idleSeconds}s idle (${phaseSchedule.length} phases)`
+const loadDescription = rampPlan
+  ? (rampPlan.strict
+    ? `stages: start ${rampPlan.startRps} rps -> ${rampPlan.stages.map((stage) => `${stage.name} ${stage.targetRps} rps/${stage.durationSeconds}s`).join(" -> ")} (total ${rampPlan.totalSeconds}s)`
+    : `ramp: hold ${rampPlan.startRps} rps x ${rampPlan.initialHoldSeconds}s -> ramp to ${rampPlan.targetRps} rps over ${rampPlan.rampDurationSeconds}s -> hold ${rampPlan.targetRps} rps x ${rampPlan.finalHoldSeconds}s (total ${rampPlan.totalSeconds}s)`)
   : `total_rps=${flatTotalRps} | duration=${flatDurationSeconds}s`;
 
 const entries = Array.isArray(config.scenarios) ? config.scenarios : [];
@@ -362,7 +434,9 @@ function arrivalRate(ratePerSecond) {
   fail(`cannot express rate ${ratePerSecond}/s as an integer arrival rate`);
 }
 
-function executor(name, plan, ratePerSecond, durationSeconds, startTimeSeconds, phaseIndex) {
+// Flat-mode only now (ramp mode uses rampingExecutor below) - a single
+// constant-arrival-rate scenario for the whole flat-RPS test.
+function executor(name, plan, ratePerSecond, durationSeconds) {
   const arrival = arrivalRate(ratePerSecond);
   const preAllocatedVUs = Math.max(1, Math.ceil(ratePerSecond * preAllocatedVusMultiplier));
   scenarios[name] = {
@@ -376,27 +450,74 @@ function executor(name, plan, ratePerSecond, durationSeconds, startTimeSeconds, 
     // An iteration runs several sequential requests; allow ramp-down to cover
     // roughly a worst-case full flow.
     gracefulStop: `${Math.ceil((requestTimeoutMs * 8) / 1000)}s`,
-    env: phaseIndex === null
-      ? { SCENARIO_NAME: plan.name }
-      : { SCENARIO_NAME: plan.name, PHASE_INDEX: String(phaseIndex) },
-    tags: phaseIndex === null
-      ? { traffic_scenario: plan.name }
-      : { traffic_scenario: plan.name, phase: `phase_${phaseIndex + 1}_${phaseSchedule[phaseIndex].rps}_rps` },
+    env: { SCENARIO_NAME: plan.name },
+    tags: { traffic_scenario: plan.name },
   };
-  if (startTimeSeconds > 0) scenarios[name].startTime = `${startTimeSeconds}s`;
 }
 
-if (phaseSchedule) {
-  let startTimeSeconds = 0;
-  phaseSchedule.forEach((phase, phaseIndex) => {
+// Ramp mode: ONE ramping-arrival-rate scenario per traffic entry, alive for
+// the whole test - hold at startRps, smoothly ramp to targetRps, hold at
+// targetRps. preAllocatedVUs/maxVUs are sized off the PEAK rate (targetRps)
+// since the same pool must cover the scenario's busiest moment; raising
+// load.pre_allocated_vus_multiplier gives this pool more headroom allocated
+// up front (at scenario start, not reactively mid-ramp) - the second half
+// of this session's fix, alongside the single-scenario restructure itself.
+//
+// Stage rates are integers per scenario. load.phases keeps its historical
+// Math.max(1, round(...)) clamp; load.stages (rp.strict) instead refuses to
+// run when a stage's per-scenario rates round to 0 or no longer add up to the
+// stage's total, rather than silently inflating a low-rate stage.
+function stageRate(plan, rp, rps) {
+  const rate = Math.round(rateFor(plan, rps));
+  return rp.strict ? rate : Math.max(1, rate);
+}
+
+function validateStageRates(rp) {
+  for (const rps of [rp.startRps, ...rp.stages.map((stage) => stage.targetRps)]) {
+    let sum = 0;
     for (const plan of enabledPlans) {
-      executor(`${plan.name}_p${phaseIndex + 1}`, plan, rateFor(plan, phase.rps), phase.holdSeconds, startTimeSeconds, phaseIndex);
+      const rate = stageRate(plan, rp, rps);
+      if (rate < 1) {
+        fail(`${rps} rps gives scenario "${plan.name}" (weight ${plan.weight}%) an arrival rate of ${rate}/s; raise that stage's rate or weight`);
+      }
+      sum += rate;
     }
-    startTimeSeconds += phase.holdSeconds + phase.idleSeconds;
-  });
+    if (sum !== rps) {
+      fail(`${rps} rps splits across the enabled scenarios into integer rates summing to ${sum}, not ${rps}; use a rate that divides evenly by the weights`);
+    }
+  }
+}
+
+function rampingExecutor(name, plan, rp) {
+  const startRate = stageRate(plan, rp, rp.startRps);
+  const peakRate = stageRate(plan, rp, rp.peakRps);
+  const preAllocatedVUs = Math.max(1, Math.ceil(peakRate * preAllocatedVusMultiplier));
+  const stages = rp.stages.map((stage) => ({
+    target: stageRate(plan, rp, stage.targetRps),
+    duration: `${stage.durationSeconds}s`,
+  }));
+  scenarios[name] = {
+    executor: "ramping-arrival-rate",
+    exec: "runScenario",
+    startRate,
+    timeUnit: "1s",
+    preAllocatedVUs,
+    maxVUs: Math.max(preAllocatedVUs, Math.ceil(peakRate * maxVusMultiplier)),
+    stages,
+    gracefulStop: `${Math.ceil((requestTimeoutMs * 8) / 1000)}s`,
+    env: { SCENARIO_NAME: plan.name },
+    tags: { traffic_scenario: plan.name },
+  };
+}
+
+if (rampPlan) {
+  if (rampPlan.strict) validateStageRates(rampPlan);
+  for (const plan of enabledPlans) {
+    rampingExecutor(plan.name, plan, rampPlan);
+  }
 } else {
   for (const plan of enabledPlans) {
-    executor(plan.name, plan, rateFor(plan, flatTotalRps), flatDurationSeconds, 0, null);
+    executor(plan.name, plan, rateFor(plan, flatTotalRps), flatDurationSeconds);
   }
 }
 for (const plan of enabledPlans) planByName[plan.name] = plan;
@@ -440,19 +561,13 @@ for (const plan of enabledPlans) {
   plan.trends.total_flow = new Trend(`total_flow_ms_${plan.name}`, true);
   plan.successCounter = new Counter(`scenario_success_${plan.name}`);
   plan.failureCounter = new Counter(`scenario_failure_${plan.name}`);
-  // In ramp mode, payment-confirm latency and success/failure are also
-  // tracked per phase (suffix _p<N>) so the summary shows where the
-  // saturation knee is. Step trends stay aggregated across phases.
-  plan.phases = phaseSchedule
-    ? phaseSchedule.map((phase, index) => ({
-      index: index + 1,
-      rps: phase.rps,
-      rate: rateFor(plan, phase.rps),
-      confirmTrend: new Trend(`payment_confirm_ms_${plan.name}_p${index + 1}`, true),
-      successCounter: new Counter(`scenario_success_${plan.name}_p${index + 1}`),
-      failureCounter: new Counter(`scenario_failure_${plan.name}_p${index + 1}`),
-    }))
-    : null;
+  // 2026-09-24: per-phase (_p<N>) breakdown removed along with the discrete-
+  // step scenario design (see the ramp-mode parsing block's comment above) -
+  // there's no longer a discrete phase boundary to slice metrics by under
+  // ramping-arrival-rate's continuous interpolation. plan.phases stays null
+  // in both modes now; the aggregate trends/counters above (and the whole-
+  // scenario achieved-TPS reporting in handleSummary) are what's left.
+  plan.phases = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -605,7 +720,7 @@ function mitConfirmBody(merchant, customerId, savedPaymentMethodId, description)
 // with `k6 run --console-output=failures.log` (or `K6_CONSOLE_OUTPUT=failures.log`)
 // and every console.error call below lands there as its own line instead of
 // the terminal — see README "Logging failures to a file".
-function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage) {
+function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage, flowMs) {
   // SQLite preserves every failure. Per-flow terminal output can throttle a failure storm.
   if (recordingEnabled && load.log_failures !== true) return;
   const record = {
@@ -620,12 +735,34 @@ function logFailure(merchant, plan, phaseInfo, reason, response, errorMessage) {
     vu: __VU,
     iteration: exec.scenario.iterationInTest,
     reason,
+    // Wall-clock age of the iteration at the moment it failed, so a post-hoc
+    // report can bucket the failure by when the flow STARTED (time - flow_ms),
+    // the same basis RECON success lines use (ts - flow_ms).
+    flow_ms: flowMs,
   };
   if (response) {
     record.status = response.status;
     record.url = response.url;
     record.error = response.error || undefined;
     record.event = lastEvent;
+    // Without the SQLite recorder the console line is the only record of a failure, so keep the
+    // response headers/body there (with the recorder they live in SQLite, see request()).
+    if (!recordingEnabled) {
+      record.headers = response.headers;
+      record.body = response.body;
+    }
+    // payment_id when the failing request carries one (confirm/retrieve URLs,
+    // or a create response body), so failures can be reconciled against the
+    // database the same way RECON success lines are.
+    const urlMatch = /\/payments\/(pay_[A-Za-z0-9_]+)/.exec(response.url || "");
+    if (urlMatch) {
+      record.payment_id = urlMatch[1];
+    } else {
+      try {
+        const parsedBody = JSON.parse(response.body);
+        if (parsedBody && parsedBody.payment_id) record.payment_id = parsedBody.payment_id;
+      } catch (_) { /* non-JSON error body: no payment_id to record */ }
+    }
   }
   if (errorMessage) record.error_message = errorMessage;
   console.error(JSON.stringify(record));
@@ -635,7 +772,7 @@ function failIteration(merchant, plan, startedAt, reason, phaseInfo, response, e
   plan.failureCounter.add(1, { reason });
   if (phaseInfo) phaseInfo.failureCounter.add(1, { reason });
   plan.trends.total_flow.add(Date.now() - startedAt);
-  logFailure(merchant, plan, phaseInfo, reason, response, errorMessage);
+  logFailure(merchant, plan, phaseInfo, reason, response, errorMessage, Date.now() - startedAt);
 }
 
 // Card persistence can complete shortly after a successful confirm. Poll the
@@ -653,6 +790,16 @@ function findSavedPaymentMethod(merchant, paymentId) {
 // ---------------------------------------------------------------------------
 // Measured traffic
 // ---------------------------------------------------------------------------
+
+// Runs once, after init and immediately before the first scenario starts, so
+// this line is the closest wall-clock anchor to t=0 of the load curve. An
+// orchestrator scheduling faults/stage windows against the curve should use
+// it rather than the moment it launched k6 (init + VU pre-allocation shift
+// the two by seconds). One line per host; both hosts of a split run print
+// their own, and the gap between them is the cross-host start skew.
+export function setup() {
+  console.log(`RUNSTART ts=${new Date().toISOString()} epoch_ms=${Date.now()}`);
+}
 
 export function runScenario() {
   const plan = planByName[__ENV.SCENARIO_NAME];
@@ -977,6 +1124,18 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
   }
   plan.successCounter.add(1);
   if (phaseInfo) phaseInfo.successCounter.add(1);
+  // Payment-id-level success record for post-hoc reconciliation against
+  // AlloyDB (scripts/alloydb-reconcile-ledger.sh in the hyperswitch-infra
+  // repo). `payment` is null for mitFlow (single-call create+confirm, no
+  // separate create step) - fall back to the confirm response body's own
+  // payment_id, which is always present on a successful confirm either way.
+  const reconPaymentId = (payment && payment.payment_id) || json(confirmResponse).payment_id || "unknown";
+  // merchant_id only meaningful in merchant_pool mode (empty string in
+  // single-merchant mode, matching logFailure's own merchant_id field above)
+  // - lets a per-merchant success/failure breakdown be computed straight
+  // from this console log, same source as everything else, no separate
+  // metric-tag plumbing needed (TC-09).
+  console.log(`RECON payment_id=${reconPaymentId} status=${confirmResponse.status} merchant_id=${merchant.merchant_id || ""} confirm_ms=${confirmResponse.timings.duration.toFixed(1)} flow_ms=${Date.now() - startedAt} ts=${new Date().toISOString()}`);
   plan.trends.total_flow.add(Date.now() - startedAt);
 }
 
@@ -1022,19 +1181,20 @@ function globalSummaryRow(data) {
 // charts are a separate output plugin this script has no way to add panels
 // to (see README), so this can only ever show up in the stdout summary and
 // SUMMARY_OUTPUT below, never inside timeseries.html itself.
+// 2026-09-24: simplified alongside the per-phase removal above - ramp mode
+// no longer has discrete phases to take a max over, so this is just the
+// whole-scenario average iteration rate in both modes now (in ramp mode,
+// that UNDERSTATES the true peak near target_rps, since it's averaged over
+// the whole hold+ramp+hold window - a real limitation of losing the
+// per-phase breakdown, noted here rather than silently hidden).
 function peakIterationRateRaw(data) {
   const totalIterationsAt = (suffix) => enabledPlans.reduce((sum, plan) => sum
     + countOf(metricValues(data, `scenario_success_${plan.name}${suffix}`))
     + countOf(metricValues(data, `scenario_failure_${plan.name}${suffix}`)), 0);
-  if (!phaseSchedule) {
-    return achievedTpsRaw(totalIterationsAt(""), flatDurationSeconds);
-  }
-  let peak = null;
-  phaseSchedule.forEach((phase, index) => {
-    const rate = achievedTpsRaw(totalIterationsAt(`_p${index + 1}`), phase.holdSeconds);
-    if (rate !== null && (peak === null || rate > peak)) peak = rate;
-  });
-  return peak;
+  const windowSeconds = rampPlan
+    ? rampPlan.totalSeconds
+    : flatDurationSeconds;
+  return achievedTpsRaw(totalIterationsAt(""), windowSeconds);
 }
 
 function fmt(values, key) {
@@ -1070,37 +1230,39 @@ function injectAchievedTpsMetrics(data) {
   const setGauge = (name, value) => {
     data.metrics[name] = { type: "gauge", contains: "default", values: { value, min: value, max: value } };
   };
-  if (phaseSchedule) {
-    for (const plan of enabledPlans) {
-      for (const phaseInfo of plan.phases) {
-        const successValues = metricValues(data, `scenario_success_${plan.name}_p${phaseInfo.index}`);
-        const holdSeconds = phaseSchedule[phaseInfo.index - 1].holdSeconds;
-        const tps = achievedTpsRaw(countOf(successValues), holdSeconds);
-        if (tps !== null) setGauge(`achieved_tps_${plan.name}_p${phaseInfo.index}`, tps);
-      }
-    }
-  } else {
-    for (const plan of enabledPlans) {
-      const successValues = metricValues(data, `scenario_success_${plan.name}`);
-      const tps = achievedTpsRaw(countOf(successValues), flatDurationSeconds);
-      if (tps !== null) setGauge(`achieved_tps_${plan.name}`, tps);
-    }
+  const windowSeconds = rampPlan
+    ? rampPlan.totalSeconds
+    : flatDurationSeconds;
+  for (const plan of enabledPlans) {
+    const successValues = metricValues(data, `scenario_success_${plan.name}`);
+    const tps = achievedTpsRaw(countOf(successValues), windowSeconds);
+    if (tps !== null) setGauge(`achieved_tps_${plan.name}`, tps);
   }
   const peak = peakIterationRateRaw(data);
   if (peak !== null) setGauge("peak_iteration_rate", peak);
 }
 
-function flatSummaryRow(data, plan) {
+// 2026-09-24: handles both modes now (was flat-only; the ramp-mode
+// per-phase table above is gone along with the discrete-step design).
+// "target rps" is the scenario's peak rate (target_rps in ramp mode, the
+// flat rate otherwise); "achieved tps" is averaged over the whole
+// hold+ramp+hold window in ramp mode, which understates the true peak near
+// target_rps - see peakIterationRateRaw's comment for the same caveat.
+function summaryRow(data, plan) {
   const confirmValues = metricValues(data, `payment_confirm_ms_${plan.name}`);
   const flowValues = metricValues(data, `total_flow_ms_${plan.name}`);
   const successValues = metricValues(data, `scenario_success_${plan.name}`);
   const failureValues = metricValues(data, `scenario_failure_${plan.name}`);
   const successCount = successValues ? successValues.count : 0;
+  const targetRate = rampPlan ? rateFor(plan, rampPlan.peakRps) : rateFor(plan, flatTotalRps);
+  const windowSeconds = rampPlan
+    ? rampPlan.totalSeconds
+    : flatDurationSeconds;
   return [
     plan.name,
     String(plan.weight),
-    ((flatTotalRps * plan.weight) / 100).toFixed(2),
-    achievedTps(successCount, flatDurationSeconds),
+    targetRate.toFixed(2),
+    achievedTps(successCount, windowSeconds),
     fmt(confirmValues, "med"),
     fmt(confirmValues, "p(90)"),
     fmt(confirmValues, "p(99)"),
@@ -1111,51 +1273,20 @@ function flatSummaryRow(data, plan) {
   ].join(" | ");
 }
 
-function rampSummaryRows(data, plan) {
-  const columns = ["phase", "target rps", "achieved tps", "confirm p50", "confirm p90", "confirm p99", "success", "failure"];
-  const rows = [
-    `\n${plan.name} (weight ${plan.weight}%)`,
-    columns.join(" | "),
-    columns.map((column) => "-".repeat(column.length)).join(" | "),
-  ];
-  for (const phaseInfo of plan.phases) {
-    const confirmValues = metricValues(data, `payment_confirm_ms_${plan.name}_p${phaseInfo.index}`);
-    const successValues = metricValues(data, `scenario_success_${plan.name}_p${phaseInfo.index}`);
-    const failureValues = metricValues(data, `scenario_failure_${plan.name}_p${phaseInfo.index}`);
-    const successCount = successValues ? successValues.count : 0;
-    const holdSeconds = phaseSchedule[phaseInfo.index - 1].holdSeconds;
-    rows.push([
-      String(phaseInfo.index),
-      phaseInfo.rate.toFixed(2),
-      achievedTps(successCount, holdSeconds),
-      fmt(confirmValues, "med"),
-      fmt(confirmValues, "p(90)"),
-      fmt(confirmValues, "p(99)"),
-      String(successCount),
-      failureValues ? String(failureValues.count) : "0",
-    ].join(" | "));
-  }
-  return rows;
-}
-
 export function handleSummary(data) {
   injectAchievedTpsMetrics(data);
   const header = `scenario-mix | config=${configPath} | ${loadDescription}`;
   const rows = [header, globalSummaryRow(data)];
   if (!__ENV.RECORDING_DISABLED && __ENV.SQLITE_RECORDER_REQUIRED) rows.push(`recorder: ${JSON.stringify(recorder.stats())}`);
-  if (phaseSchedule) {
-    for (const plan of enabledPlans) rows.push(...rampSummaryRows(data, plan));
-  } else {
-    const columns = [
-      "scenario", "weight%", "target rps", "achieved tps",
-      "confirm p50", "confirm p90", "confirm p99",
-      "flow p50", "flow p90",
-      "success", "failure",
-    ];
-    rows.push(columns.join(" | "));
-    rows.push(columns.map((column) => "-".repeat(column.length)).join(" | "));
-    for (const plan of enabledPlans) rows.push(flatSummaryRow(data, plan));
-  }
+  const columns = [
+    "scenario", "weight%", "target rps", "achieved tps",
+    "confirm p50", "confirm p90", "confirm p99",
+    "flow p50", "flow p90",
+    "success", "failure",
+  ];
+  rows.push(columns.join(" | "));
+  rows.push(columns.map((column) => "-".repeat(column.length)).join(" | "));
+  for (const plan of enabledPlans) rows.push(summaryRow(data, plan));
   const output = { stdout: `\n${rows.join("\n")}\n` };
   if (__ENV.SUMMARY_OUTPUT) {
     output[joinPath(outputDir, __ENV.SUMMARY_OUTPUT)] = JSON.stringify(data, null, 2);
