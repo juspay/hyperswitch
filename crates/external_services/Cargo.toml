@@ -12,6 +12,7 @@ aws_kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 gcp_kms = ["dep:google-cloud-kms"]
+oci_kms = ["dep:oci_kms"]
 hashicorp-vault = ["dep:vaultrs"]
 superposition = [
     "dep:open-feature",
@@ -94,7 +95,7 @@ http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.09.21.1", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.10.06.0", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 bytes = { version = "1.10.1", optional = true }
 superposition_provider = { version = "0.115.5", optional = true }
@@ -106,6 +107,7 @@ superposition_sdk = { version = "0.115.5", optional = true }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
+oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
 hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", features = [
     "log_extra_implicit_fields",

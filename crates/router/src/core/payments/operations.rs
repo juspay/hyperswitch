@@ -333,10 +333,10 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _db: &'a SessionState,
         _provider: &domain::Provider,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         _updated_customer: Option<storage::CustomerUpdate>,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<Option<domain::Customer>> {
+        Ok(customer)
     }
 
     #[cfg(feature = "v2")]
@@ -494,6 +494,15 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(false)
     }
 
+    #[instrument(skip_all)]
+    async fn populate_payment_fingerprint<'a>(
+        &'a self,
+        _state: &SessionState,
+        _processor: &domain::Processor,
+        _payment_data: &mut D,
+    ) {
+    }
+
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,
@@ -618,6 +627,8 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        provider: &domain::Provider,
+        customer: Option<&domain::Customer>,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         locale: &Option<String>,

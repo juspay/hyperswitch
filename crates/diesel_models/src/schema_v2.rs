@@ -318,6 +318,8 @@ diesel::table! {
         order_fulfillment_time -> Nullable<Int8>,
         apple_pay_certificates -> Nullable<Jsonb>,
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
+        #[max_length = 16]
+        auto_fallback_capture_method -> Nullable<Varchar>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -494,6 +496,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        preferred_connectors -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
@@ -576,6 +579,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        additional_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1165,6 +1169,7 @@ diesel::table! {
         payment_account_reference -> Nullable<Varchar>,
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
+        applied_overrides -> Nullable<Jsonb>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1463,6 +1468,7 @@ diesel::table! {
         connector_request_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
+        execution_kind -> Nullable<Text>,
     }
 }
 
