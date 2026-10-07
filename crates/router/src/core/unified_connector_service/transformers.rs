@@ -1,9 +1,10 @@
 use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::{
-    AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
-    ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
-    GooglePaySessionResponse, GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
+    additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
+    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
+    ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
+    GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
     GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
     GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
@@ -132,6 +133,41 @@ impl ForeignFrom<common_enums::TaxStatus> for payments_grpc::TaxStatus {
         match tax_status {
             common_enums::TaxStatus::Taxable => Self::Taxable,
             common_enums::TaxStatus::Exempt => Self::Exempt,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardType> for payments_grpc::CardType {
+    fn foreign_from(card_type: common_enums::CardType) -> Self {
+        match card_type {
+            common_enums::CardType::Credit => Self::Credit,
+            common_enums::CardType::Debit => Self::Debit,
+            common_enums::CardType::Prepaid => Self::Prepaid,
+            common_enums::CardType::Store => Self::Store,
+            common_enums::CardType::ChargeCard => Self::ChargeCard,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::CardSegmentType> for payments_grpc::CardSegmentType {
+    fn foreign_from(card_segment_type: common_enums::CardSegmentType) -> Self {
+        match card_segment_type {
+            common_enums::CardSegmentType::Business => Self::Business,
+            common_enums::CardSegmentType::Commercial => Self::Commercial,
+            common_enums::CardSegmentType::Consumer => Self::Consumer,
+            common_enums::CardSegmentType::Government => Self::Government,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::FundingSource> for payments_grpc::FundingSource {
+    fn foreign_from(funding_source: common_enums::FundingSource) -> Self {
+        match funding_source {
+            common_enums::FundingSource::Credit => Self::Credit,
+            common_enums::FundingSource::Debit => Self::Debit,
+            common_enums::FundingSource::Prepaid => Self::Prepaid,
+            common_enums::FundingSource::ChargeCard => Self::ChargeCard,
+            common_enums::FundingSource::DeferredDebit => Self::DeferredDebit,
         }
     }
 }
@@ -10176,6 +10212,100 @@ impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             card_holder_name: value.card_holder_name,
+            card_bin: None,
+            card_type: None,
+            auth_code: value.auth_code,
+            card_subtype: value.card_subtype,
+            card_segment_type: value
+                .card_segment_type
+                .map(|cst| payments_grpc::CardSegmentType::foreign_from(cst).into()),
+            funding_source: value
+                .funding_source
+                .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
+            issuer_country: value
+                .card_issuing_country_code
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c))
+                .map(|c| c.into()),
+            card_network: value.card_network.map(|cn| cn.to_string()),
+        }
+    }
+}
+
+impl ForeignFrom<ApplepayPaymentMethod> for payments_grpc::AdditionalApplePayInfo {
+    fn foreign_from(apple_pay: ApplepayPaymentMethod) -> Self {
+        let card_info = payments_grpc::AdditionalCardInfo {
+            card_issuer: apple_pay.issuer_name,
+            last4: None,
+            card_isin: None,
+            card_extended_bin: None,
+            card_exp_month: apple_pay.card_exp_month,
+            card_exp_year: apple_pay.card_exp_year,
+            card_holder_name: None,
+            card_bin: apple_pay.card_bin,
+            card_type: apple_pay
+                .card_type
+                .map(|card_type| payments_grpc::CardType::foreign_from(card_type).into()),
+            auth_code: apple_pay.auth_code,
+            card_subtype: apple_pay.card_subtype,
+            card_segment_type: apple_pay
+                .card_segment_type
+                .map(|cst| payments_grpc::CardSegmentType::foreign_from(cst).into()),
+            funding_source: apple_pay
+                .funding_source
+                .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
+            issuer_country: apple_pay
+                .issuer_country
+                .and_then(|country| {
+                    payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
+                })
+                .map(|country_code| country_code.into()),
+            card_network: Some(apple_pay.network),
+        };
+        Self {
+            display_name: apple_pay.display_name,
+            card_info: Some(card_info),
+            device_pan_bin: apple_pay.device_pan_bin,
+        }
+    }
+}
+
+impl ForeignFrom<WalletAdditionalDataForCard> for payments_grpc::AdditionalGooglePayInfo {
+    fn foreign_from(wallet_card: WalletAdditionalDataForCard) -> Self {
+        let card_info = payments_grpc::AdditionalCardInfo {
+            card_issuer: wallet_card.issuer_name,
+            last4: wallet_card.last4,
+            card_isin: None,
+            card_extended_bin: None,
+            card_exp_month: wallet_card.card_exp_month,
+            card_exp_year: wallet_card.card_exp_year,
+            card_holder_name: None,
+            card_bin: wallet_card.card_bin,
+            card_type: wallet_card
+                .card_type
+                .map(|card_type| payments_grpc::CardType::foreign_from(card_type).into()),
+            auth_code: wallet_card.auth_code,
+            card_subtype: wallet_card.card_subtype,
+            card_segment_type: wallet_card
+                .card_segment_type
+                .map(|cst| payments_grpc::CardSegmentType::foreign_from(cst).into()),
+            funding_source: wallet_card
+                .funding_source
+                .map(|fs| payments_grpc::FundingSource::foreign_from(fs).into()),
+            issuer_country: wallet_card
+                .issuer_country
+                .and_then(|country| {
+                    payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
+                })
+                .map(|country_code| country_code.into()),
+            card_network: wallet_card.card_network,
+        };
+        Self {
+            payment_method_data_type: wallet_card.payment_method_data_type,
+            email: wallet_card
+                .email
+                .map(|email| Secret::new(email.expose().expose())),
+            card_info: Some(card_info),
+            device_pan_bin: wallet_card.device_pan_bin,
         }
     }
 }
@@ -10188,6 +10318,34 @@ impl ForeignFrom<AdditionalPaymentData> for payments_grpc::AdditionalPaymentData
                     payment_method_data: Some(
                         payments_grpc::additional_payment_data::PaymentMethodData::Card(
                             ForeignFrom::<AdditionalCardInfo>::foreign_from(*card_info),
+                        ),
+                    ),
+                }
+            }
+            AdditionalPaymentData::Wallet {
+                apple_pay,
+                google_pay,
+                ..
+            } => {
+                let wallet_data = match (apple_pay, google_pay) {
+                    (Some(apple_pay_method), _) => {
+                        Some(payments_grpc::additional_wallet_info::WalletData::ApplePay(
+                            ForeignFrom::<ApplepayPaymentMethod>::foreign_from(*apple_pay_method),
+                        ))
+                    }
+                    (None, Some(wallet_card_data)) => Some(
+                        payments_grpc::additional_wallet_info::WalletData::GooglePay(
+                            ForeignFrom::<WalletAdditionalDataForCard>::foreign_from(
+                                *wallet_card_data,
+                            ),
+                        ),
+                    ),
+                    (None, None) => None,
+                };
+                Self {
+                    payment_method_data: Some(
+                        payments_grpc::additional_payment_data::PaymentMethodData::Wallet(
+                            payments_grpc::AdditionalWalletInfo { wallet_data },
                         ),
                     ),
                 }

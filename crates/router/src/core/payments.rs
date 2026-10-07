@@ -8374,6 +8374,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
     Ok(final_recipient_data)
 }
 
+#[cfg(feature = "v1")]
 async fn blocklist_guard<F, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
@@ -8386,24 +8387,14 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let processor_merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
+    let blocklist_guard_enabled = dimensions
+        .with_profile_id(business_profile.get_id().clone())
+        .get_payment_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -8417,6 +8408,10 @@ where
             )
             .await?)
     } else {
+        operation
+            .to_domain()?
+            .populate_payment_fingerprint(state, processor, payment_data)
+            .await;
         Ok(false)
     }
 }
@@ -12409,6 +12404,11 @@ where
                         .attach_printable("No mandate record found for merchant connector ID")
                 })?;
 
+            validate_connector_mandate_status_for_mit(
+                &connector_routing_data.connector_data,
+                mandate_reference_record,
+            )?;
+
             if let Some(mandate_currency) =
                 mandate_reference_record.original_payment_authorized_currency
             {
@@ -12483,6 +12483,11 @@ where
                             .attach_printable("no eligible connector found for token-based MIT flow since there were no connector mandate details")?
                             .get(merchant_connector_id)
                         {
+                            validate_connector_mandate_status_for_mit(
+                                &connector_data,
+                                mandate_reference_record,
+                            )?;
+
                             common_utils::fp_utils::when(
                                 mandate_reference_record
                                     .original_payment_authorized_currency
@@ -12560,6 +12565,28 @@ where
     Ok(ConnectorCallType::PreDetermined(
         chosen_connector_data.into(),
     ))
+}
+
+#[cfg(feature = "v1")]
+fn validate_connector_mandate_status_for_mit(
+    connector_data: &api::ConnectorData,
+    mandate_reference_record: &mandates::PaymentsMandateReferenceRecord,
+) -> RouterResult<()> {
+    let should_allow_inactive_connector_mandate = connector_data
+        .connector
+        .should_allow_mit_when_connector_mandate_status_is_inactive()
+        .unwrap_or(true);
+
+    common_utils::fp_utils::when(
+        !should_allow_inactive_connector_mandate
+            && mandate_reference_record.connector_mandate_status
+                == Some(common_enums::ConnectorMandateStatus::Inactive),
+        || {
+            Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "connector mandate is inactive".into(),
+            }))
+        },
+    )
 }
 
 pub fn filter_ntid_supported_connectors(
@@ -14342,6 +14369,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -14393,9 +14421,20 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        Ok(blocklist_utils::is_blocklist_guard_enabled(state, merchant_id).await)
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile_id.clone());
+
+        Ok(dimensions
+            .get_payment_blocklist_guard(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await)
     }
 
     async fn execute_check(
@@ -14490,6 +14529,7 @@ impl EligibilityCheck for CardTestingCheck {
         &self,
         _state: &SessionState,
         _platform: &domain::Platform,
+        _profile_id: &id_type::ProfileId,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         // This check is always run as there is no runtime config enablement
         Ok(true)
@@ -14571,7 +14611,9 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let should_run = check
+            .should_run(&self.state, &self.platform, self.business_profile.get_id())
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(
