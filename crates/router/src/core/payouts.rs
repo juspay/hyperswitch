@@ -2029,9 +2029,10 @@ pub async fn complete_payout_eligibility(
 
     if !payout_data.should_terminate
         && payout_attempt.is_eligible.is_none()
-        && connector_data
-            .connector_name
-            .supports_payout_eligibility(payout_data.payouts.payout_type)
+        && connector_data.connector_name.supports_payout_eligibility(
+            payout_attempt.execution_kind,
+            payout_data.payouts.payout_type,
+        )
     {
         Box::pin(check_payout_eligibility(
             state,
