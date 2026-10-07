@@ -779,6 +779,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          error_message:
+            "The frequency limit of PaymentConsent is reached for operation confirmIntent.",
         },
       },
       Configs: {
