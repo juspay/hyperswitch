@@ -87,6 +87,19 @@ where
                 )
                 .attach_printable("Error adding error reason filter")?;
         }
+        if !self.off_session.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentIntentDimensions::OffSession, &self.off_session)
+                .attach_printable("Error adding off session filter")?;
+        }
+        if !self.setup_future_usage.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentIntentDimensions::SetupFutureUsage,
+                    &self.setup_future_usage,
+                )
+                .attach_printable("Error adding setup future usage filter")?;
+        }
         if !self.customer_id.is_empty() {
             builder
                 .add_filter_in_range_clause("customer_id", &self.customer_id)
