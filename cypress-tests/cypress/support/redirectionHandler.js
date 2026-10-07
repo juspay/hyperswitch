@@ -1819,11 +1819,25 @@ function bankRedirectRedirection(
         });
     };
 
-    clickAction(/go to bank/i, "Opening TrueLayer bank page");
-    clickAction(
-      /open mock uk payments\s*-\s*redirect flow on this device/i,
-      "Opening TrueLayer mock UK payments redirect flow"
-    );
+    // Some TrueLayer sandbox consent pages show an intermediate "Go to bank"
+    // button before the mock provider page; others render the mock provider
+    // entry point directly. Click it only when present so the flow does not
+    // hang waiting for a button that may not exist.
+    clickActionIfPresent(/go to bank/i, "Opening TrueLayer bank page");
+
+    // The "Open Mock UK Payments - Redirect Flow on this device" entry point
+    // sits below the fold on the TrueLayer sandbox page and is rendered as a
+    // selectable card rather than a button/anchor, so the action-selector
+    // lookups above cannot find it. Scroll the page down first, then click the
+    // exact label - anchoring on "this device" also avoids matching a sibling
+    // QR-code/other-device option when both are rendered.
+    cy.scrollTo("bottom", { ensureScrollable: false });
+    cy.contains(
+      /open mock uk payments[\s\S]*redirect flow[\s\S]*on this device/i,
+      { timeout: CONSTANTS.TIMEOUT }
+    )
+      .scrollIntoView()
+      .click({ force: true });
 
     fillTrueLayerMockCredentials();
     clickAction(

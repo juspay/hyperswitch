@@ -87,14 +87,23 @@ describe("Payment Webhook Tests", () => {
     });
   });
 
-  context("Webhook Processing - Status Update & Retrieval", () => {
+  context("Webhook Processing - Status Update & Retrieval", function () {
     let paymentId;
     let merchantId;
 
-    before(() => {
+    before(function () {
       connector = globalState.get("connectorId");
       merchantId = globalState.get("merchantId");
       paymentId = globalState.get("paymentID");
+
+      // Connectors whose No3DS confirm is skipped (TRIGGER_SKIP, e.g. noon)
+      // never reach the connector, so there is no connector transaction to
+      // send a webhook for and nothing for the force-sync retrieve to sync.
+      // Skip instead of failing the retrieve with IR_39 - mirrors the
+      // connectorRefundId guard in 50-RefundWebhook.
+      if (!globalState.get("connectorTransactionID")) {
+        this.skip();
+      }
     });
 
     it("Update-payment_status", () => {
