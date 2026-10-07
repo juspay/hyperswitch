@@ -3900,6 +3900,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -5426,6 +5427,9 @@ pub enum WalletData {
     #[schema(title = "VippsRedirect")]
     #[smithy(nested_value_type)]
     VippsRedirect {},
+    #[schema(title = "WeroRedirect")]
+    #[smithy(nested_value_type)]
+    WeroRedirect {},
     /// The wallet data for WeChat Pay Display QrCode
     #[schema(title = "WeChatPayQr")]
     #[smithy(value_type = "WeChatPayQr")]
@@ -5485,6 +5489,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
+            | Self::WeroRedirect {}
             | Self::TouchNGoRedirect(_)
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
