@@ -861,8 +861,9 @@ pub async fn payments_retrieve(
         },
         auth::auth_type(
             &*auth_type,
-            &auth::JWTAuth {
-                permission: Permission::ProfilePaymentRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfilePaymentRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -2510,8 +2511,9 @@ pub async fn profile_payments_list_by_filter(
                 req,
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentRead),
             allow_connected: true,
             allow_platform: false,
         },
@@ -2620,8 +2622,9 @@ pub async fn get_payment_filters_profile(
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentRead),
             allow_connected: true,
             allow_platform: false,
         },
@@ -4007,8 +4010,9 @@ pub async fn get_payments_aggregates_profile(
                 req,
             )
         },
-        &auth::JWTAuth {
-            permission: Permission::ProfilePaymentRead,
+        &auth::JWTAndEmbeddedAuth {
+            merchant_id_from_route: None,
+            permission: Some(Permission::ProfilePaymentRead),
             allow_connected: true,
             allow_platform: false,
         },
