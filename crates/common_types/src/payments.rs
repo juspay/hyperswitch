@@ -1404,6 +1404,11 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     #[schema(value_type = Option<CardNetwork>)]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<enums::CardNetwork>,
+
+    /// Identifier of the device that generated the token
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 /// Billing frequency for a card installment plan

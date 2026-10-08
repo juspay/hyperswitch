@@ -4697,6 +4697,9 @@ impl
             ),
             token_exp_month: Some(wallet_token_data.token_exp_month.expose().into()),
             token_exp_year: Some(wallet_token_data.token_exp_year.expose().into()),
+            device_manufacturer_identifier: wallet_token_data
+                .device_manufacturer_identifier
+                .map(|identifier| identifier.expose().into()),
             card_holder_name: wallet_token_data
                 .card_holder_name
                 .map(|name| name.expose().into()),
@@ -6455,6 +6458,9 @@ impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus>
                 Ok(Self::ChallengeRequiredDecoupledAuthentication)
             }
             payments_grpc::TransactionStatus::InformationOnly => Ok(Self::InformationOnly),
+            payments_grpc::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Ok(Self::SecurePaymentConfirmationRequired)
+            }
             payments_grpc::TransactionStatus::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into())
             }
@@ -6477,8 +6483,9 @@ impl ForeignFrom<common_enums::TransactionStatus> for payments_grpc::Transaction
                 Self::ChallengeRequiredDecoupledAuthentication
             }
             common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
-            // UCS proto has no SPC variant yet
-            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => Self::Unspecified,
+            common_enums::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Self::SecurePaymentConfirmationRequired
+            }
         }
     }
 }
