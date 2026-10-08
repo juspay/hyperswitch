@@ -101,7 +101,11 @@ export const CONNECTOR_LISTS = {
     // gotyme_sanlam only supports bank transfer payouts (payshap /
     // payshap_proxy) and has no card payout method, so it is skipped for
     // the card payout tests in 00003-CardTest.cy.js
-    CARD_TEST: ["gotyme_sanlam", "trustly"],
+    // truelayer only supports open-banking bank transfer payouts; card
+    // payout eligibility is not implemented ("payout_eligibility flow for
+    // truelayer" is unimplemented over UCS), so it is skipped for the card
+    // payout tests in 00003-CardTest.cy.js
+    CARD_TEST: ["gotyme_sanlam", "trustly", "truelayer"],
   },
   INCLUDE: {
     ENTITY_TYPE: ["wise"],

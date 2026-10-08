@@ -103,11 +103,18 @@ export const connectorDetails = {
           billing: billing,
         },
         Response: {
-          status: 200,
+          status: 400,
           body: {
-            status: "failed",
-            error_code: "624",
-            error_message: "ERROR_INVALID_BANK_ACCOUNT_NUMBER",
+            error: {
+              type: "invalid_request",
+              // UCS validates the trustly recipient at intake: the malformed
+              // (non-numeric) Swedish account number cannot be mapped, so the
+              // transfer demands raw payout_connector_metadata and rejects
+              // the create instead of failing asynchronously with a 624.
+              message:
+                "Missing required param: Missing required field: payout_connector_metadata. Trustly Payout Transfer - missing required field",
+              code: "IR_04",
+            },
           },
         },
       },
