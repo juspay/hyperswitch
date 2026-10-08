@@ -21,12 +21,6 @@ use hyperswitch_domain_models::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundExecuteRouterData, RefundSyncRouterData, SetupMandateRouterData,
-        TokenizationRouterData,
-    },
 };
 use hyperswitch_interfaces::{
     api::{
