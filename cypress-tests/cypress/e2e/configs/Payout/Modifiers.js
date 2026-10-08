@@ -55,7 +55,9 @@ with `getCustomExchange`, if 501 response is expected, there is no need to pass 
 // are listed here.
 const UCS_SERVER_MESSAGE_CONNECTORS = new Set(["truelayer"]);
 
-const rawConnectorId = String(globalState.get("connectorId") || "").toLowerCase();
+const rawConnectorId = String(
+  globalState.get("connectorId") || ""
+).toLowerCase();
 
 const notImplementedMessage = UCS_SERVER_MESSAGE_CONNECTORS.has(rawConnectorId)
   ? `This feature is not implemented: Selected payment method through ${
