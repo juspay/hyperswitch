@@ -4931,6 +4931,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                },
+                "example": {
+                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                  "intent_status": "failed",
+                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
                 }
               }
             }

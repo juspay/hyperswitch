@@ -76,7 +76,16 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
         ),
     ),
     responses(
-        (status = 200, description = "Revenue Recovery Payment Recorded Successfully", body = RecoveryPaymentsResponse),
+        (
+            status = 200,
+            description = "Revenue Recovery Payment Recorded Successfully",
+            body = RecoveryPaymentsResponse,
+            example = json!({
+                "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                "intent_status": "failed",
+                "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+            })
+        ),
         (status = 400, description = "Missing or invalid mandatory fields", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),
         (status = 500, description = "Internal server error"),
