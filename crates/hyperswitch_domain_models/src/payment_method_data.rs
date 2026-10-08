@@ -4986,13 +4986,13 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
                 (*network_transaction_id_and_vault_card_details).into(),
             )),
             // The fallback variant is an orchestration-level input: the core flow decomposes it
-            // into its two legs (`to_network_token_leg` / `to_vault_card_leg`) before calling a
-            // payment core, so only those leg variants ever reach the domain model. Should one
-            // leak through, it resolves to the leg that runs first rather than to nothing, so a
+            // into its two arms (`to_network_token_arm` / `to_vault_card_arm`) before calling a
+            // payment core, so only those arm variants ever reach the domain model. Should one
+            // leak through, it resolves to the arm that runs first rather than to nothing, so a
             // first attempt still carries its mandate reference.
             api_mandates::RecurringDetails::NetworkTokenWithVaultCardFallback(fallback) => {
                 Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
-                    fallback.network_token_leg_details().into(),
+                    fallback.network_token_arm_details().into(),
                 ))
             }
             api_mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {

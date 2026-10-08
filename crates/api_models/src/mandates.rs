@@ -570,7 +570,7 @@ pub struct NetworkTransactionIdAndVaultCardDetails {
 }
 
 /// Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible
-/// decline. Both legs share one `network_transaction_id`.
+/// decline. Both arms share one `network_transaction_id`.
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
 )]
@@ -581,7 +581,7 @@ pub struct NetworkTokenWithVaultCardFallback {
     pub network_token: NetworkTokenDetails,
 
     /// The network transaction ID provided by the card network during a Customer Initiated
-    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both legs.
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both arms.
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
@@ -598,9 +598,9 @@ pub struct NetworkTokenWithVaultCardFallback {
 }
 
 impl NetworkTokenWithVaultCardFallback {
-    /// Leg 1's details, as the concrete type. Callers that need the enum use
-    /// [`Self::to_network_token_leg`]; this exists so conversions over the struct stay total.
-    pub fn network_token_leg_details(&self) -> NetworkTransactionIdAndNetworkTokenDetails {
+    /// Arm 1's details, as the concrete type. Callers that need the enum use
+    /// [`Self::to_network_token_arm`]; this exists so conversions over the struct stay total.
+    pub fn network_token_arm_details(&self) -> NetworkTransactionIdAndNetworkTokenDetails {
         NetworkTransactionIdAndNetworkTokenDetails {
             network_token: self.network_token.network_token.clone(),
             token_exp_month: self.network_token.token_exp_month.clone(),
@@ -618,15 +618,15 @@ impl NetworkTokenWithVaultCardFallback {
         }
     }
 
-    /// Leg 1 — the network token attempt, in the shape the existing NTI proxy core understands.
-    pub fn to_network_token_leg(&self) -> RecurringDetails {
+    /// Arm 1 — the network token attempt, in the shape the existing NTI proxy core understands.
+    pub fn to_network_token_arm(&self) -> RecurringDetails {
         RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
-            self.network_token_leg_details(),
+            self.network_token_arm_details(),
         ))
     }
 
-    /// Leg 2 — the vault card alias, in the shape the external vault proxy core understands.
-    pub fn to_vault_card_leg(&self) -> RecurringDetails {
+    /// Arm 2 — the vault card alias, in the shape the external vault proxy core understands.
+    pub fn to_vault_card_arm(&self) -> RecurringDetails {
         RecurringDetails::NetworkTransactionIdAndVaultCardDetails(Box::new(
             NetworkTransactionIdAndVaultCardDetails {
                 vault_card_data: self.vault_card_data.clone(),

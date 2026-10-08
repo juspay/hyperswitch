@@ -251,7 +251,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // The vault card leg of a fallback follows an earlier attempt on the same intent, so it
+        // The vault card arm of a fallback follows an earlier attempt on the same intent, so it
         // needs its own attempt or that attempt's decline is overwritten. Only that case: a 3DS
         // resume reaches this operation with its authentication on the active attempt, and a new
         // attempt would drop `authentication_id` and authorize without the 3DS result.

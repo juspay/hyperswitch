@@ -3927,7 +3927,7 @@ where
     )
 }
 
-/// Whether the profile that ran the network token leg has clear-PAN retries enabled. An
+/// Whether the profile that ran the network token arm has clear-PAN retries enabled. An
 /// unreadable profile counts as disabled.
 #[cfg(feature = "v1")]
 async fn is_clear_pan_retry_enabled_for_profile(
@@ -3955,7 +3955,7 @@ async fn is_clear_pan_retry_enabled_for_profile(
     }
 }
 
-/// Whether a declined network-token leg may be re-run against the vault card. Mirrors the
+/// Whether a declined network-token arm may be re-run against the vault card. Mirrors the
 /// clear-PAN rule in `retry.rs`: profile switch on, GSM decides `Retry` and sets
 /// `clear_pan_possible`.
 #[cfg(feature = "v1")]
@@ -4027,7 +4027,7 @@ fn payment_response_from_application_response(
 /// Runs a network-token MIT and, on a clear-PAN eligible decline, re-runs it against the vault
 /// card under the same network transaction ID.
 ///
-/// The legs run on different cores (`PaymentData<Authorize>` vs `PaymentData<ExternalVaultProxy>`),
+/// The arms run on different cores (`PaymentData<Authorize>` vs `PaymentData<ExternalVaultProxy>`),
 /// so they are composed at the response level. The fallback runs at most once.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
@@ -4049,7 +4049,7 @@ where
         + Operation<api::Authorize, payments_api::PaymentsRequest, Data = PaymentData<api::Authorize>>,
 {
     let network_token_request = payments_api::PaymentsRequest {
-        recurring_details: Some(fallback.to_network_token_leg()),
+        recurring_details: Some(fallback.to_network_token_arm()),
         ..req.clone()
     };
 
@@ -4091,17 +4091,17 @@ where
         Some(payment_id) => {
             logger::info!(
                 payment_id = ?payment_id,
-                "network token leg declined as clear-pan eligible, falling back to the vault card leg"
+                "network token arm declined as clear-pan eligible, falling back to the vault card arm"
             );
 
             let vault_card_request = payments_api::PaymentsRequest {
                 payment_id: Some(payments_api::PaymentIdType::PaymentIntentId(payment_id)),
-                recurring_details: Some(fallback.to_vault_card_leg()),
+                recurring_details: Some(fallback.to_vault_card_arm()),
                 ..req.clone()
             };
 
             // No attempt bookkeeping here: the external vault proxy confirm operation always
-            // advances the attempt count, so the vault card leg lands on its own attempt and leg
+            // advances the attempt count, so the vault card arm lands on its own attempt and arm
             // one's decline survives.
             Box::pin(external_vault_proxy_for_payments_core::<
                 api::ExternalVaultProxy,
@@ -4115,7 +4115,7 @@ where
                 req_state,
                 platform.clone(),
                 profile_id,
-                // Always the confirm operation, for both endpoints: leg one has already persisted
+                // Always the confirm operation, for both endpoints: arm one has already persisted
                 // the intent, including on a single-call create+confirm.
                 PaymentExternalVaultProxyConfirm,
                 vault_card_request,

@@ -2856,7 +2856,7 @@ where
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
     // A network-token-with-vault-card-fallback request is not a single payment: it names a network
-    // token leg and a vault-aliased card leg sharing one network transaction ID, and the two legs
+    // token arm and a vault-aliased card arm sharing one network transaction ID, and the two arms
     // run on different cores. Its wrapper owns that sequencing, so it is checked ahead of both
     // single-core gates.
     let network_token_with_vault_card_fallback =
