@@ -84,6 +84,10 @@ pub enum RecurringDetails {
         Box<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
 
+    /// Network transaction ID and external vault card details for MIT payments where the card
+    /// is held in an external vault and referenced by a vault alias rather than by PAN.
+    NetworkTransactionIdAndVaultCardDetails(Box<NetworkTransactionIdAndVaultCardDetails>),
+
     CardWithLimitedData(Box<CardWithLimitedData>),
 }
 
@@ -180,6 +184,59 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
 
     /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
     /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct VaultCardDetails {
+    /// The vault alias standing in for the card number, not the card number itself
+    pub vault_card_token: Secret<String>,
+
+    /// The card's expiry month
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    pub nick_name: Option<Secret<String>>,
+
+    /// The first six digits of the card number
+    pub bin_number: Option<String>,
+
+    /// The last four digits of the card number
+    pub last_four: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndVaultCardDetails {
+    /// The external vault card details
+    pub vault_card_data: VaultCardDetails,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a
+    /// CIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.
     pub transaction_link_id: Option<String>,
 }
 
@@ -914,6 +971,57 @@ impl CardDetailsForNetworkTransactionId {
     }
 }
 
+impl VaultCardDetails {
+    /// The external vault counterpart of
+    /// `CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow`.
+    pub fn get_nti_and_vault_card_details_for_mit_flow(
+        network_transaction_id_and_vault_card_details: NetworkTransactionIdAndVaultCardDetails,
+    ) -> (mandates::MandateReferenceId, ExternalVaultPaymentMethodData) {
+        let mandate_reference_id =
+            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_vault_card_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_vault_card_details
+                    .transaction_link_id
+                    .clone(),
+            });
+
+        (
+            mandate_reference_id,
+            ExternalVaultPaymentMethodData::Card(Box::new(
+                network_transaction_id_and_vault_card_details
+                    .vault_card_data
+                    .into(),
+            )),
+        )
+    }
+}
+
+impl From<VaultCardDetails> for ExternalVaultCard {
+    /// `card_cvc` is deliberately empty: an MIT has no cardholder present, and the transaction
+    /// authorizes on the network transaction ID.
+    fn from(vault_card_details: VaultCardDetails) -> Self {
+        Self {
+            card_number: vault_card_details.vault_card_token,
+            card_exp_month: vault_card_details.card_exp_month,
+            card_exp_year: vault_card_details.card_exp_year,
+            card_cvc: Secret::new(String::new()),
+            bin_number: vault_card_details.bin_number,
+            last_four: vault_card_details.last_four,
+            card_issuer: vault_card_details.card_issuer,
+            card_network: vault_card_details.card_network,
+            card_type: vault_card_details.card_type,
+            card_issuing_country: vault_card_details.card_issuing_country,
+            bank_code: vault_card_details.bank_code,
+            nick_name: vault_card_details.nick_name,
+            card_holder_name: vault_card_details.card_holder_name,
+            co_badged_card_data: None,
+        }
+    }
+}
+
 impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
@@ -1140,6 +1248,7 @@ pub enum WalletData {
     SamsungPay(Box<SamsungPayWalletData>),
     TwintRedirect {},
     VippsRedirect {},
+    WeroRedirect {},
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     WeChatPayQr(Box<WeChatPayQr>),
@@ -2872,6 +2981,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             }
             api_models::payments::WalletData::BluecodeRedirect {} => Self::BluecodeRedirect {},
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
+            api_models::payments::WalletData::WeroRedirect {} => Self::WeroRedirect {},
         }
     }
 }
@@ -3840,6 +3950,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -4872,6 +4983,11 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(Box::new(
                 *network_transaction_id_and_decrypted_wallet_token_details,
             )),
+            api_mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(
+                network_transaction_id_and_vault_card_details,
+            ) => Self::NetworkTransactionIdAndVaultCardDetails(Box::new(
+                (*network_transaction_id_and_vault_card_details).into(),
+            )),
             api_mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
             }
@@ -4924,6 +5040,37 @@ impl From<api_mandates::NetworkTransactionIdAndNetworkTokenDetails>
     }
 }
 
+impl From<api_mandates::VaultCardData> for VaultCardDetails {
+    fn from(value: api_mandates::VaultCardData) -> Self {
+        Self {
+            vault_card_token: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+            nick_name: value.nick_name,
+            bin_number: value.bin_number,
+            last_four: value.last_four,
+        }
+    }
+}
+
+impl From<api_mandates::NetworkTransactionIdAndVaultCardDetails>
+    for NetworkTransactionIdAndVaultCardDetails
+{
+    fn from(value: api_mandates::NetworkTransactionIdAndVaultCardDetails) -> Self {
+        Self {
+            vault_card_data: value.vault_card_data.into(),
+            network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
+        }
+    }
+}
+
 impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
     fn from(card_with_limited_data: api_mandates::CardWithLimitedData) -> Self {
         Self {
@@ -4939,6 +5086,26 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
 }
 
 impl RecurringDetails {
+    /// The external vault counterpart of
+    /// `get_mandate_reference_id_and_payment_method_data_for_proxy_flow`, pairing the same mandate
+    /// reference with `ExternalVaultPaymentMethodData`.
+    pub fn get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow(
+        &self,
+    ) -> Option<(mandates::MandateReferenceId, ExternalVaultPaymentMethodData)> {
+        match self.clone() {
+            Self::NetworkTransactionIdAndVaultCardDetails(vault_card_details) => Some(
+                VaultCardDetails::get_nti_and_vault_card_details_for_mit_flow(*vault_card_details),
+            ),
+            Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndNetworkTokenDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+            | Self::CardWithLimitedData(_)
+            | Self::PaymentMethodId(_)
+            | Self::MandateId(_)
+            | Self::ProcessorPaymentToken(_) => None,
+        }
+    }
+
     pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
     ) -> Option<(mandates::MandateReferenceId, PaymentMethodData)> {
@@ -4955,7 +5122,9 @@ impl RecurringDetails {
             Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
                 Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
-            Self::PaymentMethodId(_)
+            // Vault card details are authorized through the external vault proxy core instead.
+            Self::NetworkTransactionIdAndVaultCardDetails(_)
+            | Self::PaymentMethodId(_)
             | Self::MandateId(_)
             | Self::ProcessorPaymentToken(_) => None,
         }
