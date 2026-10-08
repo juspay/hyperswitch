@@ -4,6 +4,8 @@ use common_utils::{
     encryption::Encryption, errors::CustomResult, ext_traits::AsyncExt,
     types::ConnectorTransactionId,
 };
+#[cfg(feature = "v2")]
+use diesel_models::errors::DatabaseError;
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -784,6 +786,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     installment_data: payment_attempt.installment_data.clone(),
                     external_surcharge_details: payment_attempt.external_surcharge_details.clone(),
                     applied_offer_details: payment_attempt.applied_offer_details.clone(),
+                    applied_overrides: payment_attempt.applied_overrides.clone(),
                     sender_payment_instrument_id: payment_attempt
                         .sender_payment_instrument_id
                         .clone(),
@@ -1110,8 +1113,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         };
 
         let field = format!("{}_{}", label::CLUSTER_LABEL, this.id.get_string_repr());
-        let conn = pg_connection_write(self).await?;
-
         let payment_attempt_internal =
             diesel_models::PaymentAttemptUpdateInternal::foreign_from(payment_attempt_update);
         let updated_payment_attempt = payment_attempt_internal
@@ -1119,13 +1120,30 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .apply_changeset(payment_attempt.clone());
 
         let updated_by = updated_payment_attempt.updated_by.to_owned();
-        let updated_payment_attempt_with_id = payment_attempt
-            .clone()
-            .update_with_attempt_id(&conn, payment_attempt_internal.clone());
+        let updated_payment_attempt_with_id = {
+            let payment_attempt = payment_attempt.clone();
+            let payment_attempt_internal = payment_attempt_internal.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_attempt
+                    .update_with_attempt_id(&conn, payment_attempt_internal)
+                    .await
+            }
+        };
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = payment_attempt_internal
-            .generate_drainer_update_query(&mut query_gen_conn, payment_attempt.id.clone());
+        let drainer_query_fut = {
+            let payment_attempt_id = payment_attempt.id.clone();
+            async move {
+                let mut conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                payment_attempt_internal
+                    .generate_drainer_update_query(&mut conn, payment_attempt_id)
+                    .await
+            }
+        };
 
         Box::pin(self.update_resource(
             merchant_key_store,
@@ -2093,6 +2111,7 @@ impl Conversion for PaymentAttempt {
             retry_type: self.retry_type,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            applied_overrides: self.applied_overrides,
             payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
             active_frm_id: self.active_frm_id,
@@ -2239,6 +2258,7 @@ impl Conversion for PaymentAttempt {
                 installment_data: storage_model.installment_data,
                 external_surcharge_details: storage_model.external_surcharge_details,
                 applied_offer_details: storage_model.applied_offer_details,
+                applied_overrides: storage_model.applied_overrides,
                 payment_account_reference: storage_model.payment_account_reference,
                 sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
                 active_frm_id: storage_model.active_frm_id,
@@ -2341,6 +2361,7 @@ impl Conversion for PaymentAttempt {
             installment_data: self.installment_data,
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
+            applied_overrides: self.applied_overrides,
             payment_account_reference: self.payment_account_reference,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
             active_frm_id: self.active_frm_id,
@@ -2530,6 +2551,7 @@ impl Conversion for PaymentAttempt {
             installment_data: None,
             external_surcharge_details: None,
             applied_offer_details,
+            applied_overrides: None,
             fingerprint_type: None,
             sender_payment_instrument_id: None,
             payment_account_reference,

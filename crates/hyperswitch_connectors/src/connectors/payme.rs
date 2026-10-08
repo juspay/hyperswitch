@@ -1259,6 +1259,7 @@ impl webhooks::IncomingWebhook for Payme {
             connector_status: webhook_object.sale_status.to_string(),
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 }

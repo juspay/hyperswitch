@@ -3526,6 +3526,13 @@ fn convert_to_additional_payment_method_connector_response(
             card_network,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }),
         Err(_) => None,
     }
@@ -3847,7 +3854,7 @@ impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
             common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "nuvei",
+                connector: "nuvei".into(),
             }
             .into()),
         }
@@ -3865,7 +3872,7 @@ impl TryFrom<&utils::CardIssuer> for NuveiCardType {
             utils::CardIssuer::DinersClub => Ok(Self::Diners),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Card network".to_string(),
-                connector: "nuvei",
+                connector: "nuvei".into(),
             }
             .into()),
         }

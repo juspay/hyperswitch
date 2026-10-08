@@ -3051,6 +3051,11 @@ impl IncomingWebhook for Stripe {
                 .to_string(),
             created_at: Some(details.event_data.event_object.created),
             updated_at: None,
+            additional_details: details
+                .event_data
+                .event_object
+                .network_details
+                .and_then(Into::into),
         })
     }
 }

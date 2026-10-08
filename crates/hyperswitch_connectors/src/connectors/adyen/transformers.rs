@@ -2336,7 +2336,12 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -2563,7 +2568,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            WalletData::AliPayQr(_)
+            WalletData::WeroRedirect { .. }
+            | WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
@@ -3115,7 +3121,7 @@ impl
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                 }
@@ -3166,7 +3172,7 @@ impl
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                 }
@@ -3174,7 +3180,7 @@ impl
             mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
-                    connector: "Adyen",
+                    connector: "Adyen".into(),
                 })?
             }
         }?;
@@ -6291,7 +6297,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::BankTransfer(bd) => {
                 let bank_details = match bd {
@@ -6306,35 +6312,40 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     payouts::BankTransfer::Ach(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::BankTransfer::Bacs(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::BankTransfer::Pix(..)
                     | payouts::BankTransfer::PixKey(..)
                     | payouts::BankTransfer::PixEmv(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::BankTransfer::Trustly(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via Trustly is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                     payouts::BankTransfer::OpenBanking(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via OpenBanking is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
-                    payouts::BankTransfer::Payshap(..)
-                    | payouts::BankTransfer::PayshapProxy(..) => {
+                    payouts::BankTransfer::Payshap(..) | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via PayShap is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via TED is not supported".to_string(),
+                            connector: std::borrow::Cow::Borrowed("Adyen"),
                         })?
                     }
                 };
@@ -6377,17 +6388,17 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     payouts::Wallet::Venmo(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Venmo Wallet is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                     payouts::Wallet::ApplePayDecrypt(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Apple Pay Decrypt Wallet is not supported".to_string(),
-                            connector: "Adyen",
+                            connector: "Adyen".into(),
                         })?
                     }
                     payouts::Wallet::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Google Pay Decrypt Wallet is not supported".to_string(),
-                        connector: "Adyen",
+                        connector: "Adyen".into(),
                     })?,
                 };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6422,11 +6433,11 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             }
             PayoutMethodData::BankRedirect(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Bank redirect payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Passthrough payout creation is not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
             PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
                 error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
@@ -7181,7 +7192,7 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
             enums::ConnectorWebhookEventType::SpecificEvent(event_type) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("Webhook Register for {} event type", event_type),
-                    connector: "Adyen",
+                    connector: "Adyen".into(),
                 }
                 .into())
             }

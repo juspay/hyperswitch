@@ -459,6 +459,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -468,7 +469,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::Mifinity(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
-                    connector: "payme",
+                    connector: "payme".into(),
                 }
                 .into()),
             },
@@ -1021,7 +1022,7 @@ impl TryFrom<&PaymeRouterData<&PaymentsCaptureRouterData>> for PaymentCaptureReq
         {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
-                connector: "Payme",
+                connector: "Payme".into(),
             })?
         }
         Ok(Self {

@@ -414,11 +414,13 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
+                | PaymentMethodType::Wero
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken
                 | PaymentMethodType::PixAutomaticoPush
-                | PaymentMethodType::PixAutomaticoQr => {
+                | PaymentMethodType::PixAutomaticoQr
+                | PaymentMethodType::Ted => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -2074,6 +2076,7 @@ impl IncomingWebhook for Adyen {
             connector_status: notif.event_code.to_string(),
             created_at: notif.event_date,
             updated_at: notif.event_date,
+            additional_details: None,
         })
     }
 
@@ -3493,7 +3496,7 @@ impl ConnectorSpecifications for Adyen {
             )]),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Scope type not supported".to_string(),
-                connector: "Adyen",
+                connector: "Adyen".into(),
             })?,
         }
     }

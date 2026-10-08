@@ -105,48 +105,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform.get_processor(),
         )?;
 
-        // If profile id is not passed, get it from the business_country and business_label
-        #[cfg(feature = "v1")]
-        let profile_id = core_utils::get_profile_id_from_business_details(
+        // If profile id is not passed, get it from the business_country and business_label.
+        // The lookup is scoped to the merchant, so this also validates that the profile belongs to it.
+        let business_profile = core_utils::get_profile_from_business_details(
             request.business_country,
             request.business_label.as_ref(),
             platform.get_processor(),
             request.profile_id.as_ref(),
             &*state.store,
-            true,
         )
         .await?;
+        let profile_id = business_profile.get_id().to_owned();
 
-        // Profile id will be mandatory in v2 in the request / headers
-        #[cfg(feature = "v2")]
-        let profile_id = request
-            .profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .attach_printable("Profile id is a mandatory parameter")?;
-
-        // TODO: eliminate a redundant db call to fetch the business profile
-        // Validate whether profile_id passed in request is valid and is linked to the merchant
-        let business_profile = if let Some(business_profile) =
-            core_utils::validate_and_get_business_profile(
-                db,
-                platform.get_processor(),
-                Some(&profile_id),
-            )
-            .await?
-        {
-            business_profile
-        } else {
-            platform_wrapper::business_profile::find_business_profile_by_profile_id(
-                state.store.as_ref(),
-                platform.get_processor(),
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?
-        };
         let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
@@ -196,30 +166,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_type.as_ref(),
         )?;
 
-        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
-            state,
-            request.shipping.as_ref(),
-            None,
-            platform.get_processor().get_account().get_id(),
-            customer_details.customer_id.as_ref(),
-            platform.get_processor().get_key_store(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await?;
-
-        let billing_address = helpers::create_or_find_address_for_payment_by_request(
-            state,
-            request.billing.as_ref(),
-            None,
-            platform.get_processor().get_account().get_id(),
-            customer_details.customer_id.as_ref(),
-            platform.get_processor().get_key_store(),
-            &payment_id,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await?;
-
         let payment_method_data_billing = request
             .payment_method_data
             .as_ref()
@@ -236,7 +182,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
             }));
 
-        let payment_method_billing_address =
+        // The shipping, billing and payment method billing addresses are independent of each
+        // other, so create them concurrently rather than one after another.
+        let (shipping_address, billing_address, payment_method_billing_address) = tokio::try_join!(
+            helpers::create_or_find_address_for_payment_by_request(
+                state,
+                request.shipping.as_ref(),
+                None,
+                platform.get_processor().get_account().get_id(),
+                customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
+                &payment_id,
+                platform.get_processor().get_account().storage_scheme,
+            ),
+            helpers::create_or_find_address_for_payment_by_request(
+                state,
+                request.billing.as_ref(),
+                None,
+                platform.get_processor().get_account().get_id(),
+                customer_details.customer_id.as_ref(),
+                platform.get_processor().get_key_store(),
+                &payment_id,
+                platform.get_processor().get_account().storage_scheme,
+            ),
             helpers::create_or_find_address_for_payment_by_request(
                 state,
                 payment_method_data_billing.as_ref(),
@@ -246,8 +214,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 platform.get_processor().get_key_store(),
                 &payment_id,
                 platform.get_processor().get_account().storage_scheme,
-            )
-            .await?;
+            ),
+        )?;
 
         let browser_info = request
             .browser_info
@@ -330,18 +298,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let domain_recurring_details = recurring_details
+            .clone()
+            .map(domain_recurring_details::from);
+
         let (mandate_reference_id_from_recurring_details, payment_method_recurring_details) =
-            match recurring_details
-                .clone()
-                .map(domain_recurring_details::from)
-                .and_then(|details| {
-                    details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
-                }) {
+            match domain_recurring_details.as_ref().and_then(|details| {
+                details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+            }) {
                 Some((mandate_reference_id, payment_method_recurring_details)) => (
                     Some(mandate_reference_id),
                     Some(payment_method_recurring_details),
                 ),
-                None => (None, None),
+                // A vault alias has no domain payment method data form, but still carries a
+                // network transaction ID as its mandate reference.
+                None => (
+                    domain_recurring_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+                        })
+                        .map(|(mandate_reference_id, _external_vault_pmd)| mandate_reference_id),
+                    None,
+                ),
             };
 
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
@@ -507,6 +486,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     RecurringDetails::CardWithLimitedData(_)
                     | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                     | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                         Some(mandates::MandateIds {
                             mandate_id: None,
@@ -704,6 +684,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -1756,6 +1737,7 @@ impl PaymentCreate {
                 installment_data: None,
                 external_surcharge_details: None,
                 applied_offer_details: None,
+                applied_overrides: None,
                 sender_payment_instrument_id: None,
                 payment_account_reference: None,
                 active_frm_id: None,

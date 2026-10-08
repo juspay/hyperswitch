@@ -683,6 +683,7 @@ impl TryFrom<&PaysafeRouterData<&TokenizationRouterData>> for PaysafePaymentHand
                     | WalletData::SamsungPay(_)
                     | WalletData::TwintRedirect {}
                     | WalletData::VippsRedirect {}
+                    | WalletData::WeroRedirect {}
                     | WalletData::TouchNGoRedirect(_)
                     | WalletData::WeChatPayRedirect(_)
                     | WalletData::CashappQr(_)
@@ -1243,7 +1244,7 @@ impl TryFrom<&PaysafeRouterData<&PaymentsAuthorizeRouterData>> for PaysafePaymen
                     "Mandate Payment with {} {}",
                     item.router_data.payment_method, item.router_data.auth_type
                 ),
-                connector: "Paysafe",
+                connector: "Paysafe".into(),
             })?
         };
 
