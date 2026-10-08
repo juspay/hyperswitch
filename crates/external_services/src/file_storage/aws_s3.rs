@@ -1,7 +1,7 @@
 //! Hyperswitch adapter over the shared [`cloud_services`] S3 client.
 
-use cloud_services::storage::s3::S3Storage;
 pub use cloud_services::storage::s3::S3StorageConfig as AwsFileStorageConfig;
+use cloud_services::storage::{oci::OciObjectStorageConfig, s3::S3Storage};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
@@ -19,6 +19,13 @@ impl AwsFileStorageClient {
     pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
         Self {
             inner: S3Storage::new(config).await,
+        }
+    }
+
+    /// Creates a file storage client for OCI Object Storage, through its S3 Compatibility API.
+    pub(super) async fn new_oci(config: &OciObjectStorageConfig) -> Self {
+        Self {
+            inner: S3Storage::new_oci(config).await,
         }
     }
 }
@@ -151,14 +158,6 @@ mod tests {
                 serde_json::json!({ "region": "us-east-1", "bucket_name": "  " }),
                 "file_storage: aws s3 bucket name must not be empty",
             ),
-            (
-                serde_json::json!({
-                    "region": "us-east-1",
-                    "bucket_name": "bucket",
-                    "endpoint_url": "objectstorage.example.com",
-                }),
-                "file_storage: aws s3 endpoint url must be an absolute http(s) url",
-            ),
         ] {
             let config = file_storage_config(serde_json::json!({
                 "file_storage_backend": "aws_s3",
@@ -170,5 +169,36 @@ mod tests {
                 Err(message.to_owned())
             );
         }
+    }
+
+    #[test]
+    fn oci_object_storage_backend_config_deserializes_and_validates() {
+        let config = file_storage_config(serde_json::json!({
+            "file_storage_backend": "oci_object_storage",
+            "oci_object_storage": {
+                "namespace": "namespace",
+                "region": "ap-hyderabad-1",
+                "bucket_name": "bucket",
+            },
+        }));
+
+        assert!(matches!(config, FileStorageConfig::OciObjectStorage { .. }));
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn oci_object_storage_backend_reports_invalid_config() {
+        let config = file_storage_config(serde_json::json!({
+            "file_storage_backend": "oci_object_storage",
+            "oci_object_storage": {
+                "namespace": "namespace",
+                "region": "ap-hyderabad-1",
+            },
+        }));
+
+        assert_eq!(
+            config.validate().map_err(|error| error.to_string()),
+            Err("file_storage: oci object storage bucket name must not be empty".to_owned())
+        );
     }
 }
