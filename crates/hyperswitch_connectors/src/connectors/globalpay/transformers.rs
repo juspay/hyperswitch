@@ -395,6 +395,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 payment_method_id: None,
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: None,
+                connector_mandate_status: None,
             }),
             _ => None,
         });

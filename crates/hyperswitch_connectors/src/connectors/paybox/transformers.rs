@@ -722,6 +722,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                                     mandate_metadata: None,
                                     connector_mandate_request_reference_id:
                                         response.customer_id.map(|secret| secret.expose()),
+                                    connector_mandate_status: None,
                                 },
                             )),
                             connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -1016,6 +1017,7 @@ impl<F>
                             connector_mandate_request_reference_id: response
                                 .customer_id
                                 .map(|secret| secret.expose()),
+                            connector_mandate_status: None,
                         }
                     })),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {

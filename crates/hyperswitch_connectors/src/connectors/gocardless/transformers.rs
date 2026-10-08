@@ -554,6 +554,7 @@ impl<F>
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         });
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -699,6 +700,7 @@ impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),

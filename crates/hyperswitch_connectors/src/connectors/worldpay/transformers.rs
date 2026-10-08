@@ -851,6 +851,7 @@ impl<F, T>
                         payment_method_id: Some(mandate_token.token_id.clone()),
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
+                        connector_mandate_status: None,
                     }),
                     res.scheme_reference.clone(),
                     None,

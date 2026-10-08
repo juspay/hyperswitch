@@ -167,6 +167,7 @@ impl
             .status
             .map(AttemptStatus::from)
             .unwrap_or(AttemptStatus::Pending);
+        let connector_mandate_status = Some(enums::ConnectorMandateStatus::from(status));
         let resource_id = ResponseId::ConnectorTransactionId(item.response.id_rec.clone().expose());
         let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
@@ -176,6 +177,7 @@ impl
             connector_mandate_request_reference_id: Some(
                 item.response.id_solic_rec.clone().expose(),
             ),
+            connector_mandate_status,
         });
 
         Ok(Self {
@@ -248,6 +250,7 @@ impl
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: connector_mandate_request_reference_id.clone(),
+            connector_mandate_status: Some(ConnectorMandateStatus::Inactive),
         }));
         let connector_transaction_id = match journey.as_ref() {
             Some(SantanderJourneyType::Jornada3 | SantanderJourneyType::Jornada4) => Some(
@@ -1787,12 +1790,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(cobr_data.txid.clone()),
                         redirection_data: Box::new(None),
-                        mandate_reference: Box::new(Some(MandateReference {
-                            connector_mandate_id: Some(cobr_data.id_rec.clone().expose()),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: Some(cobr_data.txid.clone()),
-                        })),
+                        mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
                         network_txn_link_id: None,
@@ -2879,6 +2877,7 @@ impl<F>
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
+                    connector_mandate_status: None,
                 })),
                 connector_metadata: None,
                 network_txn_id: None,

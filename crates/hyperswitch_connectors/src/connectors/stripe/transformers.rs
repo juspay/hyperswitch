@@ -3604,6 +3604,7 @@ where
                 payment_method_id,
                 mandate_metadata,
                 connector_mandate_request_reference_id: None,
+                connector_mandate_status: None,
             }
         });
 
@@ -3940,6 +3941,7 @@ where
                     payment_method_id: Some(payment_method_id),
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
+                    connector_mandate_status: None,
                 }
             });
 
@@ -4058,6 +4060,7 @@ where
                 payment_method_id,
                 mandate_metadata,
                 connector_mandate_request_reference_id: None,
+                connector_mandate_status: None,
             }
         });
         let status = get_stripe_payment_status(item.response.status, item.data.status);

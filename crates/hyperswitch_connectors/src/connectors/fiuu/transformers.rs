@@ -957,6 +957,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                     payment_method_id: None,
                                     mandate_metadata: None,
                                     connector_mandate_request_reference_id: None,
+                                    connector_mandate_status: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -1480,8 +1481,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                                 connector_mandate_id: Some(token.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                                connector_mandate_request_reference_id:None
-                            })
+                                connector_mandate_request_reference_id: None,
+                                connector_mandate_status: None,
+})
                         }
                         Err(err) => {
                             router_env::logger::warn!(

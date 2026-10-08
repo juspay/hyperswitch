@@ -4099,6 +4099,7 @@ fn get_mandate_reference(
         mandate_metadata: None,
         connector_mandate_request_reference_id: scheme_response
             .map(|response| response.transaction_identifier.clone()),
+        connector_mandate_status: None,
     }
 }
 

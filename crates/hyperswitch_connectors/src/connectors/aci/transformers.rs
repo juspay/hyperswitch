@@ -1428,6 +1428,7 @@ where
                 payment_method_id: None,
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                connector_mandate_status: None,
             });
 
         let status = if redirection_data.is_some() {
@@ -1819,6 +1820,7 @@ impl
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: Some(item.response.id.clone()),
+            connector_mandate_status: None,
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {

@@ -502,6 +502,7 @@ impl<F>
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
+                        connector_mandate_status: None,
                     }))
                 } else {
                     Box::new(None)
@@ -1040,6 +1041,7 @@ impl<F>
                             payment_method_id: None,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
+                            connector_mandate_status: None,
                         }
                     })),
                     connector_metadata: None,

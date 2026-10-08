@@ -1036,6 +1036,7 @@ pub fn get_mandate_reference(
             payment_method_id: None,
             mandate_metadata,
             connector_mandate_request_reference_id: payment_id.clone(),
+            connector_mandate_status: None,
         }))
     } else {
         Ok(None)

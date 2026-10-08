@@ -1713,6 +1713,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    connector_mandate_status: None,
                 })
         } else {
             None
@@ -1852,6 +1853,7 @@ impl
                 payment_method_id: None,
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                connector_mandate_status: None,
             });
 
         let additional_information = convert_to_additional_payment_method_connector_response(
@@ -1948,6 +1950,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    connector_mandate_status: None,
                 })
         } else {
             None

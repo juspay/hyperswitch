@@ -3539,6 +3539,7 @@ fn get_payment_response(
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
+                        connector_mandate_status: None,
                     });
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -4441,6 +4442,7 @@ impl
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
+                    connector_mandate_status: None,
                 });
         let mut mandate_status = map_cybersource_attempt_status(
             item.response

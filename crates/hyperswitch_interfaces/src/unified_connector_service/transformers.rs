@@ -661,6 +661,7 @@ impl ForeignTryFrom<payments_grpc::MandateReferenceDetails>
             payment_method_id: value.payment_method_id,
             mandate_metadata,
             connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+            connector_mandate_status: None,
         })
     }
 }

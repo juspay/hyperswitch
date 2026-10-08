@@ -607,6 +607,7 @@ where
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
+                        connector_mandate_status: None,
                     });
 
                 let connector_response = {
@@ -704,6 +705,7 @@ impl<F, T>
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         });
 
         Ok(Self {

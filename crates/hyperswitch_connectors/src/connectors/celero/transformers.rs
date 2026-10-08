@@ -485,6 +485,7 @@ impl CeleroTransactionResponseData {
                 payment_method_id: self.payment_method_id.clone(),
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: Some(self.id.clone()),
+                connector_mandate_status: None,
             }))
         } else {
             Box::new(None)

@@ -183,6 +183,7 @@ pub struct MandateReference {
     pub payment_method_id: Option<String>,
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
 }
 
 #[derive(Debug, Clone, Serialize)]

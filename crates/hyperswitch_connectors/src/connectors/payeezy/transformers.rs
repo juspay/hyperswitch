@@ -434,6 +434,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                 payment_method_id: None,
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: None,
+                connector_mandate_status: None,
             });
         let status = get_status(
             item.response.transaction_status,

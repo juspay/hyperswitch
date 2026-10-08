@@ -425,6 +425,7 @@ impl WorldpayvantivMandateMetadata {
             payment_method_id: None,
             mandate_metadata,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         })
     }
 }
@@ -2421,6 +2422,7 @@ impl From<TokenResponse> for MandateReference {
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         }
     }
 }
@@ -2484,6 +2486,7 @@ impl From<AccountUpdaterCardTokenInfo> for MandateReference {
             payment_method_id: None,
             mandate_metadata: mandate_metadata_secret_json,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         }
     }
 }

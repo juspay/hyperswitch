@@ -501,6 +501,12 @@ where
             .and_then(|payments| payments.0.get(&mca_id))
             .and_then(|record| record.connector_mandate_status);
 
+        let connector_provided_mandate_status = router_data
+            .response
+            .as_ref()
+            .ok()
+            .and_then(get_connector_provided_mandate_status);
+
         let is_active_mandate =
             existing_connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active);
 
@@ -524,12 +530,15 @@ where
                         )
                     })
                     .unwrap_or((None, None, None));
-            let connector_mandate_status = match MandateActivation::from(payment_attempt) {
-                MandateActivation::Pending => existing_connector_mandate_status
-                    .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
-                MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
-                MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
-            };
+            let connector_mandate_status =
+                connector_provided_mandate_status.unwrap_or_else(|| match MandateActivation::from(
+                    payment_attempt,
+                ) {
+                    MandateActivation::Pending => existing_connector_mandate_status
+                        .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
+                    MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
+                    MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
+                });
 
             let connector_mandate_details = tokenization::update_connector_mandate_details(
                 Some(mandate_details),
@@ -573,11 +582,27 @@ where
 }
 
 #[cfg(feature = "v1")]
+fn get_connector_provided_mandate_status(
+    response: &types::PaymentsResponseData,
+) -> Option<common_enums::ConnectorMandateStatus> {
+    match response {
+        types::PaymentsResponseData::TransactionResponse {
+            mandate_reference, ..
+        } => mandate_reference
+            .as_ref()
+            .as_ref()
+            .and_then(|mandate_reference| mandate_reference.connector_mandate_status.clone()),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "v1")]
 async fn persist_connector_mandate_on_payment_method<F>(
     state: &SessionState,
     platform: &domain::Platform,
     payment_data: &PaymentData<F>,
     connector_mandate_reference_id: &Option<ConnectorMandateReferenceId>,
+    connector_provided_mandate_status: Option<common_enums::ConnectorMandateStatus>,
 ) -> RouterResult<()>
 where
     F: Clone + Send + Sync,
@@ -612,20 +637,22 @@ where
             let has_connector_mandate_id = connector_mandate_reference_id
                 .get_connector_mandate_id()
                 .is_some();
-            let connector_mandate_status = match (
-                has_connector_mandate_id,
-                payment_data.payment_attempt.status,
-            ) {
-                (
-                    true,
-                    enums::AttemptStatus::Charged
-                    | enums::AttemptStatus::Authorized
-                    | enums::AttemptStatus::PartiallyAuthorized
-                    | enums::AttemptStatus::PartialCharged
-                    | enums::AttemptStatus::PartialChargedAndChargeable,
-                ) => common_enums::ConnectorMandateStatus::Active,
-                _ => common_enums::ConnectorMandateStatus::Inactive,
-            };
+            let connector_mandate_status = connector_provided_mandate_status.unwrap_or_else(|| {
+                match (
+                    has_connector_mandate_id,
+                    payment_data.payment_attempt.status,
+                ) {
+                    (
+                        true,
+                        enums::AttemptStatus::Charged
+                        | enums::AttemptStatus::Authorized
+                        | enums::AttemptStatus::PartiallyAuthorized
+                        | enums::AttemptStatus::PartialCharged
+                        | enums::AttemptStatus::PartialChargedAndChargeable,
+                    ) => common_enums::ConnectorMandateStatus::Active,
+                    _ => common_enums::ConnectorMandateStatus::Inactive,
+                }
+            });
             let authorized_amount = Some(
                 payment_data
                     .payment_attempt
@@ -940,11 +967,17 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
                     // Persist the connector mandate reference on the payment method so that
                     // subsequent mandate-status webhooks can resolve the payment method.
+                    let connector_provided_mandate_status = resp
+                        .response
+                        .as_ref()
+                        .ok()
+                        .and_then(get_connector_provided_mandate_status);
                     persist_connector_mandate_on_payment_method(
                         state,
                         platform,
                         payment_data,
                         &connector_mandate_reference_id,
+                        connector_provided_mandate_status,
                     )
                     .await?;
 
@@ -2302,11 +2335,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         let is_connector_mandate = resp.request.is_connector_mandate();
 
         if is_connector_mandate {
+            let connector_provided_mandate_status = resp
+                .response
+                .as_ref()
+                .ok()
+                .and_then(get_connector_provided_mandate_status);
             persist_connector_mandate_on_payment_method(
                 state,
                 platform,
                 payment_data,
                 &connector_mandate_reference_id,
+                connector_provided_mandate_status,
             )
             .await?;
         }

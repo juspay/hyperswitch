@@ -885,6 +885,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                             payment_method_id: None,
                             mandate_metadata: None,
                             connector_mandate_request_reference_id: None,
+                            connector_mandate_status: None,
                         });
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(

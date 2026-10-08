@@ -823,6 +823,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentsResponse>> for PaymentsAu
                     initial_transaction_id: item.response.id.clone()
                 }))),
                 connector_mandate_request_reference_id: None,
+                connector_mandate_status: None,
             });
 
         Ok(Self {

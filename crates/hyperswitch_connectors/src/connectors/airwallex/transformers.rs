@@ -1373,6 +1373,7 @@ where
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         }));
 
         let connector_response = item
@@ -1484,6 +1485,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
+                        connector_mandate_status: None,
                     }),
             );
 
@@ -1569,6 +1571,7 @@ impl
                         payment_method_id: None,
                         mandate_metadata: None,
                         connector_mandate_request_reference_id: None,
+                        connector_mandate_status: None,
                     }),
             );
 

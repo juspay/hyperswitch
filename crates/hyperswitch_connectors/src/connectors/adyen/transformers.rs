@@ -4408,6 +4408,7 @@ pub fn get_adyen_response(
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         });
     let network_txn_id = response
         .additional_data
@@ -4539,6 +4540,7 @@ pub fn get_webhook_response(
                 payment_method_id: response.recurring_shopper_reference.clone(),
                 mandate_metadata: None,
                 connector_mandate_request_reference_id: None,
+                connector_mandate_status: None,
             });
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(

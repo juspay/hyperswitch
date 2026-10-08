@@ -2449,6 +2449,7 @@ fn create_transaction_response(
                     mandate_metadata: ip_address
                         .map(|ip| pii::SecretSerdeValue::new(serde_json::Value::String(ip))),
                     connector_mandate_request_reference_id: None,
+                    connector_mandate_status: None,
                 }),
         ),
         // we don't need to save session token for capture, void flow so ignoring if it is not present

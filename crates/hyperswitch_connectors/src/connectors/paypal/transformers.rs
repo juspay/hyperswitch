@@ -713,6 +713,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
             payment_method_id: None,
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
+            connector_mandate_status: None,
         });
         // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
         // If 201 status code, then order is captured, other status codes are handled by the error handler
@@ -2633,6 +2634,7 @@ where
                         },
                         None => None,
                     },
+                    connector_mandate_status: None,
                 })),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
