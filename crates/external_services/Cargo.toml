@@ -65,7 +65,7 @@ aws-smithy-types = "1.3.1"
 base64 = "0.22.1"
 dyn-clone = "1.0.19"
 google-cloud-kms = { version = "0.6.0", optional = true }
-deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "e08802320d68ffba25207567b4765a86c200d6f2", optional = true, default-features = false }
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
