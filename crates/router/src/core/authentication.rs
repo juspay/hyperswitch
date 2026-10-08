@@ -565,13 +565,9 @@ async fn call_ucs_pre_authenticate_proxy(
                 .attach_printable(
                     "UCS pre-authenticate response missing threeds_server_transaction_id",
                 )?;
-            // UCS returns the card-range directory server id in its own field; older UCS builds
-            // only wrote it into `ds_trans_id`.
-            let directory_server_id = ucs_authentication_data.as_ref().and_then(|data| {
-                data.directory_server_id
-                    .clone()
-                    .or_else(|| data.ds_trans_id.clone())
-            });
+            let directory_server_id = ucs_authentication_data
+                .as_ref()
+                .and_then(|data| data.directory_server_id.clone());
             let scheme_id = ucs_authentication_data
                 .as_ref()
                 .and_then(|data| data.scheme_id.clone());
@@ -1200,21 +1196,6 @@ struct AuthenticateProxyContext {
     browser_info: Option<core_types::BrowserInformation>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-struct AcquirerMetadata {
-    acquirer_bin: Option<String>,
-    acquirer_merchant_id: Option<String>,
-    acquirer_country_code: Option<String>,
-}
-
-impl AcquirerMetadata {
-    fn is_empty(&self) -> bool {
-        self.acquirer_bin.is_none()
-            && self.acquirer_merchant_id.is_none()
-            && self.acquirer_country_code.is_none()
-    }
-}
-
 /// Drives the live UCS authenticate (AReq) call; response interpretation is
 /// `parse_ucs_authenticate_response`'s job.
 #[cfg(feature = "v1")]
@@ -1359,7 +1340,11 @@ async fn call_ucs_authenticate_proxy(
         sdk_information: sdk_information.clone(),
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
-        force_3ds_challenge: None,
+        force_3ds_challenge: Some(
+            payment_intent
+                .force_3ds_challenge
+                .unwrap_or(business_profile.force_3ds_challenge),
+        ),
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -1433,13 +1418,11 @@ async fn call_ucs_authenticate_proxy(
         business_profile.get_id().clone(),
     );
 
-    let notification_url = Some(common_utils::types::Url::wrap(
-        url::Url::parse(&payments_core::helpers::create_authorize_url(
-            &state.base_url,
-            payment_attempt,
-            &psp_connector_name,
-        ))
-        .change_context(ApiErrorResponse::InternalServerError)?,
+    // UCS maps `return_url` to the AReq `notificationURL` the ACS posts the CRes back to.
+    let return_url = Some(payments_core::helpers::create_authorize_url(
+        &state.base_url,
+        payment_attempt,
+        &psp_connector_name,
     ));
 
     // Prefer acquirer details set directly on the PSP connector's own metadata; fall back to the
@@ -1448,7 +1431,12 @@ async fn call_ucs_authenticate_proxy(
     // profile-acquirer-id-specific bucket first, then the profile's network default.
     let acquirer_metadata = psp_merchant_connector_account
         .get_metadata()
-        .and_then(|metadata| serde_json::from_value::<AcquirerMetadata>(metadata.expose()).ok())
+        .and_then(|metadata| {
+            serde_json::from_value::<unified_connector_service::transformers::AcquirerMetadata>(
+                metadata.expose(),
+            )
+            .ok()
+        })
         .filter(|metadata| !metadata.is_empty())
         .or_else(|| {
             let card_network = match &external_vault_pmd {
@@ -1467,13 +1455,12 @@ async fn call_ucs_authenticate_proxy(
                 .or_else(|| {
                     business_profile.get_default_acquirer_details_from_network(card_network)
                 })?;
-            Some(AcquirerMetadata {
+            Some(unified_connector_service::transformers::AcquirerMetadata {
                 acquirer_bin: acquirer_config.acquirer_bin,
                 acquirer_merchant_id: acquirer_config.acquirer_assigned_merchant_id,
                 acquirer_country_code: acquirer_config.acquirer_country_code,
             })
-        })
-        .and_then(|metadata| serde_json::to_value(metadata).ok());
+        });
 
     let authenticate_router_data = Box::pin(
         payments_core::flows::complete_authorize_flow::call_unified_connector_service_authenticate_proxy(
@@ -1492,12 +1479,7 @@ async fn call_ucs_authenticate_proxy(
                 connector_decline_threshold: rollout_result.connector_decline_threshold,
                 rollout_scope: rollout_result.rollout_scope.clone(),
             },
-            Some(
-                payment_intent
-                    .force_3ds_challenge
-                    .unwrap_or(business_profile.force_3ds_challenge),
-            ),
-            notification_url,
+            return_url,
             acquirer_metadata,
             threeds_method_comp_ind,
         ),
@@ -1530,40 +1512,25 @@ struct ParsedAuthenticateResponse {
     acs_signed_content: Option<String>,
 }
 
-#[cfg(feature = "v1")]
-#[derive(serde::Deserialize)]
-struct AppChallengeAcsMetadata {
-    acs_signed_content: Option<String>,
-    acs_reference_number: Option<String>,
-    acs_trans_id: Option<String>,
-}
-
 /// Interprets a successful UCS authenticate response into `AuthenticationResponseData::AuthNResponse`
-/// plus the SDK-facing challenge/ARes fields; `AppChallengeAcsMetadata` reads ACS fields back out
-/// of the JSON-stuffed `connector_metadata` since UCS has no typed slots for them. A connector-level
-/// error is the caller's responsibility to hard-fail on (mirroring `perform_authentication`'s
-/// `response.response.map_err(...)?`) before ever reaching this function.
+/// plus the SDK-facing challenge/ARes fields, all read from the typed `authentication_data`. A
+/// connector-level error is the caller's responsibility to hard-fail on (mirroring
+/// `perform_authentication`'s `response.response.map_err(...)?`) before ever reaching this function.
 #[cfg(feature = "v1")]
 fn parse_ucs_authenticate_response(
     response: &core_types::PaymentsResponseData,
 ) -> CustomResult<ParsedAuthenticateResponse, ApiErrorResponse> {
-    let (areq_authentication_data, redirection_data, connector_metadata) = match response {
+    let (areq_authentication_data, redirection_data) = match response {
         core_types::PaymentsResponseData::TransactionResponse {
             authentication_data,
             redirection_data,
-            connector_metadata,
             ..
         } => (
             authentication_data.clone().map(|boxed| *boxed),
             (**redirection_data).clone(),
-            connector_metadata.clone(),
         ),
-        _ => (None, None, None),
+        _ => (None, None),
     };
-
-    let app_acs = connector_metadata.as_ref().and_then(|metadata| {
-        serde_json::from_value::<AppChallengeAcsMetadata>(metadata.clone()).ok()
-    });
 
     let (acs_url, challenge_request) = match &redirection_data {
         Some(hyperswitch_domain_models::router_response_types::RedirectForm::Form {
@@ -1578,16 +1545,10 @@ fn parse_ucs_authenticate_response(
     };
     let acs_signed_content = areq_authentication_data
         .as_ref()
-        .and_then(|data| data.acs_signed_content.clone())
-        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
+        .and_then(|data| data.acs_signed_content.clone());
     let acs_reference_number = areq_authentication_data
         .as_ref()
-        .and_then(|data| data.acs_reference_number.clone())
-        .or_else(|| {
-            app_acs
-                .as_ref()
-                .and_then(|m| m.acs_reference_number.clone())
-        });
+        .and_then(|data| data.acs_reference_number.clone());
 
     let trans_status = areq_authentication_data
         .as_ref()
@@ -1599,8 +1560,7 @@ fn parse_ucs_authenticate_response(
         .attach_printable("UCS authenticate response missing trans_status")?;
     let acs_trans_id = areq_authentication_data
         .as_ref()
-        .and_then(|data| data.acs_trans_id.clone())
-        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_trans_id.clone()));
+        .and_then(|data| data.acs_trans_id.clone());
     let eci = areq_authentication_data
         .as_ref()
         .and_then(|data| data.eci.clone());
