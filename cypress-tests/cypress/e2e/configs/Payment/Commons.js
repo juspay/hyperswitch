@@ -1134,9 +1134,6 @@ const offerEngineConfirmWithOfferApplied = getCustomExchange({
     offer_details: {
       offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
     },
-    customer: {
-      date_of_birth: "1990-01-01",
-    },
   },
   Response: {
     status: 200,
@@ -4772,9 +4769,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
           billing: standardBillingAddress,
         },
-        customer: {
-          date_of_birth: "1990-01-01",
-        },
       },
       Response: {
         status: 200,
@@ -4814,9 +4808,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: standardBillingAddress,
-        },
-        customer: {
-          date_of_birth: "1990-01-01",
         },
       },
       Response: {

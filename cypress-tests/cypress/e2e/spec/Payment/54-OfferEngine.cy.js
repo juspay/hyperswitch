@@ -89,7 +89,8 @@ describe("Offer Engine", () => {
       globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        connectorDetails.offer_engine.OfferEligibilityCheck,
+        getConnectorDetails(globalState.get("connectorId")).offer_engine
+          .OfferEligibilityCheck,
         globalState
       );
     });
@@ -216,7 +217,8 @@ describe("Offer Engine", () => {
       globalState.set("offerQuoteId", undefined);
       cy.paymentsOfferEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        connectorDetails.offer_engine.OfferEligibilityCheck,
+        getConnectorDetails(globalState.get("connectorId")).offer_engine
+          .OfferEligibilityCheck,
         globalState
       );
     });

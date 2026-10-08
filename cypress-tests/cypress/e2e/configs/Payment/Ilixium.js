@@ -433,6 +433,36 @@ export const connectorDetails = {
   // saved-card scenario expects that failure instead of the generic
   // success shared by every other connector.
   offer_engine: {
+    OfferEligibilityCheck: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+        customer: ilixiumCustomer,
+      },
+      Response: {
+        status: 200,
+        body: {
+          amount_details: {
+            total_amount: 100000,
+            net_amount: 98000,
+            currency: "USD",
+          },
+          offer_details: {
+            uplifted_offer_quote_ids: [""],
+            eligible_offers: [
+              {
+                offer_amount: 2000,
+                currency: "USD",
+                code: "TESTHS",
+              },
+            ],
+          },
+        },
+      },
+    }),
     // Same pre-existing limitation as card_pm.No3DSAutoCapture above: our
     // creds only support manual capture, so any auto-capture confirm --
     // offer-engine or not -- comes back 200 with this mapped error instead
