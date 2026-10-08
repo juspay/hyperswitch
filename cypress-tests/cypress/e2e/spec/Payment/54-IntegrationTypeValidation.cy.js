@@ -106,7 +106,14 @@ describe("X-Integration-Type header validation against merchant integration_type
         }
       });
 
-      before("create payment for update test", () => {
+      before("create payment for update test", function () {
+        // Mocha's this.skip() in the sibling "apply merchant integration_type
+        // config" hook above only cascades to the `it`s in this context, not
+        // to this hook — it still runs regardless, so it needs its own guard.
+        if (specShouldSkip) {
+          this.skip();
+        }
+
         // A header value guaranteed to pass under the config just set above,
         // independent of whatever header this scenario tests against — a
         // "server" merchant only accepts a "server" header, everything else
