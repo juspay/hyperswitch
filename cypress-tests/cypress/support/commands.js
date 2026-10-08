@@ -1262,6 +1262,13 @@ Cypress.Commands.add(
               updateBusinessProfileBody.merchant_category_code
             );
           }
+          if (
+            updateBusinessProfileBody.auto_fallback_capture_method !== undefined
+          ) {
+            expect(response.body.auto_fallback_capture_method).to.equal(
+              updateBusinessProfileBody.auto_fallback_capture_method
+            );
+          }
         } else {
           throw new Error(
             `Business Profile Update Failed: ${response.body.error?.message || response.status}`
