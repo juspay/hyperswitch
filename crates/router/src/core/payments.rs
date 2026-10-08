@@ -3709,10 +3709,8 @@ where
     )
 }
 
-/// Whether the merchant has clear-PAN retries enabled on the profile that ran the network token leg.
-///
-/// A profile that cannot be read is treated as disabled: the fallback re-authorizes a declined
-/// payment on a second credential, so it should not happen on an unverified switch.
+/// Whether the profile that ran the network token leg has clear-PAN retries enabled. An
+/// unreadable profile counts as disabled.
 #[cfg(feature = "v1")]
 async fn is_clear_pan_retry_enabled_for_profile(
     state: &SessionState,
@@ -3739,13 +3737,9 @@ async fn is_clear_pan_retry_enabled_for_profile(
     }
 }
 
-/// Decides whether a declined network-token leg is eligible to be re-run against the vault card.
-///
-/// The rule mirrors the clear-PAN condition used by auto retries: the merchant must have
-/// `is_clear_pan_retries_enabled` on the profile, and the connector's decline must map to a GSM
-/// record that both decides `Retry` and sets `clear_pan_possible`. A non-failure status, a missing
-/// connector, a disabled profile switch, or no matching GSM row all leave the network token
-/// response as final.
+/// Whether a declined network-token leg may be re-run against the vault card. Mirrors the
+/// clear-PAN rule in `retry.rs`: profile switch on, GSM decides `Retry` and sets
+/// `clear_pan_possible`.
 #[cfg(feature = "v1")]
 async fn is_vault_card_fallback_eligible(
     state: &SessionState,
@@ -3804,16 +3798,11 @@ fn payment_response_from_application_response(
     }
 }
 
-/// Runs a network-token MIT and, when the decline is clear-PAN eligible, re-runs the same payment
-/// against the vault-aliased card held under the same network transaction ID.
+/// Runs a network-token MIT and, on a clear-PAN eligible decline, re-runs it against the vault
+/// card under the same network transaction ID.
 ///
-/// The two legs cannot share a payment core. The network token leg is a plain proxy authorize over
-/// `PaymentData<Authorize>`; the vault card leg has to resolve an external vault proxy and pass
-/// through the injector, which only the external vault proxy core does, over
-/// `PaymentData<ExternalVaultProxy>`. Since both cores already generate their own response, the
-/// legs are composed at the response level and the deciding response is returned unchanged.
-///
-/// The fallback runs at most once: a vault card decline is final.
+/// The legs run on different cores (`PaymentData<Authorize>` vs `PaymentData<ExternalVaultProxy>`),
+/// so they are composed at the response level. The fallback runs at most once.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn network_token_with_vault_card_fallback_core<Op>(
