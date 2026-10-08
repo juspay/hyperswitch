@@ -428,6 +428,7 @@ pub async fn payment_method_delete_api(
     .await
 }
 
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_method_api(
     state: web::Data<AppState>,
@@ -440,8 +441,9 @@ pub async fn migrate_payment_method_api(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| async move {
+        |state, auth: Option<auth::AuthenticationData>, req, _| async move {
             let merchant_id = req.merchant_id.clone();
+            validate_payment_method_migration_access(&state, auth.as_ref(), &merchant_id).await?;
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
             let platform = domain::Platform::new(
                 merchant_account.clone(),
@@ -462,7 +464,7 @@ pub async fn migrate_payment_method_api(
             ))
             .await
         },
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthOrApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -489,8 +491,9 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
-/// A merchant calling with its own API key can only migrate its own payment methods,
-/// and only when payment method migration is enabled for it. The admin API key is not restricted.
+/// A merchant calling the payment method migration APIs with its own API key can only migrate
+/// its own payment methods, and only when migration is enabled for it. The admin API key is not
+/// restricted.
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 async fn validate_payment_method_migration_access(
     state: &SessionState,
