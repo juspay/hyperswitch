@@ -24,13 +24,9 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Create
 ///
-/// Record a payment attempt made outside of Hyperswitch against a billing connector invoice,
+/// Record a transaction made outside of Hyperswitch against a billing connector invoice,
 /// and take the requested recovery action on it, such as scheduling a retry for a failed payment
 /// or recording an externally successful payment.
-///
-/// `merchant_reference_id`, `connector_transaction_id`, `transaction_created_at`,
-/// `payment_method_type` and `payment_method_sub_type` are mandatory, along with the amount,
-/// connector ids, `transaction_status`, `connector_customer_id`, `payment_method_data` and `action`.
 #[utoipa::path(
     post,
     path = "/v2/payments/recovery",
@@ -38,7 +34,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
         content = RecoveryPaymentsCreate,
         examples(
             (
-                "Record a failed payment attempt and schedule a retry" = (
+                "Record a failed transaction and schedule a retry" = (
                     value = json!({
                         "amount_details": {
                             "order_amount": 6540,

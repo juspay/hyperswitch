@@ -1046,7 +1046,7 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
-/// Action to be taken on the payment attempt reported through the revenue recovery API
+/// Action to be taken on the transaction reported through the revenue recovery API
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryPaymentsAction {
@@ -1054,8 +1054,6 @@ pub enum RecoveryPaymentsAction {
     ScheduleFailedPayment,
     /// Records the external payment and stops the internal process tracker.
     SuccessPaymentExternal,
-    /// Pending payments from billing processor.
-    PendingPayment,
 }
 
 impl From<RecoveryPaymentsAction> for RecoveryAction {
@@ -1063,7 +1061,6 @@ impl From<RecoveryPaymentsAction> for RecoveryAction {
         match action {
             RecoveryPaymentsAction::ScheduleFailedPayment => Self::ScheduleFailedPayment,
             RecoveryPaymentsAction::SuccessPaymentExternal => Self::SuccessPaymentExternal,
-            RecoveryPaymentsAction::PendingPayment => Self::PendingPayment,
         }
     }
 }

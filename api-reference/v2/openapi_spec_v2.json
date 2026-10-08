@@ -4872,7 +4872,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a payment attempt made outside of Hyperswitch against a billing connector invoice,\nand take the requested recovery action on it, such as scheduling a retry for a failed payment\nor recording an externally successful payment.\n\n`merchant_reference_id`, `connector_transaction_id`, `transaction_created_at`,\n`payment_method_type` and `payment_method_sub_type` are mandatory, along with the amount,\nconnector ids, `transaction_status`, `connector_customer_id`, `payment_method_data` and `action`.",
+        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice,\nand take the requested recovery action on it, such as scheduling a retry for a failed payment\nor recording an externally successful payment.",
         "operationId": "Create a Revenue Recovery Payment",
         "requestBody": {
           "content": {
@@ -4881,7 +4881,7 @@
                 "$ref": "#/components/schemas/RecoveryPaymentsCreate"
               },
               "examples": {
-                "Record a failed payment attempt and schedule a retry": {
+                "Record a failed transaction and schedule a retry": {
                   "value": {
                     "action": "schedule_failed_payment",
                     "amount_details": {
@@ -31035,11 +31035,10 @@
       },
       "RecoveryPaymentsAction": {
         "type": "string",
-        "description": "Action to be taken on the payment attempt reported through the revenue recovery API",
+        "description": "Action to be taken on the transaction reported through the revenue recovery API",
         "enum": [
           "schedule_failed_payment",
-          "success_payment_external",
-          "pending_payment"
+          "success_payment_external"
         ]
       },
       "RecoveryPaymentsCreate": {
@@ -31064,7 +31063,7 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "The invoice identifier from the merchant's billing system that this payment attempt is\nbeing recorded against. This ensures idempotency when the same invoice is reported\nmore than once. Mandatory.",
+            "description": "The invoice identifier from the merchant's billing system that this transaction is\nbeing recorded against. This ensures idempotency when the same invoice is reported\nmore than once. Mandatory.",
             "example": "invoice_mbabizu24mvu3mela5njyh",
             "maxLength": 30,
             "minLength": 30
@@ -31104,7 +31103,7 @@
           "transaction_created_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The time at which the payment attempt was created at the payment connector. Mandatory.",
+            "description": "The time at which the transaction was created at the payment connector. Mandatory.",
             "example": "2022-09-10T10:11:12Z"
           },
           "payment_method_type": {
@@ -31124,7 +31123,7 @@
           },
           "connector_transaction_id": {
             "type": "string",
-            "description": "A unique identifier for the payment attempt provided by the payment connector. Mandatory.",
+            "description": "A unique identifier for the transaction provided by the payment connector. Mandatory.",
             "example": "993672945374576J"
           },
           "payment_method_data": {

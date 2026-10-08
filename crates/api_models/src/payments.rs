@@ -14699,7 +14699,7 @@ pub struct RecoveryPaymentsCreate {
     /// The amount details for the payment
     pub amount_details: AmountDetails,
 
-    /// The invoice identifier from the merchant's billing system that this payment attempt is
+    /// The invoice identifier from the merchant's billing system that this transaction is
     /// being recorded against. This ensures idempotency when the same invoice is reported
     /// more than once. Mandatory.
     #[schema(
@@ -14725,19 +14725,19 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub transaction_status: enums::AttemptStatus,
 
-    /// The billing details of the payment attempt.
+    /// The billing details of the transaction.
     pub billing: Option<Address>,
 
-    /// The payment method subtype used for the payment attempt. Mandatory.
+    /// The payment method subtype used for the transaction. Mandatory.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
-    /// The time at which the payment attempt was created at the payment connector. Mandatory.
+    /// The time at which the transaction was created at the payment connector. Mandatory.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub transaction_created_at: PrimitiveDateTime,
 
-    /// Payment method type used for the payment attempt. Mandatory.
+    /// Payment method type used for the transaction. Mandatory.
     #[schema(value_type = PaymentMethod, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
@@ -14750,7 +14750,7 @@ pub struct RecoveryPaymentsCreate {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub billing_started_at: Option<PrimitiveDateTime>,
 
-    /// A unique identifier for the payment attempt provided by the payment connector. Mandatory.
+    /// A unique identifier for the transaction provided by the payment connector. Mandatory.
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
