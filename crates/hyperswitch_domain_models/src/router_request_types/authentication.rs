@@ -86,13 +86,15 @@ pub struct MessageExtensionAttribute {
     pub data: serde_json::Value,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, serde::Serialize)]
 pub struct PreAuthNRequestData {
     // card data
     pub card: Card,
+    pub amount: Option<common_utils::types::MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ConnectorAuthenticationRequestData {
     pub payment_method_data: PaymentMethodData,
     pub billing_address: address::Address,
@@ -118,12 +120,14 @@ pub enum MessageCategory {
     NonPayment,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ConnectorPostAuthenticationRequestData {
     pub threeds_server_transaction_id: String,
+    pub amount: Option<common_utils::types::MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PreAuthenticationData {
     pub threeds_server_transaction_id: String,
     pub message_version: common_utils::types::SemanticVersion,
