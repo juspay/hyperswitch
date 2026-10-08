@@ -11,6 +11,7 @@ license.workspace = true
 [features]
 default = []
 s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:url"]
+oci_object_storage = ["s3"]
 oci_kms = ["dep:oci_kms"]
 
 [dependencies]

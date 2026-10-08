@@ -1,7 +1,10 @@
 //! Hyperswitch adapter over the shared [`cloud_services`] S3 client.
 
+#[cfg(feature = "oci_object_storage")]
+use cloud_services::storage::oci::OciObjectStorageConfig;
+use cloud_services::storage::s3::S3Storage;
+#[cfg(feature = "aws_s3")]
 pub use cloud_services::storage::s3::S3StorageConfig as AwsFileStorageConfig;
-use cloud_services::storage::{oci::OciObjectStorageConfig, s3::S3Storage};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 
@@ -16,6 +19,7 @@ pub(super) struct AwsFileStorageClient {
 
 impl AwsFileStorageClient {
     /// Creates a new AWS S3 file storage client.
+    #[cfg(feature = "aws_s3")]
     pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
         Self {
             inner: S3Storage::new(config).await,
@@ -23,6 +27,7 @@ impl AwsFileStorageClient {
     }
 
     /// Creates a file storage client for OCI Object Storage, through its S3 Compatibility API.
+    #[cfg(feature = "oci_object_storage")]
     pub(super) async fn new_oci(config: &OciObjectStorageConfig) -> Self {
         Self {
             inner: S3Storage::new_oci(config).await,
@@ -133,6 +138,7 @@ mod tests {
         serde_json::from_value(value).expect("file storage config should deserialize")
     }
 
+    #[cfg(feature = "aws_s3")]
     #[test]
     fn aws_s3_backend_config_deserializes_and_validates() {
         let config = file_storage_config(serde_json::json!({
@@ -147,6 +153,7 @@ mod tests {
         assert!(config.validate().is_ok());
     }
 
+    #[cfg(feature = "aws_s3")]
     #[test]
     fn aws_s3_backend_reports_invalid_config() {
         for (aws_s3, message) in [
@@ -171,6 +178,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "oci_object_storage")]
     #[test]
     fn oci_object_storage_backend_config_deserializes_and_validates() {
         let config = file_storage_config(serde_json::json!({
@@ -186,6 +194,7 @@ mod tests {
         assert!(config.validate().is_ok());
     }
 
+    #[cfg(feature = "oci_object_storage")]
     #[test]
     fn oci_object_storage_backend_reports_invalid_config() {
         let config = file_storage_config(serde_json::json!({
