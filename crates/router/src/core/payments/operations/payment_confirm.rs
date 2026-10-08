@@ -872,6 +872,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 RecurringDetails::CardWithLimitedData(_)
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
                     Some(mandates::MandateIds {
                         mandate_id: None,
@@ -929,6 +930,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -1210,14 +1212,40 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     },
                                 )?;
 
-                                let payment_method_data = req
-                                    .payment_method_data
-                                    .as_ref()
-                                    .and_then(|pmd| pmd.payment_method_data.clone())
-                                    .map(Into::into)
-                                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                        field_name: "payment_method_data".into(),
-                                    })?;
+                                let payment_method_token =
+                                    payment_data.get_payment_method_token().cloned();
+
+                                let payment_method_data =
+                                    match (payment_method, payment_method_token.is_some()) {
+                                        (common_enums::PaymentMethod::Wallet, true) => {
+                                            let data = req
+                                            .payment_method_data
+                                            .as_ref()
+                                            .and_then(|pmd| pmd.payment_method_data.clone())
+                                            .zip(payment_method_token)
+                                            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                                field_name: "payment_method_data".into(),
+                                            })?;
+
+                                            domain::PaymentMethodData::try_from(data)
+                                                .change_context(
+                                                errors::ApiErrorResponse::MissingRequiredField {
+                                                    field_name: "payment_method_data".into(),
+                                                },
+                                            )?
+                                        }
+                                        _ => req
+                                            .payment_method_data
+                                            .as_ref()
+                                            .and_then(|pmd| pmd.payment_method_data.clone())
+                                            .map(From::from)
+                                            .ok_or(
+                                                errors::ApiErrorResponse::MissingRequiredField {
+                                                    field_name: "payment_method_data".into(),
+                                                },
+                                            )?,
+                                    };
+
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
                                 let global_customer_id =
@@ -2399,6 +2427,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     }
 
     #[instrument(skip_all)]
+    async fn populate_payment_fingerprint<'a>(
+        &'a self,
+        state: &SessionState,
+        processor: &domain::Processor,
+        payment_data: &mut PaymentData<F>,
+    ) {
+        blocklist_utils::populate_payment_fingerprint(state, processor.get_account(), payment_data)
+            .await
+    }
+
+    #[instrument(skip_all)]
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         state: &SessionState,
@@ -2957,6 +2996,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .applied_offer_details
                             .clone(),
+                        applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
                         active_frm_id: m_active_frm_id,
                     },
                     storage_scheme,

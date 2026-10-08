@@ -25,7 +25,7 @@ use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
 use hyperswitch_domain_models::{
-    mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
+    mandates::{self, ConnectorMandateReferenceId, MandateActivation, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
@@ -91,37 +91,6 @@ where
 
     #[cfg(not(feature = "deja"))]
     let _task_handle = tokio::spawn(future.in_current_span());
-}
-
-#[cfg(feature = "v1")]
-async fn prepare_pm_update_from_psync(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_method: &domain::PaymentMethod,
-    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    update: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    business_profile: &domain::Profile,
-) -> CustomResult<storage::PaymentMethodUpdate, errors::ApiErrorResponse> {
-    match update {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
-            bank_redirect_update,
-        ) => {
-            payment_methods::cards::prepare_bank_redirect_payment_method_update(
-                state,
-                platform,
-                payment_method,
-                merchant_connector_id,
-                bank_redirect_update.clone(),
-                business_profile,
-            )
-            .await
-        }
-        _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
-            message: errors::NotImplementedMessage::Reason(
-                "Payment Method Update is not implemented".to_string(),
-            )
-        })),
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -288,13 +257,15 @@ where
                                 .change_context(
                                     ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
                                 )?;
+                                let connector_token_status =
+                                    ConnectorTokenStatus::from(resp.status);
                                 mandate_reference
                                     .connector_mandate_id
                                     .map(|connector_mandate_id| {
                                         ::payment_methods::types::ConnectorTokenDetails {
                                             connector_id,
                                             token_type: TokenizationType::MultiUse,
-                                            status: ConnectorTokenStatus::Active,
+                                            status: connector_token_status,
                                             connector_token_request_reference_id: mandate_reference
                                                 .connector_mandate_request_reference_id,
                                             original_payment_authorized_amount: Some(
@@ -465,8 +436,16 @@ where
             | enums::AttemptStatus::PartiallyAuthorized
     );
 
-    let is_eligible_for_mandate_update =
-        is_valid_response && is_integrity_ok && is_payment_successful;
+    // Some connectors register a mandate before the customer completes the action
+    // Store the connector_mandate_id early so that the mandate webhooks can be consumed without requiring a payment to be successful.
+    let is_mandate_pending_activation = matches!(
+        MandateActivation::from(payment_attempt),
+        MandateActivation::Pending
+    );
+
+    let is_eligible_for_mandate_update = is_valid_response
+        && is_integrity_ok
+        && (is_payment_successful || is_mandate_pending_activation);
 
     if let (true, Some(payment_method), Some(mca_id)) = (
         is_eligible_for_mandate_update,
@@ -516,22 +495,23 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
-        let is_active_mandate = mandate_details
+        let existing_connector_mandate_status = mandate_details
             .payments
             .as_ref()
             .and_then(|payments| payments.0.get(&mca_id))
-            .is_some_and(|record| {
-                record.connector_mandate_status
-                    == Some(common_enums::ConnectorMandateStatus::Active)
-            });
+            .and_then(|record| record.connector_mandate_status);
+
+        let is_active_mandate =
+            existing_connector_mandate_status == Some(common_enums::ConnectorMandateStatus::Active);
 
         let is_off_session = matches!(
             payment_intent.setup_future_usage,
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        // Combine business logic conditions: not active mandate AND off_session
-        if !is_active_mandate && is_off_session {
+        // Combine business logic conditions: not active mandate AND
+        // (off_session OR a pending mandate that the connector already issued).
+        if !is_active_mandate && (is_off_session || is_mandate_pending_activation) {
             let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
                 payment_attempt
                     .connector_mandate_detail
@@ -544,6 +524,12 @@ where
                         )
                     })
                     .unwrap_or((None, None, None));
+            let connector_mandate_status = match MandateActivation::from(payment_attempt) {
+                MandateActivation::Pending => existing_connector_mandate_status
+                    .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
+                MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
+                MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
+            };
 
             let connector_mandate_details = tokenization::update_connector_mandate_details(
                 Some(mandate_details),
@@ -558,6 +544,7 @@ where
                 payment_attempt.merchant_connector_id.clone(),
                 connector_mandate_id,
                 mandate_metadata,
+                connector_mandate_status,
                 connector_mandate_request_reference_id,
             )?;
 
@@ -580,6 +567,100 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+async fn persist_connector_mandate_on_payment_method<F>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &PaymentData<F>,
+    connector_mandate_reference_id: &Option<ConnectorMandateReferenceId>,
+) -> RouterResult<()>
+where
+    F: Clone + Send + Sync,
+{
+    if let (
+        Some(payment_method_info),
+        Some(merchant_connector_id),
+        Some(connector_mandate_reference_id),
+    ) = (
+        payment_data.payment_method_info.as_ref(),
+        payment_data.payment_attempt.merchant_connector_id.clone(),
+        connector_mandate_reference_id.clone(),
+    ) {
+        let existing_mandate_details = payment_method_info
+            .get_common_mandate_reference()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse existing payment method mandate details")?;
+
+        let is_active_connector_mandate = existing_mandate_details
+            .payments
+            .as_ref()
+            .and_then(|payments| payments.0.get(&merchant_connector_id))
+            .and_then(|record| record.connector_mandate_status)
+            == Some(common_enums::ConnectorMandateStatus::Active);
+
+        if is_active_connector_mandate {
+            logger::info!(
+                ?merchant_connector_id,
+                "Skipping inactive connector mandate persistence because an active mandate already exists"
+            );
+        } else {
+            let has_connector_mandate_id = connector_mandate_reference_id
+                .get_connector_mandate_id()
+                .is_some();
+            let connector_mandate_status = match (
+                has_connector_mandate_id,
+                payment_data.payment_attempt.status,
+            ) {
+                (
+                    true,
+                    enums::AttemptStatus::Charged
+                    | enums::AttemptStatus::Authorized
+                    | enums::AttemptStatus::PartiallyAuthorized
+                    | enums::AttemptStatus::PartialCharged
+                    | enums::AttemptStatus::PartialChargedAndChargeable,
+                ) => common_enums::ConnectorMandateStatus::Active,
+                _ => common_enums::ConnectorMandateStatus::Inactive,
+            };
+            let authorized_amount = Some(
+                payment_data
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            );
+            let authorized_currency = payment_data.payment_attempt.currency;
+
+            let connector_mandate_details = tokenization::update_connector_mandate_details(
+                Some(existing_mandate_details),
+                payment_data.payment_attempt.payment_method_type,
+                authorized_amount,
+                authorized_currency,
+                Some(merchant_connector_id),
+                connector_mandate_reference_id.get_connector_mandate_id(),
+                connector_mandate_reference_id.get_mandate_metadata(),
+                connector_mandate_status,
+                connector_mandate_reference_id.get_connector_mandate_request_reference_id(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build connector mandate details for payment method")?;
+
+            payment_methods::cards::update_payment_method_connector_mandate_details(
+                platform.get_provider().get_key_store(),
+                &*state.store,
+                payment_method_info.clone(),
+                connector_mandate_details,
+                platform.get_provider().get_account().storage_scheme,
+                platform.get_initiator(),
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method connector mandate details")?;
         }
     }
     Ok(())
@@ -757,11 +838,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             &async_dimension,
         ));
 
-        let is_connector_mandate = resp.request.customer_acceptance.is_some()
-            && matches!(
-                resp.request.setup_future_usage,
-                Some(enums::FutureUsage::OffSession)
-            );
+        let is_connector_mandate = resp.request.is_connector_mandate();
 
         let is_legacy_mandate = resp.request.setup_mandate_details.is_some()
             && matches!(
@@ -860,6 +937,17 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     } else {
                         None
                     };
+
+                    // Persist the connector mandate reference on the payment method so that
+                    // subsequent mandate-status webhooks can resolve the payment method.
+                    persist_connector_mandate_on_payment_method(
+                        state,
+                        platform,
+                        payment_data,
+                        &connector_mandate_reference_id,
+                    )
+                    .await?;
+
                     payment_data.payment_attempt.payment_method_id = payment_method_id;
                     payment_data.payment_attempt.connector_mandate_detail =
                         connector_mandate_reference_id
@@ -2211,6 +2299,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         } else {
             None
         };
+        let is_connector_mandate = resp.request.is_connector_mandate();
+
+        if is_connector_mandate {
+            persist_connector_mandate_on_payment_method(
+                state,
+                platform,
+                payment_data,
+                &connector_mandate_reference_id,
+            )
+            .await?;
+        }
+
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
@@ -3584,10 +3684,10 @@ fn get_vaultable_payment_method_data(
     payment_method: Option<enums::PaymentMethod>,
     connector_returned_payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> Option<&domain::PaymentMethodData> {
-    match (payment_method?, connector_returned_payment_method_data?) {
+    match (payment_method, connector_returned_payment_method_data) {
         (
-            enums::PaymentMethod::BankRedirect,
-            payment_method_data @ domain::PaymentMethodData::BankRedirect(_),
+            Some(enums::PaymentMethod::BankRedirect),
+            Some(payment_method_data @ domain::PaymentMethodData::BankRedirect(_)),
         ) => Some(payment_method_data),
         _ => None,
     }
@@ -3608,32 +3708,49 @@ async fn vault_deferred_payment_method<F: Clone>(
     customer_id: &common_utils::id_type::CustomerId,
     additional_payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> RouterResult<Option<DeferredVaultResponse>> {
-    let Some(payment_method_data) = get_vaultable_payment_method_data(
+    match get_vaultable_payment_method_data(
         payment_data.payment_attempt.payment_method,
         additional_payment_method_data,
-    ) else {
-        return Ok(None);
-    };
+    ) {
+        Some(payment_method_data) => {
+            let payment_method_create_request = payment_methods::get_payment_method_create_request(
+                Some(payment_method_data),
+                payment_data.payment_attempt.payment_method,
+                payment_data.payment_attempt.payment_method_type,
+                &Some(customer_id.clone()),
+                None,
+                None,
+            )
+            .await?;
 
-    let payment_method_create_request = payment_methods::get_payment_method_create_request(
-        Some(payment_method_data),
-        payment_data.payment_attempt.payment_method,
-        payment_data.payment_attempt.payment_method_type,
-        &Some(customer_id.clone()),
-        None,
-        None,
-    )
-    .await?;
+            tokenization::save_in_locker(
+                state,
+                platform,
+                payment_method_create_request,
+                None,
+                business_profile,
+            )
+            .await
+            .map(Some)
+        }
+        None => Ok(None),
+    }
+}
 
-    tokenization::save_in_locker(
-        state,
-        platform,
-        payment_method_create_request,
-        None,
-        business_profile,
-    )
-    .await
-    .map(Some)
+#[cfg(feature = "v1")]
+pub(crate) async fn find_payment_method_by_fingerprint(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    locker_fingerprint_id: &str,
+) -> Option<domain::PaymentMethod> {
+    state
+        .store
+        .find_payment_method_by_fingerprint_id(key_store, locker_fingerprint_id)
+        .await
+        .map_err(|error| {
+            logger::info!(?error, "No payment method matched the fingerprint");
+        })
+        .ok()
 }
 
 #[cfg(feature = "v1")]
@@ -3649,35 +3766,27 @@ async fn find_deduplicated_payment_method(
         _ => return None,
     };
 
-    state
-        .store
-        .find_payment_method_by_fingerprint_id(key_store, locker_fingerprint_id)
-        .await
-        .map_err(|error| {
-            logger::info!(
-                ?error,
-                "Vault reported a duplicate but no payment method matched the fingerprint"
-            );
-        })
-        .ok()
+    find_payment_method_by_fingerprint(state, key_store, locker_fingerprint_id).await
 }
 
 #[cfg(feature = "v1")]
-async fn insert_deferred_payment_method<F: Clone>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn insert_deferred_payment_method(
     state: &SessionState,
-    payment_data: &PaymentData<F>,
     platform: &domain::Platform,
     customer_id: &common_utils::id_type::CustomerId,
     customer_acceptance: common_utils::pii::SecretSerdeValue,
-    vault_response: Option<DeferredVaultResponse>,
+    payment_method: Option<enums::PaymentMethod>,
+    payment_method_type: Option<enums::PaymentMethodType>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    // Absent for instruments that are recognised by fingerprint alone and never vaulted.
+    locker_id: Option<String>,
+    locker_fingerprint_id: Option<String>,
 ) -> RouterResult<domain::PaymentMethod> {
     let provider = platform.get_provider();
     let key_manager_state: KeyManagerState = state.into();
 
-    let encrypted_payment_method_billing_address = payment_data
-        .address
-        .get_payment_method_billing()
-        .cloned()
+    let encrypted_payment_method_billing_address = billing_address
         .async_map(|address| {
             core_utils::create_encrypted_data(
                 &key_manager_state,
@@ -3692,8 +3801,8 @@ async fn insert_deferred_payment_method<F: Clone>(
         .attach_printable("Unable to encrypt payment method billing address")?;
 
     let payment_method_create_request = api_models::payment_methods::PaymentMethodCreate {
-        payment_method: payment_data.payment_attempt.payment_method,
-        payment_method_type: payment_data.payment_attempt.payment_method_type,
+        payment_method,
+        payment_method_type,
         payment_method_issuer: None,
         payment_method_issuer_code: None,
         #[cfg(feature = "payouts")]
@@ -3712,15 +3821,6 @@ async fn insert_deferred_payment_method<F: Clone>(
         connector_mandate_details: None,
         network_transaction_id: None,
     };
-
-    let (locker_id, locker_fingerprint_id) = vault_response
-        .map(|(vault_response, _)| {
-            (
-                Some(vault_response.payment_method_id),
-                vault_response.locker_fingerprint_id,
-            )
-        })
-        .unwrap_or((None, None));
 
     let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
     let payment_method = payment_methods::cards::PmCards { state, provider }
@@ -3766,72 +3866,89 @@ async fn create_deferred_payment_method<F: Clone>(
     business_profile: &domain::Profile,
     additional_payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> RouterResult<()> {
+    let discloses_instrument_out_of_band = matches!(
+        payment_data.payment_attempt.payment_method_type,
+        Some(enums::PaymentMethodType::Trustly)
+    );
+
     let deferred_save_details =
         (is_payment_method_creation_deferred(payment_data.payment_attempt.payment_method)
-            && attempt_status.is_authorization_success())
-        .then(|| {
-            payment_data
-                .payment_attempt
-                .customer_acceptance
-                .clone()
-                .zip(payment_data.payment_intent.customer_id.clone())
-        })
-        .flatten();
+            && attempt_status.is_authorization_success()
+            && !discloses_instrument_out_of_band)
+            .then(|| {
+                payment_data
+                    .payment_attempt
+                    .customer_acceptance
+                    .clone()
+                    .zip(payment_data.payment_intent.customer_id.clone())
+            })
+            .flatten();
 
-    let Some((customer_acceptance, customer_id)) = deferred_save_details else {
-        return Ok(());
-    };
+    if let Some((customer_acceptance, customer_id)) = deferred_save_details {
+        let provider = platform.get_provider();
+        let key_store = provider.get_key_store();
 
-    let provider = platform.get_provider();
-    let key_store = provider.get_key_store();
+        let vault_response = vault_deferred_payment_method(
+            state,
+            payment_data,
+            platform,
+            business_profile,
+            &customer_id,
+            additional_payment_method_data,
+        )
+        .await?;
 
-    let vault_response = vault_deferred_payment_method(
-        state,
-        payment_data,
-        platform,
-        business_profile,
-        &customer_id,
-        additional_payment_method_data,
-    )
-    .await?;
+        let payment_method =
+            match find_deduplicated_payment_method(state, key_store, vault_response.as_ref()).await
+            {
+                Some(deduplicated_payment_method) => {
+                    payment_methods::cards::update_last_used_at(
+                        &deduplicated_payment_method,
+                        state,
+                        provider.get_account().storage_scheme,
+                        key_store,
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to update last used at");
+                    })
+                    .ok();
 
-    let payment_method =
-        match find_deduplicated_payment_method(state, key_store, vault_response.as_ref()).await {
-            Some(deduplicated_payment_method) => {
-                payment_methods::cards::update_last_used_at(
-                    &deduplicated_payment_method,
-                    state,
-                    provider.get_account().storage_scheme,
-                    key_store,
-                )
-                .await
-                .map_err(|error| {
-                    logger::error!(?error, "Failed to update last used at");
-                })
-                .ok();
+                    logger::info!(
+                        payment_method_id = %deduplicated_payment_method.get_id(),
+                        "Reusing the existing payment method the instrument was deduplicated to"
+                    );
 
-                logger::info!(
-                    payment_method_id = %deduplicated_payment_method.get_id(),
-                    "Reusing the existing payment method the instrument was deduplicated to"
-                );
+                    deduplicated_payment_method
+                }
+                None => {
+                    let (locker_id, locker_fingerprint_id) = vault_response
+                        .map(|(vault_response, _)| {
+                            (
+                                Some(vault_response.payment_method_id),
+                                vault_response.locker_fingerprint_id,
+                            )
+                        })
+                        .unwrap_or((None, None));
 
-                deduplicated_payment_method
-            }
-            None => {
-                insert_deferred_payment_method(
-                    state,
-                    payment_data,
-                    platform,
-                    &customer_id,
-                    customer_acceptance,
-                    vault_response,
-                )
-                .await?
-            }
-        };
+                    insert_deferred_payment_method(
+                        state,
+                        platform,
+                        &customer_id,
+                        customer_acceptance,
+                        payment_data.payment_attempt.payment_method,
+                        payment_data.payment_attempt.payment_method_type,
+                        payment_data.address.get_payment_method_billing().cloned(),
+                        locker_id,
+                        locker_fingerprint_id,
+                    )
+                    .await?
+                }
+            };
 
-    payment_data.payment_attempt.payment_method_id = Some(payment_method.get_id().clone());
-    payment_data.payment_method_info = Some(payment_method);
+        payment_data.payment_attempt.payment_method_id = Some(payment_method.get_id().clone());
+        payment_data.payment_method_info = Some(payment_method);
+    }
 
     Ok(())
 }
@@ -3962,7 +4079,7 @@ async fn create_or_update_payment_method_from_payment_response<F: Clone>(
 
         let additional_data_update =
             if let Some(payment_method_data_update) = additional_payment_method_data {
-                prepare_pm_update_from_psync(
+                payment_methods::cards::prepare_payment_method_update_from_connector_details(
                     state,
                     platform,
                     &payment_method,
@@ -4305,7 +4422,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             Some(data) => Some(mandates::MandateIds {
                 mandate_id: None,
                 mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
-                    mandates::ConnectorMandateReferenceId::new(
+                    ConnectorMandateReferenceId::new(
                         mandate_reference_id,
                         None,
                         None,
@@ -4858,14 +4975,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                     .get_required_value("merchant_connector_id")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("missing connector id")?;
-
                 let net_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 let currency = payment_data.payment_intent.amount_details.currency;
-
+                let connector_token_status =
+                    common_enums::ConnectorTokenStatus::from(router_data.status);
                 let connector_token_details_for_payment_method_update =
                     api_models::payment_methods::ConnectorTokenDetails {
                         connector_id,
-                        status: common_enums::ConnectorTokenStatus::Active,
+                        status: connector_token_status,
                         connector_token_request_reference_id: connector_token
                             .and_then(|details| details.connector_token_request_reference_id),
                         original_payment_authorized_amount: Some(net_amount),

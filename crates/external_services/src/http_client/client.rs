@@ -93,8 +93,12 @@ pub fn get_client_builder(
                 .unwrap_or_default(),
         ));
 
-    let proxy_exclusion_config =
-        reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
+    let proxy_exclusion_config = reqwest::NoProxy::from_string(
+        proxy_config
+            .bypass_proxy_hosts
+            .as_deref()
+            .unwrap_or_default(),
+    );
 
     logger::debug!(
         "Proxy HTTP Proxy -> {:?} and HTTPS Proxy -> {:?}",

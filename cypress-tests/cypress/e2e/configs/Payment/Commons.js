@@ -1064,6 +1064,62 @@ export const payment_methods_enabled = [
   },
 ];
 
+// Shared expected responses for the platform refund list and filter APIs.
+// These assertions are connector-agnostic (identical for every connector),
+// so they are centralized here instead of being inlined in the spec.
+
+// Auth negative: connected-merchant api key (or platform key with the
+// x-connected-merchant-id header) on a platform-level refunds endpoint
+export const platformRefundsConnectedAccountOperationError = {
+  status: 400,
+  error: {
+    type: "invalid_request",
+    code: "IR_49",
+    message: "API does not support connected account operation",
+  },
+};
+
+// Auth negative: standard merchant key or missing api key on a
+// platform-level refunds endpoint
+export const platformRefundsInvalidApiKeyError = {
+  status: 401,
+  error: {
+    type: "invalid_request",
+    code: "IR_01",
+    message: "API key not provided or invalid API key used",
+  },
+};
+
+// Query validation negatives for the platform refund list
+export const platformRefundsListLimitZeroError = {
+  status: 400,
+  rawError:
+    "Query deserialize error: list limit 0 is invalid, it must be between 1 and 100",
+};
+
+export const platformRefundsListLimitAboveMaxError = {
+  status: 400,
+  rawError:
+    "Query deserialize error: list limit 1000 is invalid, it must be between 1 and 100",
+};
+
+export const platformRefundsListInvalidOffsetError = {
+  status: 400,
+  rawError:
+    "Query deserialize error: list offset 999999 is invalid, it must be at most 20000",
+};
+
+// Maps the refund object status (RefundResponse.status:
+// succeeded/failed/pending/review) to the platform refund list filter
+// variant (the refund_status query param and the list item's refund_status
+// field: success/failure/pending/manual_review)
+export const refundStatusFilterMap = {
+  succeeded: "success",
+  failed: "failure",
+  pending: "pending",
+  review: "manual_review",
+};
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {

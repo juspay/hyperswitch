@@ -57,7 +57,7 @@ use rand::SeedableRng;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
-use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
+use storage_impl::redis::cache::CacheKey;
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
@@ -1088,6 +1088,7 @@ impl RoutingStage for SessionRoutingStage {
                     profile_id,
                     input.transaction_type,
                     input.active_mca_ids,
+                    input.business_profile.get_auto_fallback_capture_method(),
                 )
                 .await?;
 
@@ -1101,6 +1102,7 @@ impl RoutingStage for SessionRoutingStage {
                         profile_id,
                         input.transaction_type,
                         input.active_mca_ids,
+                        input.business_profile.get_auto_fallback_capture_method(),
                     )
                     .await?
                 } else {
@@ -1618,7 +1620,8 @@ impl HybridRoutingStage {
 
                 OpenRouterDecideGatewayRequest::construct_sr_request(
                     input.payment_dsl_input.payment_attempt,
-                    input.static_connectors.to_vec(),
+                    // Use the same eligibility-filtered fallbacks as the static request.
+                    input.fallback_config.to_vec(),
                     Some(or_types::RankingAlgorithm::SrBasedRouting),
                     preferred_connector,
                 )
@@ -1726,6 +1729,7 @@ fn profile_has_active_routing_algorithm(business_profile: &domain::Profile) -> b
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     business_profile: &domain::Profile,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
@@ -1749,17 +1753,6 @@ pub async fn perform_hybrid_routing_if_enabled(
         _ => None,
     };
 
-    let input = HybridRoutingInput {
-        state,
-        business_profile,
-        payment_dsl_input,
-        backend_input,
-        fallback_config,
-        static_connectors,
-        static_approach: static_approach.clone(),
-        preferred_connector,
-    };
-
     // Flag-aware like every other consumer: with static_routing_enabled off the profile is
     // Hyperswitch-routed, so this stage must not run.
     let is_decision_engine_cutover_enabled =
@@ -1770,16 +1763,37 @@ pub async fn perform_hybrid_routing_if_enabled(
     // algorithm is the normal state and must not skip evaluation; for every other profile
     // there is nothing to evaluate against, so the DE call is skipped.
     if is_decision_engine_cutover_enabled {
-        let hybrid_stage_outcome = stage
-            .route(input)
+        // Filter fallbacks by payment eligibility before sending them to Decision Engine.
+        let hybrid_stage_outcome = async {
+            let eligible_fallback = filter_fallback_based_on_eligibility(
+                state,
+                key_store,
+                fallback_config,
+                &routing::TransactionData::Payment(payment_dsl_input.clone()),
+                business_profile,
+            )
             .await
             .inspect_err(|error| {
-                logger::error!(
-                    error=?error,
-                    "euclid: hybrid routing failed"
-                );
-            })
-            .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
+                logger::error!(error=?error, "euclid: fallback eligibility failed before hybrid routing");
+            })?;
+            let input = HybridRoutingInput {
+                state,
+                business_profile,
+                payment_dsl_input,
+                backend_input,
+                fallback_config: &eligible_fallback,
+                static_connectors,
+                static_approach: static_approach.clone(),
+                preferred_connector,
+            };
+
+            stage.route(input).await
+        }
+        .await
+        .inspect_err(|error| {
+            logger::error!(error=?error, "euclid: hybrid routing failed");
+        })
+        .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
 
         let selected_source = if hybrid_stage_outcome.connectors.is_empty() {
             "hyperswitch_static"
@@ -2055,7 +2069,10 @@ pub async fn ensure_algorithm_cached_v1(
         }
     };
 
-    let cached_algorithm = ROUTING_CACHE
+    let cached_algorithm = state
+        .store
+        .caches()
+        .routing
         .get_val::<Arc<CachedAlgorithm>>(CacheKey {
             key: key.clone(),
             prefix: state.tenant.redis_key_prefix.clone(),
@@ -2202,7 +2219,10 @@ pub async fn refresh_routing_cache_v1(
 
     let arc_cached_algorithm = Arc::new(cached_algorithm);
 
-    ROUTING_CACHE
+    state
+        .store
+        .caches()
+        .routing
         .push(
             CacheKey {
                 key,
@@ -2322,7 +2342,10 @@ pub async fn get_merchant_cgraph(
         }
     };
 
-    let cached_cgraph = CGRAPH_CACHE
+    let cached_cgraph = state
+        .store
+        .caches()
+        .cgraph
         .get_val::<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>>(
             CacheKey {
                 key: key.clone(),
@@ -2433,7 +2456,10 @@ pub async fn refresh_cgraph_cache(
             .attach_printable("when construction cgraph")?,
     );
 
-    CGRAPH_CACHE
+    state
+        .store
+        .caches()
+        .cgraph
         .push(
             CacheKey {
                 key,
@@ -2456,7 +2482,21 @@ pub async fn perform_cgraph_filtering(
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let mut backend_input = backend_input;
+    let can_fall_back = backend_input
+        .payment
+        .capture_method
+        .zip(auto_fallback_capture_method)
+        .is_some_and(|(capture_method, setting)| setting.can_fall_back_from(capture_method));
+    if can_fall_back {
+        // The profile falls back to automatic capture for connectors that cannot do the
+        // requested capture method, so `pm_filters` capture-method restrictions must not remove
+        // those connectors here; `apply_auto_fallback_capture_method` decides per connector.
+        // A payment already requesting automatic capture has no fallback and is still filtered.
+        backend_input.payment.capture_method = None;
+    }
     let context = euclid_graph::AnalysisContext::from_dir_values(
         backend_input
             .into_context()
@@ -2596,14 +2636,40 @@ fn update_eligible_connectors_for_installments(
         .or(installment_supported_connectors)
 }
 
+/// Filters active fallbacks by payment eligibility while preserving their configured order.
+#[cfg(feature = "v1")]
+pub async fn filter_fallback_based_on_eligibility(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    fallback_config: &[routing_types::RoutableConnectorChoice],
+    transaction_data: &routing::TransactionData<'_>,
+    business_profile: &domain::Profile,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    let active_mca_ids =
+        get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
+            .await?
+            .get_ids();
+
+    perform_eligibility_analysis(
+        state,
+        key_store,
+        fallback_config.to_vec(),
+        transaction_data,
+        None,
+        &active_mca_ids,
+        business_profile,
+    )
+    .await
+}
+
 pub async fn perform_eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: &common_utils::id_type::ProfileId,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
+    business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -2617,9 +2683,10 @@ pub async fn perform_eligibility_analysis(
         chosen,
         backend_input,
         eligible_connectors,
-        profile_id,
+        business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await
 }
@@ -2689,6 +2756,7 @@ pub async fn perform_fallback_routing(
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await
 }
@@ -2742,8 +2810,8 @@ pub async fn perform_eligibility_analysis_with_fallback(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        business_profile.get_id(),
         &active_mca_ids,
+        business_profile,
     )
     .await?;
 
@@ -3242,6 +3310,7 @@ async fn perform_session_routing_for_pm_type(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await?;
 
@@ -3263,6 +3332,7 @@ async fn perform_session_routing_for_pm_type(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
+            business_profile.get_auto_fallback_capture_method(),
         )
         .await?;
     }
@@ -3342,6 +3412,7 @@ async fn perform_session_routing_for_pm_type<'a>(
         session_pm_input.profile_id,
         transaction_type,
         active_mca_ids,
+        business_profile.get_auto_fallback_capture_method(),
     )
     .await?;
 
@@ -3359,6 +3430,7 @@ async fn perform_session_routing_for_pm_type<'a>(
             session_pm_input.profile_id,
             transaction_type,
             active_mca_ids,
+            business_profile.get_auto_fallback_capture_method(),
         )
         .await?;
     }
