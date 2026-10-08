@@ -340,16 +340,16 @@
             ]
           },
           {
-            "version": "2.0.0 [BETA]",
+            "version": "2.0.0",
             "groups": [
               {
-                "group": "Get Started [BETA]",
+                "group": "Get Started",
                 "pages": [
                   "introduction"
                 ]
               },
               {
-                "group": "Essentials [BETA]",
+                "group": "Essentials",
                 "pages": [
                   "essentials/error_codes",
                   "essentials/rate_limit",
@@ -357,7 +357,7 @@
                 ]
               },
               {
-                "group": "Payments Core APIs [BETA]",
+                "group": "Payments Core APIs",
                 "pages": [
                   {
                     "group": "Payments",
@@ -427,7 +427,7 @@
                 ]
               },
               {
-                "group": "Account management APIs [BETA]",
+                "group": "Account management APIs",
                 "pages": [
                   {
                     "group": "Organization",
@@ -489,7 +489,7 @@
                 ]
               },
               {
-                "group": "Other APIs [BETA]",
+                "group": "Other APIs",
                 "pages": [
                   {
                     "group": "Proxy",

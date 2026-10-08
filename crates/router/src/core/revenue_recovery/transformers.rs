@@ -70,9 +70,9 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             amount: data.amount_details.order_amount().into(),
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id.to_owned(),
-            connector_transaction_id: data.connector_transaction_id.as_ref().map(|txn_id| {
-                common_utils::types::ConnectorTransactionId::TxnId(txn_id.peek().to_string())
-            }),
+            connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
+                data.connector_transaction_id.peek().to_string(),
+            )),
             error_code: data.error.as_ref().map(|error| error.code.clone()),
             error_message: data.error.as_ref().map(|error| error.message.clone()),
             processor_payment_method_token: data
@@ -85,7 +85,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .payment_merchant_connector_id
                 .get_string_repr()
                 .to_string(),
-            transaction_created_at: data.transaction_created_at.to_owned(),
+            transaction_created_at: Some(data.transaction_created_at),
             status: data.transaction_status,
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: data.payment_method_sub_type,

@@ -14701,9 +14701,9 @@ pub struct RecoveryPaymentsCreate {
 
     /// The invoice identifier from the merchant's billing system that this payment attempt is
     /// being recorded against. This ensures idempotency when the same invoice is reported
-    /// more than once.
+    /// more than once. Mandatory.
     #[schema(
-        value_type = Option<String>,
+        value_type = String,
         min_length = 30,
         max_length = 30,
         example = "invoice_mbabizu24mvu3mela5njyh"
@@ -14728,17 +14728,17 @@ pub struct RecoveryPaymentsCreate {
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,
 
-    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    /// The payment method subtype used for the payment attempt. Mandatory.
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_sub_type: api_enums::PaymentMethodType,
 
-    /// The time at which payment attempt was created.
+    /// The time at which the payment attempt was created at the payment connector. Mandatory.
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub transaction_created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub transaction_created_at: PrimitiveDateTime,
 
-    /// Payment method type for the payment attempt
-    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    /// Payment method type used for the payment attempt. Mandatory.
+    #[schema(value_type = PaymentMethod, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// customer id at payment connector for which mandate is attached.
@@ -14750,16 +14750,16 @@ pub struct RecoveryPaymentsCreate {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub billing_started_at: Option<PrimitiveDateTime>,
 
-    /// A unique identifier for a payment provided by the payment connector
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub connector_transaction_id: Option<Secret<String>>,
+    /// A unique identifier for the payment attempt provided by the payment connector. Mandatory.
+    #[schema(value_type = String, example = "993672945374576J")]
+    pub connector_transaction_id: Secret<String>,
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
-    #[schema(value_type = RecoveryAction, example = "schedule_failed_payment")]
-    pub action: common_payments_types::RecoveryAction,
+    #[schema(value_type = RecoveryPaymentsAction, example = "schedule_failed_payment")]
+    pub action: common_payments_types::RecoveryPaymentsAction,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]

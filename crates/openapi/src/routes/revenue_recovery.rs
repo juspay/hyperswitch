@@ -26,7 +26,11 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 ///
 /// Record a payment attempt made outside of Hyperswitch against a billing connector invoice,
 /// and take the requested recovery action on it, such as scheduling a retry for a failed payment
-/// or cancelling the invoice.
+/// or recording an externally successful payment.
+///
+/// `merchant_reference_id`, `connector_transaction_id`, `transaction_created_at`,
+/// `payment_method_type` and `payment_method_sub_type` are mandatory, along with the amount,
+/// connector ids, `transaction_status`, `connector_customer_id`, `payment_method_data` and `action`.
 #[utoipa::path(
     post,
     path = "/v2/payments/recovery",
@@ -51,14 +55,22 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                         "transaction_created_at": "2022-09-10T10:11:12Z",
                         "error": {
                             "code": "card_declined",
-                            "message": "The card was declined."
+                            "message": "The card was declined.",
+                            "reason": "Insufficient funds",
+                            "network_advice_code": "01",
+                            "network_decline_code": "51",
+                            "network_error_message": "Retry after some time"
                         },
                         "payment_method_data": {
                             "primary_processor_payment_method_token": "token_1234",
                             "payment_method_metadata": {
                                 "card_network": "Visa",
                                 "card_type": "credit",
-                                "last4": "4242"
+                                "last4": "4242",
+                                "card_isin": "424242",
+                                "card_extended_bin": "42424242",
+                                "card_exp_month": "01",
+                                "card_exp_year": "2026"
                             }
                         },
                         "action": "schedule_failed_payment"
@@ -69,7 +81,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
     ),
     responses(
         (status = 200, description = "Revenue Recovery Payment Recorded Successfully", body = RecoveryPaymentsResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "Missing or invalid mandatory fields", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),
         (status = 500, description = "Internal server error"),
     ),
