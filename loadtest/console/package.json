@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=.env start.mjs",
     "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
     "test": "node --test test/*.test.mjs",
-    "password": "node scripts/password.mjs"
+    "password": "node scripts/password.mjs",
+    "worker": "node --env-file-if-exists=.env scripts/worker.mjs"
   },
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
@@ -25,5 +26,7 @@
     "svelte-check": "^4.3.2",
     "typescript": "^5.9.3"
   },
-  "overrides": { "cookie": "0.7.2" }
+  "overrides": {
+    "cookie": "0.7.2"
+  }
 }

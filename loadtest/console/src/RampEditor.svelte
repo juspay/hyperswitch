@@ -1,0 +1,26 @@
+<script>
+import {decodeStages,encodeStages,rampPoints,stageRates} from './ramp-editor.mjs';
+import {loadShape} from './load-shape.mjs';
+export let startRps=0;export let stagesJson='[]';export let valid=true;export let targets=[];
+let rows;try{rows=decodeStages(stagesJson,startRps);}catch{rows=[];}
+let validation='',advanced='',importMessage='';
+function sync(){try{stagesJson=JSON.stringify(encodeStages(rows,startRps));validation='';valid=true;}catch(e){validation=e.message;valid=false;}}
+function move(i,offset){const next=[...rows];[next[i],next[i+offset]]=[next[i+offset],next[i]];rows=next;sync();}
+function add(kind){rows=[...rows,{kind,target:stageRates(rows,startRps).at(-1) ?? Number(startRps),duration:kind==='fault'?10:60,...(kind==='fault'?{fault:{targetId:targets[0]?.id||'',action:targets[0]?.actions[0]||'outage'}}:{})}];sync();}
+function importJson(){try{rows=decodeStages(advanced,startRps);sync();if(validation)throw Error(validation);importMessage='Imported';}catch(e){validation=e.message;}}
+$: startRps,sync();
+$: rates=stageRates(rows,startRps);
+$: points=(()=>{try{return rampPoints(startRps,JSON.parse(stagesJson));}catch{return [];}})();
+$: shape=(()=>{try{return loadShape({start_rps:startRps,stages:JSON.parse(stagesJson)});}catch{return {duration:0,peak:0,average:0};}})();
+$: line=points.map(p=>`${30+(p.t/(shape.duration||1))*740},${130-(p.value/(shape.peak||1))*105}`).join(' ');
+</script>
+<section class="ramp-editor">
+<div class="section-head"><div><h2>Timeline</h2><p>Offered flows per second · {shape.duration}s total · {shape.peak} TPS peak</p></div><label>Starting TPS<input type="number" min="0" bind:value={startRps}/></label></div>
+<svg viewBox="0 0 800 160" role="img" aria-label="Offered TPS over active test time"><path d="M30 20V130H770" fill="none" stroke="#dfe3eb"/>{#each rows as row,i}{#if row.kind==='fault'}<line x1={30+(rows.slice(0,i).reduce((n,r)=>n+Number(r.duration),0)/(shape.duration||1))*740} x2={30+(rows.slice(0,i).reduce((n,r)=>n+Number(r.duration),0)/(shape.duration||1))*740} y1="20" y2="130" stroke="#bd5a20" stroke-dasharray="4 4"/>{/if}{/each}<polyline points={line} fill="none" stroke="#0066ff" stroke-width="2.5"/>{#each points as point}<circle cx={30+(point.t/(shape.duration||1))*740} cy={130-(point.value/(shape.peak||1))*105} r="3" fill="#0066ff"/>{/each}<text x="30" y="153">0s</text><text x="720" y="153">{shape.duration}s</text><text x="35" y="18">{shape.peak} TPS</text></svg>
+{#each rows as row,i}<div class="stage-row" class:fault-row={row.kind==='fault'}><span class="stage-number">{i+1}</span><label>Stage<select bind:value={row.kind} onchange={()=>{if(row.kind==='fault')row.fault ||= {targetId:targets[0]?.id||'',action:targets[0]?.actions[0]||'outage'};sync();}}><option value="ramp">Ramp to</option><option value="hold">Hold</option><option value="fault">Fault</option></select></label>{#if row.kind==='fault'}<label>Target<select bind:value={row.fault.targetId} onchange={()=>{row.fault.action=targets.find(t=>t.id===row.fault.targetId)?.actions[0]||'outage';sync();}}><option value="">Choose target</option>{#each targets as target}<option value={target.id}>{target.label}</option>{/each}</select></label><label>Action<select bind:value={row.fault.action} onchange={sync}>{#each targets.find(t=>t.id===row.fault.targetId)?.actions || ['outage','restart'] as action}<option value={action}>{action}</option>{/each}</select></label>{:else}<label>{row.kind==='hold'?'Hold TPS':'Target TPS'}{#if row.kind==='ramp'}<input type="number" min="1" bind:value={row.target} oninput={sync}/>{:else}<input type="number" disabled value={rates[i]}/>{/if}</label>{/if}<label>{row.kind==='fault'?(row.fault.action==='outage'?'Downtime':'Stage duration'):'Duration'} · seconds<input type="number" min="1" step="1" bind:value={row.duration} oninput={sync}/></label><div class="stage-actions"><button type="button" class="icon-button" aria-label={`Move stage ${i+1} up`} disabled={i===0} onclick={()=>move(i,-1)}>↑</button><button type="button" class="icon-button" aria-label={`Move stage ${i+1} down`} disabled={i===rows.length-1} onclick={()=>move(i,1)}>↓</button><button type="button" class="icon-button" aria-label={`Remove stage ${i+1}`} onclick={()=>{rows=rows.filter((_,n)=>n!==i);sync();}}>×</button></div></div>{/each}
+{#if validation}<p class="invalid" role="alert">{validation}</p>{/if}<div class="actions"><button type="button" class="secondary" onclick={()=>add('ramp')}>+ Ramp</button><button type="button" class="secondary" onclick={()=>add('hold')}>+ Hold</button><button type="button" class="secondary" onclick={()=>add('fault')}>+ Fault</button></div>
+<p class="muted">Faults keep TPS steady. Restart immediately; outage holds the service down. Stage time controls the next step.</p>
+<details class="advanced"><summary>JSON import / export</summary><label>Current stages<textarea readonly rows="4" value={stagesJson}></textarea></label><label>Import stages<textarea rows="4" bind:value={advanced}></textarea></label><button type="button" class="secondary" onclick={importJson}>Import</button><span role="status">{importMessage}</span></details>
+</section>
+
+<style>.fault-row{grid-template-columns:28px 1fr 1.5fr 1fr 1fr auto}@media(max-width:800px){.fault-row{grid-template-columns:24px 1fr 1fr}.fault-row .stage-actions{grid-column:3}}</style>

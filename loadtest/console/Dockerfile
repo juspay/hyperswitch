@@ -10,6 +10,7 @@ WORKDIR /app/loadtest/console
 COPY loadtest/console/package.json loadtest/console/package-lock.json ./
 RUN npm ci
 COPY loadtest/console/src ./src
+COPY loadtest/console/static ./static
 COPY loadtest/console/server ./server
 COPY loadtest/console/vite.config.js loadtest/console/svelte.config.js loadtest/console/jsconfig.json ./
 RUN npm run build && npm prune --omit=dev
@@ -21,6 +22,7 @@ COPY --from=web /app/loadtest/console/build ./build
 COPY --from=web /app/loadtest/console/node_modules ./node_modules
 COPY loadtest/console/package.json loadtest/console/start.mjs ./
 COPY loadtest/console/server ./server
+COPY loadtest/console/src/load-shape.mjs /app/loadtest/console/src/load-shape.mjs
 COPY loadtest/console/scripts ./scripts
 COPY loadtest/k6/scenario-mix/*.mjs /app/loadtest/k6/scenario-mix/
 COPY loadtest/k6/scenario-mix/scenario-mix.js loadtest/k6/scenario-mix/recording-client.js /app/loadtest/k6/scenario-mix/
@@ -36,4 +38,4 @@ EXPOSE 4174
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://127.0.0.1:4174/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["node","start.mjs"]
+CMD ["node","scripts/container.mjs"]

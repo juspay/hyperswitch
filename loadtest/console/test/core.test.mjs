@@ -79,3 +79,49 @@ test('restart recovery interrupts stale jobs and SSE reconnect sends current sta
   const response=jobs.jobEvents('stale',new Request('http://test/api/jobs/stale/events'));
   assert.match(await response.text(),/interrupted/);
 });
+
+test('staged settings preserve shape and snapshot criteria',async()=>{
+ const input=state.publicSettings();
+ input.loadShape='staged';input.startRps=0;input.stagesJson=JSON.stringify([{target_rps:10,duration_seconds:4}]);
+ input.acceptance.maximumConfirmP99Ms=350;
+ const saved=await state.saveSettings(input);assert.equal(saved.totalRps,10);assert.equal(saved.durationSeconds,4);
+ const c=state.readJsonSync(state.configPath);assert.equal(c.load.total_rps,undefined);assert.equal(c.load.duration_seconds,undefined);assert.equal(c.load.start_rps,0);assert.equal(c.acceptance.maximumConfirmP99Ms,350);
+ await assert.rejects(state.saveSettings({...input,stagesJson:'[]'}),/positive/);
+ await state.saveSettings({...saved,loadShape:'flat'});assert.equal(state.readJsonSync(state.configPath).load.stages,undefined);
+});
+
+test('versioned profiles are isolated from connection edits and reject stale saves',async()=>{
+ const {saveProfile,getProfile,profileDraft}=await import('../server/profiles.mjs');
+ const first=saveProfile({...profileDraft(),name:'Single 200 TPS',totalRps:200,durationSeconds:60});
+ const second=saveProfile({...first,totalRps:1000},first.id);
+ assert.equal(second.version,2);assert.equal(getProfile(first.id,1).totalRps,200);
+ assert.throws(()=>saveProfile({...first,totalRps:300},first.id),/changed/);
+ const settings=state.publicSettings();await state.saveConnections({...settings,scenarios:[],database:{...settings.database,user:'existing_user'}});
+ assert.equal(getProfile(first.id).totalRps,1000);assert.equal(state.publicSettings().database.user,'existing_user');
+ assert.throws(()=>saveProfile({...first,name:'bad',mode:'single',merchantCount:1500}),/Single/);
+});
+test('fixture compatibility includes merchant count and provisioning settings, not rate',async()=>{
+ const {fixtureSignature,validateFixtureSet}=await import('../server/profiles.mjs');
+ const c=state.readJsonSync(state.configPath),sig=fixtureSignature(c,'single',1);
+ assert.equal(sig,fixtureSignature({...c,load:{total_rps:1000}},'single',1));
+ assert.notEqual(sig,fixtureSignature(c,'tenancy',1500));
+ assert.notEqual(sig,fixtureSignature({...c,services:{...c.services,router:'http://different'}},'single',1));
+ const dir=path.join(temporary,'fixture-set');await mkdir(dir);await writeFile(path.join(dir,'manifest.json'),JSON.stringify({state:'ready'}));
+ state.controlDb().prepare('INSERT INTO fixture_sets VALUES(?,?,?,?,?,?,NULL,?)').run('fixture-test','single',1,sig,dir,'ready',Date.now());
+ assert.equal(validateFixtureSet('fixture-test',{mode:'single',merchantCount:1},c).id,'fixture-test');
+ assert.throws(()=>validateFixtureSet('fixture-test',{mode:'tenancy',merchantCount:1500},c),/does not match/);
+});
+test('ramp editor round trips holds and calculates offered-flow preview',async()=>{
+ const {encodeStages,decodeStages,rampPoints}=await import('../src/ramp-editor.mjs');
+ const {loadShape}=await import('../src/load-shape.mjs');
+ const stages=encodeStages([{kind:'ramp',target:200,duration:60},{kind:'hold',target:99,duration:120},{kind:'ramp',target:1000,duration:60}],10);
+ assert.equal(stages[1].target_rps,200);assert.equal(decodeStages(JSON.stringify(stages),10)[1].kind,'hold');
+ assert.equal(loadShape({start_rps:10,stages}).duration,240);assert.equal(rampPoints(10,stages).at(-1).value,1000);
+ assert.throws(()=>encodeStages([{kind:'hold',duration:0}],10),/positive/);
+});
+test('new flows get unique metric names without changing existing flows',async()=>{
+ const {newFlow,profileSummary}=await import('../src/flow-catalog.mjs');
+ const flows=[{name:'guest',scenario:'guest',merchant_path:'modular',weight:50},{name:'guest_2',scenario:'guest',merchant_path:'non_modular',weight:50}];
+ const before=JSON.stringify(flows),flow=newFlow('guest',flows);assert.equal(flow.name,'guest_3');assert.equal(flow.weight,0);assert.equal(JSON.stringify(flows),before);
+ assert.match(profileSummary({mode:'tenancy',merchantCount:1500,totalRps:1000,durationSeconds:180,loadShape:'staged'}),/Tenancy · 1500 merchants · 1000 peak TPS · 180s/);
+});

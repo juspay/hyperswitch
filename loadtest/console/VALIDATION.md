@@ -47,3 +47,56 @@ on this host, so the Linux image has not been built here. No EC2 instance was
 provisioned. Grafana authentication, isolation and multiple panels were validated
 against a mock upstream; validate the existing Grafana deployment's embedding
 and auth-proxy settings before use.
+
+## Load controls and resilience view (2026-10-07)
+
+- `npm run check`: zero errors/warnings; production build passed.
+- Console tests: 19 passed, 1 optional PostgreSQL test skipped.
+- Go recorder/admission tests passed with the race detector; existing storage
+  tests passed (6). Tests include weighted fractional admission, delayed ramp
+  ticks, drop accounting, pause/drain, frozen active time and resume.
+- Mock integration at 10 flows/sec: exactly 60 successful flows in six active
+  seconds despite a pause, zero dropped flows, zero response gaps and complete
+  recording. Staged ramps from zero also completed and retained their snapshots.
+- Verified rejected competing starts while paused, SSE, cancellation, shutdown,
+  interrupted-job recovery, simulated faults, durable restoration and preserved
+  k6 threshold failures with complete recordings.
+- Browser checks covered Idle Start, Running Pause, Paused Resume, zero active
+  flows while paused, Completed without load controls, live-run selection,
+  historical replay, simulation confirmation and collapsed Diagnostics.
+- Docker/Kubernetes/GCP adapters were tested with injected command responses;
+  no real outages or cloud failovers were executed. Simulation validates the
+  control lifecycle, not infrastructure resilience.
+
+These are local functional checks. EC2 capacity, sustained 1,000/2,000 flows/sec
+and the recorder-overhead target remain subject to the deployment benchmarks
+above. Console control pacing uses a different executor from native CLI tests;
+benchmark both on EC2 before drawing capacity conclusions.
+
+
+## Profile, fixture and worker separation — 2026-10-08
+
+- Svelte check: zero errors/warnings; production build succeeds.
+- Console suite: 22 passing tests; PostgreSQL opt-in test run separately and passes.
+- Protected routes: Scenarios, Fixtures, Performance and Results; profile versions,
+  stale-save rejection, connection edits independent of profiles, fixture signature
+  compatibility and visual ramp/hold serialization verified.
+- HTTP integration: SSE disconnect, active-page reload, pause/drain/resume,
+  immutable configuration, cancellation, graceful and forced SSR restart all
+  verified. SSR restarts preserve the active generator. A worker crash marks the
+  job and recording incomplete; the next worker restores recovery state.
+- Real local services: fixture creation completed for one new merchant, with
+  configured Superposition defaults and a ready compatible manifest.
+- Real local load: 10 offered and successful flows/sec for 10 active seconds;
+  100 completed flows, 440 response events, zero HTTP errors, zero dropped flows,
+  zero recording gaps. Confirmation p99: 1,195.9 ms.
+- Direct PostgreSQL reconciliation: 100 matches, zero mismatches, zero missing
+  payments. Results UI connection check, background reconciliation and page
+  reload restoration verified in an isolated development preview.
+- Recorded run: `single:2026-10-07T18-52-42-792Z-single-10tps-e70647e8`.
+- New fixture set: `35a4c019-3568-45d5-9fde-c5b75bf0158f`.
+
+EC2 capacity, a sustained 1,000 TPS run and the final Linux container deployment
+remain deployment-stage validation; these local results do not establish that
+capacity. Existing 1,500-merchant fixtures were imported, but no 1,500-merchant
+provisioning or high-rate load was launched during this pass.

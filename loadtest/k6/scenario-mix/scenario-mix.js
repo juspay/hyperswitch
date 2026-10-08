@@ -222,7 +222,7 @@ if (load.stages !== undefined) {
     return { name: String(stage.name || `stage_${index + 1}`), targetRps, durationSeconds };
   });
   const startRps = numberOr(load.start_rps, stages[0].targetRps);
-  if (!(startRps > 0)) fail("load.start_rps must be a number > 0");
+  if (!(startRps >= 0)) fail("load.start_rps must be a number >= 0");
   rampPlan = {
     startRps,
     stages,
@@ -477,7 +477,7 @@ function validateStageRates(rp) {
     let sum = 0;
     for (const plan of enabledPlans) {
       const rate = stageRate(plan, rp, rps);
-      if (rate < 1) {
+      if (rate < 1 && rps !== 0) {
         fail(`${rps} rps gives scenario "${plan.name}" (weight ${plan.weight}%) an arrival rate of ${rate}/s; raise that stage's rate or weight`);
       }
       sum += rate;
@@ -511,7 +511,7 @@ function rampingExecutor(name, plan, rp) {
 }
 
 if (rampPlan) {
-  if (rampPlan.strict) validateStageRates(rampPlan);
+  if (rampPlan.strict && !__ENV.SQLITE_RECORDER_CONTROL_FILE) validateStageRates(rampPlan);
   for (const plan of enabledPlans) {
     rampingExecutor(plan.name, plan, rampPlan);
   }
@@ -521,6 +521,16 @@ if (rampPlan) {
   }
 }
 for (const plan of enabledPlans) planByName[plan.name] = plan;
+// Console runs use native Go admission pacing and a persistent VU pool. The
+// CLI keeps k6's arrival-rate executors. No HTTP round trip occurs per flow.
+if (__ENV.SQLITE_RECORDER_CONTROL_FILE) {
+  const peak = rampPlan ? rampPlan.peakRps : flatTotalRps;
+  for (const plan of enabledPlans) {
+    const vus = Math.max(1,Math.ceil(rateFor(plan,peak)*maxVusMultiplier));
+    scenarios[plan.name] = {executor:'externally-controlled',exec:'runScenario',duration:'0s',vus,maxVUs:vus,
+      env:{SCENARIO_NAME:plan.name},tags:{traffic_scenario:plan.name}};
+  }
+}
 
 export const options = {
   scenarios,
@@ -803,24 +813,27 @@ export function setup() {
 
 export function runScenario() {
   const plan = planByName[__ENV.SCENARIO_NAME];
+  const controlled = Boolean(__ENV.SQLITE_RECORDER_CONTROL_FILE);
+  if (controlled && !recorder.enter(plan.name)) return;
   const phaseInfo = plan.phases ? plan.phases[Number(__ENV.PHASE_INDEX || 0)] : null;
   const startedAt = Date.now();
   // Resolved once per iteration (not per request) so every request in the
   // flow — and a mid-flow exception's failure record — uses the same
   // merchant, and so a merchant_pool run is a uniform-random pick over the
   // whole pool per iteration rather than per request.
-  const merchant = pickMerchant();
+  let merchant;
+  try {
+  merchant = pickMerchant();
   flowContext = { flow_id: `${__ENV.SQLITE_RECORDER_RUN_ID || "unrecorded"}:${exec.scenario.name}:${__VU}:${exec.scenario.iterationInTest}`,
     merchant_id: merchant.merchant_id, customer_id: null, payment_id: null };
   lastEvent = null;
   // Never let an unexpected exception kill an iteration invisibly: k6 would
   // count it as complete with no success/failure recorded, silently
   // understating the failure rate.
-  try {
     runFlow(merchant, plan, phaseInfo, startedAt);
   } catch (error) {
     failIteration(merchant, plan, startedAt, `exception_${(error && error.name) || "error"}`, phaseInfo, null, error && error.message);
-  }
+  } finally { if (controlled) recorder.leave(); }
 }
 
 function runFlow(merchant, plan, phaseInfo, startedAt) {
@@ -1135,7 +1148,7 @@ function runFlow(merchant, plan, phaseInfo, startedAt) {
   // - lets a per-merchant success/failure breakdown be computed straight
   // from this console log, same source as everything else, no separate
   // metric-tag plumbing needed (TC-09).
-  console.log(`RECON payment_id=${reconPaymentId} status=${confirmResponse.status} merchant_id=${merchant.merchant_id || ""} confirm_ms=${confirmResponse.timings.duration.toFixed(1)} flow_ms=${Date.now() - startedAt} ts=${new Date().toISOString()}`);
+  if (!__ENV.LOADTEST_CONSOLE_JOB) console.log(`RECON payment_id=${reconPaymentId} status=${confirmResponse.status} merchant_id=${merchant.merchant_id || ""} confirm_ms=${confirmResponse.timings.duration.toFixed(1)} flow_ms=${Date.now() - startedAt} ts=${new Date().toISOString()}`);
   plan.trends.total_flow.add(Date.now() - startedAt);
 }
 

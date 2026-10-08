@@ -11,9 +11,10 @@ function validate(config) {
   if (!Number.isFinite(config.refresh_interval_seconds) || config.refresh_interval_seconds < 0) throw new Error("superposition.refresh_interval_seconds must specify the deployed service polling interval");
 }
 
-export async function configureSuperposition(config, recorder, merchants, organizationId) {
+export async function configureSuperposition(config, recorder, merchants, organizationId, onProgress = async () => {}) {
   if (!config) return null;
   validate(config);
+  await onProgress({status:"applying"});
   const headers = { "content-type": "application/json", Authorization: `Bearer ${config.token}`,
     "x-org-id": config.organization_id, "x-workspace": config.workspace_id };
   const base = config.endpoint.replace(/\/$/, "");
@@ -61,9 +62,11 @@ export async function configureSuperposition(config, recorder, merchants, organi
     } finally { bar.finish(); }
     if (failure) throw failure;
   }
+  await onProgress({status:"resolving"});
   await verify("Resolve flags");
   if (config.refresh_interval_seconds > 0) console.log(`Waiting ${config.refresh_interval_seconds}s for Superposition service refresh before readiness verification...`);
   const deadline = Date.now() + config.refresh_interval_seconds * 1000;
+  await onProgress({status:"waiting",remainingSeconds:config.refresh_interval_seconds,totalSeconds:config.refresh_interval_seconds});
   if (config.refresh_interval_seconds > 0) {
     const seconds = config.refresh_interval_seconds;
     const bar = progress("Service refresh", seconds);
@@ -72,10 +75,13 @@ export async function configureSuperposition(config, recorder, merchants, organi
         await new Promise((resolve) => setTimeout(resolve,Math.min(1000,deadline-Date.now())));
         const remaining = Math.max(0,Math.ceil((deadline-Date.now())/1000));
         bar.update(seconds-remaining, `${remaining}s remaining`);
+        await onProgress({status:"waiting",remainingSeconds:remaining,totalSeconds:seconds});
       }
     } finally { bar.finish(); }
   }
+  await onProgress({status:"verifying",remainingSeconds:0});
   await verify("Verify refreshed flags");
+  await onProgress({status:"complete",remainingSeconds:0});
   return { organization_id: config.organization_id, workspace_id: config.workspace_id,
     defaults: config.defaults, version, refresh_interval_seconds: config.refresh_interval_seconds };
 }

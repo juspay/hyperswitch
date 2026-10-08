@@ -1,4 +1,5 @@
 <script>
+  export let tooltip='';
   export let label;
   export let value;
   export let unit = '';
@@ -13,7 +14,7 @@
   $: line = points.map(p => `${((p.t-start)/duration*300).toFixed(2)},${(69-Math.max(0,p.value)/maximum*63).toFixed(2)}`).join(' ');
 </script>
 
-<article style:--trend-color={color}>
+<article title={tooltip || undefined} style:--trend-color={color}>
   {#if points.length > 1}
     <svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true">
       <polygon points={`0,70 ${line} 300,70`} />

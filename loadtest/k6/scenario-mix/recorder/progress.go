@@ -17,10 +17,12 @@ type flowProgress struct {
 	Failures      uint64   `json:"failures"`
 	TPS           float64  `json:"tps"`
 	P90           *float64 `json:"p90_ms"`
+	P99           *float64 `json:"p99_ms"`
 	windowSuccess uint64
 	latencies     []float64
 }
 type liveProgress struct {
+	P99           *float64                 `json:"p99_ms"`
 	Elapsed       float64                  `json:"elapsed_seconds"`
 	Iterations    uint64                   `json:"iterations"`
 	Dropped       uint64                   `json:"dropped"`
@@ -29,11 +31,13 @@ type liveProgress struct {
 	SuccessfulTPS float64                  `json:"successful_tps"`
 	Recorder      Stats                    `json:"recorder"`
 	Flows         map[string]*flowProgress `json:"flows"`
+	Control       *controlSnapshot         `json:"control,omitempty"`
 }
 type progressCollector struct {
 	mu                sync.Mutex
 	started, previous time.Time
 	state             liveProgress
+	latencies         []float64
 }
 
 func newProgressCollector(metadata map[string]interface{}) *progressCollector {
@@ -57,6 +61,10 @@ func (p *progressCollector) add(containers []metrics.SampleContainer) {
 		for _, sample := range container.GetSamples() {
 			name := sample.Metric.Name
 			switch name {
+			case "payment_confirm_latency_ms":
+				if len(p.latencies) < 8192 {
+					p.latencies = append(p.latencies, sample.Value)
+				}
 			case "iterations":
 				p.state.Iterations += uint64(sample.Value)
 			case "dropped_iterations":
@@ -97,15 +105,25 @@ func (p *progressCollector) bytes(stats Stats) []byte {
 	p.state.Elapsed = now.Sub(p.started).Seconds()
 	p.state.Recorder = stats
 	p.state.SuccessfulTPS = 0
+	p.state.P99 = nil
+	if len(p.latencies) > 0 {
+		sort.Float64s(p.latencies)
+		value := p.latencies[int(float64(len(p.latencies)-1)*0.99)]
+		p.state.P99 = &value
+		p.latencies = p.latencies[:0]
+	}
 	for _, f := range p.state.Flows {
 		f.TPS = float64(f.windowSuccess) / seconds
 		f.windowSuccess = 0
 		p.state.SuccessfulTPS += f.TPS
 		f.P90 = nil
+		f.P99 = nil
 		if len(f.latencies) > 0 {
 			sort.Float64s(f.latencies)
 			value := f.latencies[int(float64(len(f.latencies)-1)*0.9)]
 			f.P90 = &value
+			p99 := f.latencies[int(float64(len(f.latencies)-1)*0.99)]
+			f.P99 = &p99
 			f.latencies = f.latencies[:0]
 		}
 	}
@@ -117,6 +135,19 @@ func (o *sqliteOutput) writeProgress() {
 		return
 	}
 	raw := o.progress.bytes(o.writer.Snapshot())
+	if o.control != nil {
+		var state liveProgress
+		_ = json.Unmarshal(raw, &state)
+		snapshot := o.control.snapshot()
+		state.Control = &snapshot
+		state.Elapsed = snapshot.Wall
+		state.Dropped = snapshot.Dropped
+		state.Iterations = 0
+		for _, flow := range state.Flows {
+			state.Iterations += flow.Successes + flow.Failures
+		}
+		raw, _ = json.Marshal(state)
+	}
 	if err := os.WriteFile(o.progressFile+".tmp", raw, 0600); err != nil {
 		o.writer.fail(err)
 		return

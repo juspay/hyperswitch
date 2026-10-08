@@ -21,7 +21,8 @@ test('fixtures are recorded, ready, and resumable without minting extra API keys
  const {server,state,url}=await mockServer(); const dir=await temporary();
  try {
   const cfg=await configuration(dir,url),output=path.join(dir,'fixtures');
-  await fixtures(cfg,output);const keys=state.keys;
+  const setup=[];await fixtures(cfg,output,{onProgress:value=>setup.push(structuredClone(value))});const keys=state.keys;
+  assert.equal(setup[0].stage,"merchants");assert.equal(setup.at(-1).stage,"ready");assert.ok(setup.some(s=>s.superposition.status==="applying"));assert.ok(setup.some(s=>s.superposition.status==="verifying"));
   const patches=state.patches;
   await fixtures(cfg,output); assert.equal(state.keys,keys);assert.equal(state.patches,patches);
   const manifest=JSON.parse(await readFile(path.join(output,'manifest.json'),'utf8'));
@@ -121,4 +122,14 @@ test('native capture preserves non-2xx bodies and tolerates malformed entity JSO
    assert.equal(db.prepare('SELECT COUNT(*) n FROM customers').get().n,0);db.close();
   }
  } finally {server.close();}
+});
+
+test('Superposition refresh countdown precedes final readiness verification',async()=>{
+ const {server,url}=await mockServer(),dir=await temporary();
+ try{
+  const file=await configuration(dir,url),cfg=JSON.parse(await readFile(file,'utf8'));cfg.superposition.refresh_interval_seconds=1;await writeFile(file,JSON.stringify(cfg));
+  const updates=[];await fixtures(file,path.join(dir,'fixtures'),{onProgress:value=>updates.push(structuredClone(value))});
+  const waiting=updates.filter(s=>s.superposition.status==='waiting');assert.equal(waiting[0].superposition.remainingSeconds,1);assert.equal(waiting.at(-1).superposition.remainingSeconds,0);
+  assert.ok(updates.findIndex(s=>s.superposition.status==='verifying')>updates.findIndex(s=>s.superposition.status==='waiting'));assert.equal(updates.at(-1).stage,'ready');
+ }finally{server.close();}
 });

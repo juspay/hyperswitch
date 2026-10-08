@@ -23,3 +23,13 @@ test('ANSI output and truncated progress rows remain readable', () => {
   assert.equal(result.history,'');
   assert.equal(k6Output('Creating fixtures\nReady').history,'Creating fixtures\nReady');
 });
+
+test('fixture progress replaces each labelled row and retains intervening logs',()=>{
+ const result=k6Output('Organization ready\nMerchants [--------------------] 0% 0/1\nMerchants [====================] 100% 1/1\nResolve flags [--------------------] 0% 0/1\nResolve flags [====================] 100% 1/1\nWaiting for service refresh\nService refresh [--------------------] 0% 0/30\nWARN preserved\nService refresh [==------------------] 10% 3/30 | 27s remaining\nService refresh [====----------------] 20% 6/30 | 24s remaining\n');
+ assert.equal((result.history.match(/Merchants \[/g)||[]).length,1);assert.equal((result.history.match(/Service refresh \[/g)||[]).length,1);assert.match(result.history,/24s remaining/);assert.doesNotMatch(result.history,/27s remaining|0% 0\//);assert.match(result.history,/Organization ready/);assert.match(result.history,/WARN preserved/);
+});
+test('fixture readiness remains pending while Superposition refresh is running',async()=>{
+ const {fixtureSteps}=await import('../src/fixture-steps.mjs');const steps=fixtureSteps({status:'running',progress:{fixtures:{completed:1,total:1},setup:{stage:'superposition',superposition:{status:'waiting',remainingSeconds:27,totalSeconds:30}}}});
+ assert.equal(steps[0].status,'complete');assert.equal(steps[1].status,'complete');assert.equal(steps[2].status,'running');assert.equal(steps[2].detail,'27s remaining');assert.equal(steps[3].status,'pending');
+ const done=fixtureSteps({status:'complete',progress:{setup:{superposition:{status:'complete'}}}});assert.ok(done.every(step=>step.status==='complete'));
+});

@@ -1,4 +1,4 @@
-import { readFile,mkdir,writeFile } from 'node:fs/promises';
+import { readFile,mkdir,writeFile,rename } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
@@ -6,10 +6,11 @@ import { isDeepStrictEqual } from 'node:util';
 const spec=JSON.parse(await readFile(process.argv[2],'utf8'));
 const config=JSON.parse(await readFile(spec.configPath,'utf8'));
 const {fixtures,load}=await import(pathToFileURL(path.join(spec.loadtestRoot,'k6/scenario-mix/run.mjs')).href);
-const fixturePath=path.join(config.output,spec.mode,'fixtures');
+const fixturePath=spec.fixturePath || path.join(config.output,spec.mode,'fixtures');
 const jobDir=path.dirname(process.argv[2]);
 process.env.K6_PID_FILE=path.join(jobDir,'k6-pid.json');
 process.env.LOADTEST_CONSOLE_JOB='1';
+if(spec.kind==='load')process.env.SQLITE_RECORDER_CONTROL_FILE=path.join(spec.runPath,'control.json');
 // If the web process dies, stop its generator rather than leaving an orphaned load.
 let orphaned=false;
 const watchdog=setInterval(()=>{
@@ -29,9 +30,9 @@ try {
   await mkdir(fixturePath,{recursive:true,mode:0o700});
   let result;
   if(spec.kind==='fixtures') {
-    const provision={...config.fixtures,merchant_count:spec.mode==='single'?1:1500,merchant_id_prefix:`${config.fixtures.merchant_id_prefix || 'loadtest'}_${spec.mode}`};
+    const provision={...config.fixtures,merchant_count:spec.merchantCount ?? (spec.mode==='single'?1:1500),merchant_id_prefix:`${config.fixtures.merchant_id_prefix || 'loadtest'}_${spec.mode}_${spec.fixtureSetId?.slice(0,8) || 'legacy'}`};
     const file=path.join(fixturePath,'provision.json');await writeFile(file,JSON.stringify(provision),{mode:0o600});
-    result=await fixtures(file,fixturePath);
+    result=await fixtures(file,fixturePath,{onProgress:async setup=>{const progressFile=path.join(jobDir,'fixture-progress.json');await writeFile(progressFile+'.tmp',JSON.stringify(setup),{mode:0o600});await rename(progressFile+'.tmp',progressFile);}});
   } else {
     const manifest=JSON.parse(await readFile(path.join(fixturePath,'manifest.json'),'utf8'));
     const requested=config.fixtures.superposition;

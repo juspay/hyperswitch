@@ -17,7 +17,7 @@ async function atomicJson(file,value) {
   await rename(`${file}.tmp`,file);
 }
 
-export async function fixtures(configPath,output) {
+export async function fixtures(configPath,output,{onProgress=async()=>{}}={}) {
   const cfg = loadConfig(configPath);
   output = path.resolve(output);
   await mkdir(output,{ recursive: true, mode: 0o700 });
@@ -31,17 +31,23 @@ export async function fixtures(configPath,output) {
   await atomicJson(manifestFile,manifest);
   const recorder = new FixtureRecorder(path.join(output,"fixtures.sqlite"),{ kind: "fixtures", identity });
   setFixtureRecorder(recorder);
+  let setup={stage:"merchants",superposition:{status:cfg.superposition?"pending":"skipped"}};
+  const report=async changes=>{setup={...setup,...changes};await onProgress(setup);};
   try {
+    await report({stage:"merchants"});
     const result = await provision(cfg);
-    const superposition = await configureSuperposition(cfg.superposition,recorder,result.merchants,result.organization_id);
+    await report({stage:"superposition"});
+    const superposition = await configureSuperposition(cfg.superposition,recorder,result.merchants,result.organization_id,superposition=>report({superposition}));
     const merchantData = await readFile(cfg.output,"utf8");
     recorder.metadata.superposition = superposition;
     recorder.close();
     await atomicJson(manifestFile,{ ...manifest, state: "ready", ready_at: new Date().toISOString(),
       organization_id: result.organization_id, merchant_count: result.merchants.length,
       merchants_sha256: digest(merchantData), superposition });
+    await report({stage:"ready"});
     return { manifest: manifestFile, merchant_count: result.merchants.length };
   } catch (error) {
+    await report({stage:"failed",failedStage:setup.stage}).catch(()=>{});
     try { recorder.close(error); } catch (_) { /* initial error is authoritative */ }
     await atomicJson(manifestFile,{ ...manifest,state: "failed",error: error.message });
     throw error;
@@ -71,7 +77,8 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
   await writeFile(script,source,{ mode: 0o600 });
   const runId = randomUUID();
   const metadata = { fixtures_sha256: digest(JSON.stringify(manifest)), load_config_sha256: digest(JSON.stringify(config)),
-    mode: config.mode ?? null, offered_tps: config.load.total_rps,
+    mode: config.mode ?? null, profile:config.profile ?? null,fixture_set:config.fixtureSet ?? null,
+    offered_tps:config.load.total_rps ?? Math.max(config.load.start_rps || 0,...(config.load.stages || []).map(s=>s.target_rps)),
     superposition: manifest.superposition, load: config.load, scenarios: config.scenarios };
   const args = ["run",...(recording ? ["--out","sqlite-recorder"] : []),script];
   const timingArgs = process.platform === 'darwin' ? ['-l','-p',binary,...args]
@@ -103,11 +110,20 @@ export async function load(configPath,fixturePath,output,binary = path.join(root
   if (!recording) return { run_id: runId, exitCode: code,cpu };
   const quote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
   if (!process.env.LOADTEST_CONSOLE_JOB) console.log(`\nReconcile this run (replace payments.csv with your CSV):\nnode ${quote(path.join(root,"run.mjs"))} reconcile --db ${quote(database)} --csv payments.csv --output ${quote(path.join(output,"reconciliation.csv"))}\n`);
+  try { await access(database); } catch(error) { if(error.code==='ENOENT')throw new Error(`k6 exited ${code} before recording initialized; see Diagnostics`);throw error; }
   const db = new DatabaseSync(database,{ readOnly: true });
   try {
     const run = db.prepare("SELECT * FROM runs WHERE run_id=?").get(runId);
     if (!run || run.recording_state !== "complete" || run.enqueued !== run.persisted) throw new Error(`Run ${runId} has incomplete recording`);
   } finally { db.close(); }
+  if(process.env.SQLITE_RECORDER_CONTROL_FILE) {
+    const control=JSON.parse(await readFile(process.env.SQLITE_RECORDER_CONTROL_FILE,'utf8'));
+    if(control.state==='completed') {
+      const summary=JSON.parse(await readFile(path.join(output,'summary.json'),'utf8'));
+      const failedThreshold=Object.values(summary.metrics || {}).some(metric=>Object.values(metric.thresholds || {}).some(threshold=>threshold.ok===false));
+      code=failedThreshold?99:0;
+    }
+  }
   return { run_id: runId, database,exitCode: code,cpu };
 }
 

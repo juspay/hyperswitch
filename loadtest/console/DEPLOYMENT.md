@@ -112,3 +112,18 @@ only after the sustained test passes. AWS provisioning is separate from this ima
 References: [SvelteKit Node deployment](https://svelte.dev/docs/kit/adapter-node),
 [k6 capacity guidance](https://grafana.com/docs/k6/latest/testing-guides/running-large-tests/),
 and [Grafana auth proxy](https://grafana.com/docs/grafana/latest/setup-grafana/configure-access/configure-authentication/auth-proxy/).
+
+
+## Worker ownership
+
+The container entrypoint runs an SSR server and an independent loopback-only,
+authenticated worker service. `/data/console.sqlite` stores versioned profiles,
+fixture sets, jobs and activity; private worker connection metadata also lives
+under `/data`. Keep this volume on one local EBS filesystem, never share it
+between multiple console containers. Browser disconnects and SSR restarts leave
+workers executing. Container termination signals both services and drains the
+recorder; a worker crash marks unfinished runs incomplete on recovery.
+
+Configure an existing PostgreSQL account with SELECT permission on
+`payment_intent`, then use Settings → Database → Test connection. No role is
+created automatically. Saved connection settings override environment defaults.

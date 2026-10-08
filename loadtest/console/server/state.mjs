@@ -2,6 +2,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
+import {loadShape} from '../src/load-shape.mjs';
+import {defaultCriteria} from './acceptance.mjs';
+import {decodeStages,encodeStages} from '../src/ramp-editor.mjs';
 
 export const consoleRoot = path.resolve(process.env.LOADTEST_CONSOLE_ROOT || process.cwd());
 export const loadtestRoot = path.resolve(process.env.LOADTEST_ROOT || path.join(consoleRoot, '..'));
@@ -17,13 +20,19 @@ export function controlDb() {
   database = new DatabaseSync(path.join(dataRoot, 'console.sqlite'));
   chmodSync(path.join(dataRoot, 'console.sqlite'), 0o600);
   database.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+    CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY,name TEXT NOT NULL,version INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS profile_versions(profile_id TEXT NOT NULL,version INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(profile_id,version));
+    CREATE TABLE IF NOT EXISTS fixture_sets(id TEXT PRIMARY KEY,mode TEXT NOT NULL,merchant_count INTEGER NOT NULL,signature TEXT NOT NULL,path TEXT NOT NULL,status TEXT NOT NULL,job_id TEXT,created_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS login_limits(key TEXT PRIMARY KEY,failures INTEGER NOT NULL,reset_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,kind TEXT NOT NULL,mode TEXT,status TEXT NOT NULL,
       started_at INTEGER NOT NULL,ended_at INTEGER,exit_code INTEGER,run_path TEXT,config_path TEXT,
       output TEXT NOT NULL DEFAULT '',progress TEXT NOT NULL DEFAULT '{}',result TEXT,error TEXT);
-    CREATE UNIQUE INDEX IF NOT EXISTS single_generator ON jobs((1))
-      WHERE kind IN ('fixtures','load') AND status IN ('starting','running','cancelling');`);
+    CREATE TABLE IF NOT EXISTS job_events(event_id INTEGER PRIMARY KEY AUTOINCREMENT,job_id TEXT NOT NULL,at INTEGER NOT NULL,kind TEXT NOT NULL,message TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS events_job ON job_events(job_id,event_id);
+    DROP INDEX IF EXISTS single_generator;
+    CREATE UNIQUE INDEX single_generator ON jobs((1))
+      WHERE kind IN ('fixtures','load') AND status IN ('starting','running','pausing','paused','cancelling');`);
   return database;
 }
 
@@ -68,7 +77,9 @@ export function publicSettings() {
   return {
     mode: l.mode, router: c.services.router, modularPm: c.services.modular_pm,
     adminApiKey: '', hasAdminApiKey: Boolean(c.fixtures.admin_api_key), connector: c.fixtures.connector?.connector_name || 'stripe_test',
-    totalRps: c.load.total_rps, durationSeconds: c.load.duration_seconds,
+    totalRps: loadShape(c.load).peak, durationSeconds: loadShape(c.load).duration,
+    loadShape:c.load.stages?'staged':'flat',startRps:c.load.start_rps ?? c.load.stages?.[0]?.target_rps ?? 10,stagesJson:JSON.stringify(c.load.stages || [{target_rps:100,duration_seconds:60},{target_rps:500,duration_seconds:60},{target_rps:1000,duration_seconds:1800}],null,2),
+    acceptance:{...defaultCriteria,...c.acceptance},
     preAllocatedVusMultiplier: c.load.pre_allocated_vus_multiplier, maxVusMultiplier: c.load.max_vus_multiplier,
     scenarios: c.scenarios,
     superposition: { endpoint: sp.endpoint, token: '', hasToken: Boolean(sp.token), organizationId: sp.organization_id,
@@ -98,8 +109,9 @@ export function panelPath(value, base) {
   return u.pathname + u.search;
 }
 
-export async function saveSettings(input) {
+export function validateSettings(input) {
   const current = readJsonSync(configPath), local = localSettings();
+  if(input.loadShape!=null&&!['flat','staged'].includes(input.loadShape))throw new Error('Invalid load shape');
   if (!['single','tenancy'].includes(input.mode)) throw new Error('Invalid merchant mode');
   for (const value of [input.router,input.modularPm,input.superposition.endpoint,input.grafana.baseUrl]) httpUrl(value);
   if (!Array.isArray(input.scenarios) || !input.scenarios.length || input.scenarios.length > 50) throw new Error('Choose 1–50 flows');
@@ -127,6 +139,17 @@ export async function saveSettings(input) {
   next.services = { ...next.services,router: input.router,modular_pm:input.modularPm };
   next.load = { ...next.load,total_rps:Number(input.totalRps),duration_seconds:Number(input.durationSeconds),pre_allocated_vus_multiplier:pre,max_vus_multiplier:max };
   delete next.load.phases;
+  delete next.load.stages;delete next.load.start_rps;
+  if(input.loadShape==='staged'){
+    const stages=JSON.parse(input.stagesJson);
+    if(!Array.isArray(stages)||stages.length<1||stages.length>50||stages.some(s=>!Number.isFinite(s.target_rps)||s.target_rps<=0||!Number.isInteger(s.duration_seconds)||s.duration_seconds<1))throw new Error('Choose 1–50 positive TPS stages with integer durations');
+    const start=Number(input.startRps);if(!Number.isFinite(start)||start<0)throw new Error('Starting TPS must be nonnegative');
+    next.load.stages=encodeStages(decodeStages(JSON.stringify(stages),start),start);next.load.start_rps=start;delete next.load.total_rps;delete next.load.duration_seconds;
+  }
+  const criteria={...defaultCriteria,...input.acceptance};
+  for(const v of Object.values(criteria))if(!Number.isFinite(Number(v))||Number(v)<0)throw new Error('Invalid acceptance criteria');
+  if(criteria.minimumSuccessRatio>1||criteria.maximumErrorPercent>100)throw new Error('Invalid acceptance percentage');
+  next.acceptance=Object.fromEntries(Object.keys(defaultCriteria).map(k=>[k,Number(criteria[k])]));
   next.scenarios = input.scenarios.map(f=>({name:f.name,scenario:f.scenario,merchant_path:f.merchant_path,weight:Number(f.weight)}));
   next.fixtures.router = input.router;
   if (input.adminApiKey) next.fixtures.admin_api_key = input.adminApiKey;
@@ -134,11 +157,23 @@ export async function saveSettings(input) {
   next.fixtures.superposition = { ...next.fixtures.superposition,endpoint:input.superposition.endpoint,
     organization_id:input.superposition.organizationId,workspace_id:input.superposition.workspaceId,defaults,refresh_interval_seconds:refresh };
   if (input.superposition.token) next.fixtures.superposition.token = input.superposition.token;
-  await atomicJson(configPath,next);
-  await atomicJson(localPath,{ mode:input.mode,grafana:{baseUrl:input.grafana.baseUrl,panels}, database:{
+  return {config:next,local:{ mode:input.mode,grafana:{baseUrl:input.grafana.baseUrl,panels}, database:{
     host:input.database.host,port:dbPort,database:input.database.database,user:input.database.user,ssl:Boolean(input.database.ssl),
-    password:input.database.password || local.database.password } });
+    password:input.database.password || local.database.password } }};
+}
+
+export async function saveSettings(input) {
+  initializeConfig();
+  const {config,local}=validateSettings(input);
+  await atomicJson(configPath,config);await atomicJson(localPath,local);
   return publicSettings();
+}
+
+export async function saveConnections(input) {
+  // Connection edits never depend on an unsaved profile in another screen.
+  const current=publicSettings();
+  for(const key of ["router","modularPm","adminApiKey","connector","superposition","grafana","database"])if(input[key]!==undefined)current[key]=input[key];
+  return saveSettings(current);
 }
 
 export function runDirectory(id) {

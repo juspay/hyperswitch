@@ -1,9 +1,15 @@
 export function k6Output(output = '') {
   const lines = output.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  const history = [];
+  const history = [], fixtureRows = new Map();
   let frame = [], inFrame = false, framePosition = 0;
   for (const line of lines) {
-    if (/^\s*running \(/.test(line)) {
+    const fixture=line.match(/^\s*(.+?)\s+\[[=\- ]+\]\s+\d+%\s+\d+(?:\.\d+)?\/\d+(?:\.\d+)?(?:\s|$)/);
+    if(fixture){
+      const label=fixture[1].trim();
+      if(fixtureRows.has(label))history[fixtureRows.get(label)]=line.trimEnd();
+      else{fixtureRows.set(label,history.length);history.push(line.trimEnd());}
+      inFrame=false;
+    } else if (/^\s*running \(/.test(line)) {
       frame = [line.trimEnd()];
       framePosition = history.length;
       inFrame = true;

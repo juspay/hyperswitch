@@ -16,8 +16,9 @@ import (
 
 var active struct {
 	sync.RWMutex
-	writer *Writer
-	last   *Stats
+	writer  *Writer
+	last    *Stats
+	control *loadControl
 }
 
 func init() {
@@ -26,11 +27,25 @@ func init() {
 }
 
 type module struct{}
-type instance struct{}
+type instance struct{ vu modules.VU }
 
-func (*module) NewModuleInstance(_ modules.VU) modules.Instance { return &instance{} }
-func (*instance) Exports() modules.Exports {
-	return modules.Exports{Default: map[string]interface{}{"record": record, "begin": begin, "finish": finish, "complete": complete, "stats": snapshot}}
+func (*module) NewModuleInstance(vu modules.VU) modules.Instance { return &instance{vu: vu} }
+func (i *instance) Exports() modules.Exports {
+	return modules.Exports{Default: map[string]interface{}{"record": record, "begin": begin, "finish": finish, "complete": complete, "stats": snapshot, "enter": i.enter, "leave": leave}}
+}
+func (i *instance) enter(name string) bool {
+	active.RLock()
+	c := active.control
+	active.RUnlock()
+	return c != nil && c.enter(i.vu.Context(), name)
+}
+func leave() {
+	active.RLock()
+	c := active.control
+	active.RUnlock()
+	if c != nil {
+		c.leave()
+	}
 }
 func current() (*Writer, error) {
 	active.RLock()
@@ -67,6 +82,7 @@ type sqliteOutput struct {
 	monitorDone  chan struct{}
 	progressFile string
 	progress     *progressCollector
+	control      *loadControl
 }
 
 func newOutput(params output.Params) (output.Output, error) {
@@ -99,6 +115,17 @@ func (o *sqliteOutput) Start() error {
 	active.Lock()
 	active.writer = w
 	active.Unlock()
+	if file := o.params.Environment["SQLITE_RECORDER_CONTROL_FILE"]; file != "" {
+		c, err := newLoadControl(metadata, file, o.params.Environment["SQLITE_RECORDER_CONTROL_TOKEN"], func() { o.stop(errors.New("console active load duration completed")) })
+		if err != nil {
+			_ = w.Close(err)
+			return err
+		}
+		o.control = c
+		active.Lock()
+		active.control = c
+		active.Unlock()
+	}
 	o.monitorStop = make(chan struct{})
 	o.monitorDone = make(chan struct{})
 	go func() {
@@ -137,13 +164,20 @@ func (o *sqliteOutput) StopWithTestError(err error) error {
 	}
 	close(o.monitorStop)
 	<-o.monitorDone
+	if o.control != nil && o.control.snapshot().State == "completed" && o.control.snapshot().InFlight == 0 {
+		err = nil
+	}
 	result := o.writer.Close(recordingError(err))
 	o.writeProgress()
+	if o.control != nil {
+		o.control.close()
+	}
 	stats := o.writer.Snapshot()
 	raw, _ := json.Marshal(stats)
 	fmt.Fprintf(o.params.StdErr, "SQLite recorder: %s\n", raw)
 	active.Lock()
 	active.writer = nil
+	active.control = nil
 	active.last = &stats
 	active.Unlock()
 	return result
