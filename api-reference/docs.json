@@ -502,6 +502,12 @@
                     "pages": [
                       "v2/tokenization/tokenization--create"
                     ]
+                  },
+                  {
+                    "group": "Schemas",
+                    "pages": [
+                      "v2/schemas/outgoing--webhook"
+                    ]
                   }
                 ]
               },

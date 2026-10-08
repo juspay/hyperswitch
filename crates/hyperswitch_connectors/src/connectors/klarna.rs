@@ -646,6 +646,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -787,6 +788,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -935,6 +937,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven
@@ -1076,6 +1079,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::UpiQr
                         | common_enums::PaymentMethodType::Venmo
                         | common_enums::PaymentMethodType::Vipps
+                        | common_enums::PaymentMethodType::Wero
                         | common_enums::PaymentMethodType::Walley
                         | common_enums::PaymentMethodType::WeChatPay
                         | common_enums::PaymentMethodType::SevenEleven

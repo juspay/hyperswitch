@@ -3901,6 +3901,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -5427,6 +5428,9 @@ pub enum WalletData {
     #[schema(title = "VippsRedirect")]
     #[smithy(nested_value_type)]
     VippsRedirect {},
+    #[schema(title = "WeroRedirect")]
+    #[smithy(nested_value_type)]
+    WeroRedirect {},
     /// The wallet data for WeChat Pay Display QrCode
     #[schema(title = "WeChatPayQr")]
     #[smithy(value_type = "WeChatPayQr")]
@@ -5486,6 +5490,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
+            | Self::WeroRedirect {}
             | Self::TouchNGoRedirect(_)
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
@@ -6509,8 +6514,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -6522,8 +6525,6 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
-    /// The identifier for preprocessing step
-    PreprocessingId(String),
 }
 
 #[cfg(feature = "v1")]
@@ -6543,9 +6544,6 @@ impl fmt::Display for PaymentIdType {
             ),
             Self::PaymentAttemptId(payment_attempt_id) => {
                 write!(f, "payment_attempt_id = \"{payment_attempt_id}\"")
-            }
-            Self::PreprocessingId(preprocessing_id) => {
-                write!(f, "preprocessing_id = \"{preprocessing_id}\"")
             }
         }
     }
