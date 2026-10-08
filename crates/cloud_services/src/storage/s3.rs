@@ -90,7 +90,7 @@ impl S3Storage {
             .body(file.into())
             .send()
             .await
-            .map_err(S3StorageError::UploadFailure)?;
+            .map_err(|error| S3StorageError::UploadFailure(Box::new(error)))?;
         Ok(())
     }
 
@@ -102,7 +102,7 @@ impl S3Storage {
             .key(file_key)
             .send()
             .await
-            .map_err(S3StorageError::DeleteFailure)?;
+            .map_err(|error| S3StorageError::DeleteFailure(Box::new(error)))?;
         Ok(())
     }
 
@@ -115,7 +115,7 @@ impl S3Storage {
             .key(file_key)
             .send()
             .await
-            .map_err(S3StorageError::RetrieveFailure)?
+            .map_err(|error| S3StorageError::RetrieveFailure(Box::new(error)))?
             .body
             .collect()
             .await
@@ -132,7 +132,7 @@ impl S3Storage {
             .content_type("text/csv")
             .send()
             .await
-            .map_err(S3StorageError::MultipartCreateFailure)?
+            .map_err(|error| S3StorageError::MultipartCreateFailure(Box::new(error)))?
             .upload_id
             .ok_or(S3StorageError::MissingUploadId)
     }
@@ -154,7 +154,7 @@ impl S3Storage {
             .body(body.into())
             .send()
             .await
-            .map_err(S3StorageError::MultipartUploadPartFailure)?
+            .map_err(|error| S3StorageError::MultipartUploadPartFailure(Box::new(error)))?
             .e_tag
             .ok_or(S3StorageError::MissingPartETag)
     }
@@ -189,7 +189,7 @@ impl S3Storage {
             )
             .send()
             .await
-            .map_err(S3StorageError::MultipartCompleteFailure)?
+            .map_err(|error| S3StorageError::MultipartCompleteFailure(Box::new(error)))?
             .expiration)
     }
 
@@ -206,7 +206,7 @@ impl S3Storage {
             .upload_id(upload_id)
             .send()
             .await
-            .map_err(S3StorageError::MultipartAbortFailure)?;
+            .map_err(|error| S3StorageError::MultipartAbortFailure(Box::new(error)))?;
         Ok(())
     }
 
@@ -237,7 +237,7 @@ impl S3Storage {
         let presigned = request
             .presigned(presigning_config)
             .await
-            .map_err(S3StorageError::PresignFailure)?;
+            .map_err(|error| S3StorageError::PresignFailure(Box::new(error)))?;
 
         url::Url::parse(presigned.uri()).map_err(S3StorageError::PresignedUrlParseFailure)
     }
@@ -248,15 +248,15 @@ impl S3Storage {
 pub enum S3StorageError {
     /// Error indicating that file upload to S3 failed.
     #[error("File upload to S3 failed: {0:?}")]
-    UploadFailure(aws_sdk_s3::error::SdkError<PutObjectError>),
+    UploadFailure(Box<aws_sdk_s3::error::SdkError<PutObjectError>>),
 
     /// Error indicating that file retrieval from S3 failed.
     #[error("File retrieve from S3 failed: {0:?}")]
-    RetrieveFailure(aws_sdk_s3::error::SdkError<GetObjectError>),
+    RetrieveFailure(Box<aws_sdk_s3::error::SdkError<GetObjectError>>),
 
     /// Error indicating that file deletion from S3 failed.
     #[error("File delete from S3 failed: {0:?}")]
-    DeleteFailure(aws_sdk_s3::error::SdkError<DeleteObjectError>),
+    DeleteFailure(Box<aws_sdk_s3::error::SdkError<DeleteObjectError>>),
 
     /// Unknown error occurred.
     #[error("Unknown error occurred: {0:?}")]
@@ -264,19 +264,19 @@ pub enum S3StorageError {
 
     /// Error indicating that starting a multipart upload on S3 failed.
     #[error("Multipart upload create on S3 failed: {0:?}")]
-    MultipartCreateFailure(aws_sdk_s3::error::SdkError<CreateMultipartUploadError>),
+    MultipartCreateFailure(Box<aws_sdk_s3::error::SdkError<CreateMultipartUploadError>>),
 
     /// Error indicating that uploading a part to S3 failed.
     #[error("Multipart part upload to S3 failed: {0:?}")]
-    MultipartUploadPartFailure(aws_sdk_s3::error::SdkError<UploadPartError>),
+    MultipartUploadPartFailure(Box<aws_sdk_s3::error::SdkError<UploadPartError>>),
 
     /// Error indicating that assembling a multipart upload on S3 failed.
     #[error("Multipart upload complete on S3 failed: {0:?}")]
-    MultipartCompleteFailure(aws_sdk_s3::error::SdkError<CompleteMultipartUploadError>),
+    MultipartCompleteFailure(Box<aws_sdk_s3::error::SdkError<CompleteMultipartUploadError>>),
 
     /// Error indicating that discarding a multipart upload on S3 failed.
     #[error("Multipart upload abort on S3 failed: {0:?}")]
-    MultipartAbortFailure(aws_sdk_s3::error::SdkError<AbortMultipartUploadError>),
+    MultipartAbortFailure(Box<aws_sdk_s3::error::SdkError<AbortMultipartUploadError>>),
 
     /// Error indicating S3 accepted the multipart upload but returned no upload id.
     #[error("S3 did not return an upload id for the multipart upload")]
@@ -292,7 +292,7 @@ pub enum S3StorageError {
 
     /// Error indicating that presigning a GET request failed.
     #[error("Presigning an S3 get request failed: {0:?}")]
-    PresignFailure(aws_sdk_s3::error::SdkError<GetObjectError>),
+    PresignFailure(Box<aws_sdk_s3::error::SdkError<GetObjectError>>),
 
     /// Error indicating the presigned URI could not be parsed as a URL.
     #[error("Presigned URI is not a valid URL: {0}")]
