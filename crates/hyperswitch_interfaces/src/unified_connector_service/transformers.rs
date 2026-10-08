@@ -1,6 +1,6 @@
 use std::{borrow::Cow, str::FromStr};
 
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, CardNetwork as Network};
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
 use common_utils::{errors::ErrorSwitch, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
@@ -797,14 +797,43 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 card_network: card_data.card_network,
                 domestic_network: card_data.domestic_network,
                 auth_code: card_data.auth_code,
-                // The gRPC contract carries no normalized card attributes yet
-                processor_card_network: None,
-                card_subtype: None,
-                card_segment_type: None,
-                funding_source: None,
-                card_type: None,
-                issuer_name: None,
-                issuer_country: None,
+                processor_card_network: card_data.processor_card_network.and_then(|raw| {
+                    payments_grpc::CardNetwork::try_from(raw)
+                        .inspect_err(|error| {
+                            router_env::logger::debug!(
+                                processor_card_network = raw,
+                                ?error,
+                                "Unknown processor card network received from UCS"
+                            );
+                        })
+                        .ok()
+                        .and_then(Option::<Network>::foreign_from)
+                }),
+                card_subtype: card_data.card_subtype,
+                card_segment_type: card_data.card_segment_type.and_then(|raw| {
+                    payments_grpc::CardSegmentType::try_from(raw)
+                        .ok()
+                        .and_then(|seg| common_enums::CardSegmentType::foreign_try_from(seg).ok())
+                }),
+                funding_source: card_data.funding_source.and_then(|raw| {
+                    payments_grpc::FundingSource::try_from(raw)
+                        .ok()
+                        .and_then(|src| common_enums::FundingSource::foreign_try_from(src).ok())
+                }),
+                card_type: card_data.card_type.and_then(|raw| {
+                    payments_grpc::CardType::try_from(raw)
+                        .ok()
+                        .and_then(|ct| common_enums::CardType::foreign_try_from(ct).ok())
+                }),
+                issuer_name: card_data.issuer_name,
+                issuer_country: card_data.issuer_country.and_then(|raw| {
+                    payments_grpc::CountryAlpha2::try_from(raw)
+                        .ok()
+                        .filter(|country| *country != payments_grpc::CountryAlpha2::Unspecified)
+                        .and_then(|country| {
+                            common_enums::CountryAlpha2::from_str(country.as_str_name()).ok()
+                        })
+                }),
             }),
             Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
                 let upi_mode = upi_data
@@ -1085,6 +1114,37 @@ impl ForeignTryFrom<payments_grpc::BankHolderType> for common_enums::BankHolderT
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankHolderType unspecified")),
+        }
+    }
+}
+
+impl ForeignFrom<payments_grpc::CardNetwork> for Option<Network> {
+    fn foreign_from(network: payments_grpc::CardNetwork) -> Self {
+        match network {
+            payments_grpc::CardNetwork::Visa => Some(Network::Visa),
+            payments_grpc::CardNetwork::Mastercard => Some(Network::Mastercard),
+            payments_grpc::CardNetwork::Amex => Some(Network::AmericanExpress),
+            payments_grpc::CardNetwork::Discover => Some(Network::Discover),
+            payments_grpc::CardNetwork::Jcb => Some(Network::JCB),
+            payments_grpc::CardNetwork::Diners => Some(Network::DinersClub),
+            payments_grpc::CardNetwork::Unionpay => Some(Network::UnionPay),
+            payments_grpc::CardNetwork::Maestro => Some(Network::Maestro),
+            payments_grpc::CardNetwork::CartesBancaires => Some(Network::CartesBancaires),
+            payments_grpc::CardNetwork::Rupay => Some(Network::RuPay),
+            payments_grpc::CardNetwork::InteracCard => Some(Network::Interac),
+            payments_grpc::CardNetwork::Star => Some(Network::Star),
+            payments_grpc::CardNetwork::Pulse => Some(Network::Pulse),
+            payments_grpc::CardNetwork::Accel => Some(Network::Accel),
+            payments_grpc::CardNetwork::Nyce => Some(Network::Nyce),
+            payments_grpc::CardNetwork::Prop => Some(Network::Prop),
+            payments_grpc::CardNetwork::PrivateLabel => Some(Network::PrivateLabel),
+            payments_grpc::CardNetwork::Dinacard => Some(Network::Dinacard),
+            payments_grpc::CardNetwork::AirPlus => Some(Network::AirPlus),
+            payments_grpc::CardNetwork::Aurore => Some(Network::Aurore),
+            payments_grpc::CardNetwork::EftposAustralia => Some(Network::EftposAustralia),
+            payments_grpc::CardNetwork::GeCapital => Some(Network::GeCapital),
+            payments_grpc::CardNetwork::Uatp => Some(Network::Uatp),
+            payments_grpc::CardNetwork::Unspecified => None,
         }
     }
 }

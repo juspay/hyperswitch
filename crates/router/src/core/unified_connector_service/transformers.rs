@@ -4735,11 +4735,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
-            common_enums::CardNetwork::AirPlus
-            | common_enums::CardNetwork::Aurore
-            | common_enums::CardNetwork::EftposAustralia
-            | common_enums::CardNetwork::GeCapital
-            | common_enums::CardNetwork::Uatp => Self::Unspecified,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
@@ -4767,6 +4767,11 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
             payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::AirPlus => Ok(Self::AirPlus),
+            payments_grpc::CardNetwork::Aurore => Ok(Self::Aurore),
+            payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
+            payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
+            payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
             payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
