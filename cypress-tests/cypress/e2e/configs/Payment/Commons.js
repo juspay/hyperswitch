@@ -4727,9 +4727,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
           billing: standardBillingAddress,
         },
-        // Some connectors (e.g. ilixium) require the customer's date of
-        // birth and reject the confirm otherwise. Harmless extra field for
-        // connectors that don't need it.
         customer: {
           date_of_birth: "1990-01-01",
         },
@@ -4765,9 +4762,6 @@ export const connectorDetails = {
         offer_details: {
           offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
         },
-        // Some connectors (e.g. ilixium) require the customer's date of
-        // birth and reject the confirm otherwise. Harmless extra field for
-        // connectors that don't need it.
         customer: {
           date_of_birth: "1990-01-01",
         },
@@ -4844,9 +4838,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
           billing: standardBillingAddress,
         },
-        // Some connectors (e.g. ilixium) require the customer's date of
-        // birth and reject the confirm otherwise. Harmless extra field for
-        // connectors that don't need it.
         customer: {
           date_of_birth: "1990-01-01",
         },
