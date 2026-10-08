@@ -40,17 +40,45 @@ function merchantIntegrationTypeContext() {
 }
 
 describe("X-Integration-Type header validation against merchant integration_type", () => {
+  let specShouldSkip = false;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+
+      // The whole matrix below depends on the merchant's
+      // system.payment_integration_type actually being set via Superposition.
+      // Without credentials, createSuperpositionConfig silently no-ops (by
+      // design), so the merchant stays on the default "client" type and every
+      // "server"-header scenario fails for the wrong reason. Skip instead of
+      // failing, same as 54-BlockImplicitCustomerCreation.cy.js / 42-RequiresCVV.cy.js.
+      if (
+        !globalState.get("superpositionBaseUrl") ||
+        !globalState.get("superpositionSecret") ||
+        !globalState.get("superpositionAuthToken")
+      ) {
+        cy.task(
+          "cli_log",
+          "Superposition credentials not set — skipping IntegrationTypeValidation spec"
+        );
+        specShouldSkip = true;
+      }
     });
   });
 
+  beforeEach(function () {
+    if (specShouldSkip) {
+      this.skip();
+    }
+  });
+
   after("flush global state", () => {
-    cy.deleteSuperpositionContext(
-      globalState,
-      merchantIntegrationTypeContext()
-    );
+    if (!specShouldSkip) {
+      cy.deleteSuperpositionContext(
+        globalState,
+        merchantIntegrationTypeContext()
+      );
+    }
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -59,7 +87,10 @@ describe("X-Integration-Type header validation against merchant integration_type
     let updatePaymentId;
 
     context(label, () => {
-      before("apply merchant integration_type config", () => {
+      before("apply merchant integration_type config", function () {
+        if (specShouldSkip) {
+          this.skip();
+        }
         if (merchantConfig) {
           cy.createSuperpositionConfig(
             globalState,
