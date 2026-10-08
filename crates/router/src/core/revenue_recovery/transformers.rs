@@ -71,7 +71,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id.to_owned(),
             connector_transaction_id: Some(common_utils::types::ConnectorTransactionId::TxnId(
-                data.connector_transaction_id.peek().to_string(),
+                data.connector_transaction_id.to_owned(),
             )),
             error_code: data.error.as_ref().map(|error| error.code.clone()),
             error_message: data.error.as_ref().map(|error| error.message.clone()),

@@ -14752,7 +14752,7 @@ pub struct RecoveryPaymentsCreate {
 
     /// A unique identifier for the payment attempt provided by the payment connector. Mandatory.
     #[schema(value_type = String, example = "993672945374576J")]
-    pub connector_transaction_id: Secret<String>,
+    pub connector_transaction_id: String,
 
     /// payment method token units at payment processor end.
     pub payment_method_data: CustomRecoveryPaymentMethodData,
