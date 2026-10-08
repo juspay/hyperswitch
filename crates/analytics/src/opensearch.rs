@@ -30,6 +30,9 @@ use time::PrimitiveDateTime;
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use crate::{enums::AuthInfo, query::QueryBuildingError};
 
+#[cfg(feature = "deja")]
+mod recording;
+
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
 #[serde(rename_all = "lowercase")]
@@ -101,9 +104,7 @@ impl Default for OpenSearchConfig {
     }
 }
 
-// Serialisable so the deja seam on the search query can record and replay a
-// failed search as faithfully as a successful one. Every variant's payload
-// already serialises.
+// Serialisable so the deja seam can record and replay a failed search.
 #[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum OpenSearchError {
     #[error("Opensearch is not enabled")]
@@ -257,58 +258,24 @@ impl OpenSearchClient {
         }
     }
 
-    pub async fn execute(
-        &self,
-        query_builder: OpenSearchQueryBuilder,
-    ) -> CustomResult<Response, OpenSearchError> {
-        #[cfg(feature = "deja")]
-        {
-            self.execute_recorded(query_builder).await?.into_response()
-        }
-        #[cfg(not(feature = "deja"))]
-        {
-            self.send_query(query_builder).await
-        }
-    }
-
-    /// The OpenSearch round trip, resolved to the status and body.
-    ///
-    /// The seam is under `execute` rather than on it: the client's `Response` can
-    /// be read only by consuming it, so no codec can capture it. Recording the two
-    /// parts `execute` rebuilds it from covers every caller of `execute` and leaves
-    /// reading the body live in replay.
-    ///
-    /// `Http` rather than `Db`: the index is external state, not part of the seeded
-    /// store. A miss answers with an empty result set, a fabrication the ledger
-    /// records as `SubstituteOutcome::Synthesized`; it goes into a response body,
-    /// never into a lookup key.
-    #[cfg(feature = "deja")]
-    #[deja::boundary(
-        boundary = "opensearch",
-        component = "analytics::opensearch",
-        operation = "execute",
-        op = Read,
-        replay = Substitute,
-        effect = Http,
-        returns = Value,
-        codec = deja::codec::ResultCodec::<RecordedResponse, OpenSearchError>,
-        args = query_builder.deja_args(),
-        on_miss = Ok(RecordedResponse::empty_result()),
+    /// The OpenSearch round trip, recorded as its status and body. `Http`, not `Db`: the
+    /// index is external state. A miss answers with an empty result set.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "opensearch",
+            component = "analytics::opensearch",
+            operation = "execute",
+            op = Read,
+            replay = Substitute,
+            effect = Http,
+            returns = Value,
+            owned_codec = recording::ResponseCodec,
+            args = query_builder.deja_args(),
+            on_miss = Ok(recording::ResponseCodec::missed_query()),
+        )
     )]
-    async fn execute_recorded(
-        &self,
-        query_builder: OpenSearchQueryBuilder,
-    ) -> CustomResult<RecordedResponse, OpenSearchError> {
-        let response = self.send_query(query_builder).await?;
-        let status = response.status_code().as_u16();
-        let body = response
-            .text()
-            .await
-            .change_context(OpenSearchError::ResponseError)?;
-        Ok(RecordedResponse { status, body })
-    }
-
-    async fn send_query(
+    pub async fn execute(
         &self,
         query_builder: OpenSearchQueryBuilder,
     ) -> CustomResult<Response, OpenSearchError> {
@@ -356,42 +323,6 @@ impl OpenSearchClient {
                     .change_context(OpenSearchError::ResponseError)
             }
         }
-    }
-}
-
-/// What the OpenSearch seam records of a response: its status and its body.
-#[cfg(feature = "deja")]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct RecordedResponse {
-    status: u16,
-    body: String,
-}
-
-#[cfg(feature = "deja")]
-impl RecordedResponse {
-    /// A missed query's answer: an empty result set both callers read, as
-    /// `OpensearchOutput::Success` and as an `OpenMsearchOutput` with no responses.
-    fn empty_result() -> Self {
-        Self {
-            status: 200,
-            body: json!({
-                "hits": {"total": {"value": 0}, "hits": []},
-                "responses": [],
-            })
-            .to_string(),
-        }
-    }
-
-    /// The client's own `Response`, rebuilt so `execute` keeps its signature.
-    fn into_response(self) -> CustomResult<Response, OpenSearchError> {
-        let response = opensearch_http::Response::builder()
-            .status(self.status)
-            .body(self.body)
-            .change_context(OpenSearchError::ResponseError)?;
-        Ok(Response::new(
-            opensearch_reqwest::Response::from(response),
-            opensearch::http::Method::Post,
-        ))
     }
 }
 
@@ -1222,192 +1153,5 @@ impl OpenSearchQueryBuilder {
                 payload
             })
             .collect::<Vec<Value>>())
-    }
-    /// Args for the OpenSearch seam: everything about the query that a replay
-    /// must reproduce, and nothing that moves on its own. Built field by field
-    /// rather than from `Debug` on the builder, whose `HashSet` renders in a
-    /// per-process random order.
-    #[cfg(feature = "deja")]
-    pub fn deja_args(&self) -> Value {
-        let mut auth_scope = self.build_auth_array();
-        // Auth fragments are alternatives and the IDs inside `terms` are sets.
-        // Canonicalize only the identity projection; leave the executable query alone.
-        for fragment in &mut auth_scope {
-            for field in [
-                "merchant_id.keyword",
-                "processor_merchant_id.keyword",
-                "profile_id.keyword",
-            ] {
-                if let Some(values) = fragment
-                    .pointer_mut("/bool/must")
-                    .and_then(Value::as_array_mut)
-                    .and_then(|clauses| {
-                        clauses.iter_mut().find_map(|clause| {
-                            clause
-                                .get_mut("terms")
-                                .and_then(|terms| terms.get_mut(field))
-                                .and_then(Value::as_array_mut)
-                        })
-                    })
-                {
-                    values.sort_by_cached_key(Value::to_string);
-                }
-            }
-        }
-        auth_scope.sort_by_cached_key(Value::to_string);
-
-        serde_json::json!({
-            "query": self.query,
-            "indexes": format!("{:?}", self.query_type),
-            "offset": self.offset,
-            "count": self.count,
-            "filters": format!("{:?}", self.filters),
-            "time_range": format!("{:?}", self.time_range),
-            "amount_range": format!("{:?}", self.amount_range),
-            "order": format!("{:?}", self.order),
-            "auth_scope": auth_scope,
-        })
-    }
-}
-
-#[cfg(all(test, feature = "deja"))]
-mod tests {
-    use api_models::analytics::search::SearchIndex;
-
-    use super::{OpenSearchQuery, OpenSearchQueryBuilder};
-    use crate::enums::AuthInfo;
-
-    #[allow(
-        clippy::expect_used,
-        reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; a fixture whose org id will not parse should fail the test loudly"
-    )]
-    fn org_scope(org_id: &str) -> AuthInfo {
-        AuthInfo::OrgLevel {
-            org_id: common_utils::id_type::OrganizationId::try_from(std::borrow::Cow::Owned(
-                org_id.to_owned(),
-            ))
-            .expect("valid organization id"),
-        }
-    }
-
-    fn builder(search_params: Vec<AuthInfo>) -> OpenSearchQueryBuilder {
-        OpenSearchQueryBuilder::new(
-            OpenSearchQuery::Search(SearchIndex::PaymentIntents),
-            "example".to_string(),
-            search_params,
-            None,
-        )
-    }
-
-    /// The missed-query body has to deserialize into BOTH shapes this seam's
-    /// callers ask for, because the arm cannot tell which one asked: the real
-    /// call moves the query builder, so the miss arm cannot read `query_type`.
-    /// Asserted rather than argued — the arm rests on two serde properties in
-    /// `api_models` that someone could remove without ever reading this file,
-    /// and a body the caller cannot deserialize turns a survivable miss back
-    /// into a failed request.
-    #[test]
-    fn the_missed_query_body_deserializes_for_both_callers() {
-        let body = super::RecordedResponse::empty_result().body;
-
-        let single = serde_json::from_str::<api_models::analytics::search::OpensearchOutput>(&body)
-            .expect("the single-index caller must be able to read the missed-query body");
-        match single {
-            api_models::analytics::search::OpensearchOutput::Success(success) => {
-                assert_eq!(success.hits.total.value, 0);
-                assert!(success.hits.hits.is_empty());
-            }
-            api_models::analytics::search::OpensearchOutput::Error(error) => {
-                panic!("the untagged enum matched Error, not Success: {error:?}")
-            }
-        }
-
-        let multi = serde_json::from_str::<api_models::analytics::search::OpenMsearchOutput>(&body)
-            .expect("the multi-index caller must be able to read the missed-query body");
-        assert!(
-            multi.responses.is_empty(),
-            "the multi-index caller zips responses against its index list"
-        );
-        assert!(multi.error.is_none());
-    }
-
-    #[test]
-    fn query_args_include_stable_auth_scope_identity() {
-        let first = builder(vec![org_scope("org_a"), org_scope("org_b")]);
-        let same = builder(vec![org_scope("org_a"), org_scope("org_b")]);
-        let reversed = builder(vec![org_scope("org_b"), org_scope("org_a")]);
-        let different = builder(vec![org_scope("org_a"), org_scope("org_c")]);
-
-        let make_merchant_scope =
-            |merchant_ids: Vec<common_utils::id_type::MerchantId>| AuthInfo::MerchantLevel {
-                org_id: common_utils::id_type::OrganizationId::try_from(
-                    std::borrow::Cow::Borrowed("org_a"),
-                )
-                .expect("valid organization id"),
-                merchant_ids,
-                processor_merchant_ids: None,
-            };
-        let merchant_ids_reordered = builder(vec![make_merchant_scope(vec![
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_a"))
-                .expect("valid merchant id"),
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_b"))
-                .expect("valid merchant id"),
-        ])]);
-        let merchant_ids_sorted = builder(vec![make_merchant_scope(vec![
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_b"))
-                .expect("valid merchant id"),
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_a"))
-                .expect("valid merchant id"),
-        ])]);
-
-        assert_eq!(
-            merchant_ids_reordered.deja_args(),
-            merchant_ids_sorted.deja_args()
-        );
-        let expected = first.deja_args();
-        assert_eq!(expected, same.deja_args());
-        assert_eq!(expected, reversed.deja_args());
-        assert_ne!(expected, different.deja_args());
-    }
-
-    /// The tests above call the helpers; this one reads the seam's own
-    /// declaration, so naming a different `on_miss` body or `args` expression on
-    /// `execute_recorded` fails here rather than passing unnoticed.
-    #[test]
-    fn the_seam_names_the_helpers_the_tests_exercise() {
-        let source = include_str!("opensearch.rs");
-        // Built from parts so this test's own text is not a match.
-        let start = source
-            .find(&["deja::", "boundary("].concat())
-            .expect("the seam attribute is present");
-        let end = source[start..]
-            .find(&["async fn ", "execute_recorded("].concat())
-            .expect("the seam is declared on execute_recorded");
-        let declaration = &source[start..start + end];
-        for expected in [
-            "on_miss = Ok(RecordedResponse::empty_result())",
-            "args = query_builder.deja_args()",
-        ] {
-            assert!(
-                declaration.contains(expected),
-                "the seam must name `{expected}`: {declaration}"
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn a_recorded_response_rebuilds_as_the_response_execute_returns() {
-        let response = super::RecordedResponse {
-            status: 404,
-            body: r#"{"found":false}"#.to_string(),
-        }
-        .into_response()
-        .expect("a recorded status rebuilds");
-
-        assert_eq!(response.status_code().as_u16(), 404);
-        assert_eq!(
-            response.text().await.expect("the rebuilt body reads"),
-            r#"{"found":false}"#
-        );
     }
 }
