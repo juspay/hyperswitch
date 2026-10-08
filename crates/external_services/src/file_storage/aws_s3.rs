@@ -11,13 +11,17 @@ use aws_sdk_s3::{
     Client,
 };
 use aws_sdk_sts::config::Region;
-use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
+use common_utils::errors::CustomResult;
+#[cfg(feature = "aws_s3")]
+use common_utils::ext_traits::ConfigExt;
 use error_stack::ResultExt;
 
+#[cfg(feature = "aws_s3")]
 use super::InvalidFileStorageConfig;
 use crate::file_storage::{FileStorageError, FileStorageInterface};
 
 /// Configuration for AWS S3 file storage.
+#[cfg(feature = "aws_s3")]
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct AwsFileStorageConfig {
@@ -27,6 +31,7 @@ pub struct AwsFileStorageConfig {
     bucket_name: String,
 }
 
+#[cfg(feature = "aws_s3")]
 impl AwsFileStorageConfig {
     /// Validates the AWS S3 file storage configuration.
     pub(super) fn validate(&self) -> Result<(), InvalidFileStorageConfig> {
@@ -79,6 +84,7 @@ pub(super) struct AwsFileStorageClient {
 
 impl AwsFileStorageClient {
     /// Creates a new AWS S3 file storage client.
+    #[cfg(feature = "aws_s3")]
     pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
         Self::with_endpoint(&config.region, &config.bucket_name, &S3Endpoint::default()).await
     }

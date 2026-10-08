@@ -122,7 +122,8 @@ file_storage_backend = "aws_s3" # File storage backend to be used (file_system |
 region = "bucket_region" # The AWS region used by AWS S3 for file storage
 bucket_name = "bucket"   # The AWS S3 bucket name for file storage
 
-# Used when file_storage_backend = "oci_object_storage". Files go through OCI's S3 Compatibility API;
+# Used when file_storage_backend = "oci_object_storage" (requires the `oci_object_storage` feature,
+# included in release builds). Files go through OCI's S3 Compatibility API;
 # authenticate with an OCI Customer Secret Key in AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
 # [file_storage.oci_object_storage]
 # namespace = "namespace"  # The Object Storage namespace of the tenancy
