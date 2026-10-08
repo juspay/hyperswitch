@@ -3968,6 +3968,14 @@ async fn is_vault_card_fallback_eligible(
         .error_details
         .as_ref()
         .and_then(|error_details| error_details.issuer_details.as_ref());
+    // The response's `error_message` is `error_reason.or(error_message)`, while `retry.rs` keys
+    // the GSM row on the raw connector message. Prefer the raw one so both look up the same row.
+    let error_message = network_token_response
+        .error_details
+        .as_ref()
+        .and_then(|error_details| error_details.connector_details.as_ref())
+        .and_then(|connector_details| connector_details.message.clone())
+        .or_else(|| network_token_response.error_message.clone());
 
     match (
         network_token_response.status,
@@ -3984,7 +3992,7 @@ async fn is_vault_card_fallback_eligible(
                     consts::PAYMENT_FLOW_STR,
                     &core_utils::get_flow_name::<api::Authorize>().unwrap_or_default(),
                     network_token_response.error_code.clone(),
-                    network_token_response.error_message.clone(),
+                    error_message,
                     issuer_details.and_then(|details| details.code.clone()),
                     issuer_details
                         .and_then(|details| details.network_details.as_ref())

@@ -679,6 +679,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::CardWithLimitedData,
         api_models::mandates::NetworkTransactionIdAndNetworkTokenDetails,
         api_models::mandates::NetworkTransactionIdAndVaultCardDetails,
+        api_models::mandates::NetworkTokenDetails,
+        api_models::mandates::NetworkTokenWithVaultCardFallback,
         api_models::mandates::VaultCardData,
         api_models::payments::GooglePaySessionResponse,
         api_models::payments::GpayShippingAddressParameters,

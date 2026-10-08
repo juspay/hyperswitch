@@ -2336,6 +2336,13 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::CardDetailsForNetworkTransactionId(card_details_for_nti)),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(token_nti_data) => {
+            let network_token = payments_grpc::NetworkTokenData::foreign_try_from(token_nti_data)?;
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::NetworkToken(network_token)),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => {
             let network_token = payments_grpc::NetworkTokenData::foreign_try_from(network_token_data)?;
 

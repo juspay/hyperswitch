@@ -4797,6 +4797,47 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
     }
 }
 
+/// The MIT counterpart of the `NetworkTokenData` conversion: no cryptogram, since an MIT has no
+/// cardholder present and authorizes on the network transaction ID.
+#[cfg(feature = "v1")]
+impl
+    transformers::ForeignTryFrom<
+        hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsForNetworkTransactionId,
+    > for payments_grpc::NetworkTokenData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        token_nti_data: hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        let card_network = token_nti_data
+            .card_network
+            .clone()
+            .map(payments_grpc::CardNetwork::foreign_from);
+
+        Ok(Self {
+            token_number: Some(
+                NetworkToken::from_str(&token_nti_data.network_token.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse network token number".to_string(),
+                        ),
+                    )?,
+            ),
+            token_exp_month: Some(token_nti_data.token_exp_month.expose().into()),
+            token_exp_year: Some(token_nti_data.token_exp_year.expose().into()),
+            token_cryptogram: None,
+            card_issuer: token_nti_data.card_issuer.clone(),
+            card_network: card_network.map(|card_network| card_network.into()),
+            card_type: token_nti_data.card_type.clone(),
+            card_issuing_country: token_nti_data.card_issuing_country.clone(),
+            bank_code: token_nti_data.bank_code.clone(),
+            nick_name: token_nti_data.nick_name.map(|n| n.expose().into()),
+            eci: token_nti_data.eci,
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::NetworkTokenData>
     for payments_grpc::NetworkTokenData
 {
