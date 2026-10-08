@@ -8682,7 +8682,12 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
     cy.wrap(response).then(() => {
       if (response.status === 200) {
         expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
+        // DELETE returns whatever value the row actually held before removal,
+        // not the caller's `value` argument (which carries no meaning for a
+        // delete) — only CREATE/UPDATE echo back a value the caller set.
+        if (requestType !== "DELETE") {
+          expect(response.body).to.have.property("value").to.equal(value);
+        }
       } else {
         Cypress.log({
           name: "setConfigs",
