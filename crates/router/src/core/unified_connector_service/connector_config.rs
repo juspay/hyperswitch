@@ -869,6 +869,13 @@ pub enum ConnectorSpecificConfig {
     /// Pay.com connector configuration
     /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
     Paydotcom { api_key: Secret<String> },
+    /// Better Payment connector configuration
+    Betterpayment {
+        /// API key (HTTP Basic username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic password)
+        key1: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1071,6 +1078,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                 }),
                 _ => Err(err("Paydotcom requires HeaderKey auth type")),
+            },
+            Connector::Betterpayment => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                }),
+                _ => Err(err("Betterpayment requires BodyKey auth type")),
             },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
