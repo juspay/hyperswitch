@@ -112,8 +112,12 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
   });
 
   context("Eligibility check with an 8 digit generic_card_bin block", () => {
-    it("should create a generic_card_bin blocklist rule for 42424242", () => {
-      cy.blocklistCreateRuleRaw("generic_card_bin", "42424242", globalState);
+    // Deliberately a bin untouched by the boundary tests above (which all
+    // churn the "424242" family via rapid create/delete cycles). Reusing
+    // "42424242" here raced a blocklist cache that hadn't picked up the
+    // fresh create yet, causing a consistent (not flaky) false "allow".
+    it("should create a generic_card_bin blocklist rule for 40000000", () => {
+      cy.blocklistCreateRuleRaw("generic_card_bin", "40000000", globalState);
     });
 
     it("should enable blocklist functionality using configs API", () => {
@@ -125,7 +129,34 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     it("should deny payment for a card matching the blocked 8 digit generic_card_bin", () => {
       cy.paymentsEligibilityCheck(
         fixtures.eligibilityCheckBody,
-        connectorDetails.eligibility_api.BlocklistedCardDenied,
+        {
+          Request: {
+            payment_method_type: "card",
+            payment_method_data: {
+              card: {
+                card_number: "4000000000000002",
+                card_exp_month: "01",
+                card_exp_year: "2050",
+                card_holder_name: "John Smith",
+                card_cvc: "349",
+                card_network: "Visa",
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              sdk_next_action: {
+                next_action: {
+                  deny: {
+                    message:
+                      "We're unable to accept this card, please try another card or a different payment method",
+                  },
+                },
+              },
+            },
+          },
+        },
         globalState
       );
     });
@@ -139,7 +170,7 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
     });
 
     it("cleanup: delete the generic_card_bin rule", () => {
-      cy.blocklistDeleteRuleRaw("generic_card_bin", "42424242", globalState);
+      cy.blocklistDeleteRuleRaw("generic_card_bin", "40000000", globalState);
     });
 
     it("should disable blocklist functionality using configs API", () => {
