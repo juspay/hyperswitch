@@ -11,6 +11,7 @@ license.workspace = true
 [features]
 default = []
 s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:url"]
+oci_object_storage = ["s3"]
 aws_kms = ["dep:aws-config", "dep:aws-sdk-kms", "dep:base64"]
 gcp_kms = ["dep:google-cloud-kms", "dep:google-cloud-gax", "dep:base64"]
 oci_kms = ["dep:oci_kms"]

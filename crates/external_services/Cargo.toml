@@ -11,6 +11,7 @@ license.workspace = true
 aws_kms = ["dep:cloud_services", "cloud_services/aws_kms"]
 email = ["dep:aws-config"]
 aws_s3 = ["dep:cloud_services", "cloud_services/s3"]
+oci_object_storage = ["dep:cloud_services", "cloud_services/oci_object_storage"]
 gcp_kms = ["dep:cloud_services", "cloud_services/gcp_kms"]
 oci_kms = ["dep:cloud_services", "cloud_services/oci_kms"]
 hashicorp-vault = ["dep:vaultrs"]
