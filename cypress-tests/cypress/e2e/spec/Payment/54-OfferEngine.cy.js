@@ -113,8 +113,8 @@ describe("Offer Engine", () => {
       cy.retrievePaymentCallTest({
         globalState,
         data: offerEngineDetails.AppliedOfferOnRetrieve,
-        expectedIntentStatus: offerEngineDetails.AppliedOfferOnRetrieve.Response
-          .body.status,
+        expectedIntentStatus:
+          offerEngineDetails.AppliedOfferOnRetrieve.Response.body.status,
       });
     });
   });
@@ -241,7 +241,8 @@ describe("Offer Engine", () => {
       const offerEngineDetails = getConnectorDetails(
         globalState.get("connectorId")
       ).offer_engine;
-      const savedCardRetrieve = offerEngineDetails.AppliedOfferOnRetrieveSavedCard;
+      const savedCardRetrieve =
+        offerEngineDetails.AppliedOfferOnRetrieveSavedCard;
       cy.retrievePaymentCallTest({
         globalState,
         data: savedCardRetrieve,
