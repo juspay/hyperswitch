@@ -2862,8 +2862,9 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 
 impl ConnectorSpecifications for Paypal {
     /// The Set Transaction Context (STC) call to PayPal's Risk-as-a-Service API is required
-    /// as a pre-authentication step for paypal wallet (redirect and sdk) payments when the
-    /// merchant has opted in via `enable_stc` in the merchant connector account metadata.
+    /// as a pre-authentication step for paypal wallet payments (redirect, sdk and saved-token
+    /// payments by a returning customer, where the payment method data is `MandatePayment`)
+    /// when the merchant has opted in via `enable_stc` in the merchant connector account metadata.
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
@@ -2871,13 +2872,14 @@ impl ConnectorSpecifications for Paypal {
                 connector_meta_data,
                 ..
             } => {
-                let is_paypal_wallet_pm = matches!(
-                    request_data.payment_method_data,
-                    PaymentMethodData::Wallet(
-                        WalletData::PaypalSdk(_) | WalletData::PaypalRedirect(_)
-                    )
+                // Match on payment method type so that both fresh paypal wallet
+                // (PaypalRedirect / PaypalSdk) payments and returning-customer payments with a
+                // saved paypal token (PaymentMethodData::MandatePayment) are covered.
+                let is_paypal_pm = matches!(
+                    request_data.payment_method_type,
+                    Some(enums::PaymentMethodType::Paypal)
                 );
-                is_paypal_wallet_pm && paypal::is_stc_enabled(&connector_meta_data)
+                is_paypal_pm && paypal::is_stc_enabled(&connector_meta_data)
             }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
