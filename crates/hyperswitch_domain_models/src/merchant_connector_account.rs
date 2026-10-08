@@ -891,6 +891,14 @@ pub trait MerchantConnectorAccountInterface {
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
 
     #[cfg(feature = "v1")]
+    async fn find_enabled_merchant_connector_account_by_profile_id_connector_name(
+        &self,
+        profile_id: &id_type::ProfileId,
+        connector_name: &str,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
+
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &id_type::MerchantId,

@@ -88,6 +88,21 @@ impl MerchantConnectorAccount {
         .await
     }
 
+    pub async fn find_enabled_by_profile_id_connector_name(
+        conn: &DatabaseConnectionWithContext<'_>,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_name: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::profile_id
+                .eq(profile_id.to_owned())
+                .and(dsl::connector_name.eq(connector_name.to_owned()))
+                .and(dsl::disabled.eq(false).or(dsl::disabled.is_null())),
+        )
+        .await
+    }
+
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,

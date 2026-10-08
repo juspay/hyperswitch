@@ -5453,19 +5453,14 @@ pub async fn get_merchant_connector_account(
                 } else {
                     #[cfg(feature = "v1")]
                     {
-                        db.find_merchant_connector_account_by_profile_id_connector_name(
+                        db.find_enabled_merchant_connector_account_by_profile_id_connector_name(
                             profile_id,
                             connector_name,
                             processor.get_key_store(),
                         )
                         .await
                         .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: format!(
-                                    "profile id {} and connector name {connector_name}",
-                                    profile_id.get_string_repr()
-                                ),
-                            },
+                            errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration,
                         )
                     }
                     #[cfg(feature = "v2")]
