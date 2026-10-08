@@ -3057,6 +3057,26 @@ impl
     }
 }
 
+fn build_original_payment_authorized_amount(
+    recurring_data: Option<&hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
+) -> Result<Option<payments_grpc::Money>, error_stack::Report<UnifiedConnectorServiceError>> {
+    recurring_data
+        .and_then(|data| {
+            data.original_payment_authorized_amount
+                .zip(data.original_payment_authorized_currency)
+        })
+        .map(|(minor_amount, currency)| {
+            Ok(payments_grpc::Money {
+                minor_amount,
+                currency: <payments_grpc::Currency as transformers::ForeignTryFrom<
+                    common_enums::Currency,
+                >>::foreign_try_from(currency)?
+                .into(),
+            })
+        })
+        .transpose()
+}
+
 /// An MIT against a card held in an external vault. `PaymentServiceAuthorizeRequest` carries no
 /// mandate reference, so it would drop the network transaction ID; the recurring charge request is
 /// the MIT shape.
@@ -3422,6 +3442,10 @@ impl
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
             .attach_printable("Failed to convert authentication type")?;
 
+        let original_payment_authorized_amount = build_original_payment_authorized_amount(
+            router_data.recurring_mandate_payment_data.as_ref(),
+        )?;
+
         Ok(Self {
             split_settlement: None,
             split_payments: router_data
@@ -3436,7 +3460,7 @@ impl
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
-            original_payment_authorized_amount: None,
+            original_payment_authorized_amount,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             metadata: router_data
                 .request
