@@ -416,11 +416,13 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
+                | PaymentMethodType::Wero
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken
                 | PaymentMethodType::PixAutomaticoPush
-                | PaymentMethodType::PixAutomaticoQr => {
+                | PaymentMethodType::PixAutomaticoQr
+                | PaymentMethodType::Ted => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

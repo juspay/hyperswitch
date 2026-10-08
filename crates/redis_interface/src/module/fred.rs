@@ -242,6 +242,56 @@ impl RedisConnectionPool {
         config.username = conf.auth_username().map(ToOwned::to_owned);
         config.password = conf.auth_password().map(ToOwned::to_owned);
 
+        if conf.tls_enabled {
+            let tls_connector = match conf.read_tls_ca_certificates()? {
+                // Verify the server against the CA certificate(s) from the
+                // configured PEM file instead of the platform's trusted roots.
+                Some(ca_pem) => {
+                    use fred::rustls::{
+                        pki_types::{pem::PemObject, CertificateDer},
+                        ClientConfig, RootCertStore,
+                    };
+
+                    let certificates = CertificateDer::pem_slice_iter(&ca_pem)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|error| {
+                            error_stack::report!(crate::errors::RedisError::InvalidConfiguration(
+                                format!("Failed to parse the Redis CA certificate file: {error}")
+                            ))
+                        })?;
+
+                    if certificates.is_empty() {
+                        return Err(error_stack::report!(
+                            crate::errors::RedisError::InvalidConfiguration(
+                                "The Redis CA certificate file contains no PEM certificates"
+                                    .to_string()
+                            )
+                        ));
+                    }
+
+                    let mut root_store = RootCertStore::empty();
+                    for certificate in certificates {
+                        root_store.add(certificate).change_context(
+                            crate::errors::RedisError::InvalidConfiguration(
+                                "Invalid certificate in the Redis CA certificate file".to_string(),
+                            ),
+                        )?;
+                    }
+
+                    fred::types::TlsConnector::from(
+                        ClientConfig::builder()
+                            .with_root_certificates(root_store)
+                            .with_no_client_auth(),
+                    )
+                }
+                // Verify the server against the platform's trusted CA roots.
+                None => fred::types::TlsConnector::default_rustls()
+                    .change_context(crate::errors::RedisError::RedisConnectionError)
+                    .attach_printable("Failed to build the TLS configuration for Redis")?,
+            };
+            config.tls = Some(tls_connector.into());
+        }
+
         let perf = fred::types::PerformanceConfig {
             auto_pipeline: conf.auto_pipeline,
             default_command_timeout: std::time::Duration::from_secs(conf.default_command_timeout),

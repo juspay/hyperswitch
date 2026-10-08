@@ -3900,6 +3900,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -5426,6 +5427,9 @@ pub enum WalletData {
     #[schema(title = "VippsRedirect")]
     #[smithy(nested_value_type)]
     VippsRedirect {},
+    #[schema(title = "WeroRedirect")]
+    #[smithy(nested_value_type)]
+    WeroRedirect {},
     /// The wallet data for WeChat Pay Display QrCode
     #[schema(title = "WeChatPayQr")]
     #[smithy(value_type = "WeChatPayQr")]
@@ -5485,6 +5489,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::SamsungPay(_)
             | Self::TwintRedirect {}
             | Self::VippsRedirect {}
+            | Self::WeroRedirect {}
             | Self::TouchNGoRedirect(_)
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
@@ -7664,6 +7669,14 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     #[smithy(value_type = "Option<CaptureMethod>")]
     pub capture_method: Option<api_enums::CaptureMethod>,
+
+    /// The capture method the payment was sent to the connector with. Same as `capture_method`,
+    /// except when the profile's `auto_fallback_capture_method` is enabled and the connector did
+    /// not support the requested `capture_method`, in which case it is `automatic`. `null` until
+    /// the payment has been confirmed with a connector.
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    #[smithy(value_type = "Option<CaptureMethod>")]
+    pub capture_method_applied: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
@@ -10774,6 +10787,9 @@ pub struct SantanderData {
     #[schema(value_type = Option<String>, example = "E9040088820260710172800044983797")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,
+    #[schema(value_type = Option<SantanderJourneyName>, example = "journey_1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub journey_name: Option<SantanderJourneyName>,
     /// Actual timestamp when the payment was completed, as reported by Santander.
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2025-07-20T14:35:00Z")]
     #[serde(
@@ -10781,6 +10797,28 @@ pub struct SantanderData {
         with = "common_utils::custom_serde::iso8601::option"
     )]
     pub paid_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum SantanderJourneyName {
+    #[serde(rename = "journey_1")]
+    // PixAutomaticoPush payment method type for zero-amount payments.
+    Journey1,
+    #[serde(rename = "journey_2")]
+    // PixAutomaticoQr payment method type for zero-amount payments.
+    Journey2,
+    #[serde(rename = "journey_3")]
+    // PixAutomaticoQr payment method type for non-zero payments with immediate QR expiry.
+    Journey3,
+    #[serde(rename = "journey_4")]
+    // PixAutomaticoQr payment method type for non-zero payments with scheduled QR expiry.
+    Journey4,
+    #[serde(rename = "awaiting_definition")]
+    // Journey could not be determined from the connector response.
+    AwaitingDefinition,
 }
 
 impl ConnectorMetadata {
