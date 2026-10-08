@@ -93,6 +93,10 @@ impl ClickhouseClient {
             args = serde_json::json!({ "query": query }),
         )
     )]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "this function IS the seam: the deja::boundary attribute above records and replays the ClickHouse round trip"
+    )]
     async fn execute_query(&self, query: &str) -> ClickhouseResult<Vec<serde_json::Value>> {
         logger::debug!("Executing query: {query}");
         let client = reqwest::Client::new();

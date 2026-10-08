@@ -103,6 +103,10 @@ impl AwsSes {
     }
 
     /// A helper function to create ses client
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     pub async fn create_client(
         conf: &EmailSettings,
         ses_config: &SESConfig,
@@ -207,6 +211,10 @@ impl EmailClient for AwsSes {
         Ok(email_body)
     }
 
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     async fn send_email(
         &self,
         recipient: pii::Email,

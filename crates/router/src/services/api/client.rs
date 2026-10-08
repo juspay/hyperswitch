@@ -98,6 +98,10 @@ impl RequestBuilder for RouterRequestBuilder {
         Ok(())
     }
 
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "no caller sends through this builder; outbound calls go through external_services::http_client::send_request, the seam"
+    )]
     fn send(
         self,
     ) -> CustomResult<

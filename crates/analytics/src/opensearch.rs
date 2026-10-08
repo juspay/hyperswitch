@@ -275,6 +275,10 @@ impl OpenSearchClient {
             on_miss = Ok(recording::ResponseCodec::missed_query()),
         )
     )]
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "execute is itself the deja seam for OpenSearch"
+    )]
     pub async fn execute(
         &self,
         query_builder: OpenSearchQueryBuilder,
@@ -328,6 +332,10 @@ impl OpenSearchClient {
 
 #[async_trait::async_trait]
 impl HealthCheck for OpenSearchClient {
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     async fn deep_health_check(&self) -> CustomResult<(), QueryExecutionError> {
         let health = Cluster::new(&self.transport)
             .health(ClusterHealthParts::None)

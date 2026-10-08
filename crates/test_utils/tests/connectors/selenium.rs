@@ -501,6 +501,10 @@ pub trait SeleniumTest {
         affirm_actions.extend(actions);
         self.complete_actions(&driver, affirm_actions).await
     }
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "a browser-automation harness polling a webhook sink; it is not a router path and nothing records it"
+    )]
     async fn make_webhook_test(
         &self,
         web_driver: WebDriver,

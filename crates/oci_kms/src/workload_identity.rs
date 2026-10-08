@@ -133,6 +133,10 @@ pub(crate) async fn credentials(
     })
 }
 
+#[allow(
+    clippy::disallowed_methods,
+    reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+)]
 async fn request_session_token(
     environment: &dyn Environment,
     client: &reqwest::Client,

@@ -249,6 +249,10 @@ impl OciKmsClient {
     }
 
     /// One signed attempt. Signed afresh on every call, since the signature covers `date`.
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "pending instrumentation: this call has no seam yet and goes live during replay"
+    )]
     async fn send_once(&self, path: &str, body: &[u8]) -> Result<String, AttemptError> {
         // Credential resolution retries on its own; a failure surfacing here is final.
         let credentials = self

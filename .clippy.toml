@@ -9,6 +9,10 @@ allow-unwrap-in-tests = true
 # a raw source is a seam body itself, and each of those says so in an `#[allow]`
 # with a reason. "It is only telemetry" and "it is only a test" are not exceptions:
 # a raw read in either place is the one the next person copies onto a request path.
+#
+# The same holds for outbound calls: a send that no seam wraps is answered by the live
+# service during a replay. Clippy has no glob form, so the AWS, OpenSearch and sqlx entries
+# name one operation each; a new operation needs its own entry when it is first called.
 disallowed-methods = [
   { path = "diesel::query_dsl::QueryDsl::into_boxed", reason = "dynamic list queries must be built via diesel_models::list::boxed_list_query! or diesel_models::list::into_boxed_list" },
   { path = "time::OffsetDateTime::now_utc", reason = "a clock read outside a seam cannot be reproduced on replay; use common_utils::date_time (now, now_unix_timestamp, now_unix_timestamp_millis, now_rfc7231_http_date, date_as_yyyymmddthhmmssmmmz)" },
@@ -20,6 +24,24 @@ disallowed-methods = [
   { path = "std::process::id", reason = "a process id differs between the recording process and the replay process; use common_utils::process_id" },
   { path = "gethostname::gethostname", reason = "a hostname differs between the recording host and the replay host; use common_utils::hostname, which reads HOSTNAME from the environment (the pod name under Kubernetes)" },
   { path = "rand::random", reason = "a random draw outside a seam cannot be reproduced on replay; use common_utils" },
+  { path = "reqwest::RequestBuilder::send", reason = "an outbound call outside a seam goes live during replay instead of being served from the recording; send through external_services::http_client, or wrap the call in a deja seam" },
+  { path = "aws_sdk_s3::operation::put_object::builders::PutObjectFluentBuilder::send", reason = "an AWS s3 put_object call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_s3::operation::get_object::builders::GetObjectFluentBuilder::send", reason = "an AWS s3 get_object call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_s3::operation::delete_object::builders::DeleteObjectFluentBuilder::send", reason = "an AWS s3 delete_object call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_s3::operation::create_multipart_upload::builders::CreateMultipartUploadFluentBuilder::send", reason = "an AWS s3 create_multipart_upload call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_s3::operation::upload_part::builders::UploadPartFluentBuilder::send", reason = "an AWS s3 upload_part call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_s3::operation::complete_multipart_upload::builders::CompleteMultipartUploadFluentBuilder::send", reason = "an AWS s3 complete_multipart_upload call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_s3::operation::abort_multipart_upload::builders::AbortMultipartUploadFluentBuilder::send", reason = "an AWS s3 abort_multipart_upload call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_sesv2::operation::send_email::builders::SendEmailFluentBuilder::send", reason = "an AWS sesv2 send_email call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_sts::operation::assume_role::builders::AssumeRoleFluentBuilder::send", reason = "an AWS sts assume_role call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_kms::operation::encrypt::builders::EncryptFluentBuilder::send", reason = "an AWS kms encrypt call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_kms::operation::decrypt::builders::DecryptFluentBuilder::send", reason = "an AWS kms decrypt call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "aws_sdk_lambda::operation::invoke::builders::InvokeFluentBuilder::send", reason = "an AWS lambda invoke call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "superposition_sdk::operation::create_context::builders::CreateContextFluentBuilder::send", reason = "a Superposition write outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "opensearch::Search::send", reason = "an OpenSearch query outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "opensearch::Msearch::send", reason = "an OpenSearch query outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "opensearch::cluster::ClusterHealth::send", reason = "an OpenSearch call outside a seam goes live during replay; wrap it in a deja seam" },
+  { path = "sqlx::query::Query::fetch_all", reason = "an analytics SQL read outside a seam goes live during replay; wrap it in a deja seam" },
 ]
 
 disallowed-macros = [

@@ -107,6 +107,10 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
     )
 )]
 #[instrument(skip_all)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "this function IS the seam: the deja::http attribute above records and replays the outbound call"
+)]
 pub async fn send_request(
     client_proxy: &Proxy,
     request: Request,

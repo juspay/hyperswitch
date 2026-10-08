@@ -1039,6 +1039,10 @@ impl SuperpositionClient {
     ///
     /// # Returns
     /// * `CustomResult<(), SuperpositionError>` - Success or error
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "config writes are deliberately outside the deja boundary: they leave the request path, and only reads are recorded"
+    )]
     pub async fn set_config_value<T: WritableConfig>(
         &self,
         value: &T::Input,
