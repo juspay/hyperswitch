@@ -287,6 +287,7 @@ wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
 network_token.network_token.connector_list = "peachpayments"
+bank_transfer.pix_automatico_qr.connector_list = "santander"
 
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets,aci"
 bank_redirect.sofort.connector_list = "globalpay,aci,multisafepay"

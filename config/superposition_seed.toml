@@ -3321,6 +3321,7 @@ payment_method_type = { position = 3, schema = { enum = [
     "Paypal",
     "PermataBankTransfer",
     "Pix",
+    "PixQr",
     "PixAutomaticoPush",
     "PixAutomaticoQr",
     "Przelewy24",
@@ -3649,7 +3650,7 @@ _context_ = { connector = "itaubank", payment_method = "BankTransfer", payment_m
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
-_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "Pix" }
+_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixQr", mandate_type="non_mandate" }
 "dynamic_fields.billing.address.city._is_required" = true
 "dynamic_fields.billing.address.country._dropdown_options" = ["BR"]
 "dynamic_fields.billing.address.country._is_required" = true
@@ -3667,7 +3668,7 @@ _context_ = { connector = "santander", payment_method = "BankTransfer", payment_
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
-_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixAutomaticoPush" }
+_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixAutomaticoPush", mandate_type="mandate" }
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._is_required" = true
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._is_required" = true
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._is_required" = true
@@ -3681,7 +3682,7 @@ _context_ = { connector = "santander", payment_method = "BankTransfer", payment_
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
-_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixAutomaticoQr" }
+_context_ = { connector = "santander", payment_method = "BankTransfer", payment_method_type = "PixAutomaticoQr", mandate_type="mandate" }
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true

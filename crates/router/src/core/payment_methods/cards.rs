@@ -5414,7 +5414,7 @@ pub async fn filter_payment_methods(
                     // Filter logic for payment method types based on the below conditions
                     // Case 1: If the payment method type support Zero Mandate flow, filter only payment method type that support it
                     // Case 2: Whether the payment method type support Mandates or not, list all the payment method types
-                    if payment_attempt
+                    let is_mandate_flow = payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
                         || payment_intent
@@ -5422,57 +5422,62 @@ pub async fn filter_payment_methods(
                             .map(|future_usage| {
                                 future_usage == common_enums::FutureUsage::OffSession
                             })
-                            .unwrap_or(false)
-                    {
-                        payment_intent.map(|intent| intent.amount).map(|amount| {
-                            if amount == MinorUnit::zero() {
-                                if configs
-                                    .zero_mandates
-                                    .supported_payment_methods
+                            .unwrap_or(false);
+
+                    if is_mandate_flow {
+                        let amount = payment_intent.map(|intent| intent.amount);
+                        let is_zero_amount = amount.map(|amt| amt == MinorUnit::zero()).unwrap_or(false);
+                        let is_supported_for_zero_mandate = configs
+                            .zero_mandates
+                            .supported_payment_methods
+                            .0
+                            .get(&payment_method)
+                            .and_then(|supported_pm_for_mandates| {
+                                supported_pm_for_mandates
                                     .0
-                                    .get(&payment_method)
-                                    .and_then(|supported_pm_for_mandates| {
-                                        supported_pm_for_mandates
-                                            .0
-                                            .get(&payment_method_type_info.payment_method_type)
-                                            .map(|supported_connector_for_mandates| {
-                                                supported_connector_for_mandates
-                                                    .connector_list
-                                                    .contains(&connector_variant)
-                                            })
+                                    .get(&payment_method_type_info.payment_method_type)
+                                    .map(|supported_connector_for_mandates| {
+                                        supported_connector_for_mandates
+                                            .connector_list
+                                            .contains(&connector_variant)
                                     })
-                                    .unwrap_or(false)
-                                {
-                                    context_values.push(dir::DirValue::PaymentType(
-                                        euclid::enums::PaymentType::SetupMandate,
-                                    ));
-                                }
-                            } else if configs
-                                .mandates
-                                .supported_payment_methods
-                                .0
-                                .get(&payment_method)
-                                .and_then(|supported_pm_for_mandates| {
-                                    supported_pm_for_mandates
-                                        .0
-                                        .get(&payment_method_type_info.payment_method_type)
-                                        .map(|supported_connector_for_mandates| {
-                                            supported_connector_for_mandates
-                                                .connector_list
-                                                .contains(&connector_variant)
-                                        })
-                                })
-                                .unwrap_or(false)
-                            {
-                                context_values.push(dir::DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NewMandate,
-                                ));
-                            } else {
-                                context_values.push(dir::DirValue::PaymentType(
-                                    euclid::enums::PaymentType::NonMandate,
-                                ));
-                            }
-                        });
+                            })
+                            .unwrap_or(false);
+                        let is_supported_for_mandate = configs
+                            .mandates
+                            .supported_payment_methods
+                            .0
+                            .get(&payment_method)
+                            .and_then(|supported_pm_for_mandates| {
+                                supported_pm_for_mandates
+                                    .0
+                                    .get(&payment_method_type_info.payment_method_type)
+                                    .map(|supported_connector_for_mandates| {
+                                        supported_connector_for_mandates
+                                            .connector_list
+                                            .contains(&connector_variant)
+                                    })
+                            })
+                            .unwrap_or(false);
+
+                        // Skip payment method if it's not supported for the mandate type
+                        if is_zero_amount && !is_supported_for_zero_mandate {
+                            continue;
+                        }
+                        if !is_zero_amount && !is_supported_for_mandate {
+                            continue;
+                        }
+
+                        // Add appropriate PaymentType context for supported methods
+                        if is_zero_amount && is_supported_for_zero_mandate {
+                            context_values.push(dir::DirValue::PaymentType(
+                                euclid::enums::PaymentType::SetupMandate,
+                            ));
+                        } else if !is_zero_amount && is_supported_for_mandate {
+                            context_values.push(dir::DirValue::PaymentType(
+                                euclid::enums::PaymentType::NewMandate,
+                            ));
+                        }
                     } else {
                         context_values.push(dir::DirValue::PaymentType(
                             euclid::enums::PaymentType::NonMandate,
