@@ -5146,6 +5146,7 @@ fn build_payment_methods_additional_data_for_create(
                         .or(vaulted_wallet_info.card_exp_year),
                     auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
                     email: wallet_info.email.or(vaulted_wallet_info.email),
+                    paypal_id: wallet_info.paypal_id.or(vaulted_wallet_info.paypal_id),
                 },
             )
         }

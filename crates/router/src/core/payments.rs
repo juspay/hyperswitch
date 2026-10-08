@@ -746,7 +746,7 @@ async fn restore_pre_call_state<F, D>(
         applied_offer_details: attempt.applied_offer_details.clone(),
         applied_overrides: attempt.applied_overrides.clone(),
         active_frm_id: attempt.active_frm_id.clone(),
-        setup_future_usage_applied: attempt.setup_future_usage_applied.clone(),
+        setup_future_usage_applied: attempt.setup_future_usage_applied,
     };
 
     let intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
