@@ -36,7 +36,7 @@ futures = "0.3.31"
 opensearch = { version = "2.3.0", features = ["aws-auth"] }
 # The versions opensearch builds its `Response` from, to rebuild a recorded one.
 opensearch_http = { package = "http", version = "1.3.1", optional = true }
-opensearch_reqwest = { package = "reqwest", version = "0.12.7", default-features = false, optional = true }
+opensearch_reqwest = { package = "reqwest", version = "0.12.7", default-features = false, features = ["stream"], optional = true }
 reqwest = { version = "0.11.27", features = ["serde_json"] }
 rust_decimal = "1.37"
 serde = { version = "1.0.219", features = ["derive", "rc"] }

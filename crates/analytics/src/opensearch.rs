@@ -257,58 +257,30 @@ impl OpenSearchClient {
         }
     }
 
-    pub async fn execute(
-        &self,
-        query_builder: OpenSearchQueryBuilder,
-    ) -> CustomResult<Response, OpenSearchError> {
-        #[cfg(feature = "deja")]
-        {
-            self.execute_recorded(query_builder).await?.into_response()
-        }
-        #[cfg(not(feature = "deja"))]
-        {
-            self.send_query(query_builder).await
-        }
-    }
-
-    /// The OpenSearch round trip, resolved to the status and body.
-    ///
-    /// The seam is under `execute` rather than on it: the client's `Response` can
-    /// be read only by consuming it, so no codec can capture it. Recording the two
-    /// parts `execute` rebuilds it from covers every caller of `execute` and leaves
-    /// reading the body live in replay.
+    /// The OpenSearch round trip, recorded as its status and body. Only while
+    /// recording does the codec read the body here, and the caller gets the
+    /// response rebuilt from the original's own parts.
     ///
     /// `Http` rather than `Db`: the index is external state, not part of the seeded
     /// store. A miss answers with an empty result set, a fabrication the ledger
     /// records as `SubstituteOutcome::Synthesized`; it goes into a response body,
     /// never into a lookup key.
-    #[cfg(feature = "deja")]
-    #[deja::boundary(
-        boundary = "opensearch",
-        component = "analytics::opensearch",
-        operation = "execute",
-        op = Read,
-        replay = Substitute,
-        effect = Http,
-        returns = Value,
-        codec = deja::codec::ResultCodec::<RecordedResponse, OpenSearchError>,
-        args = query_builder.deja_args(),
-        on_miss = Ok(RecordedResponse::empty_result()),
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "opensearch",
+            component = "analytics::opensearch",
+            operation = "execute",
+            op = Read,
+            replay = Substitute,
+            effect = Http,
+            returns = Value,
+            owned_codec = ResponseCodec,
+            args = query_builder.deja_args(),
+            on_miss = Ok(ResponseCodec::missed_query()),
+        )
     )]
-    async fn execute_recorded(
-        &self,
-        query_builder: OpenSearchQueryBuilder,
-    ) -> CustomResult<RecordedResponse, OpenSearchError> {
-        let response = self.send_query(query_builder).await?;
-        let status = response.status_code().as_u16();
-        let body = response
-            .text()
-            .await
-            .change_context(OpenSearchError::ResponseError)?;
-        Ok(RecordedResponse { status, body })
-    }
-
-    async fn send_query(
+    pub async fn execute(
         &self,
         query_builder: OpenSearchQueryBuilder,
     ) -> CustomResult<Response, OpenSearchError> {
@@ -359,40 +331,147 @@ impl OpenSearchClient {
     }
 }
 
-/// What the OpenSearch seam records of a response: its status and its body.
+/// Records an OpenSearch response as its status and body. `read` is the only
+/// step that runs outside the recorder's firewall, so it does nothing but read
+/// the body and rebuild the response from the original's own parts.
 #[cfg(feature = "deja")]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct RecordedResponse {
-    status: u16,
-    body: String,
-}
+struct ResponseCodec;
 
 #[cfg(feature = "deja")]
-impl RecordedResponse {
-    /// A missed query's answer: an empty result set both callers read, as
-    /// `OpensearchOutput::Success` and as an `OpenMsearchOutput` with no responses.
-    fn empty_result() -> Self {
-        Self {
-            status: 200,
-            body: json!({
-                "hits": {"total": {"value": 0}, "hits": []},
-                "responses": [],
-            })
-            .to_string(),
+type ResponseEnvelope = deja::codec::ResultCodec<Value, OpenSearchError>;
+
+#[cfg(feature = "deja")]
+impl deja::codec::OwnedReplayCodec for ResponseCodec {
+    type Value = CustomResult<Response, OpenSearchError>;
+    /// The body as read, buffered so the tape and the rebuilt response share
+    /// it, or why reading it failed.
+    type Read = Result<opensearch_reqwest::Body, String>;
+
+    async fn read(value: Self::Value) -> (Self::Value, Result<Self::Read, String>) {
+        let response = match value {
+            Ok(response) => response,
+            Err(report) => return (Err(report), Ok(Ok(opensearch_reqwest::Body::from("")))),
+        };
+        let status = response.status_code();
+        let headers = response.headers().clone();
+        let url = response.url().clone();
+        let method = response.method();
+        // A body whose length the original knew rebuilds as one that knows it;
+        // a decoded or chunked one, whose length it did not, as a stream.
+        let sized = response.content_length().is_some();
+        let (body, read) = match response.bytes().await {
+            Ok(bytes) => {
+                // Cloning `Bytes` shares the buffer; nothing is copied.
+                let read = opensearch_reqwest::Body::from(bytes.clone());
+                let body = if sized {
+                    opensearch_reqwest::Body::from(bytes)
+                } else {
+                    opensearch_reqwest::Body::wrap_stream(futures::stream::once(
+                        futures::future::ready(Ok::<_, std::convert::Infallible>(bytes)),
+                    ))
+                };
+                (body, Ok(read))
+            }
+            Err(error) => {
+                let reason = error.to_string();
+                let body = opensearch_reqwest::Body::wrap_stream(futures::stream::once(
+                    futures::future::ready(Err::<Vec<u8>, _>(error)),
+                ));
+                (body, Err(reason))
+            }
+        };
+        (Ok(rebuilt(status, headers, url, method, body)), Ok(read))
+    }
+
+    /// A body that could not be read records its status and why, so a replay
+    /// hands back a response whose body fails as the recorded one did.
+    fn record(read: Self::Read, value: &Self::Value) -> (Value, bool) {
+        match value {
+            Ok(response) => {
+                let status = response.status_code().as_u16();
+                let recorded = match read {
+                    Ok(body) => {
+                        let body = String::from_utf8_lossy(body.as_bytes().unwrap_or_default());
+                        json!({ "status": status, "body": body })
+                    }
+                    Err(reason) => json!({ "status": status, "read_error": reason }),
+                };
+                (ResponseEnvelope::ok_envelope(&recorded), false)
+            }
+            Err(report) => (ResponseEnvelope::err_envelope(report), true),
         }
     }
 
-    /// The client's own `Response`, rebuilt so `execute` keeps its signature.
-    fn into_response(self) -> CustomResult<Response, OpenSearchError> {
-        let response = opensearch_http::Response::builder()
-            .status(self.status)
-            .body(self.body)
-            .change_context(OpenSearchError::ResponseError)?;
-        Ok(Response::new(
+    fn reconstruct(recorded: Value) -> Option<Self::Value> {
+        use deja::codec::ReplayCodec;
+        match ResponseEnvelope::reconstruct(recorded)? {
+            Ok(recorded) => {
+                let status = opensearch_http::StatusCode::from_u16(
+                    u16::try_from(recorded.get("status")?.as_u64()?).ok()?,
+                )
+                .ok()?;
+                if let Some(reason) = recorded.get("read_error").and_then(Value::as_str) {
+                    let failure = std::io::Error::other(reason.to_owned());
+                    let body = opensearch_reqwest::Body::wrap_stream(futures::stream::once(
+                        futures::future::ready(Err::<Vec<u8>, _>(failure)),
+                    ));
+                    return Some(Ok(Self::replayed(status, body)));
+                }
+                let body = recorded.get("body")?.as_str()?.to_owned();
+                Some(Ok(Self::replayed(status, body.into())))
+            }
+            Err(report) => Some(Err(report)),
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+impl ResponseCodec {
+    /// A missed query's answer: an empty result set both callers read, as
+    /// `OpensearchOutput::Success` and as an `OpenMsearchOutput` with no responses.
+    fn missed_query() -> Response {
+        Self::replayed(
+            opensearch_http::StatusCode::OK,
+            Self::missed_query_body().into(),
+        )
+    }
+
+    fn missed_query_body() -> String {
+        json!({
+            "hits": {"total": {"value": 0}, "hits": []},
+            "responses": [],
+        })
+        .to_string()
+    }
+
+    /// A response rebuilt from the tape, which holds its status and body.
+    fn replayed(status: opensearch_http::StatusCode, body: opensearch_reqwest::Body) -> Response {
+        let mut response = opensearch_http::Response::new(body);
+        *response.status_mut() = status;
+        Response::new(
             opensearch_reqwest::Response::from(response),
             opensearch::http::Method::Post,
-        ))
+        )
     }
+}
+
+/// The client's own `Response` from the original's parts and a body.
+#[cfg(feature = "deja")]
+fn rebuilt(
+    status: opensearch_http::StatusCode,
+    headers: opensearch_http::HeaderMap,
+    url: Url,
+    method: opensearch::http::Method,
+    body: opensearch_reqwest::Body,
+) -> Response {
+    use opensearch_reqwest::ResponseBuilderExt;
+    let mut response = match opensearch_http::Response::builder().url(url).body(()) {
+        Ok(response) => response.map(|()| body),
+        Err(_) => opensearch_http::Response::new(body),
+    };
+    *response.status_mut() = status;
+    *response.headers_mut() = headers;
+    Response::new(opensearch_reqwest::Response::from(response), method)
 }
 
 #[async_trait::async_trait]
@@ -1308,7 +1387,7 @@ mod tests {
     /// into a failed request.
     #[test]
     fn the_missed_query_body_deserializes_for_both_callers() {
-        let body = super::RecordedResponse::empty_result().body;
+        let body = super::ResponseCodec::missed_query_body();
 
         let single = serde_json::from_str::<api_models::analytics::search::OpensearchOutput>(&body)
             .expect("the single-index caller must be able to read the missed-query body");
@@ -1372,7 +1451,7 @@ mod tests {
 
     /// The tests above call the helpers; this one reads the seam's own
     /// declaration, so naming a different `on_miss` body or `args` expression on
-    /// `execute_recorded` fails here rather than passing unnoticed.
+    /// `execute` fails here rather than passing unnoticed.
     #[test]
     fn the_seam_names_the_helpers_the_tests_exercise() {
         let source = include_str!("opensearch.rs");
@@ -1381,11 +1460,12 @@ mod tests {
             .find(&["deja::", "boundary("].concat())
             .expect("the seam attribute is present");
         let end = source[start..]
-            .find(&["async fn ", "execute_recorded("].concat())
-            .expect("the seam is declared on execute_recorded");
+            .find(&["pub async fn ", "execute("].concat())
+            .expect("the seam is declared on execute");
         let declaration = &source[start..start + end];
         for expected in [
-            "on_miss = Ok(RecordedResponse::empty_result())",
+            "owned_codec = ResponseCodec",
+            "on_miss = Ok(ResponseCodec::missed_query())",
             "args = query_builder.deja_args()",
         ] {
             assert!(
@@ -1395,19 +1475,201 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn a_recorded_response_rebuilds_as_the_response_execute_returns() {
-        let response = super::RecordedResponse {
-            status: 404,
-            body: r#"{"found":false}"#.to_string(),
-        }
-        .into_response()
-        .expect("a recorded status rebuilds");
+    const GZIPPED: [u8; 52] = [
+        31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 171, 86, 202, 200, 44, 41, 86, 178, 170, 86, 42, 201,
+        47, 73, 204, 1, 49, 202, 18, 115, 74, 83, 149, 172, 12, 107, 117, 160, 114, 209, 177, 181,
+        181, 0, 3, 122, 183, 221, 40, 0, 0, 0,
+    ];
 
-        assert_eq!(response.status_code().as_u16(), 404);
+    /// Serves `reply` to every connection, so one fixture can be fetched twice.
+    fn serve(reply: Vec<u8>) -> String {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let url = format!(
+            "http://{}/idx/_search",
+            listener.local_addr().expect("addr")
+        );
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                let mut request = [0u8; 4096];
+                let _ = stream.read(&mut request);
+                let _ = stream.write_all(&reply);
+            }
+        });
+        url
+    }
+
+    fn reply(head: &str, body: &[u8]) -> Vec<u8> {
+        [head.as_bytes(), b"\r\n", body].concat()
+    }
+
+    async fn fetch(url: &str) -> opensearch::http::response::Response {
+        let response = opensearch_reqwest::Client::new()
+            .post(url)
+            .send()
+            .await
+            .expect("the fixture server answers");
+        opensearch::http::response::Response::new(response, opensearch::http::Method::Post)
+    }
+
+    /// What `execute`'s caller can observe of a response: its parts, its
+    /// `content_length`, and its body, read last.
+    async fn observed(
+        response: opensearch::http::response::Response,
+    ) -> (String, Option<u64>, Result<String, String>) {
+        let parts = format!(
+            "{:?} {:?} {:?} {} {:?} {:?}",
+            response.status_code(),
+            response.headers(),
+            response.content_type(),
+            response.url(),
+            response.method(),
+            response.warning_headers().collect::<Vec<_>>(),
+        );
+        let length = response.content_length();
+        (
+            parts,
+            length,
+            response.text().await.map_err(|error| error.to_string()),
+        )
+    }
+
+    /// Recording must not change what `execute` returns: every accessor the
+    /// client's `Response` offers reads the same through the codec as without
+    /// it, for a sized body, a chunked one, a gzip one reqwest decodes, and one
+    /// whose connection drops mid-body.
+    ///
+    /// One known difference, on the last alone: a body that fails can only be
+    /// rebuilt as a stream (reqwest 0.12 has no public sized body that errors),
+    /// so `content_length` reads `None` where the original read `Some`. Both
+    /// callers go straight to `text()`, which fails either way.
+    #[tokio::test]
+    async fn the_caller_observes_the_same_response_through_the_codec() {
+        use deja::codec::OwnedReplayCodec;
+        let body = br#"{"hits":{"total":{"value":1},"hits":[]}}"#;
+        let fixtures = [
+            (
+                "sized",
+                reply(
+                    &format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json; charset=UTF-8\r\n\
+                         warning: 299 OpenSearch \"deprecated\"\r\ncontent-length: {}\r\n",
+                        body.len()
+                    ),
+                    body,
+                ),
+                true,
+            ),
+            (
+                "chunked",
+                reply(
+                    &format!(
+                        "HTTP/1.1 404 Not Found\r\ncontent-type: application/json\r\n\
+                         transfer-encoding: chunked\r\n\r\n{:x}",
+                        body.len()
+                    ),
+                    &[&body[..], b"\r\n0\r\n\r\n"].concat(),
+                ),
+                true,
+            ),
+            (
+                "gzip",
+                reply(
+                    &format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\n\
+                         content-encoding: gzip\r\ncontent-length: {}\r\n",
+                        GZIPPED.len()
+                    ),
+                    &GZIPPED,
+                ),
+                true,
+            ),
+            (
+                "truncated",
+                reply(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 400\r\n",
+                    body,
+                ),
+                false,
+            ),
+        ];
+        for (name, fixture, reads) in fixtures {
+            let url = serve(fixture);
+            let (direct_parts, direct_length, direct_body) = observed(fetch(&url).await).await;
+            let (rebuilt, read) = super::ResponseCodec::read(Ok(fetch(&url).await)).await;
+            assert_eq!(matches!(read, Ok(Ok(_))), reads, "{name}: {read:?}");
+            let (rebuilt_parts, rebuilt_length, rebuilt_body) =
+                observed(rebuilt.expect("an Ok stays Ok")).await;
+            assert_eq!(direct_parts, rebuilt_parts, "{name}: the parts differ");
+            assert_eq!(direct_body.is_ok(), reads, "{name}: {direct_body:?}");
+            if reads {
+                assert_eq!(direct_length, rebuilt_length, "{name}: the length differs");
+                assert_eq!(direct_body, rebuilt_body, "{name}: the body differs");
+            } else {
+                assert_eq!(
+                    (direct_length, rebuilt_length),
+                    (Some(400), None),
+                    "{name}: the one known difference, a failed body's length"
+                );
+                assert!(rebuilt_body.is_err(), "{name}: the read failure survives");
+            }
+        }
+    }
+
+    /// What `read` saw goes on the tape and rebuilds on replay, error arm too.
+    #[tokio::test]
+    async fn a_recorded_response_replays_as_what_the_caller_read() {
+        use deja::codec::OwnedReplayCodec;
+        use error_stack::report;
+        let url = serve(reply(
+            "HTTP/1.1 404 Not Found\r\ncontent-length: 15\r\n",
+            br#"{"found":false}"#,
+        ));
+        let (value, read) = super::ResponseCodec::read(Ok(fetch(&url).await)).await;
+        let (recorded, is_error) =
+            super::ResponseCodec::record(read.expect("the body reads"), &value);
+        assert!(!is_error);
+        let replayed = super::ResponseCodec::reconstruct(recorded)
+            .expect("the envelope rebuilds")
+            .expect("an Ok envelope");
+        assert_eq!(replayed.status_code().as_u16(), 404);
         assert_eq!(
-            response.text().await.expect("the rebuilt body reads"),
+            replayed.text().await.expect("the replayed body reads"),
             r#"{"found":false}"#
         );
+
+        // A body that could not be read replays as one that fails, at the
+        // recorded status, as the caller saw it.
+        let url = serve(reply(
+            "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 400\r\n",
+            br#"{"partial":"#,
+        ));
+        let (value, read) = super::ResponseCodec::read(Ok(fetch(&url).await)).await;
+        let (recorded, is_error) =
+            super::ResponseCodec::record(read.expect("the read always reports"), &value);
+        assert!(!is_error, "the call returned its response");
+        assert!(
+            recorded.pointer("/value/read_error").is_some(),
+            "the tape names the failed read: {recorded}"
+        );
+        let replayed = super::ResponseCodec::reconstruct(recorded)
+            .expect("the envelope rebuilds")
+            .expect("an Ok envelope");
+        assert_eq!(replayed.status_code().as_u16(), 503);
+        assert!(replayed.text().await.is_err(), "the replayed body fails");
+
+        let failed: common_utils::errors::CustomResult<
+            opensearch::http::response::Response,
+            super::OpenSearchError,
+        > = Err(report!(super::OpenSearchError::ConnectionError));
+        let (value, read) = super::ResponseCodec::read(failed).await;
+        let (recorded, is_error) =
+            super::ResponseCodec::record(read.expect("an error arm reads nothing"), &value);
+        assert!(is_error);
+        let replayed = super::ResponseCodec::reconstruct(recorded).expect("the envelope rebuilds");
+        assert!(matches!(
+            replayed.map(|_| ()).map_err(|report| report.current_context().to_string()),
+            Err(message) if message == super::OpenSearchError::ConnectionError.to_string()
+        ));
     }
 }
