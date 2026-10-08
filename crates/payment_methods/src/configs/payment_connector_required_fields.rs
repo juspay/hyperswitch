@@ -3095,7 +3095,10 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
         ),
         (
             enums::PaymentMethodType::Wero,
-            connectors(vec![(Connector::Betterpayment, fields(vec![], vec![], vec![]))]),
+            connectors(vec![(
+                Connector::Betterpayment,
+                fields(vec![], vec![], vec![]),
+            )]),
         ),
         (
             enums::PaymentMethodType::Dana,

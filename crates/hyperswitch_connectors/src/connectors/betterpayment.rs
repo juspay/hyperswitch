@@ -169,8 +169,7 @@ static BETTERPAYMENT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
 
 static BETTERPAYMENT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Betterpayment",
-    description:
-        "Better Payment Germany GmbH (Deutsche Bank Group) — Wero digital wallet payments",
+    description: "Better Payment Germany GmbH (Deutsche Bank Group) — Wero digital wallet payments",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
