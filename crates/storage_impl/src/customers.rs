@@ -213,12 +213,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 let conn = pg_connection_write(self)
                     .await
                     .change_context(DatabaseError::DatabaseConnectionError)?;
-                diesel_models::Customer::update_by_customer_id_merchant_id(
+                Box::pin(diesel_models::Customer::update_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
                     customer_update.foreign_into(),
-                )
+                ))
                 .await
             }
         };

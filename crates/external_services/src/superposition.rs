@@ -200,6 +200,7 @@ mod deja_boundary {
             lexical_path: Some(scope.clone()),
             syntax_hash: Some(deja::__private::stable_callsite_hash(&scope)),
             span_path: deja::__private::current_span_path(),
+            span_instance: deja::__private::current_span_instance(),
         };
 
         let semantics = deja::__private::BoundarySemantics {

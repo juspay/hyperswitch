@@ -152,13 +152,18 @@ impl PayoutAttempt {
         payout_id: &common_utils::id_type::PayoutId,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        Box::pin(generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payout_id.eq(payout_id.to_owned())),
             PayoutAttemptUpdateInternal::from(payout),
-        )
+        ))
         .await?
         .first()
         .cloned()
@@ -173,13 +178,18 @@ impl PayoutAttempt {
         payout_attempt_id: &str,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        Box::pin(generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payout_attempt_id.eq(payout_attempt_id.to_owned())),
             PayoutAttemptUpdateInternal::from(payout),
-        )
+        ))
         .await?
         .first()
         .cloned()
