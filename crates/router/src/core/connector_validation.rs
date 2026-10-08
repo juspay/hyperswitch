@@ -215,6 +215,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Betterpayment => {
+                betterpayment::transformers::BetterpaymentAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Deutschebank => {
                 deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
                 Ok(())

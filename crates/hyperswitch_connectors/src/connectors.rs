@@ -12,6 +12,7 @@ pub mod bambora;
 pub mod bamboraapac;
 pub mod bankofamerica;
 pub mod barclaycard;
+pub mod betterpayment;
 pub mod billwerk;
 pub mod bitpay;
 pub mod blackhawknetwork;
@@ -170,12 +171,12 @@ pub use self::{
     absa_sanlam::AbsaSanlam, aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm,
     airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
-    bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
-    blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
-    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, citigate::Citigate,
-    coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
-    custombilling::Custombilling, cybersource::Cybersource,
+    bankofamerica::Bankofamerica, barclaycard::Barclaycard, betterpayment::Betterpayment,
+    billwerk::Billwerk, bitpay::Bitpay, blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap,
+    boku::Boku, braintree::Braintree, breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode,
+    celero::Celero, chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout,
+    citigate::Citigate, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
+    ctp_mastercard::CtpMastercard, custombilling::Custombilling, cybersource::Cybersource,
     cybersourcedecisionmanager::Cybersourcedecisionmanager, d24::D24, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
     ebanx::Ebanx, elavon::Elavon, elavon_pg::ElavonPg, envoy::Envoy, etisalat::Etisalat,
