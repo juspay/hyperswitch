@@ -7614,7 +7614,15 @@ Cypress.Commands.add(
               expect(resData.body[key]).to.deep.equal(response.body[key]);
             }
           } else {
-            defaultErrorHandler(response, resData);
+            // Log the error body before asserting so unexpected server errors
+            // (e.g. 5xx) are diagnosable from the report/CLI output
+            // instead of surfacing as an opaque "got an error response".
+            cy.task(
+              "cli_log",
+              `payout create/confirm failed → status ${response.status}, body: ${JSON.stringify(response.body)}`
+            ).then(() => {
+              defaultErrorHandler(response, resData);
+            });
           }
           return response;
         });

@@ -46,6 +46,23 @@ function normalise(input) {
 with `getCustomExchange`, if 501 response is expected, there is no need to pass Response as it considers default values.
 */
 
+// Connectors served exclusively by the Unified Connector Service surface the
+// UCS server's message for unsupported payment methods: the UCS server
+// prefixes the reason with "This feature is not implemented: " and uses the
+// title-cased connector name (the router forwards it verbatim and appends the
+// trailing " is not implemented"). Legacy-path connectors keep the
+// router-generated message without the prefix, so only UCS-only connectors
+// are listed here.
+const UCS_SERVER_MESSAGE_CONNECTORS = new Set(["truelayer"]);
+
+const rawConnectorId = String(globalState.get("connectorId") || "").toLowerCase();
+
+const notImplementedMessage = UCS_SERVER_MESSAGE_CONNECTORS.has(rawConnectorId)
+  ? `This feature is not implemented: Selected payment method through ${
+      rawConnectorId.charAt(0).toUpperCase() + rawConnectorId.slice(1)
+    } is not implemented`
+  : `Selected payment method through ${connectorName} is not implemented`;
+
 // Const to get default PaymentExchange object
 const getDefaultExchange = () => ({
   Request: {},
@@ -54,7 +71,7 @@ const getDefaultExchange = () => ({
     body: {
       error: {
         type: "invalid_request",
-        message: `Selected payment method through ${connectorName} is not implemented`,
+        message: notImplementedMessage,
         code: "IR_00",
       },
     },
