@@ -94,6 +94,7 @@ import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.j
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as worldpayraftConnectorDetails } from "./Worldpayraft.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
@@ -189,6 +190,7 @@ const connectorDetails = {
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  worldpayraft: worldpayraftConnectorDetails,
   worldpayvantiv: worldpayvantivConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
@@ -599,7 +601,7 @@ export const CONNECTOR_LISTS = {
     // Tracking extension to other connectors: #13520
     SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
     PROCESSING_METHOD_ID: ["payload"],
-    MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    MANDATES_USING_NTID_PROXY: ["cybersource", "checkout", "worldpayraft"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
     // shared mandate specs, so the whole spec is scoped to this connector
@@ -745,7 +747,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
-    EXTERNAL_THREE_DS: ["stripe", "finix"],
+    EXTERNAL_THREE_DS: ["stripe", "finix", "worldpayraft"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     AFFIRM_PAY_LATER: ["affirm"],
     AFTERPAY_CLEARPAY: ["adyen", "stripe"],
