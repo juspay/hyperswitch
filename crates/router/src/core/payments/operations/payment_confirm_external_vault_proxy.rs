@@ -275,16 +275,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
                 let previous_merchant_connector_id =
                     active_payment_attempt.merchant_connector_id.clone();
 
-                let (payment_intent, mut payment_attempt) = helpers::AttemptType::New
-                    .modify_payment_intent_and_payment_attempt(
+                let (payment_intent, mut payment_attempt) = Box::pin(
+                    helpers::AttemptType::New.modify_payment_intent_and_payment_attempt(
                         request,
                         payment_intent,
                         active_payment_attempt,
                         state,
                         platform.get_processor().get_key_store(),
                         storage_scheme,
-                    )
-                    .await?;
+                    ),
+                )
+                .await?;
 
                 // The manual retry helper clears both, but the network transaction ID was issued
                 // by the connector that declined, so the fallback has to stay on it.
