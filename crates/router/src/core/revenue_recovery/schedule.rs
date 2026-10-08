@@ -1,8 +1,12 @@
 use time::PrimitiveDateTime;
 
+/// How far along the static ladder an invoice has walked. A rung is one position in the
+/// `pt_mapping_adaptive_retries` gap list, resolved by
+/// `scheduler::utils::get_pcr_payments_retry_schedule_time`; past the end it returns nothing,
+/// which is the ladder being spent.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StaticLadderProgress {
-    /// Static ladder positions consumed so far.
+    /// Rungs already used; the next one to offer is `consumed_rungs + 1`.
     #[serde(default)]
     pub consumed_rungs: i32,
 }
@@ -33,11 +37,21 @@ impl StaticLadderProgress {
         }
     }
 
-    /// The next ladder position after those already consumed. Unused in production since the
-    /// static ladder was removed from the decision; kept with the inert counter.
+    /// The rung to ask the ladder for on this decision — the one after those already used. Read
+    /// under `StaticLadderRole::Ceiling`, the only role that can spend one.
     pub fn next_rung(&self) -> i32 {
         self.consumed_rungs + 1
     }
+}
+
+/// What the static ladder is to the model's time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StaticLadderRole {
+    /// The model's time stands as it is; the ladder is not consulted at all.
+    Standby,
+    /// The earlier calendar day of the two wins, ties to the ladder.
+    Ceiling,
 }
 
 /// Which source produced the scheduled time.
@@ -46,6 +60,8 @@ impl StaticLadderProgress {
 pub enum ScheduleSource {
     /// Whichever retry model the invoice was routed to.
     Model,
+    /// The static ladder, under `StaticLadderRole::Ceiling`.
+    Static,
     /// The MIT cascading ladder, the global fallback for whatever the model declines.
     Fallback,
 }
@@ -61,35 +77,66 @@ pub struct ScheduleDecision {
     pub source: ScheduleSource,
 }
 
-/// The retry model decides whenever it has an opinion; the MIT cascading ladder is the global
-/// fallback for everything it declines. `None` when neither has anything to offer.
+/// Pick the next retry time under the role the invoice's variant assigns the static ladder.
+/// `None` when every source in play has declined.
 ///
-/// The two are NOT compared — the model's time is taken as it stands, however much later than the
-/// fallback's it falls. The fallback is a standby, not a ceiling.
+/// `static_time` is read only under `Ceiling`; `Standby` callers pass `None`, which keeps the
+/// ladder's Superposition read off the path entirely.
 ///
-/// Neither source spends a ladder position, so `next_progress` echoes what it was handed. The
-/// counter is inert here and kept only so the persisted field keeps round-tripping; removing it
-/// reaches merchant-facing config and belongs in its own change.
+/// `Ceiling`'s static branch is the only one that spends a rung. Everywhere else `next_progress`
+/// echoes what it was handed, so the ladder stays where it was and offers the same rung again.
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
+    ladder: StaticLadderRole,
+    queried_rung: i32,
     model_time: Option<PrimitiveDateTime>,
+    static_time: Option<PrimitiveDateTime>,
     fallback_time: Option<PrimitiveDateTime>,
 ) -> Option<ScheduleDecision> {
-    let decision = |schedule_time, source| ScheduleDecision {
+    // The ladder was not used, so it does not move: the next decision is offered the same rung.
+    let keep_rung = |schedule_time, source| ScheduleDecision {
         schedule_time,
         next_progress: StaticLadderProgress {
             consumed_rungs: schedule.consumed_rungs,
         },
         source,
     };
+    // The ladder supplied this time, so the rung it supplied is now used up and the next decision
+    // moves on to the one after. Only this branch can exhaust the ladder.
+    let spend_rung = |schedule_time| ScheduleDecision {
+        schedule_time,
+        next_progress: StaticLadderProgress {
+            consumed_rungs: queried_rung,
+        },
+        source: ScheduleSource::Static,
+    };
 
-    model_time
-        .map(|schedule_time| decision(schedule_time, ScheduleSource::Model))
-        // The model declined, so the global fallback gets the last word. `None` here means there is
-        // genuinely nothing left to schedule for this invoice.
-        .or_else(|| {
-            fallback_time.map(|schedule_time| decision(schedule_time, ScheduleSource::Fallback))
-        })
+    match ladder {
+        // The model decides whenever it has an opinion, and the MIT cascading ladder is the global
+        // fallback for whatever it declines. The two are NOT compared — the model's time is taken
+        // as it stands, however much later than the fallback's it falls.
+        StaticLadderRole::Standby => model_time
+            .map(|schedule_time| keep_rung(schedule_time, ScheduleSource::Model))
+            .or_else(|| {
+                fallback_time
+                    .map(|schedule_time| keep_rung(schedule_time, ScheduleSource::Fallback))
+            }),
+
+        StaticLadderRole::Ceiling => match (static_time, model_time) {
+            // The earlier calendar day wins. A tie goes to static: the ladder already covers that
+            // day, so an earlier hour on it does not earn a second attempt.
+            (Some(static_time), Some(model_time)) if model_time.date() < static_time.date() => {
+                Some(keep_rung(model_time, ScheduleSource::Model))
+            }
+            (Some(static_time), _) => Some(spend_rung(static_time)),
+            // Ladder spent, so the model's time stands unopposed.
+            (None, Some(model_time)) => Some(keep_rung(model_time, ScheduleSource::Model)),
+            // The static ladder is spent and the model declined, so the MIT cascading ladder gets
+            // the last word. `None` here means there is genuinely nothing left to schedule.
+            (None, None) => fallback_time
+                .map(|schedule_time| keep_rung(schedule_time, ScheduleSource::Fallback)),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -110,15 +157,6 @@ mod tests {
 
     fn at_rung(consumed_rungs: i32) -> StaticLadderProgress {
         StaticLadderProgress { consumed_rungs }
-    }
-
-    /// A decision the caller would act on. Panics where the test's premise is that one exists.
-    fn expect_decision(
-        schedule: &StaticLadderProgress,
-        model_time: Option<PrimitiveDateTime>,
-        fallback_time: Option<PrimitiveDateTime>,
-    ) -> ScheduleDecision {
-        decide_next_retry(schedule, model_time, fallback_time).expect("a time was available")
     }
 
     // ---- seeding ----------------------------------------------------------
@@ -199,54 +237,75 @@ mod tests {
         );
     }
 
-    // ---- the model decides, the global fallback covers what it declines ---
+    // ---- the decision rule ------------------------------------------------
 
+    /// Every arm of both rules, with the roles interleaved so the single behavioural difference
+    /// between them reads off adjacent rows: a model time later than the other candidate is
+    /// overridden under `Ceiling` and survives under `Standby`.
+    ///
+    /// `schedule_time` is checked against whichever input the winning source names, so a decision
+    /// cannot report the right source while carrying the wrong time.
     #[test]
-    fn a_later_model_time_still_wins() {
-        // The fallback is not a ceiling: a model day after the fallback's is taken as it stands.
-        // Nothing here compares the two.
-        let fallback_time = at(240);
-        let model_time = at(336);
-        assert!(model_time.date() > fallback_time.date());
+    fn each_arm_picks_its_source_and_only_static_spends_a_position() {
+        use ScheduleSource::{Fallback, Model, Static};
+        use StaticLadderRole::{Ceiling, Standby};
 
-        let decision = expect_decision(&at_rung(2), Some(model_time), Some(fallback_time));
+        // Day 3 = at(72), day 10 = at(240) 00:00 / at(249) 09:00 / at(258) 18:00, day 14 = at(336).
+        // The ladder opens with 2 rungs used throughout, so `queried_rung` is 3: a spent rung
+        // leaves the count at 3, a kept one leaves it at 2.
+        #[rustfmt::skip]
+        let cases = [
+            // role,    model,          static,         fallback,       expected (source, rungs)
+            (Ceiling,   Some(at(72)),   Some(at(240)),  None,           Some((Model, 2))),
+            (Ceiling,   Some(at(336)),  Some(at(240)),  None,           Some((Static, 3))),
+            (Ceiling,   Some(at(249)),  Some(at(258)),  None,           Some((Static, 3))),
+            (Ceiling,   Some(at(336)),  None,           None,           Some((Model, 2))),
+            (Ceiling,   None,           Some(at(240)),  None,           Some((Static, 3))),
+            (Ceiling,   None,           None,           Some(at(240)),  Some((Fallback, 2))),
+            (Ceiling,   None,           None,           None,           None),
+            (Standby,   Some(at(336)),  None,           Some(at(240)),  Some((Model, 2))),
+            (Standby,   None,           None,           Some(at(240)),  Some((Fallback, 2))),
+            (Standby,   None,           None,           None,           None),
+        ];
 
-        assert_eq!(decision.schedule_time, model_time);
-        assert_eq!(decision.source, ScheduleSource::Model);
-    }
+        for (ladder, model_time, static_time, fallback_time, expected) in cases {
+            let schedule = at_rung(2);
+            let row = format!(
+                "{ladder:?} model={model_time:?} static={static_time:?} fallback={fallback_time:?}"
+            );
+            let decision = decide_next_retry(
+                &schedule,
+                ladder,
+                schedule.next_rung(),
+                model_time,
+                static_time,
+                fallback_time,
+            );
 
-    #[test]
-    fn no_model_opinion_uses_the_global_fallback() {
-        let decision = expect_decision(&StaticLadderProgress::default(), None, Some(at(240)));
+            match expected {
+                None => assert_eq!(
+                    decision, None,
+                    "{row} has nothing to offer, so must decline"
+                ),
+                Some((source, consumed_rungs)) => {
+                    let decision = decision.expect(&row);
+                    assert_eq!(decision.source, source, "{row} picked the wrong source");
 
-        assert_eq!(decision.schedule_time, at(240));
-        assert_eq!(decision.source, ScheduleSource::Fallback);
-    }
+                    let expected_time = match source {
+                        Model => model_time,
+                        Static => static_time,
+                        Fallback => fallback_time,
+                    }
+                    .expect("the winning source must have been given a time");
+                    assert_eq!(decision.schedule_time, expected_time, "{row} wrong time");
 
-    #[test]
-    fn both_declining_yields_no_decision() {
-        assert_eq!(decide_next_retry(&at_rung(5), None, None), None);
-    }
-
-    // ---- the rung counter is inert ----------------------------------------
-
-    #[test]
-    fn no_source_spends_a_ladder_position() {
-        // With the static ladder gone, neither source advances the count: whatever a decision is
-        // handed, it hands back. Pinned because the field is still persisted and still seeded, so
-        // a future edit that starts moving it would otherwise change stored state unnoticed.
-        for (model_time, fallback_time, expected_source) in [
-            (Some(at(72)), None, ScheduleSource::Model),
-            (Some(at(72)), Some(at(240)), ScheduleSource::Model),
-            (None, Some(at(240)), ScheduleSource::Fallback),
-        ] {
-            for consumed_rungs in [0, 1, 5] {
-                let schedule = at_rung(consumed_rungs);
-                let decision = expect_decision(&schedule, model_time, fallback_time);
-
-                assert_eq!(decision.source, expected_source);
-                assert_eq!(decision.next_progress, schedule);
-                assert_eq!(decision.next_progress.consumed_rungs, consumed_rungs);
+                    // The ladder position is persisted, so an edit that starts moving it where it
+                    // did not move before would change stored state unnoticed.
+                    assert_eq!(
+                        decision.next_progress.consumed_rungs, consumed_rungs,
+                        "{row} spent the wrong number of ladder positions"
+                    );
+                }
             }
         }
     }
