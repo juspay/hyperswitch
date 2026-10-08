@@ -12,6 +12,27 @@ import * as utils from "../../configs/Payment/Utils";
 let globalState;
 let originalCustomerId;
 let savedCardFilteringSkip = false;
+let hasSuperposition = false;
+
+const blocklistContext = () => ({
+  processor_merchant_id: globalState.get("merchantId"),
+  provider_merchant_id: globalState.get("merchantId"),
+});
+
+// The guard reads from superposition when live (CI), with a legacy DB
+// fallback when superposition errors (local runs) — toggle accordingly
+const setBlocklistGuard = (enabled) => {
+  if (hasSuperposition) {
+    cy.setSuperpositionConfig(
+      globalState,
+      "payments.payment_blocklist_guard",
+      enabled,
+      blocklistContext()
+    );
+  } else {
+    cy.blocklistToggle(enabled, globalState);
+  }
+};
 
 describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
   before("seed global state", () => {
@@ -21,6 +42,11 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       savedCardFilteringSkip = utils.shouldIncludeConnector(
         globalState.get("connectorId"),
         utils.CONNECTOR_LISTS.INCLUDE.SAVED_CARD_FILTERING
+      );
+      hasSuperposition = Boolean(
+        globalState.get("superpositionBaseUrl") &&
+        globalState.get("superpositionSecret") &&
+        globalState.get("superpositionAuthToken")
       );
     });
   });
@@ -79,7 +105,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     });
 
     it("should enable blocklist guard", () => {
-      cy.blocklistToggle(true, globalState);
+      setBlocklistGuard(true);
     });
 
     it("should create blocklist rule for card_bin 411111", () => {
@@ -223,7 +249,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
 
   context("Eligibility API Guard Disabled Tests", () => {
     it("should disable blocklist guard", () => {
-      cy.blocklistToggle(false, globalState);
+      setBlocklistGuard(false);
     });
 
     it("should allow previously blocked card_bin when guard is disabled", () => {
@@ -237,7 +263,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
 
   context("Saved Card Filtering Tests", () => {
     it("should re-enable blocklist guard", () => {
-      cy.blocklistToggle(true, globalState);
+      setBlocklistGuard(true);
     });
 
     it("should filter blocklisted saved cards from client payment methods list with guard on", function () {
@@ -251,7 +277,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     });
 
     it("should disable blocklist guard", () => {
-      cy.blocklistToggle(false, globalState);
+      setBlocklistGuard(false);
     });
 
     it("should return all saved cards in client payment methods list with guard off", function () {
@@ -265,7 +291,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     });
 
     it("should re-enable blocklist guard", () => {
-      cy.blocklistToggle(true, globalState);
+      setBlocklistGuard(true);
     });
 
     it("should delete blocklist rule for generic_card_bin 400005", () => {
@@ -309,7 +335,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     });
 
     it("should disable blocklist guard", () => {
-      cy.blocklistToggle(false, globalState);
+      setBlocklistGuard(false);
     });
   });
 });
