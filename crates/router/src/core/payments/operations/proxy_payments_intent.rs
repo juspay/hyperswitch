@@ -490,8 +490,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = crate::core::payments::helpers::get_gsm_record_for_error_response(
+            state,
+            &response_router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = response_router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let updated_payment_intent = db
             .update_payment_intent(
