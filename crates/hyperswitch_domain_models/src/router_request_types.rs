@@ -1390,6 +1390,10 @@ pub struct UcsAuthenticationData {
     pub challenge_cancel: Option<String>,
     pub challenge_code_reason: Option<String>,
     pub message_extension: Option<pii::SecretSerdeValue>,
+    pub acs_signed_content: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub directory_server_id: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

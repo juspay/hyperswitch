@@ -33,7 +33,10 @@ use crate::{
     logger,
     routes::SessionState,
     services,
-    types::{self, api, domain, transformers::ForeignTryFrom},
+    types::{
+        self, api, domain,
+        transformers::{ForeignFrom, ForeignTryFrom},
+    },
 };
 
 #[async_trait]
@@ -877,8 +880,8 @@ pub async fn call_unified_connector_service_authenticate(
 /// External-vault-proxy variant of [`call_unified_connector_service_authenticate`] above: the
 /// request is built from the resolved `ExternalVaultPaymentMethodData` alias (via the
 /// `(router_data, external_vault_pmd)` `ForeignTryFrom` impl) instead of a real
-/// `payment_method_data`, carries `force_3ds_challenge`/notification-url/acquirer metadata merged
-/// into `connector_feature_data`, and carries `external_vault_proxy_metadata` so the outbound
+/// `payment_method_data`, carries the typed 3DS `return_url`/`acquirer_details`/
+/// `threeds_completion_indicator`, and carries `external_vault_proxy_metadata` so the outbound
 /// call is routed through the vault's proxy (e.g. VGS).
 // TODO: fold proxy-vs-direct UCS dispatch into the `Gateway`/`FlowGateway` abstraction
 // (gateway/authenticate_gateway.rs) instead of core/authentication.rs calling this directly.
@@ -898,9 +901,9 @@ pub async fn call_unified_connector_service_authenticate_proxy(
     external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
     rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
-    force_3ds_challenge: Option<bool>,
-    notification_url: Option<common_utils::types::Url>,
-    acquirer_metadata: Option<serde_json::Value>,
+    return_url: Option<String>,
+    acquirer_metadata: Option<ucs_core::transformers::AcquirerMetadata>,
+    threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
 ) -> errors::CustomResult<
     types::RouterData<
         api::Authenticate,
@@ -924,24 +927,12 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Authenticate Request")?;
 
-    let results_response_notification_url = merchant_connector_account.get_mca_id().map(|mca_id| {
-        helpers::create_webhook_url(
-            &state.base_url,
-            processor.get_account().get_id(),
-            mca_id.get_string_repr(),
-        )
-    });
-
-    payment_authenticate_request.connector_feature_data =
-        ucs_core::build_connector_feature_data_from_auth_mca(
-            &merchant_connector_account,
-            force_3ds_challenge,
-            results_response_notification_url,
-            notification_url,
-            acquirer_metadata,
-        )
-        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to build connector_feature_data from authentication MCA")?;
+    payment_authenticate_request.return_url = return_url;
+    payment_authenticate_request.acquirer_details =
+        acquirer_metadata.map(payments_grpc::AcquirerDetails::foreign_from);
+    payment_authenticate_request.threeds_completion_indicator = Some(
+        payments_grpc::ThreeDsCompletionIndicator::foreign_from(threeds_method_comp_ind).into(),
+    );
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -1179,23 +1170,12 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
         .ok_or(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-    let mut payment_post_authenticate_request =
+    let payment_post_authenticate_request =
         payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
             (router_data, external_vault_pmd),
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Post Authenticate Request")?;
-
-    payment_post_authenticate_request.connector_feature_data =
-        ucs_core::build_connector_feature_data_from_auth_mca(
-            &merchant_connector_account,
-            None,
-            None,
-            None,
-            None,
-        )
-        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to build connector_feature_data from authentication MCA")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,

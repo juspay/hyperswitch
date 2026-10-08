@@ -1596,17 +1596,180 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            // 3DS fields (UCS proto 17-24). UCS reads 3DS values only from these; the
+            // `metadata` / `connector_feature_data` passthroughs never carry them.
+            merchant_details: ucs_merchant_details(router_data.connector_meta_data.as_ref()),
+            acquirer_details: None,
+            device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
+            sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
+            three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
+                router_data.request.force_3ds_challenge,
+                router_data.psd2_sca_exemption_type,
+            ),
+            three_ds_requestor_authentication_indicator: None,
+            message_category: None,
+            threeds_completion_indicator: None,
         })
     }
 }
 
-/// `PaymentMethodAuthenticationServiceAuthenticateRequest.metadata` has no typed proto field for
-/// device_channel/sdk_information, so it's JSON-stuffed as a string — same convention used
-/// elsewhere for UCS proto gaps (e.g. `AcquirerMetadata` in `core/authentication.rs`).
-#[derive(serde::Serialize)]
-struct UcsAuthenticateMetadata {
-    device_channel: Option<api_models::payments::DeviceChannel>,
+/// EMVCo `deviceChannel` for the typed 3DS contract.
+fn ucs_device_channel(device_channel: Option<api_models::payments::DeviceChannel>) -> Option<i32> {
+    device_channel.map(|channel| {
+        i32::from(match channel {
+            api_models::payments::DeviceChannel::App => payments_grpc::DeviceChannel::App,
+            api_models::payments::DeviceChannel::Browser => payments_grpc::DeviceChannel::Browser,
+        })
+    })
+}
+
+/// An EC JWK is only usable with all four members; a partial key is left out so UCS rejects it
+/// as missing instead of forwarding empty members to the DS.
+fn ucs_sdk_ephemeral_public_key(
+    jwk: &HashMap<String, String>,
+) -> Option<payments_grpc::ThreeDsSdkEphemeralPublicKey> {
+    let member = |name: &str| jwk.get(name).cloned();
+    Some(payments_grpc::ThreeDsSdkEphemeralPublicKey {
+        kty: member("kty")?,
+        crv: member("crv")?,
+        x: member("x")?,
+        y: member("y")?,
+    })
+}
+
+/// EMVCo `sdkInformation` for the typed 3DS contract. The JWK is sent as typed members
+/// rather than the untyped map the router carries internally; a malformed key is dropped
+/// rather than failing the payment, since the 3DS Server rejects it with a clearer error.
+fn ucs_sdk_information(
     sdk_information: Option<api_models::payments::SdkInformation>,
+) -> Option<payments_grpc::ThreeDsSdkInformation> {
+    sdk_information.map(|sdk| payments_grpc::ThreeDsSdkInformation {
+        sdk_app_id: sdk.sdk_app_id,
+        sdk_enc_data: Some(sdk.sdk_enc_data.into()),
+        sdk_ephem_pub_key: ucs_sdk_ephemeral_public_key(&sdk.sdk_ephem_pub_key),
+        sdk_max_timeout: u32::from(sdk.sdk_max_timeout),
+        sdk_reference_number: sdk.sdk_reference_number,
+        sdk_trans_id: sdk.sdk_trans_id,
+        sdk_type: sdk
+            .sdk_type
+            .map(|sdk_type| payments_grpc::ThreeDsSdkType::foreign_from(sdk_type).into()),
+        sdk_server_signed_content: None,
+        device_details: sdk
+            .device_details
+            .map(|details| payments_grpc::ThreeDsSdkDeviceDetails {
+                device_type: details.device_type,
+                device_brand: details.device_brand,
+                device_os: details.device_os,
+                device_display: details.device_display,
+            }),
+    })
+}
+
+impl ForeignFrom<api_models::payments::SdkType> for payments_grpc::ThreeDsSdkType {
+    fn foreign_from(sdk_type: api_models::payments::SdkType) -> Self {
+        match sdk_type {
+            api_models::payments::SdkType::DefaultSdk => Self::Default,
+            api_models::payments::SdkType::SplitSdk => Self::Split,
+            api_models::payments::SdkType::LimitedSdk => Self::Limited,
+            api_models::payments::SdkType::BrowserSdk => Self::Browser,
+            api_models::payments::SdkType::ShellSdk => Self::Shell,
+        }
+    }
+}
+
+/// EMVCo `threeDSRequestorChallengeInd`, in the same precedence as the direct Netcetera
+/// connector: `force_3ds_challenge` maps to "challenge mandated" (04), otherwise a TRA
+/// exemption maps to "no challenge, TRA performed" (05); absent leaves the decision to the DS/ACS.
+fn ucs_challenge_indicator(
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+) -> Option<i32> {
+    if force_3ds_challenge.unwrap_or(false) {
+        Some(payments_grpc::ThreeDsRequestorChallengeIndicator::ChallengeMandated)
+    } else if psd2_sca_exemption_type
+        == Some(common_enums::ScaExemptionType::TransactionRiskAnalysis)
+    {
+        Some(payments_grpc::ThreeDsRequestorChallengeIndicator::NoChallengeTra)
+    } else {
+        None
+    }
+    .map(i32::from)
+}
+
+/// Builds the typed 3DS `merchant_details` (UCS proto field 17) from the connector's own
+/// metadata (`ThreeDsMetaData`). This is the only place UCS reads merchant identity for
+/// EMVCo's `merchant.mcc` / `merchant.merchantCountryCode` / `merchant.merchantName`.
+fn ucs_merchant_details(
+    connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<payments_grpc::MerchantDetails> {
+    let three_ds_meta = connector_meta_data.and_then(|meta| {
+        serde_json::from_value::<
+            router_request_types::unified_authentication_service::ThreeDsMetaData,
+        >(meta.clone().expose())
+        .ok()
+    })?;
+
+    let merchant_category_code = three_ds_meta
+        .merchant_category_code
+        .as_ref()
+        .and_then(|mcc| mcc.get_code().ok())
+        .map(u32::from);
+    let merchant_country_code = three_ds_meta
+        .merchant_country_code
+        .as_ref()
+        .and_then(|country| ucs_country_alpha2_from_numeric(&country.get_country_code()));
+
+    (merchant_category_code.is_some()
+        || merchant_country_code.is_some()
+        || three_ds_meta.merchant_name.is_some())
+    .then_some(payments_grpc::MerchantDetails {
+        merchant_id: None,
+        merchant_category_code,
+        merchant_name: three_ds_meta.merchant_name,
+        merchant_country_code,
+    })
+}
+
+/// Converts an ISO 3166-1 numeric country code (e.g. "840"), the form 3DS merchant and acquirer
+/// config store it in, into the UCS `CountryAlpha2` enum value.
+fn ucs_country_alpha2_from_numeric(numeric: &str) -> Option<i32> {
+    numeric
+        .parse::<u32>()
+        .ok()
+        .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+        .map(common_enums::Country::to_alpha2)
+        .and_then(|alpha2| payments_grpc::CountryAlpha2::from_str_name(&alpha2.to_string()))
+        .map(i32::from)
+}
+
+/// Acquirer details for the external 3DS authenticate (AReq) call, sourced from the PSP
+/// connector's metadata or the profile's card-network acquirer config.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AcquirerMetadata {
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
+}
+
+impl AcquirerMetadata {
+    pub fn is_empty(&self) -> bool {
+        self.acquirer_bin.is_none()
+            && self.acquirer_merchant_id.is_none()
+            && self.acquirer_country_code.is_none()
+    }
+}
+
+impl ForeignFrom<AcquirerMetadata> for payments_grpc::AcquirerDetails {
+    fn foreign_from(acquirer: AcquirerMetadata) -> Self {
+        Self {
+            acquirer_bin: acquirer.acquirer_bin,
+            acquirer_merchant_id: acquirer.acquirer_merchant_id,
+            acquirer_country_code: acquirer
+                .acquirer_country_code
+                .as_deref()
+                .and_then(ucs_country_alpha2_from_numeric),
+        }
+    }
 }
 
 // External-vault-proxy variant of the Authenticate request builder above: the proxy has no
@@ -1690,15 +1853,7 @@ impl
             }),
             address: Some(address),
             authentication_data,
-            metadata: Some(
-                serde_json::to_string(&UcsAuthenticateMetadata {
-                    device_channel: router_data.request.device_channel.clone(),
-                    sdk_information: router_data.request.sdk_information.clone(),
-                })
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
-                .attach_printable("Failed to serialize device_channel/sdk_information metadata")?
-                .into(),
-            ),
+            metadata: None,
             return_url: None,
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             state: None,
@@ -1720,6 +1875,19 @@ impl
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
+            // 3DS fields (UCS proto 17-24). UCS reads 3DS values only from these; the
+            // `metadata` / `connector_feature_data` passthroughs never carry them.
+            merchant_details: ucs_merchant_details(router_data.connector_meta_data.as_ref()),
+            acquirer_details: None,
+            device_channel: ucs_device_channel(router_data.request.device_channel.clone()),
+            sdk_information: ucs_sdk_information(router_data.request.sdk_information.clone()),
+            three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
+                router_data.request.force_3ds_challenge,
+                router_data.psd2_sca_exemption_type,
+            ),
+            three_ds_requestor_authentication_indicator: None,
+            message_category: None,
+            threeds_completion_indicator: None,
         })
     }
 }
@@ -6449,6 +6617,11 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .authentication_type
                 .map(payments_grpc::DecoupledAuthenticationType::foreign_from)
                 .map(i32::from),
+            // Response-side 3DS fields; the router does not send these on a request.
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
@@ -6484,6 +6657,11 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            // Response-side 3DS fields; the router does not send these on a request.
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
@@ -6674,6 +6852,10 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             network_params: _,
             created_at: _,
             authentication_type: _,
+            acs_signed_content,
+            acs_reference_number,
+            directory_server_id,
+            scheme_id,
         } = response;
         let message_extension = message_extension
             .map(|value| {
@@ -6710,6 +6892,10 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             challenge_cancel,
             challenge_code_reason,
             message_extension,
+            acs_signed_content: acs_signed_content.map(|content| content.expose()),
+            acs_reference_number,
+            directory_server_id,
+            scheme_id,
         })
     }
 }
@@ -9496,8 +9682,13 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            destination_currency: None,
             vendor_account_details: None,
+            destination_currency: Some(
+                payments_grpc::Currency::foreign_try_from(
+                    router_data.request.destination_currency,
+                )?
+                .into(),
+            ),
         })
     }
 }
@@ -9533,7 +9724,12 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
-            customer: None,
+            customer: router_data
+                .request
+                .customer_details
+                .as_ref()
+                .map(payments_grpc::Customer::foreign_try_from)
+                .transpose()?,
             payout_method_type: router_data
                 .payment_method_type
                 .map(|pmt| payments_grpc::PaymentMethodType::foreign_from(pmt).into()),
@@ -10895,6 +11091,8 @@ impl
         let merchant_details = Some(payments_grpc::MerchantDetails {
             merchant_id: Some(router_data.merchant_id.get_string_repr().to_owned()),
             merchant_category_code: None,
+            merchant_name: None,
+            merchant_country_code: None,
         });
 
         // Same converter the payments flows use, so the provider gets the full

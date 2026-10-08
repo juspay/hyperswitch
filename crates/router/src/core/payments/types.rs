@@ -397,6 +397,10 @@ impl ForeignTryFrom<&router_request_types::authentication::AuthenticationStore>
                 challenge_cancel: authentication.challenge_cancel.clone(),
                 challenge_code_reason: authentication.challenge_code_reason.clone(),
                 message_extension: authentication.message_extension.clone(),
+                acs_signed_content: authentication.acs_signed_content.clone(),
+                acs_reference_number: authentication.acs_reference_number.clone(),
+                directory_server_id: authentication.directory_server_id.clone(),
+                scheme_id: None,
             })
         } else {
             Err(errors::ApiErrorResponse::PaymentAuthenticationFailed { data: None }.into())

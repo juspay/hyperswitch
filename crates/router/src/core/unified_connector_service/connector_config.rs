@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_data::ConnectorAuthType;
+use hyperswitch_domain_models::{
+    router_data::ConnectorAuthType,
+    router_request_types::unified_authentication_service::ThreeDsMetaData,
+};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
@@ -834,6 +837,19 @@ pub enum ConnectorSpecificConfig {
         juspay_encryption_public_key: Secret<String>,
         response_decryption_private_key: Secret<String>,
         card_sync_key_id: String,
+    },
+    /// Netcetera 3DS Server configuration. The mTLS certificate pair is optional because an
+    /// external vault may terminate TLS on the outbound route instead.
+    Netcetera {
+        certificate: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        merchant_configuration_id: Option<String>,
+        three_ds_requestor_id: Option<String>,
+        three_ds_requestor_name: Option<String>,
+        // UCS's `NetceteraConfig` proto message requires this field even when unset; omitting
+        // it here fails deserialization on the UCS side and silently falls back to legacy
+        // headers, dropping merchant_configuration_id/three_ds_requestor_id/name too.
+        base_url: Option<String>,
     },
     /// Santander payout connector configuration
     Santander {
@@ -2095,6 +2111,36 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
+            Connector::Netcetera => {
+                let three_ds_meta = metadata
+                    .map(|m| {
+                        serde_json::from_value::<ThreeDsMetaData>(m.clone())
+                            .map_err(|_| err("Invalid Netcetera metadata format"))
+                    })
+                    .transpose()?;
+                // The certificate pair is absent when an external vault terminates TLS.
+                let (certificate, private_key) = match auth {
+                    ConnectorAuthType::CertificateAuth {
+                        certificate,
+                        private_key,
+                    } => (Some(certificate.clone()), Some(private_key.clone())),
+                    _ => (None, None),
+                };
+                Ok(Self::Netcetera {
+                    certificate,
+                    private_key,
+                    merchant_configuration_id: three_ds_meta
+                        .as_ref()
+                        .and_then(|m| m.merchant_configuration_id.clone()),
+                    three_ds_requestor_id: three_ds_meta
+                        .as_ref()
+                        .and_then(|m| m.three_ds_requestor_id.clone()),
+                    three_ds_requestor_name: three_ds_meta
+                        .as_ref()
+                        .and_then(|m| m.three_ds_requestor_name.clone()),
+                    base_url: None,
+                })
+            }
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
                     certificate,
