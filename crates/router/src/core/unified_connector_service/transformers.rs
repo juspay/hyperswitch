@@ -719,8 +719,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_try_from)
-                .transpose()?
+                .map(payments_grpc::MitCategory::foreign_from)
                 .map(|mit_category| mit_category.into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
@@ -2501,8 +2500,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_try_from)
-                .transpose()?
+                .map(payments_grpc::MitCategory::foreign_from)
                 .map(|mit_category| mit_category.into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
@@ -2933,8 +2931,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_try_from)
-                .transpose()?
+                .map(payments_grpc::MitCategory::foreign_from)
                 .map(|mit_category| mit_category.into()),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
@@ -3281,8 +3278,7 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_try_from)
-                .transpose()?
+                .map(payments_grpc::MitCategory::foreign_from)
                 .map(|mit_category| mit_category.into()),
             shipping_cost: router_data
                 .request
@@ -6510,6 +6506,9 @@ impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus>
                 Ok(Self::ChallengeRequiredDecoupledAuthentication)
             }
             payments_grpc::TransactionStatus::InformationOnly => Ok(Self::InformationOnly),
+            payments_grpc::TransactionStatus::SecurePaymentConfirmationRequired => {
+                Ok(Self::SecurePaymentConfirmationRequired)
+            }
             payments_grpc::TransactionStatus::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into())
             }
@@ -7844,24 +7843,15 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
     }
 }
 
-impl transformers::ForeignTryFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(mit_category: common_enums::MitCategory) -> Result<Self, Self::Error> {
-        Ok(match mit_category {
+impl ForeignFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
+    fn foreign_from(mit_category: common_enums::MitCategory) -> Self {
+        match mit_category {
             common_enums::MitCategory::Installment => Self::InstallmentMit,
             common_enums::MitCategory::Recurring => Self::RecurringMit,
-            // Preserve the distinction until the UCS protocol supports subscriptions.
-            // Never downgrade a subscription to RecurringMit: RAFT would send "R".
-            common_enums::MitCategory::Subscription => {
-                return Err(UnifiedConnectorServiceError::NotImplemented(
-                    "mit_category=subscription requires UCS subscription support".to_string(),
-                )
-                .into());
-            }
-            common_enums::MitCategory::Resubmission => Self::ResubmissionMit,
+            common_enums::MitCategory::Subscription => Self::UnscheduledMit,
+            common_enums::MitCategory::Resubmission => Self::SubscriptionMit,
             common_enums::MitCategory::Unscheduled => Self::UnscheduledMit,
-        })
+        }
     }
 }
 
