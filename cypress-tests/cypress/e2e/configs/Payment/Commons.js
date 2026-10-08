@@ -95,6 +95,30 @@ export const cardCreditEnabled = [
   },
 ];
 
+export const cardCreditDebitEnabled = [
+  {
+    payment_method: "card",
+    payment_method_types: [
+      {
+        payment_method_type: "credit",
+        card_networks: ["Visa", "Mastercard"],
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "debit",
+        card_networks: ["Visa", "Mastercard"],
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
 export const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -4431,6 +4455,41 @@ export const connectorDetails = {
         },
       },
     }),
+    // Auto fallback capture method flow (PR #14452) - default 501 placeholders.
+    // Connector-specific overrides live in the respective connector config files.
+    AutoFallbackCaptureMethod: {
+      PaymentIntent: getCustomExchange({
+        Request: {
+          currency: "USD",
+        },
+      }),
+      ConfirmDisabled: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_type: "credit",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          authentication_type: "no_three_ds",
+        },
+      }),
+      ConfirmEnabled: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_type: "credit",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          authentication_type: "no_three_ds",
+        },
+      }),
+      PmListEnabled: {
+        payment_methods: [],
+      },
+      PmListDisabled: {
+        payment_methods: [],
+      },
+    },
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
