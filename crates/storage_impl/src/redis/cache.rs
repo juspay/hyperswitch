@@ -723,21 +723,8 @@ impl Cache {
     // re-triggers the caller's fallback. The serde bound is deliberately
     // unconditional: a type that cannot be captured cannot be cached.
     //
-    // `on_miss = None`: a read the recording never made returns "not in cache"
-    // instead of fail-stopping the request. A candidate under review adds cache
-    // reads — that is what a change is — and the fail-stop default answers the
-    // first one by unwinding, which actix does not contain, so the worker writes
-    // nothing and the whole correlation scores as a 500, censoring every other
-    // signal in it.
-    //
-    // `None` is honest in a way a fabricated value never is: it asserts only that
-    // this key is not in the process-local cache, which IS true under replay —
-    // the moka is cold and correlation-namespaced — and the caller's fallback to
-    // Redis or the database is separately instrumented. Egress keeps the
-    // fail-stop default, because synthesizing an http/grpc response would claim a
-    // third party answered when none did. The miss is not swallowed: the lookup
-    // emits its blocking novel-call divergence before `on_miss` is reached, so
-    // the divergence localises instead of taking the request down with it.
+    // `on_miss = None`: an unrecorded read reports "not in cache", which is true of
+    // the cold replay cache, so the caller falls back instead of fail-stopping.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -771,12 +758,7 @@ impl Cache {
 
     /// Check if a key exists in cache
     //
-    // Deja: `on_miss = false` is the same honest absence `get_val` answers with,
-    // in this method's own type. `get_val`'s declaration covers only reads made
-    // THROUGH `get_val`, so without this a candidate that adds an existence check
-    // fail-stops the correlation exactly as an added read did before that
-    // declaration existed. As there, the lookup emits its blocking novel-call
-    // divergence before `on_miss` is reached.
+    // Deja: `on_miss = false` is the same "not in cache" answer as `get_val`.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(

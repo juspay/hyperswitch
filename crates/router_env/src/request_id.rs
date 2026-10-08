@@ -148,9 +148,7 @@ pub(crate) mod boundary {
             return None;
         }
         let recorded = hook.try_replay_with_context(deja::ReplayLookup {
-            // This boundary offers no miss value, so the caller falls through to
-            // minting a fresh uuid — a value the recording never held, and which
-            // the rest of the correlation is then keyed on.
+            // No miss value: on a miss the caller mints a fresh, unrecorded uuid.
             boundary: "id_generation",
             trait_name: "router_env::request_id",
             method_name,

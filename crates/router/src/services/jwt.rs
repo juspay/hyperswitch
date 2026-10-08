@@ -14,10 +14,7 @@ use crate::{configs::Settings, core::errors::UserErrors};
     deja::id(
         component = "router::jwt",
         operation = "generate_exp",
-        // The typed codec, so the seam keeps the uniform contract: a recording
-        // that threw replays as the same typed throw. It captures the
-        // `UserErrors` this function already returns, rather than an outcome
-        // type invented to suit the tape.
+        // Typed codec so a recorded `UserErrors` replays as the same error.
         codec = deja::codec::ResultCodec::<std::time::Duration, UserErrors>,
         on_miss = {
             use common_utils::synth_shape::Synthesize as _;
@@ -78,9 +75,7 @@ mod deja_tests {
         <Seam as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// What the recorder writes for an `Err` is what the fixture below assumes:
-    /// a `kind` naming the variant. Captured rather than typed out, so the
-    /// fixture cannot describe a shape the codec never produces.
+    /// A captured `Err` records its variant as `kind` and reconstructs as it.
     #[test]
     fn a_captured_error_round_trips_as_its_variant() {
         let (recorded, is_error) = capture(&Err(UserErrors::InternalServerError.into()));
@@ -99,10 +94,7 @@ mod deja_tests {
         ));
     }
 
-    /// A recorded failure rebuilds as the variant it was recorded as. The two
-    /// refusals are what make that mean anything: the Ok-only codec's sentinel
-    /// names no variant, and a `kind` naming none must refuse rather than pick
-    /// one.
+    /// A recorded error rebuilds as its variant; a sentinel or unknown `kind` refuses.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
@@ -136,11 +128,8 @@ mod deja_tests {
         );
     }
 
-    /// The test above names the codec directly, so swapping the attribute back
-    /// to `ResultOkCodec` would leave it green. The selection is not observable
-    /// at run time -- the macro expands it into the generated body -- so it is
-    /// read out of the declaration, whose slice ends at the attribute's own
-    /// `)]`.
+    /// The seam's attribute selects the typed codec; read from source, since the
+    /// macro expansion is not observable at run time.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("jwt.rs");

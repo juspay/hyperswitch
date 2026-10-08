@@ -2279,10 +2279,7 @@ pub fn perform_dynamic_routing_volume_split(
         component = "router::routing",
         operation = "volume_split_index",
         on_miss = { use common_utils::synth_shape::Synthesize as _; Ok(__deja_miss.index(weights.len()).unwrap_or(0)) },
-        // The typed codec, so the seam keeps the uniform contract: a recording
-        // that threw replays as the same typed throw. It captures the
-        // `RoutingError` this function already returns, rather than an outcome
-        // type invented to suit the tape.
+        // Typed codec so a recorded `RoutingError` replays as the same error.
         codec = deja::codec::ResultCodec::<usize, errors::RoutingError>,
     )
 )]
@@ -4626,10 +4623,7 @@ mod deja_tests {
         <Seam as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// The `Ok` envelope is the half of this seam's shape that an existing
-    /// recording at this address holds, so it is pinned here: `type_name` is a
-    /// function of the codec's `T`, and moving `T` would make those recordings
-    /// unreadable.
+    /// Pins the `Ok` envelope existing recordings hold, including `type_name`.
     #[test]
     fn the_ok_envelope_records_a_bare_index() {
         let (recorded, is_error) = capture(&Ok(3));
@@ -4648,9 +4642,7 @@ mod deja_tests {
         );
     }
 
-    /// What the recorder writes for an `Err` is what the fixture below assumes:
-    /// a `kind` naming the variant. Captured rather than typed out, so the
-    /// fixture cannot describe a shape the codec never produces.
+    /// A captured `Err` records its variant as `kind` and reconstructs as it.
     #[test]
     fn a_captured_error_round_trips_as_its_variant() {
         let (recorded, is_error) = capture(&Err(errors::RoutingError::VolumeSplitFailed.into()));
@@ -4669,9 +4661,7 @@ mod deja_tests {
         ));
     }
 
-    /// The Ok-only codec wrote an `Err` as a `Debug` sentinel naming no variant,
-    /// so it must still refuse; and the third case is what makes the first mean
-    /// anything, since a `kind` that went unread would accept any string.
+    /// A recorded error rebuilds as its variant; a sentinel or unknown `kind` refuses.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
@@ -4708,10 +4698,8 @@ mod deja_tests {
         );
     }
 
-    /// The tests above name the codec directly, so reverting the attribute to
-    /// `ResultOkCodec` would leave them green. The selection is not observable at
-    /// run time -- the macro expands it into the generated body -- so it is read
-    /// out of the declaration, whose slice ends at the attribute's own `)]`.
+    /// The seam's attribute selects the typed codec; read from source, since the
+    /// macro expansion is not observable at run time.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("routing.rs");

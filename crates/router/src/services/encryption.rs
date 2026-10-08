@@ -43,9 +43,7 @@ pub enum EncryptionAlgorithm {
     deja::id(
         component = "router::services::encryption",
         operation = "encrypt_jwe",
-        // `ResultCodec`, not `ResultOkCodec`: a recorded failure here is a real
-        // outcome the caller handles by degrading (it logs and returns Ok), so a
-        // replay that fail-stopped on it would turn a soft degrade into a hard stop.
+        // A recorded failure is one the caller degrades on, so it replays as one.
         codec = deja::codec::ResultCodec::<String, errors::EncryptionError>,
         // The payload is a digest, never the bytes: the JWS arriving here
         // carries the cleartext card object base64-encoded, which must not
@@ -56,19 +54,9 @@ pub enum EncryptionAlgorithm {
             "payload_blake3": blake3::hash(payload).to_hex().as_str(),
             "payload_len": payload.len(),
         }),
-        // The load-bearing part of a JWE's shape is that it has FIVE
-        // dot-separated base64url segments: `mk_add_card_request_hs` and
-        // `mk_vault_req` index into all five, and a shorter value is rejected as
-        // `RequestEncodingFailed` before it reaches the wire. So the five are
-        // built here in josekit's order, with the real protected header — the one
-        // segment whose content is known — and opaque bytes for the rest, whose
-        // lengths are what the configured `RSA_OAEP_256` encrypter produces.
-        // Nothing in this process reads them, and the locker that could is itself
-        // a Substitute boundary that never runs on replay.
-        //
-        // One draw, carved: a shape method is a function of the miss, so three
-        // `byte_vec` calls at one site return values that are prefixes of one
-        // another.
+        // Callers index all five JWE segments, so build them in josekit's order:
+        // the real protected header, then opaque bytes at the encrypter's lengths,
+        // carved from one draw so the segments are not prefixes of each other.
         on_miss = {
             use base64::Engine as _;
             use common_utils::synth_shape::Synthesize as _;

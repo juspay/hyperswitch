@@ -29,7 +29,6 @@ impl deja::codec::OwnedReplayCodec for ResponseCodec {
         let sized = response.content_length().is_some();
         let (body, read) = match response.bytes().await {
             Ok(bytes) => {
-                // Shares the buffer, no copy.
                 let read = opensearch_reqwest::Body::from(bytes.clone());
                 let body = if sized {
                     opensearch_reqwest::Body::from(bytes)
@@ -140,14 +139,11 @@ fn rebuilt(
 }
 
 impl OpenSearchQueryBuilder {
-    /// Args for the OpenSearch seam: everything about the query that a replay
-    /// must reproduce, and nothing that moves on its own. Built field by field
-    /// rather than from `Debug` on the builder, whose `HashSet` renders in a
-    /// per-process random order.
+    /// Args for the OpenSearch seam, built field by field because the builder's `Debug`
+    /// renders a `HashSet` in random order.
     pub fn deja_args(&self) -> Value {
         let mut auth_scope = self.build_auth_array();
-        // Auth fragments are alternatives and the IDs inside `terms` are sets.
-        // Canonicalize only the identity projection; leave the executable query alone.
+        // Auth fragments and the IDs in `terms` are sets: sort the args, not the query.
         for fragment in &mut auth_scope {
             for field in [
                 "merchant_id.keyword",
@@ -217,13 +213,7 @@ mod tests {
         )
     }
 
-    /// The missed-query body has to deserialize into BOTH shapes this seam's
-    /// callers ask for, because the arm cannot tell which one asked: the real
-    /// call moves the query builder, so the miss arm cannot read `query_type`.
-    /// Asserted rather than argued — the arm rests on two serde properties in
-    /// `api_models` that someone could remove without ever reading this file,
-    /// and a body the caller cannot deserialize turns a survivable miss back
-    /// into a failed request.
+    /// The missed-query body deserializes for both callers; the miss arm cannot tell which asked.
     #[test]
     fn the_missed_query_body_deserializes_for_both_callers() {
         let body = super::ResponseCodec::missed_query_body();
@@ -288,9 +278,7 @@ mod tests {
         assert_ne!(expected, different.deja_args());
     }
 
-    /// The tests above call the helpers; this one reads the seam's own
-    /// declaration, so naming a different `on_miss` body or `args` expression on
-    /// `execute` fails here rather than passing unnoticed.
+    /// The seam on `execute` names the `on_miss` and `args` helpers the tests above exercise.
     #[test]
     fn the_seam_names_the_helpers_the_tests_exercise() {
         let source = include_str!("../opensearch.rs");

@@ -94,9 +94,8 @@ pub(super) fn response_result(
                     Err(reason) => json!({ "captured": false, "read_error": reason }),
                 },
             }),
-            // The typed error, not its report text: callers branch on the
-            // variant (a timeout becomes a 504), and the report's location
-            // attachments differ per build, so only the variant can be rebuilt.
+            // The typed variant, not report text: callers branch on it, and report
+            // text varies per build.
             Err(error) => json!({
                 "version": 1,
                 "result": "Err",
@@ -135,7 +134,6 @@ impl deja::codec::OwnedReplayCodec for HttpResponseCodec {
         let sized = response.content_length().is_some();
         let (body, read) = match response.bytes().await {
             Ok(bytes) => {
-                // Shares the buffer, no copy.
                 let body =
                     if sized {
                         reqwest::Body::from(bytes.clone())
@@ -178,9 +176,7 @@ impl deja::codec::OwnedReplayCodec for HttpResponseCodec {
     }
 }
 
-/// Rebuilds a recorded `send_request` error from its typed variant. A recording
-/// made before errors were typed holds only report text and has no `result` tag,
-/// so it reaches `replay_response`, which refuses it, and the call fail-stops.
+/// Rebuilds a recorded `send_request` error from its typed variant.
 fn replay_error(recorded: &serde_json::Value) -> Option<error_stack::Report<HttpClientError>> {
     let kind = recorded.get("kind")?.clone();
     serde_json::from_value::<HttpClientError>(kind)
@@ -192,9 +188,7 @@ fn replay_error(recorded: &serde_json::Value) -> Option<error_stack::Report<Http
 /// a replayed connector call is served from the tape and touches no network.
 ///
 /// Headers are read as an array of values per name; any other shape is a
-/// recording that predates that capture and had already lost its repeats, so it
-/// is refused rather than replayed. Refusing means returning `None`, which deja
-/// fail-stops with a named reason — it is not a fallback to a live call.
+/// recording that lost its repeats, so it returns `None`, which fail-stops the call.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
@@ -542,9 +536,7 @@ mod tests {
         }
     }
 
-    /// A recorded error rebuilds as the same variant, and capturing the rebuilt
-    /// error reproduces the recording. Covers the payload variant and the
-    /// timeout variant callers turn into a 504.
+    /// A recorded error rebuilds as the same variant and re-records identically.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         for error in [
@@ -568,8 +560,7 @@ mod tests {
         }
     }
 
-    /// The error a real recording holds for an unreachable internal service, in
-    /// the typed form this codec now writes.
+    /// A typed DNS failure, as recorded for an unreachable internal service, rebuilds.
     #[test]
     fn the_recorded_dns_failure_rebuilds() {
         let recorded = serde_json::json!({
@@ -586,8 +577,7 @@ mod tests {
         ));
     }
 
-    /// An error recorded before errors were typed holds only report text. It
-    /// has no variant to rebuild, so it still refuses, which fail-stops the call.
+    /// A text-only error recording has no variant to rebuild, so it is refused.
     #[test]
     fn a_text_only_error_recording_is_refused() {
         let recorded = serde_json::json!({

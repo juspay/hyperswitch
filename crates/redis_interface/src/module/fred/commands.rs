@@ -1467,12 +1467,8 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::DeleteHashFieldFailed)
     }
 
-    // Deja: no `on_miss`, where the redis-rs twin has one.
-    // `check_for_constraints` compares `KeySet(n)` against the number of
-    // members it sent — equal proceeds, anything else reports a collision — so
-    // an arm has to answer with that count, and the twin reads it off the
-    // `members` its identity carries. This identity carries the key alone, so
-    // arming the site means moving its identity. A miss stops.
+    // Deja: no `on_miss`, unlike the redis-rs twin. A miss arm must answer with the
+    // member count, and this identity carries only the key.
     #[cfg_attr(
         feature = "deja",
         deja::redis(
@@ -2138,9 +2134,8 @@ impl super::RedisConnectionWithContext {
         Ok(id_str)
     }
 
-    // Capture XCLAIM's concrete Redis wire reply at the boundary, then let the
-    // public method perform fred's generic `FromRedis` conversion. This keeps
-    // replay lossless without adding serde bounds to callers' `R`.
+    // Records the raw wire reply; the public method converts it to `R`, so callers
+    // need no serde bounds.
     #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(
@@ -2235,8 +2230,7 @@ impl super::RedisConnectionWithContext {
         }
     }
 
-    // EVAL has the same generic-reply shape: record the concrete Redis wire
-    // value and reconstruct `T` through fred only after substitution.
+    // Records the raw wire reply; `T` is converted through fred after substitution.
     #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
     #[deja::redis(

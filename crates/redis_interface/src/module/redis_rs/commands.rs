@@ -1172,31 +1172,15 @@ impl super::RedisConnectionWithContext {
     #[cfg_attr(
         feature = "deja",
         deja::redis(
-            // Substitute, where every other seam in this file inherits the preset's
-            // Execute. The reply IS the verdict here, not a side effect:
-            // `check_for_constraints` reads the added-member count as the collision
-            // answer, so re-running SADD would also mutate the set it is testing.
-            // Execute could not answer it correctly in any case — this key is
-            // write-only at this seam, and a replay store is seeded from what the
-            // recording READ, so the set starts empty, every member looks new, and
-            // the count always says "no collision" even against a recording that
-            // captured one.
+            // Substitute: the reply is the collision verdict, and the seeded replay set
+            // starts empty, so re-running SADD would always report "no collision".
             replay = Substitute,
             operation = "sadd",
             codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
             state_write = key.tenant_aware_key(&self.redis_conn),
             args = {
-                // The reply is the count of NEWLY added members, so `members` decides
-                // the value and belongs in the identity: two `insert_reverse_lookup`
-                // calls in one function reach this on the same key with different
-                // members, and without this they differ only by occurrence.
-                //
-                // Sorted, because SADD is a set while `to_redis_args` preserves the
-                // producing Vec's order and `args_hash` is order-DEPENDENT for arrays,
-                // so an unsorted capture would move the key whenever
-                // `unique_constraints()` reorders. Not a digest — these are identifier
-                // strings already elsewhere on the tape, and a digest hides WHICH
-                // member differed.
+                // `members` decides the reply, so it is part of the identity. Sorted
+                // because SADD is a set but `args_hash` is order-dependent for arrays.
                 let mut members_captured: Vec<String> =
                     redis::ToRedisArgs::to_redis_args(&members)
                         .into_iter()
@@ -1209,18 +1193,9 @@ impl super::RedisConnectionWithContext {
                     "members": members_captured,
                 })
             },
-            // A novel SADD answers with "every member was newly added", counted
-            // off the `members` array in the identity above, so the value is a
-            // function of the miss and re-uses no binding the real call moves.
-            //
-            // This is NOT the honest absence `Cache::get_val` answers a miss
-            // with: the replay Redis is SEEDED, not cold, so "no member was
-            // already present" is a claim, wrong exactly when the candidate's
-            // novel insert would have collided with something already in the
-            // set — the one thing a replay cannot know. Bounded, and worth it:
-            // the INSERT this pre-check guards is itself a seamed boundary, and
-            // the lookup has already emitted the novel-call divergence, where
-            // the alternative is a fail-stop that blinds every call after it.
+            // A novel SADD answers "every member was new". This can hide a real
+            // collision, but the miss is already reported as a divergence and a
+            // fail-stop would blind every later call.
             on_miss = Ok(SaddReply::KeySet(
                 __deja_miss
                     .args

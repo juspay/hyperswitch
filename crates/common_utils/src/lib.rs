@@ -176,14 +176,8 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::date_as_yyyymmddthhmmssmmmz",
-            // Without a codec the capture mode is Debug, whose replay hit arm is
-            // unconditionally a reconstruction failure, so every replayed call
-            // fail-stops including the Ok path. `SerdeCodec` cannot serve because
-            // `time::error::Format` is foreign and not `Serialize`; `ResultOkCodec`
-            // needs only `Debug` of the error. The error side carries no typed
-            // outcome because the `Err` arm is unreachable: `ISO_CONFIG` names only
-            // components a `PrimitiveDateTime` always carries, and `time` is built
-            // without `large-dates`.
+            // `time::error::Format` is not `Serialize`, so capture the Ok side only;
+            // the `Err` arm is unreachable for this constant config.
             codec = ResultOkCodec,
             on_miss = {
                 const SYNTH_ISO: EncodedConfig = Config::DEFAULT
@@ -218,10 +212,7 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_rfc7231_http_date",
-            // As above: no codec meant Debug capture, and a Substitute site whose hit
-            // arm always fails is a site that cannot be replayed at all. The `Err`
-            // arm is unreachable for the same reason: a constant description naming
-            // only components an `OffsetDateTime` always carries.
+            // Ok-only, as above; the `Err` arm is unreachable for a constant format.
             codec = ResultOkCodec,
             on_miss = __deja_miss.instant_at_second_resolution().format(
                 &time::macros::format_description!(

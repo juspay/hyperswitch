@@ -92,10 +92,7 @@ macro_rules! unimplemented_payment_method {
 
 macro_rules! impl_error_type {
     ($name: ident, $arg: tt) => {
-        // Serialize/Deserialize so a `ResultCodec<T, Self>` can carry a recorded
-        // failure back on replay. Without them the only option is `ResultOkCodec`,
-        // which records the error as a sentinel and makes every replayed failure a
-        // fail-stop rather than the failure it was.
+        // Serializable so `ResultCodec` can replay a recorded failure as itself.
         #[derive(Debug, serde::Serialize, serde::Deserialize)]
         pub struct $name;
 
@@ -278,9 +275,7 @@ pub enum GooglePayDecryptionError {
     InvalidGatewayMerchantId,
 }
 
-// Serialize/Deserialize under `deja` so a seam returning `RoutingError` can
-// capture the error it threw and replay it as the same variant. Every payload is
-// a `String` or a `u16`, so this adds no shape of its own.
+// Serializable under `deja` so a recorded error replays as the same variant.
 #[derive(Debug, Clone, thiserror::Error)]
 #[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum RoutingError {

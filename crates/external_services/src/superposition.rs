@@ -90,11 +90,8 @@ mod deja_boundary {
         input: deja::__private::ReconstructInput<'_>,
     ) -> deja::__private::Reconstructed<CustomResult<T, SuperpositionError>> {
         use deja::__private::{ReconstructInput, Reconstructed};
-        // The miss arm hands the caller an error it already knows how to
-        // survive: the DB->default fallback runs and the correlation continues.
-        // `Synthesized` rather than `Value` keeps that legible on the scorecard,
-        // so the miss is still scored. The message is built from the miss ALONE:
-        // same query, same value, every run.
+        // A miss returns an error the caller survives via its DB/default fallback.
+        // `Synthesized` keeps the miss scored; the message depends only on the miss.
         let recorded = match input {
             ReconstructInput::Hit(recorded) => recorded,
             ReconstructInput::Miss(miss) => {
@@ -222,8 +219,6 @@ mod deja_boundary {
             correlation,
         );
 
-        // One seam for both arms: `reconstruct` answers a hit and a miss, so no
-        // declared policy can drift from what the miss arm returns.
         deja::__private::dispatch_async(
             observation,
             move || args,

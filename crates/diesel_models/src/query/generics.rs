@@ -185,10 +185,8 @@ impl<T> DejaQueryResult for T {}
 //     shadow-compare), the read-only scalar `count` `Substitute`s (a count is
 //     a non-seedable scalar; re-running it against a partially-seeded schema
 //     would only measure seed incompleteness).
-// `sql` is the statement and `inputs.binds` its bind values as plain JSON (see
-// `capture`). `debug_sql`, diesel's rendering with its binds, only feeds the
-// result producer's read keys and never reaches the args. All three are
-// `Secret`-wrapped so their `Debug` output is redacted.
+// Args are `sql` plus `inputs.binds` as JSON; `debug_sql` only feeds read keys.
+// All three are `Secret`-wrapped so `Debug` redacts them.
 // Feature-off, every executor is a plain async fn passthrough.
 
 /// Under `deja`, a row-returning query future resolves to the result paired
@@ -200,13 +198,7 @@ type Captured<T> = (T, Option<Vec<deja::db::WireRow>>);
 #[cfg(not(feature = "deja"))]
 type Captured<T> = T;
 
-/// The statement and the bind values a db boundary records as its args: the
-/// binds as plain JSON rather than as `debug_query`'s rendering, which printed a
-/// map in its iteration order. Feature-off nothing is captured.
-///
-/// Gated: a seam attribute's args cost nothing when nothing observes, but body
-/// work is paid on every query, and the boundary reads these only on the same
-/// predicate.
+/// The statement and its binds as JSON, captured only while observation is active.
 #[cfg(feature = "deja")]
 fn capture<Q: QueryFragment<Pg>>(query: &Q) -> (String, serde_json::Value) {
     if deja::__private::observation_is_active() {
@@ -630,10 +622,8 @@ where
     mapped
 }
 
-// Deja: no `on_miss`. The honest arm is to run the count against the replay
-// schema, and a miss arm cannot — the reconstruct closure is sync and this is
-// async. What is left is to synthesize a number nobody counted, which a caller
-// branches on as fact. A miss stops.
+// Deja: no `on_miss`. A sync miss arm cannot run the count, and a made-up count
+// would be treated as fact.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -1293,7 +1283,7 @@ mod capture_tests {
     use super::{capture, capture_statement};
     use crate::schema::payment_attempt;
 
-    /// `pre_routing_results` as an iterated HashMap serializes it, in `order`.
+    /// A routing document with its keys inserted in `order`.
     fn routing(order: [&str; 2]) -> serde_json::Value {
         let mut inner = serde_json::Map::new();
         for method in order {
@@ -1310,8 +1300,7 @@ mod capture_tests {
             .set(payment_attempt::straight_through_algorithm.eq(Some(value)))
     }
 
-    /// One routing map, written twice with its keys in two orders: its debug
-    /// rendering differs where the capture records one.
+    /// The same map in two key orders captures identical args.
     #[test]
     fn one_routing_map_in_two_orders_records_the_same_args() {
         let (forward, backward) = (
@@ -1335,8 +1324,7 @@ mod capture_tests {
         );
     }
 
-    /// Nothing observes in a test binary, so the gate answers the feature-off
-    /// pair for a query the capture would otherwise have read.
+    /// With nothing observing, `capture` returns the empty pair.
     #[test]
     fn an_unobserved_query_builds_no_statement() {
         let query = update(routing(["ach", "przelewy24"]));
@@ -1356,8 +1344,7 @@ mod neutral_error_tests {
         (result, None)
     }
 
-    // Only a unique violation left the store untouched; any other failure, and
-    // any success, must run again on replay.
+    /// Only a unique violation is state-neutral.
     #[test]
     fn only_a_unique_violation_is_state_neutral() {
         assert!(is_unique_violation(&out(Err(report!(

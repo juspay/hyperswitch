@@ -4818,8 +4818,7 @@ mod generate_mandate_tests {
 
     use super::generate_mandate;
 
-    // An insert that leaves `created_at` unset takes the database's DEFAULT,
-    // a clock read the application never sees; the row must carry its own.
+    /// A new mandate sets its own `created_at` rather than taking the database default.
     #[test]
     fn a_new_mandate_carries_its_own_created_at() {
         let mandate_data = MandateData {
@@ -4859,7 +4858,6 @@ mod generate_mandate_tests {
 
         let after = common_utils::date_time::now();
 
-        // Read from the clock at build time, not a constant or a default.
         let created_at = mandate.created_at.expect("created_at is set");
         assert!(before <= created_at && created_at <= after, "{created_at}");
     }

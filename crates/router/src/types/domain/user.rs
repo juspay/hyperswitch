@@ -1404,14 +1404,8 @@ impl RecoveryCodes {
             component = "router::user",
             operation = "generate_recovery_codes",
             codec = SerdeCodec,
-            // `RECOVERY_CODES_COUNT` codes, each two halves of
-            // `RECOVERY_CODE_LENGTH / 2` alphanumeric characters joined by a
-            // hyphen — the shape the body builds out of two
-            // `generate_random_alphanumeric_string` calls, and the shape
-            // `get_hashed` then stores and a user later types back. The words
-            // come from one carved draw so the eight codes differ from each
-            // other; the hyphen stays here because it is this caller's format
-            // and not a property of the draw.
+            // Codes shaped as the body builds them: two alphanumeric halves joined
+            // by a hyphen. One carved draw keeps the codes distinct.
             on_miss = {
                 use common_utils::synth_shape::Synthesize as _;
                 __deja_miss

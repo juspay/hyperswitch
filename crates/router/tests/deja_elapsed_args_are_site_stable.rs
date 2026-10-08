@@ -1,13 +1,7 @@
-// Integration test: assertions use panic!/expect(); allow the production-code
-// lints the v2 clippy profile denies.
+// Integration test: allow the panic/expect lints the v2 clippy profile denies.
 #![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
-//! The elapsed seam must address itself by its site, not by the clock it reads.
-//!
-//! Its parameter is an `Instant`, which is not serialisable and so is captured
-//! through `Debug` — a pair of process-relative counters that differs on every
-//! call. Left in the arguments it re-keys the site each time, the lookup never
-//! hits, the miss arm answers every call, and the reading lands in the outgoing
-//! request. That is the class the seam exists to remove.
+//! The elapsed seam addresses itself by site: its `Instant` argument, captured
+//! via `Debug`, differs per call and would re-key the site every time.
 //!
 //! Own test binary: `set_global_runtime_hook` is a one-shot `OnceLock`.
 #![cfg(feature = "deja")]
@@ -50,9 +44,6 @@ fn two_readings_from_different_instants_share_one_address() {
         .iter()
         .filter(|call| call.method_name == "millis_since")
         .collect();
-    // Destructured rather than indexed: the count is checked by the pattern, so
-    // a run that observed the wrong number of calls says so instead of the
-    // assertions below reading a slot that is not there.
     let [first, second] = readings.as_slice() else {
         panic!(
             "both readings must be observed, or the assertions below are vacuous; got {}",

@@ -183,13 +183,8 @@ where
 // Deja: the one seam every keymanager operation crosses. Substituted on replay
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
-// A miss answers with a transport failure, not with a response body. Nothing on
-// the Ok side is constructible — `R` is only `DeserializeOwned` — and a
-// synthesized ciphertext would claim the key manager answered when it did not,
-// which every decryption downstream would consume as recorded truth. The Err
-// side is the true statement: no key manager answered a call the recording never
-// made. Both callers already handle it, which is what makes this safe at the
-// generic seam rather than needing one arm per typed call site.
+// A miss answers with a transport failure: no response body can be synthesized
+// honestly, and callers already handle the error.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(

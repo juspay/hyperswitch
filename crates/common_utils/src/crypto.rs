@@ -72,19 +72,10 @@ impl NonceSequence {
         deja::id(
             component = "common_utils::crypto",
             operation = "GcmAes256::nonce",
-            // Ok-only. The typed codec wants `Result<T, Report<E>>` with a
-            // serializable error, and `ring::error::Unspecified` is foreign on
-            // both counts, so capturing it would mean moving this signature. It
-            // would also tell a caller nothing, since `encode_message` flattens
-            // it to `EncodingFailed`. The `Err` arm is reachable — `getrandom`
-            // fails under seccomp or with no `/dev` — but that fails every
-            // encrypt in the process, and a recorded one fail-stops replay.
+            // Ok-only: `ring::error::Unspecified` is not serializable, and a
+            // recorded `Err` fail-stops replay.
             codec = ResultOkCodec,
-            // The live body fills only the low 96 bits of the u128, which is
-            // what `current` reads back, so the nonce is built from exactly
-            // `NONCE_LEN` bytes. Content is never inspected: AES-GCM takes it as
-            // opaque input and the real cipher still runs over the candidate's
-            // own plaintext, so a changed message still diverges.
+            // Exactly `NONCE_LEN` bytes, matching the low 96 bits `current` reads.
             on_miss = Ok(Self::from_bytes(deja::synth::bytes::<{ aead::NONCE_LEN }>(
                 &__deja_miss,
             ))),
@@ -668,9 +659,7 @@ impl EncodeMessage for TripleDesEde3CBC {
     deja::id(
         component = "common_utils::crypto",
         operation = "generate_cryptographically_secure_random_string",
-        // `rand::distributions::Alphanumeric` draws from the same 62 symbols as
-        // `consts::ALPHABETS` — `[A-Za-z0-9]` — and returns exactly `length` of
-        // them, which is what `alphanumeric` promises.
+        // Same `[A-Za-z0-9]` alphabet as `rand::distributions::Alphanumeric`.
         on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.alphanumeric(length) },
         codec = SerdeCodec,
     )
@@ -939,9 +928,7 @@ pub fn extract_rsa_public_key_components(
     deja::id(
         component = "common_utils::crypto",
         operation = "secure_random_bytes",
-        // `length` bytes, because `SeamedOsRng` turns a short vector into zeros
-        // via `try_into` and the `rsa` crate reads this through that RNG. As with
-        // the nonce, the primitive still runs over the candidate's own input.
+        // Exactly `length` bytes: `SeamedOsRng` turns a short vector into zeros.
         on_miss = { use crate::synth_shape::Synthesize as _; __deja_miss.byte_vec(length) },
         codec = SerdeCodec,
     )
@@ -1485,12 +1472,8 @@ mod crypto_tests {
 
 #[cfg(all(test, feature = "deja"))]
 mod deja_tests {
-    /// The seam captures the `Ok` side only, which is what an unreachable `Err`
-    /// arm asks for. The choice is not observable at run time -- the macro
-    /// expands it into the generated body -- so it is read out of the
-    /// declaration, whose slice ends at the attribute's own `)]`, and pinned
-    /// here so that widening the capture stays a decision somebody takes about
-    /// the production signature rather than one the codec asks for.
+    /// The nonce seam captures the `Ok` side only, read from its declaration
+    /// since the codec is not observable at run time.
     #[test]
     fn the_seam_selects_the_ok_only_codec() {
         let source = include_str!("crypto.rs");

@@ -6256,22 +6256,9 @@ fn token_digest(token: &str) -> String {
 /// business-profile and decrypt calls that follow it, which are exactly the
 /// calls a replay exists to compare.
 ///
-/// A token absent from the recording is decoded with expiry validation turned
-/// off, and with nothing else changed. This seam exists because the clock
-/// `jsonwebtoken` reads is one deja cannot reach, so removing that clock is
-/// removing the entropy rather than reintroducing it. The arm decodes with the
-/// real `DecodingKey::from_secret` and turns off `validate_exp` and nothing
-/// else; `required_spec_claims` is untouched, so a malformed or wrongly-signed
-/// token still comes back `Invalid`.
-///
-/// It does mean an expired token is accepted. Only the Substitute-miss branch of
-/// a replay lookup reaches this arm — there is no lookup while recording and
-/// none when deja is inactive — so no deployment serving real traffic can take
-/// the path.
-///
-/// The value is not derived from `__deja_miss`, as every other arm here is, and
-/// does not need to be: the rule exists so two misses cannot synthesize one
-/// value, and this value is a function of the token the miss is addressed by.
+/// A token absent from the recording is decoded with only `validate_exp` off;
+/// the signature and required claims are still checked. Only a replay miss
+/// reaches this arm, so live traffic never accepts an expired token.
 ///
 /// `pub` only so the boundary can be exercised from an integration test:
 /// `set_global_runtime_hook` is a one-shot `OnceLock`, so record and replay

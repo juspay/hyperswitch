@@ -32,24 +32,10 @@ pub fn generate_password_hash(
     deja::id(
         component = "router::user::password",
         operation = "generate_password_hash",
-        // The typed codec, so the seam keeps the uniform contract: a recording
-        // that threw replays as the same typed throw. It captures the
-        // `UserErrors` this function already returns, rather than an outcome
-        // type invented to suit the tape.
+        // Typed codec so a recorded `UserErrors` replays as the same error.
         codec = deja::codec::ResultCodec::<String, UserErrors>,
-        // The value has to be a PHC string, because `is_correct_password` hands
-        // it to `PasswordHash::new` and a string that does not parse there comes
-        // back as `InternalServerError`. So the hash is produced by Argon2 itself
-        // over derived material and a derived salt, rather than assembled by
-        // hand: the format is then correct by construction and cannot drift from
-        // whatever `Argon2::default()` encodes.
-        //
-        // What it costs: the hash is of the derived material and not of the
-        // password, so a later `is_correct_password` answers `Ok(false)` —
-        // "wrong password", which the caller already handles — rather than
-        // erroring, and the divergence is attributable to this substitution.
-        // The salt and the material use different domain separators, so neither
-        // is a projection of the other.
+        // `is_correct_password` must parse a PHC string, so real Argon2 hashes
+        // derived material; a later check then answers `Ok(false)`, not an error.
         on_miss = {
             use common_utils::synth_shape::Synthesize as _;
             let material = __deja_miss.alphanumeric(32);
@@ -61,8 +47,7 @@ pub fn generate_password_hash(
                 },
             ) {
                 Ok(hash) => Ok(hash),
-                // Unreachable for a well-formed 16-byte salt; here so the arm is
-                // total, the same way the uuid shape falls back to nil.
+                // Unreachable for a well-formed 16-byte salt; keeps the arm total.
                 Err(_) => Err(UserErrors::InternalServerError.into()),
             }
         },
@@ -165,9 +150,7 @@ mod deja_tests {
         <Seam as deja::codec::ReplayCodec>::reconstruct(recorded)
     }
 
-    /// What the recorder writes for an `Err` is what the fixture below assumes:
-    /// a `kind` naming the variant. Captured rather than typed out, so the
-    /// fixture cannot describe a shape the codec never produces.
+    /// A captured `Err` records its variant as `kind` and reconstructs as it.
     #[test]
     fn a_captured_error_round_trips_as_its_variant() {
         let (recorded, is_error) = capture(&Err(UserErrors::InternalServerError.into()));
@@ -186,10 +169,7 @@ mod deja_tests {
         ));
     }
 
-    /// A recorded failure rebuilds as the variant it was recorded as. The two
-    /// refusals are what make that mean anything: the Ok-only codec's sentinel
-    /// names no variant, and a `kind` naming none must refuse rather than pick
-    /// one.
+    /// A recorded error rebuilds as its variant; a sentinel or unknown `kind` refuses.
     #[test]
     fn a_recorded_error_rebuilds_its_variant() {
         let rebuilt = reconstruct(serde_json::json!({
@@ -223,11 +203,8 @@ mod deja_tests {
         );
     }
 
-    /// The test above names the codec directly, so swapping the attribute back
-    /// to `ResultOkCodec` would leave it green. The selection is not observable
-    /// at run time -- the macro expands it into the generated body -- so it is
-    /// read out of the declaration, whose slice ends at the attribute's own
-    /// `)]`.
+    /// The seam's attribute selects the typed codec; read from source, since the
+    /// macro expansion is not observable at run time.
     #[test]
     fn the_seam_selects_the_typed_result_codec() {
         let source = include_str!("password.rs");
