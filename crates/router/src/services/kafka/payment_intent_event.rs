@@ -138,6 +138,9 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub routing_algorithm_id: Option<&'a id_type::RoutingId>,
     pub payment_link_config: Option<&'a PaymentLinkConfigRequestForPayments>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
+    /// Revenue recovery A/B routing algorithm assigned to this invoice, lifted out of
+    /// `feature_metadata` so that the sessionizer can pass it on as its own field.
+    pub revenue_recovery_algorithm_type: Option<common_enums::RevenueRecoveryABAlgorithm>,
 
     #[serde(flatten)]
     infra_values: Option<Value>,
@@ -268,6 +271,11 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             recipient_details: _,
         } = intent;
 
+        let revenue_recovery_algorithm_type = feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .and_then(|recovery_metadata| recovery_metadata.revenue_recovery_ab_routing);
+
         Self {
             payment_id: id,
             merchant_id,
@@ -343,6 +351,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             payment_link_config: payment_link_config.as_ref(),
             infra_values,
             enable_partial_authorization: Some(*enable_partial_authorization),
+            revenue_recovery_algorithm_type,
         }
     }
 }
