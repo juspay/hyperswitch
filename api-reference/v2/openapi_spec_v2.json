@@ -4874,6 +4874,18 @@
         "summary": "Revenue Recovery - Create",
         "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice,\nand take the requested recovery action on it, such as scheduling a retry for a failed payment\nor recording an externally successful payment.",
         "operationId": "Create a Revenue Recovery Payment",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Unique identifier of the business profile under which the invoice is processed. The billing and payment merchant connector accounts in the request must belong to this profile.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4927,7 +4939,7 @@
         },
         "responses": {
           "200": {
-            "description": "Revenue Recovery Payment Recorded Successfully",
+            "description": "Revenue Recovery Transaction Recorded Successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -31070,7 +31082,7 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "The invoice identifier from the merchant's billing system that this transaction is\nbeing recorded against. This ensures idempotency when the same invoice is reported\nmore than once. Mandatory.",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
             "example": "invoice_mbabizu24mvu3mela5njyh",
             "maxLength": 30,
             "minLength": 30
@@ -31085,16 +31097,16 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Billing connector id to update the invoices.",
+            "description": "Unique identifier of the billing connector account, such as Chargebee, that manages the\ninvoice. The account must belong to the profile passed in the `X-Profile-Id` header.",
             "example": "mca_1234567890"
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Payments connector id to update the invoices.",
+            "description": "Unique identifier of the payment connector account, such as Stripe, on which the\ntransaction was processed. The account must belong to the profile passed in the\n`X-Profile-Id` header.",
             "example": "mca_1234567890"
           },
           "transaction_status": {
-            "$ref": "#/components/schemas/AttemptStatus"
+            "$ref": "#/components/schemas/RecoveryTransactionStatus"
           },
           "billing": {
             "allOf": [
@@ -31110,7 +31122,7 @@
           "transaction_created_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The time at which the transaction was created at the payment connector. Mandatory.",
+            "description": "The time at which the transaction was created at the payment connector.",
             "example": "2022-09-10T10:11:12Z"
           },
           "payment_method_type": {
@@ -31118,18 +31130,18 @@
           },
           "connector_customer_id": {
             "type": "string",
-            "description": "customer id at payment connector for which mandate is attached.",
+            "description": "Unique identifier of the customer at the payment connector, with which the payment\nmethod token used for the transaction is associated.",
             "example": "cust_12345"
           },
           "billing_started_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Invoice billing started at billing connector end. Mandatory.",
+            "description": "Invoice billing started at billing connector's end.",
             "example": "2022-09-10T10:11:12Z"
           },
           "connector_transaction_id": {
             "type": "string",
-            "description": "A unique identifier for the transaction provided by the payment connector. Mandatory.",
+            "description": "Unique identifier of the transaction at the payment connector. It is used to identify\nthe transaction among the attempts recorded for the invoice.",
             "example": "993672945374576J"
           },
           "payment_method_data": {
@@ -31161,7 +31173,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Unique identifier for the payment.",
+            "description": "Unique identifier of the invoice in Hyperswitch against which the transaction has been recorded.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -31176,13 +31188,23 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
           }
         }
+      },
+      "RecoveryTransactionStatus": {
+        "type": "string",
+        "description": "Status of the transaction reported.",
+        "enum": [
+          "charged",
+          "failure",
+          "partial_charged",
+          "partial_charged_and_chargeable"
+        ]
       },
       "RecurringDetails": {
         "oneOf": [

@@ -30,6 +30,13 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 #[utoipa::path(
     post,
     path = "/v2/payments/recovery",
+    params(
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Unique identifier of the business profile under which the invoice is processed. The billing and payment merchant connector accounts in the request must belong to this profile.",
+            example = "pro_abcdefghijklmnop"
+        ),
+    ),
     request_body(
         content = RecoveryPaymentsCreate,
         examples(
@@ -79,7 +86,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
     responses(
         (
             status = 200,
-            description = "Revenue Recovery Payment Recorded Successfully",
+            description = "Revenue Recovery Transaction Recorded Successfully",
             body = RecoveryPaymentsResponse,
             example = json!({
                 "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",

@@ -86,7 +86,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .get_string_repr()
                 .to_string(),
             transaction_created_at: Some(data.transaction_created_at),
-            status: data.transaction_status,
+            status: data.transaction_status.into(),
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: data.payment_method_sub_type,
             network_advice_code: data
