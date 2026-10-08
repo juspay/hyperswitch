@@ -104,13 +104,15 @@ async fn prepare_pm_update_from_psync(
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
             bank_redirect_update,
         ) => {
-            payment_methods::cards::prepare_bank_redirect_payment_method_update(
-                state,
-                platform,
-                payment_method,
-                merchant_connector_id,
-                bank_redirect_update.clone(),
-                business_profile,
+            Box::pin(
+                payment_methods::cards::prepare_bank_redirect_payment_method_update(
+                    state,
+                    platform,
+                    payment_method,
+                    merchant_connector_id,
+                    bank_redirect_update.clone(),
+                    business_profile,
+                ),
             )
             .await
         }
@@ -351,6 +353,15 @@ where
                         network_transaction_id: network_transaction_id
                             .map(hyperswitch_masking::Secret::new),
                         acknowledgement_status,
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone()
+                            .map(|acceptance| acceptance.expose().parse_value("CustomerAcceptance"))
+                            .transpose()
+                            .change_context(
+                                ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
+                            )?,
                     };
 
                     // #3 - Execute the modular payment-method update call if there is something to be updated
@@ -1282,7 +1293,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.connector_returned_payment_method_details.as_ref(),
         );
 
-        update_payment_method_status_ntid_and_additional_data(
+        Box::pin(update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
             payment_data,
@@ -1295,7 +1306,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             payment_data.payment_attempt.merchant_connector_id.clone(),
             platform,
             business_profile,
-        )
+        ))
         .await?;
         Ok(())
     }
@@ -2366,7 +2377,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             payment_data,
         )?;
 
-        update_payment_method_status_ntid_and_additional_data(
+        Box::pin(update_payment_method_status_ntid_and_additional_data(
             state,
             platform.get_provider().get_key_store(),
             payment_data,
@@ -2379,7 +2390,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             None,
             platform,
             _business_profile,
-        )
+        ))
         .await?;
         Ok(())
     }
@@ -3673,14 +3684,14 @@ async fn update_payment_method_status_ntid_and_additional_data<F: Clone>(
 
         let additional_data_update =
             if let Some(payment_method_data_update) = additional_payment_method_data {
-                prepare_pm_update_from_psync(
+                Box::pin(prepare_pm_update_from_psync(
                     state,
                     platform,
                     &payment_method,
                     merchant_connector_id,
                     payment_method_data_update,
                     business_profile,
-                )
+                ))
                 .await
                 .inspect_err(|error| {
                     logger::error!(
@@ -4596,6 +4607,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         network_transaction_id: payments_response
                             .get_network_transaction_id()
                             .map(hyperswitch_masking::Secret::new),
+                        customer_acceptance: payment_data
+                            .payment_attempt
+                            .customer_acceptance
+                            .clone()
+                            .map(|acceptance| acceptance.expose()),
                         acknowledgement_status: router_data
                             .status
                             .should_update_payment_method()

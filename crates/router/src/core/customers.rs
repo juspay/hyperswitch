@@ -14,6 +14,9 @@ use common_utils::{
     validation::validate_phone_country_code,
 };
 use error_stack::{report, ResultExt};
+pub use hyperswitch_domain_models::customer::{
+    is_customer_id_in_global_format, is_global_customer_id_format,
+};
 use hyperswitch_domain_models::{
     payment_methods as payment_methods_domain, type_encryption::AsyncLift,
 };
@@ -23,6 +26,8 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method_by_record;
+#[cfg(any(feature = "v1", feature = "v2"))]
+use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "v2")]
 use crate::core::utils::create_encrypted_data;
 #[cfg(feature = "v1")]
@@ -47,26 +52,6 @@ use crate::{
 };
 
 pub const REDACTED: &str = "Redacted";
-
-pub fn is_global_customer_id_format(input: &str) -> bool {
-    let mut parts = input.split('_');
-    match (parts.next(), parts.next(), parts.next(), parts.next()) {
-        (Some(cell_id), Some(entity), Some(uuid), None) => {
-            !cell_id.is_empty()
-                && cell_id
-                    .chars()
-                    .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
-                && entity == "cus"
-                && uuid.len() == 32
-                && uuid::Uuid::parse_str(uuid).is_ok()
-        }
-        _ => false,
-    }
-}
-
-pub fn is_customer_id_in_global_format(customer_id: &id_type::CustomerId) -> bool {
-    is_global_customer_id_format(customer_id.get_string_repr())
-}
 
 #[instrument(skip(state))]
 pub async fn create_customer(
@@ -517,6 +502,9 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
                 self.merchant_id,
                 self.key_store,
                 self.merchant_account.storage_scheme,
+                // This checks whether `cus` itself already exists as a `customer_id`, so it must
+                // not be resolved through the `merchant_reference_id` fallback.
+                false,
             )
             .await
         {
@@ -590,12 +578,21 @@ pub async fn retrieve_customer(
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
 
+    let use_merchant_reference_id =
+        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            &state,
+            &provider,
+            Some(&customer_id),
+        )
+        .await;
+
     let response = db
         .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
             &customer_id,
             provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
         .switch()?
@@ -665,6 +662,28 @@ pub async fn retrieve_customer_by_merchant_reference_id(
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
+}
+
+/// Whether a customer identifier supplied in the request should be interpreted as the
+/// merchant's customer reference instead of a Hyperswitch global customer ID.
+#[cfg(feature = "v2")]
+pub async fn should_use_merchant_reference_id_as_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    api_key_type: common_enums::ApiKeyType,
+    customer_id: &id_type::CustomerId,
+) -> bool {
+    match api_key_type {
+        common_enums::ApiKeyType::Internal => false,
+        common_enums::ApiKeyType::External => {
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                state,
+                provider,
+                Some(customer_id),
+            )
+            .await
+        }
+    }
 }
 
 #[instrument(skip(state))]
@@ -965,12 +984,20 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+        let use_merchant_reference_id =
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                state,
+                provider,
+                Some(self),
+            )
+            .await;
         let customer_orig = db
             .find_customer_by_customer_id_merchant_id(
                 self,
                 provider.get_account().get_id(),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
+                use_merchant_reference_id,
             )
             .await
             .switch()?;
@@ -1189,10 +1216,20 @@ pub async fn update_customer(
     //Add this in update call if customer can be updated anywhere else
 
     #[cfg(feature = "v1")]
+    let use_merchant_reference_id =
+        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            &state,
+            &provider,
+            Some(&update_customer.customer_id),
+        )
+        .await;
+
+    #[cfg(feature = "v1")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         merchant_reference_id: &update_customer.customer_id,
         merchant_account: provider.get_account(),
         key_store: provider.get_key_store(),
+        use_merchant_reference_id_lookup: use_merchant_reference_id,
     };
 
     #[cfg(feature = "v2")]
@@ -1331,6 +1368,7 @@ struct VerifyIdForUpdateCustomer<'a> {
     merchant_reference_id: &'a id_type::CustomerId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
+    use_merchant_reference_id_lookup: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -1354,6 +1392,7 @@ impl VerifyIdForUpdateCustomer<'_> {
                 self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
+                self.use_merchant_reference_id_lookup,
             )
             .await
             .switch()?;
@@ -1725,6 +1764,7 @@ async fn sync_connector_customer_for_migrated_customer(
             merchant_id,
             provider.get_key_store(),
             storage_scheme,
+            false,
         )
         .await
         .switch()?;

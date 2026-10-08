@@ -584,6 +584,10 @@ pub struct PaymentMethodUpdate {
     /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// Customer's acceptance for vaulting a payment method.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
 #[cfg(feature = "v2")]
@@ -3625,6 +3629,11 @@ pub struct PaymentMethodResponseItem {
         value_type = String
     )]
     pub customer_id: id_type::GlobalCustomerId,
+
+    /// The customer reference supplied in the request path when merchant reference ID lookup is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, example = "merchant_customer_123")]
+    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
