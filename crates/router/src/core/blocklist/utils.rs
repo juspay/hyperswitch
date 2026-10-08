@@ -618,28 +618,6 @@ pub async fn check_blocklist(
     Ok(block_reason)
 }
 
-/// Whether the merchant has enabled the blocklist guard (the same config key that gates
-/// confirm-time and eligibility-time blocklist checks). Defaults to `false` when unset.
-pub async fn is_blocklist_guard_enabled(
-    state: &SessionState,
-    processor_merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    match state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, "false".to_string())
-        .await
-    {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-        Err(error) => {
-            if !error.current_context().is_db_not_found() {
-                logger::error!(?error, "Error fetching blocklist guard enabled config");
-            }
-            false
-        }
-    }
-}
-
 /// Returns the subset of `bins` (card ISINs / extended BINs) that have an active BIN
 /// blocklist entry (BIN kinds only — PAN-fingerprint entries cannot be matched from a
 /// BIN) for this merchant/profile, resolved with a single batched query. Merchant-wide
@@ -740,14 +718,7 @@ where
         }
         .into())
     } else {
-        let (fingerprint_id, fingerprint_type) = generate_payment_fingerprint(
-            state,
-            processor.get_account(),
-            payment_data.payment_method_data.clone(),
-        )
-        .await?;
-        payment_data.payment_attempt.fingerprint_id = fingerprint_id;
-        payment_data.payment_attempt.fingerprint_type = fingerprint_type;
+        populate_payment_fingerprint(state, processor.get_account(), payment_data).await;
         Ok(false)
     }
 }
@@ -931,9 +902,6 @@ pub async fn generate_payment_fingerprint(
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<(Option<String>, Option<common_enums::FingerprintType>), errors::ApiErrorResponse>
 {
-    let merchant_fingerprint_secret =
-        get_merchant_fingerprint_secret(state, merchant_account).await?;
-
     let fingerprint_source = payment_method_data
         .as_ref()
         .and_then(|payment_method_data| match payment_method_data {
@@ -968,29 +936,56 @@ pub async fn generate_payment_fingerprint(
             _ => None,
         });
 
-    let (fingerprint_id, fingerprint_type) = match fingerprint_source {
+    match fingerprint_source {
         Some((pan, fingerprint_type)) => {
+            let merchant_fingerprint_secret =
+                get_merchant_fingerprint_secret(state, merchant_account).await?;
+
             let fingerprint_id = generate_fingerprint_and_get_id(
                 state,
                 StrongSecret::new(pan.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
             )
             .await
-            .attach_printable("error in pm fingerprint creation")
-            .inspect_err(|error| logger::error!(?error))
-            .ok()
-            .map(|payload| payload.fingerprint_id);
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error in pm fingerprint creation")?
+            .fingerprint_id;
 
-            let fingerprint_type = fingerprint_id.is_some().then_some(fingerprint_type);
-            (fingerprint_id, fingerprint_type)
+            Ok((Some(fingerprint_id), Some(fingerprint_type)))
         }
         None => {
             logger::debug!("payment method does not contain a PAN that can be fingerprinted");
-            (None, None)
+            Ok((None, None))
         }
-    };
+    }
+}
 
-    Ok((fingerprint_id, fingerprint_type))
+/// Best-effort fingerprinting: a failure is logged and the payment proceeds without a fingerprint.
+pub async fn populate_payment_fingerprint<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+) where
+    F: Send + Clone,
+{
+    match generate_payment_fingerprint(
+        state,
+        merchant_account,
+        payment_data.payment_method_data.clone(),
+    )
+    .await
+    {
+        Ok((fingerprint_id, fingerprint_type)) => {
+            payment_data.payment_attempt.fingerprint_id = fingerprint_id;
+            payment_data.payment_attempt.fingerprint_type = fingerprint_type;
+        }
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "failed to generate payment fingerprint, proceeding without it"
+            );
+        }
+    }
 }
 
 #[cfg(test)]

@@ -320,7 +320,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
             | api_enums::PaymentMethodType::Neteller
-            | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
+            | api_enums::PaymentMethodType::Bluecode
+            | api_enums::PaymentMethodType::Wero => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -2588,10 +2589,18 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     }
 }
 
-impl ForeignFrom<api_models::admin::WebhookDetails>
+impl ForeignFrom<api_models::admin::WebhookDetailsRequest>
     for diesel_models::business_profile::WebhookDetails
 {
-    fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+    fn foreign_from(item: api_models::admin::WebhookDetailsRequest) -> Self {
+        api_models::admin::WebhookDetailsResponse::from(item).foreign_into()
+    }
+}
+
+impl ForeignFrom<api_models::admin::WebhookDetailsResponse>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetailsResponse) -> Self {
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2612,7 +2621,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
 }
 
 impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
-    for api_models::admin::WebhookDetails
+    for api_models::admin::WebhookDetailsResponse
 {
     fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
         Self {
