@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr, sync::LazyLock};
+use std::{str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutVendorAccountDetails};
