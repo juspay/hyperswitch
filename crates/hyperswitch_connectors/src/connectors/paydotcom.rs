@@ -292,6 +292,7 @@ impl api::ConnectorSpecifications for Paydotcom {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                ..
             } => {
                 auth_type.is_three_ds()
                     && request_data.is_card()
@@ -320,6 +321,7 @@ impl api::ConnectorSpecifications for Paydotcom {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                ..
             } => {
                 auth_type.is_three_ds()
                     && request_data.is_card()

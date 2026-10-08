@@ -12666,6 +12666,14 @@
             ],
             "nullable": true
           },
+          "paypal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "worldpayxml": {
             "allOf": [
               {
@@ -28340,6 +28348,18 @@
           "capture",
           "authorize"
         ]
+      },
+      "PaypalConnectorMetadata": {
+        "type": "object",
+        "description": "PayPal-specific metadata supplied with a payment request.",
+        "properties": {
+          "PAYPAL-CLIENT-METADATA-ID": {
+            "type": "string",
+            "description": "FraudNet session identifier sent in the PAYPAL-CLIENT-METADATA-ID request header.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "PaypalFlow": {
         "type": "string",

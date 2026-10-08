@@ -44,6 +44,8 @@ pub enum CurrentFlowInfo {
         auth_type: storage_enums::AuthenticationType,
         /// The payment authorize request data
         request_data: Box<PaymentsAuthorizeData>,
+        /// The metadata configured at the merchant connector account level
+        connector_meta_data: Option<pii::SecretSerdeValue>,
     },
     /// CompleteAuthorize flow information
     CompleteAuthorize {

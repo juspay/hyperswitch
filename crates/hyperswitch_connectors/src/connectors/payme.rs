@@ -1463,6 +1463,7 @@ impl ConnectorSpecifications for Payme {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
+                ..
             } => matches!(
                 &request_data.payment_method_data,
                 PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)
