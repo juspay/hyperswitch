@@ -321,6 +321,9 @@ pub struct PaymentMethodMigrateResponse {
 
     //network transaction id migration status
     pub network_transaction_id_migrated: Option<bool>,
+
+    //set when the payment method was already migrated by an earlier request
+    pub already_migrated: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -4259,6 +4262,8 @@ pub struct PaymentMethodMigrationResponse {
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_id_migrated: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub already_migrated: Option<bool>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -4379,6 +4384,7 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 network_token_migrated: res.network_token_migrated,
                 connector_mandate_details_migrated: res.connector_mandate_details_migrated,
                 network_transaction_id_migrated: res.network_transaction_id_migrated,
+                already_migrated: res.already_migrated,
             },
             Err(e) => Self {
                 customer_id: Some(record.customer_id.clone()),

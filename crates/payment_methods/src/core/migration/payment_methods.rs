@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+use std::collections::BTreeSet;
 use std::str::FromStr;
 
 #[cfg(feature = "v2")]
@@ -8,17 +10,21 @@ use api_models::payment_methods as pm_api;
 #[cfg(feature = "v1")]
 use common_utils::{
     consts,
-    crypto::Encryptable,
+    crypto::{Encryptable, HmacSha256, SignMessage},
     ext_traits::{AsyncExt, ConfigExt},
     generate_id,
 };
 use common_utils::{errors::CustomResult, id_type};
+#[cfg(feature = "v1")]
+use error_stack::report;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors, platform,
 };
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
+use hyperswitch_domain_models::{
+    ext_traits::OptionExt, merchant_key_store::MerchantKeyStore, payment_methods as domain_pm,
+};
 use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Secret;
@@ -142,7 +148,11 @@ pub async fn migrate_payment_method(
 
     let pm_id = payment_method_response.payment_method_id.clone();
 
-    let network_token = req.network_token.clone();
+    // A payment method migrated by an earlier request is returned as it is
+    let network_token = req
+        .network_token
+        .clone()
+        .filter(|_| migration_status.already_migrated != Some(true));
 
     let network_token_migrated = match network_token {
         Some(nt_detail) => {
@@ -182,6 +192,7 @@ pub async fn migrate_payment_method(
             network_token_migrated: migrate_status.network_token_migrated,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,
+            already_migrated: migrate_status.already_migrated,
         },
     ))
 }
@@ -264,6 +275,7 @@ async fn migrate_payment_method_data(
             network_token_migrated: None,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,
+            already_migrated: None,
         },
     ))
 }
@@ -661,6 +673,28 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             })
             .transpose()?
     };
+
+    // The id is derived from the connector mandate id, so migrating the same payment method
+    // again returns the existing record instead of creating a duplicate
+    let derived_payment_method_id = derive_migration_payment_method_id(
+        provider.get_key_store(),
+        &merchant_id,
+        &customer_id,
+        req.connector_mandate_details.as_ref(),
+    )?;
+
+    if let Some(payment_method_id) = &derived_payment_method_id {
+        if let Some(existing_payment_method) =
+            find_migrated_payment_method(db, provider, &customer_id, payment_method_id).await?
+        {
+            logger::debug!("Payment method already migrated, skipping insert");
+            migration_status.already_migrated(true);
+            return Ok(ApplicationResponse::Json(
+                pm_api::PaymentMethodResponse::foreign_from((None, existing_payment_method)),
+            ));
+        }
+    }
+
     let key_manager_state = &state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
@@ -703,7 +737,9 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_id = derived_payment_method_id
+        .clone()
+        .unwrap_or_else(|| generate_id(consts::ID_LENGTH, "pm"));
 
     let current_time = common_utils::date_time::now();
 
@@ -759,9 +795,29 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             provider.get_account().storage_scheme,
             None,
         )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method in db")?;
+        .await;
+
+    let response = match response {
+        Ok(response) => response,
+        // A concurrent request migrated the same payment method first
+        Err(err)
+            if derived_payment_method_id.is_some()
+                && err.current_context().is_db_unique_violation() =>
+        {
+            let existing_payment_method =
+                find_migrated_payment_method(db, provider, &customer_id, &payment_method_id)
+                    .await?
+                    .get_required_value("payment_method")
+                    .attach_printable("Migrated payment method not found after unique violation")?;
+            migration_status.already_migrated(true);
+            return Ok(ApplicationResponse::Json(
+                pm_api::PaymentMethodResponse::foreign_from((None, existing_payment_method)),
+            ));
+        }
+        Err(err) => Err(err)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payment method in db")?,
+    };
 
     logger::debug!("Payment method inserted in db");
 
@@ -795,6 +851,104 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     Ok(ApplicationResponse::Json(
         pm_api::PaymentMethodResponse::foreign_from((Some(card), response)),
     ))
+}
+
+/// Domain separation for the key used to derive migrated payment method ids. Bump the version
+/// if the derivation changes, so new ids cannot collide with ids derived by the old scheme.
+#[cfg(feature = "v1")]
+const MIGRATION_PAYMENT_METHOD_ID_CONTEXT: &[u8] =
+    b"hyperswitch:payment_method_migration:payment_method_id:v1";
+
+/// Derives a stable payment method id from the merchant, customer and connector mandate ids.
+///
+/// The id is an HMAC keyed by a key derived from the merchant key store, so it cannot be
+/// computed outside Hyperswitch. Returns `None` when there is no connector mandate id to
+/// derive from, in which case the caller falls back to a random id.
+#[cfg(feature = "v1")]
+fn derive_migration_payment_method_id(
+    key_store: &MerchantKeyStore,
+    merchant_id: &id_type::MerchantId,
+    customer_id: &id_type::CustomerId,
+    connector_mandate_details: Option<&pm_api::CommonMandateReference>,
+) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+    let connector_mandate_ids: BTreeSet<&str> = connector_mandate_details
+        .and_then(|details| details.payments.as_ref())
+        .map(|payments| {
+            payments
+                .0
+                .values()
+                .map(|record| record.connector_mandate_id.trim())
+                .filter(|connector_mandate_id| !connector_mandate_id.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if connector_mandate_ids.is_empty() {
+        return Ok(None);
+    }
+
+    let derived_key = HmacSha256
+        .sign_message(
+            key_store.key.get_inner().peek(),
+            MIGRATION_PAYMENT_METHOD_ID_CONTEXT,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to derive the migration payment method id key")?;
+
+    let message = [
+        merchant_id.get_string_repr(),
+        customer_id.get_string_repr(),
+        &connector_mandate_ids
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(","),
+    ]
+    .join("\n");
+
+    let digest = HmacSha256
+        .sign_message(&derived_key, message.as_bytes())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to derive the migration payment method id")?;
+
+    let encoded_digest: String = digest
+        .iter()
+        .take(16)
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+
+    Ok(Some(format!("pm_{encoded_digest}")))
+}
+
+/// Looks up a payment method by its derived migration id, returning `None` if it does not exist.
+#[cfg(feature = "v1")]
+async fn find_migrated_payment_method(
+    db: &dyn state::PaymentMethodsStorageInterface,
+    provider: &platform::Provider,
+    customer_id: &id_type::CustomerId,
+    payment_method_id: &str,
+) -> CustomResult<Option<domain_pm::PaymentMethod>, errors::ApiErrorResponse> {
+    match db
+        .find_payment_method(
+            provider.get_key_store(),
+            payment_method_id,
+            provider.get_account().storage_scheme,
+        )
+        .await
+    {
+        Ok(payment_method)
+            if payment_method.merchant_id == *provider.get_account().get_id()
+                && payment_method.customer_id.as_ref() == Some(customer_id) =>
+        {
+            Ok(Some(payment_method))
+        }
+        Ok(_) => Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable(
+            "Derived payment method id belongs to a different merchant or customer",
+        ),
+        Err(err) if err.current_context().is_db_not_found() => Ok(None),
+        Err(err) => Err(err)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to find the migrated payment method"),
+    }
 }
 
 // need to discuss regarding the migration APIs for v2
