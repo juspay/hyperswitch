@@ -63,6 +63,36 @@ impl Default for ClickhouseConfig {
 }
 
 impl ClickhouseClient {
+    /// The ClickHouse HTTP round trip, resolved to the decoded `data` rows.
+    ///
+    /// The seam sits here rather than on `load_results`, which is generic over a
+    /// row type carrying no serde bound. This is also the one place a request
+    /// leaves the process, so row decoding stays live in replay. `Http` rather
+    /// than `Db`: the analytics store is external state read over HTTP, not one
+    /// of the seeded stores the planner reconstructs.
+    ///
+    /// No `on_miss`. An empty row set reads as "no matching rows", which every
+    /// caller treats as a real answer, so an arm would launder a missing
+    /// recording into a plausible result.
+    ///
+    /// Identity is the query text alone; the host and database come from
+    /// deployment config and legitimately differ between a recording and its
+    /// replay. The text is safe as an identity because no unordered collection
+    /// or clock reaches the builder.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "clickhouse",
+            component = "analytics::clickhouse",
+            operation = "execute_query",
+            op = Read,
+            replay = Substitute,
+            effect = Http,
+            returns = Rows,
+            codec = deja::codec::ResultCodec::<Vec<serde_json::Value>, ClickhouseError>,
+            args = serde_json::json!({ "query": query }),
+        )
+    )]
     async fn execute_query(&self, query: &str) -> ClickhouseResult<Vec<serde_json::Value>> {
         logger::debug!("Executing query: {query}");
         let client = reqwest::Client::new();
@@ -643,7 +673,11 @@ where
     }
 }
 
+// Serialisable so the deja seam on the query can record and replay a failed
+// query as faithfully as a successful one. Every variant is fieldless or
+// carries one `String`.
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum ClickhouseError {
     #[error("Clickhouse connection error")]
     ConnectionError,
@@ -651,4 +685,112 @@ pub enum ClickhouseError {
     ResponseNotOK(String),
     #[error("Clickhouse response error")]
     ResponseError,
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod tests {
+    use std::borrow::Cow;
+
+    use common_utils::id_type;
+
+    use super::{ClickhouseClient, ClickhouseError};
+    use crate::{
+        enums::AuthInfo,
+        query::{QueryBuilder, QueryFilter},
+        types::AnalyticsCollection,
+    };
+
+    /// The seam's own declaration, cut out of this file's source. The anchors are
+    /// assembled at run time so this module's text does not contain them.
+    #[allow(
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; the offsets come from `find` on the same string"
+    )]
+    fn execute_query_declaration() -> &'static str {
+        let source = include_str!("clickhouse.rs");
+        let start = source
+            .find(&["deja::", "boundary("].concat())
+            .expect("the seam attribute is present");
+        let end = source[start..]
+            .find(&["async fn ", "execute_query("].concat())
+            .expect("the seam is declared on execute_query");
+        &source[start..start + end]
+    }
+
+    #[test]
+    fn the_query_seam_declares_what_it_reads() {
+        let declaration = execute_query_declaration();
+        for expected in [
+            "boundary = \"clickhouse\"",
+            "component = \"analytics::clickhouse\"",
+            "operation = \"execute_query\"",
+            "replay = Substitute",
+            "effect = Http",
+            "codec = deja::codec::ResultCodec::<Vec<serde_json::Value>, ClickhouseError>",
+            "args = serde_json::json!({ \"query\": query })",
+        ] {
+            assert!(
+                declaration.contains(expected),
+                "declaration lost `{expected}`:\n{declaration}"
+            );
+        }
+        assert!(
+            !declaration.contains("on_miss"),
+            "an empty row set would read as a real answer; a miss must fail-stop"
+        );
+    }
+
+    #[allow(
+        clippy::expect_used,
+        reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; a fixture that will not build should fail the test loudly"
+    )]
+    fn scoped_sql(scope: &AuthInfo) -> String {
+        let mut builder = QueryBuilder::<ClickhouseClient>::new(AnalyticsCollection::Payment);
+        builder.add_select_column("count(*)").expect("select");
+        scope.set_filter_clause(&mut builder).expect("scope filter");
+        builder.build_query().expect("query builds")
+    }
+
+    #[allow(
+        clippy::expect_used,
+        reason = "test helper: a free fn, so allow-expect-in-tests does not cover it; a fixture that will not build should fail the test loudly"
+    )]
+    fn merchant_scope(merchant_id: &str) -> AuthInfo {
+        AuthInfo::MerchantLevel {
+            org_id: id_type::OrganizationId::try_from(Cow::Borrowed("org_a")).expect("org id"),
+            merchant_ids: vec![
+                id_type::MerchantId::try_from(Cow::Owned(merchant_id.to_owned()))
+                    .expect("merchant id"),
+            ],
+            processor_merchant_ids: None,
+        }
+    }
+
+    /// The query text is the seam's identity, so the same scope has to render the
+    /// same text every time, and a different scope has to render different text.
+    /// Without the second half a constant identity would pass.
+    #[test]
+    fn query_text_identity_follows_the_auth_scope() {
+        let first = scoped_sql(&merchant_scope("merchant_a"));
+        assert_eq!(first, scoped_sql(&merchant_scope("merchant_a")));
+        assert_ne!(first, scoped_sql(&merchant_scope("merchant_b")));
+        let org_only = AuthInfo::OrgLevel {
+            org_id: id_type::OrganizationId::try_from(Cow::Borrowed("org_a")).expect("org id"),
+        };
+        assert_ne!(first, scoped_sql(&org_only));
+    }
+
+    #[test]
+    fn every_clickhouse_error_survives_a_round_trip() {
+        for error in [
+            ClickhouseError::ConnectionError,
+            ClickhouseError::ResponseNotOK("code 62: syntax error".to_string()),
+            ClickhouseError::ResponseError,
+        ] {
+            let wire = serde_json::to_string(&error).expect("serialises");
+            let back: ClickhouseError = serde_json::from_str(&wire).expect("deserialises");
+            assert_eq!(error.to_string(), back.to_string());
+        }
+    }
 }
