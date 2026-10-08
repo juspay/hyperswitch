@@ -3090,6 +3090,72 @@ pub async fn update_customer_payment_method(
     }
 }
 
+#[cfg(feature = "v1")]
+pub async fn prepare_payment_method_update_from_connector_details(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    pm: &domain::PaymentMethod,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    connector_disclosed_details: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    business_profile: &Profile,
+) -> errors::CustomResult<storage::PaymentMethodUpdate, errors::ApiErrorResponse> {
+    match connector_disclosed_details {
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+            bank_redirect_update,
+        ) => {
+            prepare_bank_redirect_payment_method_update(
+                state,
+                platform,
+                pm,
+                merchant_connector_id,
+                bank_redirect_update.clone(),
+                business_profile,
+            )
+            .await
+        }
+        _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(
+                "Payment method update from connector disclosed details".to_string(),
+            )
+        })),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn get_vault_fingerprint(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    customer_id: &id_type::CustomerId,
+    pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+) -> errors::CustomResult<String, errors::VaultError> {
+    let data = serde_json::to_string(pmd)
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode vaulting data to string")?;
+
+    let payload = pm_types::VaultFingerprintRequest {
+        key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+            merchant_id.clone(),
+            customer_id.clone(),
+        ),
+        data,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultFingerprintRequest")?;
+
+    let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
+        .parse_struct("VaultFingerprintResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultFingerprintResponse")?;
+
+    Ok(fingerprint_resp.fingerprint_id)
+}
+
 /// Prepares a payment method update with bank redirect details after vaulting the
 /// bank redirect data in the locker.
 #[cfg(feature = "v1")]
@@ -3201,8 +3267,86 @@ pub async fn prepare_bank_redirect_payment_method_update(
                 connector_payment_method_details: Box::new(connector_payment_method_details),
             })
         }
+        hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly {
+            country: _,
+            account_holder_name,
+            bank_name,
+            additional_details,
+            bank_last_digits,
+            connector_instrument_id,
+        } => {
+            let locker_fingerprint_id = match (pm.customer_id.as_ref(), connector_instrument_id) {
+                (Some(customer_id), Some(connector_instrument_id)) => Some(
+                    get_vault_fingerprint(
+                        state,
+                        &pm.merchant_id,
+                        customer_id,
+                        &hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(
+                            hyperswitch_domain_models::payment_method_data::BankRedirectDetail::Trustly {
+                                connector_instrument_id,
+                            },
+                        ),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to derive the Trustly account fingerprint")?,
+                ),
+                _ => None,
+            };
+
+            let updated_pmd = domain::PaymentMethodsData::BankRedirect(
+                domain::BankRedirectDetailsPaymentMethod::Trustly {
+                    bank_last_digits: bank_last_digits.map(|digits| digits.peek().to_owned()),
+                    account_holder_name,
+                    bank_name,
+                },
+            );
+
+            let pm_data_encrypted: crypto::OptionalEncryptableValue = Some(
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    provider.get_key_store(),
+                    updated_pmd,
+                    type_name!(payment_method::PaymentMethod),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt bank redirect payment method data")?,
+            );
+
+            let connector_payment_method_details = merchant_connector_id
+                .zip(additional_details)
+                .map(|(mca_id, details)| {
+                    Secret::new(serde_json::json!({
+                        mca_id.get_string_repr(): details.expose()
+                    }))
+                });
+
+            Ok(storage::PaymentMethodUpdate::AdditionalDataUpdate {
+                payment_method_data: pm_data_encrypted.map(Into::into),
+                // Nothing was vaulted, so there is no locker entry to point at.
+                locker_id: None,
+                locker_fingerprint_id,
+                status: Some(common_enums::PaymentMethodStatus::Active),
+                payment_method: pm.payment_method,
+                payment_method_type: pm.payment_method_type,
+                payment_method_issuer: pm.payment_method_issuer.clone(),
+                network_token_requestor_reference_id: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
+                metadata: None,
+                last_used_at: Some(common_utils::date_time::now()),
+                connector_mandate_details: None,
+                network_tokenization_data: None,
+                connector_payment_method_details: Box::new(connector_payment_method_details),
+            })
+        }
         _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method type is not OpenBanking type".to_string(),
+            message: "Payment method type does not carry saveable bank redirect details"
+                .to_string(),
         })),
     }
 }
@@ -4308,6 +4452,7 @@ pub async fn build_merchant_enabled_pms_context(
 ) -> errors::RouterResult<MerchantEnabledPmsContext> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
+    let auto_fallback_capture_method = business_profile.auto_fallback_capture_method;
 
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
@@ -4363,6 +4508,7 @@ pub async fn build_merchant_enabled_pms_context(
                 billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
+                auto_fallback_capture_method,
             )
             .await?;
         }
@@ -4416,6 +4562,7 @@ pub async fn build_merchant_enabled_pms_context(
                 billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
+                auto_fallback_capture_method,
             )
             .await?;
         }
@@ -5569,7 +5716,7 @@ pub async fn call_surcharge_decision_management(
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    let (surcharge_results, merchant_sucharge_configs) =
+    let (surcharge_results, merchant_sucharge_configs) = Box::pin(
         perform_surcharge_decision_management_for_payment_method_list(
             &state,
             algorithm_ref,
@@ -5577,10 +5724,11 @@ pub async fn call_surcharge_decision_management(
             &payment_intent,
             billing_address.as_ref().map(Into::into),
             response_payment_method_types,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
+        ),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(&state, business_profile)
@@ -5631,13 +5779,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     // TODO: Move to business profile surcharge column
-    let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
+    let surcharge_results = Box::pin(perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
         payment_attempt,
         &payment_intent,
         &mut customer_payment_method_response.customer_payment_methods,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing surcharge decision operation")?;
@@ -5680,6 +5828,7 @@ pub async fn filter_payment_methods(
     address: Option<&domain::Address>,
     connector: String,
     configs: &settings::Settings<RawSecret>,
+    auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -5839,8 +5988,16 @@ pub async fn filter_payment_methods(
                             }
                         });
 
+                    // With auto_fallback_capture_method enabled an unsupported capture method is
+                    // replaced by automatic at confirm, so it must not hide payment methods here.
+                    // A payment already requesting automatic capture has no fallback and is
+                    // still filtered.
                     payment_attempt
                         .and_then(|inner| inner.capture_method)
+                        .filter(|&capture_method| {
+                            !auto_fallback_capture_method
+                                .is_some_and(|setting| setting.can_fall_back_from(capture_method))
+                        })
                         .map(|capture_method| {
                             context_values.push(dir::DirValue::CaptureMethod(capture_method));
                         });
@@ -6539,14 +6696,14 @@ async fn perform_surcharge_ops(
         .zip(business_profile)
         .map(|((pa, pi), bp)| (pa, pi, bp))
     {
-        call_surcharge_decision_management_for_saved_card(
+        Box::pin(call_surcharge_decision_management_for_saved_card(
             state,
             platform,
             &business_profile,
             payment_attempt,
             payment_intent.clone(),
             response,
-        )
+        ))
         .await?;
     }
 
@@ -6802,6 +6959,22 @@ pub async fn get_masked_bank_details(
                 let bank_name = bank_name.map(|name| name.to_display_name());
 
                 Ok(mask.map(|mask| MaskedBankDetails {
+                    mask,
+                    account_holder_name,
+                    bank_name,
+                }))
+            }
+            domain::PaymentMethodsData::BankRedirect(
+                domain::BankRedirectDetailsPaymentMethod::Trustly {
+                    bank_last_digits,
+                    account_holder_name,
+                    bank_name,
+                },
+            ) => {
+                let account_holder_name = account_holder_name.map(|name| name.expose());
+                let bank_name = bank_name.map(|name| name.to_display_name());
+
+                Ok(bank_last_digits.map(|mask| MaskedBankDetails {
                     mask,
                     account_holder_name,
                     bank_name,

@@ -774,7 +774,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 if item.router_data.is_three_ds() {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Cards 3DS".to_string(),
-                        connector: "Tesouro",
+                        connector: "Tesouro".into(),
                     })?
                 }
                 get_card_payment_method(card, item.router_data.request.is_mandate_payment())
@@ -873,6 +873,7 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::CashappQr(_)

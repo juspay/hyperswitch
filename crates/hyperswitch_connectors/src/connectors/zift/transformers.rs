@@ -90,6 +90,7 @@ pub enum PaymentRequestType {
     #[serde(rename = "sale-auth")]
     Auth,
     Capture,
+    Void,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -227,6 +228,7 @@ impl TryFrom<&hyperswitch_domain_models::router_request_types::AuthenticationDat
             | Some(common_enums::TransactionStatus::Failure)
             | Some(common_enums::TransactionStatus::ChallengeRequired)
             | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            | Some(common_enums::TransactionStatus::SecurePaymentConfirmationRequired)
             | None => Self::Unavailable,
         };
         Ok(authentication_status)
@@ -271,7 +273,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                 {
                     Err(errors::ConnectorError::NotSupported {
                         message: "3DS flow".to_string(),
-                        connector: "Zift",
+                        connector: "Zift".into(),
                     }
                     .into())
                 }
@@ -342,7 +344,7 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                     AdditionalPaymentData::Card(card) => *card,
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Payment Method Not Supported".to_string(),
-                        connector: "Zift",
+                        connector: "Zift".into(),
                     })?,
                 };
                 let mandate_request = ZiftMandatePaymentRequest {
@@ -746,6 +748,14 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                 }
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::CaptureFailed,
             },
+
+            PaymentRequestType::Void => match item.response.transaction_status {
+                TransactionStatus::Processed => common_enums::AttemptStatus::Voided,
+                TransactionStatus::Pending | TransactionStatus::InRebill => {
+                    common_enums::AttemptStatus::VoidInitiated
+                }
+                TransactionStatus::Cancelled => common_enums::AttemptStatus::VoidFailed,
+            },
         };
         // Populate the previous connector transaction id. If it is empty,
         // populate the new one returned by the `find` response.
@@ -980,7 +990,7 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
                 ),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: "Only card supported for mandate setup".to_string(),
-                    connector: "Zift",
+                    connector: "Zift".into(),
                 })?,
             };
 

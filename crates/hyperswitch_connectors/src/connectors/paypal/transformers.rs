@@ -1292,6 +1292,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -1486,6 +1487,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::UpiCollect
                     | enums::PaymentMethodType::UpiIntent
                     | enums::PaymentMethodType::Vipps
+                    | enums::PaymentMethodType::Wero
                     | enums::PaymentMethodType::VietQr
                     | enums::PaymentMethodType::Venmo
                     | enums::PaymentMethodType::Walley
@@ -1509,11 +1511,10 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::UpiQr
                     | enums::PaymentMethodType::Payjustnow
                     | enums::PaymentMethodType::OpenBanking
-                    | enums::PaymentMethodType::NetworkToken => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("paypal"),
-                        ))
-                    }
+                    | enums::PaymentMethodType::NetworkToken
+                    | enums::PaymentMethodType::Ted => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("paypal"),
+                    )),
                 };
 
                 Ok(Self {
@@ -2232,28 +2233,6 @@ pub struct PaypalThreeDsResponse {
     id: String,
     status: PaypalOrderStatus,
     links: Vec<PaypalLinks>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PaypalPreProcessingResponse {
-    PaypalLiabilityResponse(PaypalLiabilityResponse),
-    PaypalNonLiabilityResponse(PaypalNonLiabilityResponse),
-}
-
-impl TryFrom<PaypalPreProcessingResponse> for PaymentsResponseData {
-    type Error = ErrorResponse;
-
-    fn try_from(response: PaypalPreProcessingResponse) -> Result<Self, Self::Error> {
-        match response {
-            PaypalPreProcessingResponse::PaypalNonLiabilityResponse(_) => {
-                Ok(auth_success_response())
-            }
-            PaypalPreProcessingResponse::PaypalLiabilityResponse(liability_response) => {
-                validate_liability_response(liability_response).map_err(|e| *e)
-            }
-        }
-    }
 }
 
 fn auth_success_response() -> PaymentsResponseData {
@@ -3361,16 +3340,16 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalPayoutI
                 }
                 WalletPayout::ApplePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
-                    connector: "Paypal",
+                    connector: "Paypal".into(),
                 })?,
                 WalletPayout::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                     message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
-                    connector: "Paypal",
+                    connector: "Paypal".into(),
                 })?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethodType is not supported".to_string(),
-                connector: "Paypal",
+                connector: "Paypal".into(),
             })?,
         };
 

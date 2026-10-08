@@ -324,6 +324,7 @@ pub struct ConnectorConfig {
     pub dwolla: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
+    pub elavon_pg: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
     pub etisalat: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -418,6 +419,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
+    pub nsure: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub tersouro: Option<ConnectorTomlConfig>,
     pub tokenex: Option<ConnectorTomlConfig>,
@@ -623,6 +625,7 @@ impl ConnectorConfig {
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
             Connector::Etisalat => Ok(connector_data.etisalat),
+            Connector::ElavonPg => Ok(connector_data.elavon_pg),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),
@@ -687,6 +690,7 @@ impl ConnectorConfig {
             Connector::SanlamPayshield => Ok(connector_data.sanlam_payshield),
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
+            Connector::Nsure => Ok(connector_data.nsure),
             Connector::Signifyd => Ok(connector_data.signifyd),
             Connector::Silverflow => Ok(connector_data.silverflow),
             Connector::Square => Ok(connector_data.square),

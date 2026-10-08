@@ -1220,56 +1220,17 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::BankRedirect(bank_redirect) => {
-            let customer_id = payment_intent.customer_id.as_ref().ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer".into(),
-                },
-            )?;
-
-            let locker_id = bank_redirect.locker_id.as_ref().ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "locker_id".into(),
-                },
-            )?;
-
-            let bank_redirect_detail = cards::get_bank_redirect_from_hs_locker(
-                state,
-                platform.get_provider(),
-                customer_id,
-                locker_id,
-            )
-            .await?;
-
-            let (vault_account_number, vault_iban, vault_sort_code) = match bank_redirect_detail {
-                domain::BankRedirectDetail::OpenBanking {
-                    account_number,
-                    iban,
-                    sort_code,
-                } => (account_number, iban, sort_code),
-            };
-
             let payment_method = payment_method_info
                 .get_required_value("PaymentMethod")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("PaymentMethod not found")?;
 
-            let (db_account_holder_name, db_bank_name) =
-                if let Some(domain::PaymentMethodsData::BankRedirect(bank_redirect_data)) =
-                    payment_method.get_payment_methods_data()
-                {
-                    match bank_redirect_data {
-                        domain::BankRedirectDetailsPaymentMethod::OpenBanking {
-                            masked_account_number: _,
-                            masked_iban: _,
-                            masked_sort_code: _,
-                            account_holder_name,
-                            bank_name,
-                        } => (account_holder_name.clone(), bank_name),
-                    }
-                } else {
-                    return Err(report!(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Payment method data is not bank redirect"));
-                };
+            let Some(domain::PaymentMethodsData::BankRedirect(stored_bank_redirect)) =
+                payment_method.get_payment_methods_data()
+            else {
+                return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method data is not bank redirect"));
+            };
 
             let connector_payment_method_details = payment_attempt
                 .merchant_connector_id
@@ -1282,17 +1243,74 @@ pub async fn retrieve_payment_method_with_token(
                         .cloned()
                 });
 
+            let bank_redirect_data = match stored_bank_redirect {
+                domain::BankRedirectDetailsPaymentMethod::OpenBanking {
+                    masked_account_number: _,
+                    masked_iban: _,
+                    masked_sort_code: _,
+                    account_holder_name,
+                    bank_name,
+                } => {
+                    let customer_id = payment_intent.customer_id.as_ref().ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "customer".into(),
+                        },
+                    )?;
+
+                    let locker_id = bank_redirect.locker_id.as_ref().ok_or(
+                        errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "locker_id".into(),
+                        },
+                    )?;
+
+                    let vaulted = cards::get_bank_redirect_from_hs_locker(
+                        state,
+                        platform.get_provider(),
+                        customer_id,
+                        locker_id,
+                    )
+                    .await?;
+
+                    let domain::BankRedirectDetail::OpenBanking {
+                        account_number,
+                        iban,
+                        sort_code,
+                    } = vaulted
+                    else {
+                        return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Vaulted bank redirect details do not match the open banking \
+                                 payment method they are stored against",
+                            ));
+                    };
+
+                    BankRedirectData::OpenBanking {
+                        account_number,
+                        iban,
+                        sort_code,
+                        account_holder_name,
+                        additional_details: connector_payment_method_details.map(Secret::new),
+                        bank_name,
+                    }
+                }
+                domain::BankRedirectDetailsPaymentMethod::Trustly {
+                    bank_last_digits,
+                    account_holder_name,
+                    bank_name,
+                } => BankRedirectData::Trustly {
+                    country: None,
+                    account_holder_name,
+                    bank_name,
+                    additional_details: connector_payment_method_details.map(Secret::new),
+                    bank_last_digits: bank_last_digits.map(Secret::new),
+                    connector_instrument_id: None,
+                },
+            };
+
             storage::PaymentMethodDataWithId {
                 payment_method: Some(enums::PaymentMethod::BankRedirect),
                 payment_method_data: Some(domain::PaymentMethodData::BankRedirect(
-                    BankRedirectData::OpenBanking {
-                        account_number: vault_account_number,
-                        iban: vault_iban,
-                        sort_code: vault_sort_code,
-                        account_holder_name: db_account_holder_name,
-                        additional_details: connector_payment_method_details.map(Secret::new),
-                        bank_name: db_bank_name,
-                    },
+                    bank_redirect_data,
                 )),
                 payment_method_id: Some(bank_redirect.payment_method_id.clone()),
             }
@@ -1871,7 +1889,12 @@ pub async fn create_persistent_payment_method_core(
         id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
-        api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
+        api::PaymentMethodCreateData::Card(_)
+        | api::PaymentMethodCreateData::BankDebit(_)
+        | api::PaymentMethodCreateData::Wallet(
+            api::WalletPaymentMethodData::ApplePayDecrypted(_)
+            | api::WalletPaymentMethodData::GooglePayDecrypted(_),
+        ) => {
             Box::pin(create_or_fetch_payment_method_core(
                 state,
                 req,
@@ -3171,7 +3194,10 @@ async fn execute_payment_method_create(
             external_vault_source,
         )) => {
             let pm_update = create_pm_additional_data_update(
-                Some(&payment_method_data),
+                Some(build_payment_methods_additional_data_for_create(
+                    req,
+                    &payment_method_data,
+                )),
                 state,
                 platform.get_provider().get_key_store(),
                 Some(vault_id.get_string_repr().clone()),
@@ -4202,9 +4228,15 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 api::WalletPaymentMethodData::ApplePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
+                api::WalletPaymentMethodData::ApplePayDecrypted(data) => Ok(
+                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
+                ),
                 api::WalletPaymentMethodData::GooglePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
+                api::WalletPaymentMethodData::GooglePayDecrypted(data) => Ok(
+                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
+                ),
                 api::WalletPaymentMethodData::PayPal(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(
                         payment_methods::PaymentMethodDataWalletInfo {
@@ -5081,9 +5113,50 @@ fn create_connector_token_details_update(
 }
 
 #[cfg(feature = "v2")]
+fn build_payment_methods_additional_data_for_create(
+    req: &api::PaymentMethodCreate,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+) -> domain::PaymentMethodsData {
+    let vaulted_payment_methods_data = payment_method_data.get_payment_methods_data();
+
+    let wallet_info_from_request = match &req.payment_method_data {
+        api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::ApplePayDecrypted(
+            apple_pay_decrypted,
+        )) => Some(apple_pay_decrypted.wallet_info.clone()),
+        api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::GooglePayDecrypted(
+            google_pay_decrypted,
+        )) => Some(google_pay_decrypted.wallet_info.clone()),
+        _ => None,
+    };
+
+    match (vaulted_payment_methods_data, wallet_info_from_request) {
+        (domain::PaymentMethodsData::WalletDetails(vaulted_wallet_info), Some(wallet_info)) => {
+            domain::PaymentMethodsData::WalletDetails(
+                payment_methods::PaymentMethodDataWalletInfo {
+                    last4: wallet_info.last4.or(vaulted_wallet_info.last4),
+                    card_network: wallet_info
+                        .card_network
+                        .or(vaulted_wallet_info.card_network),
+                    card_type: wallet_info.card_type.or(vaulted_wallet_info.card_type),
+                    card_exp_month: wallet_info
+                        .card_exp_month
+                        .or(vaulted_wallet_info.card_exp_month),
+                    card_exp_year: wallet_info
+                        .card_exp_year
+                        .or(vaulted_wallet_info.card_exp_year),
+                    auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
+                    email: wallet_info.email.or(vaulted_wallet_info.email),
+                },
+            )
+        }
+        (vaulted_payment_methods_data, _) => vaulted_payment_methods_data,
+    }
+}
+
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_pm_additional_data_update(
-    pmd: Option<&domain::PaymentMethodVaultingData>,
+    payment_methods_data: Option<domain::PaymentMethodsData>,
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     vault_id: Option<String>,
@@ -5098,8 +5171,7 @@ pub async fn create_pm_additional_data_update(
     status: Option<storage_enums::PaymentMethodStatus>,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
-    let encrypted_payment_method_data = pmd
-        .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
+    let encrypted_payment_method_data = payment_methods_data
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
@@ -6170,6 +6242,7 @@ pub async fn retrieve_payment_method(
                 }
                 Some(
                     payment_methods::RawPaymentMethodData::BankDebit(_)
+                    | payment_methods::RawPaymentMethodData::Wallet(_)
                     | payment_methods::RawPaymentMethodData::ProxyCard(_),
                 )
                 | None => None,
@@ -6507,13 +6580,16 @@ impl RawPaymentMethodFetchAccess {
                     )));
                 }
 
-                let should_skip_vault_fetch = matches!(
-                    payment_method.payment_method_type,
-                    Some(enums::PaymentMethod::Wallet) | Some(enums::PaymentMethod::BankRedirect)
-                );
+                // Bank redirects are never vaulted. Wallets are vaulted only when they were saved
+                // from decrypted wallet data (device PAN and expiry); the rest carry no locker id.
+                let should_skip_vault_fetch = match payment_method.payment_method_type {
+                    Some(enums::PaymentMethod::BankRedirect) => true,
+                    Some(enums::PaymentMethod::Wallet) => payment_method.locker_id.is_none(),
+                    _ => false,
+                };
 
                 if should_skip_vault_fetch {
-                    logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
+                    logger::debug!("Skipping raw payment method fetch for bank redirect or non-vaulted wallet payment method");
                     Ok(None)
                 } else {
                     // A pure unvault: the CVC is attached by the caller, under the caller's own
@@ -7008,10 +7084,12 @@ pub async fn delete_payment_method_by_record(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to update payment method in db")?;
 
-    vault::delete_payment_method_data_from_vault(state, platform, profile, &payment_method)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from vault")?;
+    if payment_method.locker_id.is_some() || payment_method.external_vault_source.is_some() {
+        vault::delete_payment_method_data_from_vault(state, platform, profile, &payment_method)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to delete payment method from vault")?;
+    }
 
     Ok(())
 }
@@ -8482,7 +8560,9 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             }
             false => {
                 let pm_update = create_pm_additional_data_update(
-                    vault_request_data.as_ref(),
+                    vault_request_data
+                        .as_ref()
+                        .map(|vault_request_data| vault_request_data.get_payment_methods_data()),
                     self.state,
                     self.platform.get_provider().get_key_store(),
                     vault_resp

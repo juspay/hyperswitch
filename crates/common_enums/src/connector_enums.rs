@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
+#[cfg(feature = "payouts")]
+use super::enums;
 pub use super::enums::{AuthenticationType, PaymentMethod, PayoutType};
 pub use crate::PaymentMethodType;
 
@@ -108,6 +110,7 @@ pub enum Connector {
     Envoy,
     Elavon,
     Etisalat,
+    ElavonPg,
     Facilitapay,
     Finix,
     Fiserv,
@@ -217,6 +220,7 @@ pub enum Connector {
     Worldpayxml,
     Worldpaymodular,
     Signifyd,
+    Nsure,
     Plaid,
     Riskified,
     SanlamPayshield,
@@ -259,11 +263,20 @@ impl Connector {
         }
     }
     #[cfg(feature = "payouts")]
-    pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
-        matches!(
-            (self, payout_method),
-            (_, Some(PayoutType::Card)) | (Self::Deutschebank, Some(PayoutType::Bank))
-        )
+    pub fn supports_payout_eligibility(
+        self,
+        execution_kind: enums::PayoutExecutionKind,
+        payout_method: Option<PayoutType>,
+    ) -> bool {
+        match execution_kind {
+            enums::PayoutExecutionKind::Normal => matches!(
+                (self, payout_method),
+                (_, Some(PayoutType::Card)) | (Self::Deutschebank, Some(PayoutType::Bank))
+            ),
+            enums::PayoutExecutionKind::ExternalVaultProxy => {
+                matches!((self, payout_method), (Self::Adyen, Some(PayoutType::Card)))
+            }
+        }
     }
     #[cfg(feature = "payouts")]
     pub fn requires_source_bank_data_for_sync(self, payout_method: Option<PayoutType>) -> bool {
@@ -381,6 +394,7 @@ impl Connector {
             | Self::Ebanx
             | Self::Elavon
             | Self::Etisalat
+            | Self::ElavonPg
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
@@ -468,6 +482,7 @@ impl Connector {
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
+            | Self::Nsure
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified

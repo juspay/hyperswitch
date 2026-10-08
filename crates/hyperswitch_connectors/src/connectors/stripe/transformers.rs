@@ -631,34 +631,6 @@ pub struct SepaBankTransferData {
     pub country: enums::CountryAlpha2,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum StripeCreditTransferSourceRequest {
-    AchBankTansfer(AchCreditTransferSourceRequest),
-    MultibancoBankTansfer(MultibancoCreditTransferSourceRequest),
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct AchCreditTransferSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripeCreditTransferTypes,
-    #[serde(flatten)]
-    pub payment_method_data: AchTransferData,
-    pub currency: enums::Currency,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct MultibancoCreditTransferSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripeCreditTransferTypes,
-    #[serde(flatten)]
-    pub payment_method_data: MultibancoTransferData,
-    pub currency: enums::Currency,
-    pub amount: Option<MinorUnit>,
-    #[serde(rename = "redirect[return_url]")]
-    pub return_url: Option<String>,
-}
-
 // Remove untagged when Deserialize is added
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -1040,6 +1012,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Trustly
             | enums::PaymentMethodType::Twint
             | enums::PaymentMethodType::Vipps
+            | enums::PaymentMethodType::Wero
             | enums::PaymentMethodType::Venmo
             | enums::PaymentMethodType::Alfamart
             | enums::PaymentMethodType::BcaBankTransfer
@@ -1078,7 +1051,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Breadpay
             | enums::PaymentMethodType::UpiQr
             | enums::PaymentMethodType::OpenBanking
-            | enums::PaymentMethodType::NetworkToken => Err(ConnectorError::NotImplemented(
+            | enums::PaymentMethodType::NetworkToken
+            | enums::PaymentMethodType::Ted => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
@@ -1406,6 +1380,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::WeroRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::SwishQr(_)
         | WalletData::WeChatPayRedirect(_)
@@ -1742,7 +1717,12 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Nyce
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -1945,6 +1925,7 @@ impl
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::WeroRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayRedirect(_)
@@ -2436,7 +2417,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                             Err(ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
-                                connector: "Stripe",
+                                connector: "Stripe".into(),
                             })?
                         }
                     };
@@ -2496,7 +2477,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
                     Err(ConnectorError::NotSupported {
                         message: "Card Only MIT for payment method".to_string(),
-                        connector: "Stripe",
+                        connector: "Stripe".into(),
                     })?
                 }
             }
@@ -3378,6 +3359,13 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
             card_network: None,
             domestic_network: None,
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
@@ -5083,6 +5071,43 @@ pub struct WebhookEventObjectData {
     pub status: Option<WebhookEventStatus>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
+    pub network_details: Option<StripeDisputeNetworkDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeDisputeNetworkDetails {
+    Visa {
+        visa: Option<StripeVisaDisputeNetworkDetails>,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StripeVisaDisputeNetworkDetails {
+    pub rapid_dispute_resolution: Option<bool>,
+}
+
+impl From<StripeDisputeNetworkDetails> for Option<common_types::disputes::AdditionalDetails> {
+    fn from(network_details: StripeDisputeNetworkDetails) -> Self {
+        match network_details {
+            StripeDisputeNetworkDetails::Visa { visa } => visa
+                .and_then(|visa| visa.rapid_dispute_resolution)
+                .map(|applied| common_types::disputes::AdditionalDetails {
+                    network_details: Some(common_types::disputes::DisputeNetworkDetails::Visa {
+                        rapid_dispute_resolution: Some(
+                            common_types::disputes::RapidDisputeResolution {
+                                applied: primitive_wrappers::RapidDisputeResolutionAppliedBool::new(
+                                    applied,
+                                ),
+                            },
+                        ),
+                    }),
+                }),
+            StripeDisputeNetworkDetails::Unknown => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
