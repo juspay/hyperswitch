@@ -13,6 +13,10 @@ mod aws_s3;
 
 mod file_system;
 
+/// Includes functionality for OCI Object Storage, through its S3 Compatibility API.
+#[cfg(feature = "aws_s3")]
+mod oci_object_storage;
+
 /// Enum representing different file storage configurations, allowing for multiple storage schemes.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(tag = "file_storage_backend")]
@@ -23,6 +27,12 @@ pub enum FileStorageConfig {
     AwsS3 {
         /// Configuration for AWS S3 file storage.
         aws_s3: aws_s3::AwsFileStorageConfig,
+    },
+    /// OCI Object Storage configuration.
+    #[cfg(feature = "aws_s3")]
+    OciObjectStorage {
+        /// Configuration for OCI Object Storage.
+        oci_object_storage: oci_object_storage::OciFileStorageConfig,
     },
     /// Local file system storage configuration.
     #[default]
@@ -35,6 +45,8 @@ impl FileStorageConfig {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => aws_s3.validate(),
+            #[cfg(feature = "aws_s3")]
+            Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate(),
             Self::FileSystem => Ok(()),
         }
     }
@@ -44,6 +56,10 @@ impl FileStorageConfig {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
+            #[cfg(feature = "aws_s3")]
+            Self::OciObjectStorage { oci_object_storage } => {
+                Arc::new(oci_object_storage::client(oci_object_storage).await)
+            }
             Self::FileSystem => Arc::new(file_system::FileSystem),
         }
     }

@@ -25,12 +25,6 @@ pub struct AwsFileStorageConfig {
     region: String,
     /// The AWS s3 bucket to send file uploads
     bucket_name: String,
-    /// Endpoint of an S3-compatible store (OCI Object Storage, MinIO, ...) to use instead of
-    /// AWS. When unset, the endpoint is resolved from the region or `AWS_ENDPOINT_URL_S3`.
-    endpoint_url: Option<String>,
-    /// Addresses buckets as `<endpoint>/<bucket>` rather than `<bucket>.<endpoint>`. Needed for
-    /// stores whose TLS certificate does not cover bucket subdomains, such as OCI.
-    force_path_style: bool,
 }
 
 impl AwsFileStorageConfig {
@@ -46,29 +40,30 @@ impl AwsFileStorageConfig {
             Err(InvalidFileStorageConfig(
                 "aws s3 bucket name must not be empty",
             ))
-        })?;
-
-        when(
-            self.endpoint_url.as_deref().is_some_and(|endpoint_url| {
-                !url::Url::parse(endpoint_url)
-                    .is_ok_and(|url| matches!(url.scheme(), "http" | "https"))
-            }),
-            || {
-                Err(InvalidFileStorageConfig(
-                    "aws s3 endpoint url must be an absolute http(s) url",
-                ))
-            },
-        )
+        })
     }
 }
 
-/// Builds the S3 client, applying the endpoint and addressing overrides on top of the SDK config.
-fn build_client(config: &AwsFileStorageConfig, sdk_config: &aws_config::SdkConfig) -> Client {
-    let mut s3_config =
-        aws_sdk_s3::config::Builder::from(sdk_config).force_path_style(config.force_path_style);
-    // Only override when configured, so an endpoint taken from `AWS_ENDPOINT_URL_S3` survives.
-    if let Some(endpoint_url) = &config.endpoint_url {
-        s3_config = s3_config.endpoint_url(endpoint_url);
+/// Where the S3 client sends requests, for S3-compatible stores other than AWS S3 itself.
+#[derive(Debug, Clone, Default)]
+pub(super) struct S3Endpoint {
+    /// Endpoint URL of the store. When unset, the endpoint is resolved from the region or
+    /// `AWS_ENDPOINT_URL_S3`, as for AWS S3.
+    pub(super) url: Option<String>,
+    /// Addresses buckets as `<endpoint>/<bucket>` rather than `<bucket>.<endpoint>`, for stores
+    /// whose TLS certificate does not cover bucket subdomains.
+    pub(super) force_path_style: bool,
+}
+
+/// Builds the S3 client, applying the endpoint overrides on top of the SDK config. With the
+/// default [`S3Endpoint`] this is the same client as `Client::new(sdk_config)`.
+pub(super) fn build_client(endpoint: &S3Endpoint, sdk_config: &aws_config::SdkConfig) -> Client {
+    let mut s3_config = aws_sdk_s3::config::Builder::from(sdk_config);
+    if let Some(url) = &endpoint.url {
+        s3_config = s3_config.endpoint_url(url);
+    }
+    if endpoint.force_path_style {
+        s3_config = s3_config.force_path_style(true);
     }
     Client::from_conf(s3_config.build())
 }
@@ -85,11 +80,20 @@ pub(super) struct AwsFileStorageClient {
 impl AwsFileStorageClient {
     /// Creates a new AWS S3 file storage client.
     pub(super) async fn new(config: &AwsFileStorageConfig) -> Self {
-        let region_provider = RegionProviderChain::first_try(Region::new(config.region.clone()));
+        Self::with_endpoint(&config.region, &config.bucket_name, &S3Endpoint::default()).await
+    }
+
+    /// Creates a client for an S3-compatible store reached through `endpoint`.
+    pub(super) async fn with_endpoint(
+        region: &str,
+        bucket_name: &str,
+        endpoint: &S3Endpoint,
+    ) -> Self {
+        let region_provider = RegionProviderChain::first_try(Region::new(region.to_owned()));
         let sdk_config = aws_config::from_env().region(region_provider).load().await;
         Self {
-            inner_client: build_client(config, &sdk_config),
-            bucket_name: config.bucket_name.clone(),
+            inner_client: build_client(endpoint, &sdk_config),
+            bucket_name: bucket_name.to_owned(),
         }
     }
 
@@ -413,7 +417,7 @@ enum AwsS3StorageError {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use std::time::Duration;
 
     use aws_sdk_s3::config::{BehaviorVersion, Credentials, SharedCredentialsProvider};
@@ -437,23 +441,21 @@ mod tests {
         }
     }
 
-    fn file_storage_config(value: serde_json::Value) -> AwsFileStorageConfig {
-        #[allow(clippy::expect_used)]
-        serde_json::from_value(value).expect("aws s3 config should deserialize")
-    }
-
-    async fn presigned_url(
-        config: &AwsFileStorageConfig,
-        sdk_config: &aws_config::SdkConfig,
+    /// Presigns a download of `files/file_key`, which shows where the client sends requests
+    /// without any network call.
+    pub(in crate::file_storage) async fn presigned_url(
+        endpoint: &S3Endpoint,
+        bucket_name: &str,
+        sdk_endpoint_url: Option<&str>,
     ) -> String {
         #[allow(clippy::expect_used)]
         let presigning_config =
             PresigningConfig::expires_in(Duration::from_secs(60)).expect("valid presigning config");
 
         #[allow(clippy::expect_used)]
-        build_client(config, sdk_config)
+        build_client(endpoint, &sdk_config(sdk_endpoint_url))
             .get_object()
-            .bucket(&config.bucket_name)
+            .bucket(bucket_name)
             .key("files/file_key")
             .presigned(presigning_config)
             .await
@@ -462,47 +464,9 @@ mod tests {
             .to_owned()
     }
 
-    #[test]
-    fn existing_config_keeps_aws_defaults() {
-        let config = file_storage_config(serde_json::json!({
-            "region": "us-east-1",
-            "bucket_name": "bucket",
-        }));
-
-        assert_eq!(config.endpoint_url, None);
-        assert!(!config.force_path_style);
-        assert!(config.validate().is_ok());
-    }
-
-    #[test]
-    fn rejects_endpoint_url_that_is_not_http() {
-        for endpoint_url in [
-            "",
-            "not a url",
-            "ftp://example.com",
-            "objectstorage.example.com",
-        ] {
-            let config = file_storage_config(serde_json::json!({
-                "region": "us-east-1",
-                "bucket_name": "bucket",
-                "endpoint_url": endpoint_url,
-            }));
-
-            assert!(
-                config.validate().is_err(),
-                "{endpoint_url:?} should be rejected"
-            );
-        }
-    }
-
     #[tokio::test]
-    async fn default_config_uses_virtual_hosted_aws_endpoint() {
-        let config = file_storage_config(serde_json::json!({
-            "region": "ap-hyderabad-1",
-            "bucket_name": "bucket",
-        }));
-
-        let url = presigned_url(&config, &sdk_config(None)).await;
+    async fn aws_config_uses_virtual_hosted_aws_endpoint() {
+        let url = presigned_url(&S3Endpoint::default(), "bucket", None).await;
 
         assert!(
             url.starts_with("https://bucket.s3.ap-hyderabad-1.amazonaws.com/files/file_key?"),
@@ -511,34 +475,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn custom_endpoint_with_path_style_addresses_bucket_in_path() {
-        let config = file_storage_config(serde_json::json!({
-            "region": "ap-hyderabad-1",
-            "bucket_name": "bucket",
-            "endpoint_url": "https://namespace.compat.objectstorage.ap-hyderabad-1.oraclecloud.com",
-            "force_path_style": true,
-        }));
-        assert!(config.validate().is_ok());
+    async fn endpoint_from_environment_is_kept_when_not_overridden() {
+        let endpoint = S3Endpoint {
+            url: None,
+            force_path_style: true,
+        };
 
-        let url = presigned_url(&config, &sdk_config(None)).await;
-
-        assert!(
-            url.starts_with(
-                "https://namespace.compat.objectstorage.ap-hyderabad-1.oraclecloud.com/bucket/files/file_key?"
-            ),
-            "{url}"
-        );
-    }
-
-    #[tokio::test]
-    async fn endpoint_from_environment_is_kept_when_not_configured() {
-        let config = file_storage_config(serde_json::json!({
-            "region": "ap-hyderabad-1",
-            "bucket_name": "bucket",
-            "force_path_style": true,
-        }));
-
-        let url = presigned_url(&config, &sdk_config(Some("https://endpoint.from.env"))).await;
+        let url = presigned_url(&endpoint, "bucket", Some("https://endpoint.from.env")).await;
 
         assert!(
             url.starts_with("https://endpoint.from.env/bucket/files/file_key?"),
