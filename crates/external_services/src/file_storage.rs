@@ -7,14 +7,15 @@ use std::{
 
 use common_utils::errors::CustomResult;
 
-/// Includes functionality for AWS S3 storage operations.
-#[cfg(feature = "aws_s3")]
+/// Includes functionality for AWS S3 storage operations, and the S3 client that OCI Object
+/// Storage also uses.
+#[cfg(any(feature = "aws_s3", feature = "oci_object_storage"))]
 mod aws_s3;
 
 mod file_system;
 
 /// Includes functionality for OCI Object Storage, through its S3 Compatibility API.
-#[cfg(feature = "aws_s3")]
+#[cfg(feature = "oci_object_storage")]
 mod oci_object_storage;
 
 /// Enum representing different file storage configurations, allowing for multiple storage schemes.
@@ -29,7 +30,7 @@ pub enum FileStorageConfig {
         aws_s3: aws_s3::AwsFileStorageConfig,
     },
     /// OCI Object Storage configuration.
-    #[cfg(feature = "aws_s3")]
+    #[cfg(feature = "oci_object_storage")]
     OciObjectStorage {
         /// Configuration for OCI Object Storage.
         oci_object_storage: oci_object_storage::OciFileStorageConfig,
@@ -45,7 +46,7 @@ impl FileStorageConfig {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => aws_s3.validate(),
-            #[cfg(feature = "aws_s3")]
+            #[cfg(feature = "oci_object_storage")]
             Self::OciObjectStorage { oci_object_storage } => oci_object_storage.validate(),
             Self::FileSystem => Ok(()),
         }
@@ -56,7 +57,7 @@ impl FileStorageConfig {
         match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
-            #[cfg(feature = "aws_s3")]
+            #[cfg(feature = "oci_object_storage")]
             Self::OciObjectStorage { oci_object_storage } => {
                 Arc::new(oci_object_storage::client(oci_object_storage).await)
             }
