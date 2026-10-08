@@ -4889,6 +4889,7 @@
                       "order_amount": 6540
                     },
                     "billing_merchant_connector_id": "mca_billing_1234567890",
+                    "billing_started_at": "2022-09-10T10:11:12Z",
                     "connector_customer_id": "cust_12345",
                     "connector_transaction_id": "993672945374576J",
                     "error": {
@@ -31058,6 +31059,7 @@
           "transaction_created_at",
           "payment_method_type",
           "connector_customer_id",
+          "billing_started_at",
           "connector_transaction_id",
           "payment_method_data",
           "action"
@@ -31122,9 +31124,8 @@
           "billing_started_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Invoice billing started at billing connector end.",
-            "example": "2022-09-10T10:11:12Z",
-            "nullable": true
+            "description": "Invoice billing started at billing connector end. Mandatory.",
+            "example": "2022-09-10T10:11:12Z"
           },
           "connector_transaction_id": {
             "type": "string",

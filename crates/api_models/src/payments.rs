@@ -14745,10 +14745,10 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: Secret<String>,
 
-    /// Invoice billing started at billing connector end.
+    /// Invoice billing started at billing connector end. Mandatory.
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub billing_started_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub billing_started_at: PrimitiveDateTime,
 
     /// A unique identifier for the transaction provided by the payment connector. Mandatory.
     #[schema(value_type = String, example = "993672945374576J")]

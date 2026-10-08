@@ -49,6 +49,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                         "connector_customer_id": "cust_12345",
                         "connector_transaction_id": "993672945374576J",
                         "transaction_created_at": "2022-09-10T10:11:12Z",
+                        "billing_started_at": "2022-09-10T10:11:12Z",
                         "error": {
                             "code": "card_declined",
                             "message": "The card was declined.",

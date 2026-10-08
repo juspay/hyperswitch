@@ -55,7 +55,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_address: data.billing,
             retry_count: None,
             next_billing_at: None,
-            billing_started_at: data.billing_started_at,
+            billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
         }
@@ -104,7 +104,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             // retry count will be updated whenever there is new attempt is created.
             retry_count: None,
             invoice_next_billing_time: None,
-            invoice_billing_started_at_time: data.billing_started_at,
+            invoice_billing_started_at_time: Some(data.billing_started_at),
             card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
         }
