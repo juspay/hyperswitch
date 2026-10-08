@@ -25,6 +25,8 @@ v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
 deja = [
     "dep:bytes",
     "dep:deja",
+    "dep:futures",
+    "reqwest/stream",
     "dep:http-body",
     "dep:http-body-util",
     "dep:prost-reflect",
@@ -98,6 +100,7 @@ quick-xml = { version = "0.31.0", features = ["serialize"] }
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.10.07.2", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 bytes = { version = "1.10.1", optional = true }
+futures = { version = "0.3.31", optional = true }
 superposition_provider = { version = "0.115.5", optional = true }
 superposition_types = "0.115.5"
 superposition_sdk = { version = "0.115.5", optional = true }
