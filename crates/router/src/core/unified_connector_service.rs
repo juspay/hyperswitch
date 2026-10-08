@@ -2579,6 +2579,33 @@ pub fn build_unified_connector_service_payment_method(
     }
 }
 
+/// The MIT counterpart of [`build_unified_connector_service_payment_method_for_external_proxy`].
+///
+/// Emits `ProxyCardDetailsForNetworkTransactionId` rather than `CardProxy`, so UCS substitutes the
+/// alias on its recurring charge flow. No CVC: an MIT has no cardholder present.
+pub fn build_unified_connector_service_payment_method_for_external_proxy_mit(
+    payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method_type: Option<PaymentMethodType>,
+) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    match payment_method_data {
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+            external_vault_card,
+        ) => Ok(payments_grpc::PaymentMethod {
+            payment_method: Some(PaymentMethod::ProxyCardDetailsForNetworkTransactionId(
+                payments_grpc::ProxyCardDetailsForNetworkTransactionId::foreign_from(
+                    *external_vault_card,
+                ),
+            )),
+        }),
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+            Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into())
+        }
+    }
+}
+
 pub fn build_unified_connector_service_payment_method_for_external_proxy(
     payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
