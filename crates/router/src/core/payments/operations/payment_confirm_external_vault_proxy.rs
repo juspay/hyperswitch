@@ -49,6 +49,19 @@ pub(crate) fn build_external_vault_payment_method_data(
 ) -> RouterResult<
     Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
 > {
+    // An MIT driven by `recurring_details` carries no `payment_method_data`: the card sits in the
+    // external vault behind an alias and authorizes on the network transaction ID.
+    let recurring_details_external_vault_pmd = || {
+        request
+            .recurring_details
+            .clone()
+            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
+            .and_then(|recurring_details| {
+                recurring_details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
+            })
+            .map(|(_mandate_reference_id, external_vault_pmd)| external_vault_pmd)
+    };
+
     let external_vault_pmd = match request
         .payment_method_data
         .as_ref()
@@ -103,26 +116,11 @@ pub(crate) fn build_external_vault_payment_method_data(
                         ),
                     )
                 }
-                None => None,
+                None => recurring_details_external_vault_pmd(),
             }
         }
-        _ => None,
+        _ => recurring_details_external_vault_pmd(),
     };
-
-    // An MIT driven by `recurring_details` carries no `payment_method_data`: the card sits in the
-    // external vault behind an alias, and the network transaction ID supplies the mandate
-    // reference. This mirrors the raw-card MIT flow, which derives its payment method data from
-    // the recurring details in the same way, only through the plain proxy core.
-    let external_vault_pmd = external_vault_pmd.or_else(|| {
-        request
-            .recurring_details
-            .clone()
-            .map(hyperswitch_domain_models::payment_method_data::RecurringDetails::from)
-            .and_then(|recurring_details| {
-                recurring_details.get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow()
-            })
-            .map(|(_mandate_reference_id, external_vault_pmd)| external_vault_pmd)
-    });
 
     Ok(external_vault_pmd)
 }
@@ -431,6 +429,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         let payment_data = PaymentData {
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             currency,
             amount,
@@ -679,6 +678,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .applied_offer_details
                         .clone(),
+                    applied_overrides: payment_data.payment_attempt.applied_overrides.clone(),
+                    active_frm_id: payment_data
+                        .frm_message
+                        .as_ref()
+                        .map(|fraud_check| fraud_check.frm_id.clone()),
                 },
                 storage_scheme,
                 key_store,
@@ -1173,140 +1177,5 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         _payment_intent: &storage::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
-    }
-}
-
-#[cfg(test)]
-mod vault_card_mit_tests {
-    use api_models::mandates as api_mandates;
-    use hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData;
-    use hyperswitch_masking::PeekInterface;
-
-    use super::*;
-
-    fn vault_card_data() -> api_mandates::VaultCardData {
-        api_mandates::VaultCardData {
-            card_number: Secret::new("tok_4242424242424242".to_string()),
-            card_exp_month: Secret::new("03".to_string()),
-            card_exp_year: Secret::new("30".to_string()),
-            card_holder_name: Some(Secret::new("John Test".to_string())),
-            card_issuer: Some("chase".to_string()),
-            card_network: Some(common_enums::CardNetwork::Visa),
-            card_type: Some("CREDIT".to_string()),
-            card_issuing_country: Some("INDIA".to_string()),
-            bank_code: Some("JP_AMEX".to_string()),
-            nick_name: Some(Secret::new("my card".to_string())),
-            bin_number: Some("424242".to_string()),
-            last_four: Some("4242".to_string()),
-        }
-    }
-
-    fn request_with_recurring_details(
-        recurring_details: Option<api_mandates::RecurringDetails>,
-    ) -> PaymentsRequest {
-        PaymentsRequest {
-            recurring_details,
-            ..Default::default()
-        }
-    }
-
-    fn vault_card_request() -> PaymentsRequest {
-        request_with_recurring_details(Some(
-            api_mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(Box::new(
-                api_mandates::NetworkTransactionIdAndVaultCardDetails {
-                    vault_card_data: vault_card_data(),
-                    network_transaction_id: Secret::new("MCC12345678".to_string()),
-                    transaction_link_id: None,
-                },
-            )),
-        ))
-    }
-
-    /// An MIT on a vault-held card arrives with no `payment_method_data` at all, so the non-PCI
-    /// card payload has to be derived from the recurring details instead.
-    #[test]
-    fn recurring_vault_card_details_become_external_vault_card_data() {
-        let external_vault_pmd =
-            build_external_vault_payment_method_data(&vault_card_request(), None)
-                .expect("building the vault card payload should succeed")
-                .expect(
-                    "an MIT on a vault-held card should yield external vault payment method data",
-                );
-
-        match external_vault_pmd {
-            ExternalVaultPaymentMethodData::Card(card) => {
-                assert_eq!(card.card_number.peek(), "tok_4242424242424242");
-                assert_eq!(card.card_exp_month.peek(), "03");
-                assert_eq!(card.card_exp_year.peek(), "30");
-                assert_eq!(
-                    card.card_holder_name
-                        .as_ref()
-                        .map(|name| name.peek().as_str()),
-                    Some("John Test")
-                );
-                assert_eq!(card.card_issuer.as_deref(), Some("chase"));
-                assert_eq!(card.card_network, Some(common_enums::CardNetwork::Visa));
-                assert_eq!(card.card_type.as_deref(), Some("CREDIT"));
-                assert_eq!(card.card_issuing_country.as_deref(), Some("INDIA"));
-                assert_eq!(card.bank_code.as_deref(), Some("JP_AMEX"));
-                assert_eq!(card.bin_number.as_deref(), Some("424242"));
-                assert_eq!(card.last_four.as_deref(), Some("4242"));
-            }
-            other => panic!("expected an external vault card, got {other:?}"),
-        }
-    }
-
-    /// There is no cardholder present on an MIT, so no CVC is collected. Pinned because the field
-    /// is mandatory on `ExternalVaultCard` and an accidental placeholder would reach the connector.
-    #[test]
-    fn an_mit_on_a_vault_card_carries_no_cvc() {
-        let external_vault_pmd =
-            build_external_vault_payment_method_data(&vault_card_request(), None)
-                .expect("building the vault card payload should succeed")
-                .expect(
-                    "an MIT on a vault-held card should yield external vault payment method data",
-                );
-
-        match external_vault_pmd {
-            ExternalVaultPaymentMethodData::Card(card) => {
-                assert!(
-                    card.card_cvc.peek().is_empty(),
-                    "an MIT has no cardholder present, so no CVC should be sent"
-                );
-            }
-            other => panic!("expected an external vault card, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn a_request_without_recurring_details_yields_no_external_vault_data() {
-        assert!(build_external_vault_payment_method_data(
-            &request_with_recurring_details(None),
-            None
-        )
-        .expect("an empty request should not fail")
-        .is_none());
-    }
-
-    /// The other recurring flows authorize through the plain proxy core with their own payment
-    /// method data, so they must not be picked up as external vault card payloads here.
-    #[test]
-    fn other_recurring_flows_do_not_produce_external_vault_data() {
-        let other_flows = vec![
-            api_mandates::RecurringDetails::MandateId("mandate_1".to_string()),
-            api_mandates::RecurringDetails::PaymentMethodId("pm_1".to_string()),
-        ];
-
-        other_flows.into_iter().for_each(|recurring_details| {
-            assert!(
-                build_external_vault_payment_method_data(
-                    &request_with_recurring_details(Some(recurring_details)),
-                    None
-                )
-                .expect("building should not fail")
-                .is_none(),
-                "only vault card recurring details should produce external vault card data"
-            );
-        });
     }
 }

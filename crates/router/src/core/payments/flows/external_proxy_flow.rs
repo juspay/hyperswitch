@@ -407,7 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         processor: &domain::Processor,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
+        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -434,6 +434,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata(
                 external_vault_merchant_connector_account,
                 &state.conf.connectors,
+                &state.conf.proxy,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
@@ -452,7 +453,9 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let headers_builder = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(self.payment_method))
+            .payment_method_type(self.payment_method_type)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -462,7 +465,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             state,
             payment_authorize_request.clone(),
             headers_builder,
-            unified_connector_service_execution_mode,
+            rollout_settings,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
@@ -520,7 +523,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         processor: &domain::Processor,
-        unified_connector_service_execution_mode: enums::ExecutionMode,
+        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -528,12 +531,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .clone()
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
-
-        // A vault alias accompanied by a network transaction ID is an MIT. `payment_authorize`
-        // carries no mandate reference, so it would drop the NTI and the connector would treat
-        // the payment as a fresh cardholder-present authorization; the recurring charge endpoint
-        // is the MIT shape. Mirrors the branch `authorize_gateway` takes for raw-card MIT.
-        let is_mit_payment = self.request.mandate_id.is_some();
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -548,6 +545,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata_v1(
                 external_vault_merchant_connector_account.clone(),
                 &state.conf.connectors,
+                &state.conf.proxy,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct external vault proxy metadata")?;
@@ -567,29 +565,30 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let headers_builder = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(self.payment_method))
+            .payment_method_type(self.payment_method_type)
             .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
 
-        let (updated_router_data, _) = match is_mit_payment {
-            true => {
+        let ucs_request = self.get_ucs_request()?;
+
+        let (updated_router_data, _) = match ucs_request {
+            ExternalVaultProxyUcsRequest::RecurringPaymentCharge(
+                recurring_payment_charge_request,
+            ) => {
                 logger::info!(
                     "External vault proxy: detected MIT payment, calling UCS recurring_payment_charge endpoint"
                 );
 
-                let recurring_payment_charge_request =
-                    payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from(&*self)
-                        .change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to construct Recurring Payment Charge Request")?;
-
                 Box::pin(ucs_logging_wrapper(
                     self.clone(),
                     state,
-                    recurring_payment_charge_request,
+                    *recurring_payment_charge_request,
                     headers_builder,
-                    unified_connector_service_execution_mode,
+                    rollout_settings,
                     |mut router_data, recurring_payment_charge_request, grpc_headers| async move {
                         let response = Box::pin(client.recurring_payment_charge(
                             recurring_payment_charge_request,
@@ -644,18 +643,13 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 ))
                 .await?
             }
-            false => {
-                let payment_authorize_request =
-                    payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self)
-                        .change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to construct Payment Authorize Request")?;
-
+            ExternalVaultProxyUcsRequest::Authorize(payment_authorize_request) => {
                 Box::pin(ucs_logging_wrapper(
             self.clone(),
             state,
-            payment_authorize_request.clone(),
+            *payment_authorize_request,
             headers_builder,
-            unified_connector_service_execution_mode,
+            rollout_settings,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
@@ -703,5 +697,37 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
         *self = updated_router_data;
         Ok(())
+    }
+}
+
+/// The UCS request shape for an external vault proxy payment.
+#[cfg(feature = "v1")]
+enum ExternalVaultProxyUcsRequest {
+    RecurringPaymentCharge(Box<payments_grpc::RecurringPaymentServiceChargeRequest>),
+    Authorize(Box<payments_grpc::PaymentServiceAuthorizeRequest>),
+}
+
+#[cfg(feature = "v1")]
+trait GetUcsRequest {
+    fn get_ucs_request(&self) -> RouterResult<ExternalVaultProxyUcsRequest>;
+}
+
+#[cfg(feature = "v1")]
+impl GetUcsRequest for types::ExternalVaultProxyPaymentsRouterData {
+    /// A vault alias accompanied by a network transaction ID is an MIT, and `payment_authorize`
+    /// carries no mandate reference, so it has to go to the recurring charge endpoint instead.
+    fn get_ucs_request(&self) -> RouterResult<ExternalVaultProxyUcsRequest> {
+        match self.request.mandate_id.is_some() {
+            true => payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from(self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Recurring Payment Charge Request")
+                .map(|request| {
+                    ExternalVaultProxyUcsRequest::RecurringPaymentCharge(Box::new(request))
+                }),
+            false => payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Payment Authorize Request")
+                .map(|request| ExternalVaultProxyUcsRequest::Authorize(Box::new(request))),
+        }
     }
 }

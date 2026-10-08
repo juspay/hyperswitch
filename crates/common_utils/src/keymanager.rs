@@ -16,7 +16,7 @@ use router_env::{
 use crate::consts::EXTERNAL_CALL_TAG;
 use crate::{
     consts::{BASE64_ENGINE, TENANT_HEADER},
-    errors,
+    date_time, errors,
     external_service::ExternalServiceCall,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
@@ -140,7 +140,7 @@ where
         ))?;
 
     let latency_ms = elapsed.as_millis();
-    let created_at_timestamp = crate::date_time::now().assume_utc().unix_timestamp_nanos();
+    let created_at_timestamp = date_time::now().assume_utc().unix_timestamp_nanos();
     #[cfg(feature = "ext_services_latency")]
     {
         let downstream_request_id = response

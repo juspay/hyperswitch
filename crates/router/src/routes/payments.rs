@@ -2284,7 +2284,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(state, auth.platform, None, req)
+            payments::list::list_payments(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -2298,6 +2298,58 @@ pub async fn payments_list(
             },
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PlatformPaymentsList))]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn payments_list_for_platform(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::PlatformPaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PlatformPaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list::list_payments_for_platform(state, auth.platform, None, req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+            allow_connected: false,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PlatformPaymentsFilters))]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn payments_list_for_platform_filters(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PlatformPaymentsFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::filters::get_platform_payment_filters(state, auth.platform, None)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+            allow_connected: false,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -2318,7 +2370,7 @@ pub async fn revenue_recovery_invoices_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::revenue_recovery_list_payments(state, auth.platform, req)
+            payments::list::revenue_recovery_list_payments(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2351,7 +2403,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(state, auth.platform, req)
+            payments::list::list_payments(state, auth.platform, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2385,7 +2437,7 @@ pub async fn profile_payments_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::list_payments(
+            payments::list::list_payments(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -2424,7 +2476,7 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(state, auth.platform, None, req)
+            payments::list::apply_filters_on_payments(state, auth.platform, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2451,7 +2503,7 @@ pub async fn profile_payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(
+            payments::list::apply_filters_on_payments(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -2483,7 +2535,7 @@ pub async fn get_filters_for_payments(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_filters_for_payments(state, auth.platform, req)
+            payments::filters::get_filters_for_payments(state, auth.platform, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2508,7 +2560,7 @@ pub async fn get_payment_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(state, auth.platform, None)
+            payments::filters::get_payment_filters(state, auth.platform, None)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -2533,7 +2585,7 @@ pub async fn get_payment_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(
+            payments::filters::get_payment_filters(
                 state,
                 auth.platform,
                 Some(vec![auth.profile.get_id().clone()]),
@@ -2562,7 +2614,7 @@ pub async fn get_payment_filters_profile(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(
+            payments::filters::get_payment_filters(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -2593,7 +2645,7 @@ pub async fn get_payments_aggregates(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(state, auth.platform, None, req)
+            payments::filters::get_aggregates_for_payments(state, auth.platform, None, req)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -3357,6 +3409,60 @@ pub async fn payments_manual_status_update(
     .await
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// List the statuses a conflicted payment is currently eligible for a manual status update to
+/// (Dashboard or API-key auth, mirroring the payment retrieve endpoint's auth).
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdateEligibleStatuses, payment_id))]
+pub async fn payments_manual_status_update_eligible_statuses(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualStatusUpdateEligibleStatuses;
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, _auth_flow) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _req, _req_state| {
+            payments::payments_manual_status_update_eligible_statuses(
+                state,
+                auth.platform,
+                payment_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &*auth_type,
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
@@ -3915,7 +4021,7 @@ pub async fn get_payments_aggregates_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(
+            payments::filters::get_aggregates_for_payments(
                 state,
                 auth.platform,
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
@@ -3946,7 +4052,7 @@ pub async fn get_payments_aggregates_profile(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::get_aggregates_for_payments(
+            payments::filters::get_aggregates_for_payments(
                 state,
                 auth.platform,
                 Some(vec![auth.profile.get_id().clone()]),
