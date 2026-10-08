@@ -2203,7 +2203,9 @@ Cypress.Commands.add(
         );
 
         if (
-          (connectorName === "truelayer" || connectorName === "trustly") &&
+          (connectorName === "truelayer" ||
+            connectorName === "trustly" ||
+            connectorName === "paypal") &&
           authDetails === null
         ) {
           const { authDetails: paymentAuthDetails } = getValueByKey(
@@ -7580,6 +7582,12 @@ Cypress.Commands.add(
           if (response.status === 200) {
             globalState.set("payoutAmount", createConfirmPayoutBody.amount);
             globalState.set("payoutID", response.body.payout_id);
+            if (response.body.client_secret) {
+              globalState.set(
+                "payoutClientSecret",
+                response.body.client_secret
+              );
+            }
             if (response.body.payout_method_id) {
               globalState.set("payoutMethodId", response.body.payout_method_id);
             }
@@ -7710,6 +7718,82 @@ Cypress.Commands.add(
             expect(resData.body[key]).to.equal(response.body[key]);
           }
         } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Confirms a payout via POST /payouts/{payout_id}/confirm, supporting both
+ * authentication modes of the payout confirm API. This is the payout-side
+ * analogue of confirmCallTest (payments): it confirms an EXISTING payout on
+ * its dedicated confirm endpoint. It cannot be replaced by
+ * createConfirmPayoutTest, which always creates a NEW payout on
+ * POST /payouts/create — a route with merchant-key-only auth where the
+ * client-authenticated confirm flow is unreachable.
+ * - client-authenticated (clientAuth=true): publishable key in the api-key
+ *   header and the client_secret (stashed in globalState as
+ *   payoutClientSecret by createConfirmPayoutTest) in the request body.
+ *   Restricted fields (amount, auto_fulfill, currency, connector, routing)
+ *   in the config Request exercise the client-auth field restrictions.
+ *   A config Request may pin client_secret (e.g. null) to exercise the
+ *   missing-client_secret error path.
+ * - merchant-authenticated (clientAuth=false): merchant secret key in the
+ *   api-key header and no client_secret in the request body.
+ * @param {Object} payoutConfirmBody - Base request body (config Request fields are merged on top)
+ * @param {Object} data - Connector config entry with Request/Response
+ * @param {boolean} clientAuth - true for publishable-key auth, false for merchant secret-key auth
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add(
+  "confirmPayoutCallTest",
+  (payoutConfirmBody, data, clientAuth, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const payout_id = globalState.get("payoutID");
+
+    for (const key in reqData) {
+      payoutConfirmBody[key] = reqData[key];
+    }
+
+    if (clientAuth) {
+      if (!("client_secret" in reqData)) {
+        payoutConfirmBody.client_secret = globalState.get("payoutClientSecret");
+      }
+    } else {
+      delete payoutConfirmBody.client_secret;
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": clientAuth
+        ? globalState.get("publishableKey")
+        : globalState.get("apiKey"),
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/${payout_id}/confirm`,
+      headers,
+      failOnStatusCode: false,
+      body: payoutConfirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          if (resData.body) {
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
+            }
+          }
+        } else {
+          expect(response.status).to.equal(resData.status);
           defaultErrorHandler(response, resData);
         }
       });
