@@ -431,6 +431,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Payment method migration gate key: when true, the merchant can call the payment method migrate and update batch APIs with its own API key
+    pub const PAYMENT_METHOD_MIGRATION_ENABLED: &str = "payment_methods.migration_enabled";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
     pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
     /// Organization-scoped block implicit customer creation configuration key

@@ -581,6 +581,35 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
+/// Number of characters in `consts::ALPHABETS`
+const ALPHABETS_BASE: u128 = 62;
+
+/// Generate an id in the same format as [`generate_id`], derived from `seed` instead of being
+/// random, so the same seed always gives the same id.
+///
+/// Only the first 16 bytes of `seed` are used, which is enough for up to 21 characters. The seed
+/// should be uniformly distributed, such as an HMAC, for the id to be as unique as a random one.
+pub fn generate_id_from_seed(length: usize, prefix: &str, seed: &[u8]) -> String {
+    let mut value = seed
+        .iter()
+        .take(16)
+        .fold(0u128, |acc, byte| (acc << 8) | u128::from(*byte));
+
+    let id: String = (0..length)
+        .map(|_| {
+            let character = usize::try_from(value % ALPHABETS_BASE)
+                .ok()
+                .and_then(|index| consts::ALPHABETS.get(index))
+                .copied()
+                .unwrap_or('0');
+            value /= ALPHABETS_BASE;
+            character
+        })
+        .collect();
+
+    format!("{prefix}_{id}")
+}
+
 /// Generate a ReferenceId with the default length with the given prefix
 #[cfg_attr(feature = "deja", track_caller)]
 fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
@@ -791,5 +820,21 @@ mod nanoid_tests {
         >::from(generate_id_with_default_len("def").into());
 
         assert!(ref_id.is_ok())
+    }
+
+    #[test]
+    fn test_generate_id_from_seed() {
+        assert_eq!(u128::try_from(consts::ALPHABETS.len()), Ok(ALPHABETS_BASE));
+
+        let seed = [0xab; 32];
+        let id = generate_id_from_seed(consts::ID_LENGTH, "pm", &seed);
+
+        assert_eq!(id, generate_id_from_seed(consts::ID_LENGTH, "pm", &seed));
+        assert_ne!(
+            id,
+            generate_id_from_seed(consts::ID_LENGTH, "pm", &[0xcd; 32])
+        );
+        assert_eq!(id.len(), generate_id(consts::ID_LENGTH, "pm").len());
+        assert!(AlphaNumericId::from(id.into()).is_ok());
     }
 }

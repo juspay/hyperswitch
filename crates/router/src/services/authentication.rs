@@ -1737,6 +1737,42 @@ where
     }
 }
 
+/// Authenticates with the admin API key, falling back to the merchant's own API key.
+/// Returns `None` for the admin API key and the merchant's authentication data otherwise.
+#[derive(Debug, Default)]
+pub struct AdminApiAuthOrApiKeyAuth;
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<Option<AuthenticationData>, A> for AdminApiAuthOrApiKeyAuth
+where
+    A: SessionStateInfo + Send + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(Option<AuthenticationData>, AuthenticationType)> {
+        let request_api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let conf = state.conf();
+        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
+
+        if request_api_key == admin_api_key.peek() {
+            return Ok((None, AuthenticationType::AdminApiKey));
+        }
+
+        let (auth_data, auth_type) = HeaderAuth(ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        })
+        .authenticate_and_fetch(request_headers, state)
+        .await?;
+
+        Ok((Some(auth_data), auth_type))
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct V2AdminApiAuth;
 

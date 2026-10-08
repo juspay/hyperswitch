@@ -12,7 +12,7 @@ use common_utils::{
     consts,
     crypto::{Encryptable, HmacSha256, SignMessage},
     ext_traits::{AsyncExt, ConfigExt},
-    generate_id,
+    generate_id, generate_id_from_seed,
 };
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
@@ -683,7 +683,16 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         req.connector_mandate_details.as_ref(),
     )?;
 
-    if let Some(payment_method_id) = &derived_payment_method_id {
+    // For Postgres-only merchants a duplicate insert fails on the primary key, which is handled
+    // below. With the Redis KV store, the insert is only rejected while the earlier record is
+    // still cached in Redis, so the existing record has to be looked up before inserting.
+    let should_check_before_insert =
+        provider.get_account().storage_scheme == enums::MerchantStorageScheme::RedisKv;
+
+    if let Some(payment_method_id) = derived_payment_method_id
+        .as_ref()
+        .filter(|_| should_check_before_insert)
+    {
         if let Some(existing_payment_method) =
             find_migrated_payment_method(db, provider, &customer_id, payment_method_id).await?
         {
@@ -799,7 +808,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let response = match response {
         Ok(response) => response,
-        // A concurrent request migrated the same payment method first
+        // The payment method was migrated earlier, or by a concurrent request
         Err(err)
             if derived_payment_method_id.is_some()
                 && err.current_context().is_db_unique_violation() =>
@@ -861,9 +870,10 @@ const MIGRATION_PAYMENT_METHOD_ID_CONTEXT: &[u8] =
 
 /// Derives a stable payment method id from the merchant, customer and connector mandate ids.
 ///
-/// The id is an HMAC keyed by a key derived from the merchant key store, so it cannot be
-/// computed outside Hyperswitch. Returns `None` when there is no connector mandate id to
-/// derive from, in which case the caller falls back to a random id.
+/// The id has the same format as a randomly generated one and is encoded from an HMAC keyed by a
+/// key derived from the merchant key store, so it cannot be computed outside Hyperswitch.
+/// Returns `None` when there is no connector mandate id to derive from, in which case the caller
+/// falls back to a random id.
 #[cfg(feature = "v1")]
 fn derive_migration_payment_method_id(
     key_store: &MerchantKeyStore,
@@ -910,13 +920,11 @@ fn derive_migration_payment_method_id(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to derive the migration payment method id")?;
 
-    let encoded_digest: String = digest
-        .iter()
-        .take(16)
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
-
-    Ok(Some(format!("pm_{encoded_digest}")))
+    Ok(Some(generate_id_from_seed(
+        consts::ID_LENGTH,
+        "pm",
+        &digest,
+    )))
 }
 
 /// Looks up a payment method by its derived migration id, returning `None` if it does not exist.
