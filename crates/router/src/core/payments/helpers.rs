@@ -622,6 +622,15 @@ pub async fn get_token_pm_type_mandate_details(
                         None,
                         None,
                     ),
+                    RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
                     RecurringDetails::CardWithLimitedData(_) => (
                         None,
                         request.payment_method,
@@ -1419,6 +1428,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
         | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
@@ -5858,6 +5868,7 @@ impl AttemptType {
             installment_data: None,
             external_surcharge_details: None,
             applied_offer_details: None,
+            applied_overrides: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
             active_frm_id: None,
