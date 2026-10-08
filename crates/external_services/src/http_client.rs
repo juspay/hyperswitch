@@ -88,7 +88,7 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
         // outgoing call (e.g. Stripe) is served from the lookup table with no
         // network. A recorded value this build cannot reconstruct fail-stops the
         // request; it is not a silent fallback to a live call.
-        codec = boundary::HttpResponseCodec,
+        owned_codec = boundary::HttpResponseCodec,
         // An outbound call the recording never made answers with a transport
         // failure, not with a response. A fabricated status would claim a third
         // party answered when none did; `RequestNotSent` claims NOBODY answered,
@@ -274,20 +274,7 @@ pub async fn send_request(
         response => response,
     };
 
-    #[cfg(feature = "deja")]
-    {
-        match response {
-            Ok(response) if boundary::is_active() => {
-                boundary::response_with_captured_body(response).await
-            }
-            response => response,
-        }
-    }
-
-    #[cfg(not(feature = "deja"))]
-    {
-        response
-    }
+    response
 }
 
 fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
