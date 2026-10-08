@@ -25659,6 +25659,13 @@
             "description": "The webhook endpoint URL to receive payment status notifications",
             "example": "https://merchant.example.com/webhooks/payment",
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25883,6 +25890,13 @@
                 "$ref": "#/components/schemas/RecipientDetails"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         },
@@ -26266,6 +26280,12 @@
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
             "nullable": true
           }
         },
@@ -26761,6 +26781,13 @@
               }
             ],
             "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26984,6 +27011,12 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Whether address verification was requested for this payment.",
+            "example": true,
             "nullable": true
           }
         }
@@ -27268,6 +27301,13 @@
                 "$ref": "#/components/schemas/RecipientDetails"
               }
             ],
+            "nullable": true
+          },
+          "enable_avs_check": {
+            "type": "boolean",
+            "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         },
