@@ -7848,8 +7848,8 @@ impl ForeignFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
         match mit_category {
             common_enums::MitCategory::Installment => Self::InstallmentMit,
             common_enums::MitCategory::Recurring => Self::RecurringMit,
-            common_enums::MitCategory::Subscription => Self::UnscheduledMit,
-            common_enums::MitCategory::Resubmission => Self::SubscriptionMit,
+            common_enums::MitCategory::Subscription => Self::SubscriptionMit,
+            common_enums::MitCategory::Resubmission => Self::ResubmissionMit,
             common_enums::MitCategory::Unscheduled => Self::UnscheduledMit,
         }
     }
