@@ -395,6 +395,10 @@ pub enum RevenueRecoveryABAlgorithm {
     /// the weekday and month-day signals are softmaxed before the max, and the day is drawn by the
     /// per-day walk. Kept as the control arm, and kept stable because invoices already carry it.
     AdaptiveRetry,
+    /// Control's pairing with the static ladder as a ceiling rather than a standby, which together
+    /// reproduce the behaviour production ran before systematic sampling landed. Differs from
+    /// `AdaptiveRetry` in the ladder's role alone.
+    AdaptiveRetryBounded,
     /// Control's combine, drawn instead by systematic sampling. Differs from `AdaptiveRetry` in the
     /// sampler alone, so a difference between the two is attributable to the draw.
     SystematicKMaxAtSoftmax,
