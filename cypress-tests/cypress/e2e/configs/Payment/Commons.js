@@ -4727,6 +4727,12 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
           billing: standardBillingAddress,
         },
+        // Some connectors (e.g. ilixium) require the customer's date of
+        // birth and reject the confirm otherwise. Harmless extra field for
+        // connectors that don't need it.
+        customer: {
+          date_of_birth: "1990-01-01",
+        },
       },
       Response: {
         status: 200,
@@ -4759,6 +4765,12 @@ export const connectorDetails = {
         offer_details: {
           offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
         },
+        // Some connectors (e.g. ilixium) require the customer's date of
+        // birth and reject the confirm otherwise. Harmless extra field for
+        // connectors that don't need it.
+        customer: {
+          date_of_birth: "1990-01-01",
+        },
       },
       Response: {
         status: 200,
@@ -4786,12 +4798,57 @@ export const connectorDetails = {
         },
       },
     }),
+    // Default saved-card-confirm expectation mirrors the plain-card case
+    // above (ConfirmWithOfferApplied/AppliedOfferOnRetrieve) -- this is a
+    // separate key, not a reuse of those, so that connectors which can't
+    // actually complete a saved-card confirm (e.g. ilixium, which doesn't
+    // implement repeat_payment) can override just this key via
+    // getConnectorDetails() without disturbing the plain-card case, which
+    // still passes for them.
+    ConfirmWithOfferAppliedSavedCard: getCustomExchange({
+      Request: {
+        offer_details: {
+          offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 100000,
+          net_amount: 98000,
+          amount_received: 98000,
+          currency: "USD",
+        },
+      },
+    }),
+    AppliedOfferOnRetrieveSavedCard: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          net_amount: 98000,
+          amount_received: 98000,
+          applied_offer: {
+            offer_amount: 2000,
+            currency: "USD",
+          },
+        },
+      },
+    }),
     ConfirmWithoutOffer: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: standardBillingAddress,
+        },
+        // Some connectors (e.g. ilixium) require the customer's date of
+        // birth and reject the confirm otherwise. Harmless extra field for
+        // connectors that don't need it.
+        customer: {
+          date_of_birth: "1990-01-01",
         },
       },
       Response: {
