@@ -100,7 +100,7 @@ impl GcpKmsClient {
             .inner_client
             .decrypt(request, None)
             .await
-            .map_err(GcpKmsError::DecryptionFailed)?;
+            .map_err(|status| GcpKmsError::DecryptionFailed(Box::new(status)))?;
 
         String::from_utf8(response.plaintext).map_err(GcpKmsError::Utf8DecodingFailed)
     }
@@ -119,7 +119,7 @@ impl GcpKmsClient {
             .inner_client
             .encrypt(request, None)
             .await
-            .map_err(GcpKmsError::EncryptionFailed)?;
+            .map_err(|status| GcpKmsError::EncryptionFailed(Box::new(status)))?;
 
         Ok(BASE64_ENGINE.encode(response.ciphertext))
     }
@@ -134,11 +134,11 @@ pub enum GcpKmsError {
 
     /// An error occurred when GCP KMS decrypting the input data.
     #[error("Failed to GCP KMS decrypt input data")]
-    DecryptionFailed(#[source] Status),
+    DecryptionFailed(#[source] Box<Status>),
 
     /// An error occurred when GCP KMS encrypting the input data.
     #[error("Failed to GCP KMS encrypt input data")]
-    EncryptionFailed(#[source] Status),
+    EncryptionFailed(#[source] Box<Status>),
 
     /// An error occurred UTF-8 decoding the GCP KMS decrypted output.
     #[error("Failed UTF-8 decode of GCP KMS decrypted output")]
