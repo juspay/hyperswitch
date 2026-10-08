@@ -99,12 +99,6 @@ impl std::fmt::Display for AbsentTransportError {
 
 impl std::error::Error for AbsentTransportError {}
 
-/// Envelope smuggled through `http::Extensions` from the buffering `run`
-/// closure to the recording `extract` closure — the same trick the HTTP
-/// boundary uses for its response body (`CapturedResponseBody`).
-#[derive(Clone)]
-struct CapturedEnvelope(GrpcResultEnvelope);
-
 /// A substituted transport error: the recorded display chain of the original
 /// failure. Approximate by design (the original error struct is gone); tonic
 /// maps it through `Status::from_error` exactly as it would a live failure.
@@ -290,13 +284,15 @@ where
         // Transport present: a miss may be a genuine novel call, so this keeps
         // `dispatch_async`'s default substitute-miss fail-stop.
         Some(inner) => {
-            deja::__private::dispatch_async(
+            deja::__private::owned_dispatch_async(
                 observation,
                 move || args_value,
-                move || run_and_capture(inner, rebuilt_request),
+                move || passthrough(inner, rebuilt_request),
                 reconstruct_from_recorded,
-                extract_envelope,
+                read_response,
+                record_envelope,
                 deja::__private::round_trip!(Result<http::Response<TonicBody>, BoxError>),
+                None::<fn(&Result<http::Response<TonicBody>, BoxError>) -> bool>,
             )
             .await
         }
@@ -306,7 +302,7 @@ where
         // than an `unreachable!` so a broken invariant stays legible.
         None => {
             // Same seam as the arm above; the difference lives in the miss branch.
-            deja::__private::dispatch_async(
+            deja::__private::owned_dispatch_async(
                 observation,
                 move || args_value,
                 move || async { Err(BoxError::from(AbsentTransportError)) },
@@ -328,67 +324,81 @@ where
                         deja::__private::fail_stop_absent_executor(BOUNDARY, OPERATION, &target)
                     }
                 },
-                extract_envelope,
+                read_response,
+                record_envelope,
                 deja::__private::round_trip!(Result<http::Response<TonicBody>, BoxError>),
+                None::<fn(&Result<http::Response<TonicBody>, BoxError>) -> bool>,
             )
             .await
         }
     }
 }
 
-/// The `run` thunk: forward to the real transport, buffer the response
-/// verbatim (data frames + trailers), and hand tonic a response rebuilt over
-/// the SAME buffer the tape captures — byte-identical parity. The envelope
-/// rides `http::Extensions` to the extractor.
-async fn run_and_capture<S, RB>(
-    mut inner: S,
-    request: http::Request<TonicBody>,
-) -> Result<http::Response<TonicBody>, BoxError>
-where
-    S: tonic::codegen::Service<http::Request<TonicBody>, Response = http::Response<RB>>,
-    S::Error: Into<BoxError>,
-    RB: http_body::Body<Data = bytes::Bytes> + Send + 'static,
-    RB::Error: Into<BoxError>,
-{
-    let response = match inner.call(request).await {
-        Ok(response) => response,
-        Err(error) => return Err(error.into()),
-    };
-    let (parts, body) = response.into_parts();
-    let collected = match http_body_util::BodyExt::collect(body).await {
-        Ok(collected) => collected,
-        Err(error) => return Err(error.into()),
-    };
-    let trailers = collected.trailers().cloned();
-    let data = collected.to_bytes();
+/// The response's data and trailers as read for the tape, or why the body
+/// could not be read.
+type ReadResponse = Result<(bytes::Bytes, Option<http::HeaderMap>), String>;
 
-    let envelope = GrpcResultEnvelope::from_response_parts(
-        parts.status.as_u16(),
-        &parts.headers,
-        &data,
-        trailers.as_ref(),
-    );
-    let mut rebuilt =
-        http::Response::from_parts(parts, TonicBody::new(BufferedBody::new(data, trailers)));
-    rebuilt.extensions_mut().insert(CapturedEnvelope(envelope));
-    Ok(rebuilt)
+/// The owned capture's read, and the only step outside the recorder's
+/// firewall: take the body frame by frame and hand tonic a body that yields
+/// exactly those frames, a mid-body error included, so recording changes
+/// nothing tonic sees. Runs only while the call is recorded.
+async fn read_response(
+    result: Result<http::Response<TonicBody>, BoxError>,
+) -> (
+    Result<http::Response<TonicBody>, BoxError>,
+    Result<ReadResponse, String>,
+) {
+    let response = match result {
+        Ok(response) => response,
+        Err(error) => return (Err(error), Ok(Ok((bytes::Bytes::new(), None)))),
+    };
+    let (parts, mut body) = response.into_parts();
+    let mut frames = Vec::new();
+    let mut data = bytes::BytesMut::new();
+    let mut trailers = None;
+    let failure = loop {
+        match http_body_util::BodyExt::frame(&mut body).await {
+            None => break None,
+            Some(Ok(frame)) => {
+                if let Some(chunk) = frame.data_ref() {
+                    data.extend_from_slice(chunk);
+                }
+                if let Some(frame_trailers) = frame.trailers_ref() {
+                    trailers = Some(frame_trailers.clone());
+                }
+                frames.push(Ok(frame));
+            }
+            Some(Err(error)) => break Some(error),
+        }
+    };
+    let read = match &failure {
+        None => Ok((data.freeze(), trailers)),
+        Some(error) => Err(error.to_string()),
+    };
+    frames.extend(failure.map(Err));
+    let body = http_body_util::StreamBody::new(futures::stream::iter(frames));
+    (
+        Ok(http::Response::from_parts(parts, TonicBody::new(body))),
+        Ok(read),
+    )
 }
 
-/// The `extract` closure: envelope out of the extensions (record path), or a
-/// transport-error envelope from the `Err` arm.
-fn extract_envelope(
+/// The owned capture's record, inside the firewall: the envelope of what was
+/// read, or of the transport error. A body that failed mid-read records as the
+/// transport error it was before, so a replay serves it as it always has.
+fn record_envelope(
+    read: ReadResponse,
     result: &Result<http::Response<TonicBody>, BoxError>,
 ) -> (serde_json::Value, bool) {
-    let envelope = match result {
-        Ok(response) => match response.extensions().get::<CapturedEnvelope>() {
-            Some(CapturedEnvelope(envelope)) => envelope.clone(),
-            // Unreachable on the record path (run_and_capture always stamps
-            // it); recorded loudly rather than silently if it ever happens.
-            None => GrpcResultEnvelope::TransportError {
-                error: "deja: response envelope was not captured".to_owned(),
-            },
-        },
-        Err(error) => GrpcResultEnvelope::TransportError {
+    let envelope = match (result, read) {
+        (Ok(response), Ok((data, trailers))) => GrpcResultEnvelope::from_response_parts(
+            response.status().as_u16(),
+            response.headers(),
+            &data,
+            trailers.as_ref(),
+        ),
+        (Ok(_), Err(reason)) => GrpcResultEnvelope::TransportError { error: reason },
+        (Err(error), _) => GrpcResultEnvelope::TransportError {
             error: format!("{error}"),
         },
     };
@@ -510,6 +520,120 @@ mod tests {
         ) -> Result<tonic::Response<CalGlobalSuccessRateResponse>, tonic::Status> {
             Err(tonic::Status::unimplemented("not in this test"))
         }
+    }
+
+    /// The frames tonic polls from `body`, errors as their text.
+    async fn frames(mut body: TonicBody) -> Vec<Result<String, String>> {
+        let mut seen = Vec::new();
+        while let Some(frame) = http_body_util::BodyExt::frame(&mut body).await {
+            seen.push(match frame {
+                Ok(frame) => Ok(format!("{frame:?}")),
+                Err(status) => Err(format!("{:?} {}", status.code(), status.message())),
+            });
+        }
+        seen
+    }
+
+    fn response(
+        frames: Vec<Result<http_body::Frame<bytes::Bytes>, tonic::Status>>,
+    ) -> http::Response<TonicBody> {
+        let body = http_body_util::StreamBody::new(futures::stream::iter(frames));
+        let mut response = http::Response::new(TonicBody::new(body));
+        response.headers_mut().insert(
+            "content-type",
+            http::HeaderValue::from_static("application/grpc"),
+        );
+        response
+    }
+
+    /// Recording must not change what tonic sees: the rebuilt body yields the
+    /// same frames in the same order, and a body that fails mid-stream fails
+    /// at the same frame with the same status.
+    #[tokio::test]
+    async fn the_read_body_yields_the_frames_tonic_would_have_seen() {
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+        let fixtures = || {
+            [
+                vec![
+                    Ok(http_body::Frame::data(bytes::Bytes::from_static(
+                        b"\0\0\0\0\x02ab",
+                    ))),
+                    Ok(http_body::Frame::data(bytes::Bytes::from_static(b"cd"))),
+                    Ok(http_body::Frame::trailers(trailers.clone())),
+                ],
+                vec![
+                    Ok(http_body::Frame::data(bytes::Bytes::from_static(b"\0\0\0"))),
+                    Err(tonic::Status::unavailable("connection reset")),
+                ],
+            ]
+        };
+        for (original, through) in fixtures().into_iter().zip(fixtures()) {
+            let fails = original.iter().any(Result::is_err);
+            let direct = frames(response(original).into_body()).await;
+            let (rebuilt, read) = read_response(Ok(response(through))).await;
+            assert_eq!(matches!(read, Ok(Err(_))), fails, "{read:?}");
+            let rebuilt = rebuilt.expect("an Ok stays Ok");
+            assert_eq!(rebuilt.headers()["content-type"], "application/grpc");
+            assert_eq!(frames(rebuilt.into_body()).await, direct);
+        }
+    }
+
+    /// What was read becomes the same envelope the stash used to carry, and a
+    /// transport error records as one.
+    #[tokio::test]
+    async fn the_recorded_envelope_is_what_was_read() {
+        let mut trailers = http::HeaderMap::new();
+        trailers.insert("grpc-status", http::HeaderValue::from_static("0"));
+        let data = bytes::Bytes::from_static(b"\0\0\0\0\x02ab");
+        let (value, read) = read_response(Ok(response(vec![
+            Ok(http_body::Frame::data(data.clone())),
+            Ok(http_body::Frame::trailers(trailers.clone())),
+        ])))
+        .await;
+        let (recorded, is_error) = record_envelope(read.expect("the body reads"), &value);
+        let response = value.expect("an Ok stays Ok");
+        let expected = GrpcResultEnvelope::from_response_parts(
+            response.status().as_u16(),
+            response.headers(),
+            &data,
+            Some(&trailers),
+        );
+        assert_eq!(
+            recorded,
+            serde_json::to_value(&expected).expect("serializes")
+        );
+        assert_eq!(is_error, expected.is_err());
+
+        let (value, read) = read_response(Err(BoxError::from("dns error"))).await;
+        let (recorded, is_error) = record_envelope(read.expect("nothing to read"), &value);
+        assert!(is_error);
+        assert_eq!(
+            recorded,
+            serde_json::to_value(GrpcResultEnvelope::TransportError {
+                error: "dns error".to_owned()
+            })
+            .expect("serializes")
+        );
+    }
+
+    /// A body that fails mid-read records as the transport error it was
+    /// before the owned capture, so a replay serves it unchanged.
+    #[tokio::test]
+    async fn a_body_that_fails_records_as_a_transport_error() {
+        let (value, read) = read_response(Ok(response(vec![
+            Ok(http_body::Frame::data(bytes::Bytes::from_static(b"\0\0\0"))),
+            Err(tonic::Status::unavailable("connection reset")),
+        ])))
+        .await;
+        let (recorded, is_error) = record_envelope(read.expect("the read always reports"), &value);
+        assert!(is_error);
+        let Ok(GrpcResultEnvelope::TransportError { error }) =
+            serde_json::from_value::<GrpcResultEnvelope>(recorded)
+        else {
+            panic!("a failed read records a transport error");
+        };
+        assert!(error.contains("connection reset"), "{error}");
     }
 
     /// Inactive-hook passthrough: real tonic server + wrapped hyper pool,
