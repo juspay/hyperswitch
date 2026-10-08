@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.09.23.0-hotfix6
+
+### Features
+
+- **connector:** [SANTANDER] Implemented MIT webhooks for PixAutomaticoPush & PixAutomaticoQr ([#14670](https://github.com/juspay/hyperswitch/pull/14670)) ([`9aa4571`](https://github.com/juspay/hyperswitch/commit/9aa45711945dd6dae92cce4cdabaf6536e85b568))
+
+**Full Changelog:** [`2026.09.23.0-hotfix5...2026.09.23.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.09.23.0-hotfix5...2026.09.23.0-hotfix6)
+
+- - -
+
 ## 2026.09.23.0-hotfix5
 
 ### Features
