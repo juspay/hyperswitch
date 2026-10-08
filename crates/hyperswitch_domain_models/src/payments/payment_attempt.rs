@@ -179,15 +179,6 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-        &self,
-        preprocessing_id: &str,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
-    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
-
-    #[cfg(feature = "v1")]
     async fn find_attempts_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -373,6 +364,49 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// The standardised code from the global status map record for this error.
+    /// Persisted in the `error_details` column, under `unified_details`.
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+}
+
+/// The `error_details` column for a v2 attempt error: connector, issuer and unified (GSM) details.
+#[cfg(feature = "v2")]
+impl From<&ErrorDetails> for diesel_models::payment_attempt::ErrorDetails {
+    fn from(error: &ErrorDetails) -> Self {
+        let unified_details = (error.unified_message.is_some()
+            || error.standardised_code.is_some())
+        .then(|| diesel_models::payment_attempt::UnifiedErrorDetails {
+            category: None,
+            message: error.unified_message.clone(),
+            standardised_code: error.standardised_code,
+            description: None,
+            user_guidance_message: None,
+            recommended_action: None,
+        });
+        let issuer_details = (error.network_decline_code.is_some()
+            || error.network_error_message.is_some()
+            || error.network_advice_code.is_some())
+        .then(|| diesel_models::payment_attempt::IssuerErrorDetails {
+            code: error.network_decline_code.clone(),
+            message: error.network_error_message.clone(),
+            network_details: error.network_advice_code.clone().map(|advice_code| {
+                diesel_models::payment_attempt::NetworkErrorDetails {
+                    name: None,
+                    advice_code: Some(advice_code),
+                    advice_message: None,
+                }
+            }),
+        });
+        Self {
+            unified_details,
+            issuer_details,
+            connector_details: Some(diesel_models::payment_attempt::ConnectorErrorDetails {
+                code: Some(error.code.clone()),
+                message: Some(error.message.clone()),
+                reason: error.reason.clone(),
+            }),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1452,6 +1486,8 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     /// Normalized applied-offer details from Offer Engine
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    /// Values applied to this attempt in place of what was requested (e.g. capture method fallback)
+    pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
     /// Payment Account Reference (PAR) returned by the connector for the underlying card
     pub payment_account_reference: Option<String>,
     /// Sender payment instrument ID
@@ -1658,8 +1694,10 @@ impl PaymentAttempt {
         self.amount_details.surcharge_amount
     }
 
+    /// Network of the card, as stored on the attempt's payment method data.
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
-        todo!()
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_network)
     }
 
     /// Funding type of the card, as stored on the attempt's payment method data.
@@ -1780,6 +1818,18 @@ impl PaymentAttempt {
 
 #[cfg(feature = "v1")]
 impl PaymentAttempt {
+    /// Capture method actually used with the connector for this attempt.
+    ///
+    /// `capture_method` keeps what the payment requested; when the profile's
+    /// `auto_fallback_capture_method` replaced it, the replacement is recorded in
+    /// `applied_overrides` and takes precedence here.
+    pub fn get_effective_capture_method(&self) -> Option<storage_enums::CaptureMethod> {
+        self.applied_overrides
+            .as_ref()
+            .and_then(|overrides| overrides.capture_method_applied)
+            .or(self.capture_method)
+    }
+
     pub fn get_total_amount(&self) -> MinorUnit {
         self.net_amount.get_total_amount()
     }
@@ -2087,6 +2137,7 @@ pub enum PaymentAttemptUpdate {
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
         applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+        applied_overrides: Option<common_types::payments::AppliedOverrides>,
         active_frm_id: Option<String>,
     },
     RejectUpdate {
@@ -2437,6 +2488,7 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                applied_overrides,
                 active_frm_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
@@ -2491,6 +2543,7 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+                applied_overrides,
                 active_frm_id,
             },
             Self::VoidUpdate {

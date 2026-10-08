@@ -4,35 +4,75 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
+const blocklistContext = () => ({
+  processor_merchant_id: globalState.get("merchantId"),
+  provider_merchant_id: globalState.get("merchantId"),
+});
+
 describe("Business Profile Payment Method Blocking", () => {
+  let specShouldSkip = false;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      if (
+        !globalState.get("superpositionBaseUrl") ||
+        !globalState.get("superpositionSecret") ||
+        !globalState.get("superpositionAuthToken")
+      ) {
+        cy.task(
+          "cli_log",
+          "Superposition credentials not set — skipping blocklist spec"
+        );
+        specShouldSkip = true;
+        return;
+      }
+      expect(globalState.get("merchantId"), "merchant ID").to.be.a("string").and
+        .not.be.empty;
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.payment_blocklist_guard",
+        true,
+        blocklistContext()
+      );
     });
   });
 
-  after("reset payment method blocking and flush global state", () => {
-    cy.UpdateBusinessProfileTest(
-      {
-        payment_method_blocking: {},
-      },
-      false, // is_connector_agnostic_enabled
-      false, // collect_billing_address_from_wallet_connector
-      false, // collect_shipping_address_from_wallet_connector
-      false, // always_collect_billing_address_from_wallet_connector
-      false, // always_collect_shipping_address_from_wallet_connector
-      globalState
-    );
-    cy.task("setGlobalState", globalState.data);
+  beforeEach(function () {
+    if (specShouldSkip) {
+      this.skip();
+    }
   });
+
+  after(
+    "cleanup superposition config, reset payment method blocking and flush global state",
+    () => {
+      if (!specShouldSkip && globalState?.get("merchantId")) {
+        cy.setSuperpositionConfig(
+          globalState,
+          "payments.payment_blocklist_guard",
+          false,
+          blocklistContext()
+        );
+        cy.UpdateBusinessProfileTest(
+          {
+            payment_method_blocking: {},
+          },
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
+          globalState
+        );
+      }
+      cy.task("setGlobalState", globalState.data);
+    }
+  );
 
   context("Card Issuing Country Blocking", () => {
     it("should block payment when card issuing country is blocked", () => {
       let shouldContinue = true;
-
-      cy.step("Enable blocklist", () => {
-        cy.blocklistToggle("true", globalState);
-      });
 
       cy.step("Update business profile to block issuing country", () => {
         const updateBusinessProfileBody = {
@@ -277,10 +317,6 @@ describe("Business Profile Payment Method Blocking", () => {
           );
         }
       );
-
-      cy.step("Disable blocklist", () => {
-        cy.blocklistToggle("false", globalState);
-      });
     });
   });
 });

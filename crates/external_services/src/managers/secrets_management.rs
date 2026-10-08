@@ -1,7 +1,7 @@
 //! Secrets management util module
 
 use common_utils::errors::CustomResult;
-#[cfg(any(feature = "hashicorp-vault", feature = "gcp_kms"))]
+#[cfg(any(feature = "hashicorp-vault", feature = "gcp_kms", feature = "oci_kms"))]
 use error_stack::ResultExt;
 use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
@@ -14,6 +14,8 @@ use crate::gcp_kms;
 #[cfg(feature = "hashicorp-vault")]
 use crate::hashicorp_vault;
 use crate::no_encryption::core::NoEncryption;
+#[cfg(feature = "oci_kms")]
+use crate::oci_kms;
 
 /// Enum representing configuration options for secrets management.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -41,6 +43,13 @@ pub enum SecretsManagementConfig {
         hc_vault: hashicorp_vault::core::HashiCorpVaultConfig,
     },
 
+    /// OCI Vault KMS configuration
+    #[cfg(feature = "oci_kms")]
+    OciKms {
+        /// OCI KMS config
+        oci_kms: oci_kms::core::OciKmsConfig,
+    },
+
     /// Variant representing no encryption
     #[default]
     NoEncryption,
@@ -56,6 +65,8 @@ impl SecretsManagementConfig {
             Self::GcpKms { gcp_kms } => gcp_kms.validate(),
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => hc_vault.validate(),
+            #[cfg(feature = "oci_kms")]
+            Self::OciKms { oci_kms } => oci_kms.validate(),
             Self::NoEncryption => Ok(()),
         }
     }
@@ -80,6 +91,11 @@ impl SecretsManagementConfig {
                     .change_context(SecretsManagementError::ClientCreationFailed)
                     .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) })
             }
+            #[cfg(feature = "oci_kms")]
+            Self::OciKms { oci_kms } => oci_kms::core::OciKmsClient::new(oci_kms)
+                .await
+                .change_context(SecretsManagementError::ClientCreationFailed)
+                .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) }),
             Self::NoEncryption => Ok(Box::new(NoEncryption)),
         }
     }

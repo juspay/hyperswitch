@@ -2336,7 +2336,12 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Interac
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
-        | common_enums::CardNetwork::Dinacard => None,
+        | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::AirPlus
+        | common_enums::CardNetwork::Aurore
+        | common_enums::CardNetwork::EftposAustralia
+        | common_enums::CardNetwork::GeCapital
+        | common_enums::CardNetwork::Uatp => None,
     }
 }
 
@@ -2563,7 +2568,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            WalletData::AliPayQr(_)
+            WalletData::WeroRedirect { .. }
+            | WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
@@ -6330,11 +6336,16 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                             connector: "Adyen".into(),
                         })?
                     }
-                    payouts::BankTransfer::Payshap(..)
-                    | payouts::BankTransfer::PayshapProxy(..) => {
+                    payouts::BankTransfer::Payshap(..) | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via PayShap is not supported".to_string(),
                             connector: "Adyen".into(),
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via TED is not supported".to_string(),
+                            connector: std::borrow::Cow::Borrowed("Adyen"),
                         })?
                     }
                 };

@@ -188,6 +188,40 @@ pub async fn construct_payout_router_data<'a, F>(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    use crate::core::payouts::proxy::ExternalVaultPayout;
+
+    match payout_data.payout_attempt.execution_kind {
+        common_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            Box::pin(
+                ExternalVaultPayout { state, platform }
+                    .construct_proxy_payout_router_data(connector_data, payout_data),
+            )
+            .await
+        }
+        common_enums::PayoutExecutionKind::Normal => match payout_data.external_vault_pmd.is_some()
+            || !matches!(
+                payout_data.execution_context,
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal
+            ) {
+            true => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Normal payouts cannot carry external vault execution data".to_owned(),
+            })),
+            false => {
+                construct_payout_router_data_common(state, connector_data, platform, payout_data)
+                    .await
+            }
+        },
+    }
+}
+
+/// Execution-specific checks run before this shared request builder.
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub(super) async fn construct_payout_router_data_common<F>(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    platform: &domain::Platform,
+    payout_data: &mut PayoutData,
+) -> RouterResult<types::PayoutsRouterData<F>> {
     let merchant_connector_account = payout_data
         .merchant_connector_account
         .clone()
@@ -251,8 +285,9 @@ pub async fn construct_payout_router_data<'a, F>(
             .get_string_repr(),
     );
 
-    let connector_transfer_method_id =
-        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+    let connector_transfer_method_id = payout_data.connector_transfer_method_id.clone().or(
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?,
+    );
 
     let browser_info = payout_data.browser_info.to_owned();
 
@@ -328,6 +363,7 @@ pub async fn construct_payout_router_data<'a, F>(
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
             billing_descriptor: payouts.billing_descriptor.clone(),
+            external_vault_pmd: payout_data.external_vault_pmd.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -354,6 +390,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payout_id: Some(payouts.payout_id.get_string_repr().to_string()),
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -539,6 +576,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -557,6 +595,27 @@ pub async fn construct_refund_router_data<'a, F>(
     };
 
     Ok(router_data)
+}
+
+/// Resolves the `payments.accept_payment_amount_mismatch` config for the processor merchant and payment
+/// method type. Without a payment method type the config cannot be scoped, so `None` is returned and
+/// the integrity check stays strict.
+#[cfg(feature = "v1")]
+pub async fn get_accept_payment_amount_mismatch(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> Option<common_types::primitive_wrappers::AcceptAmountMismatchBool> {
+    let accept_amount_mismatch = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_payment_method_type(payment_method_type?)
+        .get_accept_payment_amount_mismatch(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(processor.get_account().get_id()),
+        )
+        .await;
+    Some(common_types::primitive_wrappers::AcceptAmountMismatchBool::new(accept_amount_mismatch))
 }
 
 #[cfg(feature = "v1")]
@@ -633,7 +692,7 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
-    let capture_method = payment_attempt.capture_method;
+    let capture_method = payment_attempt.get_effective_capture_method();
 
     let braintree_metadata = payment_intent
         .connector_metadata
@@ -740,6 +799,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1263,6 +1323,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1377,6 +1438,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1500,6 +1562,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1581,6 +1644,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1694,6 +1758,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1833,6 +1898,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         payment_method_status: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -1950,6 +2016,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -2060,6 +2127,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,

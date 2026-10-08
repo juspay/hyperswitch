@@ -1,6 +1,7 @@
 use common_utils::{id_type, pii};
 #[cfg(feature = "v2")]
 use diesel_models::customers;
+use diesel_models::errors::DatabaseError;
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::{
@@ -190,7 +191,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
@@ -205,22 +205,40 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         };
         let field = format!("cust_{}", customer_id.get_string_repr());
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = customer_update_internal.generate_drainer_update_query(
-            &mut query_gen_conn,
-            customer_id.clone(),
-            merchant_id.clone(),
-        );
+        let database_call = {
+            let customer_id = customer_id.clone();
+            let merchant_id = merchant_id.clone();
+            let customer_update = customer_update.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                diesel_models::Customer::update_by_customer_id_merchant_id(
+                    &conn,
+                    customer_id,
+                    merchant_id,
+                    customer_update.foreign_into(),
+                )
+                .await
+            }
+        };
+        let drainer_query_fut = {
+            let customer_id = customer_id.clone();
+            let merchant_id = merchant_id.clone();
+            async move {
+                let mut conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                customer_update_internal
+                    .generate_drainer_update_query(&mut conn, customer_id, merchant_id)
+                    .await
+            }
+        };
 
         Box::pin(self.update_resource(
             key_store,
             storage_scheme,
-            diesel_models::Customer::update_by_customer_id_merchant_id(
-                &conn,
-                customer_id.clone(),
-                merchant_id.clone(),
-                customer_update.clone().foreign_into(),
-            ),
+            database_call,
             updated_customer,
             kv_router_store::UpdateResourceParams {
                 drainer_query_fut,
@@ -330,7 +348,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
         let id = customer_data.id.clone();
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
@@ -357,15 +374,29 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             reverse_lookups.push(reverse_lookup_merchant_scoped_id);
         }
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = new_customer
-            .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn);
+        let create_resource_fut = {
+            let new_customer = new_customer.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                new_customer.insert(&conn).await
+            }
+        };
+        let drainer_query_fut = {
+            let new_customer = new_customer.clone();
+            async move {
+                let mut conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                new_customer.generate_drainer_insert_query(&mut conn).await
+            }
+        };
 
         Box::pin(self.insert_resource(
             key_store,
             decided_storage_scheme,
-            new_customer.clone().insert(&conn),
+            create_resource_fut,
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
                 drainer_query_fut,
@@ -386,7 +417,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
         let customer_id = customer_data.get_id().clone();
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &customer_data.merchant_id.clone(),
@@ -406,15 +436,29 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         new_customer.update_storage_scheme(storage_scheme);
         let customer = new_customer.clone().into();
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = new_customer
-            .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn);
+        let create_resource_fut = {
+            let new_customer = new_customer.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                new_customer.insert(&conn).await
+            }
+        };
+        let drainer_query_fut = {
+            let new_customer = new_customer.clone();
+            async move {
+                let mut conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                new_customer.generate_drainer_insert_query(&mut conn).await
+            }
+        };
 
         Box::pin(self.insert_resource(
             key_store,
             storage_scheme,
-            new_customer.clone().insert(&conn),
+            create_resource_fut,
             customer,
             kv_router_store::InsertResourceParams {
                 drainer_query_fut,
@@ -570,23 +614,38 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_write(self).await?;
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
         let customer_update_internal =
             diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone());
-        let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update_internal.clone());
+        let database_call = {
+            let id = id.clone();
+            let customer_update_internal = customer_update_internal.clone();
+            async move {
+                let conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                customers::Customer::update_by_id(&conn, id, customer_update_internal).await
+            }
+        };
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
         let field = format!("cust_{}", id.get_string_repr());
 
-        let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query_fut = customer_update_internal
-            .clone()
-            .generate_drainer_update_query(&mut query_gen_conn, id.clone());
+        let drainer_query_fut = {
+            let id = id.clone();
+            let customer_update_internal = customer_update_internal.clone();
+            async move {
+                let mut conn = pg_connection_write(self)
+                    .await
+                    .change_context(DatabaseError::DatabaseConnectionError)?;
+                customer_update_internal
+                    .generate_drainer_update_query(&mut conn, id)
+                    .await
+            }
+        };
 
         Box::pin(self.update_resource(
             key_store,
@@ -1325,6 +1384,7 @@ impl Conversion for domain::Customer {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             id: global_customer_id,
+            preferred_connectors: self.preferred_connectors,
         })
     }
 
@@ -1408,6 +1468,7 @@ impl Conversion for domain::Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            preferred_connectors: item.preferred_connectors,
         })
     }
 
@@ -1438,6 +1499,7 @@ impl Conversion for domain::Customer {
                 .as_ref()
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
+            preferred_connectors: self.preferred_connectors,
         })
     }
 }
@@ -1473,6 +1535,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 tax_registration_id: tax_registration_id.map(Encryption::from),
                 document_details: document_details.map(Encryption::from),
                 last_modified_by,
+                preferred_connectors: None,
             },
             domain::CustomerUpdate::ConnectorCustomer {
                 connector_customer,
@@ -1492,6 +1555,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 tax_registration_id: None,
                 document_details: None,
                 last_modified_by,
+                preferred_connectors: None,
             },
             domain::CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
@@ -1506,6 +1570,27 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 phone_country_code: None,
                 metadata: None,
                 connector_customer: None,
+                updated_by: None,
+                address_id: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+                preferred_connectors: None,
+            },
+            domain::CustomerUpdate::UpdatePreferredConnectors {
+                preferred_connectors,
+                last_modified_by,
+            } => Self {
+                preferred_connectors,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                default_payment_method_id: None,
                 updated_by: None,
                 address_id: None,
                 tax_registration_id: None,
@@ -1548,6 +1633,7 @@ impl Conversion for domain::Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            preferred_connectors: self.preferred_connectors,
         })
     }
 
@@ -1671,6 +1757,7 @@ impl Conversion for domain::Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            preferred_connectors: item.preferred_connectors,
         })
     }
 
@@ -1703,6 +1790,7 @@ impl Conversion for domain::Customer {
                 .map(|created_by| created_by.to_string()),
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()), // Same as created_by on creation
             customer_id: Some(self.id),
+            preferred_connectors: self.preferred_connectors,
         })
     }
 }

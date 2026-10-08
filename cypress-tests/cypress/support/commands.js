@@ -36,6 +36,7 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
+import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { injectGotymePayoutBankTransfer } from "../e2e/configs/Payout/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -2199,7 +2200,9 @@ Cypress.Commands.add(
         );
 
         if (
-          (connectorName === "truelayer" || connectorName === "trustly") &&
+          (connectorName === "truelayer" ||
+            connectorName === "trustly" ||
+            connectorName === "paypal") &&
           authDetails === null
         ) {
           const { authDetails: paymentAuthDetails } = getValueByKey(
@@ -3408,6 +3411,19 @@ Cypress.Commands.add(
     if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
       delete confirmBody.setup_future_usage;
     }
+    if (!reqData?.offer_details && confirmBody.offer_details) {
+      delete confirmBody.offer_details;
+    }
+    if (
+      confirmBody.offer_details?.offer_quote_ids?.includes(
+        OFFER_QUOTE_ID_PLACEHOLDER
+      )
+    ) {
+      const offerQuoteId = globalState.get("offerQuoteId");
+      expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
+
+      confirmBody.offer_details.offer_quote_ids = [offerQuoteId];
+    }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
@@ -3588,7 +3604,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -3692,7 +3714,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4452,7 +4480,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4526,7 +4560,13 @@ Cypress.Commands.add(
                     response.body[key]?.card?.auth_code,
                     "payment_method_data.card.auth_code"
                   ).to.be.a("string").and.not.be.empty;
-                } else if (key === "payment_account_reference") {
+                } else if (
+                  key === "payment_account_reference" ||
+                  key === "network_transaction_link_id"
+                ) {
+                  // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+                  // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+                  // "dynamic_par") to assert the field is populated, and null to assert it is absent.
                   if (resData.body[key] === null) {
                     expect(response.body[key], [key]).to.be.null;
                   } else {
@@ -4591,6 +4631,17 @@ Cypress.Commands.add(
         )
       );
       Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
+    }
+
+    if (
+      saveCardConfirmBody.offer_details?.offer_quote_ids?.includes(
+        OFFER_QUOTE_ID_PLACEHOLDER
+      )
+    ) {
+      const offerQuoteId = globalState.get("offerQuoteId");
+      expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
+
+      saveCardConfirmBody.offer_details.offer_quote_ids = [offerQuoteId];
     }
 
     cy.request({
@@ -4805,7 +4856,13 @@ Cypress.Commands.add(
                 response.body[key]?.card?.auth_code,
                 "payment_method_data.card.auth_code"
               ).to.be.a("string").and.not.be.empty;
-            } else if (key === "payment_account_reference") {
+            } else if (
+              key === "payment_account_reference" ||
+              key === "network_transaction_link_id"
+            ) {
+              // Connector-generated dynamic values (e.g. TLID, PAR) cannot be
+              // deep-compared; configs use a non-null placeholder ("dynamic_tlid",
+              // "dynamic_par") to assert the field is populated, and null to assert it is absent.
               if (resData.body[key] === null) {
                 expect(response.body[key], [key]).to.be.null;
               } else {
@@ -5004,6 +5061,26 @@ Cypress.Commands.add(
             resData.body &&
             Object.prototype.hasOwnProperty.call(
               resData.body,
+              "network_transaction_link_id"
+            )
+          ) {
+            if (resData.body.network_transaction_link_id === null) {
+              expect(
+                response.body.network_transaction_link_id,
+                "network_transaction_link_id"
+              ).to.be.null;
+            } else {
+              expect(
+                response.body.network_transaction_link_id,
+                "network_transaction_link_id"
+              ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (
+            resData.body &&
+            Object.prototype.hasOwnProperty.call(
+              resData.body,
               "payment_method_data"
             ) &&
             shouldAssertAuthCode(globalState)
@@ -5020,6 +5097,50 @@ Cypress.Commands.add(
               response.body.status,
               "payment status should match stored intent_status"
             ).to.equal(expectedIntentStatus);
+          }
+
+          if (resData?.body && "applied_offer" in resData.body) {
+            // Scoped to offer-engine fixtures only (identified by the
+            // presence of applied_offer, unique to that flow): retrieve
+            // responses across the rest of the suite were never checked
+            // against net_amount/amount_received before, and some existing
+            // fixtures elsewhere (e.g. fiuu's OnlineBankingFpx) reuse a
+            // confirm-step expectation for retrieve that doesn't actually
+            // hold once the mock resolves further — not something this
+            // command should start enforcing suite-wide.
+            for (const key of ["net_amount", "amount_received"]) {
+              if (resData?.body?.[key] !== undefined) {
+                expect(response.body[key], key).to.equal(resData.body[key]);
+              }
+            }
+
+            const expectedAppliedOffer = resData.body.applied_offer;
+
+            if (expectedAppliedOffer === null) {
+              expect(response.body.applied_offer, "applied_offer").to.be.null;
+            } else {
+              const appliedOffer = response.body.applied_offer;
+              expect(appliedOffer, "applied_offer").to.not.be.null;
+              expect(appliedOffer.offer_id, "applied_offer.offer_id").to.be.a(
+                "string"
+              ).and.not.be.empty;
+              expect(
+                appliedOffer.offer_engine_merchant_id,
+                "applied_offer.offer_engine_merchant_id"
+              ).to.be.a("string").and.not.be.empty;
+              expect(
+                appliedOffer.offer_engine_txn_id,
+                "applied_offer.offer_engine_txn_id"
+              ).to.be.a("string").and.not.be.empty;
+
+              for (const key of ["offer_amount", "currency"]) {
+                if (expectedAppliedOffer[key] !== undefined) {
+                  expect(appliedOffer[key], `applied_offer.${key}`).to.equal(
+                    expectedAppliedOffer[key]
+                  );
+                }
+              }
+            }
           }
 
           if (
@@ -7235,6 +7356,268 @@ Cypress.Commands.add(
   }
 );
 
+// Platform-level refund list — GET /refunds/platform/list
+// queryParams: query parameters for the list call (e.g. { refund_id, limit })
+// expected: {
+//   status: expected HTTP status (default 200),
+//   error: { type, code, message } — JSON error body assertions (IR_49 / IR_01),
+//   rawError: exact message for plain-text query-deserialize 400s,
+//   count / totalCount: exact count / total_count assertions,
+//   empty: expect count=0, total_count=0 and data=[],
+//   nonEmpty: expect at least one refund in data,
+//   match: { field: value } — every returned refund must match,
+//   contains: { field: value } — at least one returned refund must match,
+//   notContains: { field: value } — no returned refund may match,
+//   minRefundAmount / maxRefundAmount: refund_amount range assertions,
+//   omitApiKey: send the request without the api-key header,
+// }
+Cypress.Commands.add(
+  "platformRefundListCallTest",
+  (queryParams, expected, globalState, connectedMerchantId) => {
+    const {
+      status: expectedStatus = 200,
+      error: expectedError,
+      rawError: expectedRawError,
+      count: expectedCount,
+      totalCount: expectedTotalCount,
+      empty: expectEmpty = false,
+      nonEmpty: expectNonEmpty = false,
+      match: expectedMatch,
+      contains: expectedContains,
+      notContains: expectedNotContains,
+      minRefundAmount,
+      maxRefundAmount,
+      omitApiKey = false,
+    } = expected || {};
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (omitApiKey) {
+      delete headers["api-key"];
+    }
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/refunds/platform/list`,
+      headers,
+      qs: queryParams,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedRawError) {
+          // Pagination validation failures fail query deserialization
+          // before auth and return a plain-text body
+          expect(response.body).to.be.a("string");
+          expect(response.body).to.equal(expectedRawError);
+          return;
+        }
+
+        if (expectedStatus !== 200) {
+          expect(response.body.error.type).to.equal(expectedError.type);
+          expect(response.body.error.code).to.equal(expectedError.code);
+          expect(response.body.error.message).to.equal(expectedError.message);
+          return;
+        }
+
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.body.count).to.be.a("number");
+        expect(response.body.total_count).to.be.a("number");
+        expect(response.body.data).to.be.an("array");
+        expect(response.body.data).to.have.lengthOf(response.body.count);
+
+        if (expectEmpty) {
+          expect(response.body.count).to.equal(0);
+          expect(response.body.total_count).to.equal(0);
+          expect(response.body.data).to.be.empty;
+          return;
+        }
+
+        if (expectNonEmpty) {
+          expect(response.body.count).to.be.at.least(1);
+          expect(response.body.data).to.not.be.empty;
+        }
+
+        // Platform attribution: every refund in the platform list is
+        // attributed to the platform merchant, including refunds initiated
+        // by connected merchants with their own api keys
+        const platformMerchantId = globalState.get("platformMerchantId");
+        response.body.data.forEach((refund, index) => {
+          expect(refund.merchant_id, `merchant_id at index ${index}`).to.equal(
+            platformMerchantId
+          );
+        });
+
+        if (expectedMatch) {
+          for (const key in expectedMatch) {
+            response.body.data.forEach((refund, index) => {
+              expect(refund[key], `${key} at index ${index}`).to.equal(
+                expectedMatch[key]
+              );
+            });
+          }
+        }
+
+        if (expectedContains) {
+          for (const key in expectedContains) {
+            const isPresent = response.body.data.some(
+              (refund) => refund[key] === expectedContains[key]
+            );
+            expect(
+              isPresent,
+              `at least one refund with ${key} = ${expectedContains[key]}`
+            ).to.be.true;
+          }
+        }
+
+        if (expectedNotContains) {
+          for (const key in expectedNotContains) {
+            const isPresent = response.body.data.some(
+              (refund) => refund[key] === expectedNotContains[key]
+            );
+            expect(
+              isPresent,
+              `no refund with ${key} = ${expectedNotContains[key]}`
+            ).to.be.false;
+          }
+        }
+
+        if (minRefundAmount !== undefined) {
+          response.body.data.forEach((refund, index) => {
+            expect(
+              refund.refund_amount,
+              `refund_amount at index ${index}`
+            ).to.be.at.least(minRefundAmount);
+          });
+        }
+
+        if (maxRefundAmount !== undefined) {
+          response.body.data.forEach((refund, index) => {
+            expect(
+              refund.refund_amount,
+              `refund_amount at index ${index}`
+            ).to.be.at.most(maxRefundAmount);
+          });
+        }
+
+        if (expectedCount !== undefined) {
+          expect(response.body.count).to.equal(expectedCount);
+        }
+
+        if (expectedTotalCount !== undefined) {
+          expect(response.body.total_count).to.equal(expectedTotalCount);
+        }
+
+        // Results are ordered by modified_at descending
+        for (let i = 1; i < response.body.data.length; i++) {
+          expect(
+            new Date(response.body.data[i - 1].modified_at).getTime(),
+            "modified_at ordering (descending)"
+          ).to.be.at.least(
+            new Date(response.body.data[i].modified_at).getTime()
+          );
+        }
+      });
+    });
+  }
+);
+
+// Platform-level refund filters — GET /refunds/platform/filter
+// expected: {
+//   status: expected HTTP status (default 200),
+//   error: { type, code, message } — JSON error body assertions (IR_49 / IR_01),
+// }
+Cypress.Commands.add(
+  "platformRefundFilterCallTest",
+  (expected, globalState, connectedMerchantId) => {
+    const { status: expectedStatus = 200, error: expectedError } =
+      expected || {};
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/refunds/platform/filter`,
+      headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          expect(response.body.error.type).to.equal(expectedError.type);
+          expect(response.body.error.code).to.equal(expectedError.code);
+          expect(response.body.error.message).to.equal(expectedError.message);
+          return;
+        }
+
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        // The connector map is keyed by connector name and lists the
+        // labeled connector accounts configured under the platform's
+        // connected merchants
+        const connectorName = globalState.get("connectorId");
+        expect(response.body.connector).to.be.an("object");
+        expect(response.body.connector).to.have.property(connectorName);
+
+        const connectorAccounts = response.body.connector[connectorName];
+        expect(connectorAccounts).to.be.an("array").and.not.empty;
+
+        const merchantConnectorIds = connectorAccounts.map(
+          (connectorAccount) => connectorAccount.merchant_connector_id
+        );
+        expect(merchantConnectorIds).to.include(
+          globalState.get("connectorIdCm1")
+        );
+        expect(merchantConnectorIds).to.include(
+          globalState.get("connectorIdCm2")
+        );
+        // The standard merchant's connector is out of platform scope
+        expect(merchantConnectorIds).to.not.include(
+          globalState.get("connectorIdSm")
+        );
+
+        connectorAccounts.forEach((connectorAccount, index) => {
+          expect(
+            connectorAccount.connector_type,
+            `connector_type at index ${index}`
+          ).to.equal("payment_processor");
+        });
+
+        // Currency and refund_status filter enums
+        expect(response.body.currency).to.be.an("array").and.not.empty;
+        expect(response.body.currency).to.include("USD");
+        expect(response.body.refund_status).to.deep.equal([
+          "failure",
+          "manual_review",
+          "pending",
+          "success",
+          "transaction_failure",
+        ]);
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "createConfirmPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
@@ -7270,6 +7653,12 @@ Cypress.Commands.add(
           if (response.status === 200) {
             globalState.set("payoutAmount", createConfirmPayoutBody.amount);
             globalState.set("payoutID", response.body.payout_id);
+            if (response.body.client_secret) {
+              globalState.set(
+                "payoutClientSecret",
+                response.body.client_secret
+              );
+            }
             if (response.body.payout_method_id) {
               globalState.set("payoutMethodId", response.body.payout_method_id);
             }
@@ -7400,6 +7789,82 @@ Cypress.Commands.add(
             expect(resData.body[key]).to.equal(response.body[key]);
           }
         } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Confirms a payout via POST /payouts/{payout_id}/confirm, supporting both
+ * authentication modes of the payout confirm API. This is the payout-side
+ * analogue of confirmCallTest (payments): it confirms an EXISTING payout on
+ * its dedicated confirm endpoint. It cannot be replaced by
+ * createConfirmPayoutTest, which always creates a NEW payout on
+ * POST /payouts/create — a route with merchant-key-only auth where the
+ * client-authenticated confirm flow is unreachable.
+ * - client-authenticated (clientAuth=true): publishable key in the api-key
+ *   header and the client_secret (stashed in globalState as
+ *   payoutClientSecret by createConfirmPayoutTest) in the request body.
+ *   Restricted fields (amount, auto_fulfill, currency, connector, routing)
+ *   in the config Request exercise the client-auth field restrictions.
+ *   A config Request may pin client_secret (e.g. null) to exercise the
+ *   missing-client_secret error path.
+ * - merchant-authenticated (clientAuth=false): merchant secret key in the
+ *   api-key header and no client_secret in the request body.
+ * @param {Object} payoutConfirmBody - Base request body (config Request fields are merged on top)
+ * @param {Object} data - Connector config entry with Request/Response
+ * @param {boolean} clientAuth - true for publishable-key auth, false for merchant secret-key auth
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add(
+  "confirmPayoutCallTest",
+  (payoutConfirmBody, data, clientAuth, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const payout_id = globalState.get("payoutID");
+
+    for (const key in reqData) {
+      payoutConfirmBody[key] = reqData[key];
+    }
+
+    if (clientAuth) {
+      if (!("client_secret" in reqData)) {
+        payoutConfirmBody.client_secret = globalState.get("payoutClientSecret");
+      }
+    } else {
+      delete payoutConfirmBody.client_secret;
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": clientAuth
+        ? globalState.get("publishableKey")
+        : globalState.get("apiKey"),
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/${payout_id}/confirm`,
+      headers,
+      failOnStatusCode: false,
+      body: payoutConfirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          if (resData.body) {
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
+            }
+          }
+        } else {
+          expect(response.status).to.equal(resData.status);
           defaultErrorHandler(response, resData);
         }
       });
@@ -8668,6 +9133,304 @@ Cypress.Commands.add("paymentsClientListCallTest", (data, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "paymentsOfferEligibilityCheck",
+  (requestBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    const publishableKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+    const url = `${baseUrl}/payments/${paymentId}/eligibility`;
+
+    const body = {
+      ...requestBody,
+      client_secret: clientSecret,
+      ...reqData,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": publishableKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body)
+            .to.have.property("payment_id")
+            .to.equal(paymentId);
+
+          if (resData?.body?.amount_details) {
+            expect(response.body).to.have.property("amount_details");
+            for (const key in resData.body.amount_details) {
+              expect(response.body.amount_details[key], [
+                `amount_details.${key}`,
+              ]).to.equal(resData.body.amount_details[key]);
+            }
+          }
+
+          if (resData?.body?.offer_details) {
+            expect(response.body).to.have.property("offer_details");
+            const expectedOfferDetails = resData.body.offer_details;
+            const offerDetails = response.body.offer_details;
+
+            if (expectedOfferDetails.uplifted_offer_quote_ids) {
+              expect(
+                offerDetails.uplifted_offer_quote_ids,
+                "offer_details.uplifted_offer_quote_ids"
+              )
+                .to.be.an("array")
+                .with.length(
+                  expectedOfferDetails.uplifted_offer_quote_ids.length
+                );
+              offerDetails.uplifted_offer_quote_ids.forEach((id) => {
+                expect(
+                  id,
+                  "offer_details.uplifted_offer_quote_ids[].id"
+                ).to.be.a("string").and.not.be.empty;
+              });
+            }
+
+            if (expectedOfferDetails.eligible_offers) {
+              expect(
+                offerDetails.eligible_offers,
+                "offer_details.eligible_offers"
+              )
+                .to.be.an("array")
+                .with.length(expectedOfferDetails.eligible_offers.length);
+
+              offerDetails.eligible_offers.forEach((offer, index) => {
+                const expectedOffer =
+                  expectedOfferDetails.eligible_offers[index];
+
+                expect(
+                  offer.offer_quote_id,
+                  "eligible_offers[].offer_quote_id"
+                ).to.be.a("string").and.not.be.empty;
+                expect(offer.title, "eligible_offers[].title").to.be.a("string")
+                  .and.not.be.empty;
+                expect(
+                  offer.description,
+                  "eligible_offers[].description"
+                ).to.be.a("string").and.not.be.empty;
+
+                for (const key of ["offer_amount", "currency", "code"]) {
+                  if (expectedOffer[key] !== undefined) {
+                    expect(offer[key], `eligible_offers[].${key}`).to.equal(
+                      expectedOffer[key]
+                    );
+                  }
+                }
+              });
+            }
+          }
+
+          const eligibleOffers =
+            response.body.offer_details?.eligible_offers || [];
+          if (eligibleOffers.length > 0) {
+            globalState.set("offerQuoteId", eligibleOffers[0].offer_quote_id);
+          }
+        } else {
+          throw new Error(
+            `Offer eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
+      });
+    });
+  }
+);
+
+// With offer_engine.credential_source set to "merchant" (a Superposition
+// override), the router only reads Offer Engine credentials from this
+// merchant account's own offer_engine_config field, not from any static
+// application config.
+Cypress.Commands.add("setMerchantOfferEngineConfig", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+  const merchantId = globalState.get("merchantId");
+  const offerEngineApiKey = Cypress.env("OFFER_ENGINE_API_KEY");
+
+  if (!offerEngineApiKey) {
+    cy.task(
+      "cli_log",
+      "OFFER_ENGINE_API_KEY is not set; skipping merchant-level Offer Engine config"
+    );
+    return cy.wrap(null);
+  }
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/accounts/${merchantId}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      body: {
+        merchant_id: merchantId,
+        offer_engine_config: {
+          api_key: offerEngineApiKey,
+          // Offer Engine's own merchant id (distinct from the Hyperswitch
+          // merchant id above) — a pre-provisioned Offer Engine account, not
+          // something a fresh Cypress-created merchant has a counterpart for.
+          merchant_id: "qaoffers",
+        },
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.equal(200);
+      // offer_engine_config is a write-only Secret field: GET /account/{id}
+      // never echoes it back, so there is no way to re-derive "is this
+      // merchant configured" from a later read. Record success here instead.
+      globalState.set("offerEngineMerchantConfigured", true);
+    });
+});
+
+Cypress.Commands.add("offerEngineConnectivityCheck", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/offer_engine/connectivity`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      return cy.wrap(
+        response.status === 200 && Boolean(response.body?.reachable)
+      );
+    });
+});
+
+// /offer_engine/connectivity has no merchant context, so when
+// offer_engine.credential_source is "merchant" it always resolves to
+// enabled: false/reachable: null regardless of whether any merchant has
+// valid Offer Engine credentials configured. offer_engine_config is also a
+// write-only Secret field (GET /account/{id} never echoes it back), so
+// there's no way to re-derive "is this merchant configured" from a read.
+// Fall back to whatever setMerchantOfferEngineConfig recorded in
+// globalState when it ran during account setup.
+Cypress.Commands.add("offerEngineMerchantConfiguredCheck", (globalState) => {
+  return cy.wrap(Boolean(globalState.get("offerEngineMerchantConfigured")));
+});
+
+// PR #13999: POST /offer_engine/offers/list — the merchant-dashboard browse
+// endpoint. Uses the secret api-key (ApiKeyAuth), not the publishable key
+// used by the payment-flow eligibility endpoint.
+Cypress.Commands.add("browseOffersCall", (requestBody, data, globalState) => {
+  const { Request: reqData, Response: resData } = data || {};
+
+  const baseUrl = globalState.get("baseUrl");
+  // This route uses ApiKeyAuth (the merchant's own secret key from
+  // apiKeyCreateTest), not adminApiKey (platform-level, admin-only routes).
+  const apiKey = globalState.get("apiKey");
+
+  const body = {
+    ...requestBody,
+    ...reqData,
+  };
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/offer_engine/offers/list`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body,
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.status).to.equal(resData?.status ?? 200);
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("offers");
+          expect(response.body.offers).to.be.an("array");
+
+          if (resData?.body?.offers) {
+            for (const key in resData.body.offers) {
+              const expectedOffer = resData.body.offers[key];
+              const actualOffer = response.body.offers[key];
+              expect(actualOffer, `offers[${key}]`).to.exist;
+              for (const field in expectedOffer) {
+                expect(actualOffer[field], `offers[${key}].${field}`).to.equal(
+                  expectedOffer[field]
+                );
+              }
+            }
+          }
+        }
+      });
+    });
+});
+
+// PR #13766 secondary change: when offers are enabled for the merchant/
+// profile (and payments.should_perform_eligibility is on), the PML response
+// should signal the SDK to run eligibility and block confirm until it
+// resolves, via sdk_next_action.
+Cypress.Commands.add(
+  "paymentMethodListSdkNextActionCheck",
+  (globalState, expectedNextAction) => {
+    const baseUrl = globalState.get("baseUrl");
+    const publishableKey = globalState.get("publishableKey");
+    const clientSecret = globalState.get("clientSecret");
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/account/payment_methods?client_secret=${clientSecret}`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": publishableKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          expect(response.headers["content-type"]).to.include(
+            "application/json"
+          );
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("sdk_next_action");
+          expect(
+            response.body.sdk_next_action.next_action,
+            "sdk_next_action.next_action"
+          ).to.equal(expectedNextAction.next_action);
+          expect(
+            response.body.sdk_next_action.should_block_confirm,
+            "sdk_next_action.should_block_confirm"
+          ).to.equal(expectedNextAction.should_block_confirm);
+        });
+      });
+  }
+);
 
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
