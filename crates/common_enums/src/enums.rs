@@ -11663,8 +11663,10 @@ pub enum MitCategory {
     Installment,
     /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
     Unscheduled,
-    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    /// Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
     Recurring,
+    /// Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+    Subscription,
     /// A retried MIT after a previous transaction failed or was declined.
     Resubmission,
 }

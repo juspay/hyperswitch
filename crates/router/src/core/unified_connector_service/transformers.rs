@@ -716,7 +716,12 @@ impl
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             domain_data: None,
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_try_from)
+                .transpose()?
+                .map(|mit_category| mit_category.into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2493,7 +2498,12 @@ impl
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             domain_data: None,
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_try_from)
+                .transpose()?
+                .map(|mit_category| mit_category.into()),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2920,7 +2930,12 @@ impl
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             test_mode: router_data.test_mode,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_try_from)
+                .transpose()?
+                .map(|mit_category| mit_category.into()),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -3266,7 +3281,8 @@ impl
             mit_category: router_data
                 .request
                 .mit_category
-                .map(payments_grpc::MitCategory::foreign_from)
+                .map(payments_grpc::MitCategory::foreign_try_from)
+                .transpose()?
                 .map(|mit_category| mit_category.into()),
             shipping_cost: router_data
                 .request
@@ -7828,14 +7844,24 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
     }
 }
 
-impl ForeignFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
-    fn foreign_from(mit_category: common_enums::MitCategory) -> Self {
-        match mit_category {
+impl transformers::ForeignTryFrom<common_enums::MitCategory> for payments_grpc::MitCategory {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(mit_category: common_enums::MitCategory) -> Result<Self, Self::Error> {
+        Ok(match mit_category {
             common_enums::MitCategory::Installment => Self::InstallmentMit,
             common_enums::MitCategory::Recurring => Self::RecurringMit,
+            // Preserve the distinction until the UCS protocol supports subscriptions.
+            // Never downgrade a subscription to RecurringMit: RAFT would send "R".
+            common_enums::MitCategory::Subscription => {
+                return Err(UnifiedConnectorServiceError::NotImplemented(
+                    "mit_category=subscription requires UCS subscription support".to_string(),
+                )
+                .into());
+            }
             common_enums::MitCategory::Resubmission => Self::ResubmissionMit,
             common_enums::MitCategory::Unscheduled => Self::UnscheduledMit,
-        }
+        })
     }
 }
 
