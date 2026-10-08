@@ -4476,6 +4476,24 @@ impl
         let payment_method_data = record.get_payment_method_data();
         let is_non_card = payment_method_data.is_some();
 
+        // Accepts Hyperswitch card network names as well as upper and lower case brands, e.g. `visa`
+        let card_network = record
+            .card_scheme
+            .as_deref()
+            .map(str::trim)
+            .filter(|card_scheme| !card_scheme.is_empty())
+            .map(|card_scheme| {
+                card_scheme
+                    .parse::<api_enums::CardNetwork>()
+                    .or_else(|_| card_scheme.to_uppercase().parse::<api_enums::CardNetwork>())
+                    .map_err(|_| {
+                        error_stack::report!(errors::ValidationError::InvalidValue {
+                            message: format!("Invalid card_scheme: {card_scheme}"),
+                        })
+                    })
+            })
+            .transpose()?;
+
         let card = if is_non_card {
             None
         } else {
@@ -4487,7 +4505,7 @@ impl
                 card_exp_month: record.card_expiry_month.clone().unwrap_or_default(),
                 card_exp_year: record.card_expiry_year.clone().unwrap_or_default(),
                 card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
-                card_network: None,
+                card_network,
                 card_type: None,
                 card_subtype: None,
                 card_segment_type: None,
@@ -4499,12 +4517,14 @@ impl
             })
         };
 
-        let network_token = if is_non_card {
-            None
-        } else {
-            Some(MigrateNetworkTokenDetail {
+        // Network token details are only migrated when the record carries a network token
+        let network_token = record
+            .network_token_number
+            .clone()
+            .filter(|_| !is_non_card)
+            .map(|network_token_number| MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
-                    network_token_number: record.network_token_number.clone().unwrap_or_default(),
+                    network_token_number,
                     network_token_exp_month: record
                         .network_token_expiry_month
                         .clone()
@@ -4528,8 +4548,7 @@ impl
                     .network_token_requestor_ref_id
                     .clone()
                     .unwrap_or_default(),
-            })
-        };
+            });
 
         Ok(Self {
             merchant_id,

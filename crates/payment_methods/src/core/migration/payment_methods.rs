@@ -329,12 +329,15 @@ pub async fn populate_bin_details_for_masked_card(
     {
         pm_api::CardDetailFromLocker::foreign_try_from((card_details, None))?
     } else {
-        let card_info = db
-            .get_card_info(&card_isin)
-            .await
-            .map_err(|error| logger::error!(card_info_error=?error))
-            .ok()
-            .flatten();
+        let card_info = match card_isin {
+            Some(card_isin) => db
+                .get_card_info(&card_isin)
+                .await
+                .map_err(|error| logger::error!(card_info_error=?error))
+                .ok()
+                .flatten(),
+            None => None,
+        };
 
         pm_api::CardDetailFromLocker::foreign_try_from((card_details, card_info))?
     };
@@ -383,7 +386,7 @@ impl
                 card_fingerprint: None,
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
-                card_isin: Some(card_isin.clone()),
+                card_isin: card_isin.clone(),
                 card_issuer: card_details
                     .card_issuer
                     .clone()
@@ -419,7 +422,7 @@ impl
                 card_fingerprint: None,
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
-                card_isin: Some(card_isin.clone()),
+                card_isin: card_isin.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_network: card_details.card_network.clone(),
                 card_type: card_details.card_type.clone(),
@@ -474,7 +477,7 @@ impl
                 card_fingerprint: None,
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
-                card_isin: Some(card_isin.clone()),
+                card_isin: card_isin.clone(),
                 card_issuer: card_details
                     .card_issuer
                     .clone()
@@ -510,7 +513,7 @@ impl
                 card_fingerprint: None,
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
-                card_isin: Some(card_isin.clone()),
+                card_isin: card_isin.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_network: card_details.card_network.clone(),
                 card_type: card_details.card_type.clone(),
@@ -674,13 +677,14 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             .transpose()?
     };
 
-    // The id is derived from the connector mandate id, so migrating the same payment method
-    // again returns the existing record instead of creating a duplicate
+    // The id is derived from the connector mandate id or the network token, so migrating the same
+    // payment method again returns the existing record instead of creating a duplicate
     let derived_payment_method_id = derive_migration_payment_method_id(
         provider.get_key_store(),
         &merchant_id,
         &customer_id,
         req.connector_mandate_details.as_ref(),
+        req.network_token.as_ref(),
     )?;
 
     // For Postgres-only merchants a duplicate insert fails on the primary key, which is handled
@@ -868,18 +872,20 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 const MIGRATION_PAYMENT_METHOD_ID_CONTEXT: &[u8] =
     b"hyperswitch:payment_method_migration:payment_method_id:v1";
 
-/// Derives a stable payment method id from the merchant, customer and connector mandate ids.
+/// Derives a stable payment method id from the merchant, customer and connector mandate ids, or
+/// the network token number when the record has no connector mandate id.
 ///
 /// The id has the same format as a randomly generated one and is encoded from an HMAC keyed by a
 /// key derived from the merchant key store, so it cannot be computed outside Hyperswitch.
-/// Returns `None` when there is no connector mandate id to derive from, in which case the caller
-/// falls back to a random id.
+/// Returns `None` when there is neither a connector mandate id nor a network token to derive from,
+/// in which case the caller falls back to a random id.
 #[cfg(feature = "v1")]
 fn derive_migration_payment_method_id(
     key_store: &MerchantKeyStore,
     merchant_id: &id_type::MerchantId,
     customer_id: &id_type::CustomerId,
     connector_mandate_details: Option<&pm_api::CommonMandateReference>,
+    network_token: Option<&pm_api::MigrateNetworkTokenDetail>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let connector_mandate_ids: BTreeSet<&str> = connector_mandate_details
         .and_then(|details| details.payments.as_ref())
@@ -893,9 +899,22 @@ fn derive_migration_payment_method_id(
         })
         .unwrap_or_default();
 
-    if connector_mandate_ids.is_empty() {
+    let payment_method_reference = if !connector_mandate_ids.is_empty() {
+        connector_mandate_ids
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(",")
+    } else if let Some(network_token) = network_token {
+        format!(
+            "network_token:{}",
+            network_token
+                .network_token_data
+                .network_token_number
+                .get_card_no()
+        )
+    } else {
         return Ok(None);
-    }
+    };
 
     let derived_key = HmacSha256
         .sign_message(
@@ -908,10 +927,7 @@ fn derive_migration_payment_method_id(
     let message = [
         merchant_id.get_string_repr(),
         customer_id.get_string_repr(),
-        &connector_mandate_ids
-            .into_iter()
-            .collect::<Vec<_>>()
-            .join(","),
+        &payment_method_reference,
     ]
     .join("\n");
 
@@ -970,9 +986,15 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
     todo!()
 }
+/// Returns the BIN, when the first 6 characters are digits, and the last 4 digits of a masked
+/// card number. Masked numbers without a BIN, such as `XXXXXXXXXXXX4242`, are accepted.
 pub fn get_card_bin_and_last4_digits_for_masked_card(
     masked_card_number: &str,
-) -> Result<(String, String), cards::CardNumberValidationErr> {
+) -> CustomResult<(Option<String>, String), errors::ApiErrorResponse> {
+    let invalid_masked_card_number = || errors::ApiErrorResponse::InvalidRequestData {
+        message: "Invalid masked card number".to_string(),
+    };
+
     let last4_digits = masked_card_number
         .chars()
         .rev()
@@ -982,10 +1004,16 @@ pub fn get_card_bin_and_last4_digits_for_masked_card(
         .rev()
         .collect::<String>();
 
-    let card_isin = masked_card_number.chars().take(6).collect::<String>();
+    if last4_digits.chars().count() != 4 {
+        return Err(error_stack::report!(invalid_masked_card_number()));
+    }
+    cards::validate::validate_card_number_chars(&last4_digits)
+        .change_context_lazy(invalid_masked_card_number)?;
 
-    cards::validate::validate_card_number_chars(&card_isin)
-        .and_then(|_| cards::validate::validate_card_number_chars(&last4_digits))?;
+    let card_isin = masked_card_number.chars().take(6).collect::<String>();
+    let card_isin = cards::validate::validate_card_number_chars(&card_isin)
+        .ok()
+        .map(|_| card_isin);
 
     Ok((card_isin, last4_digits))
 }
