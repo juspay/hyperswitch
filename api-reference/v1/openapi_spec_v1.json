@@ -30401,6 +30401,28 @@
           }
         }
       },
+      "NetworkTransactionIdAndVaultCardDetails": {
+        "type": "object",
+        "description": "Network transaction ID and external vault card details for an MIT.",
+        "required": [
+          "vault_card_data",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "vault_card_data": {
+            "$ref": "#/components/schemas/VaultCardData"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT\n(Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          }
+        }
+      },
       "NextAction": {
         "type": "object",
         "required": [
@@ -44464,6 +44486,24 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "network_transaction_id_and_vault_card_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndVaultCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "card_with_limited_data"
                 ]
               },
@@ -49737,6 +49777,88 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultCardData": {
+        "type": "object",
+        "description": "Card details held in an external vault, referenced by a vault alias rather than by PAN.",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The vault alias which refers to the card number",
+            "example": "token_card_number"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "The type of the card such as Credit, Debit",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "The country in which the card was issued",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "The bank code of the bank that issued the card",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "The first six digits of the card number",
+            "example": "424242",
+            "nullable": true
+          },
+          "last_four": {
+            "type": "string",
+            "description": "The last four digits of the card number",
+            "example": "4242",
+            "nullable": true
+          }
         }
       },
       "VaultCardToken": {

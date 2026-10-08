@@ -718,25 +718,6 @@ pub async fn get_payment_intent_payment_attempt(
                     )
                     .await?;
             }
-            api_models::payments::PaymentIdType::PreprocessingId(ref id) => {
-                pa = db
-                    .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                        id,
-                        processor_merchant_id,
-                        storage_scheme,
-                        key_store,
-                    )
-                    .await?;
-
-                pi = db
-                    .find_payment_intent_by_payment_id_processor_merchant_id(
-                        &pa.payment_id,
-                        processor_merchant_id,
-                        key_store,
-                        storage_scheme,
-                    )
-                    .await?;
-            }
         }
         error_stack::Result::<_, errors::StorageError>::Ok((pi, pa))
     };

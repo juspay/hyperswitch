@@ -622,6 +622,15 @@ pub async fn get_token_pm_type_mandate_details(
                         None,
                         None,
                     ),
+                    RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
                     RecurringDetails::CardWithLimitedData(_) => (
                         None,
                         request.payment_method,
@@ -1419,6 +1428,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndVaultCardDetails(_)
         | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
@@ -8371,6 +8381,32 @@ pub async fn get_gsm_record(
             .await
         }
     }
+}
+
+/// Looks up the global status map rule for a connector error response, so the attempt update built
+/// from it can carry the rule's standardised and unified codes. `None` when the response is not an
+/// error or no rule matches.
+#[cfg(feature = "v2")]
+pub async fn get_gsm_record_for_error_response<F, Req, Res>(
+    state: &SessionState,
+    router_data: &RouterData<F, Req, Res>,
+    payment_attempt: &PaymentAttempt,
+) -> Option<hyperswitch_domain_models::gsm::GatewayStatusMap> {
+    let error = router_data.response.as_ref().err()?;
+    let sub_flow = crate::core::utils::get_flow_name::<F>()
+        .inspect_err(|err| logger::error!(?err, "Failed to get flow name for GSM lookup"))
+        .ok()?;
+    get_gsm_record(
+        state,
+        router_data.connector.clone(),
+        consts::PAYMENT_FLOW_STR,
+        &sub_flow,
+        Some(error.code.clone()),
+        Some(error.message.clone()),
+        error.network_decline_code.clone(),
+        payment_attempt.extract_card_network(),
+    )
+    .await
 }
 
 /// Perform GSM lookup with the given error code and message.

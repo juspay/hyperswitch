@@ -509,6 +509,12 @@
                       "v2/revenue-recovery/revenue-recovery--create",
                       "v2/revenue-recovery/revenue-recovery--retrieve"
                     ]
+                  },
+                  {
+                    "group": "Schemas",
+                    "pages": [
+                      "v2/schemas/outgoing--webhook"
+                    ]
                   }
                 ]
               }
