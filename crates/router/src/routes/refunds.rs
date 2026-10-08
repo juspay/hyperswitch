@@ -179,8 +179,9 @@ pub async fn refunds_retrieve(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRefundRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileRefundRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -619,8 +620,9 @@ pub async fn refunds_list_profile(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRefundRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileRefundRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -726,8 +728,9 @@ pub async fn get_refunds_filters_profile(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRefundRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileRefundRead),
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -822,8 +825,9 @@ pub async fn get_refunds_aggregate_profile(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRefundRead,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileRefundRead),
                 allow_connected: true,
                 allow_platform: false,
             },
