@@ -20801,7 +20801,7 @@
       },
       "NetworkTokenWithVaultCardFallback": {
         "type": "object",
-        "description": "Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible\ndecline. Both legs share one `network_transaction_id`.",
+        "description": "Network token details for an MIT, with a vault card to fall back to on a clear-PAN eligible\ndecline. Both arms share one `network_transaction_id`.",
         "required": [
           "network_token",
           "network_transaction_id",
@@ -20813,7 +20813,7 @@
           },
           "network_transaction_id": {
             "type": "string",
-            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both legs."
+            "description": "The network transaction ID provided by the card network during a Customer Initiated\nTransaction (CIT) when `setup_future_usage` is set to `off_session`. Shared by both arms."
           },
           "transaction_link_id": {
             "type": "string",
