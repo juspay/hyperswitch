@@ -4294,8 +4294,17 @@ impl<F: Clone>
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
 
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = payments_helpers::get_gsm_record_for_error_response(
+            state,
+            &response_router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = response_router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -4356,8 +4365,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = payments_helpers::get_gsm_record_for_error_response(
+            state,
+            &response_router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = response_router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -4546,8 +4564,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = payments_helpers::get_gsm_record_for_error_response(
+            state,
+            &response_router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = response_router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let payment_attempt = payment_data.payment_attempt;
 
@@ -4813,8 +4840,17 @@ impl
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = payments_helpers::get_gsm_record_for_error_response(
+            state,
+            &response_router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = response_router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -4877,8 +4913,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = payments_helpers::get_gsm_record_for_error_response(
+            state,
+            &response_router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = response_router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -5217,8 +5262,17 @@ impl<F: Clone + Send + Sync>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Error while updating the payment_intent")?;
 
-        let payment_attempt_update = router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let gsm_record = payments_helpers::get_gsm_record_for_error_response(
+            state,
+            &router_data,
+            &payment_data.payment_attempt,
+        )
+        .await;
+        let payment_attempt_update = router_data.get_payment_attempt_update(
+            &payment_data,
+            processor.get_account().storage_scheme,
+            gsm_record.as_ref(),
+        );
 
         let updated_payment_attempt = db
             .update_payment_attempt(
