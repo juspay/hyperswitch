@@ -485,22 +485,13 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
-        let is_active_mandate = mandate_details
-            .payments
-            .as_ref()
-            .and_then(|payments| payments.0.get(&mca_id))
-            .is_some_and(|record| {
-                record.connector_mandate_status
-                    == Some(common_enums::ConnectorMandateStatus::Active)
-            });
-
         let is_off_session = matches!(
             payment_intent.setup_future_usage,
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        // Combine business logic conditions: not active mandate AND off_session
-        if !is_active_mandate && is_off_session {
+        // Update connector mandate details whenever off_session, activating inactive mandates
+        if is_off_session {
             let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
                 payment_attempt
                     .connector_mandate_detail
