@@ -1,8 +1,7 @@
 import { getCustomExchange } from "./Modifiers";
 import {
+  connectorDetails as commonsConnectorDetails,
   OFFER_QUOTE_ID_PLACEHOLDER,
-  successfulNo3DSCardDetails,
-  standardBillingAddress,
 } from "./Commons";
 
 const verifiedCardDetails = {
@@ -433,50 +432,23 @@ export const connectorDetails = {
   // saved-card scenario expects that failure instead of the generic
   // success shared by every other connector.
   offer_engine: {
-    OfferEligibilityCheck: getCustomExchange({
+    // Same as Commons.js's default, just with the DOB ilixium requires added
+    // onto the Request.
+    OfferEligibilityCheck: {
+      ...commonsConnectorDetails.offer_engine.OfferEligibilityCheck,
       Request: {
-        payment_method_type: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: standardBillingAddress,
-        },
+        ...commonsConnectorDetails.offer_engine.OfferEligibilityCheck.Request,
         customer: ilixiumCustomer,
       },
-      Response: {
-        status: 200,
-        body: {
-          amount_details: {
-            total_amount: 100000,
-            net_amount: 98000,
-            currency: "USD",
-          },
-          offer_details: {
-            uplifted_offer_quote_ids: [""],
-            eligible_offers: [
-              {
-                offer_amount: 2000,
-                currency: "USD",
-                code: "TESTHS",
-              },
-            ],
-          },
-        },
-      },
-    }),
+    },
     // Same pre-existing limitation as card_pm.No3DSAutoCapture above: our
     // creds only support manual capture, so any auto-capture confirm --
     // offer-engine or not -- comes back 200 with this mapped error instead
     // of actually succeeding.
-    ConfirmWithOfferApplied: getCustomExchange({
+    ConfirmWithOfferApplied: {
+      ...commonsConnectorDetails.offer_engine.ConfirmWithOfferApplied,
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: standardBillingAddress,
-        },
-        offer_details: {
-          offer_quote_ids: [OFFER_QUOTE_ID_PLACEHOLDER],
-        },
+        ...commonsConnectorDetails.offer_engine.ConfirmWithOfferApplied.Request,
         customer: ilixiumCustomer,
       },
       Response: {
@@ -487,7 +459,7 @@ export const connectorDetails = {
           error_code: "4",
         },
       },
-    }),
+    },
     AppliedOfferOnRetrieve: getCustomExchange({
       Request: {},
       Response: {
@@ -497,13 +469,10 @@ export const connectorDetails = {
         },
       },
     }),
-    ConfirmWithoutOffer: getCustomExchange({
+    ConfirmWithoutOffer: {
+      ...commonsConnectorDetails.offer_engine.ConfirmWithoutOffer,
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: standardBillingAddress,
-        },
+        ...commonsConnectorDetails.offer_engine.ConfirmWithoutOffer.Request,
         customer: ilixiumCustomer,
       },
       Response: {
@@ -514,7 +483,7 @@ export const connectorDetails = {
           error_code: "4",
         },
       },
-    }),
+    },
     // The "save a card" step earlier in this scenario (card_pm.
     // SaveCardUseNo3DSAutoCapture) itself fails for ilixium (pre-existing
     // auto-capture limitation, see that fixture above) -- no payment_token
