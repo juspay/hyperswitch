@@ -2546,7 +2546,9 @@ impl Conversion for PaymentAttempt {
             tokenization: None,
             amount_captured,
             encrypted_payment_method_data: None,
-            error_details: None,
+            error_details: error
+                .as_ref()
+                .map(diesel_models::payment_attempt::ErrorDetails::from),
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
@@ -2612,6 +2614,12 @@ impl Conversion for PaymentAttempt {
                 amount_captured: storage_model.amount_captured,
             };
 
+            let standardised_code = storage_model
+                .error_details
+                .as_ref()
+                .and_then(|error_details| error_details.unified_details.as_ref())
+                .and_then(|unified_details| unified_details.standardised_code);
+
             let error = storage_model
                 .error_code
                 .zip(storage_model.error_message)
@@ -2624,6 +2632,7 @@ impl Conversion for PaymentAttempt {
                     network_advice_code: storage_model.network_advice_code,
                     network_decline_code: storage_model.network_decline_code,
                     network_error_message: storage_model.network_error_message,
+                    standardised_code,
                 });
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
@@ -2857,7 +2866,9 @@ impl Conversion for PaymentAttempt {
             authorized_amount,
             amount_captured: amount_details.get_amount_captured(),
             encrypted_payment_method_data: None,
-            error_details: None,
+            error_details: error_details
+                .as_ref()
+                .map(diesel_models::payment_attempt::ErrorDetails::from),
             retry_type: None,
             external_surcharge_details: None,
             applied_offer_details: None,
@@ -2909,6 +2920,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2925,6 +2937,10 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
 
+                // Built before the fields below are moved out of `error`.
+                let error_details =
+                    diesel_models::payment_attempt::ErrorDetails::from(error.as_ref());
+
                 Self {
                     status: Some(status),
                     payment_method_id: None,
@@ -2935,8 +2951,8 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     error_reason: error.reason,
                     updated_by,
                     merchant_connector_id: None,
-                    unified_code: None,
-                    unified_message: None,
+                    unified_code: error.unified_code,
+                    unified_message: error.unified_message,
                     connector_payment_id,
                     connector_payment_data,
                     connector: None,
@@ -2955,6 +2971,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
+                    error_details: Some(error_details),
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -3007,6 +3024,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -3045,6 +3063,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 cancellation_reason: None,
                 amount_captured,
                 payment_method_data: payment_method_data.map(pii::SecretSerdeValue::new),
+                error_details: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -3080,6 +3099,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::RecordBackUpdate {
                 feature_metadata,
@@ -3114,6 +3134,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3148,6 +3169,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3187,6 +3209,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3222,6 +3245,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 payment_method_id: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
         }
     }

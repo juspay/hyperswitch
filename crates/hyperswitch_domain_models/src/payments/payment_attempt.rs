@@ -364,6 +364,49 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// The standardised code from the global status map record for this error.
+    /// Persisted in the `error_details` column, under `unified_details`.
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+}
+
+/// The `error_details` column for a v2 attempt error: connector, issuer and unified (GSM) details.
+#[cfg(feature = "v2")]
+impl From<&ErrorDetails> for diesel_models::payment_attempt::ErrorDetails {
+    fn from(error: &ErrorDetails) -> Self {
+        let unified_details = (error.unified_message.is_some()
+            || error.standardised_code.is_some())
+        .then(|| diesel_models::payment_attempt::UnifiedErrorDetails {
+            category: None,
+            message: error.unified_message.clone(),
+            standardised_code: error.standardised_code,
+            description: None,
+            user_guidance_message: None,
+            recommended_action: None,
+        });
+        let issuer_details = (error.network_decline_code.is_some()
+            || error.network_error_message.is_some()
+            || error.network_advice_code.is_some())
+        .then(|| diesel_models::payment_attempt::IssuerErrorDetails {
+            code: error.network_decline_code.clone(),
+            message: error.network_error_message.clone(),
+            network_details: error.network_advice_code.clone().map(|advice_code| {
+                diesel_models::payment_attempt::NetworkErrorDetails {
+                    name: None,
+                    advice_code: Some(advice_code),
+                    advice_message: None,
+                }
+            }),
+        });
+        Self {
+            unified_details,
+            issuer_details,
+            connector_details: Some(diesel_models::payment_attempt::ConnectorErrorDetails {
+                code: Some(error.code.clone()),
+                message: Some(error.message.clone()),
+                reason: error.reason.clone(),
+            }),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
