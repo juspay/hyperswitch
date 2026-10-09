@@ -683,6 +683,9 @@ upi_collect = { country = "IN", currency = "INR" }
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
 
+[pm_filters.d24]
+card_redirect = { country = "CL", currency = "CLP,USD" }
+
 [pm_filters.paytm]
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
