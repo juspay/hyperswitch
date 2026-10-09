@@ -113,9 +113,12 @@ export const connectorDetails = {
           body: {
             error: {
               type: "invalid_request",
-              // Intake-phase rejection of the unmappable account number;
-              // metadata-free-text in the message drifts across deployments,
-              // so only the stable signature (code) is asserted.
+              // Intake-phase rejection of the unmappable account number.
+              // The message is asserted as well; defaultErrorHandler
+              // compares strings whitespace-tolerant because trailing
+              // whitespace in this UCS-generated text drifts.
+              message:
+                "Missing required param: Missing required field: payout_connector_metadata. Trustly Payout Transfer - missing required field",
               code: "IR_04",
             },
           },

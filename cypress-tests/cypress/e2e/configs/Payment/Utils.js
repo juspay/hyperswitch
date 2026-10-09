@@ -361,6 +361,14 @@ export function defaultErrorHandler(response, response_data) {
         apiResponseContent.includes("Json deserialize error")
       ) {
         expect(apiResponseContent).to.include(expectedContent);
+      } else if (
+        typeof apiResponseContent === "string" &&
+        typeof expectedContent === "string"
+      ) {
+        // Server-generated error text occasionally carries drifting trailing
+        // whitespace; compare string payloads trimmed so whitespace drift
+        // does not flake otherwise deterministic contracts.
+        expect(apiResponseContent.trim()).to.equal(expectedContent.trim());
       } else {
         expect(apiResponseContent).to.equal(expectedContent);
       }
