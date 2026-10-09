@@ -71,6 +71,20 @@ export default defineConfig({
             return null;
           }
         },
+        // Reachability probe run in the node process so that network failures
+        // (DNS, refused connections) resolve to { ok: false } instead of
+        // failing the spec the way a cy.request() would.
+        probeUrl: async (url) => {
+          try {
+            const res = await fetch(url, {
+              method: "GET",
+              signal: AbortSignal.timeout(5000),
+            });
+            return { ok: res.status < 500, status: res.status };
+          } catch (err) {
+            return { ok: false, status: 0, error: String(err) };
+          }
+        },
         cli_log: (message) => {
           // eslint-disable-next-line no-console
           console.log("Logging console message from task");
