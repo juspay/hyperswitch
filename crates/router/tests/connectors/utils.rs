@@ -1048,6 +1048,7 @@ impl Default for PaymentAuthorizeType {
             installment_details: None,
             connector_intent_metadata: None,
             business_country: None,
+            enable_avs_check: None,
         };
         Self(data)
     }
