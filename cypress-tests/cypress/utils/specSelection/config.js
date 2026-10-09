@@ -50,6 +50,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   givepayments: ["card"],
   globepay: ["wallet"],
   iatapay: ["bank_redirect", "real_time_payment", "upi"],
+  ilixium: ["card"],
   inespay: ["bank_debit"],
   itaubank: ["bank_transfer"],
   klarna: ["pay_later"],
