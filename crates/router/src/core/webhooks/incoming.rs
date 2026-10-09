@@ -6,6 +6,7 @@ use api_models::{
     enums::Connector,
     webhooks::{self, WebhookResponseTracker},
 };
+use common_enums::enums::ConnectorMandateStatus;
 pub use common_enums::{connector_enums::InvoiceStatus, enums::ProcessTrackerRunner};
 use common_utils::{
     errors::ReportSwitchExt,
@@ -24,6 +25,7 @@ use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, HeaderPayload, PaymentIntent},
     router_flow_types::{PaymentAttemptAssociatedData, WebhookAssociatedData},
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
+    vault::PaymentMethodVaultingData,
 };
 use hyperswitch_interfaces::{
     unified_connector_service::get_payments_response_from_ucs_webhook_content,
@@ -657,6 +659,7 @@ async fn process_webhook_business_logic(
                 webhook_details,
                 source_verified,
                 event_type,
+                merchant_connector_account,
             ))
             .await
             .attach_printable("Incoming webhook flow for mandates failed"),
@@ -985,6 +988,7 @@ async fn payments_incoming_webhook_flow(
                     &state,
                     &platform,
                     webhook_details.object_reference_id.clone(),
+                    event_type,
                     connector,
                     request_details,
                 )
@@ -1792,15 +1796,6 @@ pub async fn get_payment_attempt_from_object_reference_id(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
-        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
-            .find_payment_attempt_by_preprocessing_id_processor_merchant_id(
-                id,
-                processor.get_account().get_id(),
-                processor.get_account().storage_scheme,
-                processor.get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("received a non-payment id for retrieving payment")?,
     }
@@ -2309,90 +2304,315 @@ async fn mandates_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
+    merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    if source_verified {
-        let db = &*state.store;
-        let mandate = match webhook_details.object_reference_id {
-            webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
-                mandate_id,
-            )) => db
-                .find_mandate_by_merchant_id_mandate_id(
-                    platform.get_processor().get_account().get_id(),
-                    mandate_id.as_str(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
-            webhooks::ObjectReferenceId::MandateId(
-                webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id),
-            ) => db
-                .find_mandate_by_merchant_id_connector_mandate_id(
-                    platform.get_processor().get_account().get_id(),
-                    connector_mandate_id.as_str(),
-                    platform.get_processor().get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
-            _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("received a non-mandate id for retrieving mandate")?,
-        };
-        let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("event type to mandate status mapping failed")?;
-        let mandate_id = mandate.mandate_id.clone();
-        let updated_mandate = db
-            .update_mandate_by_merchant_id_mandate_id(
-                platform.get_processor().get_account().get_id(),
-                &mandate_id,
-                storage::MandateUpdate::StatusUpdate { mandate_status },
-                mandate,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-        let mandates_response = Box::new(
-            api::mandates::MandateResponse::from_db_mandate(
-                &state,
-                platform.get_processor().get_key_store().clone(),
-                updated_mandate.clone(),
-                platform.get_processor().get_account(),
-            )
-            .await?,
-        );
-        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
-        if let Some(outgoing_event_type) = event_type {
-            let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
-                &state,
-                &platform,
-                &business_profile,
-                None, // Mandates do not carry created_by, default to processor
-            )
-            .await?;
-            Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                state,
-                platform,
-                outgoing_event_type,
-                enums::EventClass::Mandates,
-                updated_mandate.mandate_id.clone(),
-                enums::EventObjectType::MandateDetails,
-                api::OutgoingWebhookContent::MandateDetails(mandates_response),
-                Some(updated_mandate.created_at),
-                webhook_recipient,
-                None,
-                business_profile,
-            ))
-            .await?;
+    match event_type {
+        webhooks::IncomingWebhookEvent::MandateActionRequired => {
+            Ok(WebhookResponseTracker::NoEffect)
         }
-        Ok(WebhookResponseTracker::Mandate {
-            mandate_id: updated_mandate.mandate_id,
-            status: updated_mandate.mandate_status,
-        })
-    } else {
-        logger::error!("Webhook source verification failed for mandates webhook flow");
-        Err(report!(
+        _ if source_verified => {
+            let db = &*state.store;
+
+            match webhook_details.object_reference_id {
+                webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
+                    let mandate = match mandate_id_type {
+                        webhooks::MandateIdType::MandateId(mandate_id) => db
+                            .find_mandate_by_merchant_id_mandate_id(
+                                platform.get_processor().get_account().get_id(),
+                                mandate_id.as_str(),
+                                platform.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+                        webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id) => db
+                            .find_mandate_by_merchant_id_connector_mandate_id(
+                                platform.get_processor().get_account().get_id(),
+                                connector_mandate_id.as_str(),
+                                platform.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+                    };
+
+                    update_existing_mandate(state, platform, business_profile, mandate, event_type)
+                        .await
+                }
+                webhooks::ObjectReferenceId::PaymentId(
+                    api::payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id),
+                ) => {
+                    Box::pin(update_connector_managed_mandate_by_connector_txn_id(
+                        state,
+                        platform,
+                        business_profile,
+                        merchant_connector_account,
+                        connector_transaction_id,
+                        event_type,
+                    ))
+                    .await
+                }
+                _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("received a non-mandate id for retrieving mandate"),
+            }
+        }
+        _ => Err(report!(
             errors::ApiErrorResponse::WebhookAuthenticationFailed
-        ))
+        )),
     }
+}
+
+#[instrument(skip_all)]
+async fn update_connector_managed_mandate_by_connector_txn_id(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    connector_transaction_id: String,
+    event_type: webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let merchant_id = platform.get_processor().get_account().get_id();
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+    let setup_attempt = db
+        .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
+            merchant_id,
+            connector_transaction_id.as_str(),
+            storage_scheme,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let payment_method_id = setup_attempt
+        .payment_method_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("payment method id not found for connector managed mandate webhook")?;
+
+    let payment_method = db
+        .find_payment_method(
+            platform.get_provider().get_key_store(),
+            payment_method_id.as_str(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    update_payment_method_mandate_status(
+        &state,
+        &platform,
+        &business_profile,
+        payment_method,
+        &merchant_connector_account.get_id(),
+        event_type,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+async fn update_existing_mandate(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    mandate: storage::Mandate,
+    event_type: webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    let mandate_status = common_enums::MandateStatus::foreign_try_from(event_type)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("event type to mandate status mapping failed")?;
+    let mandate_id = mandate.mandate_id.clone();
+    let updated_mandate = db
+        .update_mandate_by_merchant_id_mandate_id(
+            platform.get_processor().get_account().get_id(),
+            &mandate_id,
+            storage::MandateUpdate::StatusUpdate { mandate_status },
+            mandate,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+    let mandates_response = Box::new(
+        api::mandates::MandateResponse::from_db_mandate(
+            &state,
+            platform.get_processor().get_key_store().clone(),
+            updated_mandate.clone(),
+            platform.get_processor().get_account(),
+        )
+        .await?,
+    );
+    let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
+    if let Some(outgoing_event_type) = event_type {
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            &state,
+            &platform,
+            &business_profile,
+            None, // Mandates do not carry created_by, default to processor
+        )
+        .await?;
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state,
+            platform,
+            outgoing_event_type,
+            enums::EventClass::Mandates,
+            updated_mandate.mandate_id.clone(),
+            enums::EventObjectType::MandateDetails,
+            api::OutgoingWebhookContent::MandateDetails(mandates_response),
+            Some(updated_mandate.created_at),
+            webhook_recipient,
+            None,
+            business_profile,
+        ))
+        .await?;
+    }
+    Ok(WebhookResponseTracker::Mandate {
+        mandate_id: updated_mandate.mandate_id,
+        status: updated_mandate.mandate_status,
+    })
+}
+
+#[instrument(skip_all)]
+async fn update_payment_method_mandate_status(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+    merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+    event_type: webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let db = &*state.store;
+
+    let common_mandate_reference = payment_method
+        .get_common_mandate_reference()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse payment method mandate details")?;
+    let payment_method_id = payment_method.get_id().clone();
+    let payment_method_name = payment_method
+        .get_payment_method_type()
+        .map(|payment_method| payment_method.to_string())
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("payment method type not found for mandate webhook")?;
+    let payment_method_type = payment_method
+        .get_payment_method_subtype()
+        .map(|payment_method_type| payment_method_type.to_string());
+    let created_at = payment_method.created_at;
+    let created_by = payment_method.created_by.clone();
+
+    let (connector_mandate_status, mandate_status, payment_method_status, tracker_status) =
+        match event_type {
+            webhooks::IncomingWebhookEvent::MandateActive => Ok((
+                ConnectorMandateStatus::Active,
+                common_enums::MandateStatus::Active,
+                Some(enums::PaymentMethodStatus::Active),
+                enums::PaymentMethodStatus::Active,
+            )),
+            webhooks::IncomingWebhookEvent::MandateRevoked => Ok((
+                ConnectorMandateStatus::Inactive,
+                common_enums::MandateStatus::Revoked,
+                None,
+                enums::PaymentMethodStatus::Inactive,
+            )),
+            _ => Err(report!(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("received a non-mandate status event")),
+        }?;
+
+    let payment_mandate_reference = common_mandate_reference
+        .payments
+        .clone()
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("no payment mandate reference found for payment method")?;
+
+    let updated_mandate_details = tokenization::update_connector_mandate_details_status(
+        merchant_connector_id.clone(),
+        payment_mandate_reference,
+        connector_mandate_status,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update connector mandate details status")?;
+
+    let updated_mandate_details = updated_mandate_details
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("no updated mandate details for payment method")?;
+    let connector_mandate_id = updated_mandate_details
+        .payments
+        .as_ref()
+        .and_then(|payments| payments.get(merchant_connector_id))
+        .map(|mandate_record| mandate_record.connector_mandate_id.clone())
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("connector mandate id not found for payment method mandate webhook")?;
+    let connector_mandate_details_value = updated_mandate_details
+        .get_mandate_details_value()
+        .map_err(|err| {
+            router_env::logger::error!("Failed to get get_mandate_details_value : {:?}", err);
+            errors::ApiErrorResponse::MandateUpdateFailed
+        })?;
+
+    let pm_update = storage::PaymentMethodUpdate::PaymentMethodBatchUpdate {
+        connector_mandate_details: Some(Secret::new(connector_mandate_details_value)),
+        network_transaction_id: None,
+        network_transaction_link_id: None,
+        status: payment_method_status,
+        payment_method_data: None,
+        payment_method_type: None,
+        scheme: None,
+        last_modified_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    db.update_payment_method(
+        platform.get_provider().get_key_store(),
+        payment_method.clone(),
+        pm_update,
+        platform.get_provider().get_account().storage_scheme,
+        None,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let outgoing_event_type: Option<enums::EventType> = mandate_status.into();
+    if let Some(outgoing_event_type) = outgoing_event_type {
+        let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+            state,
+            platform,
+            business_profile,
+            created_by.as_ref(),
+        )
+        .await?;
+        let mandate_response = api::mandates::MandateResponse {
+            mandate_id: connector_mandate_id.clone(),
+            status: mandate_status,
+            payment_method_id: payment_method_id.to_string(),
+            payment_method: payment_method_name,
+            payment_method_type,
+            card: None,
+            customer_acceptance: None,
+        };
+
+        // PM-backed mandates do not have a entry in mandate table. Use the
+        // connector mandate id as the outgoing mandate resource id so revocation
+        // webhooks are about the mandate, not one arbitrary CIT/MIT payment.
+        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+            state.clone(),
+            platform.clone(),
+            outgoing_event_type,
+            enums::EventClass::Mandates,
+            connector_mandate_id,
+            enums::EventObjectType::MandateDetails,
+            api::OutgoingWebhookContent::MandateDetails(Box::new(mandate_response)),
+            Some(created_at),
+            webhook_recipient,
+            None,
+            business_profile.clone(),
+        ))
+        .await?;
+    }
+
+    Ok(WebhookResponseTracker::PaymentMethod {
+        payment_method_id,
+        status: tracker_status,
+    })
 }
 
 #[instrument(skip_all)]
@@ -2594,30 +2814,25 @@ async fn resolve_payment_method_for_associated_data(
     billing_address_id: Option<&str>,
     connector_disclosed_details: &domain::PaymentMethodData,
 ) -> CustomResult<Option<domain::PaymentMethod>, errors::ApiErrorResponse> {
-    let Some(vaulting_data) = connector_disclosed_details.get_payment_method_vaulting_data() else {
-        return Ok(None);
-    };
+    match (
+        connector_disclosed_details.get_payment_method_vaulting_data(),
+        customer_id,
+        payment_attempt.customer_acceptance.clone(),
+    ) {
+        (
+            Some(
+                vaulting_data @ PaymentMethodVaultingData::BankRedirect(
+                    domain::BankRedirectDetail::Trustly { .. },
+                ),
+            ),
+            Some(customer_id),
+            Some(customer_acceptance),
+        ) => {
+            let provider = platform.get_provider();
 
-    let (Some(customer_id), Some(customer_acceptance)) =
-        (customer_id, payment_attempt.customer_acceptance.clone())
-    else {
-        logger::info!(
-            "Connector disclosed an instrument with nothing to save it against, skipping the payment method"
-        );
-        return Ok(None);
-    };
-
-    let provider = platform.get_provider();
-
-    let (locker_id, locker_fingerprint_id): (Option<String>, String) = match &vaulting_data {
-        // Trustly discloses a reference it resolves on its own rather than the account itself, so
-        // there is nothing to keep - the fingerprint alone recognises the instrument, and the
-        // payment method has no locker entry to point at.
-        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(
-            hyperswitch_domain_models::payment_method_data::BankRedirectDetail::Trustly { .. },
-        ) => (
-            None,
-            cards::get_vault_fingerprint(
+            // Trustly resolves the instrument reference itself, so only its fingerprint is needed.
+            // The payment method has no locker entry to point at.
+            let locker_fingerprint_id = cards::get_vault_fingerprint(
                 state,
                 provider.get_account().get_id(),
                 customer_id,
@@ -2625,79 +2840,88 @@ async fn resolve_payment_method_for_associated_data(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to derive the fingerprint for the disclosed instrument")?,
-        ),
-        _ => return Ok(None),
-    };
+            .attach_printable("Failed to derive the fingerprint for the disclosed instrument")?;
 
-    let existing_payment_method = payment_response::find_payment_method_by_fingerprint(
-        state,
-        provider.get_key_store(),
-        &locker_fingerprint_id,
-    )
-    .await;
+            let existing_payment_method = payment_response::find_payment_method_by_fingerprint(
+                state,
+                provider.get_key_store(),
+                &locker_fingerprint_id,
+            )
+            .await;
 
-    if let Some(existing_payment_method) = existing_payment_method {
-        cards::update_last_used_at(
-            &existing_payment_method,
-            state,
-            provider.get_account().storage_scheme,
-            provider.get_key_store(),
-        )
-        .await
-        .map_err(|error| {
-            logger::error!(?error, "Failed to update last used at");
-        })
-        .ok();
+            match existing_payment_method {
+                Some(existing_payment_method) => {
+                    cards::update_last_used_at(
+                        &existing_payment_method,
+                        state,
+                        provider.get_account().storage_scheme,
+                        provider.get_key_store(),
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(?error, "Failed to update last used at");
+                    })
+                    .ok();
 
-        logger::info!(
-            payment_method_id = %existing_payment_method.get_id(),
-            "Reusing the payment method the customer already saved for this instrument"
-        );
+                    logger::info!(
+                        payment_method_id = %existing_payment_method.get_id(),
+                        "Reusing the payment method the customer already saved for this instrument"
+                    );
 
-        return Ok(Some(existing_payment_method));
+                    Ok(Some(existing_payment_method))
+                }
+                None => {
+                    let billing_address = match payment_attempt
+                        .payment_method_billing_address_id
+                        .as_deref()
+                        .or(billing_address_id)
+                    {
+                        Some(address_id) => state
+                            .store
+                            .find_address_by_address_id(address_id, provider.get_key_store())
+                            .await
+                            .map_err(|error| {
+                                logger::info!(
+                                    ?error,
+                                    "Could not read the billing address, creating the payment method without it"
+                                );
+                            })
+                            .ok()
+                            .as_ref()
+                            .map(From::from),
+                        None => None,
+                    };
+
+                    let payment_method = payment_response::insert_deferred_payment_method(
+                        state,
+                        platform,
+                        customer_id,
+                        customer_acceptance,
+                        payment_attempt.payment_method,
+                        payment_attempt.payment_method_type,
+                        billing_address,
+                        None,
+                        Some(locker_fingerprint_id),
+                    )
+                    .await?;
+
+                    logger::info!(
+                        payment_method_id = %payment_method.get_id(),
+                        "Created the payment method for the instrument the connector disclosed"
+                    );
+
+                    Ok(Some(payment_method))
+                }
+            }
+        }
+        (Some(_), None, _) | (Some(_), _, None) => {
+            logger::info!(
+                "Connector disclosed an instrument with nothing to save it against, skipping the payment method"
+            );
+            Ok(None)
+        }
+        _ => Ok(None),
     }
-
-    let billing_address = match payment_attempt
-        .payment_method_billing_address_id
-        .as_deref()
-        .or(billing_address_id)
-    {
-        Some(address_id) => state
-            .store
-            .find_address_by_address_id(address_id, provider.get_key_store())
-            .await
-            .map_err(|error| {
-                logger::info!(
-                    ?error,
-                    "Could not read the billing address, creating the payment method without it"
-                );
-            })
-            .ok()
-            .as_ref()
-            .map(From::from),
-        None => None,
-    };
-
-    let payment_method = payment_response::insert_deferred_payment_method(
-        state,
-        platform,
-        customer_id,
-        customer_acceptance,
-        payment_attempt.payment_method,
-        payment_attempt.payment_method_type,
-        billing_address,
-        locker_id,
-        Some(locker_fingerprint_id),
-    )
-    .await?;
-
-    logger::info!(
-        payment_method_id = %payment_method.get_id(),
-        "Created the payment method for the instrument the connector disclosed"
-    );
-
-    Ok(Some(payment_method))
 }
 
 async fn update_payment_method_associated_data(
@@ -2709,80 +2933,86 @@ async fn update_payment_method_associated_data(
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     connector_disclosed_details: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let Some(connector_disclosed_details) = connector_disclosed_details else {
-        return Ok(None);
-    };
+    match connector_disclosed_details {
+        Some(connector_disclosed_details) => {
+            let provider = platform.get_provider();
 
-    let provider = platform.get_provider();
+            let payment_method = match payment_attempt.payment_method_id.as_deref() {
+                Some(payment_method_id) => Some(
+                    state
+                        .store
+                        .find_payment_method(
+                            provider.get_key_store(),
+                            payment_method_id,
+                            provider.get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                ),
+                None => {
+                    resolve_payment_method_for_associated_data(
+                        state,
+                        platform,
+                        payment_attempt,
+                        payment_intent.customer_id.as_ref(),
+                        payment_intent.billing_address_id.as_deref(),
+                        &connector_disclosed_details,
+                    )
+                    .await?
+                }
+            };
 
-    let payment_method = match payment_attempt.payment_method_id.as_deref() {
-        Some(payment_method_id) => Some(
-            state
-                .store
-                .find_payment_method(
-                    provider.get_key_store(),
-                    payment_method_id,
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
-        ),
-        None => {
-            resolve_payment_method_for_associated_data(
-                state,
-                platform,
-                payment_attempt,
-                payment_intent.customer_id.as_ref(),
-                payment_intent.billing_address_id.as_deref(),
-                &connector_disclosed_details,
-            )
-            .await?
+            match payment_method {
+                Some(payment_method) => {
+                    let payment_method_id = payment_method.get_id().clone();
+
+                    let payment_method_update =
+                        cards::prepare_payment_method_update_from_connector_details(
+                            state,
+                            platform,
+                            &payment_method,
+                            merchant_connector_id,
+                            &connector_disclosed_details,
+                            business_profile,
+                        )
+                        .await?;
+
+                    let compat_action =
+                        payment_methods::payment_method_modular_forward_compat_action(
+                            state,
+                            &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
+                            payment_method.customer_id.as_ref(),
+                        )
+                        .await;
+
+                    state
+                        .store
+                        .update_payment_method(
+                            provider.get_key_store(),
+                            payment_method,
+                            payment_method_update,
+                            provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to write the associated bank redirect details to the payment method",
+                        )?;
+
+                    Ok(Some(payment_method_id))
+                }
+                None => {
+                    logger::info!(
+                        "No payment method to write the connector returned instrument to, skipping the update"
+                    );
+                    Ok(None)
+                }
+            }
         }
-    };
-
-    let Some(payment_method) = payment_method else {
-        logger::info!(
-            "No payment method to write the connector returned instrument to, skipping the update"
-        );
-        return Ok(None);
-    };
-
-    let payment_method_id = payment_method.get_id().clone();
-
-    let payment_method_update = cards::prepare_payment_method_update_from_connector_details(
-        state,
-        platform,
-        &payment_method,
-        merchant_connector_id,
-        &connector_disclosed_details,
-        business_profile,
-    )
-    .await?;
-
-    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
-        state,
-        &payment_method.merchant_id,
-        &provider.get_account().organization_id,
-        payment_method.customer_id.as_ref(),
-    )
-    .await;
-
-    state
-        .store
-        .update_payment_method(
-            provider.get_key_store(),
-            payment_method,
-            payment_method_update,
-            provider.get_account().storage_scheme,
-            compat_action,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to write the associated bank redirect details to the payment method",
-        )?;
-
-    Ok(Some(payment_method_id))
+        None => Ok(None),
+    }
 }
 
 fn resolve_write_once_field(
@@ -3322,7 +3552,14 @@ fn should_update_connector_mandate_details(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> bool {
-    source_verified && event_type == webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+    source_verified
+        && matches!(
+            event_type,
+            webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+                | webhooks::IncomingWebhookEvent::PaymentIntentFailure
+                | webhooks::IncomingWebhookEvent::MandateActive
+                | webhooks::IncomingWebhookEvent::MandateRevoked
+        )
 }
 
 async fn update_additional_payment_method_data(
@@ -3371,6 +3608,7 @@ async fn update_connector_mandate_details(
     state: &SessionState,
     platform: &domain::Platform,
     object_ref_id: api::ObjectReferenceId,
+    event_type: webhooks::IncomingWebhookEvent,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -3386,9 +3624,17 @@ async fn update_connector_mandate_details(
             "Could not find connector network transaction id in incoming webhook body",
         )?;
 
-    // Either one OR both of the fields are present
+    let webhook_mandate_details_update = connector
+        .get_webhook_mandate_details_update(request_details)
+        .switch()
+        .attach_printable(
+            "Could not find connector mandate details update in incoming webhook body",
+        )?;
+
+    // Either one OR more of these fields are present.
     if webhook_connector_mandate_details.is_some()
         || webhook_connector_network_transaction_id.is_some()
+        || webhook_mandate_details_update.is_some()
     {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             state,
@@ -3407,19 +3653,19 @@ async fn update_connector_mandate_details(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+            let mandate_details = payment_method_info
+                .get_common_mandate_reference()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+
+            let merchant_connector_account_id = payment_attempt
+                .merchant_connector_id
+                .clone()
+                .get_required_value("merchant_connector_id")?;
+
             // Update connector's mandate details
-            let updated_connector_mandate_details =
-                if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
-                    let mandate_details = payment_method_info
-                        .get_common_mandate_reference()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
-
-                    let merchant_connector_account_id = payment_attempt
-                        .merchant_connector_id
-                        .clone()
-                        .get_required_value("merchant_connector_id")?;
-
+            let mut updated_connector_mandate_details =
+                if let Some(webhook_mandate_details) = webhook_connector_mandate_details.as_ref() {
                     if mandate_details.payments.as_ref().is_none_or(|payments| {
                         !payments.0.contains_key(&merchant_connector_account_id)
                     }) {
@@ -3472,8 +3718,9 @@ async fn update_connector_mandate_details(
 
                         insert_mandate_details(
                             &payment_attempt,
-                            &webhook_mandate_details,
-                            Some(mandate_details),
+                            webhook_mandate_details,
+                            Some(mandate_details.clone()),
+                            event_type,
                         )?
                     } else {
                         logger::info!(
@@ -3484,6 +3731,97 @@ async fn update_connector_mandate_details(
                 } else {
                     None
                 };
+
+            if let Some(mandate_details_update) = webhook_mandate_details_update {
+                let mandate_details = updated_connector_mandate_details
+                    .clone()
+                    .or_else(|| Some(mandate_details.clone()));
+
+                let existing_connector_mandate_record = mandate_details
+                    .as_ref()
+                    .and_then(|common_mandate| common_mandate.payments.as_ref())
+                    .and_then(|payments| payments.0.get(&merchant_connector_account_id));
+
+                let connector_mandate_id = webhook_connector_mandate_details
+                    .as_ref()
+                    .map(|details| details.connector_mandate_id.peek().to_string())
+                    .or_else(|| {
+                        existing_connector_mandate_record
+                            .map(|record| record.connector_mandate_id.clone())
+                    })
+                    .or_else(|| {
+                        payment_attempt
+                            .connector_mandate_detail
+                            .as_ref()
+                            .and_then(|details| details.connector_mandate_id.clone())
+                    });
+
+                let connector_mandate_status = mandate_details_update
+                    .connector_mandate_status
+                    .or_else(|| {
+                        existing_connector_mandate_record
+                            .and_then(|record| record.connector_mandate_status)
+                    })
+                    .unwrap_or(ConnectorMandateStatus::Inactive);
+
+                updated_connector_mandate_details = tokenization::update_connector_mandate_details(
+                    mandate_details,
+                    payment_attempt.payment_method_type,
+                    mandate_details_update
+                        .original_payment_authorized_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                    mandate_details_update.original_payment_authorized_currency,
+                    Some(merchant_connector_account_id.clone()),
+                    connector_mandate_id.clone(),
+                    None,
+                    connector_mandate_status,
+                    None,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update connector mandate details from webhook")?;
+
+                if connector_mandate_id.is_some()
+                    && payment_attempt
+                        .connector_mandate_detail
+                        .as_ref()
+                        .is_none_or(|details| details.connector_mandate_id.is_none())
+                {
+                    let attempt_update =
+                        storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
+                            connector_mandate_detail: Some(ConnectorMandateReferenceId {
+                                connector_mandate_id,
+                                payment_method_id: Some(payment_method_id.to_string()),
+                                mandate_metadata: payment_attempt
+                                    .connector_mandate_detail
+                                    .as_ref()
+                                    .and_then(|details| details.mandate_metadata.clone()),
+                                connector_mandate_request_reference_id: payment_attempt
+                                    .connector_mandate_detail
+                                    .as_ref()
+                                    .and_then(|details| {
+                                        details.connector_mandate_request_reference_id.clone()
+                                    }),
+                            }),
+                            tokenization: None,
+                            updated_by: platform
+                                .get_processor()
+                                .get_account()
+                                .storage_scheme
+                                .to_string(),
+                        };
+
+                    state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            payment_attempt.clone(),
+                            attempt_update,
+                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                }
+            }
 
             let connector_mandate_details_value = updated_connector_mandate_details
                 .map(|common_mandate| {
@@ -3532,6 +3870,7 @@ fn insert_mandate_details(
     payment_attempt: &PaymentAttempt,
     webhook_mandate_details: &hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails,
     payment_method_mandate_details: Option<CommonMandateReference>,
+    event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<Option<CommonMandateReference>, errors::ApiErrorResponse> {
     let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
         .connector_mandate_detail
@@ -3543,6 +3882,24 @@ fn insert_mandate_details(
             )
         })
         .unwrap_or((None, None));
+    let connector_mandate_id = webhook_mandate_details
+        .connector_mandate_id
+        .peek()
+        .to_string();
+    let existing_connector_mandate_status = payment_attempt
+        .merchant_connector_id
+        .as_ref()
+        .and_then(|mca_id| {
+            payment_method_mandate_details
+                .as_ref()
+                .and_then(|mandate_details| mandate_details.payments.as_ref())
+                .and_then(|payments| payments.0.get(mca_id))
+        })
+        .and_then(|record| record.connector_mandate_status);
+    let connector_mandate_status = match event_type {
+        webhooks::IncomingWebhookEvent::MandateActive => ConnectorMandateStatus::Active,
+        _ => existing_connector_mandate_status.unwrap_or(ConnectorMandateStatus::Inactive),
+    };
     let connector_mandate_details = tokenization::update_connector_mandate_details(
         payment_method_mandate_details,
         payment_attempt.payment_method_type,
@@ -3554,13 +3911,9 @@ fn insert_mandate_details(
         ),
         payment_attempt.currency,
         payment_attempt.merchant_connector_id.clone(),
-        Some(
-            webhook_mandate_details
-                .connector_mandate_id
-                .peek()
-                .to_string(),
-        ),
+        Some(connector_mandate_id),
         mandate_metadata,
+        connector_mandate_status,
         connector_mandate_request_reference_id,
     )?;
     Ok(connector_mandate_details)
