@@ -1469,7 +1469,10 @@ pub enum SplitRefundsRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct StripeSplitRefund {
-    pub charge_id: String,
+    /// `None` when the Stripe charge id could not be resolved from the payment attempt. The
+    /// refund is then issued against the payment intent instead, and the Connect routing is
+    /// still derived from `transfer_account_id` and `charge_type`.
+    pub charge_id: Option<String>,
     pub transfer_account_id: String,
     pub charge_type: api_models::enums::PaymentChargeType,
     pub options: ChargeRefundsOptions,
