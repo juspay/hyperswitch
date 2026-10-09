@@ -420,7 +420,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RecoveryDataBackfill
             | Flow::RecoveryRetryStatsMigration
-            | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            | Flow::RevenueRecoveryRedis
+            | Flow::RevenueRecoveryCancel => Self::RecoveryRecovery,
             Flow::GetSuperpositionSdkConfig
             | Flow::SuperpositionListContexts
             | Flow::SuperpositionListDefaultConfigs

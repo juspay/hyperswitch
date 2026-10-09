@@ -25,7 +25,9 @@ use common_utils::{
 use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::{PaymentIntent, PaymentIntentData, PaymentStatusData},
+    payments::{
+        payment_intent::PaymentIntentUpdate, PaymentIntent, PaymentIntentData, PaymentStatusData,
+    },
     platform, revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
 use scheduler::errors as sch_errors;
@@ -1883,6 +1885,231 @@ pub async fn get_workflow_entries(
     Ok((calculate_workflow, execute_workflow))
 }
 
+/// Business statuses the recovery workflow tasks are finished with when an invoice is cancelled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CancelInvoiceWorkflowStatuses {
+    /// Business status for the CALCULATE task.
+    pub calculate: &'static str,
+    /// Business status for the EXECUTE task.
+    pub execute: &'static str,
+    /// Status the payment intent is moved to once the tasks are finished.
+    pub intent_status: IntentStatus,
+}
+
+/// Snapshot of a recovery task, used to decide whether an invoice may be cancelled.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkflowTaskState {
+    pub business_status: String,
+    pub status: ProcessTrackerStatus,
+}
+
+impl From<&ProcessTrackerStorage> for WorkflowTaskState {
+    fn from(task: &ProcessTrackerStorage) -> Self {
+        Self {
+            business_status: task.business_status.clone(),
+            status: task.status,
+        }
+    }
+}
+
+/// Why an invoice cannot be cancelled right now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CancelInvoiceRefusal {
+    /// Only an invoice whose payment is `failed` can be cancelled.
+    IntentNotFailed(IntentStatus),
+    /// A payment sync for the active attempt is still pending, so the payment may yet succeed.
+    PaymentSyncPending,
+    /// The scheduler is running a retry for this invoice right now.
+    RetryInProgress,
+    /// Recovery already reached a terminal status for this invoice.
+    AlreadyTerminal,
+}
+
+impl CancelInvoiceRefusal {
+    pub fn message(&self) -> String {
+        match self {
+            Self::IntentNotFailed(status) => {
+                format!("invoice cannot be cancelled while its payment is in {status} state")
+            }
+            Self::PaymentSyncPending => {
+                "invoice cannot be cancelled while a payment sync is pending for it".to_string()
+            }
+            Self::RetryInProgress => {
+                "invoice cannot be cancelled while a retry is in progress; try again shortly"
+                    .to_string()
+            }
+            Self::AlreadyTerminal => {
+                "invoice recovery already reached a terminal status".to_string()
+            }
+        }
+    }
+}
+
+fn is_task_running(task: Option<&WorkflowTaskState>) -> bool {
+    task.is_some_and(|task| {
+        matches!(
+            task.status,
+            ProcessTrackerStatus::ProcessStarted | ProcessTrackerStatus::Processing
+        )
+    })
+}
+
+fn is_task_open(task: Option<&WorkflowTaskState>) -> bool {
+    task.is_some_and(|task| task.status != ProcessTrackerStatus::Finish)
+}
+
+/// Decide whether an invoice can be cancelled given its payment status and the current state of
+/// its recovery tasks, and with which statuses its tasks and intent should be finished.
+pub fn decide_invoice_cancellation(
+    intent_status: IntentStatus,
+    calculate: Option<&WorkflowTaskState>,
+    execute: Option<&WorkflowTaskState>,
+    psync: Option<&WorkflowTaskState>,
+) -> Result<CancelInvoiceWorkflowStatuses, CancelInvoiceRefusal> {
+    match intent_status {
+        IntentStatus::Failed => {}
+        IntentStatus::Succeeded
+        | IntentStatus::Cancelled
+        | IntentStatus::CancelledPostCapture
+        | IntentStatus::Processing
+        | IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyCaptured
+        | IntentStatus::PartiallyCapturedAndCapturable
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | IntentStatus::PartiallyCapturedAndProcessing
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired
+        | IntentStatus::Review => return Err(CancelInvoiceRefusal::IntentNotFailed(intent_status)),
+    }
+
+    if is_task_open(psync) {
+        return Err(CancelInvoiceRefusal::PaymentSyncPending);
+    }
+
+    if is_task_running(execute) || is_task_running(calculate) {
+        return Err(CancelInvoiceRefusal::RetryInProgress);
+    }
+
+    let recovery_status = determine_recovery_status_from_workflows(
+        calculate.map(|task| task.business_status.clone()),
+        calculate.map(|task| task.status.to_string().to_uppercase()),
+        execute.map(|task| task.business_status.clone()),
+        execute.map(|task| task.status.to_string().to_uppercase()),
+        || RecoveryStatus::Monitoring,
+    );
+    if recovery_status == RecoveryStatus::Terminated {
+        return Err(CancelInvoiceRefusal::AlreadyTerminal);
+    }
+
+    Ok(CancelInvoiceWorkflowStatuses {
+        calculate: business_status::CANCELLED,
+        execute: business_status::EXECUTE_WORKFLOW_FAILURE,
+        intent_status: IntentStatus::Cancelled,
+    })
+}
+
+/// Whether a finished CALCULATE task may be reopened when a later payment failure arrives.
+/// A cancelled invoice stays cancelled.
+pub fn can_reopen_calculate_workflow(business_status: &str) -> bool {
+    business_status != business_status::CANCELLED
+}
+
+/// Stop the recovery workflow of a cancelled invoice.
+///
+/// Finishes the CALCULATE and EXECUTE tasks of `payment_intent` with the statuses chosen by
+/// [`decide_invoice_cancellation`], then moves the intent to its cancelled status and returns
+/// the updated intent. Returns the refusal reason, without touching anything, when the invoice
+/// cannot be cancelled right now.
+pub async fn cancel_invoice_workflows(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: common_enums::MerchantStorageScheme,
+    payment_intent: PaymentIntent,
+) -> CustomResult<Result<PaymentIntent, CancelInvoiceRefusal>, errors::RevenueRecoveryError> {
+    let payment_id = &payment_intent.id;
+    let db = &*state.store;
+
+    let (calculate_workflow, execute_workflow) = get_workflow_entries(state, payment_id)
+        .await
+        .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
+        .attach_printable("failed to fetch recovery workflow tasks for invoice cancellation")?;
+
+    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+    let psync_workflow = match &payment_intent.active_attempt_id {
+        Some(active_attempt_id) => db
+            .find_process_by_id(
+                &active_attempt_id.get_psync_revenue_recovery_id(PSYNC_WORKFLOW, runner),
+            )
+            .await
+            .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
+            .attach_printable("failed to fetch the psync task for invoice cancellation")?,
+        None => None,
+    };
+
+    let decision = decide_invoice_cancellation(
+        payment_intent.status,
+        calculate_workflow
+            .as_ref()
+            .map(WorkflowTaskState::from)
+            .as_ref(),
+        execute_workflow
+            .as_ref()
+            .map(WorkflowTaskState::from)
+            .as_ref(),
+        psync_workflow
+            .as_ref()
+            .map(WorkflowTaskState::from)
+            .as_ref(),
+    );
+    let statuses = match decision {
+        Ok(statuses) => statuses,
+        Err(refusal) => {
+            logger::info!(
+                "Invoice {} not cancelled: {}",
+                payment_id.get_string_repr(),
+                refusal.message()
+            );
+            return Ok(Err(refusal));
+        }
+    };
+
+    for (task, business_status) in [
+        (calculate_workflow, statuses.calculate),
+        (execute_workflow, statuses.execute),
+    ] {
+        if let Some(task) = task {
+            let task_id = task.id.clone();
+            db.finish_process_with_business_status(task, business_status)
+                .await
+                .change_context(errors::RevenueRecoveryError::ProcessTrackerResponseError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "failed to finish task {task_id} with business status {business_status}"
+                    )
+                })?;
+            logger::info!(
+                "Finished recovery task {task_id} with business status {business_status}"
+            );
+        }
+    }
+
+    let intent_update = PaymentIntentUpdate::VoidUpdate {
+        status: statuses.intent_status,
+        updated_by: storage_scheme.to_string(),
+    };
+    let updated_payment_intent = db
+        .update_payment_intent(payment_intent, intent_update, key_store, storage_scheme)
+        .await
+        .change_context(errors::RevenueRecoveryError::PaymentIntentUpdateFailed)
+        .attach_printable("failed to move the cancelled invoice's payment intent to cancelled")?;
+
+    Ok(Ok(updated_payment_intent))
+}
+
 fn determine_recovery_status_from_workflows(
     calculate_business_status: Option<String>,
     calculate_process_tracker_status: Option<String>,
@@ -1936,6 +2163,7 @@ fn determine_recovery_status_from_workflows(
         // Terminated status conditions
         (Some(cal_biz_status), _, _, _)
             if cal_biz_status == business_status::CALCULATE_WORKFLOW_FINISH
+                || cal_biz_status == business_status::CANCELLED
                 || cal_biz_status == business_status::RETRIES_EXCEEDED
                 || cal_biz_status == business_status::FAILURE
                 || cal_biz_status == business_status::GLOBAL_FAILURE =>
@@ -2072,5 +2300,150 @@ pub fn map_to_recovery_payment_item(
             .and_then(|p| p.cancellation_reason.clone()),
         modified_at: payment_attempt.as_ref().map(|p| p.modified_at),
         last_attempt_at: payment_attempt.as_ref().map(|p| p.created_at),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn task(business_status: &str, status: ProcessTrackerStatus) -> WorkflowTaskState {
+        WorkflowTaskState {
+            business_status: business_status.to_string(),
+            status,
+        }
+    }
+
+    fn pt_status(status: ProcessTrackerStatus) -> Option<String> {
+        Some(status.to_string().to_uppercase())
+    }
+
+    #[test]
+    fn failed_invoice_without_tasks_is_cancellable() {
+        let statuses = decide_invoice_cancellation(IntentStatus::Failed, None, None, None)
+            .expect("a failed invoice can be cancelled");
+
+        assert_eq!(statuses.calculate, business_status::CANCELLED);
+        assert_eq!(statuses.execute, business_status::EXECUTE_WORKFLOW_FAILURE);
+        assert_eq!(statuses.intent_status, IntentStatus::Cancelled);
+    }
+
+    #[test]
+    fn scheduled_workflow_is_cancellable() {
+        let calculate = task(
+            business_status::CALCULATE_WORKFLOW_SCHEDULED,
+            ProcessTrackerStatus::Finish,
+        );
+        let execute = task(business_status::PENDING, ProcessTrackerStatus::Pending);
+
+        assert!(decide_invoice_cancellation(
+            IntentStatus::Failed,
+            Some(&calculate),
+            Some(&execute),
+            None
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn non_failed_invoice_cannot_be_cancelled() {
+        for status in [
+            IntentStatus::Succeeded,
+            IntentStatus::Processing,
+            IntentStatus::Cancelled,
+            IntentStatus::PartiallyCaptured,
+            IntentStatus::RequiresPaymentMethod,
+        ] {
+            assert_eq!(
+                decide_invoice_cancellation(status, None, None, None),
+                Err(CancelInvoiceRefusal::IntentNotFailed(status)),
+                "{status:?} must not be cancellable"
+            );
+        }
+    }
+
+    #[test]
+    fn pending_payment_sync_blocks_cancellation() {
+        let execute = task(
+            business_status::EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC,
+            ProcessTrackerStatus::Finish,
+        );
+        let pending_psync = task(business_status::PENDING, ProcessTrackerStatus::Pending);
+        let finished_psync = task(
+            business_status::PSYNC_WORKFLOW_COMPLETE,
+            ProcessTrackerStatus::Finish,
+        );
+
+        assert_eq!(
+            decide_invoice_cancellation(
+                IntentStatus::Failed,
+                None,
+                Some(&execute),
+                Some(&pending_psync)
+            ),
+            Err(CancelInvoiceRefusal::PaymentSyncPending)
+        );
+        assert!(decide_invoice_cancellation(
+            IntentStatus::Failed,
+            None,
+            Some(&execute),
+            Some(&finished_psync)
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn running_retry_blocks_cancellation() {
+        for status in [
+            ProcessTrackerStatus::ProcessStarted,
+            ProcessTrackerStatus::Processing,
+        ] {
+            let execute = task(business_status::PENDING, status);
+            assert_eq!(
+                decide_invoice_cancellation(IntentStatus::Failed, None, Some(&execute), None),
+                Err(CancelInvoiceRefusal::RetryInProgress),
+                "{status:?} execute task must block cancellation"
+            );
+        }
+    }
+
+    #[test]
+    fn terminal_workflow_cannot_be_cancelled_again() {
+        for terminal_status in [
+            business_status::RETRIES_EXCEEDED,
+            business_status::CALCULATE_WORKFLOW_FINISH,
+            business_status::CANCELLED,
+        ] {
+            let calculate = task(terminal_status, ProcessTrackerStatus::Finish);
+            assert_eq!(
+                decide_invoice_cancellation(IntentStatus::Failed, Some(&calculate), None, None),
+                Err(CancelInvoiceRefusal::AlreadyTerminal),
+                "{terminal_status} calculate task must block cancellation"
+            );
+        }
+    }
+
+    #[test]
+    fn cancelled_calculate_workflow_reports_terminated() {
+        let recovery_status = determine_recovery_status_from_workflows(
+            Some(business_status::CANCELLED.to_string()),
+            pt_status(ProcessTrackerStatus::Finish),
+            Some(business_status::EXECUTE_WORKFLOW_FAILURE.to_string()),
+            pt_status(ProcessTrackerStatus::Finish),
+            || RecoveryStatus::Monitoring,
+        );
+
+        assert_eq!(recovery_status, RecoveryStatus::Terminated);
+    }
+
+    #[test]
+    fn cancelled_calculate_workflow_cannot_be_reopened() {
+        assert!(!can_reopen_calculate_workflow(business_status::CANCELLED));
+        assert!(can_reopen_calculate_workflow(
+            business_status::RETRIES_EXCEEDED
+        ));
+        assert!(can_reopen_calculate_workflow(
+            business_status::CALCULATE_WORKFLOW_FINISH
+        ));
     }
 }

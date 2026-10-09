@@ -1410,6 +1410,16 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         .attach_printable("Failed to find CALCULATE_WORKFLOW process tracker")?;
 
     match calculate_process {
+        Some(process)
+            if !revenue_recovery_core::can_reopen_calculate_workflow(&process.business_status) =>
+        {
+            logger::info!(
+                payment_id = %id.get_string_repr(),
+                process_tracker_id = %process_tracker_id,
+                current_status = %process.business_status,
+                "CALCULATE_WORKFLOW was cancelled, not reopening it on payment failure"
+            );
+        }
         Some(process) => {
             logger::info!(
                 payment_id = %id.get_string_repr(),

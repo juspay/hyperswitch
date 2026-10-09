@@ -744,6 +744,8 @@ pub enum Flow {
     RevenueRecoveryRetrieve,
     /// Process Tracker Revenue Recovery Workflow Resume
     RevenueRecoveryResume,
+    /// Revenue Recovery invoice cancel
+    RevenueRecoveryCancel,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow

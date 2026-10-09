@@ -3476,6 +3476,22 @@ impl ProcessTracker {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub struct RevenueRecovery;
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+impl RevenueRecovery {
+    pub fn server(state: AppState) -> Scope {
+        use super::revenue_recovery;
+        web::scope("/v2/revenue-recovery")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_reference_id}/cancel")
+                    .route(web::post().to(revenue_recovery::revenue_recovery_cancel)),
+            )
+    }
+}
+
 pub struct Authentication;
 
 #[cfg(feature = "v1")]
