@@ -71,6 +71,38 @@ use crate::{
     utils::{self, ConnectorErrorType, RefundsRequestData},
 };
 
+/// Checkout.com expects each merchant to call their own API host,
+/// `{prefix}.api.checkout.com` or `{prefix}.api.sandbox.checkout.com`.
+/// Without a prefix in the connector metadata, the configured base URL is used as is.
+fn build_base_url(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let endpoint_prefix =
+        checkout::CheckoutConnectorMetadataObject::try_from(connector_metadata)?.endpoint_prefix;
+    let Some(prefix) = endpoint_prefix
+        .as_deref()
+        .map(str::trim)
+        .filter(|prefix| !prefix.is_empty())
+    else {
+        return Ok(base_url.to_string());
+    };
+    let invalid_prefix = errors::ConnectorError::InvalidConnectorConfig {
+        config: "metadata.endpoint_prefix",
+    };
+    if !prefix.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(invalid_prefix.into());
+    }
+    let mut url = url::Url::parse(base_url)
+        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "base_url" })?;
+    let host = url
+        .host_str()
+        .map(|host| format!("{prefix}.{host}"))
+        .ok_or(errors::ConnectorError::InvalidConnectorConfig { config: "base_url" })?;
+    url.set_host(Some(&host)).change_context(invalid_prefix)?;
+    Ok(url.to_string())
+}
+
 #[derive(Clone)]
 pub struct Checkout {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -290,10 +322,13 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn get_url(
         &self,
-        _req: &TokenizationRouterData,
+        req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}tokens", self.base_url(connectors)))
+        Ok(format!(
+            "{}tokens",
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?
+        ))
     }
 
     fn get_request_body(
@@ -376,10 +411,14 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        _req: &SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "payments"))
+        Ok(format!(
+            "{}{}",
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
+            "payments"
+        ))
     }
 
     fn get_request_body(
@@ -468,7 +507,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let id = req.request.connector_transaction_id.as_str();
         Ok(format!(
             "{}payments/{id}/captures",
-            self.base_url(connectors)
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?
         ))
     }
     fn get_request_body(
@@ -554,7 +593,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Che
         };
         Ok(format!(
             "{}{}{}{}",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             "payments/",
             req.request
                 .connector_transaction_id
@@ -648,10 +687,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "payments"))
+        Ok(format!(
+            "{}{}",
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
+            "payments"
+        ))
     }
 
     fn get_request_body(
@@ -732,7 +775,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ch
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}payments/{}/voids",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             req.request.connector_transaction_id
         ))
     }
@@ -818,7 +861,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkou
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}payments/{}/refunds",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             id
         ))
     }
@@ -904,7 +947,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Checkout 
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}/payments/{}/actions",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             id
         ))
     }
@@ -983,7 +1026,7 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}{}{}",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             "disputes/",
             req.request.connector_dispute_id,
             "/accept"
@@ -1077,10 +1120,14 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
 
     fn get_url(
         &self,
-        _req: &UploadFileRouterData,
+        req: &UploadFileRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "files"))
+        Ok(format!(
+            "{}{}",
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
+            "files"
+        ))
     }
 
     fn get_request_body(
@@ -1167,7 +1214,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}disputes/{}/evidence",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             req.request.connector_dispute_id,
         ))
     }
@@ -1242,7 +1289,7 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}disputes/{}/evidence",
-            self.base_url(connectors),
+            build_base_url(self.base_url(connectors), &req.connector_meta_data)?,
             req.request.connector_dispute_id,
         ))
     }
@@ -1715,5 +1762,40 @@ impl ConnectorSpecifications for Checkout {
         } else {
             payment_attempt.attempt_id.clone()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_masking::Secret;
+
+    use super::build_base_url;
+
+    const SANDBOX: &str = "https://api.sandbox.checkout.com/";
+
+    #[test]
+    fn keeps_shared_base_url_without_prefix() {
+        assert_eq!(build_base_url(SANDBOX, &None).unwrap(), SANDBOX);
+        let empty = Some(Secret::new(serde_json::json!({ "endpoint_prefix": "  " })));
+        assert_eq!(build_base_url(SANDBOX, &empty).unwrap(), SANDBOX);
+    }
+
+    #[test]
+    fn adds_merchant_prefix_to_host() {
+        let metadata = Some(Secret::new(
+            serde_json::json!({ "endpoint_prefix": "abcd1234" }),
+        ));
+        assert_eq!(
+            build_base_url(SANDBOX, &metadata).unwrap(),
+            "https://abcd1234.api.sandbox.checkout.com/"
+        );
+    }
+
+    #[test]
+    fn rejects_prefix_that_is_not_alphanumeric() {
+        let metadata = Some(Secret::new(
+            serde_json::json!({ "endpoint_prefix": "evil.com/x" }),
+        ));
+        assert!(build_base_url(SANDBOX, &metadata).is_err());
     }
 }
