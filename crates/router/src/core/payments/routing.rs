@@ -1089,7 +1089,6 @@ impl RoutingStage for SessionRoutingStage {
                     input.transaction_type,
                     input.active_mca_ids,
                     input.business_profile.get_auto_fallback_capture_method(),
-                    None,
                 )
                 .await?;
 
@@ -1104,7 +1103,6 @@ impl RoutingStage for SessionRoutingStage {
                         input.transaction_type,
                         input.active_mca_ids,
                         input.business_profile.get_auto_fallback_capture_method(),
-                        None,
                     )
                     .await?
                 } else {
@@ -2320,7 +2318,6 @@ pub async fn get_merchant_cgraph(
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
-    mca_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
 
@@ -2362,15 +2359,7 @@ pub async fn get_merchant_cgraph(
     let cgraph = if let Some(graph) = cached_cgraph {
         graph
     } else {
-        refresh_cgraph_cache(
-            state,
-            key_store,
-            key.clone(),
-            profile_id,
-            transaction_type,
-            mca_accounts,
-        )
-        .await?
+        refresh_cgraph_cache(state, key_store, key.clone(), profile_id, transaction_type).await?
     };
 
     Ok(cgraph)
@@ -2383,20 +2372,16 @@ pub async fn refresh_cgraph_cache(
     key: String,
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
-    mca_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
-    // Reuse passed MCA records on a cache miss; legacy callers fetch them here.
-    let mut merchant_connector_accounts = match mca_accounts {
-        Some(accounts) => accounts.clone(),
-        None => state
-            .store
-            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                &key_store.merchant_id,
-                profile_id,
-            )
-            .await
-            .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?,
-    };
+    // Fetch fresh MCA records when rebuilding the shared graph on a cache miss.
+    let mut merchant_connector_accounts = state
+        .store
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+            &key_store.merchant_id,
+            profile_id,
+        )
+        .await
+        .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
     match transaction_type {
         api_enums::TransactionType::Payment => {
@@ -2498,7 +2483,6 @@ pub async fn perform_cgraph_filtering(
     transaction_type: &api_enums::TransactionType,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
-    mca_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut backend_input = backend_input;
     let can_fall_back = backend_input
@@ -2519,8 +2503,7 @@ pub async fn perform_cgraph_filtering(
             .change_context(errors::RoutingError::KgraphAnalysisError)?,
     );
 
-    let cached_cgraph =
-        get_merchant_cgraph(state, key_store, profile_id, transaction_type, mca_accounts).await?;
+    let cached_cgraph = get_merchant_cgraph(state, key_store, profile_id, transaction_type).await?;
 
     let mut final_selection = Vec::new();
 
@@ -2675,12 +2658,10 @@ pub async fn filter_fallback_based_on_eligibility(
         None,
         &accounts.get_ids(),
         business_profile,
-        Some(accounts),
     )
     .await
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn perform_eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2689,7 +2670,6 @@ pub async fn perform_eligibility_analysis(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     business_profile: &domain::Profile,
-    mca_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -2707,7 +2687,6 @@ pub async fn perform_eligibility_analysis(
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
         business_profile.get_auto_fallback_capture_method(),
-        mca_accounts,
     )
     .await
 }
@@ -2761,7 +2740,6 @@ pub async fn perform_fallback_routing(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
-    mca_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let fallback_config = get_fallback_config(state, transaction_data, business_profile).await?;
     let backend_input = match transaction_data {
@@ -2779,7 +2757,6 @@ pub async fn perform_fallback_routing(
         &api_enums::TransactionType::from(transaction_data),
         active_mca_ids,
         business_profile.get_auto_fallback_capture_method(),
-        mca_accounts,
     )
     .await
 }
@@ -2839,7 +2816,6 @@ pub async fn perform_eligibility_analysis_with_fallback(
         }
     };
 
-    let mca_accounts = fetched_mcas.and_then(|result| result.as_ref().ok());
     let mut final_selection = perform_eligibility_analysis(
         state,
         key_store,
@@ -2848,7 +2824,6 @@ pub async fn perform_eligibility_analysis_with_fallback(
         eligible_connectors.as_ref(),
         &active_mca_ids,
         business_profile,
-        mca_accounts,
     )
     .await?;
     let fallback_selection = perform_fallback_routing(
@@ -2858,7 +2833,6 @@ pub async fn perform_eligibility_analysis_with_fallback(
         eligible_connectors.as_ref(),
         business_profile,
         &active_mca_ids,
-        mca_accounts,
     )
     .await;
 
@@ -3348,7 +3322,6 @@ async fn perform_session_routing_for_pm_type(
         transaction_type,
         active_mca_ids,
         business_profile.get_auto_fallback_capture_method(),
-        None,
     )
     .await?;
 
@@ -3371,7 +3344,6 @@ async fn perform_session_routing_for_pm_type(
             transaction_type,
             active_mca_ids,
             business_profile.get_auto_fallback_capture_method(),
-            None,
         )
         .await?;
     }
@@ -3452,7 +3424,6 @@ async fn perform_session_routing_for_pm_type<'a>(
         transaction_type,
         active_mca_ids,
         business_profile.get_auto_fallback_capture_method(),
-        None,
     )
     .await?;
 
@@ -3471,7 +3442,6 @@ async fn perform_session_routing_for_pm_type<'a>(
             transaction_type,
             active_mca_ids,
             business_profile.get_auto_fallback_capture_method(),
-            None,
         )
         .await?;
     }
