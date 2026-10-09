@@ -25,6 +25,12 @@ const bank_payout_method_data = {
   },
 };
 
+// Malformed (non-numeric) Swedish account number. Verified behavior against
+// integ: the UCS intake transformer cannot map an unmappable account string
+// to a recipient, so it demands raw payout_connector_metadata and the create
+// is rejected up front with a 400. Well-formed numbers map inline and settle
+// as "success" in the sandbox (e.g. "99999999" completes), so the intake
+// rejection is the only observable invalid-account rejection path.
 const invalid_bank_payout_method_data = {
   bank: {
     country_code: "SE",
@@ -107,13 +113,9 @@ export const connectorDetails = {
           body: {
             error: {
               type: "invalid_request",
-              // UCS validates the trustly recipient at intake: the malformed
-              // (non-numeric) Swedish account number cannot be mapped, so the
-              // transfer demands raw payout_connector_metadata and rejects
-              // the create instead of failing asynchronously with a 624. The
-              // message text itself is UCS-generated free text whose wording
-              // and whitespace drift across deployments, so only the stable
-              // error signature (400 invalid_request IR_04) is asserted.
+              // Intake-phase rejection of the unmappable account number;
+              // metadata-free-text in the message drifts across deployments,
+              // so only the stable signature (code) is asserted.
               code: "IR_04",
             },
           },
