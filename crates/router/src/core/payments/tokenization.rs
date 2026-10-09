@@ -217,62 +217,68 @@ async fn update_saved_paypal_wallet(
     pm: &domain::PaymentMethod,
     connector_response: Option<&hyperswitch_domain_models::router_data::ConnectorResponseData>,
 ) -> RouterResult<Option<domain::PaymentMethod>> {
-    if pm.get_payment_method_subtype() != Some(storage_enums::PaymentMethodType::Paypal) {
-        return Ok(None);
-    }
-    let Some(mut wallet_info) = get_paypal_wallet_info(connector_response) else {
-        return Ok(None);
+    let wallet_info = match pm.get_payment_method_subtype() {
+        Some(storage_enums::PaymentMethodType::Paypal) => {
+            get_paypal_wallet_info(connector_response)
+        }
+        _ => None,
     };
-    let saved_data = pm
-        .payment_method_data
-        .as_ref()
-        .map(|data| data.get_inner().peek().clone())
-        .map(|data| data.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to parse saved PayPal wallet data")?;
-    if let Some(domain::PaymentMethodsData::WalletDetails(saved_wallet)) = saved_data {
-        wallet_info.email = wallet_info.email.or(saved_wallet.email);
-        wallet_info.paypal_id = wallet_info.paypal_id.or(saved_wallet.paypal_id);
+
+    match wallet_info {
+        Some(mut wallet_info) => {
+            let saved_data = pm
+                .payment_method_data
+                .as_ref()
+                .map(|data| data.get_inner().peek().clone())
+                .map(|data| data.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to parse saved PayPal wallet data")?;
+            if let Some(domain::PaymentMethodsData::WalletDetails(saved_wallet)) = saved_data {
+                wallet_info.email = wallet_info.email.or(saved_wallet.email);
+                wallet_info.paypal_id = wallet_info.paypal_id.or(saved_wallet.paypal_id);
+            }
+            let encrypted_data = create_encrypted_data(
+                &state.into(),
+                platform.get_provider().get_key_store(),
+                domain::PaymentMethodsData::WalletDetails(wallet_info),
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt PayPal wallet data")?;
+            let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                state,
+                &pm.merchant_id,
+                &platform.get_provider().get_account().organization_id,
+                pm.customer_id.as_ref(),
+            )
+            .await;
+            let update = types::storage::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+                payment_method_data: Some(encrypted_data.into()),
+                scheme: None,
+                last_used_at: common_utils::date_time::now(),
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|initiator| initiator.to_string()),
+            };
+            state
+                .store
+                .update_payment_method(
+                    platform.get_provider().get_key_store(),
+                    pm.clone(),
+                    update,
+                    platform.get_provider().get_account().storage_scheme,
+                    compat_action,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to update saved PayPal wallet data")
+                .map(Some)
+        }
+        None => Ok(None),
     }
-    let encrypted_data = create_encrypted_data(
-        &state.into(),
-        platform.get_provider().get_key_store(),
-        domain::PaymentMethodsData::WalletDetails(wallet_info),
-        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to encrypt PayPal wallet data")?;
-    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
-        state,
-        &pm.merchant_id,
-        &platform.get_provider().get_account().organization_id,
-        pm.customer_id.as_ref(),
-    )
-    .await;
-    let update = types::storage::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
-        payment_method_data: Some(encrypted_data.into()),
-        scheme: None,
-        last_used_at: common_utils::date_time::now(),
-        last_modified_by: platform
-            .get_initiator()
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|initiator| initiator.to_string()),
-    };
-    state
-        .store
-        .update_payment_method(
-            platform.get_provider().get_key_store(),
-            pm.clone(),
-            update,
-            platform.get_provider().get_account().storage_scheme,
-            compat_action,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to update saved PayPal wallet data")
-        .map(Some)
 }
 
 #[cfg(feature = "v1")]
@@ -282,38 +288,37 @@ pub(super) async fn update_paypal_wallet_from_response<F, Req>(
     payment_method_id: Option<&str>,
     router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
 ) -> RouterResult<Option<domain::PaymentMethod>> {
-    if router_data.response.is_err()
-        || get_paypal_wallet_info(router_data.connector_response.as_ref()).is_none()
-    {
-        return Ok(None);
-    }
-    let Some(payment_method_id) = payment_method_id else {
-        return Ok(None);
-    };
-    let payment_method = match state
-        .store
-        .find_payment_method(
-            platform.get_provider().get_key_store(),
-            payment_method_id,
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-    {
-        Ok(payment_method) => payment_method,
-        Err(error) if error.current_context().is_db_not_found() => return Ok(None),
-        Err(error) => {
-            return Err(error)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to retrieve saved PayPal wallet");
+    let has_wallet_info = router_data.response.is_ok()
+        && get_paypal_wallet_info(router_data.connector_response.as_ref()).is_some();
+
+    match (has_wallet_info, payment_method_id) {
+        (true, Some(payment_method_id)) => {
+            match state
+                .store
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    payment_method_id,
+                    platform.get_provider().get_account().storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method) => {
+                    update_saved_paypal_wallet(
+                        state,
+                        platform,
+                        &payment_method,
+                        router_data.connector_response.as_ref(),
+                    )
+                    .await
+                }
+                Err(error) if error.current_context().is_db_not_found() => Ok(None),
+                Err(error) => Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to retrieve saved PayPal wallet"),
+            }
         }
-    };
-    update_saved_paypal_wallet(
-        state,
-        platform,
-        &payment_method,
-        router_data.connector_response.as_ref(),
-    )
-    .await
+        _ => Ok(None),
+    }
 }
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]

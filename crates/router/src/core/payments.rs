@@ -15665,11 +15665,6 @@ pub trait OperationSessionSetters<F> {
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
     );
     fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds);
-    #[cfg(feature = "v1")]
-    fn set_customer_acceptance(
-        &mut self,
-        customer_acceptance: common_payments_types::CustomerAcceptance,
-    );
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
@@ -16053,13 +16048,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
-    }
-
-    fn set_customer_acceptance(
-        &mut self,
-        customer_acceptance: common_payments_types::CustomerAcceptance,
-    ) {
-        self.customer_acceptance = Some(customer_acceptance);
     }
 
     #[cfg(feature = "v1")]
