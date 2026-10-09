@@ -19,20 +19,32 @@ const blocklistContext = () => ({
   provider_merchant_id: globalState.get("merchantId"),
 });
 
-// The guard reads from superposition when live (CI), with a legacy DB
-// fallback when superposition errors (local runs) — toggle accordingly
+// The guard resolves from superposition when the router has it configured
+// (CI); the legacy config key only applies when superposition errors out.
+// Without cypress-side superposition credentials there is no way to engage
+// the guard — skip guard-dependent steps, mirroring specs 35/41; everything
+// else (rule CRUD, allow checks, malformed-BIN errors) still runs.
 const setBlocklistGuard = (enabled) => {
-  if (hasSuperposition) {
-    cy.setSuperpositionConfig(
-      globalState,
-      "payments.payment_blocklist_guard",
-      enabled,
-      blocklistContext()
-    );
-  } else {
-    cy.blocklistToggle(enabled, globalState);
-  }
+  cy.setSuperpositionConfig(
+    globalState,
+    "payments.payment_blocklist_guard",
+    enabled,
+    blocklistContext()
+  );
 };
+
+const itIfGuardOperable = (title, fn) =>
+  it(title, function () {
+    if (!hasSuperposition) {
+      cy.task(
+        "cli_log",
+        "Superposition credentials not set — skipping guard-dependent test"
+      );
+      this.skip();
+    } else {
+      return fn();
+    }
+  });
 
 describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
   before("seed global state", () => {
@@ -104,7 +116,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       );
     });
 
-    it("should enable blocklist guard", () => {
+    itIfGuardOperable("should enable blocklist guard", () => {
       setBlocklistGuard(true);
     });
 
@@ -146,45 +158,60 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
   });
 
   context("Eligibility API Deny Tests", () => {
-    it("should deny 8-digit card_bin matched by 6-digit card_bin entry prefix", () => {
-      cy.paymentsEligibilityCheck(
-        fixtures.eligibilityCheckBinBody,
-        connectorDetails.eligibility_api.EightDigitPrefixMatch,
-        globalState
-      );
-    });
+    itIfGuardOperable(
+      "should deny 8-digit card_bin matched by 6-digit card_bin entry prefix",
+      () => {
+        cy.paymentsEligibilityCheck(
+          fixtures.eligibilityCheckBinBody,
+          connectorDetails.eligibility_api.EightDigitPrefixMatch,
+          globalState
+        );
+      }
+    );
 
-    it("should deny 7-digit card_bin matched by 6-digit card_bin entry prefix", () => {
-      cy.paymentsEligibilityCheck(
-        fixtures.eligibilityCheckBinBody,
-        connectorDetails.eligibility_api.BinOnlyBlocked,
-        globalState
-      );
-    });
+    itIfGuardOperable(
+      "should deny 7-digit card_bin matched by 6-digit card_bin entry prefix",
+      () => {
+        cy.paymentsEligibilityCheck(
+          fixtures.eligibilityCheckBinBody,
+          connectorDetails.eligibility_api.BinOnlyBlocked,
+          globalState
+        );
+      }
+    );
 
-    it("should deny card_bin matched by extended_card_bin entry", () => {
-      cy.paymentsEligibilityCheck(
-        fixtures.eligibilityCheckBinBody,
-        connectorDetails.eligibility_api.ExtendedBinBlocked,
-        globalState
-      );
-    });
+    itIfGuardOperable(
+      "should deny card_bin matched by extended_card_bin entry",
+      () => {
+        cy.paymentsEligibilityCheck(
+          fixtures.eligibilityCheckBinBody,
+          connectorDetails.eligibility_api.ExtendedBinBlocked,
+          globalState
+        );
+      }
+    );
 
-    it("should deny card_bin matched by generic_card_bin entry", () => {
-      cy.paymentsEligibilityCheck(
-        fixtures.eligibilityCheckBinBody,
-        connectorDetails.eligibility_api.GenericBinBlocked,
-        globalState
-      );
-    });
+    itIfGuardOperable(
+      "should deny card_bin matched by generic_card_bin entry",
+      () => {
+        cy.paymentsEligibilityCheck(
+          fixtures.eligibilityCheckBinBody,
+          connectorDetails.eligibility_api.GenericBinBlocked,
+          globalState
+        );
+      }
+    );
 
-    it("should deny 10-digit card_bin with blocked 6-digit prefix", () => {
-      cy.paymentsEligibilityCheck(
-        fixtures.eligibilityCheckBinBody,
-        connectorDetails.eligibility_api.TenDigitBinPrefixBlocked,
-        globalState
-      );
-    });
+    itIfGuardOperable(
+      "should deny 10-digit card_bin with blocked 6-digit prefix",
+      () => {
+        cy.paymentsEligibilityCheck(
+          fixtures.eligibilityCheckBinBody,
+          connectorDetails.eligibility_api.TenDigitBinPrefixBlocked,
+          globalState
+        );
+      }
+    );
   });
 
   context("Eligibility API Allow Tests", () => {
@@ -248,26 +275,29 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
   });
 
   context("Eligibility API Guard Disabled Tests", () => {
-    it("should disable blocklist guard", () => {
+    itIfGuardOperable("should disable blocklist guard", () => {
       setBlocklistGuard(false);
     });
 
-    it("should allow previously blocked card_bin when guard is disabled", () => {
-      cy.paymentsEligibilityCheck(
-        fixtures.eligibilityCheckBinBody,
-        connectorDetails.eligibility_api.GuardDisabledAllowsBlockedBin,
-        globalState
-      );
-    });
+    itIfGuardOperable(
+      "should allow previously blocked card_bin when guard is disabled",
+      () => {
+        cy.paymentsEligibilityCheck(
+          fixtures.eligibilityCheckBinBody,
+          connectorDetails.eligibility_api.GuardDisabledAllowsBlockedBin,
+          globalState
+        );
+      }
+    );
   });
 
   context("Saved Card Filtering Tests", () => {
-    it("should re-enable blocklist guard", () => {
+    itIfGuardOperable("should re-enable blocklist guard", () => {
       setBlocklistGuard(true);
     });
 
     it("should filter blocklisted saved cards from client payment methods list with guard on", function () {
-      if (savedCardFilteringSkip) {
+      if (savedCardFilteringSkip || !hasSuperposition) {
         this.skip();
       }
       cy.paymentsClientListCallTest(
@@ -276,12 +306,12 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       );
     });
 
-    it("should disable blocklist guard", () => {
+    itIfGuardOperable("should disable blocklist guard", () => {
       setBlocklistGuard(false);
     });
 
     it("should return all saved cards in client payment methods list with guard off", function () {
-      if (savedCardFilteringSkip) {
+      if (savedCardFilteringSkip || !hasSuperposition) {
         this.skip();
       }
       cy.paymentsClientListCallTest(
@@ -290,7 +320,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       );
     });
 
-    it("should re-enable blocklist guard", () => {
+    itIfGuardOperable("should re-enable blocklist guard", () => {
       setBlocklistGuard(true);
     });
 
@@ -303,7 +333,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
     });
 
     it("should return deleted entry saved card in client payment methods list", function () {
-      if (savedCardFilteringSkip) {
+      if (savedCardFilteringSkip || !hasSuperposition) {
         this.skip();
       }
       cy.paymentsClientListCallTest(
@@ -334,7 +364,7 @@ describe("BIN Based Payment Eligibility via Blocklist Guard", () => {
       );
     });
 
-    it("should disable blocklist guard", () => {
+    itIfGuardOperable("should disable blocklist guard", () => {
       setBlocklistGuard(false);
     });
   });
