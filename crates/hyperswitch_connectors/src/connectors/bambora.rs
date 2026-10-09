@@ -554,9 +554,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        // Bambora voids only purchases and returns; a pre-authorization is
+        // released by completing it for a zero amount.
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/v1/payments/{}/void",
+            "{}/v1/payments/{}/completions",
             self.base_url(connectors),
             connector_payment_id,
         ))
@@ -567,23 +569,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ba
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency".into(),
-                })?;
-        let minor_amount =
-            req.request
-                .minor_amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount".into(),
-                })?;
-
-        let amount = convert_amount(self.amount_convertor, minor_amount, currency)?;
-
-        let connector_router_data = BamboraRouterData::try_from((amount, req))?;
-        let connector_req = bambora::BamboraVoidRequest::try_from(connector_router_data)?;
+        let connector_req = bambora::BamboraVoidRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
