@@ -81,42 +81,44 @@ export const connectorDetails = {
      * payout chain (see cypress/e2e/spec/Payout/00009-PayoutFrm.cy.js).
      * The Payshield sandbox flags an amount over 1,000,000 cents as fraud;
      * frm_message details (frm_status, frm_score, frm_error) are asserted
-     * separately in the spec since they contain non-deterministic ids and
-     * can't be part of a fixed deep-equal Response body.
+     * separately via cy.verifyPayoutFrmDetails since they contain
+     * non-deterministic ids and can't be part of a fixed deep-equal
+     * Response body.
      *
      * These scenarios run create+confirm in a single call, so
-     * payout_method_data has to be present on Create (unlike the two-step
-     * `payshap` scenario above, where it's only added on Confirm). As with
-     * `payshap`, only payout_method_type is declared here — the actual bank
-     * account fields are injected at request time by
+     * payout_method_data has to be present on the request (unlike the
+     * two-step `payshap` scenario above, where it's only added on Confirm).
+     * As with `payshap`, only payout_method_type is declared here — the
+     * actual bank account fields are injected at request time by
      * injectGotymePayoutBankTransfer (see the file-level comment above).
      */
+    // These frm_* scenarios run create+confirm in a single call (no
+    // separate Confirm/Fulfill step), so Request/Response sit directly on
+    // the scenario instead of nested under a Create key.
     frm_legit: {
-      Create: {
-        Request: {
-          amount: 1000,
-          currency: "ZAR",
-          payout_type: "bank",
-          description: "Test Payout",
-          payout_method_data: {
-            bank_transfer: {
-              payout_method_type: "payshap",
-            },
+      Request: {
+        amount: 1000,
+        currency: "ZAR",
+        payout_type: "bank",
+        description: "Test Payout",
+        payout_method_data: {
+          bank_transfer: {
+            payout_method_type: "payshap",
           },
-          billing: billing,
         },
-        Response: {
-          status: 200,
-          body: {
-            payout_type: "bank",
-            status: "initiated",
-            connector: "gotyme_sanlam",
-          },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          payout_type: "bank",
+          status: "initiated",
+          connector: "gotyme_sanlam",
         },
       },
       // Asserted via cy.verifyPayoutFrmDetails against a follow-up GET, since
       // frm_message carries non-deterministic ids and can't be part of the
-      // fixed deep-equal Create.Response.body above.
+      // fixed deep-equal Response.body above.
       FrmDetails: {
         frm_message: { frm_name: "sanlam_payshield", frm_status: "legit" },
         status: "initiated",
@@ -124,28 +126,26 @@ export const connectorDetails = {
       },
     },
     frm_fraud: {
-      Create: {
-        Request: {
-          amount: 10000000,
-          currency: "ZAR",
-          payout_type: "bank",
-          description: "Test Payout",
-          payout_method_data: {
-            bank_transfer: {
-              payout_method_type: "payshap",
-            },
+      Request: {
+        amount: 10000000,
+        currency: "ZAR",
+        payout_type: "bank",
+        description: "Test Payout",
+        payout_method_data: {
+          bank_transfer: {
+            payout_method_type: "payshap",
           },
-          billing: billing,
         },
-        Response: {
-          status: 200,
-          body: {
-            payout_type: "bank",
-            connector: null,
-            merchant_connector_id: null,
-            status: "failed",
-            error_code: "fraud",
-          },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          payout_type: "bank",
+          connector: null,
+          merchant_connector_id: null,
+          status: "failed",
+          error_code: "fraud",
         },
       },
       FrmDetails: {
@@ -157,28 +157,26 @@ export const connectorDetails = {
       },
     },
     frm_transaction_failure_fail_closed: {
-      Create: {
-        Request: {
-          amount: 1000,
-          currency: "ZAR",
-          payout_type: "bank",
-          description: "Test Payout",
-          payout_method_data: {
-            bank_transfer: {
-              payout_method_type: "payshap",
-            },
+      Request: {
+        amount: 1000,
+        currency: "ZAR",
+        payout_type: "bank",
+        description: "Test Payout",
+        payout_method_data: {
+          bank_transfer: {
+            payout_method_type: "payshap",
           },
-          billing: billing,
         },
-        Response: {
-          status: 200,
-          body: {
-            payout_type: "bank",
-            connector: null,
-            merchant_connector_id: null,
-            status: "failed",
-            error_code: "transaction_failure",
-          },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          payout_type: "bank",
+          connector: null,
+          merchant_connector_id: null,
+          status: "failed",
+          error_code: "transaction_failure",
         },
       },
       FrmDetails: {
@@ -189,26 +187,24 @@ export const connectorDetails = {
       },
     },
     frm_transaction_failure_fail_open: {
-      Create: {
-        Request: {
-          amount: 1000,
-          currency: "ZAR",
-          payout_type: "bank",
-          description: "Test Payout",
-          payout_method_data: {
-            bank_transfer: {
-              payout_method_type: "payshap",
-            },
+      Request: {
+        amount: 1000,
+        currency: "ZAR",
+        payout_type: "bank",
+        description: "Test Payout",
+        payout_method_data: {
+          bank_transfer: {
+            payout_method_type: "payshap",
           },
-          billing: billing,
         },
-        Response: {
-          status: 200,
-          body: {
-            payout_type: "bank",
-            status: "initiated",
-            connector: "gotyme_sanlam",
-          },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          payout_type: "bank",
+          status: "initiated",
+          connector: "gotyme_sanlam",
         },
       },
       FrmDetails: {

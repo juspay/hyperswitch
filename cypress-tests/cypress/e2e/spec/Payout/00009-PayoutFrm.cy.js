@@ -107,15 +107,13 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        scenario["Create"],
+        scenario,
         true,
         true,
         globalState
       );
       if (contextShouldContinue)
-        contextShouldContinue = utils.should_continue_further(
-          scenario["Create"]
-        );
+        contextShouldContinue = utils.should_continue_further(scenario);
     });
 
     it("verify frm_status is legit", () => {
@@ -147,7 +145,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        scenario["Create"],
+        scenario,
         true,
         true,
         globalState
@@ -194,7 +192,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
 
         cy.createConfirmPayoutTest(
           fixtures.createPayoutBody,
-          scenario["Create"],
+          scenario,
           true,
           true,
           globalState
@@ -240,7 +238,7 @@ describe("[Payout] [FRM - Pre-FRM with Payshield]", () => {
 
         cy.createConfirmPayoutTest(
           fixtures.createPayoutBody,
-          scenario["Create"],
+          scenario,
           true,
           true,
           globalState
