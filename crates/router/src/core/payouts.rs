@@ -5,6 +5,8 @@ pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
+#[cfg(feature = "v1")]
+pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
 pub mod transformers;
@@ -46,6 +48,7 @@ use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
 use time::Duration;
+use validator::PayoutExecutionKindValidation;
 
 #[cfg(all(feature = "olap", feature = "payouts"))]
 use crate::consts as payout_consts;
@@ -61,10 +64,8 @@ use crate::{
             self, get_frm_merchant_connector_account_and_routing_algorithm,
             get_payout_frm_applicability, types::PayoutFrmOutcome,
         },
-        payments::{
-            self, customers, gateway::context as gateway_context, helpers as payment_helpers,
-            HeaderPayload,
-        },
+        payments::{self, customers, helpers as payment_helpers, HeaderPayload},
+        payouts::gateway::context as gateway_context,
         unified_connector_service::should_call_unified_connector_service,
         utils as core_utils,
     },
@@ -125,6 +126,11 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
+    /// Request-only vault tokens; never treat them as raw payout data.
+    #[cfg(feature = "v1")]
+    pub external_vault_pmd: Option<domain_models::payouts::proxy::ExternalVaultPayoutMethodData>,
+    #[cfg(feature = "v1")]
+    pub execution_context: proxy::PayoutExecutionContext,
     pub profile_id: id_type::ProfileId,
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
@@ -555,6 +561,10 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let payout_attempt = &payout_data.payout_attempt;
 
     // Form connector data
@@ -595,6 +605,61 @@ pub async fn payouts_core(
     todo!()
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn payouts_create_core_wrapper(
+    state: SessionState,
+    platform: domain::Platform,
+    auth_profile: Option<domain::Profile>,
+    header_payload: HeaderPayload,
+    req: payouts::PayoutCreateRequest,
+) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let mut req = req;
+    let profile = match auth_profile {
+        Some(profile) => {
+            validator::validate_payout_condition(
+                profile.merchant_id != *platform.get_processor().get_account().get_id()
+                    || req
+                        .profile_id
+                        .as_ref()
+                        .is_some_and(|id| id != profile.get_id()),
+                "Payout profile does not match the authenticated merchant and profile",
+            )?;
+            req.profile_id = Some(profile.get_id().clone());
+            profile
+        }
+        // V1 API-key authentication has no profile when X-Profile-Id is omitted.
+        None => {
+            core_utils::get_profile_from_business_details(
+                req.business_country,
+                req.business_label.as_ref(),
+                platform.get_processor(),
+                req.profile_id.as_ref(),
+                &*state.store,
+            )
+            .await?
+        }
+    };
+    let provider_profile =
+        payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
+    match provider_profile
+        .external_vault_details
+        .is_external_vault_enabled()
+    {
+        true => {
+            Box::pin(
+                proxy::ExternalVaultPayout {
+                    state: &state,
+                    platform: &platform,
+                }
+                .payouts_proxy_core(header_payload, req, profile, provider_profile),
+            )
+            .await
+        }
+        false => Box::pin(payouts_create_core(state, platform, header_payload, req)).await,
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn payouts_create_core(
     state: SessionState,
@@ -624,6 +689,7 @@ pub async fn payouts_create_core(
         customer.as_ref(),
         payment_method.clone(),
         &dimensions,
+        api_enums::PayoutExecutionKind::Normal,
     ))
     .await?;
 
@@ -1455,6 +1521,10 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 
@@ -1766,17 +1836,26 @@ pub async fn create_recipient(
 
                 // Add next step to ProcessTracker
                 if recipient_create_data.should_add_next_step_to_process_tracker {
-                    add_external_account_addition_task(
-                        &*updated_state.store,
-                        payout_data,
-                        common_utils::date_time::now().saturating_add(Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS)),
-                        updated_state.conf.application_source,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding attach_payout_account_workflow workflow to process tracker")?;
+                    if payout_data.payout_attempt.execution_kind
+                        == api_enums::PayoutExecutionKind::Normal
+                    {
+                        let schedule_time = common_utils::date_time::now().saturating_add(
+                            Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS),
+                        );
+                        add_external_account_addition_task(
+                            &*updated_state.store,
+                            payout_data,
+                            schedule_time,
+                            updated_state.conf.application_source,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to add attach_payout_account_workflow to process tracker",
+                        )?;
+                    }
 
-                    // Update payout status in DB
+                    // Proxy tokens are request-scoped, so defer asynchronous resume.
                     let status = recipient_create_data
                         .status
                         .unwrap_or(api_enums::PayoutStatus::RequiresVendorAccountCreation);
@@ -1955,9 +2034,10 @@ pub async fn complete_payout_eligibility(
 
     if !payout_data.should_terminate
         && payout_attempt.is_eligible.is_none()
-        && connector_data
-            .connector_name
-            .supports_payout_eligibility(payout_data.payouts.payout_type)
+        && connector_data.connector_name.supports_payout_eligibility(
+            payout_attempt.execution_kind,
+            payout_data.payouts.payout_type,
+        )
     {
         Box::pin(check_payout_eligibility(
             state,
@@ -3085,16 +3165,18 @@ pub async fn fulfill_payout(
     let dimension_with_connector = dimensions.with_connector(connector_data.connector_name);
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
-            // add payout sync task to process tracker
-            payout_sync::PayoutSyncWorkFlow::add_payout_sync_task_to_process_tracker(
-                &updated_state,
-                payout_data,
-                updated_state.conf.application_source,
-                &dimension_with_connector,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payout sync task to process tracker")?;
+            // Proxy tokens are request-scoped, so do not schedule normal sync.
+            if payout_data.payout_attempt.execution_kind == api_enums::PayoutExecutionKind::Normal {
+                payout_sync::PayoutSyncWorkFlow::add_payout_sync_task_to_process_tracker(
+                    &updated_state,
+                    payout_data,
+                    updated_state.conf.application_source,
+                    &dimension_with_connector,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add payout sync task to process tracker")?;
+            }
 
             let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
                 api::PoFulfill,
@@ -3391,6 +3473,7 @@ pub async fn payout_create_db_entries(
     _customer: Option<&domain::Customer>,
     _payment_method: Option<PaymentMethod>,
     _dimesnions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    _execution_kind: api_enums::PayoutExecutionKind,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
@@ -3409,6 +3492,7 @@ pub async fn payout_create_db_entries(
     customer: Option<&domain::Customer>,
     payment_method: Option<PaymentMethod>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    execution_kind: api_enums::PayoutExecutionKind,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3488,6 +3572,7 @@ pub async fn payout_create_db_entries(
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
         || stored_payout_method_data.is_some()
+        || execution_kind == api_enums::PayoutExecutionKind::ExternalVaultProxy
     {
         match req.confirm {
             Some(true) => storage_enums::PayoutStatus::RequiresCreation,
@@ -3622,6 +3707,7 @@ pub async fn payout_create_db_entries(
         additional_source_bank_data,
         connector_request_reference_id: None,
         active_frm_id: None,
+        execution_kind,
     };
     let payout_attempt = db
         .insert_payout_attempt(
@@ -3648,6 +3734,8 @@ pub async fn payout_create_db_entries(
             .as_ref()
             .cloned()
             .or(stored_payout_method_data.cloned()),
+        external_vault_pmd: None,
+        execution_context: proxy::PayoutExecutionContext::Normal,
         should_terminate: false,
         profile_id: profile_id.to_owned(),
         payout_link,
@@ -3746,6 +3834,11 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    // Reject proxy mutations before normal method or locker resolution.
+    payout_attempt
+        .execution_kind
+        .validate_persisted_execution_kind(req)?;
 
     let customer_id = payouts.customer_id.as_ref();
 
@@ -3870,6 +3963,13 @@ pub async fn make_payout_data(
                     }
                     None => (None, None, None),
                 }
+            }
+            // Read-only proxy retrieval must not recover any temporary locker values.
+            payouts::PayoutRequest::PayoutRetrieveRequest(_)
+                if payout_attempt.execution_kind
+                    == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
+            {
+                (None, None, None)
             }
             payouts::PayoutRequest::PayoutRetrieveRequest(_) => {
                 let requires_source_bank_data = payout_attempt
@@ -4002,6 +4102,8 @@ pub async fn make_payout_data(
         payouts,
         payout_attempt,
         payout_method_data: payout_method_data_req.to_owned(),
+        external_vault_pmd: None,
+        execution_context: proxy::PayoutExecutionContext::Normal,
         merchant_connector_account,
         should_terminate: false,
         profile_id,
@@ -4438,6 +4540,40 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
+    match payout_data.payout_attempt.execution_kind {
+        api_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            let context = proxy::ExternalVaultPayout { state, platform }
+                .proxy_gateway_context(header_payload, connector_data, payout_data)
+                .await?;
+            update_gateway_system_in_payout_metadata(
+                payout_data,
+                common_enums::GatewaySystem::UnifiedConnectorService,
+            )?;
+            Ok((context, state.clone()))
+        }
+        api_enums::PayoutExecutionKind::Normal => {
+            decide_normal_payout_gateway(
+                state,
+                platform,
+                header_payload,
+                router_data,
+                connector_data,
+                payout_data,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn decide_normal_payout_gateway<F: Clone>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
@@ -4501,6 +4637,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
         connector_decline_threshold: rollout_result.connector_decline_threshold,
         rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode,
+        payout_execution_context: payout_data.execution_context.clone(),
     };
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_payout_metadata(payout_data, gateway_context.get_gateway_system())?;

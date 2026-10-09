@@ -2568,7 +2568,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            WalletData::AliPayQr(_)
+            WalletData::WeroRedirect { .. }
+            | WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
             | WalletData::Skrill(_)
@@ -6335,11 +6336,16 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                             connector: "Adyen".into(),
                         })?
                     }
-                    payouts::BankTransfer::Payshap(..)
-                    | payouts::BankTransfer::PayshapProxy(..) => {
+                    payouts::BankTransfer::Payshap(..) | payouts::BankTransfer::PayshapProxy(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via PayShap is not supported".to_string(),
                             connector: "Adyen".into(),
+                        })?
+                    }
+                    payouts::BankTransfer::Ted(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via TED is not supported".to_string(),
+                            connector: std::borrow::Cow::Borrowed("Adyen"),
                         })?
                     }
                 };

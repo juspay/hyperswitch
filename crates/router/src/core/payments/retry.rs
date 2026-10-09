@@ -60,6 +60,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
     _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    post_frm_capture_hold: bool,
 ) -> RouterResult<(
     types::RouterData<F, FData, types::PaymentsResponseData>,
     Option<domain::Customer>,
@@ -137,6 +138,7 @@ where
             None,
             initial_gsm.clone(),
             feature_config,
+            post_frm_capture_hold,
         ))
         .await?;
 
@@ -247,6 +249,7 @@ where
                         routing_decision,
                         gsm.clone(),
                         feature_config,
+                        post_frm_capture_hold,
                     ))
                     .await?;
 
@@ -410,6 +413,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
     feature_config: &core_utils::FeatureConfig,
+    post_frm_capture_hold: bool,
 ) -> RouterResult<(
     types::RouterData<F, FData, types::PaymentsResponseData>,
     Option<domain::Customer>,
@@ -457,6 +461,7 @@ where
             should_retry_with_pan,
             routing_decision,
             feature_config,
+            post_frm_capture_hold,
         ))
         .await?;
 
@@ -920,6 +925,8 @@ pub fn make_new_auto_retry_payment_attempt(
         external_surcharge_details: Default::default(),
         // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
         applied_offer_details: old_payment_attempt.applied_offer_details,
+        // Recomputed for the connector this retry is routed to.
+        applied_overrides: None,
         sender_payment_instrument_id: Default::default(),
         payment_account_reference: Default::default(),
         active_frm_id: old_payment_attempt.active_frm_id,

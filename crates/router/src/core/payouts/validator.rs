@@ -34,6 +34,63 @@ use crate::{
     utils::OptionExt,
 };
 
+pub(crate) trait PayoutExecutionKindValidation {
+    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()>;
+    fn validate_normal_execution_kind(self) -> RouterResult<()>;
+}
+
+impl PayoutExecutionKindValidation for common_enums::PayoutExecutionKind {
+    /// Proxy trackers allow read-only retrieval, but not normal mutation or force-sync.
+    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()> {
+        match (self, req) {
+            (Self::Normal, _) => Ok(()),
+            (Self::ExternalVaultProxy, payouts::PayoutRequest::PayoutRetrieveRequest(retrieve))
+                if retrieve.force_sync != Some(true) =>
+            {
+                Ok(())
+            }
+            (Self::ExternalVaultProxy, _) => {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
+                    message: errors::NotImplementedMessage::Reason(
+                        "external vault proxy payout mutation and force-sync".to_owned(),
+                    ),
+                }))
+            }
+        }
+    }
+
+    /// Block proxy attempts at normal raw-card, locker, retry and scheduler boundaries.
+    fn validate_normal_execution_kind(self) -> RouterResult<()> {
+        match self {
+            Self::Normal => Ok(()),
+            Self::ExternalVaultProxy => {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "External vault proxy payouts cannot use normal payout execution"
+                        .to_owned(),
+                }))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn invalid_payout_request(
+    message: &str,
+) -> error_stack::Report<errors::ApiErrorResponse> {
+    report!(errors::ApiErrorResponse::InvalidRequestData {
+        message: message.to_owned(),
+    })
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterResult<()> {
+    match invalid {
+        true => Err(invalid_payout_request(message)),
+        false => Ok(()),
+    }
+}
+
+/// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
@@ -74,10 +131,7 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validates the request on below checks
-/// - merchant_id passed is same as the one in merchant_account table
-/// - payout_id is unique against merchant_id
-/// - payout_token provided is legitimate
+/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
