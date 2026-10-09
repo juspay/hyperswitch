@@ -4662,8 +4662,10 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
 fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateType {
     match mit_category {
         Some(common_enums::MitCategory::Installment) => MandateType::Instalment,
-        Some(common_enums::MitCategory::Recurring) => MandateType::Recurring,
-        Some(common_enums::MitCategory::Unscheduled) | None => MandateType::Unscheduled,
-        _ => MandateType::Unscheduled,
+        Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
+            MandateType::Recurring
+        }
+        Some(common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission)
+        | None => MandateType::Unscheduled,
     }
 }
