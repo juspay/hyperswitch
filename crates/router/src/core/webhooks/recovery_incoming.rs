@@ -1650,7 +1650,40 @@ impl RecoveryAction {
         ),
     ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
         match self.action {
-            common_types::payments::RecoveryAction::CancelInvoice => todo!(),
+            common_types::payments::RecoveryAction::CancelInvoice => {
+                let (_, recovery_intent) = recovery_tuple;
+                let key_store = platform.get_processor().get_key_store();
+                let storage_scheme = platform.get_processor().get_account().storage_scheme;
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_id(
+                        &recovery_intent.payment_id,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+                    .attach_printable("failed to fetch the payment intent to cancel")?;
+                let cancelled = core::revenue_recovery::cancel_invoice_workflows(
+                    state,
+                    key_store,
+                    storage_scheme,
+                    payment_intent,
+                )
+                .await?;
+                match cancelled {
+                    Some(updated_intent) => Ok(webhooks::WebhookResponseTracker::Payment {
+                        payment_id: updated_intent.id,
+                        status: updated_intent.status,
+                    }),
+                    None => {
+                        logger::info!(
+                            "Invoice cancel received for a non-cancellable invoice; no recovery action taken"
+                        );
+                        Ok(webhooks::WebhookResponseTracker::NoEffect)
+                    }
+                }
+            }
             common_types::payments::RecoveryAction::ScheduleFailedPayment => {
                 let recovery_algorithm_type = business_profile
                     .revenue_recovery_retry_algorithm_type

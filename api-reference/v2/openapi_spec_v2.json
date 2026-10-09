@@ -4977,6 +4977,75 @@
         ]
       }
     },
+    "/v2/revenue-recovery/{merchant_reference_id}/cancel": {
+      "post": {
+        "tags": [
+          "Revenue Recovery"
+        ],
+        "summary": "Revenue Recovery - Cancel",
+        "description": "Cancel the revenue recovery workflow of an invoice. Only an invoice whose payment is in the\n`failed` state can be cancelled: its scheduled retries are stopped, no further recovery\nattempts are made, and the payment moves to the `cancelled` state. The invoice is looked up\nby its merchant reference id within the business profile given in the `X-Profile-Id` header.",
+        "operationId": "Cancel a Revenue Recovery Workflow",
+        "parameters": [
+          {
+            "name": "merchant_reference_id",
+            "in": "path",
+            "description": "Merchant reference id of the invoice whose revenue recovery workflow should be cancelled",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Unique identifier of the business profile under which the invoice is processed.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revenue Recovery workflow cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                },
+                "example": {
+                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                  "intent_status": "cancelled",
+                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The invoice is not in a cancellable state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/proxy": {
       "post": {
         "tags": [
