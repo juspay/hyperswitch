@@ -191,16 +191,16 @@ pub enum RecurringDetails {
     #[smithy(value_type = "NetworkTransactionIdAndVaultCardDetails")]
     NetworkTransactionIdAndVaultCardDetails(Box<NetworkTransactionIdAndVaultCardDetails>),
 
-    /// Network token details for an MIT, with external vault card details to fall back to when
-    /// the network token attempt is declined in a way the network flags as retryable on the card.
-    #[smithy(value_type = "NetworkTokenWithVaultCardFallback")]
-    NetworkTokenWithVaultCardFallback(Box<NetworkTokenWithVaultCardFallback>),
-
     /// Card with Limited Data to do MIT payment
     /// Can only be used if enabled for Merchant
     /// Allows doing MIT with only Card data (no reference id)
     #[smithy(value_type = "CardWithLimitedData")]
     CardWithLimitedData(Box<CardWithLimitedData>),
+
+    /// Network token details for an MIT, with external vault card details to fall back to when
+    /// the network token attempt is declined in a way the network flags as retryable on the card.
+    #[smithy(value_type = "NetworkTokenWithVaultCardFallback")]
+    NetworkTokenWithVaultCardFallback(Box<NetworkTokenWithVaultCardFallback>),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available

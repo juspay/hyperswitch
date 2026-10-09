@@ -31476,11 +31476,11 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "network_token_with_vault_card_fallback"
+                  "card_with_limited_data"
                 ]
               },
               "data": {
-                "$ref": "#/components/schemas/NetworkTokenWithVaultCardFallback"
+                "$ref": "#/components/schemas/CardWithLimitedData"
               }
             }
           },
@@ -31494,11 +31494,11 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "card_with_limited_data"
+                  "network_token_with_vault_card_fallback"
                 ]
               },
               "data": {
-                "$ref": "#/components/schemas/CardWithLimitedData"
+                "$ref": "#/components/schemas/NetworkTokenWithVaultCardFallback"
               }
             }
           }
