@@ -2560,6 +2560,110 @@ where
     }
 }
 
+/// Authenticates an inbound Twilio Generic Pay request.
+///
+/// A Twilio Generic Pay Connector only has a username and a password to offer, so credentials
+/// arrive as HTTP Basic auth: the username is the `merchant_id` and the password is an ordinary
+/// Hyperswitch API key. The API key by itself already identifies the merchant; the username is
+/// cross-checked against it so that a key cannot be presented under the wrong merchant id.
+///
+/// Authenticates the merchant only. The endpoint is merchant level, and the profile is resolved
+/// later from `parameters.profile_id` in the body — falling back to the merchant's default
+/// profile — because an API key is scoped to a merchant rather than to a profile.
+#[derive(Debug)]
+#[cfg(feature = "v1")]
+pub struct TwilioPayAuth;
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for TwilioPayAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let (username, api_key) = parse_basic_auth_credentials(request_headers)?;
+
+        let merchant_id = id_type::MerchantId::try_from(std::borrow::Cow::Owned(username))
+            .change_context(errors::ApiErrorResponse::InvalidBasicAuth)
+            .attach_printable("Basic auth username is not a valid merchant id")?;
+
+        let api_key = api_keys::PlaintextApiKey::from(api_key.peek().as_str());
+        let hash_key = {
+            let config = state.conf();
+            config.api_keys.get_inner().get_hash_key()?
+        };
+        let hashed_api_key = api_key.keyed_hash(hash_key.peek());
+
+        let stored_api_key = state
+            .store()
+            .find_api_key_by_hash_optional(hashed_api_key.into())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+            .attach_printable("Failed to retrieve API key")?
+            .ok_or(report!(errors::ApiErrorResponse::InvalidBasicAuth)) // If retrieve returned `None`
+            .attach_printable("Merchant not authenticated")?;
+
+        if stored_api_key
+            .expires_at
+            .map(|expires_at| expires_at < date_time::now())
+            .unwrap_or(false)
+        {
+            return Err(report!(errors::ApiErrorResponse::InvalidBasicAuth))
+                .attach_printable("API key has expired");
+        }
+
+        if stored_api_key.merchant_id != merchant_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidBasicAuth)).attach_printable(
+                "Basic auth username does not match the merchant the API key belongs to",
+            );
+        }
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                &merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let initiator = Some(domain::Initiator::Api {
+            merchant_id: merchant.get_id().clone(),
+            merchant_account_type: merchant.merchant_account_type,
+            publishable_key: merchant.publishable_key.clone(),
+        });
+
+        let platform =
+            resolve_platform(state, request_headers, merchant, key_store, initiator).await?;
+
+        // The profile is resolved in the core, from `parameters.profile_id` or the merchant's
+        // default profile, and validated against this merchant there.
+        let auth = AuthenticationData {
+            platform,
+            profile: None,
+            client_secret: None,
+        };
+
+        Ok((
+            auth.clone(),
+            AuthenticationType::ApiKey {
+                merchant_id,
+                key_id: stored_api_key.key_id,
+            },
+        ))
+    }
+}
+
 #[derive(Debug)]
 #[cfg(feature = "v2")]
 pub struct MerchantIdAuth;

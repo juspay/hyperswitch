@@ -78,7 +78,8 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use super::{
-    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+    apple_pay_certificates_migration, blocklist, payment_link, subscription, twilio_generic_pay,
+    webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};
@@ -2857,6 +2858,20 @@ impl ThreeDsDecisionRule {
             .service(
                 web::resource("/execute")
                     .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
+pub struct TwilioGenericPay;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TwilioGenericPay {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/twilio")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/generic_pay")
+                    .route(web::post().to(twilio_generic_pay::twilio_generic_pay_charge)),
             )
     }
 }

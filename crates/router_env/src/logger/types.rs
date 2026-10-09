@@ -832,6 +832,8 @@ pub enum Flow {
     ListMembersForEntity,
     /// Authorize external token
     AuthorizeUserToken,
+    /// Twilio Generic Pay Connector inbound charge flow
+    TwilioGenericPayCharge,
 }
 
 /// Trait for providing generic behaviour to flow metric

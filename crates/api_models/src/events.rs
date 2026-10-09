@@ -12,6 +12,7 @@ pub mod refund;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
 pub mod routing;
+pub mod twilio_generic_pay;
 pub mod user;
 pub mod user_role;
 use common_utils::{
