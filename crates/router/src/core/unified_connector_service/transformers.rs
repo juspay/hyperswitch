@@ -5016,7 +5016,6 @@ impl
             token_source: wallet_token_data
                 .token_source
                 .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
-            device_manufacturer_identifier: None,
         };
 
         Ok(decrypted_wallet_token_details)
