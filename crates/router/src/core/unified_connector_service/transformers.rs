@@ -1697,16 +1697,13 @@ fn ucs_challenge_indicator(
 }
 
 /// Builds the typed 3DS `merchant_details` (UCS proto field 17) from the authentication
-/// connector's metadata, read with the same `NetceteraMetaData` shape the direct Netcetera
-/// connector and MCA validation use.
+/// connector's metadata (`NetceteraMetadata`).
 fn ucs_merchant_details(
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Option<payments_grpc::MerchantDetails> {
     let netcetera_meta = connector_meta_data.and_then(|meta| {
-        serde_json::from_value::<crate::connector::netcetera::transformers::NetceteraMetaData>(
-            meta.clone().expose(),
-        )
-        .ok()
+        serde_json::from_value::<super::connector_config::NetceteraMetadata>(meta.clone().expose())
+            .ok()
     })?;
 
     let merchant_category_code = netcetera_meta

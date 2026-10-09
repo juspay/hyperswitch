@@ -13,7 +13,6 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
-    connector::netcetera::transformers::NetceteraMetaData,
     core::errors::{self, RouterResult},
     types::transformers::ForeignTryFrom,
 };
@@ -244,6 +243,17 @@ pub struct JuspayMetadata {
     pub juspay_encryption_public_key: Secret<String>,
     pub response_decryption_private_key: Secret<String>,
     pub card_sync_key_id: String,
+}
+
+/// Netcetera authentication-connector metadata, keyed as the Netcetera MCA form stores it.
+#[derive(Debug, serde::Deserialize)]
+pub struct NetceteraMetadata {
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub merchant_configuration_id: Option<String>,
 }
 
 /// Connector-specific configuration enum for all supported connectors
@@ -2112,7 +2122,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
             Connector::Netcetera => {
                 let netcetera_meta = metadata
                     .map(|m| {
-                        serde_json::from_value::<NetceteraMetaData>(m.clone())
+                        serde_json::from_value::<NetceteraMetadata>(m.clone())
                             .map_err(|_| err("Invalid Netcetera metadata format"))
                     })
                     .transpose()?;
