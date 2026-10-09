@@ -92,6 +92,7 @@ pub struct PaymentIntent {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -113,7 +114,6 @@ pub struct PaymentIntent {
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
-    pub enable_avs_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]

@@ -874,6 +874,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: router_data.request.enable_avs_check,
         })
     }
 }
@@ -1134,6 +1135,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: None,
         })
     }
 }
@@ -2411,6 +2413,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: None,
         })
     }
 }
@@ -2627,6 +2630,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
+            enable_avs_check: router_data.request.enable_avs_check,
         })
     }
 }
@@ -2812,6 +2816,7 @@ impl
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
             additional_connector_details: None,
+            enable_avs_check: None,
         })
     }
 }
@@ -4982,6 +4987,7 @@ impl
             token_source: wallet_token_data
                 .token_source
                 .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
+            device_manufacturer_identifier: None,
         };
 
         Ok(decrypted_wallet_token_details)
