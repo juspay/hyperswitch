@@ -1054,6 +1054,15 @@ fn billing_email() -> Vec<RequiredField> {
 }
 
 #[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
+fn tdaypay_bank_transfer_contact_fields() -> Vec<RequiredField> {
+    vec![
+        RequiredField::BillingEmail,
+        RequiredField::BillingPhone,
+        RequiredField::BillingPhoneCountryCode,
+    ]
+}
+
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn card_with_name() -> Vec<RequiredField> {
     [card_basic(), full_name()].concat()
 }
@@ -3996,16 +4005,29 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
         ),
         (
             enums::PaymentMethodType::LocalBankTransfer,
-            connectors(vec![(
-                Connector::Zsl,
-                fields(
-                    vec![],
-                    vec![
-                        RequiredField::BillingAddressCountries(vec!["CN"]),
-                        RequiredField::BillingAddressCity,
-                    ],
-                    vec![],
+            connectors(vec![
+                (
+                    Connector::Zsl,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingAddressCountries(vec!["CN"]),
+                            RequiredField::BillingAddressCity,
+                        ],
+                        vec![],
+                    ),
                 ),
+                (
+                    Connector::Tdaypay,
+                    fields(vec![], vec![], tdaypay_bank_transfer_contact_fields()),
+                ),
+            ]),
+        ),
+        (
+            enums::PaymentMethodType::Pse,
+            connectors(vec![(
+                Connector::Tdaypay,
+                fields(vec![], vec![], tdaypay_bank_transfer_contact_fields()),
             )]),
         ),
         (
@@ -4095,6 +4117,10 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::PixDocumentNumber.to_tuple(),
                         ]),
                     },
+                ),
+                (
+                    Connector::Tdaypay,
+                    fields(vec![], vec![], tdaypay_bank_transfer_contact_fields()),
                 ),
             ]),
         ),
