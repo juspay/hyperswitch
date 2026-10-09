@@ -8,14 +8,12 @@ use std::collections::HashMap;
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    router_data::ConnectorAuthType,
-    router_request_types::unified_authentication_service::ThreeDsMetaData,
-};
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
+    connector::netcetera::transformers::NetceteraMetaData,
     core::errors::{self, RouterResult},
     types::transformers::ForeignTryFrom,
 };
@@ -2112,9 +2110,9 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
             Connector::Netcetera => {
-                let three_ds_meta = metadata
+                let netcetera_meta = metadata
                     .map(|m| {
-                        serde_json::from_value::<ThreeDsMetaData>(m.clone())
+                        serde_json::from_value::<NetceteraMetaData>(m.clone())
                             .map_err(|_| err("Invalid Netcetera metadata format"))
                     })
                     .transpose()?;
@@ -2129,13 +2127,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 Ok(Self::Netcetera {
                     certificate,
                     private_key,
-                    merchant_configuration_id: three_ds_meta
+                    merchant_configuration_id: netcetera_meta
                         .as_ref()
                         .and_then(|m| m.merchant_configuration_id.clone()),
-                    three_ds_requestor_id: three_ds_meta
+                    three_ds_requestor_id: netcetera_meta
                         .as_ref()
                         .and_then(|m| m.three_ds_requestor_id.clone()),
-                    three_ds_requestor_name: three_ds_meta
+                    three_ds_requestor_name: netcetera_meta
                         .as_ref()
                         .and_then(|m| m.three_ds_requestor_name.clone()),
                     base_url: None,

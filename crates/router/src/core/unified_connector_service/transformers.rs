@@ -1696,36 +1696,35 @@ fn ucs_challenge_indicator(
     .map(i32::from)
 }
 
-/// Builds the typed 3DS `merchant_details` (UCS proto field 17) from the connector's own
-/// metadata (`ThreeDsMetaData`). This is the only place UCS reads merchant identity for
-/// EMVCo's `merchant.mcc` / `merchant.merchantCountryCode` / `merchant.merchantName`.
+/// Builds the typed 3DS `merchant_details` (UCS proto field 17) from the authentication
+/// connector's metadata, read with the same `NetceteraMetaData` shape the direct Netcetera
+/// connector and MCA validation use.
 fn ucs_merchant_details(
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Option<payments_grpc::MerchantDetails> {
-    let three_ds_meta = connector_meta_data.and_then(|meta| {
-        serde_json::from_value::<
-            router_request_types::unified_authentication_service::ThreeDsMetaData,
-        >(meta.clone().expose())
+    let netcetera_meta = connector_meta_data.and_then(|meta| {
+        serde_json::from_value::<crate::connector::netcetera::transformers::NetceteraMetaData>(
+            meta.clone().expose(),
+        )
         .ok()
     })?;
 
-    let merchant_category_code = three_ds_meta
-        .merchant_category_code
-        .as_ref()
-        .and_then(|mcc| mcc.get_code().ok())
-        .map(u32::from);
-    let merchant_country_code = three_ds_meta
+    let merchant_category_code = netcetera_meta
+        .mcc
+        .as_deref()
+        .and_then(|mcc| mcc.parse::<u32>().ok());
+    let merchant_country_code = netcetera_meta
         .merchant_country_code
-        .as_ref()
-        .and_then(|country| ucs_country_alpha2_from_numeric(&country.get_country_code()));
+        .as_deref()
+        .and_then(ucs_country_alpha2_from_numeric);
 
     (merchant_category_code.is_some()
         || merchant_country_code.is_some()
-        || three_ds_meta.merchant_name.is_some())
+        || netcetera_meta.merchant_name.is_some())
     .then_some(payments_grpc::MerchantDetails {
         merchant_id: None,
         merchant_category_code,
-        merchant_name: three_ds_meta.merchant_name,
+        merchant_name: netcetera_meta.merchant_name,
         merchant_country_code,
     })
 }
