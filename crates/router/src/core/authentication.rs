@@ -1348,6 +1348,7 @@ async fn call_ucs_authenticate_proxy(
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
         force_3ds_challenge: None,
+        router_return_url: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
