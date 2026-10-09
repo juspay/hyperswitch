@@ -872,14 +872,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
             diesel_models::query::customers::CustomerListConstraints::from(constraints);
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             diesel_models::Customer::list_customers_by_merchant_id_and_constraints(
                 &conn,
                 merchant_id,
                 customer_list_constraints,
             ),
-        )
+        ))
         .await
     }
 
@@ -899,16 +899,15 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             customer_id: customer_list_constraints.customer_id.clone(),
             time_range: customer_list_constraints.time_range,
         };
-        let customers = self
-            .find_resources_new(
-                key_store,
-                diesel_models::Customer::list_customers_by_merchant_id_and_constraints(
-                    &conn,
-                    merchant_id,
-                    customers_constraints,
-                ),
-            )
-            .await?;
+        let customers = Box::pin(self.find_resources_new(
+            key_store,
+            diesel_models::Customer::list_customers_by_merchant_id_and_constraints(
+                &conn,
+                merchant_id,
+                customers_constraints,
+            ),
+        ))
+        .await?;
         let total_count =
             diesel_models::Customer::get_customer_count_by_merchant_id_and_constraints(
                 &conn,
