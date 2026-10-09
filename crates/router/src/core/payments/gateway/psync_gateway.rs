@@ -114,6 +114,12 @@ where
                     router_data.amount_captured = Some(captured_amount);
                     router_data.minor_amount_captured = Some(MinorUnit::new(captured_amount));
                 }
+                // Likewise, only override the capturable amount when UCS reports one; a sync
+                // triggered by a webhook never carries it.
+                if let Some(capturable_money) = payment_get_response.capturable_money.as_ref() {
+                    router_data.minor_amount_capturable =
+                        Some(MinorUnit::new(capturable_money.minor_amount));
+                }
                 if return_raw_connector_response.unwrap_or(false) {
                     router_data.raw_connector_response = payment_get_response
                         .raw_connector_response
@@ -261,6 +267,14 @@ where
                             router_data.amount_captured = Some(captured_amount);
                             router_data.minor_amount_captured =
                                 Some(MinorUnit::new(captured_amount));
+                        }
+                        // Likewise, only override the capturable amount when UCS reports one;
+                        // a sync triggered by a webhook never carries it.
+                        if let Some(capturable_money) =
+                            payment_get_response.capturable_money.as_ref()
+                        {
+                            router_data.minor_amount_capturable =
+                                Some(MinorUnit::new(capturable_money.minor_amount));
                         }
                         if return_raw_connector_response.unwrap_or(false) {
                             router_data.raw_connector_response =
