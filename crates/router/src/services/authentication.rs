@@ -6256,8 +6256,9 @@ fn token_digest(token: &str) -> String {
 /// business-profile and decrypt calls that follow it, which are exactly the
 /// calls a replay exists to compare.
 ///
-/// A token absent from the recording does not decode silently: the substitute
-/// misses and the boundary fail-stops, the same as any other missed substitute.
+/// A token absent from the recording is decoded with only `validate_exp` off;
+/// the signature and required claims are still checked. Only a replay miss
+/// reaches this arm, so live traffic never accepts an expired token.
 ///
 /// `pub` only so the boundary can be exercised from an integration test:
 /// `set_global_runtime_hook` is a one-shot `OnceLock`, so record and replay
@@ -6277,6 +6278,14 @@ fn token_digest(token: &str) -> String {
                 // claims, and their recorded shapes differ. Identity says which.
                 "claims_type": std::any::type_name::<T>(),
             })
+        },
+        on_miss = {
+            let mut without_the_clock = Validation::new(Algorithm::HS256);
+            without_the_clock.validate_exp = false;
+            let key = DecodingKey::from_secret(secret);
+            decode::<T>(token, &key, &without_the_clock)
+                .map(|decoded| decoded.claims)
+                .map_err(|_| report!(JwtDecodeOutcome::Invalid))
         },
     )
 )]

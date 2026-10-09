@@ -30,6 +30,9 @@ use time::PrimitiveDateTime;
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use crate::{enums::AuthInfo, query::QueryBuildingError};
 
+#[cfg(feature = "deja")]
+mod recording;
+
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
 #[serde(rename_all = "lowercase")]
@@ -101,7 +104,8 @@ impl Default for OpenSearchConfig {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+// Serialisable so the deja seam can record and replay a failed search.
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
 pub enum OpenSearchError {
     #[error("Opensearch is not enabled")]
     NotEnabled,
@@ -254,6 +258,23 @@ impl OpenSearchClient {
         }
     }
 
+    /// The OpenSearch round trip, recorded as its status and body. `Http`, not `Db`: the
+    /// index is external state. A miss answers with an empty result set.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "opensearch",
+            component = "analytics::opensearch",
+            operation = "execute",
+            op = Read,
+            replay = Substitute,
+            effect = Http,
+            returns = Value,
+            owned_codec = recording::ResponseCodec,
+            args = query_builder.deja_args(),
+            on_miss = Ok(recording::ResponseCodec::missed_query()),
+        )
+    )]
     pub async fn execute(
         &self,
         query_builder: OpenSearchQueryBuilder,
