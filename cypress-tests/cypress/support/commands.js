@@ -8856,15 +8856,6 @@ Cypress.Commands.add("setupConfigs", (globalState, key, value) => {
   cy.setConfigs(globalState, key, value, "CREATE");
 });
 
-// Mirrors MerchantId::get_blocklist_guard_key() — the same config row
-// /blocklist/toggle writes to, set here directly via the configs API.
-Cypress.Commands.add("setBlocklistGuard", (globalState, enabled) => {
-  const merchantId = globalState.get("merchantId");
-  const key = `guard_blocklist_for_${merchantId}`;
-
-  cy.setConfigs(globalState, key, "true", enabled ? "CREATE" : "DELETE");
-});
-
 // UCS Configuration Commands
 Cypress.Commands.add("setupUCSConfigs", (globalState) => {
   cy.setupConfigs(globalState, "ucs_enabled", "true");

@@ -4,11 +4,35 @@ import { connectorDetails } from "../../../e2e/configs/Payment/Commons";
 
 let globalState;
 
+const blocklistContext = () => ({
+  processor_merchant_id: globalState.get("merchantId"),
+  provider_merchant_id: globalState.get("merchantId"),
+});
+
 describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries", () => {
+  let specShouldSkip = false;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      if (
+        !globalState.get("superpositionBaseUrl") ||
+        !globalState.get("superpositionSecret") ||
+        !globalState.get("superpositionAuthToken")
+      ) {
+        cy.task(
+          "cli_log",
+          "Superposition credentials not set — skipping blocklist spec"
+        );
+        specShouldSkip = true;
+      }
     });
+  });
+
+  beforeEach(function () {
+    if (specShouldSkip) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
@@ -120,13 +144,13 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
       cy.blocklistCreateRuleRaw("generic_card_bin", "40000000", globalState);
     });
 
-    it("should enable blocklist functionality using configs API", () => {
-      cy.setBlocklistGuard(globalState, true);
-      // The router reads this guard through a cache that doesn't pick up
-      // the fresh value immediately — same class of race as the card_bin
-      // cache noted below. Give it time to propagate before relying on it.
-      // eslint-disable-next-line cypress/no-unnecessary-waiting
-      cy.wait(15000);
+    it("should enable blocklist functionality using Superposition", () => {
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.payment_blocklist_guard",
+        true,
+        blocklistContext()
+      );
     });
 
     it("should deny payment for a card matching the blocked 8 digit generic_card_bin", () => {
@@ -176,8 +200,13 @@ describe("Blocklist card_bin / extended_card_bin / generic_card_bin boundaries",
       cy.blocklistDeleteRuleRaw("generic_card_bin", "40000000", globalState);
     });
 
-    it("should disable blocklist functionality using configs API", () => {
-      cy.setBlocklistGuard(globalState, false);
+    it("should disable blocklist functionality using Superposition", () => {
+      cy.setSuperpositionConfig(
+        globalState,
+        "payments.payment_blocklist_guard",
+        false,
+        blocklistContext()
+      );
     });
   });
 });
