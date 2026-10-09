@@ -437,7 +437,7 @@ where
     let is_eligible_for_mandate_update =
         is_valid_response && is_integrity_ok && is_payment_successful;
 
-    if let (true, Some(payment_method), Some(mca_id)) = (
+    if let (true, Some(payment_method), Some(_)) = (
         is_eligible_for_mandate_update,
         payment_data.get_payment_method_info().cloned(),
         payment_attempt.merchant_connector_id.clone(),
@@ -485,22 +485,14 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
 
-        let is_active_mandate = mandate_details
-            .payments
-            .as_ref()
-            .and_then(|payments| payments.0.get(&mca_id))
-            .is_some_and(|record| {
-                record.connector_mandate_status
-                    == Some(common_enums::ConnectorMandateStatus::Active)
-            });
-
         let is_off_session = matches!(
             payment_intent.setup_future_usage,
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        // Combine business logic conditions: not active mandate AND off_session
-        if !is_active_mandate && is_off_session {
+        // Update connector mandate details for off_session payments regardless of
+        // the existing mandate status; this also activates inactive mandates.
+        if is_off_session {
             let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
                 payment_attempt
                     .connector_mandate_detail
