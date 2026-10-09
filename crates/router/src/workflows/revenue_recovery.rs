@@ -934,7 +934,11 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                         let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
                             .billing_mca
                             .get_max_hybrid_cascading_retry_count()
-                            .map_or(0, i32::from);
+                            .map(i32::from)
+                            .ok_or(errors::ProcessTrackerError::MissingRequiredField)
+                            .attach_printable(
+                                "Failed to get max hybrid cascading retry count from billing merchant connector account",
+                            )?;
 
                         if queried_rung <= max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(
