@@ -49,17 +49,15 @@ pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath,
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
-    id_type, pii,
+    id_type::{self, MerchantConnectorAccountId},
+    pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use euclid::backend::inputs as dsl_inputs;
 use events::EventInfo;
-use futures::{
-    future::{join_all, BoxFuture},
-    FutureExt,
-};
+use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
@@ -12078,72 +12076,78 @@ where
     let txn = TransactionData::Payment(transaction_data.clone());
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
-    let state_ref = &state;
+    let mut active_mca_ids = None;
     let fallback_outcome = (
         fallback.clone(),
         common_enums::RoutingApproach::DefaultFallback,
         true,
     );
 
-    let routing_future: BoxFuture<
-        '_,
-        Option<(
-            Vec<api_models::routing::RoutableConnectorChoice>,
-            common_enums::RoutingApproach,
-            bool,
-        )>,
-    > = straight_through_routing_stage
-        .map(|stage| {
-            async move {
-                stage
-                    .route(StraightThroughRoutingInput { creds_identifier })
-                    .await
-                    .inspect_err(|err| {
-                        logger::error!(error=?err, "straight-through routing failed");
-                    })
-                    .ok()
-                    .map(|out| {
-                        (
-                            out.connectors.connectors,
-                            stage.routing_approach(),
-                            out.check_eligibility,
-                        )
-                    })
-            }
-            .boxed()
-        })
-        .unwrap_or_else(|| {
-            async move {
-                static_dynamic_routing_v1_for_payments(
-                    state_ref,
-                    processor.get_key_store(),
-                    dimensions,
-                    business_profile,
-                    txn_data,
-                    backend_input,
-                    fallback.clone(),
-                    preferred_connector,
+    let routing_outcome = if let Some(stage) = straight_through_routing_stage {
+        stage
+            .route(StraightThroughRoutingInput { creds_identifier })
+            .await
+            .inspect_err(|err| {
+                logger::error!(error=?err, "straight-through routing failed");
+            })
+            .ok()
+            .map(|out| {
+                (
+                    out.connectors.connectors,
+                    stage.routing_approach(),
+                    out.check_eligibility,
                 )
-                .await
-                .inspect_err(|err| {
-                    logger::error!(error=?err, "static/dynamic routing failed");
-                })
-                .ok()
-                .map(|out| {
-                    (
-                        out.connectors,
-                        out.routing_approach,
-                        out.requires_eligibility,
-                    )
-                })
-            }
-            .boxed()
+            })
+    } else {
+        let ids = routing::get_active_merchant_connector_accounts(
+            &state,
+            processor.get_key_store(),
+            business_profile.get_id(),
+        )
+        .await
+        .map(|accounts| accounts.get_ids());
+        let outcome = static_dynamic_routing_v1_for_payments(
+            &state,
+            processor.get_key_store(),
+            dimensions,
+            business_profile,
+            txn_data,
+            backend_input,
+            fallback,
+            preferred_connector,
+            &ids,
+        )
+        .await
+        .inspect_err(|err| {
+            logger::error!(error=?err, "static/dynamic routing failed");
+        })
+        .ok()
+        .map(|out| {
+            (
+                out.connectors,
+                out.routing_approach,
+                out.requires_eligibility,
+            )
         });
+        active_mca_ids = Some(ids);
+        outcome
+    };
 
     let (connectors, routing_approach, requires_eligibility) =
-        routing_future.await.unwrap_or(fallback_outcome);
+        routing_outcome.unwrap_or(fallback_outcome);
 
     let final_connectors = if requires_eligibility {
+        if active_mca_ids.is_none() {
+            active_mca_ids = Some(
+                routing::get_active_merchant_connector_accounts(
+                    &state,
+                    processor.get_key_store(),
+                    business_profile.get_id(),
+                )
+                .await
+                .map(|accounts| accounts.get_ids()),
+            );
+        }
         routing::perform_eligibility_analysis_with_fallback(
             &state,
             processor.get_key_store(),
@@ -12151,6 +12155,7 @@ where
             &txn,
             eligible_connectors.clone(),
             business_profile,
+            active_mca_ids.as_ref(),
         )
         .await
         .inspect_err(|err| {
@@ -13120,6 +13125,7 @@ pub async fn route_connector_v2_for_payments(
         &TransactionData::Payment(transaction_data),
         None,
         business_profile,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -13152,6 +13158,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     preferred_connector: Option<String>,
+    active_mca_ids: &routing::RoutingResult<HashSet<MerchantConnectorAccountId>>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
@@ -13173,6 +13180,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &static_connectors,
         static_approach,
         preferred_connector,
+        active_mca_ids,
     )
     .await;
 
@@ -13238,6 +13246,7 @@ pub async fn route_connector_v1_for_payouts(
         &TransactionData::Payout(transaction_data),
         eligible_connectors,
         business_profile,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
