@@ -110,9 +110,10 @@ export const connectorDetails = {
               // UCS validates the trustly recipient at intake: the malformed
               // (non-numeric) Swedish account number cannot be mapped, so the
               // transfer demands raw payout_connector_metadata and rejects
-              // the create instead of failing asynchronously with a 624.
-              message:
-                "Missing required param: Missing required field: payout_connector_metadata. Trustly Payout Transfer - missing required field",
+              // the create instead of failing asynchronously with a 624. The
+              // message text itself is UCS-generated free text whose wording
+              // and whitespace drift across deployments, so only the stable
+              // error signature (400 invalid_request IR_04) is asserted.
               code: "IR_04",
             },
           },
