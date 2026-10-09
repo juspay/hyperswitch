@@ -2117,6 +2117,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "cloud_services"
+version = "0.1.0"
+dependencies = [
+ "aws-config",
+ "aws-sdk-s3",
+ "oci_kms",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio 1.48.0",
+ "url 2.5.4",
+]
+
+[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3563,7 +3577,6 @@ dependencies = [
  "async-trait",
  "aws-config",
  "aws-sdk-kms",
- "aws-sdk-s3",
  "aws-sdk-sesv2",
  "aws-sdk-sts",
  "aws-smithy-runtime",
@@ -3571,6 +3584,7 @@ dependencies = [
  "aws-smithy-types",
  "base64 0.22.1",
  "bytes 1.10.1",
+ "cloud_services",
  "common_enums",
  "common_utils",
  "deja",
@@ -3587,7 +3601,6 @@ dependencies = [
  "hyperswitch_interfaces",
  "hyperswitch_masking",
  "lettre",
- "oci_kms",
  "once_cell",
  "open-feature",
  "prost 0.14.3",
