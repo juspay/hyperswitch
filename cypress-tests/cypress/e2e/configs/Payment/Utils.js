@@ -361,17 +361,6 @@ export function defaultErrorHandler(response, response_data) {
         apiResponseContent.includes("Json deserialize error")
       ) {
         expect(apiResponseContent).to.include(expectedContent);
-      } else if (
-        key === "message" &&
-        typeof apiResponseContent === "string" &&
-        typeof expectedContent === "string"
-      ) {
-        // UCS-generated error messages were observed drifting in trailing
-        // whitespace between deployments (same message with and without a
-        // trailing space), which flakes strict equality. Scope the
-        // whitespace-tolerant comparison to free-text `message` fields only;
-        // structured fields (type/code) still compare exactly.
-        expect(apiResponseContent.trim()).to.equal(expectedContent.trim());
       } else {
         expect(apiResponseContent).to.equal(expectedContent);
       }
