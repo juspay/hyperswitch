@@ -1,6 +1,7 @@
 import {
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
+  standardBillingAddress,
 } from "./Commons";
 import { getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
 
@@ -818,6 +819,7 @@ export const connectorDetails = {
         },
       },
       Request: { amount: 6000 },
+      billing: standardBillingAddress,
       Response: {
         status: 200,
         body: {

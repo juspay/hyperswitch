@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, standardBillingAddress } from "./Commons";
 
 // Test card details for Fiserv SnapPay
 const successfulNo3DSCardDetails = {
@@ -926,6 +926,7 @@ export const connectorDetails = {
       },
       Request: {
         amount: 6000,
+        billing: standardBillingAddress,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
