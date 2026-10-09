@@ -1183,9 +1183,18 @@ pub struct PayoutVendorDetails {
 pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
     pub tos_acceptance_ip: Option<Secret<String>>,
+    /// Deprecated. Use `date_of_birth`.
+    #[schema(deprecated, value_type = Option<String>)]
     pub individual_dob_day: Option<Secret<String>>,
+    /// Deprecated. Use `date_of_birth`.
+    #[schema(deprecated, value_type = Option<String>)]
     pub individual_dob_month: Option<Secret<String>>,
+    /// Deprecated. Use `date_of_birth`.
+    #[schema(deprecated, value_type = Option<String>)]
     pub individual_dob_year: Option<Secret<String>>,
+    /// The individual's date of birth.
+    #[schema(value_type = Option<time::Date>, example = "1990-01-31")]
+    pub date_of_birth: Option<Secret<time::Date>>,
     pub individual_id_number: Option<Secret<String>>,
     pub individual_ssn_last_4: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<String>,

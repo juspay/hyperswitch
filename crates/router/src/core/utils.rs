@@ -264,13 +264,12 @@ pub(super) async fn construct_payout_router_data_common<F>(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
             api_models::enums::PayoutConnectors::Stripe => {
-                payout_data.payouts.metadata.to_owned().and_then(|meta| {
-                    let val = meta
+                payout_data.payouts.metadata.as_ref().and_then(|metadata| {
+                    metadata
                         .peek()
                         .to_owned()
                         .parse_value("PayoutVendorAccountDetails")
-                        .ok();
-                    val
+                        .ok()
                 })
             }
             _ => None,
