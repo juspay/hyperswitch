@@ -213,7 +213,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSubmitEligibility
             // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
             | Flow::PaymentLinkCreate
-            | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
+            | Flow::PaymentsCancelPostCaptureSync
+            // The Twilio Generic Pay adapter creates and confirms a payment, so it belongs in the
+            // Payments lock namespace
+            | Flow::TwilioGenericPayCharge => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate

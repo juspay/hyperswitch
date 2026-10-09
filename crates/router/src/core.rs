@@ -72,6 +72,8 @@ pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
+#[cfg(feature = "v1")]
+pub mod twilio_generic_pay;
 pub mod unified_authentication_service;
 pub mod unified_connector_service;
 #[cfg(feature = "olap")]

@@ -317,6 +317,10 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::Poll::server(state.clone()))
     }
+    #[cfg(all(feature = "oltp", feature = "v1"))]
+    {
+        server_app = server_app.service(routes::TwilioGenericPay::server(state.clone()))
+    }
 
     #[cfg(feature = "olap")]
     {

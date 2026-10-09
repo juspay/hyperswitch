@@ -54,6 +54,7 @@ pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+pub mod twilio_generic_pay;
 pub mod unreferenced_refund;
 pub mod user;
 pub mod user_role;
