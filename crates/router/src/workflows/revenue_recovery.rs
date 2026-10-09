@@ -254,11 +254,8 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
 }
 
 /// Static ladder time, for the variants that treat the ladder as a ceiling on the model's time.
-///
 /// Read at the ladder position rather than the invoice's overall retry count, because
-/// `pt_mapping_adaptive_retries` is the mapping built for rung semantics — unlike
-/// `pt_mapping_pcr_retries`, which `get_pcr_payments_retry_schedule_time` indexes as an attempt
-/// number and which the cascading fallback above reads.
+/// `pt_mapping_adaptive_retries` is the mapping built for rung semantics.
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     db: &dyn StorageInterface,
@@ -923,35 +920,44 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     (time, None)
                 };
 
-                // What the static ladder is to this invoice's model time, taken from the variant
-                // actually in force. Derived from the arm here rather than returned alongside it,
-                // so the arm stays the one thing the A/B path has to hand back.
                 let ladder_role = assigned_algorithm.map_or_else(
                     || RetryModelVariant::default().ladder,
                     |arm| RetryModelVariant::from(arm).ladder,
                 );
                 let queried_rung = static_ladder_progress.next_rung();
 
-                // Read only where it can win. Under `Standby` nothing compares against it, so the
-                // Superposition read stays off the path for every arm that does not bound the
-                // model.
+                // Read only where it can win, and only while the merchant's configured length
+                // still has the rung being asked for. Rungs run 1..=max.
                 let static_time = match ladder_role {
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
-                        get_schedule_time_to_retry_adaptive_payments(
-                            state.store.as_ref(),
-                            state.superposition_service.as_ref(),
-                            &dimensions,
-                            queried_rung,
-                        )
-                        .await
+                        let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
+                            .billing_mca
+                            .get_max_hybrid_cascading_retry_count()
+                            .map_or(0, i32::from);
+
+                        if queried_rung <= max_hybrid_cascading_retry_count {
+                            get_schedule_time_to_retry_adaptive_payments(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                &dimensions,
+                                queried_rung,
+                            )
+                            .await
+                        } else {
+                            logger::info!(
+                                queried_rung,
+                                max_hybrid_cascading_retry_count,
+                                "hybrid ladder spent for this invoice — the merchant's configured \
+                                 length is reached, so the model's time stands unbounded"
+                            );
+                            None
+                        }
                     }
                 };
 
-                // The MIT cascading ladder is the global fallback for everything the sources above
-                // decline, indexed by the invoice's overall retry count. Resolved only once they
-                // have, so the Superposition read costs nothing when one of them decides —
-                // `None` here means "not consulted", not "nothing to offer".
+                // The global fallback for everything the sources above decline, indexed by the
+                // invoice's overall retry count. `None` means "not consulted", not "nothing left".
                 let fallback_time = match (model_time, static_time) {
                     (None, None) => {
                         get_schedule_time_to_retry_mit_payments(
@@ -1741,10 +1747,6 @@ pub enum DaySelection {
 /// purpose: a combine change, a sampler change and a scheduling-rule change are separately
 /// attributable only if they can be varied separately.
 ///
-/// `ladder` is the odd one out in that it is spent downstream, by `decide_next_retry`, rather than
-/// by the scoring this module does — it is carried here so that one type answers "which algorithm",
-/// and so two arms cannot collide by differing only in a rule held somewhere else.
-///
 /// Public because the arm an invoice gets is an experiment-assignment decision, which belongs above
 /// this layer — this module only executes the variant it is handed. `Default` is the baseline an
 /// invoice runs when nothing selects otherwise; it is NOT the same as the control arm, which is
@@ -1758,8 +1760,7 @@ pub struct RetryModelVariant {
 }
 
 /// The pairing production ran before systematic sampling landed, which is what an invoice outside
-/// the experiment should get. Deliberately not the control arm: the control arm is pinned so that
-/// invoices already carrying it keep their behaviour whatever this becomes.
+/// the experiment gets. Not the control arm, which is pinned separately.
 #[cfg(feature = "v2")]
 impl Default for RetryModelVariant {
     fn default() -> Self {
@@ -2534,9 +2535,7 @@ mod retry_model_tests {
 
     // Every combine x selection x ladder-role triple. The contract tests below run over all eight,
     // because the guarantees they assert (in-window, never panics, declines only when it should)
-    // must not depend on which variant an invoice was bucketed into. The ladder axis is spent
-    // downstream of the scoring these tests cover, so running it here is what pins it as inert for
-    // the model itself.
+    // must not depend on which variant an invoice was bucketed into.
     fn all_variants() -> [RetryModelVariant; 8] {
         use pcr::schedule::StaticLadderRole::{Ceiling, Standby};
         use DayCombine::{MaxAtScore, MaxAtSoftmax};
@@ -3014,9 +3013,7 @@ mod retry_model_tests {
     #[test]
     fn control_arm_is_pinned_and_does_not_track_the_default() {
         // AdaptiveRetry is persisted on live invoices, so it must keep its pairing whatever the
-        // default becomes — otherwise an in-flight invoice switches algorithm mid-recovery. The
-        // Standby role is the live half of that: the default bounds the model, and an invoice
-        // already on the control arm must not start being bounded.
+        // default becomes — otherwise an in-flight invoice switches algorithm mid-recovery.
         assert_eq!(
             RetryModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry),
             RetryModelVariant {
@@ -3029,9 +3026,8 @@ mod retry_model_tests {
 
     #[test]
     fn the_unenrolled_default_is_the_pairing_production_ran_before_systematic_sampling() {
-        // The only thing selecting an unenrolled invoice's algorithm is this `Default`, so moving
-        // it silently re-points every invoice outside the experiment. Pinned to make that
-        // deliberate.
+        // This `Default` is the only thing selecting an unenrolled invoice's algorithm, so moving
+        // it re-points every invoice outside the experiment.
         assert_eq!(
             RetryModelVariant::default(),
             RetryModelVariant {
@@ -3046,16 +3042,14 @@ mod retry_model_tests {
     fn each_arm_varies_at_most_one_axis_from_its_reference() {
         // Attributability: SystematicKMaxAtSoftmax moves only the sampler from control,
         // SystematicKMaxAtScore only the combine from it, and HybridAdaptiveRetry only the
-        // ladder's role from control. An arm moving two axes against both references leaves
-        // nothing able to say which change caused a result.
+        // ladder's role. An arm moving two axes leaves nothing able to say which change caused
+        // a result.
         use common_enums::RevenueRecoveryABAlgorithm as Arm;
         let control = RetryModelVariant::from(Arm::AdaptiveRetry);
         let hybrid = RetryModelVariant::from(Arm::HybridAdaptiveRetry);
         let softmax_k = RetryModelVariant::from(Arm::SystematicKMaxAtSoftmax);
         let score_k = RetryModelVariant::from(Arm::SystematicKMaxAtScore);
 
-        // Every axis is counted, so adding one to the variant without extending this closure
-        // cannot leave the assertions below quietly measuring less than they claim.
         let axes_differing = |a: RetryModelVariant, b: RetryModelVariant| {
             usize::from(a.combine != b.combine)
                 + usize::from(a.selection != b.selection)

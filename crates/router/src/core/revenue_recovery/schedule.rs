@@ -1,9 +1,7 @@
 use time::PrimitiveDateTime;
 
 /// How far along the static ladder an invoice has walked. A rung is one position in the
-/// `pt_mapping_adaptive_retries` gap list, resolved by
-/// `scheduler::utils::get_pcr_payments_retry_schedule_time`; past the end it returns nothing,
-/// which is the ladder being spent.
+/// `pt_mapping_adaptive_retries` gap list; past the end the ladder is spent.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StaticLadderProgress {
     /// Rungs already used; the next one to offer is `consumed_rungs + 1`.
@@ -37,8 +35,7 @@ impl StaticLadderProgress {
         }
     }
 
-    /// The rung to ask the ladder for on this decision — the one after those already used. Read
-    /// under `StaticLadderRole::Ceiling`, the only role that can spend one.
+    /// The rung to ask the ladder for on this decision — the one after those already used.
     pub fn next_rung(&self) -> i32 {
         self.consumed_rungs + 1
     }
@@ -77,14 +74,39 @@ pub struct ScheduleDecision {
     pub source: ScheduleSource,
 }
 
+/// A decision that leaves the ladder where it is, so the same rung is offered again.
+fn keep_rung(
+    schedule: &StaticLadderProgress,
+    schedule_time: PrimitiveDateTime,
+    source: ScheduleSource,
+) -> ScheduleDecision {
+    ScheduleDecision {
+        schedule_time,
+        next_progress: StaticLadderProgress {
+            consumed_rungs: schedule.consumed_rungs,
+        },
+        source,
+    }
+}
+
+/// A decision taken off the ladder, which uses up the rung it supplied. The only way the ladder
+/// advances, and so the only way it is spent.
+fn spend_rung(queried_rung: i32, schedule_time: PrimitiveDateTime) -> ScheduleDecision {
+    ScheduleDecision {
+        schedule_time,
+        next_progress: StaticLadderProgress {
+            consumed_rungs: queried_rung,
+        },
+        source: ScheduleSource::Static,
+    }
+}
+
 /// Pick the next retry time under the role the invoice's variant assigns the static ladder.
 /// `None` when every source in play has declined.
 ///
-/// `static_time` is read only under `Ceiling`; `Standby` callers pass `None`, which keeps the
-/// ladder's Superposition read off the path entirely.
-///
-/// `Ceiling`'s static branch is the only one that spends a rung. Everywhere else `next_progress`
-/// echoes what it was handed, so the ladder stays where it was and offers the same rung again.
+/// Under `Standby` the model's time stands and the ladder is not consulted, so callers pass
+/// `None` for `static_time`. Under `Ceiling` the earlier calendar day wins and a tie goes to the
+/// ladder, since it already covers that day. Only the static branch spends a rung.
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
     ladder: StaticLadderRole,
@@ -93,48 +115,25 @@ pub fn decide_next_retry(
     static_time: Option<PrimitiveDateTime>,
     fallback_time: Option<PrimitiveDateTime>,
 ) -> Option<ScheduleDecision> {
-    // The ladder was not used, so it does not move: the next decision is offered the same rung.
-    let keep_rung = |schedule_time, source| ScheduleDecision {
-        schedule_time,
-        next_progress: StaticLadderProgress {
-            consumed_rungs: schedule.consumed_rungs,
-        },
-        source,
-    };
-    // The ladder supplied this time, so the rung it supplied is now used up and the next decision
-    // moves on to the one after. Only this branch can exhaust the ladder.
-    let spend_rung = |schedule_time| ScheduleDecision {
-        schedule_time,
-        next_progress: StaticLadderProgress {
-            consumed_rungs: queried_rung,
-        },
-        source: ScheduleSource::Static,
-    };
-
     match ladder {
-        // The model decides whenever it has an opinion, and the MIT cascading ladder is the global
-        // fallback for whatever it declines. The two are NOT compared — the model's time is taken
-        // as it stands, however much later than the fallback's it falls.
         StaticLadderRole::Standby => model_time
-            .map(|schedule_time| keep_rung(schedule_time, ScheduleSource::Model))
+            .map(|schedule_time| keep_rung(schedule, schedule_time, ScheduleSource::Model))
             .or_else(|| {
-                fallback_time
-                    .map(|schedule_time| keep_rung(schedule_time, ScheduleSource::Fallback))
+                fallback_time.map(|schedule_time| {
+                    keep_rung(schedule, schedule_time, ScheduleSource::Fallback)
+                })
             }),
 
         StaticLadderRole::Ceiling => match (static_time, model_time) {
-            // The earlier calendar day wins. A tie goes to static: the ladder already covers that
-            // day, so an earlier hour on it does not earn a second attempt.
             (Some(static_time), Some(model_time)) if model_time.date() < static_time.date() => {
-                Some(keep_rung(model_time, ScheduleSource::Model))
+                Some(keep_rung(schedule, model_time, ScheduleSource::Model))
             }
-            (Some(static_time), _) => Some(spend_rung(static_time)),
-            // Ladder spent, so the model's time stands unopposed.
-            (None, Some(model_time)) => Some(keep_rung(model_time, ScheduleSource::Model)),
-            // The static ladder is spent and the model declined, so the MIT cascading ladder gets
-            // the last word. `None` here means there is genuinely nothing left to schedule.
+            (Some(static_time), _) => Some(spend_rung(queried_rung, static_time)),
+            (None, Some(model_time)) => {
+                Some(keep_rung(schedule, model_time, ScheduleSource::Model))
+            }
             (None, None) => fallback_time
-                .map(|schedule_time| keep_rung(schedule_time, ScheduleSource::Fallback)),
+                .map(|schedule_time| keep_rung(schedule, schedule_time, ScheduleSource::Fallback)),
         },
     }
 }
@@ -239,20 +238,15 @@ mod tests {
 
     // ---- the decision rule ------------------------------------------------
 
-    /// Every arm of both rules, with the roles interleaved so the single behavioural difference
-    /// between them reads off adjacent rows: a model time later than the other candidate is
-    /// overridden under `Ceiling` and survives under `Standby`.
-    ///
-    /// `schedule_time` is checked against whichever input the winning source names, so a decision
-    /// cannot report the right source while carrying the wrong time.
+    /// Every arm of both rules, with the roles interleaved: a model time later than the other
+    /// candidate is overridden under `Ceiling` and survives under `Standby`.
     #[test]
     fn each_arm_picks_its_source_and_only_static_spends_a_position() {
         use ScheduleSource::{Fallback, Model, Static};
         use StaticLadderRole::{Ceiling, Standby};
 
-        // Day 3 = at(72), day 10 = at(240) 00:00 / at(249) 09:00 / at(258) 18:00, day 14 = at(336).
-        // The ladder opens with 2 rungs used throughout, so `queried_rung` is 3: a spent rung
-        // leaves the count at 3, a kept one leaves it at 2.
+        // 2 rungs used throughout, so `queried_rung` is 3: a spent rung leaves the count at 3,
+        // a kept one at 2.
         #[rustfmt::skip]
         let cases = [
             // role,    model,          static,         fallback,       expected (source, rungs)
@@ -299,8 +293,6 @@ mod tests {
                     .expect("the winning source must have been given a time");
                     assert_eq!(decision.schedule_time, expected_time, "{row} wrong time");
 
-                    // The ladder position is persisted, so an edit that starts moving it where it
-                    // did not move before would change stored state unnoticed.
                     assert_eq!(
                         decision.next_progress.consumed_rungs, consumed_rungs,
                         "{row} spent the wrong number of ladder positions"
